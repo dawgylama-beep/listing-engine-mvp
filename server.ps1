@@ -190,7 +190,11 @@ function Handle-GenerateListing {
 
   $ApiKey = $env:OPENAI_API_KEY
   if (-not $ApiKey) {
-    Send-Json $Stream 500 @{ error = "Missing OPENAI_API_KEY. Add it to your environment or create a .env file from .env.example." }
+    $ApiKey = $env:OPEN_API_KEY
+  }
+
+  if (-not $ApiKey) {
+    Send-Json $Stream 500 @{ error = "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env." }
     return
   }
 

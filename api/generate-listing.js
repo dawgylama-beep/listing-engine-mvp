@@ -116,9 +116,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Upload at least one item photo." });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+
+    if (!apiKey) {
       return res.status(500).json({
-        error: "Missing OPENAI_API_KEY. Add it in your Vercel project environment variables."
+        error: "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env."
       });
     }
 
@@ -135,7 +137,7 @@ export default async function handler(req, res) {
     }
 
     const report = await generateReportWithOpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
       model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
       platform,
       notes,
