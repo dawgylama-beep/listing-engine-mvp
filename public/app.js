@@ -25,17 +25,19 @@ const listingSections = [
 ];
 
 const valuationSections = [
-  ["estimatedResaleRange", "Estimated Resale Range"],
+  ["estimatedFairMarketValue", "Estimated Fair Market Value"],
   ["recommendedBuyPrice", "Recommended Buy Price"],
-  ["maxSafeBuyPrice", "Max Safe Buy Price"],
+  ["maximumSafeBuyPrice", "Maximum Safe Buy Price"],
+  ["expectedProfitPotential", "Expected Profit Potential"],
   ["fastFlipPrice", "Fast Flip Price"],
   ["strongListingPrice", "Strong Listing Price"],
   ["premiumHoldPrice", "Premium Hold Price"],
+  ["expectedSellingTimeline", "Expected Selling Timeline"],
   ["buyerDemandLevel", "Buyer Demand Level"],
   ["valueDrivers", "Value Drivers"],
   ["riskFactors", "Risk Factors"],
-  ["whatToVerifyBeforeBuyingOrListing", "What To Verify Before Buying Or Listing"],
-  ["suggestedManualCompSearchTerms", "Suggested Manual Comp Search Terms"]
+  ["whatToVerifyBeforeBuying", "What to Verify Before Buying"],
+  ["suggestedManualSearchTerms", "Suggested Manual Search Terms"]
 ];
 
 const reportTypes = {
@@ -97,6 +99,18 @@ async function handleSubmit(event) {
 
   const mode = event.submitter && event.submitter.dataset.action === "marketValue" ? "marketValue" : "listing";
   const config = reportTypes[mode];
+  const formData = new FormData(form);
+  const platform = String(formData.get("platform") || "").trim();
+
+  if (mode === "listing" && !platform) {
+    latestReport = null;
+    latestSections = config.sections;
+    copyAllButton.disabled = true;
+    setOutputHeading(config);
+    renderEmpty(config);
+    setStatus("Choose a marketplace platform before generating a listing.", "error");
+    return;
+  }
 
   latestReport = null;
   latestSections = config.sections;
@@ -106,7 +120,6 @@ async function handleSubmit(event) {
   setStatus(config.loadingMessage, "loading");
 
   try {
-    const formData = new FormData(form);
     const photos = await preparePhotos();
 
     const response = await fetch("/api/generate-listing", {
@@ -115,7 +128,7 @@ async function handleSubmit(event) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        platform: formData.get("platform"),
+        platform,
         notes: formData.get("notes"),
         photos,
         reportType: config.reportType

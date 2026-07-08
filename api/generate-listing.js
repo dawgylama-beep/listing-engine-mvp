@@ -41,25 +41,29 @@ const valuationSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "estimatedResaleRange",
+    "estimatedFairMarketValue",
     "recommendedBuyPrice",
-    "maxSafeBuyPrice",
+    "maximumSafeBuyPrice",
+    "expectedProfitPotential",
     "fastFlipPrice",
     "strongListingPrice",
     "premiumHoldPrice",
+    "expectedSellingTimeline",
     "buyerDemandLevel",
     "valueDrivers",
     "riskFactors",
-    "whatToVerifyBeforeBuyingOrListing",
-    "suggestedManualCompSearchTerms"
+    "whatToVerifyBeforeBuying",
+    "suggestedManualSearchTerms"
   ],
   properties: {
-    estimatedResaleRange: { type: "string" },
+    estimatedFairMarketValue: { type: "string" },
     recommendedBuyPrice: { type: "string" },
-    maxSafeBuyPrice: { type: "string" },
+    maximumSafeBuyPrice: { type: "string" },
+    expectedProfitPotential: { type: "string" },
     fastFlipPrice: { type: "string" },
     strongListingPrice: { type: "string" },
     premiumHoldPrice: { type: "string" },
+    expectedSellingTimeline: { type: "string" },
     buyerDemandLevel: { type: "string" },
     valueDrivers: {
       type: "array",
@@ -73,13 +77,13 @@ const valuationSchema = {
       maxItems: 8,
       items: { type: "string" }
     },
-    whatToVerifyBeforeBuyingOrListing: {
+    whatToVerifyBeforeBuying: {
       type: "array",
       minItems: 3,
       maxItems: 8,
       items: { type: "string" }
     },
-    suggestedManualCompSearchTerms: {
+    suggestedManualSearchTerms: {
       type: "array",
       minItems: 3,
       maxItems: 8,
@@ -100,7 +104,7 @@ export default async function handler(req, res) {
     const photos = Array.isArray(body.photos) ? body.photos : [];
     const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
 
-    if (!platform) {
+    if (reportType === "listing" && !platform) {
       return res.status(400).json({ error: "Choose a marketplace platform." });
     }
 
@@ -155,15 +159,20 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
   const isMarketValue = reportType === "marketValue";
   const schema = isMarketValue ? valuationSchema : listingSchema;
   const schemaName = isMarketValue ? "market_value_report" : "marketplace_listing";
+  const platformContext = platform || "No specific marketplace selected. Use general resale market logic across likely online, local, collector, and secondhand marketplaces.";
   const systemText = isMarketValue
-    ? "You are Listing Engine, a careful resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
+    ? "You are Listing Engine, a careful buying and resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
     : "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.";
   const taskText = isMarketValue
     ? [
-        "Create a valuation-focused resale report.",
+        "Create a buying and valuation report, not a marketplace listing draft.",
         "Do not claim you searched live marketplaces, sold comps, current listings, or external databases.",
         "Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.",
-        "Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the seller should verify before buying or listing."
+        "If no platform is selected, analyze the item using general resale market logic across likely marketplaces.",
+        "If a platform is selected, include platform-specific observations while still providing an overall market analysis.",
+        "For online platforms such as eBay, Etsy, Mercari, Poshmark, and similar marketplaces, consider shipping cost, platform fees, packing difficulty, freight or oversized item concerns, fragile item risk, and the effect of shipping cost on buyer demand.",
+        "For Facebook Marketplace, Craigslist, OfferUp, flea markets, antique malls, and local resale, emphasize local pickup value, faster cash sale potential, negotiation flexibility, and the no-shipping advantage.",
+        "Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the buyer or seller should verify before buying."
       ]
     : [
         "Create a practical marketplace listing. Be specific, honest, and concise.",
@@ -174,7 +183,8 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
     {
       type: "input_text",
       text: [
-        `Marketplace platform: ${platform}`,
+        `Marketplace platform: ${platform || "No platform selected"}`,
+        ...(isMarketValue ? [`Market analysis context: ${platformContext}`] : []),
         `Seller item notes: ${notes}`,
         "",
         ...taskText

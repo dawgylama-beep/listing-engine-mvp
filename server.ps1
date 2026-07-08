@@ -50,25 +50,29 @@ $ValuationSchema = @{
   type = "object"
   additionalProperties = $false
   required = @(
-    "estimatedResaleRange",
+    "estimatedFairMarketValue",
     "recommendedBuyPrice",
-    "maxSafeBuyPrice",
+    "maximumSafeBuyPrice",
+    "expectedProfitPotential",
     "fastFlipPrice",
     "strongListingPrice",
     "premiumHoldPrice",
+    "expectedSellingTimeline",
     "buyerDemandLevel",
     "valueDrivers",
     "riskFactors",
-    "whatToVerifyBeforeBuyingOrListing",
-    "suggestedManualCompSearchTerms"
+    "whatToVerifyBeforeBuying",
+    "suggestedManualSearchTerms"
   )
   properties = @{
-    estimatedResaleRange = @{ type = "string" }
+    estimatedFairMarketValue = @{ type = "string" }
     recommendedBuyPrice = @{ type = "string" }
-    maxSafeBuyPrice = @{ type = "string" }
+    maximumSafeBuyPrice = @{ type = "string" }
+    expectedProfitPotential = @{ type = "string" }
     fastFlipPrice = @{ type = "string" }
     strongListingPrice = @{ type = "string" }
     premiumHoldPrice = @{ type = "string" }
+    expectedSellingTimeline = @{ type = "string" }
     buyerDemandLevel = @{ type = "string" }
     valueDrivers = @{
       type = "array"
@@ -82,13 +86,13 @@ $ValuationSchema = @{
       maxItems = 8
       items = @{ type = "string" }
     }
-    whatToVerifyBeforeBuyingOrListing = @{
+    whatToVerifyBeforeBuying = @{
       type = "array"
       minItems = 3
       maxItems = 8
       items = @{ type = "string" }
     }
-    suggestedManualCompSearchTerms = @{
+    suggestedManualSearchTerms = @{
       type = "array"
       minItems = 3
       maxItems = 8
@@ -169,7 +173,7 @@ function Handle-GenerateListing {
     }
   }
 
-  if (-not $Platform) {
+  if ($ReportType -eq "listing" -and -not $Platform) {
     Send-Json $Stream 400 @{ error = "Choose a marketplace platform." }
     return
   }
@@ -239,12 +243,16 @@ function Generate-ReportWithOpenAI {
   if ($ReportType -eq "marketValue") {
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
-    $SystemText = "You are Listing Engine, a careful resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
+    $SystemText = "You are Listing Engine, a careful buying and resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
     $TaskText = @"
-Create a valuation-focused resale report.
+Create a buying and valuation report, not a marketplace listing draft.
 Do not claim you searched live marketplaces, sold comps, current listings, or external databases.
 Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.
-Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the seller should verify before buying or listing.
+If no platform is selected, analyze the item using general resale market logic across likely marketplaces.
+If a platform is selected, include platform-specific observations while still providing an overall market analysis.
+For online platforms such as eBay, Etsy, Mercari, Poshmark, and similar marketplaces, consider shipping cost, platform fees, packing difficulty, freight or oversized item concerns, fragile item risk, and the effect of shipping cost on buyer demand.
+For Facebook Marketplace, Craigslist, OfferUp, flea markets, antique malls, and local resale, emphasize local pickup value, faster cash sale potential, negotiation flexibility, and the no-shipping advantage.
+Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the buyer or seller should verify before buying.
 "@
   } else {
     $Schema = $ListingSchema
@@ -256,9 +264,24 @@ Do not claim unseen condition details. If something is uncertain from the photos
 "@
   }
 
+  $PlatformLine = "Marketplace platform: $Platform"
+  $ContextLine = ""
+  if ($ReportType -eq "marketValue") {
+    if (-not $Platform) {
+      $PlatformLine = "Marketplace platform: No platform selected"
+      $ContextLine = "Market analysis context: No specific marketplace selected. Use general resale market logic across likely online, local, collector, and secondhand marketplaces."
+    } else {
+      $ContextLine = "Market analysis context: $Platform selected. Include platform-specific observations while still providing overall resale market analysis."
+    }
+  }
+  $MarketContextBlock = ""
+  if ($ContextLine) {
+    $MarketContextBlock = "$ContextLine`n"
+  }
+
   $UserText = @"
-Marketplace platform: $Platform
-Seller item notes: $Notes
+$PlatformLine
+${MarketContextBlock}Seller item notes: $Notes
 
 $TaskText
 "@
