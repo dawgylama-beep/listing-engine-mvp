@@ -42,17 +42,22 @@
               <textarea id="notes" name="notes" rows="8" placeholder="Brand, size, condition, flaws, measurements, accessories, pickup or shipping preferences..." required></textarea>
             </div>
 
-            <button id="generate-button" class="primary-button" type="submit">
-              <span id="button-label">Generate Listing</span>
-            </button>
+            <div class="action-row">
+              <button id="generate-button" class="primary-button" type="submit" data-action="listing">
+                <span id="button-label">Generate Listing</span>
+              </button>
+              <button id="market-value-button" class="value-button" type="submit" data-action="marketValue">
+                <span id="market-value-label">Check Market Value</span>
+              </button>
+            </div>
           </form>
         </div>
 
         <div class="panel output-panel">
           <div class="output-heading">
             <div>
-              <p class="eyebrow">Generated draft</p>
-              <h2>Listing Sections</h2>
+              <p id="output-eyebrow" class="eyebrow">Generated draft</p>
+              <h2 id="output-title">Listing Sections</h2>
             </div>
             <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
           </div>
