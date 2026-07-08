@@ -1,0 +1,13 @@
+{
+  "name": "listing-engine-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI-powered marketplace listing generator MVP.",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File ./server.ps1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
