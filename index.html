@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Listing Engine</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="app-title">
+        <div class="panel input-panel">
+          <header class="brand-header">
+            <p class="eyebrow">Marketplace draft generator</p>
+            <h1 id="app-title">Listing Engine</h1>
+          </header>
+
+          <form id="listing-form" class="listing-form">
+            <div class="field">
+              <label for="photos">Item photos</label>
+              <input id="photos" name="photos" type="file" accept="image/*" multiple required>
+              <p class="field-note">Up to 6 photos are resized locally before upload.</p>
+              <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
+            </div>
+
+            <div class="field">
+              <label for="platform">Marketplace platform</label>
+              <select id="platform" name="platform" required>
+                <option value="">Select a platform</option>
+                <option>Facebook Marketplace</option>
+                <option>eBay</option>
+                <option>Mercari</option>
+                <option>Poshmark</option>
+                <option>Etsy</option>
+                <option>Craigslist</option>
+                <option>OfferUp</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="notes">Item notes</label>
+              <textarea id="notes" name="notes" rows="8" placeholder="Brand, size, condition, flaws, measurements, accessories, pickup or shipping preferences..." required></textarea>
+            </div>
+
+            <div class="action-row">
+              <button id="generate-button" class="primary-button" type="submit" data-action="listing">
+                <span id="button-label">Generate Listing</span>
+              </button>
+              <button id="market-value-button" class="value-button" type="submit" data-action="marketValue">
+                <span id="market-value-label">Check Market Value</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel output-panel">
+          <div class="output-heading">
+            <div>
+              <p id="output-eyebrow" class="eyebrow">Generated draft</p>
+              <h2 id="output-title">Listing Sections</h2>
+            </div>
+            <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
+          </div>
+
+          <div id="status" class="status" role="status" aria-live="polite"></div>
+          <div id="results" class="results empty-state">
+            <p>Your listing draft will appear here.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -4,10 +4,14 @@ const preview = document.querySelector("#photo-preview");
 const statusBox = document.querySelector("#status");
 const results = document.querySelector("#results");
 const generateButton = document.querySelector("#generate-button");
+const marketValueButton = document.querySelector("#market-value-button");
 const buttonLabel = document.querySelector("#button-label");
+const marketValueLabel = document.querySelector("#market-value-label");
 const copyAllButton = document.querySelector("#copy-all");
+const outputEyebrow = document.querySelector("#output-eyebrow");
+const outputTitle = document.querySelector("#output-title");
 
-const sections = [
+const listingSections = [
   ["platform", "Platform"],
   ["categorySuggestion", "Category Suggestion"],
   ["title", "Title"],
@@ -20,16 +24,58 @@ const sections = [
   ["sellerNotes", "Seller Notes"]
 ];
 
-let latestListing = null;
+const valuationSections = [
+  ["estimatedResaleRange", "Estimated Resale Range"],
+  ["recommendedBuyPrice", "Recommended Buy Price"],
+  ["maxSafeBuyPrice", "Max Safe Buy Price"],
+  ["fastFlipPrice", "Fast Flip Price"],
+  ["strongListingPrice", "Strong Listing Price"],
+  ["premiumHoldPrice", "Premium Hold Price"],
+  ["buyerDemandLevel", "Buyer Demand Level"],
+  ["valueDrivers", "Value Drivers"],
+  ["riskFactors", "Risk Factors"],
+  ["whatToVerifyBeforeBuyingOrListing", "What To Verify Before Buying Or Listing"],
+  ["suggestedManualCompSearchTerms", "Suggested Manual Comp Search Terms"]
+];
+
+const reportTypes = {
+  listing: {
+    reportType: "listing",
+    responseKey: "listing",
+    sections: listingSections,
+    eyebrow: "Generated draft",
+    title: "Listing Sections",
+    emptyMessage: "Your listing draft will appear here.",
+    loadingMessage: "Generating listing from photos and notes...",
+    errorMessage: "Unable to generate listing.",
+    activeLabel: "Generating...",
+    defaultLabel: "Generate Listing"
+  },
+  marketValue: {
+    reportType: "marketValue",
+    responseKey: "valuation",
+    sections: valuationSections,
+    eyebrow: "Market value check",
+    title: "Valuation Report",
+    emptyMessage: "Your market value report will appear here.",
+    loadingMessage: "Checking market value from photos and notes...",
+    errorMessage: "Unable to check market value.",
+    activeLabel: "Checking...",
+    defaultLabel: "Check Market Value"
+  }
+};
+
+let latestReport = null;
+let latestSections = listingSections;
 
 photosInput.addEventListener("change", renderPhotoPreview);
-form.addEventListener("submit", generateListing);
+form.addEventListener("submit", handleSubmit);
 copyAllButton.addEventListener("click", () => {
-  if (!latestListing) {
+  if (!latestReport) {
     return;
   }
 
-  copyText(formatListing(latestListing), copyAllButton);
+  copyText(formatReport(latestReport, latestSections), copyAllButton);
 });
 
 function renderPhotoPreview() {
@@ -46,25 +92,22 @@ function renderPhotoPreview() {
   }
 }
 
-async function generateListing(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
-  latestListing = null;
+  const mode = event.submitter && event.submitter.dataset.action === "marketValue" ? "marketValue" : "listing";
+  const config = reportTypes[mode];
+
+  latestReport = null;
+  latestSections = config.sections;
   copyAllButton.disabled = true;
-  setLoading(true);
-  setStatus("Generating listing from photos and notes...", "loading");
+  setOutputHeading(config);
+  setLoading(true, mode);
+  setStatus(config.loadingMessage, "loading");
 
   try {
     const formData = new FormData(form);
-    const photoFiles = Array.from(photosInput.files || []).slice(0, 6);
-    const photos = [];
-
-    for (const file of photoFiles) {
-      photos.push({
-        name: file.name,
-        dataUrl: await resizeImage(file)
-      });
-    }
+    const photos = await preparePhotos();
 
     const response = await fetch("/api/generate-listing", {
       method: "POST",
@@ -74,28 +117,49 @@ async function generateListing(event) {
       body: JSON.stringify({
         platform: formData.get("platform"),
         notes: formData.get("notes"),
-        photos
+        photos,
+        reportType: config.reportType
       })
     });
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || "Unable to generate listing.");
+      throw new Error(data.error || config.errorMessage);
     }
 
-    latestListing = data.listing;
-    renderListing(latestListing);
+    const report = data[config.responseKey];
+    if (!report) {
+      throw new Error(config.errorMessage);
+    }
+
+    latestReport = report;
+    latestSections = config.sections;
+    renderReport(report, config.sections);
     clearStatus();
     copyAllButton.disabled = false;
   } catch (error) {
-    renderEmpty();
-    setStatus(error.message || "Unable to generate listing.", "error");
+    renderEmpty(config);
+    setStatus(error.message || config.errorMessage, "error");
   } finally {
-    setLoading(false);
+    setLoading(false, mode);
   }
 }
 
-function renderListing(listing) {
+async function preparePhotos() {
+  const photoFiles = Array.from(photosInput.files || []).slice(0, 6);
+  const photos = [];
+
+  for (const file of photoFiles) {
+    photos.push({
+      name: file.name,
+      dataUrl: await resizeImage(file)
+    });
+  }
+
+  return photos;
+}
+
+function renderReport(report, sections) {
   results.classList.remove("empty-state");
   results.innerHTML = "";
 
@@ -113,11 +177,11 @@ function renderListing(listing) {
     copyButton.className = "copy-button";
     copyButton.type = "button";
     copyButton.textContent = "Copy";
-    copyButton.addEventListener("click", () => copyText(formatSection(label, listing[key]), copyButton));
+    copyButton.addEventListener("click", () => copyText(formatSection(label, report[key]), copyButton));
 
     const body = document.createElement("div");
     body.className = "section-body";
-    body.appendChild(renderValue(listing[key]));
+    body.appendChild(renderValue(report[key]));
 
     header.append(title, copyButton);
     card.append(header, body);
@@ -141,16 +205,23 @@ function renderValue(value) {
   return paragraph;
 }
 
-function renderEmpty() {
-  latestListing = null;
+function renderEmpty(config = reportTypes.listing) {
+  latestReport = null;
   copyAllButton.disabled = true;
   results.className = "results empty-state";
-  results.innerHTML = "<p>Your listing draft will appear here.</p>";
+  results.innerHTML = `<p>${config.emptyMessage}</p>`;
 }
 
-function setLoading(isLoading) {
+function setOutputHeading(config) {
+  outputEyebrow.textContent = config.eyebrow;
+  outputTitle.textContent = config.title;
+}
+
+function setLoading(isLoading, mode) {
   generateButton.disabled = isLoading;
-  buttonLabel.textContent = isLoading ? "Generating..." : "Generate Listing";
+  marketValueButton.disabled = isLoading;
+  buttonLabel.textContent = isLoading && mode === "listing" ? reportTypes.listing.activeLabel : reportTypes.listing.defaultLabel;
+  marketValueLabel.textContent = isLoading && mode === "marketValue" ? reportTypes.marketValue.activeLabel : reportTypes.marketValue.defaultLabel;
 }
 
 function setStatus(message, type) {
@@ -172,8 +243,8 @@ async function copyText(text, button) {
   }, 1200);
 }
 
-function formatListing(listing) {
-  return sections.map(([key, label]) => formatSection(label, listing[key])).join("\n\n");
+function formatReport(report, sections) {
+  return sections.map(([key, label]) => formatSection(label, report[key])).join("\n\n");
 }
 
 function formatSection(label, value) {

@@ -46,6 +46,57 @@ $ListingSchema = @{
   }
 }
 
+$ValuationSchema = @{
+  type = "object"
+  additionalProperties = $false
+  required = @(
+    "estimatedResaleRange",
+    "recommendedBuyPrice",
+    "maxSafeBuyPrice",
+    "fastFlipPrice",
+    "strongListingPrice",
+    "premiumHoldPrice",
+    "buyerDemandLevel",
+    "valueDrivers",
+    "riskFactors",
+    "whatToVerifyBeforeBuyingOrListing",
+    "suggestedManualCompSearchTerms"
+  )
+  properties = @{
+    estimatedResaleRange = @{ type = "string" }
+    recommendedBuyPrice = @{ type = "string" }
+    maxSafeBuyPrice = @{ type = "string" }
+    fastFlipPrice = @{ type = "string" }
+    strongListingPrice = @{ type = "string" }
+    premiumHoldPrice = @{ type = "string" }
+    buyerDemandLevel = @{ type = "string" }
+    valueDrivers = @{
+      type = "array"
+      minItems = 3
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    riskFactors = @{
+      type = "array"
+      minItems = 3
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    whatToVerifyBeforeBuyingOrListing = @{
+      type = "array"
+      minItems = 3
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    suggestedManualCompSearchTerms = @{
+      type = "array"
+      minItems = 3
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+  }
+}
+
 function Handle-Client {
   param([System.Net.Sockets.TcpClient]$Client)
 
@@ -104,6 +155,10 @@ function Handle-GenerateListing {
 
   $Platform = Clean-Text $Body.platform
   $Notes = Clean-Text $Body.notes
+  $ReportType = Clean-Text $Body.reportType
+  if ($ReportType -ne "marketValue") {
+    $ReportType = "listing"
+  }
   $Photos = @()
 
   if ($null -ne $Body.photos) {
@@ -160,28 +215,52 @@ function Handle-GenerateListing {
   }
 
   try {
-    $Listing = Generate-ListingWithOpenAI -ApiKey $ApiKey -Model $Model -Platform $Platform -Notes $Notes -Photos $SafePhotos
-    Send-Json $Stream 200 @{ listing = $Listing }
+    $Report = Generate-ReportWithOpenAI -ApiKey $ApiKey -Model $Model -Platform $Platform -Notes $Notes -Photos $SafePhotos -ReportType $ReportType
+    if ($ReportType -eq "marketValue") {
+      Send-Json $Stream 200 @{ valuation = $Report }
+    } else {
+      Send-Json $Stream 200 @{ listing = $Report }
+    }
   } catch {
     Send-Json $Stream 502 @{ error = $_.Exception.Message }
   }
 }
 
-function Generate-ListingWithOpenAI {
+function Generate-ReportWithOpenAI {
   param(
     [string]$ApiKey,
     [string]$Model,
     [string]$Platform,
     [string]$Notes,
-    [array]$Photos
+    [array]$Photos,
+    [string]$ReportType
   )
+
+  if ($ReportType -eq "marketValue") {
+    $Schema = $ValuationSchema
+    $SchemaName = "market_value_report"
+    $SystemText = "You are Listing Engine, a careful resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
+    $TaskText = @"
+Create a valuation-focused resale report.
+Do not claim you searched live marketplaces, sold comps, current listings, or external databases.
+Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.
+Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the seller should verify before buying or listing.
+"@
+  } else {
+    $Schema = $ListingSchema
+    $SchemaName = "marketplace_listing"
+    $SystemText = "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
+    $TaskText = @"
+Create a practical marketplace listing. Be specific, honest, and concise.
+Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify.
+"@
+  }
 
   $UserText = @"
 Marketplace platform: $Platform
 Seller item notes: $Notes
 
-Create a practical marketplace listing. Be specific, honest, and concise.
-Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify.
+$TaskText
 "@
 
   $UserContent = @(
@@ -207,7 +286,7 @@ Do not claim unseen condition details. If something is uncertain from the photos
         content = @(
           @{
             type = "input_text"
-            text = "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
+            text = $SystemText
           }
         )
       },
@@ -219,8 +298,8 @@ Do not claim unseen condition details. If something is uncertain from the photos
     text = @{
       format = @{
         type = "json_schema"
-        name = "marketplace_listing"
-        schema = $ListingSchema
+        name = $SchemaName
+        schema = $Schema
         strict = $true
       }
     }

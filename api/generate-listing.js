@@ -37,6 +37,57 @@ const listingSchema = {
   }
 };
 
+const valuationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "estimatedResaleRange",
+    "recommendedBuyPrice",
+    "maxSafeBuyPrice",
+    "fastFlipPrice",
+    "strongListingPrice",
+    "premiumHoldPrice",
+    "buyerDemandLevel",
+    "valueDrivers",
+    "riskFactors",
+    "whatToVerifyBeforeBuyingOrListing",
+    "suggestedManualCompSearchTerms"
+  ],
+  properties: {
+    estimatedResaleRange: { type: "string" },
+    recommendedBuyPrice: { type: "string" },
+    maxSafeBuyPrice: { type: "string" },
+    fastFlipPrice: { type: "string" },
+    strongListingPrice: { type: "string" },
+    premiumHoldPrice: { type: "string" },
+    buyerDemandLevel: { type: "string" },
+    valueDrivers: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    riskFactors: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    whatToVerifyBeforeBuyingOrListing: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    suggestedManualCompSearchTerms: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: { type: "string" }
+    }
+  }
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed." });
@@ -47,6 +98,7 @@ export default async function handler(req, res) {
     const platform = cleanText(body.platform);
     const notes = cleanText(body.notes);
     const photos = Array.isArray(body.photos) ? body.photos : [];
+    const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
 
     if (!platform) {
       return res.status(400).json({ error: "Choose a marketplace platform." });
@@ -78,15 +130,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Uploaded photos must be image files." });
     }
 
-    const listing = await generateListingWithOpenAI({
+    const report = await generateReportWithOpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
       platform,
       notes,
-      photos: safePhotos
+      photos: safePhotos,
+      reportType
     });
 
-    return res.status(200).json({ listing });
+    if (reportType === "marketValue") {
+      return res.status(200).json({ valuation: report });
+    }
+
+    return res.status(200).json({ listing: report });
   } catch (error) {
     return res.status(502).json({
       error: error.message || "OpenAI API request failed."
@@ -94,7 +151,25 @@ export default async function handler(req, res) {
   }
 }
 
-async function generateListingWithOpenAI({ apiKey, model, platform, notes, photos }) {
+async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType }) {
+  const isMarketValue = reportType === "marketValue";
+  const schema = isMarketValue ? valuationSchema : listingSchema;
+  const schemaName = isMarketValue ? "market_value_report" : "marketplace_listing";
+  const systemText = isMarketValue
+    ? "You are Listing Engine, a careful resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
+    : "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.";
+  const taskText = isMarketValue
+    ? [
+        "Create a valuation-focused resale report.",
+        "Do not claim you searched live marketplaces, sold comps, current listings, or external databases.",
+        "Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.",
+        "Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the seller should verify before buying or listing."
+      ]
+    : [
+        "Create a practical marketplace listing. Be specific, honest, and concise.",
+        "Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify."
+      ];
+
   const userContent = [
     {
       type: "input_text",
@@ -102,8 +177,7 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
         `Marketplace platform: ${platform}`,
         `Seller item notes: ${notes}`,
         "",
-        "Create a practical marketplace listing. Be specific, honest, and concise.",
-        "Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify."
+        ...taskText
       ].join("\n")
     },
     ...photos.map((photo) => ({
@@ -121,7 +195,7 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
         content: [
           {
             type: "input_text",
-            text: "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
+            text: systemText
           }
         ]
       },
@@ -133,8 +207,8 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
     text: {
       format: {
         type: "json_schema",
-        name: "marketplace_listing",
-        schema: listingSchema,
+        name: schemaName,
+        schema,
         strict: true
       }
     }
