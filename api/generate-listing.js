@@ -41,30 +41,23 @@ const valuationSchema = {
   type: "object",
   additionalProperties: false,
   required: [
+    "decision",
+    "priceConfidence",
+    "priceBasis",
     "estimatedFairMarketValue",
-    "recommendedBuyPrice",
-    "maximumSafeBuyPrice",
-    "expectedProfitPotential",
-    "fastFlipPrice",
-    "strongListingPrice",
-    "premiumHoldPrice",
-    "expectedSellingTimeline",
-    "buyerDemandLevel",
+    "maximumRecommendedBuyPrice",
+    "resaleOutlook",
     "valueDrivers",
     "riskFactors",
-    "whatToVerifyBeforeBuying",
-    "suggestedManualSearchTerms"
+    "whatToVerifyBeforeBuying"
   ],
   properties: {
+    decision: { type: "string" },
+    priceConfidence: { type: "string" },
+    priceBasis: { type: "string" },
     estimatedFairMarketValue: { type: "string" },
-    recommendedBuyPrice: { type: "string" },
-    maximumSafeBuyPrice: { type: "string" },
-    expectedProfitPotential: { type: "string" },
-    fastFlipPrice: { type: "string" },
-    strongListingPrice: { type: "string" },
-    premiumHoldPrice: { type: "string" },
-    expectedSellingTimeline: { type: "string" },
-    buyerDemandLevel: { type: "string" },
+    maximumRecommendedBuyPrice: { type: "string" },
+    resaleOutlook: { type: "string" },
     valueDrivers: {
       type: "array",
       minItems: 3,
@@ -78,12 +71,6 @@ const valuationSchema = {
       items: { type: "string" }
     },
     whatToVerifyBeforeBuying: {
-      type: "array",
-      minItems: 3,
-      maxItems: 8,
-      items: { type: "string" }
-    },
-    suggestedManualSearchTerms: {
       type: "array",
       minItems: 3,
       maxItems: 8,
@@ -167,8 +154,18 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
     : "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.";
   const taskText = isMarketValue
     ? [
-        "Create a buying and valuation report, not a marketplace listing draft.",
+        "Create a Worth Buying / Market Intelligence report, not a marketplace listing draft.",
         "Do not claim you searched live marketplaces, sold comps, current listings, or external databases.",
+        "The priceBasis section must say: No live marketplace sold-comps were searched. This estimate is based on the item description/photo, general resale-market patterns, category demand, condition assumptions, scarcity signals, and likely buyer behavior.",
+        "The decision section must start with exactly one of these labels: Buy, Negotiate, Pass, or Need More Info. Explain the reasoning briefly.",
+        "The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.",
+        "If the item description is too vague, avoid strong conclusions. Use Need More Info as the decision or Low as the price confidence, and explain the uncertainty.",
+        "For vague items like vintage window sticker, ask specifically for a photo, exact wording/logo/brand, size, approximate age, condition, whether adhesive/backing is intact, and any maker marks or event/location tie-in.",
+        "Use a broad estimatedFairMarketValue range, not a false-precision single number.",
+        "In maximumRecommendedBuyPrice, include margin logic that accounts for resale spread, fees, shipping or pickup friction, cleaning/packing effort, and risk.",
+        "In resaleOutlook, include expected resale range, likely selling timeline, and best platform recommendations.",
+        "In valueDrivers, consider brand/maker, age, rarity, subject matter, graphics, condition, size, material, completeness, original packaging, markings, and demand.",
+        "In riskFactors, consider unknown authenticity, poor condition, reproduction risk, common item risk, shipping risk, weak demand, and missing identifying details.",
         "Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.",
         "If no platform is selected, analyze the item using general resale market logic across likely marketplaces.",
         "If a platform is selected, include platform-specific observations while still providing an overall market analysis.",

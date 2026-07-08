@@ -25,19 +25,15 @@ const listingSections = [
 ];
 
 const valuationSections = [
+  ["decision", "Decision"],
+  ["priceConfidence", "Price Confidence"],
+  ["priceBasis", "Price Basis"],
   ["estimatedFairMarketValue", "Estimated Fair Market Value"],
-  ["recommendedBuyPrice", "Recommended Buy Price"],
-  ["maximumSafeBuyPrice", "Maximum Safe Buy Price"],
-  ["expectedProfitPotential", "Expected Profit Potential"],
-  ["fastFlipPrice", "Fast Flip Price"],
-  ["strongListingPrice", "Strong Listing Price"],
-  ["premiumHoldPrice", "Premium Hold Price"],
-  ["expectedSellingTimeline", "Expected Selling Timeline"],
-  ["buyerDemandLevel", "Buyer Demand Level"],
+  ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
+  ["resaleOutlook", "Resale Outlook"],
   ["valueDrivers", "Value Drivers"],
   ["riskFactors", "Risk Factors"],
-  ["whatToVerifyBeforeBuying", "What to Verify Before Buying"],
-  ["suggestedManualSearchTerms", "Suggested Manual Search Terms"]
+  ["whatToVerifyBeforeBuying", "What To Verify Before Buying"]
 ];
 
 const reportTypes = {
