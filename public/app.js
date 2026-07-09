@@ -28,7 +28,10 @@ const listingSections = [
 const valuationSections = [
   ["purchaserDecision", "Purchaser Decision"],
   ["liveComparableSearchStatus", "Live Comparable Search Status"],
-  ["comparableItemsFound", "Comparable Items Found"],
+  ["weFoundThisItem", "We Found This Item"],
+  ["weFoundSimilarComparableItems", "We Found Similar Comparable Items"],
+  ["noReliableComparableItemsFound", "No Reliable Comparable Items Found"],
+  ["searchCoverage", "Search Coverage"],
   ["buyerTypeFit", "Buyer Type Fit"],
   ["marketType", "Market Type"],
   ["itemClarityScore", "Item Clarity Score"],
@@ -38,11 +41,10 @@ const valuationSections = [
   ["estimatedMarketValue", "Estimated Market Value"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
   ["betterPriceCheckNeeded", "Better-Price Check Needed?"],
-  ["marketplaceSweepWhereToCheck", "Marketplace Sweep / Where To Check"],
   ["resalePotential", "Resale Potential"],
   ["missingDetails", "Missing Details"],
   ["whatToVerifyBeforeBuying", "What To Verify Before Buying"],
-  ["suggestedSearchTerms", "Suggested Search Terms"]
+  ["searchQueriesUsed", "Search Queries Used"]
 ];
 
 const reportTypes = {
@@ -235,7 +237,11 @@ function renderReport(report, sections) {
 }
 
 function shouldRenderSection(key, value) {
-  if (key === "comparableItemsFound" && (!Array.isArray(value) || value.length === 0)) {
+  if (Array.isArray(value) && value.length === 0) {
+    return false;
+  }
+
+  if (key === "noReliableComparableItemsFound" && !value) {
     return false;
   }
 

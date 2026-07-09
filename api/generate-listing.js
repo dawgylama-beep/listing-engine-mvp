@@ -43,7 +43,10 @@ const valuationSchema = {
   required: [
     "purchaserDecision",
     "liveComparableSearchStatus",
-    "comparableItemsFound",
+    "weFoundThisItem",
+    "weFoundSimilarComparableItems",
+    "noReliableComparableItemsFound",
+    "searchCoverage",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -53,19 +56,31 @@ const valuationSchema = {
     "estimatedMarketValue",
     "maximumRecommendedBuyPrice",
     "betterPriceCheckNeeded",
-    "marketplaceSweepWhereToCheck",
     "resalePotential",
     "missingDetails",
     "whatToVerifyBeforeBuying",
-    "suggestedSearchTerms"
+    "searchQueriesUsed"
   ],
   properties: {
     purchaserDecision: { type: "string" },
     liveComparableSearchStatus: { type: "string" },
-    comparableItemsFound: {
+    weFoundThisItem: {
       type: "array",
       minItems: 0,
       maxItems: 6,
+      items: { type: "string" }
+    },
+    weFoundSimilarComparableItems: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    noReliableComparableItemsFound: { type: "string" },
+    searchCoverage: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
       items: { type: "string" }
     },
     buyerTypeFit: {
@@ -87,12 +102,6 @@ const valuationSchema = {
     estimatedMarketValue: { type: "string" },
     maximumRecommendedBuyPrice: { type: "string" },
     betterPriceCheckNeeded: { type: "string" },
-    marketplaceSweepWhereToCheck: {
-      type: "array",
-      minItems: 3,
-      maxItems: 9,
-      items: { type: "string" }
-    },
     resalePotential: { type: "string" },
     missingDetails: {
       type: "array",
@@ -106,9 +115,9 @@ const valuationSchema = {
       maxItems: 8,
       items: { type: "string" }
     },
-    suggestedSearchTerms: {
+    searchQueriesUsed: {
       type: "array",
-      minItems: 3,
+      minItems: 0,
       maxItems: 8,
       items: { type: "string" }
     }
@@ -339,6 +348,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "You must use web search. Do not rely only on general model knowledge.",
         "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
+        "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
         "Classify each reliable result as Exact Match, Strong Similar Match, or Weak Similar Match, and explain why it is or is not comparable.",
         "If no reliable source-backed comps are found, return an empty comparableItemsFound array.",
@@ -418,7 +428,11 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Use live comparable results when available, but do not invent or add comparable items beyond the supplied source-backed comparableItemsFound list.",
     "If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.",
     "The liveComparableSearchStatus section must be exactly the live search status supplied by the backend.",
-    "The comparableItemsFound section must use exactly the source-backed comparable items supplied by the backend. If the supplied list is empty, return an empty array.",
+    "The weFoundThisItem section must use only source-backed items supplied by the backend that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.",
+    "The weFoundSimilarComparableItems section must use only source-backed items supplied by the backend that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.",
+    "The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, use exactly: Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.",
+    "The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.",
+    "Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.",
     "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
     "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
     "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
@@ -427,9 +441,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     `The priceBasis section must distinguish source-backed live comparable search from AI-only fallback. Use this basis: ${liveSearchInstruction}`,
     "Use a broad estimatedMarketValue range, not a false-precision single number.",
     "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
-    "In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
-    "Keep marketplaceSweepWhereToCheck as manual backup guidance separate from Live Comparable Search.",
-    "In marketplaceSweepWhereToCheck, include one bullet-style string per relevant platform. Each string must include platform name, why it matters or does not matter for this item, what price signal to look for, and a suggested manual search phrase.",
+    "In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not tell the user to go search elsewhere, and do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
     "Do not default to eBay. eBay is only one market signal and should be mentioned only when the source route or item category makes it useful.",
     "For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.",
     "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
@@ -439,7 +451,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.",
     "In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.",
     "In whatToVerifyBeforeBuying, ask category-specific verification questions.",
-    "In suggestedSearchTerms, provide exact phrases the user can copy into Google, eBay, Amazon, retailer sites, or marketplace search. Clearly state these are suggested manual searches, not searches the app already performed.",
+    "The searchQueriesUsed section must only include queries the backend actually used. Start with: These are the queries the system used.",
     "If photos show a tag, SKU, model, label, barcode, or other identifier, use that information in the reasoning.",
     "Make the report practical for a person standing in a store, flea market, consignment shop, thrift store, antique mall, or looking at an online listing."
   ];
@@ -685,6 +697,10 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
 
 function enforceLiveSearchHonesty(report, liveSearch) {
   const comparableItemsFound = liveSearch.liveSearchStatus === "Live Search Completed" ? liveSearch.comparableItemsFound : [];
+  const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
+  const noReliableMessage = hasReliableMatch
+    ? ""
+    : "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.";
   const basis = liveSearch.liveSearchStatus === "Live Search Completed"
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
     : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
@@ -692,9 +708,72 @@ function enforceLiveSearchHonesty(report, liveSearch) {
   return {
     ...report,
     liveComparableSearchStatus: liveSearch.liveSearchStatus,
-    comparableItemsFound,
+    weFoundThisItem: exactItems,
+    weFoundSimilarComparableItems: similarItems,
+    noReliableComparableItemsFound: noReliableMessage,
+    searchCoverage: buildSearchCoverage(liveSearch),
+    searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
+}
+
+function splitComparableItems(items) {
+  const exactItems = [];
+  const similarItems = [];
+  let hasReliableMatch = false;
+
+  for (const item of items) {
+    if (/\bexact match\b|\blikely exact\b/i.test(item)) {
+      exactItems.push(item);
+      hasReliableMatch = true;
+    } else {
+      similarItems.push(item);
+      if (/\bstrong similar match\b/i.test(item)) {
+        hasReliableMatch = true;
+      }
+    }
+  }
+
+  return { exactItems, similarItems, hasReliableMatch };
+}
+
+function buildSearchCoverage(liveSearch) {
+  if (!liveSearch.webSearchExecuted) {
+    return ["Live comparable search was unavailable before source categories could be searched."];
+  }
+
+  const routeText = liveSearch.sourceRoute.join(" ").toLowerCase();
+  const coverage = [];
+
+  if (/holiday|collectible|vintage|ceramic|etsy|mercari|collector|resale/.test(routeText)) {
+    coverage.push("Searched relevant holiday decor / collectible sources.");
+  }
+
+  if (/brand|manufacturer|retailer|google shopping|amazon|major retail/.test(routeText)) {
+    coverage.push("Searched retail/product sources.");
+  }
+
+  if (/fashion|apparel|poshmark/.test(routeText)) {
+    coverage.push("Searched fashion resale/retail sources.");
+  }
+
+  if (/electronics|refurbished|best buy|newegg|model/.test(routeText)) {
+    coverage.push("Searched electronics/model-number sources.");
+  }
+
+  if (/facebook|craigslist|offerup|local|furniture|consignment/.test(routeText)) {
+    coverage.push("Searched local/bulky-item source categories where available.");
+  }
+
+  return coverage.length ? coverage : ["Searched source categories selected from the item details and buyer context."];
+}
+
+function buildSearchQueriesUsed(liveSearch) {
+  if (!liveSearch.webSearchExecuted || !liveSearch.searchQueries.length) {
+    return [];
+  }
+
+  return ["These are the queries the system used.", ...liveSearch.searchQueries];
 }
 
 function collectUrlCitations(data) {

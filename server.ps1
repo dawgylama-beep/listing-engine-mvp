@@ -52,7 +52,10 @@ $ValuationSchema = @{
   required = @(
     "purchaserDecision",
     "liveComparableSearchStatus",
-    "comparableItemsFound",
+    "weFoundThisItem",
+    "weFoundSimilarComparableItems",
+    "noReliableComparableItemsFound",
+    "searchCoverage",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -62,19 +65,31 @@ $ValuationSchema = @{
     "estimatedMarketValue",
     "maximumRecommendedBuyPrice",
     "betterPriceCheckNeeded",
-    "marketplaceSweepWhereToCheck",
     "resalePotential",
     "missingDetails",
     "whatToVerifyBeforeBuying",
-    "suggestedSearchTerms"
+    "searchQueriesUsed"
   )
   properties = @{
     purchaserDecision = @{ type = "string" }
     liveComparableSearchStatus = @{ type = "string" }
-    comparableItemsFound = @{
+    weFoundThisItem = @{
       type = "array"
       minItems = 0
       maxItems = 6
+      items = @{ type = "string" }
+    }
+    weFoundSimilarComparableItems = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    noReliableComparableItemsFound = @{ type = "string" }
+    searchCoverage = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
       items = @{ type = "string" }
     }
     buyerTypeFit = @{
@@ -96,12 +111,6 @@ $ValuationSchema = @{
     estimatedMarketValue = @{ type = "string" }
     maximumRecommendedBuyPrice = @{ type = "string" }
     betterPriceCheckNeeded = @{ type = "string" }
-    marketplaceSweepWhereToCheck = @{
-      type = "array"
-      minItems = 3
-      maxItems = 9
-      items = @{ type = "string" }
-    }
     resalePotential = @{ type = "string" }
     missingDetails = @{
       type = "array"
@@ -115,9 +124,9 @@ $ValuationSchema = @{
       maxItems = 8
       items = @{ type = "string" }
     }
-    suggestedSearchTerms = @{
+    searchQueriesUsed = @{
       type = "array"
-      minItems = 3
+      minItems = 0
       maxItems = 8
       items = @{ type = "string" }
     }
@@ -283,7 +292,11 @@ Do not default to eBay. eBay is only one market signal and should be used only w
 The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
 If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.
 The liveComparableSearchStatus section must use exactly one of these values: Live Search Completed, Live Search Attempted - No Reliable Comps Found, or Live Search Unavailable - AI Reasoning Only.
-The comparableItemsFound section may include only source-backed live search results. Each item must include title, source/platform/site, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it is or is not comparable. If no reliable source-backed comps are found, return an empty array.
+The weFoundThisItem section must use only source-backed items found by the web_search tool that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.
+The weFoundSimilarComparableItems section must use only source-backed items found by the web_search tool that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.
+The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, use exactly: Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.
+The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.
+Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
 The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
 The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
@@ -293,9 +306,7 @@ If live search completed, the priceBasis section must say: Live comparable searc
 If live search failed, was unavailable, or returned no reliable matches, the priceBasis section must say: Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.
 Use a broad estimatedMarketValue range, not a false-precision single number.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
-In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found unless source-backed comparableItemsFound support that.
-Keep marketplaceSweepWhereToCheck as manual backup guidance separate from Live Comparable Search.
-In marketplaceSweepWhereToCheck, include one bullet-style string per relevant platform. Each string must include platform name, why it matters or does not matter for this item, what price signal to look for, and a suggested manual search phrase.
+In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not direct the user to perform additional marketplace searching, and do not claim actual cheaper listings were found unless source-backed results support that.
 For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.
 For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.
 For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.
@@ -304,7 +315,7 @@ For furniture or bulky local goods, prioritize Facebook Marketplace-style local 
 In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.
 In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.
 In whatToVerifyBeforeBuying, ask category-specific verification questions.
-In suggestedSearchTerms, provide exact phrases the user can copy into Google, eBay, Amazon, retailer sites, or marketplace search. Clearly state these are suggested manual searches, not searches the app already performed.
+The searchQueriesUsed section must only include queries the system actually used. Start with: These are the queries the system used.
 If photos show a tag, SKU, model, label, barcode, or other identifier, use that information in the reasoning.
 Make the report practical for a person standing in a store, flea market, consignment shop, thrift store, antique mall, or looking at an online listing.
 For vague items like vintage window sticker, ask specifically for a photo, exact wording/logo/brand, size, approximate age, condition, whether adhesive/backing is intact, and any maker marks or event/location tie-in.
@@ -443,9 +454,24 @@ function Set-LiveSearchHonesty {
   $SearchCalls = @(Get-WebSearchCalls $Response)
   $Citations = @(Get-UrlCitations $Response)
   $SourceBackedItems = @(
-    Normalize-ReportArray $Report.comparableItemsFound |
+    (Normalize-ReportArray $Report.weFoundThisItem) + (Normalize-ReportArray $Report.weFoundSimilarComparableItems) |
       Where-Object { Test-CitedUrl $_ $Citations }
   )
+  $ExactItems = @()
+  $SimilarItems = @()
+  $HasReliableMatch = $false
+
+  foreach ($Item in $SourceBackedItems) {
+    if ($Item -match "\bexact match\b|\blikely exact\b") {
+      $ExactItems += $Item
+      $HasReliableMatch = $true
+    } else {
+      $SimilarItems += $Item
+      if ($Item -match "\bstrong similar match\b") {
+        $HasReliableMatch = $true
+      }
+    }
+  }
 
   if ($SearchCalls.Count -gt 0 -and $SourceBackedItems.Count -gt 0) {
     $Status = "Live Search Completed"
@@ -454,14 +480,27 @@ function Set-LiveSearchHonesty {
     $Status = "Live Search Attempted - No Reliable Comps Found"
     $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
     $SourceBackedItems = @()
+    $ExactItems = @()
+    $SimilarItems = @()
   } else {
     $Status = "Live Search Unavailable - AI Reasoning Only"
     $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
     $SourceBackedItems = @()
+    $ExactItems = @()
+    $SimilarItems = @()
   }
 
   $Report | Add-Member -NotePropertyName "liveComparableSearchStatus" -NotePropertyValue $Status -Force
-  $Report | Add-Member -NotePropertyName "comparableItemsFound" -NotePropertyValue @($SourceBackedItems) -Force
+  $Report | Add-Member -NotePropertyName "weFoundThisItem" -NotePropertyValue @($ExactItems) -Force
+  $Report | Add-Member -NotePropertyName "weFoundSimilarComparableItems" -NotePropertyValue @($SimilarItems) -Force
+  if ($HasReliableMatch) {
+    $NoReliableMessage = ""
+  } else {
+    $NoReliableMessage = "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found."
+  }
+  $Report | Add-Member -NotePropertyName "noReliableComparableItemsFound" -NotePropertyValue $NoReliableMessage -Force
+  $Report | Add-Member -NotePropertyName "searchCoverage" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force
+  $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue @(Get-SearchQueriesUsed $Response) -Force
 
   $PriceBasis = Clean-Text $Report.priceBasis
   if (-not $PriceBasis.ToLowerInvariant().StartsWith($Basis.ToLowerInvariant())) {
@@ -470,6 +509,46 @@ function Set-LiveSearchHonesty {
   $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue $PriceBasis -Force
 
   return $Report
+}
+
+function Get-SearchCoverage {
+  param(
+    $Report,
+    [string]$Status
+  )
+
+  $Coverage = @(
+    Normalize-ReportArray $Report.searchCoverage |
+      Where-Object { $_ -match "^Searched " }
+  )
+
+  if ($Coverage.Count -gt 0) {
+    return $Coverage
+  }
+
+  if ($Status -eq "Live Search Unavailable - AI Reasoning Only") {
+    return @("Live comparable search was unavailable before source categories could be searched.")
+  }
+
+  return @("Searched source categories selected from the item details and buyer context.")
+}
+
+function Get-SearchQueriesUsed {
+  param($Data)
+
+  $Queries = @()
+  foreach ($Call in Get-WebSearchCalls $Data) {
+    if ($Call.action -and $Call.action.query) {
+      $Queries += (Clean-Text $Call.action.query)
+    }
+  }
+
+  $Queries = @($Queries | Where-Object { $_ } | Select-Object -Unique)
+  if ($Queries.Count -eq 0) {
+    return @()
+  }
+
+  return @("These are the queries the system used.") + $Queries
 }
 
 function Get-WebSearchCalls {

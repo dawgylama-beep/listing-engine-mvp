@@ -53,6 +53,13 @@
 - Source routing avoids defaulting to eBay
 - AI-only fallback preserved when live search is unavailable or unreliable
 
+## Version 1.5.1 (Completed)
+- User-facing live comps wording clarified
+- Exact and similar comparable items separated
+- No Reliable Comparable Items Found added
+- Marketplace Sweep replaced with Search Coverage
+- Suggested Search Terms replaced with Search Queries Used
+
 ## Version 2.0
 - User accounts
 - Saved listings
