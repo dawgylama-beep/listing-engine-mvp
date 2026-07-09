@@ -40,6 +40,12 @@
 - Suggested manual search terms
 - Live source-backed search remains future/not implemented
 
+## Version 1.4.1 (Completed)
+- Marketplace Sweep / Where To Check added to Worth Buying
+- Broader cross-marketplace manual-check guidance
+- Category-specific marketplace priorities for decor, fashion, electronics, furniture, and collectibles
+- Clear disclosure that live marketplace search is not performed yet
+
 ## Version 2.0
 - User accounts
 - Saved listings

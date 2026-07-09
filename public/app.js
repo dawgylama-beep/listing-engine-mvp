@@ -36,6 +36,7 @@ const valuationSections = [
   ["estimatedMarketValue", "Estimated Market Value"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
   ["betterPriceCheckNeeded", "Better-Price Check Needed?"],
+  ["marketplaceSweepWhereToCheck", "Marketplace Sweep / Where To Check"],
   ["resalePotential", "Resale Potential"],
   ["missingDetails", "Missing Details"],
   ["whatToVerifyBeforeBuying", "What To Verify Before Buying"],
