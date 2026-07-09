@@ -30,15 +30,20 @@ const valuationSections = [
   ["liveComparableSearchStatus", "Live Comparable Search Status"],
   ["weFoundThisItem", "We Found This Item"],
   ["weFoundSimilarComparableItems", "We Found Similar Comparable Items"],
+  ["liveSearchDidNotComplete", "Live Search Did Not Complete"],
   ["noReliableComparableItemsFound", "No Reliable Comparable Items Found"],
   ["searchCoverage", "Search Coverage"],
+  ["itemIdentificationConfidence", "Item Identification Confidence"],
+  ["liveCompConfidence", "Live Comp Confidence"],
+  ["valuationConfidence", "Valuation Confidence"],
+  ["buyerDecisionConfidence", "Buyer Decision Confidence"],
+  ["aiOnlyRoughValueRange", "AI-Only Rough Value Range"],
   ["buyerTypeFit", "Buyer Type Fit"],
   ["marketType", "Market Type"],
   ["itemClarityScore", "Item Clarity Score"],
   ["currentPriceAssessment", "Current Price Assessment"],
   ["priceConfidence", "Price Confidence"],
   ["priceBasis", "Price Basis"],
-  ["estimatedMarketValue", "Estimated Market Value"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
   ["betterPriceCheckNeeded", "Better-Price Check Needed?"],
   ["resalePotential", "Resale Potential"],
@@ -241,7 +246,15 @@ function shouldRenderSection(key, value) {
     return false;
   }
 
-  if (key === "noReliableComparableItemsFound" && !value) {
+  if (typeof value === "string" && !value.trim()) {
+    return false;
+  }
+
+  if ((key === "weFoundThisItem" || key === "weFoundSimilarComparableItems") && Array.isArray(value)) {
+    return value.some((item) => /https?:\/\//i.test(String(item || "")));
+  }
+
+  if ((key === "noReliableComparableItemsFound" || key === "liveSearchDidNotComplete" || key === "aiOnlyRoughValueRange") && !value) {
     return false;
   }
 

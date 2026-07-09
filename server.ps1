@@ -54,8 +54,13 @@ $ValuationSchema = @{
     "liveComparableSearchStatus",
     "weFoundThisItem",
     "weFoundSimilarComparableItems",
+    "liveSearchDidNotComplete",
     "noReliableComparableItemsFound",
     "searchCoverage",
+    "itemIdentificationConfidence",
+    "liveCompConfidence",
+    "valuationConfidence",
+    "buyerDecisionConfidence",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -63,6 +68,7 @@ $ValuationSchema = @{
     "priceConfidence",
     "priceBasis",
     "estimatedMarketValue",
+    "aiOnlyRoughValueRange",
     "maximumRecommendedBuyPrice",
     "betterPriceCheckNeeded",
     "resalePotential",
@@ -85,6 +91,7 @@ $ValuationSchema = @{
       maxItems = 6
       items = @{ type = "string" }
     }
+    liveSearchDidNotComplete = @{ type = "string" }
     noReliableComparableItemsFound = @{ type = "string" }
     searchCoverage = @{
       type = "array"
@@ -92,6 +99,10 @@ $ValuationSchema = @{
       maxItems = 8
       items = @{ type = "string" }
     }
+    itemIdentificationConfidence = @{ type = "string" }
+    liveCompConfidence = @{ type = "string" }
+    valuationConfidence = @{ type = "string" }
+    buyerDecisionConfidence = @{ type = "string" }
     buyerTypeFit = @{
       type = "array"
       minItems = 1
@@ -109,6 +120,7 @@ $ValuationSchema = @{
     priceConfidence = @{ type = "string" }
     priceBasis = @{ type = "string" }
     estimatedMarketValue = @{ type = "string" }
+    aiOnlyRoughValueRange = @{ type = "string" }
     maximumRecommendedBuyPrice = @{ type = "string" }
     betterPriceCheckNeeded = @{ type = "string" }
     resalePotential = @{ type = "string" }
@@ -296,23 +308,28 @@ Do not simply append platform names to every query.
 Do not default to eBay. eBay is only one market signal and should be used only when relevant.
 The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
 If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.
-The liveComparableSearchStatus section must use exactly one of these values: Live Search Completed, Live Search Attempted - No Reliable Comps Found, or Live Search Unavailable - AI Reasoning Only.
+The liveComparableSearchStatus section must use exactly the status enforced by the local server: Live Search Completed - Source-Backed Comps Found, Live Search Completed - No Reliable Comps Found, or Live Search Unavailable - AI Reasoning Only.
 The weFoundThisItem section must use only source-backed items found by the web_search tool that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.
 The weFoundSimilarComparableItems section must use only source-backed items found by the web_search tool that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.
-The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, explain that live search was attempted, exact/source-backed comps were not found, the item may be generic/private-label/seasonal/poorly indexed or missing identifiers, and the recommendation is lower-confidence.
-The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.
+The liveSearchDidNotComplete section must be empty if web_search_call appeared. If no web_search_call appeared, say live search did not complete, sources searched were none, and source-backed comps could not be retrieved.
+The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied, and it must also be empty when live search did not complete. If live search completed but no exact or strong similar source-backed comps were supplied, explain that no source-backed exact or strong similar matches passed match-quality checks.
+The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, and whether source-backed comps passed match-quality checks.
 Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
+The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
 The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
 The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
 The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.
 The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.
-If live search completed, the priceBasis section must say: Live comparable search was performed. Source-backed results are listed when reliable matches were found.
-If live search failed, was unavailable, or returned no reliable matches, the priceBasis section must say: Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.
+If live search completed with reliable comps, the priceBasis section must say: Live comparable search was performed. Source-backed results are listed when reliable matches were found.
+If live search did not complete, the priceBasis section must say: Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence.
+If live search completed with no reliable matches, the priceBasis section must say: Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence.
 Use a broad estimatedMarketValue range, not a false-precision single number.
+The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
 In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not direct the user to perform additional marketplace searching, and do not claim actual cheaper listings were found unless source-backed results support that.
 If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.
+Do not inflate values from generic category assumptions. Do not treat the user's asking price as market value. Do not treat weak lookalikes as strong comps.
 For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.
 For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.
 For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.
@@ -417,6 +434,7 @@ $TaskText
       }
     )
     $Payload.tool_choice = "required"
+    $Payload.include = @("web_search_call.action.sources")
   }
 
   $Json = $Payload | ConvertTo-Json -Depth 80 -Compress
@@ -480,33 +498,61 @@ function Set-LiveSearchHonesty {
   }
 
   if ($SearchCalls.Count -gt 0 -and $SourceBackedItems.Count -gt 0) {
-    $Status = "Live Search Completed"
+    $Status = "Live Search Completed - Source-Backed Comps Found"
     $Basis = "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
   } elseif ($SearchCalls.Count -gt 0) {
-    $Status = "Live Search Attempted - No Reliable Comps Found"
-    $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
+    $Status = "Live Search Completed - No Reliable Comps Found"
+    $Basis = "Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence."
     $SourceBackedItems = @()
     $ExactItems = @()
     $SimilarItems = @()
   } else {
     $Status = "Live Search Unavailable - AI Reasoning Only"
-    $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
+    $Basis = "Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence."
     $SourceBackedItems = @()
     $ExactItems = @()
     $SimilarItems = @()
   }
 
+  if (-not $HasReliableMatch -and (Clean-Text $Report.purchaserDecision) -match "^Buy Here\b") {
+    $Report | Add-Member -NotePropertyName "purchaserDecision" -NotePropertyValue "Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident. $(Clean-Text $Report.purchaserDecision)" -Force
+  }
   $Report | Add-Member -NotePropertyName "liveComparableSearchStatus" -NotePropertyValue $Status -Force
   $Report | Add-Member -NotePropertyName "weFoundThisItem" -NotePropertyValue @($ExactItems) -Force
   $Report | Add-Member -NotePropertyName "weFoundSimilarComparableItems" -NotePropertyValue @($SimilarItems) -Force
+  if ($SearchCalls.Count -eq 0) {
+    $Report | Add-Member -NotePropertyName "liveSearchDidNotComplete" -NotePropertyValue "$Status. Sources searched: None. Live search did not complete, so source-backed comps could not be retrieved." -Force
+  } else {
+    $Report | Add-Member -NotePropertyName "liveSearchDidNotComplete" -NotePropertyValue "" -Force
+  }
   if ($HasReliableMatch) {
     $NoReliableMessage = ""
+  } elseif ($SearchCalls.Count -eq 0) {
+    $NoReliableMessage = ""
   } else {
-    $NoReliableMessage = "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence."
+    $NoReliableMessage = "Live search completed, but no reliable source-backed exact or strong similar matches passed match-quality checks. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence."
   }
   $Report | Add-Member -NotePropertyName "noReliableComparableItemsFound" -NotePropertyValue $NoReliableMessage -Force
   $Report | Add-Member -NotePropertyName "searchCoverage" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force
   $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue @(Get-SearchQueriesUsed $Response) -Force
+  $ReliableCompsFound = $Status -eq "Live Search Completed - Source-Backed Comps Found"
+  $Report | Add-Member -NotePropertyName "itemIdentificationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.itemIdentificationConfidence "Medium" "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details.") -Force
+  if ($ReliableCompsFound) {
+    $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.liveCompConfidence "Medium" "Source-backed comparable items were found, but match quality still depends on condition and exact item details.") -Force
+    $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.valuationConfidence "Medium" "Source-backed comps support the estimate, but condition and local demand can still shift value.") -Force
+    $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.buyerDecisionConfidence "Medium" "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.") -Force
+    $Report | Add-Member -NotePropertyName "aiOnlyRoughValueRange" -NotePropertyValue "" -Force
+  } else {
+    $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Force-LowConfidence $Report.liveCompConfidence "No source-backed exact or strong similar comps are available for this report.") -Force
+    $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Force-LowConfidence $Report.valuationConfidence "The value range is AI-only market reasoning because reliable live comps were not available.") -Force
+    $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "The buyer decision should be conservative because live comp support is missing.") -Force
+    $AiOnlySource = Clean-Text $Report.aiOnlyRoughValueRange
+    if (-not $AiOnlySource) {
+      $AiOnlySource = Clean-Text $Report.estimatedMarketValue
+    }
+    $AiOnlyRange = Ensure-Prefix $AiOnlySource "AI-Only Rough Value Range - "
+    $Report | Add-Member -NotePropertyName "aiOnlyRoughValueRange" -NotePropertyValue $AiOnlyRange -Force
+  }
 
   $PriceBasis = Clean-Text $Report.priceBasis
   if (-not $PriceBasis.ToLowerInvariant().StartsWith($Basis.ToLowerInvariant())) {
@@ -528,15 +574,72 @@ function Get-SearchCoverage {
       Where-Object { $_ -match "^Searched " }
   )
 
+  if ($Status -eq "Live Search Unavailable - AI Reasoning Only") {
+    return @(
+      "Sources searched: None.",
+      "Live search did not complete before source results could be retrieved."
+    )
+  }
+
   if ($Coverage.Count -gt 0) {
+    if ($Status -eq "Live Search Completed - No Reliable Comps Found") {
+      return @($Coverage + "No source-backed exact or strong similar matches passed match-quality checks.")
+    }
     return $Coverage
   }
 
-  if ($Status -eq "Live Search Unavailable - AI Reasoning Only") {
-    return @("Live comparable search was unavailable before source categories could be searched.")
+  if ($Status -eq "Live Search Completed - No Reliable Comps Found") {
+    return @(
+      "Live web search completed.",
+      "No source-backed exact or strong similar matches passed match-quality checks."
+    )
   }
 
-  return @("Searched source categories selected from the item details and buyer context.")
+  return @("Live web search completed and source-backed comparable results passed match-quality checks.")
+}
+
+function Ensure-ConfidenceLayer {
+  param(
+    [string]$Value,
+    [string]$FallbackLabel,
+    [string]$FallbackReason
+  )
+
+  $Text = Clean-Text $Value
+  if ($Text -match "^(High|Medium|Low)\b") {
+    return $Text
+  }
+
+  return "$FallbackLabel - $FallbackReason Supports: submitted photos and notes. Weakens: missing or uncertain item details. Improve by verifying exact identifiers, condition, and source-backed comparable results."
+}
+
+function Force-LowConfidence {
+  param(
+    [string]$Value,
+    [string]$Reason
+  )
+
+  $Text = Clean-Text $Value
+  $Detail = ($Text -replace "^(High|Medium|Low)\s*[-:]\s*", "").Trim()
+  if (-not $Detail) {
+    $Detail = "Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches."
+  }
+
+  return "Low - $Reason $Detail".Trim()
+}
+
+function Ensure-Prefix {
+  param(
+    [string]$Value,
+    [string]$Prefix
+  )
+
+  $Text = Clean-Text $Value
+  if ($Text.ToLowerInvariant().StartsWith($Prefix.ToLowerInvariant())) {
+    return $Text
+  }
+
+  return "$Prefix$Text".Trim()
 }
 
 function Get-SearchQueriesUsed {

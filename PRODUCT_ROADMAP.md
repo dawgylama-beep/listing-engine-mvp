@@ -66,6 +66,13 @@
 - Visible text, box wording, visual description, and price context emphasized
 - No Reliable Comparable Items Found transparency improved
 
+## Version 1.5.3 (Completed)
+- Live-search diagnostics added
+- Clearer live-search status states
+- Edge-style confidence layers added
+- AI-only rough value labeling added
+- Valuation reality guardrails added
+
 ## Version 2.0
 - User accounts
 - Saved listings

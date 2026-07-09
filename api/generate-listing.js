@@ -45,8 +45,13 @@ const valuationSchema = {
     "liveComparableSearchStatus",
     "weFoundThisItem",
     "weFoundSimilarComparableItems",
+    "liveSearchDidNotComplete",
     "noReliableComparableItemsFound",
     "searchCoverage",
+    "itemIdentificationConfidence",
+    "liveCompConfidence",
+    "valuationConfidence",
+    "buyerDecisionConfidence",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -54,6 +59,7 @@ const valuationSchema = {
     "priceConfidence",
     "priceBasis",
     "estimatedMarketValue",
+    "aiOnlyRoughValueRange",
     "maximumRecommendedBuyPrice",
     "betterPriceCheckNeeded",
     "resalePotential",
@@ -76,6 +82,7 @@ const valuationSchema = {
       maxItems: 6,
       items: { type: "string" }
     },
+    liveSearchDidNotComplete: { type: "string" },
     noReliableComparableItemsFound: { type: "string" },
     searchCoverage: {
       type: "array",
@@ -83,6 +90,10 @@ const valuationSchema = {
       maxItems: 8,
       items: { type: "string" }
     },
+    itemIdentificationConfidence: { type: "string" },
+    liveCompConfidence: { type: "string" },
+    valuationConfidence: { type: "string" },
+    buyerDecisionConfidence: { type: "string" },
     buyerTypeFit: {
       type: "array",
       minItems: 1,
@@ -100,6 +111,7 @@ const valuationSchema = {
     priceConfidence: { type: "string" },
     priceBasis: { type: "string" },
     estimatedMarketValue: { type: "string" },
+    aiOnlyRoughValueRange: { type: "string" },
     maximumRecommendedBuyPrice: { type: "string" },
     betterPriceCheckNeeded: { type: "string" },
     resalePotential: { type: "string" },
@@ -384,6 +396,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     model,
     tools: [{ type: "web_search" }],
     tool_choice: "required",
+    include: ["web_search_call.action.sources"],
     input: [
       {
         role: "system",
@@ -409,48 +422,74 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     }
   };
 
+  const requestStartedAtMs = Date.now();
+  let includeSourcesRequested = true;
+  let includeFallbackReason = "";
+
   try {
-    const { json, data } = await requestOpenAIJson({ apiKey, payload });
+    let response;
+    try {
+      response = await requestOpenAIJson({ apiKey, payload });
+    } catch (error) {
+      if (!isIncludeCompatibilityError(error)) {
+        throw error;
+      }
+
+      includeSourcesRequested = false;
+      includeFallbackReason = "Source include was not accepted by the provider; live search was retried without source-list include.";
+      const retryPayload = { ...payload };
+      delete retryPayload.include;
+      response = await requestOpenAIJson({ apiKey, payload: retryPayload });
+    }
+
+    const { json, data, statusCode } = response;
     return normalizeLiveSearchResult({
       result: json,
       responseData: data,
       searchStartedAt,
       sourceRoute,
-      searchQueries
+      searchQueries,
+      elapsedMs: Date.now() - requestStartedAtMs,
+      statusCode,
+      includeSourcesRequested,
+      includeFallbackReason
     });
   } catch (error) {
-    return {
-      liveSearchStatus: "Live Search Unavailable - AI Reasoning Only",
-      comparableItemsFound: [],
-      noReliableMatchesReason: "Live comparable search was unavailable.",
-      searchEvidenceSummary: error.message || "Live comparable search was unavailable.",
+    return buildUnavailableLiveSearchResult({
+      error,
       sourceRoute,
       searchQueries,
       searchStartedAt,
-      searchCompletedAt: new Date().toISOString(),
-      webSearchExecuted: false
-    };
+      elapsedMs: Date.now() - requestStartedAtMs,
+      includeSourcesRequested,
+      includeFallbackReason
+    });
   }
 }
 
 async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch }) {
   const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
-  const liveSearchInstruction = liveSearch.comparableItemsFound.length
+  const liveSearchInstruction = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
-    : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
+    : liveSearch.webSearchExecuted
+      ? "Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence."
+      : "Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence.";
   const taskText = [
     "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
     "Primary question: Should the user buy this item at this price, right now?",
     "Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond the live comparable search status and source-backed comparableItemsFound supplied by the backend.",
     "The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.",
+    "If live search is unavailable or no reliable source-backed comps exist, do not overstate certainty. Lean Need More Info, Negotiate, Wait, or Pass unless the personal-use value is explicit.",
     "Use live comparable results when available, but do not invent or add comparable items beyond the supplied source-backed comparableItemsFound list.",
     "If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.",
     "The liveComparableSearchStatus section must be exactly the live search status supplied by the backend.",
     "The weFoundThisItem section must use only source-backed items supplied by the backend that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.",
     "The weFoundSimilarComparableItems section must use only source-backed items supplied by the backend that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.",
-    "The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, explain that live search was attempted, exact/source-backed comps were not found, the item may be generic/private-label/seasonal/poorly indexed or missing identifiers, and the recommendation is lower-confidence.",
-    "The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.",
+    "The liveSearchDidNotComplete section must be empty if web_search_call appeared. If no web_search_call appeared, say live search did not complete, sources searched were none, and source-backed comps could not be retrieved.",
+    "The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied, and it must also be empty when live search did not complete. If live search completed but no exact or strong similar source-backed comps were supplied, explain that no source-backed exact or strong similar matches passed match-quality checks.",
+    "The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, and whether source-backed comps passed match-quality checks.",
     "Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.",
+    "The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.",
     "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
     "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
     "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
@@ -458,9 +497,11 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.",
     `The priceBasis section must distinguish source-backed live comparable search from AI-only fallback. Use this basis: ${liveSearchInstruction}`,
     "Use a broad estimatedMarketValue range, not a false-precision single number.",
+    "The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.",
     "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
     "In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not tell the user to go search elsewhere, and do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
     "If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.",
+    "Do not inflate values from generic category assumptions. Do not treat the user's asking price as market value. Do not treat weak lookalikes as strong comps.",
     "Do not default to eBay. eBay is only one market signal and should be mentioned only when the source route or item category makes it useful.",
     "For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.",
     "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
@@ -534,23 +575,48 @@ function createResponsesPayload({ model, systemText, userContent, schemaName, sc
 
 async function requestOpenAIJson({ apiKey, payload }) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 90000);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (error) {
+      throw createOpenAIRequestError({
+        message: timedOut ? "OpenAI request timed out." : error.message || "OpenAI API request failed.",
+        category: timedOut || error.name === "AbortError" ? "timeout" : "provider_error",
+        timedOut: timedOut || error.name === "AbortError",
+        cause: error
+      });
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = data.error && data.error.message ? data.error.message : "OpenAI API request failed.";
-      throw new Error(message);
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        type: data.error && data.error.type,
+        code: data.error && data.error.code,
+        message,
+        category: classifyOpenAIErrorDetails({
+          statusCode: response.status,
+          type: data.error && data.error.type,
+          code: data.error && data.error.code,
+          message
+        })
+      });
     }
 
     const outputText = extractOutputText(data);
@@ -560,7 +626,8 @@ async function requestOpenAIJson({ apiKey, payload }) {
 
     return {
       json: JSON.parse(outputText),
-      data
+      data,
+      statusCode: response.status
     };
   } finally {
     clearTimeout(timeout);
@@ -693,53 +760,130 @@ function buildLiveSearchQueries(identity, sourceRoute, notes) {
   return diverseQueries.slice(0, 5);
 }
 
-function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries }) {
+function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
+  const sourcesSearched = collectWebSearchSources(responseData);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 6);
   const comparableItemsFound = rawItems.filter((item) => hasCitedUrl(item, citations));
   let liveSearchStatus = "Live Search Unavailable - AI Reasoning Only";
 
   if (webSearchExecuted && comparableItemsFound.length) {
-    liveSearchStatus = "Live Search Completed";
+    liveSearchStatus = "Live Search Completed - Source-Backed Comps Found";
   } else if (webSearchExecuted) {
-    liveSearchStatus = "Live Search Attempted - No Reliable Comps Found";
+    liveSearchStatus = "Live Search Completed - No Reliable Comps Found";
   }
 
   return {
     liveSearchStatus,
     comparableItemsFound,
-    noReliableMatchesReason: liveSearchStatus === "Live Search Completed"
+    noReliableMatchesReason: liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
       ? ""
-      : "Live comparable search was attempted, but no reliable comps were found.",
+      : "Live search completed, but no reliable source-backed exact or strong similar matches were found.",
     searchEvidenceSummary: cleanText(result.searchEvidenceSummary || ""),
     sourceRoute,
     searchQueries,
+    sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourcesSearched,
+    sourcesReturned: citations.map((citation) => citation.title || citation.url).filter(Boolean).slice(0, 8),
     searchStartedAt,
     searchCompletedAt: new Date().toISOString(),
     webSearchExecuted,
-    citations
+    citations,
+    diagnostics: {
+      openAIStatusCode: statusCode || null,
+      openAIErrorType: "",
+      openAIErrorCode: "",
+      openAIErrorMessage: "",
+      elapsedMilliseconds: elapsedMs,
+      timedOut: false,
+      webSearchCallAppeared: webSearchExecuted,
+      urlCitationCount: citations.length,
+      sourceBackedCompCount: comparableItemsFound.length,
+      finalLiveSearchStatus: liveSearchStatus,
+      includeSourcesRequested,
+      includeFallbackReason
+    }
+  };
+}
+
+function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason }) {
+  const diagnostic = classifyLiveSearchError(error);
+  const liveSearchStatus = statusForLiveSearchError(diagnostic.category);
+
+  return {
+    liveSearchStatus,
+    comparableItemsFound: [],
+    noReliableMatchesReason: "Live search did not complete, so source-backed comps could not be retrieved.",
+    searchEvidenceSummary: diagnostic.userMessage,
+    sourceRoute,
+    searchQueries,
+    sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourcesSearched: [],
+    sourcesReturned: [],
+    searchStartedAt,
+    searchCompletedAt: new Date().toISOString(),
+    webSearchExecuted: false,
+    citations: [],
+    diagnostics: {
+      openAIStatusCode: diagnostic.statusCode,
+      openAIErrorType: diagnostic.type,
+      openAIErrorCode: diagnostic.code,
+      openAIErrorMessage: diagnostic.message,
+      elapsedMilliseconds: elapsedMs,
+      timedOut: diagnostic.category === "timeout",
+      webSearchCallAppeared: false,
+      urlCitationCount: 0,
+      sourceBackedCompCount: 0,
+      finalLiveSearchStatus: liveSearchStatus,
+      errorCategory: diagnostic.category,
+      includeSourcesRequested,
+      includeFallbackReason
+    }
   };
 }
 
 function enforceLiveSearchHonesty(report, liveSearch) {
-  const comparableItemsFound = liveSearch.liveSearchStatus === "Live Search Completed" ? liveSearch.comparableItemsFound : [];
+  const reliableCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
+  const searchCompleted = liveSearch.webSearchExecuted;
+  const comparableItemsFound = reliableCompsFound ? liveSearch.comparableItemsFound : [];
   const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
-  const noReliableMessage = hasReliableMatch
+  const liveSearchDidNotComplete = searchCompleted
     ? ""
-    : "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence.";
-  const basis = liveSearch.liveSearchStatus === "Live Search Completed"
+    : buildLiveSearchDidNotCompleteMessage(liveSearch);
+  const noReliableMessage = !searchCompleted || hasReliableMatch
+    ? ""
+    : "Live search completed, but no reliable source-backed exact or strong similar matches passed match-quality checks. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence.";
+  const basis = reliableCompsFound
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
-    : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
+    : searchCompleted
+      ? "Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence."
+      : "Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence.";
+  const aiOnlyRoughValueRange = reliableCompsFound
+    ? ""
+    : buildAiOnlyRoughValueRange(report);
 
   return {
     ...report,
+    purchaserDecision: guardBuyerDecision(report.purchaserDecision, reliableCompsFound),
     liveComparableSearchStatus: liveSearch.liveSearchStatus,
     weFoundThisItem: exactItems,
     weFoundSimilarComparableItems: similarItems,
+    liveSearchDidNotComplete,
     noReliableComparableItemsFound: noReliableMessage,
     searchCoverage: buildSearchCoverage(liveSearch),
+    itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
+    liveCompConfidence: reliableCompsFound
+      ? ensureConfidenceLayer(report.liveCompConfidence, "Medium", "Source-backed comparable items were found, but match quality still depends on condition and exact item details.")
+      : forceLowConfidence(report.liveCompConfidence, "No source-backed exact or strong similar comps are available for this report."),
+    valuationConfidence: reliableCompsFound
+      ? ensureConfidenceLayer(report.valuationConfidence, "Medium", "Source-backed comps support the estimate, but condition and local demand can still shift value.")
+      : forceLowConfidence(report.valuationConfidence, "The value range is AI-only market reasoning because reliable live comps were not available."),
+    buyerDecisionConfidence: reliableCompsFound
+      ? ensureConfidenceLayer(report.buyerDecisionConfidence, "Medium", "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.")
+      : forceLowConfidence(report.buyerDecisionConfidence, "The buyer decision should be conservative because live comp support is missing."),
+    aiOnlyRoughValueRange,
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
@@ -765,14 +909,87 @@ function splitComparableItems(items) {
   return { exactItems, similarItems, hasReliableMatch };
 }
 
+function buildLiveSearchDidNotCompleteMessage(liveSearch) {
+  const diagnostic = liveSearch.diagnostics || {};
+  const details = [];
+  if (diagnostic.openAIStatusCode) {
+    details.push(`OpenAI status ${diagnostic.openAIStatusCode}`);
+  }
+  if (diagnostic.openAIErrorType) {
+    details.push(`error type ${diagnostic.openAIErrorType}`);
+  }
+  if (diagnostic.openAIErrorCode) {
+    details.push(`code ${diagnostic.openAIErrorCode}`);
+  }
+
+  const summary = diagnostic.openAIErrorMessage || liveSearch.searchEvidenceSummary || "No provider detail was returned.";
+  const detailText = details.length ? ` Safe diagnostic: ${details.join(", ")}. ${summary}` : ` Safe diagnostic: ${summary}`;
+  return `${liveSearch.liveSearchStatus}. Sources searched: None. Live search did not complete, so source-backed comps could not be retrieved.${detailText}`;
+}
+
+function buildAiOnlyRoughValueRange(report) {
+  const valueRange = cleanText(report.aiOnlyRoughValueRange || report.estimatedMarketValue || "No reliable source-backed value range is available.");
+  return ensurePrefix(valueRange, "AI-Only Rough Value Range - ");
+}
+
+function guardBuyerDecision(value, reliableCompsFound) {
+  const text = cleanText(value || "Need More Info - Buyer decision requires more item details.");
+  if (reliableCompsFound || !/^buy here\b/i.test(text)) {
+    return text;
+  }
+
+  return `Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident. ${text}`;
+}
+
+function ensureConfidenceLayer(value, fallbackLabel, fallbackReason) {
+  const text = cleanText(value);
+  if (/^(high|medium|low)\b/i.test(text)) {
+    return text;
+  }
+
+  return `${fallbackLabel} - ${fallbackReason} Supports: submitted photos and notes. Weakens: missing or uncertain item details. Improve by verifying exact identifiers, condition, and source-backed comparable results.`;
+}
+
+function forceLowConfidence(value, reason) {
+  const text = cleanText(value);
+  const suffix = text.replace(/^(high|medium|low)\s*[-:]\s*/i, "");
+  const detail = suffix || "Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.";
+  return `Low - ${reason} ${detail}`.trim();
+}
+
 function buildSearchCoverage(liveSearch) {
   if (!liveSearch.webSearchExecuted) {
-    return ["Live comparable search was unavailable before source categories could be searched."];
+    const targeted = liveSearch.sourcesTargeted && liveSearch.sourcesTargeted.length
+      ? liveSearch.sourcesTargeted.join("; ")
+      : "No source categories were selected.";
+    return [
+      "Sources searched: None.",
+      "Live search did not complete before source results could be retrieved.",
+      `Source categories targeted before failure: ${targeted}`
+    ];
   }
 
   const queryText = liveSearch.searchQueries.join(" ").toLowerCase();
   const routeText = liveSearch.sourceRoute.join(" ").toLowerCase();
-  const coverage = [];
+  const coverage = [
+    `Source categories targeted: ${buildSourcesTargeted(liveSearch.sourceRoute).join("; ")}`
+  ];
+
+  if (liveSearch.sourcesSearched && liveSearch.sourcesSearched.length) {
+    coverage.push(`Sources searched: ${liveSearch.sourcesSearched.join("; ")}`);
+  } else {
+    coverage.push("Sources searched: Live web search executed, but the provider did not return a separate source list.");
+  }
+
+  if (liveSearch.sourcesReturned && liveSearch.sourcesReturned.length) {
+    coverage.push(`Sources returned with URL citations: ${liveSearch.sourcesReturned.join("; ")}`);
+  } else {
+    coverage.push("Sources returned with URL citations: None.");
+  }
+
+  if (liveSearch.liveSearchStatus === "Live Search Completed - No Reliable Comps Found") {
+    coverage.push("No source-backed exact or strong similar matches passed match-quality checks.");
+  }
 
   if (/\b\d{8,14}\b|sku|style|model|gab\d+/i.test(queryText)) {
     coverage.push("Searched using barcode/item code/model identifiers when available.");
@@ -977,6 +1194,91 @@ function isRepetitiveQuery(query, existingQueries) {
   return false;
 }
 
+function createOpenAIRequestError({ statusCode = null, type = "", code = "", message = "OpenAI API request failed.", category = "provider_error", timedOut = false, cause = null }) {
+  const error = new Error(sanitizeErrorText(message));
+  error.openAIStatusCode = statusCode;
+  error.openAIErrorType = sanitizeErrorText(type);
+  error.openAIErrorCode = sanitizeErrorText(code);
+  error.openAIErrorMessage = sanitizeErrorText(message);
+  error.liveSearchErrorCategory = category;
+  error.timedOut = timedOut;
+  if (cause) {
+    error.cause = cause;
+  }
+  return error;
+}
+
+function classifyOpenAIErrorDetails({ statusCode, type, code, message }) {
+  const haystack = [type, code, message].map((value) => String(value || "").toLowerCase()).join(" ");
+
+  if (statusCode === 429 || /rate|quota|billing|insufficient_quota/.test(haystack)) {
+    return "rate_limit_or_quota";
+  }
+
+  if (/web_search|tool|tool_choice|model|unsupported|not supported|does not support|unknown parameter|invalid.*include/.test(haystack)) {
+    return "unsupported_tool_or_model";
+  }
+
+  if (statusCode) {
+    return "provider_error";
+  }
+
+  return "unknown_live_search_error";
+}
+
+function classifyLiveSearchError(error) {
+  const category = error.liveSearchErrorCategory || classifyOpenAIErrorDetails({
+    statusCode: error.openAIStatusCode,
+    type: error.openAIErrorType,
+    code: error.openAIErrorCode,
+    message: error.message
+  });
+  const message = sanitizeErrorText(error.openAIErrorMessage || error.message || "Live search failed before source results could be retrieved.");
+
+  return {
+    category,
+    statusCode: error.openAIStatusCode || null,
+    type: sanitizeErrorText(error.openAIErrorType || ""),
+    code: sanitizeErrorText(error.openAIErrorCode || ""),
+    message,
+    userMessage: message
+  };
+}
+
+function statusForLiveSearchError(category) {
+  if (category === "timeout") {
+    return "Live Search Unavailable - Timeout";
+  }
+
+  if (category === "unsupported_tool_or_model") {
+    return "Live Search Unavailable - Unsupported Tool/Model";
+  }
+
+  if (category === "provider_error" || category === "rate_limit_or_quota") {
+    return "Live Search Unavailable - Provider Error";
+  }
+
+  return "Live Search Unavailable - AI Reasoning Only";
+}
+
+function isIncludeCompatibilityError(error) {
+  const text = [
+    error.openAIErrorType,
+    error.openAIErrorCode,
+    error.openAIErrorMessage,
+    error.message
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+
+  return /include|web_search_call\.action\.sources|unknown parameter|invalid.*include|unsupported.*include/.test(text);
+}
+
+function sanitizeErrorText(value) {
+  return cleanText(value)
+    .replace(/sk-[A-Za-z0-9_-]+/g, "[redacted-api-key]")
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi, "[redacted-image-data]")
+    .slice(0, 240);
+}
+
 function collectUrlCitations(data) {
   const citations = [];
   for (const item of data.output || []) {
@@ -996,6 +1298,40 @@ function collectUrlCitations(data) {
 
 function collectWebSearchCalls(data) {
   return (data.output || []).filter((item) => item.type === "web_search_call");
+}
+
+function collectWebSearchSources(data) {
+  const sources = [];
+  for (const call of collectWebSearchCalls(data)) {
+    const actionSources = call.action && Array.isArray(call.action.sources) ? call.action.sources : [];
+    for (const source of actionSources) {
+      const normalized = normalizeSourceEntry(source);
+      if (normalized) {
+        sources.push(normalized);
+      }
+    }
+  }
+
+  return [...new Set(sources)].slice(0, 8);
+}
+
+function normalizeSourceEntry(source) {
+  if (typeof source === "string") {
+    return cleanText(source);
+  }
+
+  const title = cleanText(source.title || source.name || source.source || source.site || "");
+  const url = cleanText(source.url || source.link || "");
+
+  if (title && url) {
+    return `${title} (${url})`;
+  }
+
+  return title || url;
+}
+
+function buildSourcesTargeted(sourceRoute) {
+  return normalizeStringArray(sourceRoute, 8).map((source) => `Targeted category: ${source}`);
 }
 
 function hasCitedUrl(text, citations) {
