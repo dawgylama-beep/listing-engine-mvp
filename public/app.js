@@ -26,15 +26,20 @@ const listingSections = [
 ];
 
 const valuationSections = [
-  ["decision", "Decision"],
+  ["purchaserDecision", "Purchaser Decision"],
+  ["buyerTypeFit", "Buyer Type Fit"],
+  ["marketType", "Market Type"],
+  ["itemClarityScore", "Item Clarity Score"],
+  ["currentPriceAssessment", "Current Price Assessment"],
   ["priceConfidence", "Price Confidence"],
   ["priceBasis", "Price Basis"],
-  ["estimatedFairMarketValue", "Estimated Fair Market Value"],
+  ["estimatedMarketValue", "Estimated Market Value"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
-  ["resaleOutlook", "Resale Outlook"],
-  ["valueDrivers", "Value Drivers"],
-  ["riskFactors", "Risk Factors"],
-  ["whatToVerifyBeforeBuying", "What To Verify Before Buying"]
+  ["betterPriceCheckNeeded", "Better-Price Check Needed?"],
+  ["resalePotential", "Resale Potential"],
+  ["missingDetails", "Missing Details"],
+  ["whatToVerifyBeforeBuying", "What To Verify Before Buying"],
+  ["suggestedSearchTerms", "Suggested Search Terms"]
 ];
 
 const reportTypes = {
@@ -54,13 +59,13 @@ const reportTypes = {
     reportType: "marketValue",
     responseKey: "valuation",
     sections: valuationSections,
-    eyebrow: "Market value check",
-    title: "Valuation Report",
-    emptyMessage: "Your market value report will appear here.",
-    loadingMessage: "Checking market value from photos and notes...",
-    errorMessage: "Unable to check market value.",
+    eyebrow: "Buyer-first market intelligence",
+    title: "Worth Buying?",
+    emptyMessage: "Your buyer-first market intelligence report will appear here.",
+    loadingMessage: "Checking whether this is worth buying...",
+    errorMessage: "Unable to check whether this is worth buying.",
     activeLabel: "Checking...",
-    defaultLabel: "Check Market Value"
+    defaultLabel: "Worth Buying?"
   }
 };
 

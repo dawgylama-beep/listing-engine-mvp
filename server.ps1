@@ -50,36 +50,56 @@ $ValuationSchema = @{
   type = "object"
   additionalProperties = $false
   required = @(
-    "decision",
+    "purchaserDecision",
+    "buyerTypeFit",
+    "marketType",
+    "itemClarityScore",
+    "currentPriceAssessment",
     "priceConfidence",
     "priceBasis",
-    "estimatedFairMarketValue",
+    "estimatedMarketValue",
     "maximumRecommendedBuyPrice",
-    "resaleOutlook",
-    "valueDrivers",
-    "riskFactors",
-    "whatToVerifyBeforeBuying"
+    "betterPriceCheckNeeded",
+    "resalePotential",
+    "missingDetails",
+    "whatToVerifyBeforeBuying",
+    "suggestedSearchTerms"
   )
   properties = @{
-    decision = @{ type = "string" }
-    priceConfidence = @{ type = "string" }
-    priceBasis = @{ type = "string" }
-    estimatedFairMarketValue = @{ type = "string" }
-    maximumRecommendedBuyPrice = @{ type = "string" }
-    resaleOutlook = @{ type = "string" }
-    valueDrivers = @{
+    purchaserDecision = @{ type = "string" }
+    buyerTypeFit = @{
       type = "array"
-      minItems = 3
-      maxItems = 8
+      minItems = 1
+      maxItems = 4
       items = @{ type = "string" }
     }
-    riskFactors = @{
+    marketType = @{
+      type = "array"
+      minItems = 1
+      maxItems = 5
+      items = @{ type = "string" }
+    }
+    itemClarityScore = @{ type = "string" }
+    currentPriceAssessment = @{ type = "string" }
+    priceConfidence = @{ type = "string" }
+    priceBasis = @{ type = "string" }
+    estimatedMarketValue = @{ type = "string" }
+    maximumRecommendedBuyPrice = @{ type = "string" }
+    betterPriceCheckNeeded = @{ type = "string" }
+    resalePotential = @{ type = "string" }
+    missingDetails = @{
       type = "array"
       minItems = 3
-      maxItems = 8
+      maxItems = 12
       items = @{ type = "string" }
     }
     whatToVerifyBeforeBuying = @{
+      type = "array"
+      minItems = 3
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    suggestedSearchTerms = @{
       type = "array"
       minItems = 3
       maxItems = 8
@@ -234,26 +254,35 @@ function Generate-ReportWithOpenAI {
   if ($ReportType -eq "marketValue") {
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
-    $SystemText = "You are Listing Engine, a careful buying and resale valuation assistant for resellers and collectors. Return only the requested structured JSON."
+    $SystemText = "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON."
     $TaskText = @"
-Create a Worth Buying / Market Intelligence report, not a marketplace listing draft.
-Do not claim you searched live marketplaces, sold comps, current listings, or external databases.
-The priceBasis section must say: No live marketplace sold-comps were searched. This estimate is based on the item description/photo, general resale-market patterns, category demand, condition assumptions, scarcity signals, and likely buyer behavior.
-The decision section must start with exactly one of these labels: Buy, Negotiate, Pass, or Need More Info. Explain the reasoning briefly.
+Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
+Primary question: Should the user buy this item at this price, right now?
+Do not claim live marketplace search, live retail search, live sold-comps, live better-price lookup, current listings, source links, or external database checks.
+The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
+If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.
+The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
+The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
+The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
+The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.
 The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.
-If the item description is too vague, avoid strong conclusions. Use Need More Info as the decision or Low as the price confidence, and explain the uncertainty.
+The priceBasis section must clearly say: No live marketplace or retail search was performed. This estimate is based on the provided photos/details, general market patterns, likely demand, condition assumptions, and category knowledge.
+Use a broad estimatedMarketValue range, not a false-precision single number.
+In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
+In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found. Mention relevant manual checks such as online search, local marketplace, brand or retailer site, eBay, Amazon, or Google Shopping.
+In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.
+In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.
+In whatToVerifyBeforeBuying, ask category-specific verification questions.
+In suggestedSearchTerms, provide exact phrases the user can copy into Google, eBay, Amazon, retailer sites, or marketplace search. Clearly state these are suggested manual searches, not searches the app already performed.
+If photos show a tag, SKU, model, label, barcode, or other identifier, use that information in the reasoning.
+Make the report practical for a person standing in a store, flea market, consignment shop, thrift store, antique mall, or looking at an online listing.
 For vague items like vintage window sticker, ask specifically for a photo, exact wording/logo/brand, size, approximate age, condition, whether adhesive/backing is intact, and any maker marks or event/location tie-in.
-Use a broad estimatedFairMarketValue range, not a false-precision single number.
-In maximumRecommendedBuyPrice, include margin logic that accounts for resale spread, fees, shipping or pickup friction, cleaning/packing effort, and risk.
-In resaleOutlook, include expected resale range, likely selling timeline, and best platform recommendations.
-In valueDrivers, consider brand/maker, age, rarity, subject matter, graphics, condition, size, material, completeness, original packaging, markings, and demand.
-In riskFactors, consider unknown authenticity, poor condition, reproduction risk, common item risk, shipping risk, weak demand, and missing identifying details.
-Make clear that values are estimates from item photos, seller notes, platform behavior, resale logic, presentation quality, condition, collector appeal, rarity, and demand signals.
-If no platform is selected, analyze the item using general resale market logic across likely marketplaces.
-If a platform is selected, include platform-specific observations while still providing an overall market analysis.
-For online platforms such as eBay, Etsy, Mercari, Poshmark, and similar marketplaces, consider shipping cost, platform fees, packing difficulty, freight or oversized item concerns, fragile item risk, and the effect of shipping cost on buyer demand.
-For Facebook Marketplace, Craigslist, OfferUp, flea markets, antique malls, and local resale, emphasize local pickup value, faster cash sale potential, negotiation flexibility, and the no-shipping advantage.
-Use cautious ranges and explain uncertainty. If a detail is uncertain from the photos or notes, say what the buyer or seller should verify before buying.
+For apparel with a price tag or SKU, ask for brand, style number, size, color, material, condition, SKU/UPC, and returnability if relevant.
+For laptops and electronics, focus on model, specs, battery health, charger, lock status, age/warranty, serial/IMEI if relevant, and functional condition.
+For ceramic or home goods sets, focus on maker, pattern, piece count, lids, chips/cracks, crazing, stains, completeness, and shipping risk.
+For Facebook Marketplace or local furniture, consider local pickup, dimensions, transport, condition, odors, assembly, negotiation room, and resale timeline.
+If no platform is selected, analyze the item using buyer-first market logic across likely retail, resale, online, local, collector, and secondhand contexts.
+If a platform is selected, include platform-specific observations while still providing an overall buyer-first market analysis.
 "@
   } else {
     $Schema = $ListingSchema
@@ -270,19 +299,23 @@ Do not claim unseen condition details. If something is uncertain from the photos
   if ($ReportType -eq "marketValue") {
     if (-not $Platform) {
       $PlatformLine = "Marketplace platform: No platform selected"
-      $ContextLine = "Market analysis context: No specific marketplace selected. Use general resale market logic across likely online, local, collector, and secondhand marketplaces."
+      $ContextLine = "Market analysis context: No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts."
     } else {
-      $ContextLine = "Market analysis context: $Platform selected. Include platform-specific observations while still providing overall resale market analysis."
+      $ContextLine = "Market analysis context: $Platform selected. Include platform-specific observations while still providing overall buyer-first market analysis."
     }
   }
   $MarketContextBlock = ""
   if ($ContextLine) {
     $MarketContextBlock = "$ContextLine`n"
   }
+  $NotesLabel = "Seller item notes"
+  if ($ReportType -eq "marketValue") {
+    $NotesLabel = "Buyer item notes"
+  }
 
   $UserText = @"
 $PlatformLine
-${MarketContextBlock}Seller item notes: $Notes
+${MarketContextBlock}${NotesLabel}: $Notes
 
 $TaskText
 "@

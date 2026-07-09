@@ -31,6 +31,15 @@
 - Price Basis added to Market Intelligence
 - Clear disclosure that live marketplace sold-comps are not searched yet
 
+## Version 1.4 (Completed)
+- Buyer-first Market Intelligence
+- Purchaser decision guidance
+- Item clarity scoring
+- Current price assessment
+- Better-price check guidance
+- Suggested manual search terms
+- Live source-backed search remains future/not implemented
+
 ## Version 2.0
 - User accounts
 - Saved listings

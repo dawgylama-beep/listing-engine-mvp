@@ -43,12 +43,13 @@
                 <option>Craigslist</option>
                 <option>OfferUp</option>
               </select>
-              <p class="field-note">Required for Generate Listing. Optional for Check Market Value.</p>
+              <p class="field-note">Required for Generate Listing. Optional for Worth Buying?</p>
             </div>
 
             <div class="field">
               <label for="notes">Item notes</label>
-              <textarea id="notes" name="notes" rows="8" placeholder="Brand, size, condition, flaws, measurements, accessories, pickup or shipping preferences..." required></textarea>
+              <textarea id="notes" name="notes" rows="8" placeholder="Current asking price, store or source, brand/manufacturer, model/SKU/UPC/barcode/style number, condition, and why you are considering buying it..." required></textarea>
+              <p class="field-note">For Worth Buying?, include the current price and where you found it when possible.</p>
             </div>
 
             <div class="action-row">
@@ -56,7 +57,7 @@
                 <span id="button-label">Generate Listing</span>
               </button>
               <button id="market-value-button" class="value-button" type="submit" data-action="marketValue">
-                <span id="market-value-label">Check Market Value</span>
+                <span id="market-value-label">Worth Buying?</span>
               </button>
             </div>
           </form>
