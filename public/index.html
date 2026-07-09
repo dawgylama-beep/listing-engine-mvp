@@ -17,8 +17,16 @@
 
           <form id="listing-form" class="listing-form">
             <div class="field">
-              <label for="photos">Take or Upload Photos</label>
-              <input id="photos" name="photos" type="file" accept="image/*" multiple required>
+              <div class="photo-inputs">
+                <div class="photo-control">
+                  <label for="camera-photo">Take Photo</label>
+                  <input id="camera-photo" type="file" accept="image/*" capture="environment">
+                </div>
+                <div class="photo-control">
+                  <label for="photos">Upload Photos</label>
+                  <input id="photos" name="photos" type="file" accept="image/*" multiple>
+                </div>
+              </div>
               <p class="field-note">Use your camera, photo library, or files. Add up to 6 item photos.</p>
               <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
             </div>

@@ -1,4 +1,5 @@
 const form = document.querySelector("#listing-form");
+const cameraInput = document.querySelector("#camera-photo");
 const photosInput = document.querySelector("#photos");
 const preview = document.querySelector("#photo-preview");
 const statusBox = document.querySelector("#status");
@@ -65,7 +66,9 @@ const reportTypes = {
 
 let latestReport = null;
 let latestSections = listingSections;
+let cameraPhotoFiles = [];
 
+cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", renderPhotoPreview);
 form.addEventListener("submit", handleSubmit);
 copyAllButton.addEventListener("click", () => {
@@ -76,9 +79,20 @@ copyAllButton.addEventListener("click", () => {
   copyText(formatReport(latestReport, latestSections), copyAllButton);
 });
 
+function handleCameraPhotoChange() {
+  const files = Array.from(cameraInput.files || []);
+  cameraPhotoFiles = [...cameraPhotoFiles, ...files].slice(0, 6);
+  cameraInput.value = "";
+  renderPhotoPreview();
+}
+
+function getSelectedPhotoFiles() {
+  return [...cameraPhotoFiles, ...Array.from(photosInput.files || [])].slice(0, 6);
+}
+
 function renderPhotoPreview() {
   preview.innerHTML = "";
-  const files = Array.from(photosInput.files || []).slice(0, 6);
+  const files = getSelectedPhotoFiles();
 
   for (const file of files) {
     const image = document.createElement("img");
@@ -108,6 +122,17 @@ async function handleSubmit(event) {
     return;
   }
 
+  const selectedPhotoFiles = getSelectedPhotoFiles();
+  if (!selectedPhotoFiles.length) {
+    latestReport = null;
+    latestSections = config.sections;
+    copyAllButton.disabled = true;
+    setOutputHeading(config);
+    renderEmpty(config);
+    setStatus("Take or upload at least one item photo before continuing.", "error");
+    return;
+  }
+
   latestReport = null;
   latestSections = config.sections;
   copyAllButton.disabled = true;
@@ -116,7 +141,7 @@ async function handleSubmit(event) {
   setStatus(config.loadingMessage, "loading");
 
   try {
-    const photos = await preparePhotos();
+    const photos = await preparePhotos(selectedPhotoFiles);
 
     const response = await fetch("/api/generate-listing", {
       method: "POST",
@@ -154,8 +179,7 @@ async function handleSubmit(event) {
   }
 }
 
-async function preparePhotos() {
-  const photoFiles = Array.from(photosInput.files || []).slice(0, 6);
+async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
   const photos = [];
 
   for (const file of photoFiles) {

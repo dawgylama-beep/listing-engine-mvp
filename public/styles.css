@@ -226,6 +226,16 @@ label {
   font-size: 0.9rem;
 }
 
+.photo-inputs {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-control {
+  display: grid;
+  gap: 8px;
+}
+
 input[type="file"],
 select,
 textarea {
