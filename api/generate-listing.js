@@ -153,6 +153,11 @@ const itemIdentitySchema = {
     "currentAskingPrice",
     "category",
     "productNameOrBoxTitle",
+    "frontBoxWording",
+    "backLabelWording",
+    "manufacturerLocationText",
+    "visiblePrice",
+    "brandSeries",
     "visibleText",
     "distinctiveVisualDescription",
     "likelyItemDescription",
@@ -173,6 +178,11 @@ const itemIdentitySchema = {
     currentAskingPrice: { type: "string" },
     category: { type: "string" },
     productNameOrBoxTitle: { type: "string" },
+    frontBoxWording: { type: "string" },
+    backLabelWording: { type: "string" },
+    manufacturerLocationText: { type: "string" },
+    visiblePrice: { type: "string" },
+    brandSeries: { type: "string" },
     visibleText: {
       type: "array",
       minItems: 0,
@@ -337,8 +347,10 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
       type: "input_text",
       text: [
         "Extract the strongest searchable item identity from the photos and buyer notes.",
-        "Prioritize visible product and box text, brand/manufacturer text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, and current asking price.",
-        "For holiday decor, capture wording such as Santa's Workshop, Santa Claus, Santa figurine, Christmas decoration, holiday decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
+        "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
+        "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
+        "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
+        "For boxed seasonal decor or unbranded/private-label holiday figures, treat brand/series, location text, item code, UPC, and box/label wording as primary identity clues.",
         "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
         "For electronics, capture exact model number, brand/manufacturer, specs visible in notes/photos, condition, charger/accessories, and current asking price.",
         "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and current asking price.",
@@ -649,6 +661,11 @@ function normalizeIdentity(identity) {
     currentAskingPrice: cleanText(identity.currentAskingPrice || "Unknown") || "Unknown",
     category: cleanText(identity.category || "Unknown") || "Unknown",
     productNameOrBoxTitle: cleanText(identity.productNameOrBoxTitle || "Unknown") || "Unknown",
+    frontBoxWording: cleanText(identity.frontBoxWording || "Unknown") || "Unknown",
+    backLabelWording: cleanText(identity.backLabelWording || "Unknown") || "Unknown",
+    manufacturerLocationText: cleanText(identity.manufacturerLocationText || "Unknown") || "Unknown",
+    visiblePrice: cleanText(identity.visiblePrice || "Unknown") || "Unknown",
+    brandSeries: cleanText(identity.brandSeries || "Unknown") || "Unknown",
     visibleText: normalizeStringArray(identity.visibleText, 10),
     distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
@@ -669,12 +686,17 @@ function routeMarketSources(identity) {
     identity.upcBarcode,
     identity.styleNumber,
     identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.brandSeries,
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
     identity.distinctiveVisualDescription,
     identity.buyerContext.join(" ")
   ].join(" ").toLowerCase();
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
+  const isSeasonalDecor = /santa|christmas|holiday|seasonal|workshop|hubbard|figurine|boxed|box|resin|ceramic.*figure|decor/.test(haystack);
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
   const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
   const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
@@ -683,6 +705,11 @@ function routeMarketSources(identity) {
 
   if (isFurniture) {
     route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
+    return route;
+  }
+
+  if (isSeasonalDecor || isVintageCollectible) {
+    route.push("eBay-style resale results", "Etsy-style vintage/holiday decor results", "Mercari-style resale results", "collector/reference/brand clue results", "general web results using exact label text");
     return route;
   }
 
@@ -696,11 +723,6 @@ function routeMarketSources(identity) {
     if (/resale|secondhand|used|vintage|collectible/.test(haystack)) {
       route.push("eBay used/resale secondary signal");
     }
-    return route;
-  }
-
-  if (isVintageCollectible) {
-    route.push("eBay resale signal when relevant", "Etsy vintage/collectible signal when relevant", "Mercari resale signal when relevant", "Facebook Marketplace/local signals when visible", "collector/brand/reference sites");
     return route;
   }
 
@@ -720,35 +742,48 @@ function buildLiveSearchQueries(identity, sourceRoute, notes) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText(notes);
   const productTitle = firstKnown(identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
-  const brand = firstKnown(identity.brand, identity.manufacturer);
+  const brand = firstKnown(identity.brandSeries, identity.brand, identity.manufacturer);
   const model = firstKnown(identity.model);
   const itemCode = firstKnown(identity.sku, identity.styleNumber);
   const upc = firstKnown(identity.upcBarcode);
+  const locationText = firstKnown(identity.manufacturerLocationText);
+  const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
   const visualPhrase = buildVisualPhrase(identity, notesText);
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
   const price = extractPrice(identity.currentAskingPrice) || extractPrice(notesText);
   const queries = [];
+  const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
 
-  if (upc) {
-    queries.push(upc);
+  if (seasonalDecor) {
+    queries.push(compactWords([brand, locationText, itemCode]));
+    queries.push(compactWords([brand, itemCode, "Santa"]));
+    queries.push(compactWords([upc, brand]));
+    queries.push(compactWords([brand, productTitle]));
+    queries.push(compactWords(["boxed Santa Claus holiday figurine", itemCode]));
+    queries.push(compactWords([brand, locationText, "Christmas decoration"]));
+    queries.push(compactWords([labelText, itemCode]));
+  } else {
+    if (upc) {
+      queries.push(upc);
+    }
+
+    if (itemCode) {
+      queries.push(compactWords([itemCode, mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
+    }
+
+    if (model) {
+      queries.push(compactWords([brand, model, extractSpecs(notesText), "price"]));
+    }
+
+    queries.push(compactWords([brand, productTitle]));
+    queries.push(visualPhrase);
+
+    if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
+      queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
+    }
+
+    queries.push(categoryPhrase);
   }
-
-  if (itemCode) {
-    queries.push(compactWords([itemCode, mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
-  }
-
-  if (model) {
-    queries.push(compactWords([brand, model, extractSpecs(notesText), "price"]));
-  }
-
-  queries.push(compactWords([brand, productTitle]));
-  queries.push(visualPhrase);
-
-  if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
-    queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
-  }
-
-  queries.push(categoryPhrase);
 
   const diverseQueries = [];
   for (const query of queries.map(cleanSearchQuery).filter(Boolean)) {
@@ -757,7 +792,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes) {
     }
   }
 
-  return diverseQueries.slice(0, 5);
+  return diverseQueries.slice(0, seasonalDecor ? 6 : 5);
 }
 
 function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
@@ -786,7 +821,7 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
     searchQueries,
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
     sourcesSearched,
-    sourcesReturned: citations.map((citation) => citation.title || citation.url).filter(Boolean).slice(0, 8),
+    sourcesReturned: summarizeSourceLabels(citations.map((citation) => sourceLabelFromCitation(citation)).filter(Boolean)),
     searchStartedAt,
     searchCompletedAt: new Date().toISOString(),
     webSearchExecuted,
@@ -976,19 +1011,20 @@ function buildSearchCoverage(liveSearch) {
   ];
 
   if (liveSearch.sourcesSearched && liveSearch.sourcesSearched.length) {
-    coverage.push(`Sources searched: ${liveSearch.sourcesSearched.join("; ")}`);
+    coverage.push(`Sources searched: ${summarizeSourceLabels(liveSearch.sourcesSearched).join("; ")}`);
   } else {
     coverage.push("Sources searched: Live web search executed, but the provider did not return a separate source list.");
   }
 
   if (liveSearch.sourcesReturned && liveSearch.sourcesReturned.length) {
-    coverage.push(`Sources returned with URL citations: ${liveSearch.sourcesReturned.join("; ")}`);
+    coverage.push(`Sources returned with URL citations: ${summarizeSourceLabels(liveSearch.sourcesReturned).join("; ")}`);
   } else {
     coverage.push("Sources returned with URL citations: None.");
   }
 
   if (liveSearch.liveSearchStatus === "Live Search Completed - No Reliable Comps Found") {
     coverage.push("No source-backed exact or strong similar matches passed match-quality checks.");
+    coverage.push("Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.");
   }
 
   if (/\b\d{8,14}\b|sku|style|model|gab\d+/i.test(queryText)) {
@@ -1007,7 +1043,7 @@ function buildSearchCoverage(liveSearch) {
     coverage.push("Searched relevant holiday decor / collectible sources.");
   }
 
-  if (/brand|manufacturer|retailer|google shopping|amazon|major retail/.test(routeText)) {
+  if (/manufacturer site|retailer|google shopping|amazon|major retail/.test(routeText)) {
     coverage.push("Searched retail/product sources.");
   }
 
@@ -1075,6 +1111,25 @@ function inferSourceIntentTerms(routeText) {
   return "price resale value";
 }
 
+function isSeasonalDecorIdentity(identity, routeText, notesText) {
+  const haystack = [
+    routeText,
+    notesText,
+    identity.category,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.brandSeries,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
+  ].join(" ").toLowerCase();
+
+  return /santa|christmas|holiday|seasonal|workshop|hubbard|boxed|figurine|ceramic.*figure|resin.*figure|decor/.test(haystack)
+    && !/laptop|computer|electronics|dress|apparel|fashion|furniture|sofa|chair|table/.test(haystack);
+}
+
 function inferVisualTerms(text) {
   const lower = String(text || "").toLowerCase();
   const terms = [];
@@ -1127,6 +1182,7 @@ function compactWords(parts) {
 function cleanSearchQuery(value) {
   const text = normalizeTokenString(value)
     .replace(/\b(unknown|n\/a|none|not visible)\b/gi, "")
+    .replace(/\b([A-Za-z0-9']+\s+[A-Za-z0-9']+)(\s+\1\b)+/gi, "$1")
     .replace(/\b(\w+)(\s+\1\b)+/gi, "$1")
     .replace(/\s+/g, " ")
     .trim();
@@ -1315,23 +1371,53 @@ function collectWebSearchSources(data) {
   return [...new Set(sources)].slice(0, 8);
 }
 
+function summarizeSourceLabels(sources) {
+  return [...new Set(sources.map(sourceLabel).filter(Boolean))].slice(0, 8);
+}
+
+function sourceLabelFromCitation(citation) {
+  return sourceLabel(citation.title || citation.url);
+}
+
+function sourceLabel(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+
+  const url = extractUrls(text)[0];
+  if (url && text === url) {
+    return hostnameFromUrl(url);
+  }
+
+  if (url) {
+    return cleanText(text.replace(url, "").replace(/[()]/g, ""));
+  }
+
+  return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+}
+
 function normalizeSourceEntry(source) {
   if (typeof source === "string") {
-    return cleanText(source);
+    return sourceLabel(source);
   }
 
   const title = cleanText(source.title || source.name || source.source || source.site || "");
   const url = cleanText(source.url || source.link || "");
 
-  if (title && url) {
-    return `${title} (${url})`;
-  }
+  return sourceLabel(title || url);
+}
 
-  return title || url;
+function hostnameFromUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
 
 function buildSourcesTargeted(sourceRoute) {
-  return normalizeStringArray(sourceRoute, 8).map((source) => `Targeted category: ${source}`);
+  return normalizeStringArray(sourceRoute, 8);
 }
 
 function hasCitedUrl(text, citations) {

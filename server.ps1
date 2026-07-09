@@ -300,10 +300,14 @@ Primary question: Should the user buy this item at this price, right now?
 You must use the web_search tool for live comparable search before completing the report.
 Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond source-backed results found by the web_search tool.
 First identify the item and buyer context, then choose relevant source categories, then search targeted comparable queries.
-Prioritize visible product and box text, brand/manufacturer text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, and current asking price.
+Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.
+Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.
 Build diverse product-focused search queries, not repetitive code-only or platform-stuffed variants.
 Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful.
-For a Santa decor box, include useful terms such as Santa's Workshop, Santa Claus, Santa figurine, Christmas decoration, holiday decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
+For a Santa decor box, include useful terms such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
+For boxed seasonal decor, vintage decor, collectible figurines, ceramic/resin figures, and unbranded or private-label seasonal items, prioritize eBay-style resale results, Etsy-style vintage/holiday decor results, Mercari-style resale results, collector/reference/brand clue results, and general web results using exact label text.
+Do not route boxed seasonal decor primarily to Home Depot/current retail unless the item clearly appears to be a current retail product.
+For a Santa's Workshop Hubbard Ohio GAB031-style item, use diverse queries such as: Santa's Workshop Hubbard Ohio GAB031; Santa's Workshop GAB031 Santa; 661565005611 Santa's Workshop; Santa's Workshop Santa Claus decoration; boxed Santa Claus holiday figurine GAB031; Santa's Workshop Hubbard Ohio Christmas decoration.
 Do not simply append platform names to every query.
 Do not default to eBay. eBay is only one market signal and should be used only when relevant.
 The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
@@ -313,7 +317,7 @@ The weFoundThisItem section must use only source-backed items found by the web_s
 The weFoundSimilarComparableItems section must use only source-backed items found by the web_search tool that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.
 The liveSearchDidNotComplete section must be empty if web_search_call appeared. If no web_search_call appeared, say live search did not complete, sources searched were none, and source-backed comps could not be retrieved.
 The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied, and it must also be empty when live search did not complete. If live search completed but no exact or strong similar source-backed comps were supplied, explain that no source-backed exact or strong similar matches passed match-quality checks.
-The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, and whether source-backed comps passed match-quality checks.
+The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, whether source-backed comps passed match-quality checks, and why weak returned results were rejected. Do not dump long raw URLs in Search Coverage; reserve URLs for actual source-backed comp items only.
 Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
 The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.

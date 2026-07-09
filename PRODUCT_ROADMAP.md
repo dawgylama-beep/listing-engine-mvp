@@ -73,6 +73,13 @@
 - AI-only rough value labeling added
 - Valuation reality guardrails added
 
+## Version 1.5.4 (Completed)
+- Photo text identity extraction improved
+- Box and back-label wording preserved for live comps
+- Holiday decor / collectible source routing improved
+- Santa's Workshop / Hubbard Ohio / SKU-style query quality improved
+- Search Coverage source summaries cleaned up
+
 ## Version 2.0
 - User accounts
 - Saved listings
