@@ -46,6 +46,13 @@
 - Category-specific marketplace priorities for decor, fashion, electronics, furniture, and collectibles
 - Clear disclosure that live marketplace search is not performed yet
 
+## Version 1.5 (Completed)
+- Source-routed live comparable search for Worth Buying
+- Live Comparable Search Status added
+- Comparable Items Found shown only for source-backed results
+- Source routing avoids defaulting to eBay
+- AI-only fallback preserved when live search is unavailable or unreliable
+
 ## Version 2.0
 - User accounts
 - Saved listings

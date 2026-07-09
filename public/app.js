@@ -27,6 +27,8 @@ const listingSections = [
 
 const valuationSections = [
   ["purchaserDecision", "Purchaser Decision"],
+  ["liveComparableSearchStatus", "Live Comparable Search Status"],
+  ["comparableItemsFound", "Comparable Items Found"],
   ["buyerTypeFit", "Buyer Type Fit"],
   ["marketType", "Market Type"],
   ["itemClarityScore", "Item Clarity Score"],
@@ -63,7 +65,7 @@ const reportTypes = {
     eyebrow: "Buyer-first market intelligence",
     title: "Worth Buying?",
     emptyMessage: "Your buyer-first market intelligence report will appear here.",
-    loadingMessage: "Checking whether this is worth buying...",
+    loadingMessage: "Searching comparable items...",
     errorMessage: "Unable to check whether this is worth buying.",
     activeLabel: "Checking...",
     defaultLabel: "Worth Buying?"
@@ -203,6 +205,10 @@ function renderReport(report, sections) {
   results.innerHTML = "";
 
   for (const [key, label] of sections) {
+    if (!shouldRenderSection(key, report[key])) {
+      continue;
+    }
+
     const card = document.createElement("article");
     card.className = "section-card";
 
@@ -226,6 +232,14 @@ function renderReport(report, sections) {
     card.append(header, body);
     results.appendChild(card);
   }
+}
+
+function shouldRenderSection(key, value) {
+  if (key === "comparableItemsFound" && (!Array.isArray(value) || value.length === 0)) {
+    return false;
+  }
+
+  return true;
 }
 
 function renderValue(value) {
@@ -283,7 +297,10 @@ async function copyText(text, button) {
 }
 
 function formatReport(report, sections) {
-  return sections.map(([key, label]) => formatSection(label, report[key])).join("\n\n");
+  return sections
+    .filter(([key]) => shouldRenderSection(key, report[key]))
+    .map(([key, label]) => formatSection(label, report[key]))
+    .join("\n\n");
 }
 
 function formatSection(label, value) {

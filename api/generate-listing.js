@@ -42,6 +42,8 @@ const valuationSchema = {
   additionalProperties: false,
   required: [
     "purchaserDecision",
+    "liveComparableSearchStatus",
+    "comparableItemsFound",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -59,6 +61,13 @@ const valuationSchema = {
   ],
   properties: {
     purchaserDecision: { type: "string" },
+    liveComparableSearchStatus: { type: "string" },
+    comparableItemsFound: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
     buyerTypeFit: {
       type: "array",
       minItems: 1,
@@ -103,6 +112,77 @@ const valuationSchema = {
       maxItems: 8,
       items: { type: "string" }
     }
+  }
+};
+
+const itemIdentitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "brand",
+    "manufacturer",
+    "model",
+    "sku",
+    "upcBarcode",
+    "styleNumber",
+    "size",
+    "color",
+    "material",
+    "condition",
+    "currentAskingPrice",
+    "category",
+    "likelyItemDescription",
+    "strongestSearchableIdentifiers",
+    "buyerContext"
+  ],
+  properties: {
+    brand: { type: "string" },
+    manufacturer: { type: "string" },
+    model: { type: "string" },
+    sku: { type: "string" },
+    upcBarcode: { type: "string" },
+    styleNumber: { type: "string" },
+    size: { type: "string" },
+    color: { type: "string" },
+    material: { type: "string" },
+    condition: { type: "string" },
+    currentAskingPrice: { type: "string" },
+    category: { type: "string" },
+    likelyItemDescription: { type: "string" },
+    strongestSearchableIdentifiers: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    buyerContext: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: { type: "string" }
+    }
+  }
+};
+
+const liveCompsSearchSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "liveSearchStatus",
+    "comparableItemsFound",
+    "noReliableMatchesReason",
+    "searchEvidenceSummary"
+  ],
+  properties: {
+    liveSearchStatus: { type: "string" },
+    comparableItemsFound: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    noReliableMatchesReason: { type: "string" },
+    searchEvidenceSummary: { type: "string" }
   }
 };
 
@@ -172,67 +252,23 @@ export default async function handler(req, res) {
 }
 
 async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType }) {
-  const isMarketValue = reportType === "marketValue";
-  const schema = isMarketValue ? valuationSchema : listingSchema;
-  const schemaName = isMarketValue ? "market_value_report" : "marketplace_listing";
-  const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
-  const systemText = isMarketValue
-    ? "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON."
-    : "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.";
-  const notesLabel = isMarketValue ? "Buyer item notes" : "Seller item notes";
-  const taskText = isMarketValue
-    ? [
-        "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
-        "Primary question: Should the user buy this item at this price, right now?",
-        "Do not claim live marketplace search, live retail search, live sold-comps, live better-price lookup, current listings, source links, or external database checks.",
-        "The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.",
-        "If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.",
-        "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
-        "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
-        "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
-        "The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.",
-        "The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.",
-        "The priceBasis section must clearly say: No live marketplace or retail search was performed. This estimate is based on the provided photos/details, general market patterns, likely demand, condition assumptions, and category knowledge.",
-        "Use a broad estimatedMarketValue range, not a false-precision single number.",
-        "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
-        "In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found. Mention relevant manual checks such as online search, local marketplace, brand or retailer site, eBay, Amazon, or Google Shopping.",
-        "In marketplaceSweepWhereToCheck, start by saying: No live marketplace search was performed in this version. These are the most relevant places to manually check based on the item type and information provided.",
-        "In marketplaceSweepWhereToCheck, include one bullet-style string per relevant platform. Each string must include platform name, why it matters or does not matter for this item, what price signal to look for, and a suggested manual search phrase.",
-        "Consider these platforms when relevant: eBay, Etsy, Facebook Marketplace, Mercari, Poshmark, Amazon, Google Shopping, retailer sites, Craigslist, OfferUp, brand/manufacturer site, collector groups, and local pickup resale channels.",
-        "For holiday decor or collectible decor, prioritize manual checks on eBay, Etsy, Facebook Marketplace, and Mercari.",
-        "For apparel or fashion with a tag, SKU, style number, or barcode, prioritize manual checks on Google Shopping, retailer sites, Poshmark, and eBay.",
-        "For electronics with a model number, prioritize manual checks on Amazon, eBay, Google Shopping, manufacturer listings, and refurbished listings.",
-        "For furniture or bulky local goods, prioritize manual checks on Facebook Marketplace, Craigslist, OfferUp, and local pickup resale channels.",
-        "For vintage or collectible items, prioritize manual checks on eBay sold and active comps, Etsy, collector groups, and Facebook Marketplace.",
-        "Call out weak or irrelevant platforms when useful, for example Poshmark for non-fashion items, Amazon for old one-off vintage goods, or shipping-heavy platforms for bulky local items.",
-        "In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.",
-        "In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.",
-        "In whatToVerifyBeforeBuying, ask category-specific verification questions.",
-        "In suggestedSearchTerms, provide exact phrases the user can copy into Google, eBay, Amazon, retailer sites, or marketplace search. Clearly state these are suggested manual searches, not searches the app already performed.",
-        "If photos show a tag, SKU, model, label, barcode, or other identifier, use that information in the reasoning.",
-        "Make the report practical for a person standing in a store, flea market, consignment shop, thrift store, antique mall, or looking at an online listing.",
-        "For vague items like vintage window sticker, ask specifically for a photo, exact wording/logo/brand, size, approximate age, condition, whether adhesive/backing is intact, and any maker marks or event/location tie-in.",
-        "For apparel with a price tag or SKU, ask for brand, style number, size, color, material, condition, SKU/UPC, and returnability if relevant.",
-        "For laptops and electronics, focus on model, specs, battery health, charger, lock status, age/warranty, serial/IMEI if relevant, and functional condition.",
-        "For ceramic or home goods sets, focus on maker, pattern, piece count, lids, chips/cracks, crazing, stains, completeness, and shipping risk.",
-        "For Facebook Marketplace or local furniture, consider local pickup, dimensions, transport, condition, odors, assembly, negotiation room, and resale timeline.",
-        "If no platform is selected, analyze the item using buyer-first market logic across likely retail, resale, online, local, collector, and secondhand contexts.",
-        "If a platform is selected, include platform-specific observations while still providing an overall buyer-first market analysis."
-      ]
-    : [
-        "Create a practical marketplace listing. Be specific, honest, and concise.",
-        "Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify."
-      ];
+  if (reportType === "marketValue") {
+    return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos });
+  }
 
+  return generateListingWithOpenAI({ apiKey, model, platform, notes, photos });
+}
+
+async function generateListingWithOpenAI({ apiKey, model, platform, notes, photos }) {
   const userContent = [
     {
       type: "input_text",
       text: [
-        `Marketplace platform: ${platform || "No platform selected"}`,
-        ...(isMarketValue ? [`Market analysis context: ${platformContext}`] : []),
-        `${notesLabel}: ${notes}`,
+        `Marketplace platform: ${platform}`,
+        `Seller item notes: ${notes}`,
         "",
-        ...taskText
+        "Create a practical marketplace listing. Be specific, honest, and concise.",
+        "Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify."
       ].join("\n")
     },
     ...photos.map((photo) => ({
@@ -242,7 +278,202 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
     }))
   ];
 
+  const payload = createResponsesPayload({
+    model,
+    systemText: "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.",
+    userContent,
+    schemaName: "marketplace_listing",
+    schema: listingSchema
+  });
+
+  return (await requestOpenAIJson({ apiKey, payload })).json;
+}
+
+async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos }) {
+  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos });
+  const sourceRoute = routeMarketSources(identity);
+  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes);
+  const liveSearch = await executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries });
+  const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch });
+
+  return enforceLiveSearchHonesty(report, liveSearch);
+}
+
+async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
+  const userContent = [
+    {
+      type: "input_text",
+      text: [
+        "Extract the strongest searchable item identity from the photos and buyer notes.",
+        "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
+        "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
+        `Marketplace platform: ${platform || "No platform selected"}`,
+        `Buyer item notes: ${notes}`
+      ].join("\n")
+    },
+    ...photos.map((photo) => ({
+      type: "input_image",
+      image_url: photo.dataUrl,
+      detail: "auto"
+    }))
+  ];
+
+  const payload = createResponsesPayload({
+    model,
+    systemText: "You identify marketplace items from photos and buyer notes. Return only structured JSON.",
+    userContent,
+    schemaName: "item_identity",
+    schema: itemIdentitySchema
+  });
+
+  return normalizeIdentity((await requestOpenAIJson({ apiKey, payload })).json);
+}
+
+async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries }) {
+  const searchStartedAt = new Date().toISOString();
+  const userContent = [
+    {
+      type: "input_text",
+      text: [
+        "Perform source-routed live comparable search for a buyer deciding whether to buy this item right now.",
+        "You must use web search. Do not rely only on general model knowledge.",
+        "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
+        "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
+        "Do not invent URLs, prices, sources, sold comps, or platforms.",
+        "Classify each reliable result as Exact Match, Strong Similar Match, or Weak Similar Match, and explain why it is or is not comparable.",
+        "If no reliable source-backed comps are found, return an empty comparableItemsFound array.",
+        "",
+        `Marketplace platform: ${platform || "No platform selected"}`,
+        `Buyer item notes: ${notes}`,
+        `Extracted identity: ${JSON.stringify(identity)}`,
+        `Source route: ${JSON.stringify(sourceRoute)}`,
+        `Targeted search queries: ${JSON.stringify(searchQueries)}`
+      ].join("\n")
+    }
+  ];
+
   const payload = {
+    model,
+    tools: [{ type: "web_search" }],
+    tool_choice: "required",
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: "You are a live comparable search controller. Search the web using the provided source route, then return only structured JSON."
+          }
+        ]
+      },
+      {
+        role: "user",
+        content: userContent
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "live_comparable_search",
+        schema: liveCompsSearchSchema,
+        strict: true
+      }
+    }
+  };
+
+  try {
+    const { json, data } = await requestOpenAIJson({ apiKey, payload });
+    return normalizeLiveSearchResult({
+      result: json,
+      responseData: data,
+      searchStartedAt,
+      sourceRoute,
+      searchQueries
+    });
+  } catch (error) {
+    return {
+      liveSearchStatus: "Live Search Unavailable - AI Reasoning Only",
+      comparableItemsFound: [],
+      noReliableMatchesReason: "Live comparable search was unavailable.",
+      searchEvidenceSummary: error.message || "Live comparable search was unavailable.",
+      sourceRoute,
+      searchQueries,
+      searchStartedAt,
+      searchCompletedAt: new Date().toISOString(),
+      webSearchExecuted: false
+    };
+  }
+}
+
+async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch }) {
+  const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
+  const liveSearchInstruction = liveSearch.comparableItemsFound.length
+    ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
+    : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
+  const taskText = [
+    "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
+    "Primary question: Should the user buy this item at this price, right now?",
+    "Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond the live comparable search status and source-backed comparableItemsFound supplied by the backend.",
+    "The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.",
+    "Use live comparable results when available, but do not invent or add comparable items beyond the supplied source-backed comparableItemsFound list.",
+    "If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.",
+    "The liveComparableSearchStatus section must be exactly the live search status supplied by the backend.",
+    "The comparableItemsFound section must use exactly the source-backed comparable items supplied by the backend. If the supplied list is empty, return an empty array.",
+    "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
+    "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
+    "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
+    "The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.",
+    "The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.",
+    `The priceBasis section must distinguish source-backed live comparable search from AI-only fallback. Use this basis: ${liveSearchInstruction}`,
+    "Use a broad estimatedMarketValue range, not a false-precision single number.",
+    "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
+    "In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
+    "Keep marketplaceSweepWhereToCheck as manual backup guidance separate from Live Comparable Search.",
+    "In marketplaceSweepWhereToCheck, include one bullet-style string per relevant platform. Each string must include platform name, why it matters or does not matter for this item, what price signal to look for, and a suggested manual search phrase.",
+    "Do not default to eBay. eBay is only one market signal and should be mentioned only when the source route or item category makes it useful.",
+    "For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.",
+    "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
+    "For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.",
+    "For vintage/collectible/discontinued/holiday decor/ceramics/small shippable secondhand goods, eBay, Etsy, Mercari, Facebook Marketplace/local signals, and collector/reference sites may be relevant.",
+    "For furniture or bulky local goods, prioritize Facebook Marketplace-style local value logic, Craigslist/OfferUp/local pickup resale, and local consignment logic; do not overvalue eBay because shipping distorts bulky-item prices.",
+    "In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.",
+    "In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.",
+    "In whatToVerifyBeforeBuying, ask category-specific verification questions.",
+    "In suggestedSearchTerms, provide exact phrases the user can copy into Google, eBay, Amazon, retailer sites, or marketplace search. Clearly state these are suggested manual searches, not searches the app already performed.",
+    "If photos show a tag, SKU, model, label, barcode, or other identifier, use that information in the reasoning.",
+    "Make the report practical for a person standing in a store, flea market, consignment shop, thrift store, antique mall, or looking at an online listing."
+  ];
+
+  const userContent = [
+    {
+      type: "input_text",
+      text: [
+        `Marketplace platform: ${platform || "No platform selected"}`,
+        `Market analysis context: ${platformContext}`,
+        `Buyer item notes: ${notes}`,
+        `Extracted item identity: ${JSON.stringify(identity)}`,
+        `Backend source route: ${JSON.stringify(sourceRoute)}`,
+        `Backend search queries: ${JSON.stringify(searchQueries)}`,
+        `Live comparable search result: ${JSON.stringify(liveSearch)}`,
+        "",
+        ...taskText
+      ].join("\n")
+    }
+  ];
+
+  const payload = createResponsesPayload({
+    model,
+    systemText: "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON.",
+    userContent,
+    schemaName: "market_value_report",
+    schema: valuationSchema
+  });
+
+  return (await requestOpenAIJson({ apiKey, payload })).json;
+}
+
+function createResponsesPayload({ model, systemText, userContent, schemaName, schema }) {
+  return {
     model,
     input: [
       {
@@ -268,7 +499,9 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
       }
     }
   };
+}
 
+async function requestOpenAIJson({ apiKey, payload }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000);
 
@@ -294,10 +527,230 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
       throw new Error("OpenAI returned an empty response.");
     }
 
-    return JSON.parse(outputText);
+    return {
+      json: JSON.parse(outputText),
+      data
+    };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function normalizeIdentity(identity) {
+  return {
+    brand: cleanText(identity.brand || "Unknown") || "Unknown",
+    manufacturer: cleanText(identity.manufacturer || "Unknown") || "Unknown",
+    model: cleanText(identity.model || "Unknown") || "Unknown",
+    sku: cleanText(identity.sku || "Unknown") || "Unknown",
+    upcBarcode: cleanText(identity.upcBarcode || "Unknown") || "Unknown",
+    styleNumber: cleanText(identity.styleNumber || "Unknown") || "Unknown",
+    size: cleanText(identity.size || "Unknown") || "Unknown",
+    color: cleanText(identity.color || "Unknown") || "Unknown",
+    material: cleanText(identity.material || "Unknown") || "Unknown",
+    condition: cleanText(identity.condition || "Unknown") || "Unknown",
+    currentAskingPrice: cleanText(identity.currentAskingPrice || "Unknown") || "Unknown",
+    category: cleanText(identity.category || "Unknown") || "Unknown",
+    likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
+    strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 8),
+    buyerContext: normalizeStringArray(identity.buyerContext, 8, ["unknown"])
+  };
+}
+
+function routeMarketSources(identity) {
+  const route = [];
+  const haystack = [
+    identity.category,
+    identity.likelyItemDescription,
+    identity.brand,
+    identity.manufacturer,
+    identity.model,
+    identity.sku,
+    identity.upcBarcode,
+    identity.styleNumber,
+    identity.buyerContext.join(" ")
+  ].join(" ").toLowerCase();
+
+  const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
+  const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
+  const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
+  const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
+  const isVintageCollectible = /vintage|collectible|ceramic|canister|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy/.test(haystack);
+  const isRetailCurrent = hasIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
+
+  if (isFurniture) {
+    route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
+    return route;
+  }
+
+  if (isElectronics) {
+    route.push("manufacturer site", "major retailers", "refurbished listings", "Amazon / Best Buy / Walmart / Newegg-style sources", "eBay used/refurbished secondary signal");
+    return route;
+  }
+
+  if (isApparel) {
+    route.push("brand site", "retailer sites", "Google Shopping-style web results", "Poshmark or resale fashion sites");
+    if (/resale|secondhand|used|vintage|collectible/.test(haystack)) {
+      route.push("eBay used/resale secondary signal");
+    }
+    return route;
+  }
+
+  if (isVintageCollectible) {
+    route.push("eBay resale signal when relevant", "Etsy vintage/collectible signal when relevant", "Mercari resale signal when relevant", "Facebook Marketplace/local signals when visible", "collector/brand/reference sites");
+    return route;
+  }
+
+  if (isRetailCurrent) {
+    route.push("brand/manufacturer site", "retailer sites", "Google Shopping-style web results", "Amazon/major retail when relevant");
+    if (/used|refurbished|resale|secondhand/.test(haystack)) {
+      route.push("eBay used/refurbished secondary signal");
+    }
+    return route;
+  }
+
+  route.push("broad web search", "Google Shopping-style web results if retail-like", "local resale signals if local or bulky", "collector/reference sites if vintage or unusual");
+  return route;
+}
+
+function buildLiveSearchQueries(identity, sourceRoute, notes) {
+  const identifiers = [
+    identity.upcBarcode,
+    identity.model,
+    identity.sku,
+    identity.styleNumber,
+    ...identity.strongestSearchableIdentifiers,
+    identity.brand,
+    identity.manufacturer
+  ].filter(hasKnownValue);
+  const base = cleanText(identifiers.slice(0, 3).join(" ")) || cleanText(identity.likelyItemDescription) || cleanText(notes).slice(0, 120) || "item";
+  const routeText = sourceRoute.join(" ").toLowerCase();
+  const queries = [];
+
+  if (/brand|retailer|google shopping|amazon|major retail|manufacturer/.test(routeText)) {
+    queries.push(`${base} price retailer manufacturer`);
+  }
+
+  if (/poshmark|fashion|apparel/.test(routeText)) {
+    queries.push(`${base} Poshmark retailer style number`);
+  }
+
+  if (/refurbished|best buy|newegg|electronics/.test(routeText)) {
+    queries.push(`${base} refurbished used price specs`);
+  }
+
+  if (/etsy|mercari|collector|vintage|collectible|ceramic|holiday|eBay/i.test(sourceRoute.join(" "))) {
+    queries.push(`${base} eBay Etsy Mercari comparable`);
+  }
+
+  if (/facebook|craigslist|offerup|local|consignment/.test(routeText)) {
+    queries.push(`${base} local resale Facebook Marketplace Craigslist OfferUp`);
+  }
+
+  if (!queries.length) {
+    queries.push(`${base} price`, `${base} resale value`);
+  }
+
+  return [...new Set(queries.map(cleanText).filter(Boolean))].slice(0, 4);
+}
+
+function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries }) {
+  const citations = collectUrlCitations(responseData);
+  const webSearchCalls = collectWebSearchCalls(responseData);
+  const webSearchExecuted = webSearchCalls.length > 0;
+  const rawItems = normalizeStringArray(result.comparableItemsFound, 6);
+  const comparableItemsFound = rawItems.filter((item) => hasCitedUrl(item, citations));
+  let liveSearchStatus = "Live Search Unavailable - AI Reasoning Only";
+
+  if (webSearchExecuted && comparableItemsFound.length) {
+    liveSearchStatus = "Live Search Completed";
+  } else if (webSearchExecuted) {
+    liveSearchStatus = "Live Search Attempted - No Reliable Comps Found";
+  }
+
+  return {
+    liveSearchStatus,
+    comparableItemsFound,
+    noReliableMatchesReason: liveSearchStatus === "Live Search Completed"
+      ? ""
+      : "Live comparable search was attempted, but no reliable comps were found.",
+    searchEvidenceSummary: cleanText(result.searchEvidenceSummary || ""),
+    sourceRoute,
+    searchQueries,
+    searchStartedAt,
+    searchCompletedAt: new Date().toISOString(),
+    webSearchExecuted,
+    citations
+  };
+}
+
+function enforceLiveSearchHonesty(report, liveSearch) {
+  const comparableItemsFound = liveSearch.liveSearchStatus === "Live Search Completed" ? liveSearch.comparableItemsFound : [];
+  const basis = liveSearch.liveSearchStatus === "Live Search Completed"
+    ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
+    : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
+
+  return {
+    ...report,
+    liveComparableSearchStatus: liveSearch.liveSearchStatus,
+    comparableItemsFound,
+    priceBasis: ensurePrefix(report.priceBasis, basis)
+  };
+}
+
+function collectUrlCitations(data) {
+  const citations = [];
+  for (const item of data.output || []) {
+    for (const content of item.content || []) {
+      for (const annotation of content.annotations || []) {
+        if (annotation.type === "url_citation" && annotation.url) {
+          citations.push({
+            url: normalizeUrl(annotation.url),
+            title: cleanText(annotation.title || annotation.url)
+          });
+        }
+      }
+    }
+  }
+  return citations;
+}
+
+function collectWebSearchCalls(data) {
+  return (data.output || []).filter((item) => item.type === "web_search_call");
+}
+
+function hasCitedUrl(text, citations) {
+  if (!citations.length) {
+    return false;
+  }
+
+  const urls = extractUrls(text).map(normalizeUrl);
+  return urls.some((url) => citations.some((citation) => url === citation.url || url.startsWith(citation.url) || citation.url.startsWith(url)));
+}
+
+function extractUrls(text) {
+  return String(text || "").match(/https?:\/\/[^\s)]+/g) || [];
+}
+
+function normalizeUrl(url) {
+  return String(url || "").trim().replace(/[.,;]+$/, "");
+}
+
+function normalizeStringArray(value, maxItems, fallback = []) {
+  const items = Array.isArray(value) ? value : fallback;
+  return items.map(cleanText).filter(Boolean).slice(0, maxItems);
+}
+
+function hasKnownValue(value) {
+  const text = cleanText(value);
+  return Boolean(text && !/^unknown|n\/a|none|not visible$/i.test(text));
+}
+
+function ensurePrefix(value, prefix) {
+  const text = cleanText(value);
+  if (text.toLowerCase().startsWith(prefix.toLowerCase())) {
+    return text;
+  }
+  return `${prefix} ${text}`.trim();
 }
 
 function extractOutputText(data) {

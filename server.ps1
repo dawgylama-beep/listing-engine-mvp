@@ -51,6 +51,8 @@ $ValuationSchema = @{
   additionalProperties = $false
   required = @(
     "purchaserDecision",
+    "liveComparableSearchStatus",
+    "comparableItemsFound",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -68,6 +70,13 @@ $ValuationSchema = @{
   )
   properties = @{
     purchaserDecision = @{ type = "string" }
+    liveComparableSearchStatus = @{ type = "string" }
+    comparableItemsFound = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
     buyerTypeFit = @{
       type = "array"
       minItems = 1
@@ -258,34 +267,40 @@ function Generate-ReportWithOpenAI {
     [string]$ReportType
   )
 
+  $UseWebSearch = $false
   if ($ReportType -eq "marketValue") {
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
+    $UseWebSearch = $true
     $SystemText = "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON."
     $TaskText = @"
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
-Do not claim live marketplace search, live retail search, live sold-comps, live better-price lookup, current listings, source links, or external database checks.
+You must use the web_search tool for live comparable search before completing the report.
+Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond source-backed results found by the web_search tool.
+First identify the item and buyer context, then choose relevant source categories, then search targeted comparable queries.
+Do not default to eBay. eBay is only one market signal and should be used only when relevant.
 The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
 If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.
+The liveComparableSearchStatus section must use exactly one of these values: Live Search Completed, Live Search Attempted - No Reliable Comps Found, or Live Search Unavailable - AI Reasoning Only.
+The comparableItemsFound section may include only source-backed live search results. Each item must include title, source/platform/site, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it is or is not comparable. If no reliable source-backed comps are found, return an empty array.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
 The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
 The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
 The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.
 The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.
-The priceBasis section must clearly say: No live marketplace or retail search was performed. This estimate is based on the provided photos/details, general market patterns, likely demand, condition assumptions, and category knowledge.
+If live search completed, the priceBasis section must say: Live comparable search was performed. Source-backed results are listed when reliable matches were found.
+If live search failed, was unavailable, or returned no reliable matches, the priceBasis section must say: Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.
 Use a broad estimatedMarketValue range, not a false-precision single number.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
-In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found. Mention relevant manual checks such as online search, local marketplace, brand or retailer site, eBay, Amazon, or Google Shopping.
-In marketplaceSweepWhereToCheck, start by saying: No live marketplace search was performed in this version. These are the most relevant places to manually check based on the item type and information provided.
+In betterPriceCheckNeeded, explain whether this type of item is worth manually checking elsewhere before buying. Do not claim actual cheaper listings were found unless source-backed comparableItemsFound support that.
+Keep marketplaceSweepWhereToCheck as manual backup guidance separate from Live Comparable Search.
 In marketplaceSweepWhereToCheck, include one bullet-style string per relevant platform. Each string must include platform name, why it matters or does not matter for this item, what price signal to look for, and a suggested manual search phrase.
-Consider these platforms when relevant: eBay, Etsy, Facebook Marketplace, Mercari, Poshmark, Amazon, Google Shopping, retailer sites, Craigslist, OfferUp, brand/manufacturer site, collector groups, and local pickup resale channels.
-For holiday decor or collectible decor, prioritize manual checks on eBay, Etsy, Facebook Marketplace, and Mercari.
-For apparel or fashion with a tag, SKU, style number, or barcode, prioritize manual checks on Google Shopping, retailer sites, Poshmark, and eBay.
-For electronics with a model number, prioritize manual checks on Amazon, eBay, Google Shopping, manufacturer listings, and refurbished listings.
-For furniture or bulky local goods, prioritize manual checks on Facebook Marketplace, Craigslist, OfferUp, and local pickup resale channels.
-For vintage or collectible items, prioritize manual checks on eBay sold and active comps, Etsy, collector groups, and Facebook Marketplace.
-Call out weak or irrelevant platforms when useful, for example Poshmark for non-fashion items, Amazon for old one-off vintage goods, or shipping-heavy platforms for bulky local items.
+For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.
+For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.
+For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.
+For vintage/collectible/discontinued/holiday decor/ceramics/small shippable secondhand goods, eBay, Etsy, Mercari, Facebook Marketplace/local signals, and collector/reference sites may be relevant.
+For furniture or bulky local goods, prioritize Facebook Marketplace-style local value logic, Craigslist/OfferUp/local pickup resale, and local consignment logic; do not overvalue eBay because shipping distorts bulky-item prices.
 In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.
 In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.
 In whatToVerifyBeforeBuying, ask category-specific verification questions.
@@ -378,6 +393,15 @@ $TaskText
     }
   }
 
+  if ($UseWebSearch) {
+    $Payload.tools = @(
+      @{
+        type = "web_search"
+      }
+    )
+    $Payload.tool_choice = "required"
+  }
+
   $Json = $Payload | ConvertTo-Json -Depth 80 -Compress
 
   try {
@@ -398,10 +422,155 @@ $TaskText
   }
 
   try {
-    return $OutputText | ConvertFrom-Json
+    $Report = $OutputText | ConvertFrom-Json
   } catch {
     throw "OpenAI returned a response that was not valid listing JSON."
   }
+
+  if ($ReportType -eq "marketValue") {
+    return Set-LiveSearchHonesty -Report $Report -Response $Response
+  }
+
+  return $Report
+}
+
+function Set-LiveSearchHonesty {
+  param(
+    $Report,
+    $Response
+  )
+
+  $SearchCalls = @(Get-WebSearchCalls $Response)
+  $Citations = @(Get-UrlCitations $Response)
+  $SourceBackedItems = @(
+    Normalize-ReportArray $Report.comparableItemsFound |
+      Where-Object { Test-CitedUrl $_ $Citations }
+  )
+
+  if ($SearchCalls.Count -gt 0 -and $SourceBackedItems.Count -gt 0) {
+    $Status = "Live Search Completed"
+    $Basis = "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
+  } elseif ($SearchCalls.Count -gt 0) {
+    $Status = "Live Search Attempted - No Reliable Comps Found"
+    $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
+    $SourceBackedItems = @()
+  } else {
+    $Status = "Live Search Unavailable - AI Reasoning Only"
+    $Basis = "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only."
+    $SourceBackedItems = @()
+  }
+
+  $Report | Add-Member -NotePropertyName "liveComparableSearchStatus" -NotePropertyValue $Status -Force
+  $Report | Add-Member -NotePropertyName "comparableItemsFound" -NotePropertyValue @($SourceBackedItems) -Force
+
+  $PriceBasis = Clean-Text $Report.priceBasis
+  if (-not $PriceBasis.ToLowerInvariant().StartsWith($Basis.ToLowerInvariant())) {
+    $PriceBasis = "$Basis $PriceBasis".Trim()
+  }
+  $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue $PriceBasis -Force
+
+  return $Report
+}
+
+function Get-WebSearchCalls {
+  param($Data)
+
+  $Calls = @()
+  if ($null -ne $Data.output) {
+    foreach ($Item in $Data.output) {
+      if ($Item.type -eq "web_search_call") {
+        $Calls += $Item
+      }
+    }
+  }
+  return $Calls
+}
+
+function Get-UrlCitations {
+  param($Data)
+
+  $Urls = @()
+  if ($null -ne $Data.output) {
+    foreach ($Item in $Data.output) {
+      if ($null -eq $Item.content) {
+        continue
+      }
+
+      foreach ($Content in $Item.content) {
+        if ($null -eq $Content.annotations) {
+          continue
+        }
+
+        foreach ($Annotation in $Content.annotations) {
+          if ($Annotation.type -eq "url_citation" -and $Annotation.url) {
+            $Urls += (Normalize-Url $Annotation.url)
+          }
+        }
+      }
+    }
+  }
+  return $Urls
+}
+
+function Normalize-ReportArray {
+  param($Value)
+
+  if ($null -eq $Value) {
+    return @()
+  }
+
+  $Items = @()
+  if ($Value -is [array]) {
+    $Items = $Value
+  } else {
+    $Items = @($Value)
+  }
+
+  return @(
+    $Items |
+      ForEach-Object { Clean-Text $_ } |
+      Where-Object { $_ }
+  )
+}
+
+function Test-CitedUrl {
+  param(
+    [string]$Text,
+    [array]$Citations
+  )
+
+  if ($Citations.Count -eq 0) {
+    return $false
+  }
+
+  $Urls = Get-TextUrls $Text
+  foreach ($Url in $Urls) {
+    $Normalized = Normalize-Url $Url
+    foreach ($Citation in $Citations) {
+      if ($Normalized -eq $Citation -or $Normalized.StartsWith($Citation) -or $Citation.StartsWith($Normalized)) {
+        return $true
+      }
+    }
+  }
+
+  return $false
+}
+
+function Get-TextUrls {
+  param([string]$Text)
+
+  $Matches = [regex]::Matches($Text, "https?://[^\s)]+")
+  $Urls = @()
+  foreach ($Match in $Matches) {
+    $Urls += $Match.Value
+  }
+  return $Urls
+}
+
+function Normalize-Url {
+  param([string]$Url)
+
+  return ([string]$Url).Trim().TrimEnd(".", ",", ";")
 }
 
 function Extract-OutputText {
