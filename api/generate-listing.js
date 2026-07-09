@@ -140,6 +140,9 @@ const itemIdentitySchema = {
     "condition",
     "currentAskingPrice",
     "category",
+    "productNameOrBoxTitle",
+    "visibleText",
+    "distinctiveVisualDescription",
     "likelyItemDescription",
     "strongestSearchableIdentifiers",
     "buyerContext"
@@ -157,6 +160,14 @@ const itemIdentitySchema = {
     condition: { type: "string" },
     currentAskingPrice: { type: "string" },
     category: { type: "string" },
+    productNameOrBoxTitle: { type: "string" },
+    visibleText: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    distinctiveVisualDescription: { type: "string" },
     likelyItemDescription: { type: "string" },
     strongestSearchableIdentifiers: {
       type: "array",
@@ -314,6 +325,11 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
       type: "input_text",
       text: [
         "Extract the strongest searchable item identity from the photos and buyer notes.",
+        "Prioritize visible product and box text, brand/manufacturer text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, and current asking price.",
+        "For holiday decor, capture wording such as Santa's Workshop, Santa Claus, Santa figurine, Christmas decoration, holiday decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
+        "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
+        "For electronics, capture exact model number, brand/manufacturer, specs visible in notes/photos, condition, charger/accessories, and current asking price.",
+        "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and current asking price.",
         "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
         "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
         `Marketplace platform: ${platform || "No platform selected"}`,
@@ -347,6 +363,8 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Perform source-routed live comparable search for a buyer deciding whether to buy this item right now.",
         "You must use web search. Do not rely only on general model knowledge.",
         "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
+        "Use the targeted search queries as product-focused search inputs. Do not replace them with repetitive code-only queries or platform-stuffed variants.",
+        "Search exact identifiers, brand/product-title wording, visual descriptions, category terms, and price/context when present.",
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
@@ -430,7 +448,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "The liveComparableSearchStatus section must be exactly the live search status supplied by the backend.",
     "The weFoundThisItem section must use only source-backed items supplied by the backend that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.",
     "The weFoundSimilarComparableItems section must use only source-backed items supplied by the backend that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.",
-    "The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, use exactly: Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.",
+    "The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, explain that live search was attempted, exact/source-backed comps were not found, the item may be generic/private-label/seasonal/poorly indexed or missing identifiers, and the recommendation is lower-confidence.",
     "The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.",
     "Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.",
     "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
@@ -442,6 +460,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Use a broad estimatedMarketValue range, not a false-precision single number.",
     "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
     "In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not tell the user to go search elsewhere, and do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
+    "If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.",
     "Do not default to eBay. eBay is only one market signal and should be mentioned only when the source route or item category makes it useful.",
     "For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.",
     "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
@@ -562,6 +581,9 @@ function normalizeIdentity(identity) {
     condition: cleanText(identity.condition || "Unknown") || "Unknown",
     currentAskingPrice: cleanText(identity.currentAskingPrice || "Unknown") || "Unknown",
     category: cleanText(identity.category || "Unknown") || "Unknown",
+    productNameOrBoxTitle: cleanText(identity.productNameOrBoxTitle || "Unknown") || "Unknown",
+    visibleText: normalizeStringArray(identity.visibleText, 10),
+    distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
     strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 8),
     buyerContext: normalizeStringArray(identity.buyerContext, 8, ["unknown"])
@@ -579,6 +601,9 @@ function routeMarketSources(identity) {
     identity.sku,
     identity.upcBarcode,
     identity.styleNumber,
+    identity.productNameOrBoxTitle,
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
+    identity.distinctiveVisualDescription,
     identity.buyerContext.join(" ")
   ].join(" ").toLowerCase();
 
@@ -625,44 +650,47 @@ function routeMarketSources(identity) {
 }
 
 function buildLiveSearchQueries(identity, sourceRoute, notes) {
-  const identifiers = [
-    identity.upcBarcode,
-    identity.model,
-    identity.sku,
-    identity.styleNumber,
-    ...identity.strongestSearchableIdentifiers,
-    identity.brand,
-    identity.manufacturer
-  ].filter(hasKnownValue);
-  const base = cleanText(identifiers.slice(0, 3).join(" ")) || cleanText(identity.likelyItemDescription) || cleanText(notes).slice(0, 120) || "item";
   const routeText = sourceRoute.join(" ").toLowerCase();
+  const notesText = cleanText(notes);
+  const productTitle = firstKnown(identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
+  const brand = firstKnown(identity.brand, identity.manufacturer);
+  const model = firstKnown(identity.model);
+  const itemCode = firstKnown(identity.sku, identity.styleNumber);
+  const upc = firstKnown(identity.upcBarcode);
+  const visualPhrase = buildVisualPhrase(identity, notesText);
+  const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
+  const price = extractPrice(identity.currentAskingPrice) || extractPrice(notesText);
   const queries = [];
 
-  if (/brand|retailer|google shopping|amazon|major retail|manufacturer/.test(routeText)) {
-    queries.push(`${base} price retailer manufacturer`);
+  if (upc) {
+    queries.push(upc);
   }
 
-  if (/poshmark|fashion|apparel/.test(routeText)) {
-    queries.push(`${base} Poshmark retailer style number`);
+  if (itemCode) {
+    queries.push(compactWords([itemCode, mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
   }
 
-  if (/refurbished|best buy|newegg|electronics/.test(routeText)) {
-    queries.push(`${base} refurbished used price specs`);
+  if (model) {
+    queries.push(compactWords([brand, model, extractSpecs(notesText), "price"]));
   }
 
-  if (/etsy|mercari|collector|vintage|collectible|ceramic|holiday|eBay/i.test(sourceRoute.join(" "))) {
-    queries.push(`${base} eBay Etsy Mercari comparable`);
+  queries.push(compactWords([brand, productTitle]));
+  queries.push(visualPhrase);
+
+  if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
+    queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
   }
 
-  if (/facebook|craigslist|offerup|local|consignment/.test(routeText)) {
-    queries.push(`${base} local resale Facebook Marketplace Craigslist OfferUp`);
+  queries.push(categoryPhrase);
+
+  const diverseQueries = [];
+  for (const query of queries.map(cleanSearchQuery).filter(Boolean)) {
+    if (!isRepetitiveQuery(query, diverseQueries)) {
+      diverseQueries.push(query);
+    }
   }
 
-  if (!queries.length) {
-    queries.push(`${base} price`, `${base} resale value`);
-  }
-
-  return [...new Set(queries.map(cleanText).filter(Boolean))].slice(0, 4);
+  return diverseQueries.slice(0, 5);
 }
 
 function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries }) {
@@ -700,7 +728,7 @@ function enforceLiveSearchHonesty(report, liveSearch) {
   const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
   const noReliableMessage = hasReliableMatch
     ? ""
-    : "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.";
+    : "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence.";
   const basis = liveSearch.liveSearchStatus === "Live Search Completed"
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
     : "Live comparable search was attempted but unavailable or produced no reliable comps. The remaining estimate is AI market reasoning only.";
@@ -742,8 +770,21 @@ function buildSearchCoverage(liveSearch) {
     return ["Live comparable search was unavailable before source categories could be searched."];
   }
 
+  const queryText = liveSearch.searchQueries.join(" ").toLowerCase();
   const routeText = liveSearch.sourceRoute.join(" ").toLowerCase();
   const coverage = [];
+
+  if (/\b\d{8,14}\b|sku|style|model|gab\d+/i.test(queryText)) {
+    coverage.push("Searched using barcode/item code/model identifiers when available.");
+  }
+
+  if (/workshop|box|brand|title|label|tag|manufacturer/i.test(queryText)) {
+    coverage.push("Searched using visible box, label, brand, or product-title wording.");
+  }
+
+  if (/santa|christmas|holiday|figurine|decor|dress|laptop|canister|ceramic|furniture/i.test(queryText)) {
+    coverage.push("Searched using visual item description and category terms.");
+  }
 
   if (/holiday|collectible|vintage|ceramic|etsy|mercari|collector|resale/.test(routeText)) {
     coverage.push("Searched relevant holiday decor / collectible sources.");
@@ -774,6 +815,166 @@ function buildSearchQueriesUsed(liveSearch) {
   }
 
   return ["These are the queries the system used.", ...liveSearch.searchQueries];
+}
+
+function buildVisualPhrase(identity, notes) {
+  return compactWords([
+    identity.size,
+    identity.distinctiveVisualDescription,
+    identity.color,
+    identity.material,
+    mostDistinctiveProductWord(identity.likelyItemDescription),
+    mostDistinctiveCategoryWord(identity.category),
+    inferVisualTerms(notes)
+  ]);
+}
+
+function buildCategoryPhrase(identity, routeText, notes) {
+  const terms = [
+    mostDistinctiveProductWord(identity.productNameOrBoxTitle),
+    mostDistinctiveCategoryWord(identity.category),
+    inferSourceIntentTerms(routeText),
+    inferVisualTerms(notes)
+  ];
+  return compactWords(terms);
+}
+
+function inferSourceIntentTerms(routeText) {
+  if (/furniture|local|craigslist|offerup|consignment/.test(routeText)) {
+    return "local resale furniture";
+  }
+  if (/electronics|refurbished|best buy|newegg|model/.test(routeText)) {
+    return "model specs price refurbished";
+  }
+  if (/fashion|apparel|poshmark/.test(routeText)) {
+    return "dress fashion style size";
+  }
+  if (/holiday|collectible|vintage|ceramic|etsy|mercari|collector/.test(routeText)) {
+    return "holiday collectible decor figurine";
+  }
+  if (/brand|manufacturer|retailer|amazon|major retail/.test(routeText)) {
+    return "retail product price";
+  }
+  return "price resale value";
+}
+
+function inferVisualTerms(text) {
+  const lower = String(text || "").toLowerCase();
+  const terms = [];
+  const candidates = [
+    ["santa", "Santa Claus"],
+    ["christmas", "Christmas"],
+    ["holiday", "holiday decor"],
+    ["figurine", "figurine"],
+    ["green box", "green box"],
+    ["red suit", "red suit"],
+    ["tree", "tree"],
+    ["dress", "dress"],
+    ["laptop", "laptop"],
+    ["canister", "canister set"],
+    ["ceramic", "ceramic"],
+    ["furniture", "furniture"]
+  ];
+
+  for (const [needle, value] of candidates) {
+    if (lower.includes(needle)) {
+      terms.push(value);
+    }
+  }
+
+  const sizeMatch = String(text || "").match(/\b\d+(?:\.\d+)?\s?(?:inch|inches|in\.|")\b/i);
+  if (sizeMatch) {
+    terms.unshift(sizeMatch[0].replace(/"/, " inch"));
+  }
+
+  return terms.join(" ");
+}
+
+function extractSpecs(text) {
+  return normalizeTokenString(String(text || "").match(/\b(?:i[3579]|ryzen\s?\d|m[1234]|16gb|8gb|32gb|256gb|512gb|1tb|ssd|hdd)\b/gi)?.join(" ") || "");
+}
+
+function extractPrice(text) {
+  const match = String(text || "").match(/\$\s?\d+(?:\.\d{2})?/);
+  return match ? match[0].replace(/\s+/, "") : "";
+}
+
+function firstKnown(...values) {
+  return values.map(cleanText).find(hasKnownValue) || "";
+}
+
+function compactWords(parts) {
+  return cleanSearchQuery(parts.filter(hasKnownValue).join(" "));
+}
+
+function cleanSearchQuery(value) {
+  const text = normalizeTokenString(value)
+    .replace(/\b(unknown|n\/a|none|not visible)\b/gi, "")
+    .replace(/\b(\w+)(\s+\1\b)+/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  return trimQueryTerms(text, 10);
+}
+
+function normalizeTokenString(value) {
+  return String(value || "")
+    .replace(/[|[\]{}]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function trimQueryTerms(text, maxTerms) {
+  const terms = text.split(/\s+/).filter(Boolean);
+  return terms.slice(0, maxTerms).join(" ");
+}
+
+function mostDistinctiveProductWord(text) {
+  const cleaned = normalizeTokenString(text);
+  if (!cleaned) {
+    return "";
+  }
+
+  const words = cleaned.split(/\s+/).filter((word) => !/^(the|and|with|for|item|unknown|decoration|decor)$/i.test(word));
+  return words.slice(0, 5).join(" ") || cleaned;
+}
+
+function mostDistinctiveCategoryWord(text) {
+  const cleaned = normalizeTokenString(text);
+  if (!cleaned) {
+    return "";
+  }
+
+  if (/santa|christmas|holiday/i.test(cleaned)) {
+    return "Santa Claus holiday decor collectible figurine";
+  }
+  if (/dress|apparel|fashion/i.test(cleaned)) {
+    return "dress fashion style";
+  }
+  if (/laptop|computer|electronics/i.test(cleaned)) {
+    return "laptop model specs";
+  }
+  if (/canister|ceramic/i.test(cleaned)) {
+    return "ceramic canister set pattern lids";
+  }
+  if (/furniture|sofa|chair|table|dresser/i.test(cleaned)) {
+    return "local resale furniture";
+  }
+
+  return trimQueryTerms(cleaned, 5);
+}
+
+function isRepetitiveQuery(query, existingQueries) {
+  const normalized = query.toLowerCase();
+  const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
+  for (const existing of existingQueries) {
+    const existingTokens = new Set(existing.toLowerCase().split(/\s+/).filter(Boolean));
+    const overlap = [...tokens].filter((token) => existingTokens.has(token)).length;
+    const smaller = Math.min(tokens.size, existingTokens.size) || 1;
+    if (normalized === existing.toLowerCase() || overlap / smaller > 0.9) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function collectUrlCitations(data) {

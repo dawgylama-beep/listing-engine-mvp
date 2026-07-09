@@ -288,13 +288,18 @@ Primary question: Should the user buy this item at this price, right now?
 You must use the web_search tool for live comparable search before completing the report.
 Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond source-backed results found by the web_search tool.
 First identify the item and buyer context, then choose relevant source categories, then search targeted comparable queries.
+Prioritize visible product and box text, brand/manufacturer text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, and current asking price.
+Build diverse product-focused search queries, not repetitive code-only or platform-stuffed variants.
+Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful.
+For a Santa decor box, include useful terms such as Santa's Workshop, Santa Claus, Santa figurine, Christmas decoration, holiday decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
+Do not simply append platform names to every query.
 Do not default to eBay. eBay is only one market signal and should be used only when relevant.
 The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.
 If item information is vague, default to Need More Info, Wait, or Negotiate rather than a strong Buy Here.
 The liveComparableSearchStatus section must use exactly one of these values: Live Search Completed, Live Search Attempted - No Reliable Comps Found, or Live Search Unavailable - AI Reasoning Only.
 The weFoundThisItem section must use only source-backed items found by the web_search tool that are Exact Match or likely exact matches. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it appears to match.
 The weFoundSimilarComparableItems section must use only source-backed items found by the web_search tool that are similar but not exact. Include source/platform/site, title, price, shipping if available, condition if available, link, match quality, and why it is only similar.
-The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, use exactly: Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found.
+The noReliableComparableItemsFound section must be empty when exact or similar source-backed comps are supplied. If no exact or strong similar source-backed comps are supplied, explain that live search was attempted, exact/source-backed comps were not found, the item may be generic/private-label/seasonal/poorly indexed or missing identifiers, and the recommendation is lower-confidence.
 The searchCoverage section must describe what the system already attempted in past tense, such as searched relevant holiday decor / collectible sources, retail/product sources, fashion resale/retail sources, electronics/model-number sources, or local/bulky-item source categories where available.
 Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
@@ -307,6 +312,7 @@ If live search failed, was unavailable, or returned no reliable matches, the pri
 Use a broad estimatedMarketValue range, not a false-precision single number.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
 In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not direct the user to perform additional marketplace searching, and do not claim actual cheaper listings were found unless source-backed results support that.
+If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.
 For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.
 For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.
 For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.
@@ -496,7 +502,7 @@ function Set-LiveSearchHonesty {
   if ($HasReliableMatch) {
     $NoReliableMessage = ""
   } else {
-    $NoReliableMessage = "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found."
+    $NoReliableMessage = "Live comparable search was attempted, but no reliable source-backed exact or strong similar matches were found. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence."
   }
   $Report | Add-Member -NotePropertyName "noReliableComparableItemsFound" -NotePropertyValue $NoReliableMessage -Force
   $Report | Add-Member -NotePropertyName "searchCoverage" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force

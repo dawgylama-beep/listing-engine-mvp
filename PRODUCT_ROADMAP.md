@@ -60,6 +60,12 @@
 - Marketplace Sweep replaced with Search Coverage
 - Suggested Search Terms replaced with Search Queries Used
 
+## Version 1.5.2 (Completed)
+- Live comparable search query quality improved
+- Product-focused query types added
+- Visible text, box wording, visual description, and price context emphasized
+- No Reliable Comparable Items Found transparency improved
+
 ## Version 2.0
 - User accounts
 - Saved listings
