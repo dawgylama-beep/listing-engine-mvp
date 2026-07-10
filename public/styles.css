@@ -351,6 +351,80 @@ h3 {
   padding: 14px;
 }
 
+.guide-panel {
+  border-color: rgba(15, 106, 98, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 250, 247, 0.94) 100%);
+}
+
+.guide-content {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  color: #2b3035;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.guide-content p,
+.guide-content ol,
+.guide-content ul,
+.guide-definition-list {
+  margin: 0;
+}
+
+.guide-content ol,
+.guide-content ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 1.3rem;
+}
+
+.guide-quickstart,
+.guide-section {
+  display: grid;
+  gap: 8px;
+}
+
+.guide-quickstart {
+  padding: 12px;
+  border: 1px solid rgba(193, 138, 60, 0.34);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff8ec 0%, #fbf2df 100%);
+}
+
+.guide-quickstart h2,
+.guide-section h3 {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.guide-section {
+  padding-top: 12px;
+  border-top: 1px solid rgba(203, 191, 172, 0.5);
+}
+
+.guide-definition-list {
+  display: grid;
+  gap: 8px;
+}
+
+.guide-definition-list div {
+  display: grid;
+  gap: 2px;
+}
+
+.guide-definition-list dt {
+  color: var(--heading);
+  font-weight: 850;
+}
+
+.guide-definition-list dd {
+  margin: 0;
+  color: #394249;
+}
+
 .condition-concerns {
   margin: 0;
 }
