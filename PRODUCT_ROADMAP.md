@@ -119,6 +119,11 @@
 - Buyer Risk Score added to Worth Buying with a 0-100 risk score, risk level, plain-language summary, primary risk factors, and risk-reduction actions
 - Worth Buying results now display a dedicated risk card near the top, align high-risk scores with conservative recommendations, and preserve Generate Listing behavior
 
+## Version 1.7.1 (Completed)
+- Buyer Risk Score now separates evidence uncertainty from purchase downside so weak evidence alone does not force maximum risk when dollar exposure is minimal
+- Low-dollar speculative purchases now remain clearly labeled as uncertain, while added costs, safety, authenticity, repair, storage, disposal, and fraud exposure can keep risk High or Very High
+- Recommendation alignment now blocks unexplained Very High Risk / Buy combinations and clarifies low-confidence speculative buys without changing Generate Listing behavior
+
 ## Version 2.0
 - User accounts
 - Saved listings

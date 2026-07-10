@@ -380,7 +380,7 @@ function renderRiskScore(report) {
 
   const note = document.createElement("p");
   note.className = "risk-score-note";
-  note.textContent = "The Buyer Risk Score is decision support based on available photos, item details, market evidence, price, condition, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale.";
+  note.textContent = "The Buyer Risk Score is not a confidence score. It blends evidence uncertainty with purchase downside from price, condition, added costs, safety, authenticity, liquidity, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale.";
 
   wrapper.append(top, meter, labels, summaryText, note);
   return wrapper;
@@ -446,7 +446,7 @@ function formatRiskSection(report) {
     level,
     "Lower is safer. Higher is riskier.",
     summary,
-    "The Buyer Risk Score is decision support based on available photos, item details, market evidence, price, condition, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale."
+    "The Buyer Risk Score is not a confidence score. It blends evidence uncertainty with purchase downside from price, condition, added costs, safety, authenticity, liquidity, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale."
   ].filter(Boolean).join("\n");
 }
 
