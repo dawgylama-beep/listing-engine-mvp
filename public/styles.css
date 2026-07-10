@@ -265,19 +265,91 @@ h3 {
 .details-panel {
   border: 1px solid rgba(203, 191, 172, 0.56);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(251, 250, 246, 0.9) 100%);
+  box-shadow: 0 8px 24px rgba(17, 24, 32, 0.05);
+  overflow: hidden;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.details-panel[open] {
+  border-color: rgba(15, 106, 98, 0.38);
+  background:
+    linear-gradient(180deg, #ffffff 0%, rgba(246, 250, 247, 0.96) 100%);
+  box-shadow: 0 12px 30px rgba(15, 106, 98, 0.08);
 }
 
 .details-panel summary {
-  min-height: 44px;
-  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
   color: var(--heading);
   cursor: pointer;
   font-weight: 850;
+  list-style: none;
+  outline: none;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.details-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.details-panel summary::marker {
+  content: "";
+}
+
+.details-panel summary:hover {
+  background: rgba(220, 239, 235, 0.48);
+}
+
+.details-panel summary:focus-visible {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 3px var(--accent-soft);
+}
+
+.details-summary-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.details-title {
+  color: var(--heading);
+  line-height: 1.2;
+}
+
+.details-helper {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.details-chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--teal);
+  border-bottom: 2px solid var(--teal);
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.details-panel[open] .details-chevron {
+  transform: rotate(225deg);
+}
+
+.details-panel[open] summary {
+  border-bottom: 1px solid rgba(15, 106, 98, 0.14);
+  background: rgba(220, 239, 235, 0.34);
 }
 
 .details-panel .intake-grid {
-  padding: 0 13px 13px;
+  padding: 14px;
 }
 
 .condition-concerns {

@@ -99,6 +99,10 @@
 - Weak wholesale, restaurant-supply, bulk import/manufacturing, unrelated current-retail, and generic lookalike sources are rejected as meaningful comps
 - Visible app branding updated to Marketplace Edge
 
+## Version 1.6.2 (Completed)
+- Known Item Details now appears as a clear native collapsible dropdown with helper text, visible chevron state, hover feedback, focus feedback, and mobile-friendly tap target
+- Existing known-detail field IDs, names, buyerIntake payload behavior, Worth Buying behavior, and Generate Listing behavior preserved
+
 ## Version 2.0
 - User accounts
 - Saved listings
