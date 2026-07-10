@@ -27,6 +27,7 @@ const listingSections = [
 
 const valuationSections = [
   ["purchaserDecision", "Purchase Decision"],
+  ["buyer_risk_score", "Buyer Risk Score"],
   ["buyerDecisionConfidence", "Buyer Decision Confidence"],
   ["currentAskingPrice", "Current Asking Price"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
@@ -34,6 +35,8 @@ const valuationSections = [
   ["expectedSalePrice", "Expected Sale Price"],
   ["minimumAcceptablePrice", "Minimum Acceptable Price"],
   ["recommendedSellingPlatform", "Recommended Selling Platform"],
+  ["primary_risk_factors", "Primary Risk Factors"],
+  ["risk_reduction_actions", "Risk Reduction Actions"],
   ["priceBasis", "Pricing Basis"],
   ["expectedSellingTime", "Expected Selling Time"],
   ["platformSpecificSellingGuidance", "Platform-Specific Selling Guidance"],
@@ -261,7 +264,9 @@ function renderReport(report, sections) {
     }
 
     const card = document.createElement("article");
-    card.className = "section-card";
+    card.className = key === "buyer_risk_score"
+      ? `section-card risk-score-card ${getRiskModifier(report.buyer_risk_level)}`
+      : "section-card";
 
     const header = document.createElement("div");
     header.className = "section-topline";
@@ -273,11 +278,14 @@ function renderReport(report, sections) {
     copyButton.className = "copy-button";
     copyButton.type = "button";
     copyButton.textContent = "Copy";
-    copyButton.addEventListener("click", () => copyText(formatSection(label, report[key]), copyButton));
+    copyButton.addEventListener("click", () => {
+      const copyValue = key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]);
+      copyText(copyValue, copyButton);
+    });
 
     const body = document.createElement("div");
     body.className = "section-body";
-    body.appendChild(renderValue(report[key]));
+    body.appendChild(key === "buyer_risk_score" ? renderRiskScore(report) : renderValue(report[key]));
 
     header.append(title, copyButton);
     card.append(header, body);
@@ -321,6 +329,63 @@ function renderValue(value) {
   return paragraph;
 }
 
+function renderRiskScore(report) {
+  const score = normalizeRiskScore(report.buyer_risk_score);
+  const level = String(report.buyer_risk_level || riskLevelFromScore(score));
+  const summary = String(report.buyer_risk_summary || "Risk depends on available photos, item details, market evidence, price, condition, and resale uncertainty.");
+  const wrapper = document.createElement("div");
+  wrapper.className = "risk-score";
+
+  const top = document.createElement("div");
+  top.className = "risk-score-top";
+
+  const scoreText = document.createElement("p");
+  scoreText.className = "risk-score-number";
+  scoreText.textContent = `${score}`;
+
+  const detail = document.createElement("div");
+  detail.className = "risk-score-detail";
+
+  const levelText = document.createElement("p");
+  levelText.className = "risk-score-level";
+  levelText.textContent = level;
+
+  const direction = document.createElement("p");
+  direction.className = "risk-score-direction";
+  direction.textContent = "Lower is safer. Higher is riskier.";
+
+  detail.append(levelText, direction);
+  top.append(scoreText, detail);
+
+  const meter = document.createElement("div");
+  meter.className = "risk-meter";
+  meter.setAttribute("role", "meter");
+  meter.setAttribute("aria-label", `Buyer Risk Score ${score} out of 100, ${level}. Lower is safer.`);
+  meter.setAttribute("aria-valuemin", "0");
+  meter.setAttribute("aria-valuemax", "100");
+  meter.setAttribute("aria-valuenow", String(score));
+
+  const fill = document.createElement("div");
+  fill.className = "risk-meter-fill";
+  fill.style.width = `${score}%`;
+  meter.appendChild(fill);
+
+  const labels = document.createElement("div");
+  labels.className = "risk-meter-labels";
+  labels.innerHTML = "<span>0 Low</span><span>25 Moderate</span><span>50 High</span><span>75 Very High</span><span>100</span>";
+
+  const summaryText = document.createElement("p");
+  summaryText.className = "risk-score-summary";
+  summaryText.textContent = summary;
+
+  const note = document.createElement("p");
+  note.className = "risk-score-note";
+  note.textContent = "The Buyer Risk Score is decision support based on available photos, item details, market evidence, price, condition, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale.";
+
+  wrapper.append(top, meter, labels, summaryText, note);
+  return wrapper;
+}
+
 function renderEmpty(config = reportTypes.listing) {
   latestReport = null;
   copyAllButton.disabled = true;
@@ -362,13 +427,63 @@ async function copyText(text, button) {
 function formatReport(report, sections) {
   return sections
     .filter(([key]) => shouldRenderSection(key, report[key]))
-    .map(([key, label]) => formatSection(label, report[key]))
+    .map(([key, label]) => key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]))
     .join("\n\n");
 }
 
 function formatSection(label, value) {
   const body = Array.isArray(value) ? value.map((item) => `- ${item}`).join("\n") : value;
   return `${label}\n${body || ""}`;
+}
+
+function formatRiskSection(report) {
+  const score = normalizeRiskScore(report.buyer_risk_score);
+  const level = String(report.buyer_risk_level || riskLevelFromScore(score));
+  const summary = String(report.buyer_risk_summary || "");
+  return [
+    "Buyer Risk Score",
+    `${score}/100`,
+    level,
+    "Lower is safer. Higher is riskier.",
+    summary,
+    "The Buyer Risk Score is decision support based on available photos, item details, market evidence, price, condition, and resale uncertainty. It is not a guarantee of value, authenticity, profit, or sale."
+  ].filter(Boolean).join("\n");
+}
+
+function normalizeRiskScore(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) {
+    return 100;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(score)));
+}
+
+function riskLevelFromScore(score) {
+  if (score <= 24) {
+    return "Low Risk";
+  }
+  if (score <= 49) {
+    return "Moderate Risk";
+  }
+  if (score <= 74) {
+    return "High Risk";
+  }
+  return "Very High Risk";
+}
+
+function getRiskModifier(level) {
+  const text = String(level || "").toLowerCase();
+  if (text.includes("very high")) {
+    return "risk-very-high";
+  }
+  if (text.includes("high")) {
+    return "risk-high";
+  }
+  if (text.includes("moderate")) {
+    return "risk-moderate";
+  }
+  return "risk-low";
 }
 
 function resizeImage(file) {

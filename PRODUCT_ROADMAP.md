@@ -115,6 +115,10 @@
 - Low-confidence Worth Buying guardrails now force weak-evidence resale cases toward Pass, Need More Info, or a substantially discounted speculative ceiling instead of optimistic Buy/Negotiate guidance
 - AI-only resale ranges are labeled as uncertain advertised guidance, expected sale price is conservative, unsupported resale floors are blocked, and Generate Listing behavior remains unchanged
 
+## Version 1.7.0 (Completed)
+- Buyer Risk Score added to Worth Buying with a 0-100 risk score, risk level, plain-language summary, primary risk factors, and risk-reduction actions
+- Worth Buying results now display a dedicated risk card near the top, align high-risk scores with conservative recommendations, and preserve Generate Listing behavior
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -51,6 +51,11 @@ $ValuationSchema = @{
   additionalProperties = $false
   required = @(
     "purchaserDecision",
+    "buyer_risk_score",
+    "buyer_risk_level",
+    "buyer_risk_summary",
+    "primary_risk_factors",
+    "risk_reduction_actions",
     "liveComparableSearchStatus",
     "weFoundThisItem",
     "weFoundSimilarComparableItems",
@@ -86,6 +91,21 @@ $ValuationSchema = @{
   )
   properties = @{
     purchaserDecision = @{ type = "string" }
+    buyer_risk_score = @{ type = "number" }
+    buyer_risk_level = @{ type = "string" }
+    buyer_risk_summary = @{ type = "string" }
+    primary_risk_factors = @{
+      type = "array"
+      minItems = 1
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    risk_reduction_actions = @{
+      type = "array"
+      minItems = 1
+      maxItems = 6
+      items = @{ type = "string" }
+    }
     liveComparableSearchStatus = @{ type = "string" }
     weFoundThisItem = @{
       type = "array"
@@ -329,6 +349,11 @@ In weak-evidence resale cases, prefer Pass or Need More Info at ordinary or ambi
 Do not use the high end of an AI-only resale range to justify Buy Here or a close-to-asking negotiation target. Use the conservative realized-sale case, and do not recommend buying when expected profit only exists near the optimistic top of a low-confidence range.
 When no reliable comps exist, Suggested Listing Price is only an advertised starting point, not evidence of actual value. Expected Sale Price must be more conservative than Suggested Listing Price, and if evidence is too weak, say resale price cannot be estimated reliably from available evidence.
 Decision priority for Worth Buying: identify the item reliably, verify relevant comps, confirm demand, compare the asking price to conservative supported value, require margin after risks and costs, and only then recommend Buy Here or Negotiate.
+Return Buyer Risk Score fields for Worth Buying: buyer_risk_score from 0 to 100, buyer_risk_level, buyer_risk_summary, primary_risk_factors, and risk_reduction_actions.
+Buyer Risk Score is not confidence. It answers how dangerous it is for the buyer to spend money on this item at this price. Lower is safer; higher is riskier.
+Use levels exactly as Low Risk, Moderate Risk, High Risk, or Very High Risk. 0-24 is Low Risk, 25-49 is Moderate Risk, 50-74 is High Risk, and 75-100 is Very High Risk.
+Risk must combine item identification uncertainty, live comparable quality, asking price exposure, purchase intent, condition risk, liquidity risk, cost risk, and evidence conflicts. Do not simply invert confidence.
+Risk and purchaserDecision must agree. Very High Risk should generally be Pass. High Risk should generally be Pass, Need More Info, or only a deeply discounted speculative offer. Do not pair a high risk score with Buy Here unless the rare exception is clearly explained.
 For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.
 Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.
 Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.
@@ -601,7 +626,15 @@ function Set-LiveSearchHonesty {
   $ReliableCompsFound = $Status -eq "Live Search Completed - Source-Backed Comps Found"
   $HasAskingPrice = Test-HasAskingPrice $BuyerIntake
   $ResaleGuidance = Get-ResalePricingGuidance -Report $Report -BuyerIntake $BuyerIntake -Platform $Platform -ReliableCompsFound $ReliableCompsFound
-  $Report | Add-Member -NotePropertyName "purchaserDecision" -NotePropertyValue (Get-GuardedBuyerDecision -Value $Report.purchaserDecision -ReliableCompsFound $ReliableCompsFound -BuyerIntake $BuyerIntake -ResaleGuidance $ResaleGuidance) -Force
+  $GuardedPurchaserDecision = Get-GuardedBuyerDecision -Value $Report.purchaserDecision -ReliableCompsFound $ReliableCompsFound -BuyerIntake $BuyerIntake -ResaleGuidance $ResaleGuidance
+  $BuyerRisk = Get-BuyerRiskAssessment -Report $Report -BuyerIntake $BuyerIntake -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -LiveComparableSearchStatus $Status -ResaleGuidance $ResaleGuidance -PurchaserDecision $GuardedPurchaserDecision
+  $AlignedPurchaserDecision = Get-DecisionAlignedWithRisk -Decision $GuardedPurchaserDecision -BuyerRisk $BuyerRisk -BuyerIntake $BuyerIntake
+  $Report | Add-Member -NotePropertyName "purchaserDecision" -NotePropertyValue $AlignedPurchaserDecision -Force
+  $Report | Add-Member -NotePropertyName "buyer_risk_score" -NotePropertyValue $BuyerRisk.score -Force
+  $Report | Add-Member -NotePropertyName "buyer_risk_level" -NotePropertyValue $BuyerRisk.level -Force
+  $Report | Add-Member -NotePropertyName "buyer_risk_summary" -NotePropertyValue $BuyerRisk.summary -Force
+  $Report | Add-Member -NotePropertyName "primary_risk_factors" -NotePropertyValue @($BuyerRisk.primaryRiskFactors) -Force
+  $Report | Add-Member -NotePropertyName "risk_reduction_actions" -NotePropertyValue @($BuyerRisk.riskReductionActions) -Force
   $Report | Add-Member -NotePropertyName "itemIdentificationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.itemIdentificationConfidence "Medium" "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details.") -Force
   if ($ReliableCompsFound) {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.liveCompConfidence "Medium" "Source-backed comparable items were found, but match quality still depends on condition and exact item details.") -Force
@@ -1240,6 +1273,410 @@ function Test-HasAskingPrice {
   }
 
   return $false
+}
+
+function Get-BuyerRiskAssessment {
+  param(
+    $Report,
+    $BuyerIntake,
+    [bool]$ReliableCompsFound,
+    [bool]$SearchCompleted,
+    [string]$LiveComparableSearchStatus,
+    $ResaleGuidance,
+    [string]$PurchaserDecision
+  )
+
+  $Score = 35
+  $Factors = New-Object System.Collections.Generic.List[string]
+  $Actions = New-Object System.Collections.Generic.List[string]
+  $RiskText = @(
+    $Report.liveCompConfidence,
+    $Report.valuationConfidence,
+    $Report.priceConfidence,
+    $Report.buyerDecisionConfidence,
+    $Report.priceBasis,
+    $Report.expectedSellingTime,
+    $Report.resalePotential,
+    $ResaleGuidance.expectedSellingTime,
+    $ResaleGuidance.platformSpecificSellingGuidance,
+    $LiveComparableSearchStatus
+  ) -join " "
+  $RiskText = $RiskText.ToLowerInvariant()
+
+  if ($ReliableCompsFound) {
+    $Score -= 16
+  } else {
+    if ($SearchCompleted) {
+      $Score += 22
+      Add-UniqueText $Factors "No reliable sold comps"
+    } else {
+      $Score += 28
+      Add-UniqueText $Factors "AI-only valuation"
+    }
+    Add-UniqueText $Actions "Confirm recent sold prices for the exact item or a strong similar match."
+  }
+
+  if (-not $ReliableCompsFound -and $RiskText -match "ai-only|no reliable|source-backed comps are not available|low confidence") {
+    $Score += 8
+  }
+
+  $IdentityRisk = Get-IdentityRisk $Report
+  $Score += $IdentityRisk.scoreAdjustment
+  foreach ($Factor in $IdentityRisk.factors) { Add-UniqueText $Factors $Factor }
+  foreach ($Action in $IdentityRisk.actions) { Add-UniqueText $Actions $Action }
+
+  $ConditionRisk = Get-ConditionRisk -BuyerIntake $BuyerIntake -Report $Report
+  $Score += $ConditionRisk.scoreAdjustment
+  foreach ($Factor in $ConditionRisk.factors) { Add-UniqueText $Factors $Factor }
+  foreach ($Action in $ConditionRisk.actions) { Add-UniqueText $Actions $Action }
+
+  $PriceRisk = Get-PriceExposureRisk -Report $Report -BuyerIntake $BuyerIntake -ReliableCompsFound $ReliableCompsFound -ResaleGuidance $ResaleGuidance
+  $Score += $PriceRisk.scoreAdjustment
+  foreach ($Factor in $PriceRisk.factors) { Add-UniqueText $Factors $Factor }
+  foreach ($Action in $PriceRisk.actions) { Add-UniqueText $Actions $Action }
+
+  $LiquidityRisk = Get-LiquidityRisk -Report $Report -ResaleGuidance $ResaleGuidance
+  $Score += $LiquidityRisk.scoreAdjustment
+  foreach ($Factor in $LiquidityRisk.factors) { Add-UniqueText $Factors $Factor }
+  foreach ($Action in $LiquidityRisk.actions) { Add-UniqueText $Actions $Action }
+
+  if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {
+    $Score += 8
+  } elseif ((Get-BuyerIntakeValue $BuyerIntake "purchase_intent") -match "personal_use") {
+    $Score -= 6
+    if (-not $ReliableCompsFound) {
+      Add-UniqueText $Factors "Overpayment risk still exists for personal use"
+      Add-UniqueText $Actions "Buy only if personal value justifies the price despite weak market evidence."
+    }
+  }
+
+  if ((Clean-Text $PurchaserDecision) -match "^Pass\b") {
+    $Score += 4
+  } elseif (-not $ReliableCompsFound -and (Clean-Text $PurchaserDecision) -match "^Buy Here\b") {
+    $Score += 12
+    Add-UniqueText $Factors "Recommendation would be aggressive without reliable comps"
+  }
+
+  $NormalizedScore = [int](Limit-Number ([Math]::Round($Score)) 0 100)
+  $Level = Get-RiskLevelForScore $NormalizedScore
+  $PrimaryRiskFactors = @($Factors | Select-Object -First 6)
+  $RiskReductionActions = @($Actions | Select-Object -First 6)
+
+  if ($PrimaryRiskFactors.Count -eq 0) {
+    $PrimaryRiskFactors = @("No major buyer-protection risk stood out from the available evidence.")
+  }
+  if ($RiskReductionActions.Count -eq 0) {
+    $RiskReductionActions = @("Verify identity, condition, price, and market evidence before buying.")
+  }
+
+  return [pscustomobject]@{
+    score = $NormalizedScore
+    level = $Level
+    summary = Get-BuyerRiskSummary -Level $Level -Factors $PrimaryRiskFactors -BuyerIntake $BuyerIntake
+    primaryRiskFactors = $PrimaryRiskFactors
+    riskReductionActions = $RiskReductionActions
+  }
+}
+
+function Get-IdentityRisk {
+  param($Report)
+
+  $KnownFields = @(
+    $Report.itemIdentification,
+    $Report.itemClarityScore,
+    $Report.searchCoverage
+  ) | Where-Object { Test-KnownText $_ }
+  $Text = (@($Report.itemIdentification, $Report.itemClarityScore, $Report.searchCoverage, $Report.missingDetails) -join " ").ToLowerInvariant()
+  $ScoreAdjustment = 0
+  $Factors = @()
+  $Actions = @()
+
+  if ($Text -match "conflict|conflicting|mismatch|lookalike") {
+    $ScoreAdjustment += 16
+    $Factors += "Conflicting identity evidence"
+    $Actions += "Resolve the label, model, UPC, or photo conflict before buying."
+  }
+
+  if ($KnownFields.Count -ge 3 -and $Text -notmatch "unknown|missing|unclear|need more") {
+    $ScoreAdjustment -= 8
+  } elseif ($Text -match "unknown|missing|unclear|need more|manufacturer|model|sku|upc") {
+    $ScoreAdjustment += 12
+    $Factors += "Unclear maker or model"
+    $Actions += "Photograph the manufacturer stamp, model number, SKU, UPC, or label more closely."
+  } else {
+    $ScoreAdjustment += 5
+    $Factors += "Incomplete item identification"
+    $Actions += "Confirm exact brand, model, dimensions, and identifying numbers."
+  }
+
+  return [pscustomobject]@{
+    scoreAdjustment = $ScoreAdjustment
+    factors = @($Factors)
+    actions = @($Actions)
+  }
+}
+
+function Get-ConditionRisk {
+  param(
+    $BuyerIntake,
+    $Report
+  )
+
+  $Condition = (Get-BuyerIntakeValue $BuyerIntake "item_condition").ToLowerInvariant()
+  $Factors = @()
+  $Actions = @()
+  $ScoreAdjustment = 0
+
+  if (-not $Condition -or $Condition -eq "not provided" -or $Condition -match "unknown") {
+    $ScoreAdjustment += 8
+    $Factors += "Unknown condition"
+    $Actions += "Inspect condition closely before paying."
+  }
+
+  if ($Condition -match "damaged|missing|untested") {
+    $ScoreAdjustment += 12
+    $Factors += "Condition or completeness risk"
+  }
+
+  $ConcernLabels = @{
+    visible_damage = "Visible damage"
+    missing_parts = "Missing parts"
+    stains_or_wear = "Stains or wear"
+    cracks_or_chips = "Cracks or chips"
+    not_working = "Not working"
+    untested = "Untested"
+    incomplete_set = "Incomplete set"
+    authenticity_concern = "Authenticity concern"
+    odor_or_smoke = "Odor or smoke"
+    other = "Other condition concern"
+  }
+
+  $Concerns = @()
+  if ($BuyerIntake.ContainsKey("condition_concerns") -and $BuyerIntake["condition_concerns"] -is [array]) {
+    $Concerns = @($BuyerIntake["condition_concerns"])
+  }
+  foreach ($Concern in $Concerns) {
+    $Key = Clean-Text $Concern
+    if (-not $Key) { continue }
+    $Label = $(if ($ConcernLabels.ContainsKey($Key)) { $ConcernLabels[$Key] } else { $Key })
+    if ($Label -match "authenticity|not working|untested|missing|cracks") {
+      $ScoreAdjustment += 7
+    } else {
+      $ScoreAdjustment += 4
+    }
+    $Factors += $Label
+  }
+
+  if ($Concerns.Count -gt 0 -or $Condition -match "damaged|missing|untested|unknown") {
+    $Actions += "Photograph and verify damage, missing pieces, function, odor, and authenticity before buying."
+  }
+
+  return [pscustomobject]@{
+    scoreAdjustment = $ScoreAdjustment
+    factors = @($Factors)
+    actions = @($Actions)
+  }
+}
+
+function Get-PriceExposureRisk {
+  param(
+    $Report,
+    $BuyerIntake,
+    [bool]$ReliableCompsFound,
+    $ResaleGuidance
+  )
+
+  $ScoreAdjustment = 0
+  $Factors = @()
+  $Actions = @()
+  $AskingPrice = $null
+  if ($BuyerIntake.ContainsKey("parsed_asking_price") -and $null -ne $BuyerIntake["parsed_asking_price"]) {
+    $AskingPrice = [double]$BuyerIntake["parsed_asking_price"]
+  }
+
+  if ($null -eq $AskingPrice) {
+    return [pscustomobject]@{
+      scoreAdjustment = 18
+      factors = @("Missing asking price")
+      actions = @("Enter the current asking price before making a buy decision.")
+    }
+  }
+
+  if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {
+    if (-not $ReliableCompsFound) {
+      $Ceiling = $ResaleGuidance.speculativeBuyCeiling
+      if ($null -ne $Ceiling) {
+        if ($AskingPrice -le $Ceiling) {
+          $ScoreAdjustment -= $(if ($AskingPrice -le 25) { 14 } else { 6 })
+          $Factors += $(if ($AskingPrice -le 25) { "Very low purchase price limits downside" } else { "Asking price stays below low-confidence ceiling" })
+          $Actions += "Keep any offer at or below the low-confidence speculative ceiling."
+        } else {
+          $SpreadPenalty = [Math]::Min(28, 12 + [Math]::Ceiling((($AskingPrice - $Ceiling) / [Math]::Max($Ceiling, 1)) * 12))
+          $ScoreAdjustment += [Math]::Max(12, $SpreadPenalty)
+          $Factors += "Asking price exceeds low-confidence speculative ceiling"
+          $Actions += "Pass unless the seller accepts a substantially lower offer."
+        }
+      } else {
+        $ScoreAdjustment += 18
+        $Factors += "No supported speculative buy price"
+        $Actions += "Need stronger sold-price evidence before risking resale capital."
+      }
+    } else {
+      $SupportedRange = Get-MoneyRange (@($Report.expectedSalePrice, $Report.estimatedMarketValue, $Report.resalePotential) -join " ")
+      if ($null -ne $SupportedRange -and $SupportedRange.Count -ge 2) {
+        $ConservativeSale = [Math]::Min([double]$SupportedRange[0], [double]$SupportedRange[1])
+        if ($AskingPrice -le $ConservativeSale * 0.45) {
+          $ScoreAdjustment -= 18
+        } elseif ($AskingPrice -le $ConservativeSale * 0.65) {
+          $ScoreAdjustment -= 8
+        } elseif ($AskingPrice -ge $ConservativeSale * 0.85) {
+          $ScoreAdjustment += $(if ($AskingPrice -ge $ConservativeSale) { 25 } else { 18 })
+          $Factors += "Asking price too close to conservative sale value"
+          $Actions += "Negotiate for a larger safety margin after fees, time, and condition risk."
+        }
+      }
+    }
+  } elseif (-not $ReliableCompsFound) {
+    $ScoreAdjustment += 8
+    $Factors += "Market value is not source-supported"
+  }
+
+  return [pscustomobject]@{
+    scoreAdjustment = $ScoreAdjustment
+    factors = @($Factors)
+    actions = @($Actions)
+  }
+}
+
+function Get-LiquidityRisk {
+  param(
+    $Report,
+    $ResaleGuidance
+  )
+
+  $Haystack = @(
+    $Report.expectedSellingTime,
+    $Report.marketType,
+    $Report.resalePotential,
+    $ResaleGuidance.expectedSellingTime,
+    $ResaleGuidance.platformSpecificSellingGuidance
+  ) -join " "
+  $Haystack = $Haystack.ToLowerInvariant()
+  $ScoreAdjustment = 0
+  $Factors = @()
+  $Actions = @()
+
+  if ($Haystack -match "uncertain demand|unverified|may fail to sell|slow|long|one to three months|seasonal|narrow|collector") {
+    $ScoreAdjustment += 9
+    $Factors += "Uncertain resale demand"
+    $Actions += "Verify recent demand before buying for resale."
+  }
+
+  if ($Haystack -match "fragile|ceramic|glass|breakage|shipping|local pickup|bulky|transport") {
+    $ScoreAdjustment += 7
+    $Factors += "Shipping, transport, or breakage risk"
+    $Actions += "Account for pickup, packing, shipping, breakage, and return risk."
+  }
+
+  return [pscustomobject]@{
+    scoreAdjustment = $ScoreAdjustment
+    factors = @($Factors)
+    actions = @($Actions)
+  }
+}
+
+function Get-DecisionAlignedWithRisk {
+  param(
+    [string]$Decision,
+    $BuyerRisk,
+    $BuyerIntake
+  )
+
+  $Text = Clean-Text $Decision
+  if (-not $Text) {
+    $Text = "Need More Info - Buyer decision requires more item details."
+  }
+  $Detail = Remove-DecisionLabel $Text
+  if (-not $Detail) {
+    $Detail = "Risk must be reduced before buying."
+  }
+
+  if ($BuyerRisk.score -ge 75 -and $Text -match "^(Buy Here|Negotiate)\b") {
+    if (-not (Test-HasAskingPrice $BuyerIntake)) {
+      return "Need More Info - Buyer Risk Score is $($BuyerRisk.score) ($($BuyerRisk.level)) because the purchase decision is incomplete. $Detail"
+    }
+    return "Pass - Buyer Risk Score is $($BuyerRisk.score) ($($BuyerRisk.level)), so buying at the current price would put too much downside risk on the buyer. $Detail"
+  }
+
+  if ($BuyerRisk.score -ge 50 -and $Text -match "^Buy Here\b") {
+    return "Need More Info - Buyer Risk Score is $($BuyerRisk.score) ($($BuyerRisk.level)), so a direct Buy recommendation would be too aggressive without reducing risk. $Detail"
+  }
+
+  return $Text
+}
+
+function Get-RiskLevelForScore {
+  param([int]$Score)
+
+  if ($Score -le 24) { return "Low Risk" }
+  if ($Score -le 49) { return "Moderate Risk" }
+  if ($Score -le 74) { return "High Risk" }
+  return "Very High Risk"
+}
+
+function Get-BuyerRiskSummary {
+  param(
+    [string]$Level,
+    [array]$Factors,
+    $BuyerIntake
+  )
+
+  $TopFactors = @($Factors | Select-Object -First 3 | ForEach-Object { (Clean-Text $_).ToLowerInvariant() })
+  $FactorText = $TopFactors -join ", "
+  if (-not $FactorText) {
+    $FactorText = "the available evidence leaves buyer downside to verify"
+  }
+  $Asking = Get-BuyerIntakeValue $BuyerIntake "asking_price"
+  if ($Asking -eq "not provided") {
+    $PriceText = " because the asking price is missing"
+  } else {
+    $PriceText = " at the $Asking asking price"
+  }
+
+  return "$Level because $FactorText$PriceText. Lower is safer; higher is riskier."
+}
+
+function Add-UniqueText {
+  param(
+    [System.Collections.Generic.List[string]]$List,
+    [string]$Value
+  )
+
+  $Text = Clean-Text $Value
+  if (-not $Text) { return }
+  foreach ($Item in $List) {
+    if ($Item.ToLowerInvariant() -eq $Text.ToLowerInvariant()) {
+      return
+    }
+  }
+  $List.Add($Text) | Out-Null
+}
+
+function Test-KnownText {
+  param($Value)
+
+  $Text = Clean-Text $Value
+  return $Text -and $Text -notmatch "^(unknown|not provided|none|null)$"
+}
+
+function Limit-Number {
+  param(
+    [double]$Value,
+    [double]$Min,
+    [double]$Max
+  )
+
+  return [Math]::Min($Max, [Math]::Max($Min, $Value))
 }
 
 function Get-ResalePlatformContext {

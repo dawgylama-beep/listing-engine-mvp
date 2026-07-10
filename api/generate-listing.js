@@ -42,6 +42,11 @@ const valuationSchema = {
   additionalProperties: false,
   required: [
     "purchaserDecision",
+    "buyer_risk_score",
+    "buyer_risk_level",
+    "buyer_risk_summary",
+    "primary_risk_factors",
+    "risk_reduction_actions",
     "liveComparableSearchStatus",
     "weFoundThisItem",
     "weFoundSimilarComparableItems",
@@ -77,6 +82,21 @@ const valuationSchema = {
   ],
   properties: {
     purchaserDecision: { type: "string" },
+    buyer_risk_score: { type: "number" },
+    buyer_risk_level: { type: "string" },
+    buyer_risk_summary: { type: "string" },
+    primary_risk_factors: {
+      type: "array",
+      minItems: 1,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    risk_reduction_actions: {
+      type: "array",
+      minItems: 1,
+      maxItems: 6,
+      items: { type: "string" }
+    },
     liveComparableSearchStatus: { type: "string" },
     weFoundThisItem: {
       type: "array",
@@ -590,6 +610,11 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Do not use the high end of an AI-only resale range to justify Buy Here or a close-to-asking negotiation target. Use the conservative realized-sale case, and do not recommend buying when expected profit only exists near the optimistic top of a low-confidence range.",
     "When no reliable comps exist, Suggested Listing Price is only an advertised starting point, not evidence of actual value. Expected Sale Price must be more conservative than Suggested Listing Price, and if evidence is too weak, say resale price cannot be estimated reliably from available evidence.",
     "Decision priority for Worth Buying: identify the item reliably, verify relevant comps, confirm demand, compare the asking price to conservative supported value, require margin after risks and costs, and only then recommend Buy Here or Negotiate.",
+    "Return Buyer Risk Score fields for Worth Buying: buyer_risk_score from 0 to 100, buyer_risk_level, buyer_risk_summary, primary_risk_factors, and risk_reduction_actions.",
+    "Buyer Risk Score is not confidence. It answers how dangerous it is for the buyer to spend money on this item at this price. Lower is safer; higher is riskier.",
+    "Use levels exactly as Low Risk, Moderate Risk, High Risk, or Very High Risk. 0-24 is Low Risk, 25-49 is Moderate Risk, 50-74 is High Risk, and 75-100 is Very High Risk.",
+    "Risk must combine item identification uncertainty, live comparable quality, asking price exposure, purchase intent, condition risk, liquidity risk, cost risk, and evidence conflicts. Do not simply invert confidence.",
+    "Risk and purchaserDecision must agree. Very High Risk should generally be Pass. High Risk should generally be Pass, Need More Info, or only a deeply discounted speculative offer. Do not pair a high risk score with Buy Here unless the rare exception is clearly explained.",
     "For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.",
     "Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.",
     "Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.",
@@ -1205,14 +1230,31 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const aiOnlyRoughValueRange = reliableCompsFound
     ? ""
     : buildAiOnlyRoughValueRange(report);
+  const guardedPurchaserDecision = guardBuyerDecision(report.purchaserDecision, {
+    reliableCompsFound,
+    buyerIntake,
+    resaleGuidance
+  });
+  const buyerRisk = buildBuyerRiskAssessment({
+    report,
+    buyerIntake,
+    identity,
+    reliableCompsFound,
+    searchCompleted,
+    liveComparableSearchStatus,
+    resaleGuidance,
+    purchaserDecision: guardedPurchaserDecision
+  });
+  const alignedPurchaserDecision = alignDecisionWithRisk(guardedPurchaserDecision, buyerRisk, buyerIntake);
 
   return {
     ...report,
-    purchaserDecision: guardBuyerDecision(report.purchaserDecision, {
-      reliableCompsFound,
-      buyerIntake,
-      resaleGuidance
-    }),
+    purchaserDecision: alignedPurchaserDecision,
+    buyer_risk_score: buyerRisk.score,
+    buyer_risk_level: buyerRisk.level,
+    buyer_risk_summary: buyerRisk.summary,
+    primary_risk_factors: buyerRisk.primaryRiskFactors,
+    risk_reduction_actions: buyerRisk.riskReductionActions,
     liveComparableSearchStatus,
     weFoundThisItem: displayedExactItems,
     weFoundSimilarComparableItems: displayedSimilarItems,
@@ -1257,6 +1299,327 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
+}
+
+function buildBuyerRiskAssessment({ report, buyerIntake, identity, reliableCompsFound, searchCompleted, liveComparableSearchStatus, resaleGuidance, purchaserDecision }) {
+  let score = 35;
+  const factors = [];
+  const actions = [];
+  const riskText = [
+    report.liveCompConfidence,
+    report.valuationConfidence,
+    report.priceConfidence,
+    report.buyerDecisionConfidence,
+    report.priceBasis,
+    report.expectedSellingTime,
+    report.resalePotential,
+    resaleGuidance.expectedSellingTime,
+    resaleGuidance.platformSpecificSellingGuidance,
+    liveComparableSearchStatus
+  ].join(" ").toLowerCase();
+
+  if (reliableCompsFound) {
+    score -= 16;
+  } else {
+    score += searchCompleted ? 22 : 28;
+    addUnique(factors, searchCompleted ? "No reliable sold comps" : "AI-only valuation");
+    addUnique(actions, "Confirm recent sold prices for the exact item or a strong similar match.");
+  }
+
+  if (/ai-only|no reliable|source-backed comps are not available|low confidence/.test(riskText)) {
+    score += reliableCompsFound ? 0 : 8;
+  }
+
+  const identityRisk = getIdentityRisk(identity);
+  score += identityRisk.scoreAdjustment;
+  for (const factor of identityRisk.factors) {
+    addUnique(factors, factor);
+  }
+  for (const action of identityRisk.actions) {
+    addUnique(actions, action);
+  }
+
+  const conditionRisk = getConditionRisk(buyerIntake, identity);
+  score += conditionRisk.scoreAdjustment;
+  for (const factor of conditionRisk.factors) {
+    addUnique(factors, factor);
+  }
+  for (const action of conditionRisk.actions) {
+    addUnique(actions, action);
+  }
+
+  const priceRisk = getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleGuidance });
+  score += priceRisk.scoreAdjustment;
+  for (const factor of priceRisk.factors) {
+    addUnique(factors, factor);
+  }
+  for (const action of priceRisk.actions) {
+    addUnique(actions, action);
+  }
+
+  const liquidityRisk = getLiquidityRisk({ report, identity, resaleGuidance });
+  score += liquidityRisk.scoreAdjustment;
+  for (const factor of liquidityRisk.factors) {
+    addUnique(factors, factor);
+  }
+  for (const action of liquidityRisk.actions) {
+    addUnique(actions, action);
+  }
+
+  if (isResaleIntent(buyerIntake.purchase_intent)) {
+    score += 8;
+  } else if (/personal_use/i.test(cleanText(buyerIntake.purchase_intent))) {
+    score -= 6;
+    if (!reliableCompsFound) {
+      addUnique(factors, "Overpayment risk still exists for personal use");
+      addUnique(actions, "Buy only if personal value justifies the price despite weak market evidence.");
+    }
+  }
+
+  if (/^pass\b/i.test(cleanText(purchaserDecision))) {
+    score += 4;
+  } else if (/^buy here\b/i.test(cleanText(purchaserDecision)) && !reliableCompsFound) {
+    score += 12;
+    addUnique(factors, "Recommendation would be aggressive without reliable comps");
+  }
+
+  const normalizedScore = clamp(Math.round(score), 0, 100);
+  const level = riskLevelForScore(normalizedScore);
+  const primaryRiskFactors = factors.slice(0, 6);
+  const riskReductionActions = actions.slice(0, 6);
+
+  if (!primaryRiskFactors.length) {
+    primaryRiskFactors.push("No major buyer-protection risk stood out from the available evidence.");
+  }
+  if (!riskReductionActions.length) {
+    riskReductionActions.push("Verify identity, condition, price, and market evidence before buying.");
+  }
+
+  return {
+    score: normalizedScore,
+    level,
+    summary: buildBuyerRiskSummary(level, primaryRiskFactors, buyerIntake),
+    primaryRiskFactors,
+    riskReductionActions
+  };
+}
+
+function getIdentityRisk(identity = {}) {
+  const knownFields = [
+    identity.brand,
+    identity.manufacturer,
+    identity.model,
+    identity.sku,
+    identity.upcBarcode,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording
+  ].filter(hasKnownValue);
+  const conflictCount = Array.isArray(identity.identityConflictNotes) ? identity.identityConflictNotes.filter(hasKnownValue).length : 0;
+  const result = { scoreAdjustment: 0, factors: [], actions: [] };
+
+  if (conflictCount > 0) {
+    result.scoreAdjustment += 16;
+    result.factors.push("Conflicting identity evidence");
+    result.actions.push("Resolve the label, model, UPC, or photo conflict before buying.");
+  }
+
+  if (knownFields.length >= 4) {
+    result.scoreAdjustment -= 8;
+  } else if (knownFields.length <= 1) {
+    result.scoreAdjustment += 12;
+    result.factors.push("Unclear maker or model");
+    result.actions.push("Photograph the manufacturer stamp, model number, SKU, UPC, or label more closely.");
+  } else {
+    result.scoreAdjustment += 5;
+    result.factors.push("Incomplete item identification");
+    result.actions.push("Confirm exact brand, model, dimensions, and identifying numbers.");
+  }
+
+  return result;
+}
+
+function getConditionRisk(buyerIntake, identity = {}) {
+  const condition = cleanText(firstKnown(buyerIntake.item_condition, identity.condition)).toLowerCase();
+  const concerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns : [];
+  const result = { scoreAdjustment: 0, factors: [], actions: [] };
+
+  if (!condition || /unknown/.test(condition)) {
+    result.scoreAdjustment += 8;
+    result.factors.push("Unknown condition");
+    result.actions.push("Inspect condition closely before paying.");
+  }
+
+  if (/damaged|missing|untested/.test(condition)) {
+    result.scoreAdjustment += 12;
+    result.factors.push("Condition or completeness risk");
+  }
+
+  const concernLabels = {
+    visible_damage: "Visible damage",
+    missing_parts: "Missing parts",
+    stains_or_wear: "Stains or wear",
+    cracks_or_chips: "Cracks or chips",
+    not_working: "Not working",
+    untested: "Untested",
+    incomplete_set: "Incomplete set",
+    authenticity_concern: "Authenticity concern",
+    odor_or_smoke: "Odor or smoke",
+    other: "Other condition concern"
+  };
+
+  for (const concern of concerns) {
+    const label = concernLabels[concern] || cleanText(concern);
+    if (!label) {
+      continue;
+    }
+    result.scoreAdjustment += /authenticity|not working|untested|missing|cracks/i.test(label) ? 7 : 4;
+    addUnique(result.factors, label);
+  }
+
+  if (concerns.length || /damaged|missing|untested|unknown/.test(condition)) {
+    result.actions.push("Photograph and verify damage, missing pieces, function, odor, and authenticity before buying.");
+  }
+
+  return result;
+}
+
+function getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleGuidance }) {
+  const result = { scoreAdjustment: 0, factors: [], actions: [] };
+  const askingPrice = buyerIntake.parsed_asking_price;
+
+  if (!Number.isFinite(askingPrice)) {
+    result.scoreAdjustment += 18;
+    result.factors.push("Missing asking price");
+    result.actions.push("Enter the current asking price before making a buy decision.");
+    return result;
+  }
+
+  if (isResaleIntent(buyerIntake.purchase_intent)) {
+    if (!reliableCompsFound) {
+      const ceiling = resaleGuidance.speculativeBuyCeiling;
+      if (Number.isFinite(ceiling)) {
+        if (askingPrice <= ceiling) {
+          result.scoreAdjustment -= askingPrice <= 25 ? 14 : 6;
+          result.factors.push(askingPrice <= 25 ? "Very low purchase price limits downside" : "Asking price stays below low-confidence ceiling");
+          result.actions.push("Keep any offer at or below the low-confidence speculative ceiling.");
+        } else {
+          const spreadPenalty = Math.min(28, 12 + Math.ceil(((askingPrice - ceiling) / Math.max(ceiling, 1)) * 12));
+          result.scoreAdjustment += Math.max(12, spreadPenalty);
+          result.factors.push("Asking price exceeds low-confidence speculative ceiling");
+          result.actions.push("Pass unless the seller accepts a substantially lower offer.");
+        }
+      } else {
+        result.scoreAdjustment += 18;
+        result.factors.push("No supported speculative buy price");
+        result.actions.push("Need stronger sold-price evidence before risking resale capital.");
+      }
+      return result;
+    }
+
+    const supportedRange = extractMoneyRange([
+      report.expectedSalePrice,
+      report.estimatedMarketValue,
+      report.resalePotential
+    ].join(" "));
+
+    if (supportedRange) {
+      const conservativeSale = Math.min(...supportedRange);
+      if (askingPrice <= conservativeSale * 0.45) {
+        result.scoreAdjustment -= 18;
+      } else if (askingPrice <= conservativeSale * 0.65) {
+        result.scoreAdjustment -= 8;
+      } else if (askingPrice >= conservativeSale * 0.85) {
+        result.scoreAdjustment += askingPrice >= conservativeSale ? 25 : 18;
+        result.factors.push("Asking price too close to conservative sale value");
+        result.actions.push("Negotiate for a larger safety margin after fees, time, and condition risk.");
+      }
+    }
+  } else if (!reliableCompsFound) {
+    result.scoreAdjustment += 8;
+    result.factors.push("Market value is not source-supported");
+  }
+
+  return result;
+}
+
+function getLiquidityRisk({ report, identity = {}, resaleGuidance = {} }) {
+  const haystack = [
+    report.expectedSellingTime,
+    report.marketType,
+    report.resalePotential,
+    resaleGuidance.expectedSellingTime,
+    resaleGuidance.platformSpecificSellingGuidance,
+    identity.category,
+    identity.material,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription
+  ].join(" ").toLowerCase();
+  const result = { scoreAdjustment: 0, factors: [], actions: [] };
+
+  if (/uncertain demand|unverified|may fail to sell|slow|long|one to three months|seasonal|narrow|collector/.test(haystack)) {
+    result.scoreAdjustment += 9;
+    result.factors.push("Uncertain resale demand");
+    result.actions.push("Verify recent demand before buying for resale.");
+  }
+
+  if (/fragile|ceramic|glass|breakage|shipping|local pickup|bulky|transport/.test(haystack)) {
+    result.scoreAdjustment += 7;
+    result.factors.push("Shipping, transport, or breakage risk");
+    result.actions.push("Account for pickup, packing, shipping, breakage, and return risk.");
+  }
+
+  return result;
+}
+
+function alignDecisionWithRisk(decision, buyerRisk, buyerIntake) {
+  const text = cleanText(decision || "Need More Info - Buyer decision requires more item details.");
+  const detail = stripDecisionLabel(text) || "Risk must be reduced before buying.";
+
+  if (buyerRisk.score >= 75 && /^(Buy Here|Negotiate)\b/i.test(text)) {
+    if (!hasKnownValue(buyerIntake.asking_price)) {
+      return `Need More Info - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}) because the purchase decision is incomplete. ${detail}`;
+    }
+    return `Pass - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}), so buying at the current price would put too much downside risk on the buyer. ${detail}`;
+  }
+
+  if (buyerRisk.score >= 50 && /^Buy Here\b/i.test(text)) {
+    return `Need More Info - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}), so a direct Buy recommendation would be too aggressive without reducing risk. ${detail}`;
+  }
+
+  return text;
+}
+
+function riskLevelForScore(score) {
+  if (score <= 24) {
+    return "Low Risk";
+  }
+  if (score <= 49) {
+    return "Moderate Risk";
+  }
+  if (score <= 74) {
+    return "High Risk";
+  }
+  return "Very High Risk";
+}
+
+function buildBuyerRiskSummary(level, factors, buyerIntake) {
+  const asking = cleanText(buyerIntake.asking_price);
+  const factorText = factors.slice(0, 3).map((factor) => factor.toLowerCase()).join(", ");
+  const priceText = asking ? ` at the ${asking} asking price` : " because the asking price is missing";
+
+  return `${level} because ${factorText || "the available evidence leaves buyer downside to verify"}${priceText}. Lower is safer; higher is riskier.`;
+}
+
+function addUnique(list, value) {
+  const text = cleanText(value);
+  if (text && !list.some((item) => item.toLowerCase() === text.toLowerCase())) {
+    list.push(text);
+  }
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function buildBuyerDecisionConfidence(value, reliableCompsFound, hasAskingPrice) {
