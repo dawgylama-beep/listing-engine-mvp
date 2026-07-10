@@ -111,6 +111,10 @@
 - Built-in How to Use Marketplace Edge guide added near the top of the form as a native collapsed-by-default dropdown matching the existing collapsible card style
 - Quick Start, Worth Buying, photo guidance, Known Item Details, Condition Concerns, result interpretation, confidence, Need More Info, Generate Listing, and reminder sections added without changing buyerIntake, Worth Buying, Generate Listing, photo upload, API, prompt, or routing behavior
 
+## Version 1.6.5 (Completed)
+- Low-confidence Worth Buying guardrails now force weak-evidence resale cases toward Pass, Need More Info, or a substantially discounted speculative ceiling instead of optimistic Buy/Negotiate guidance
+- AI-only resale ranges are labeled as uncertain advertised guidance, expected sale price is conservative, unsupported resale floors are blocked, and Generate Listing behavior remains unchanged
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -585,6 +585,11 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.",
     "For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.",
     "For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.",
+    "Low confidence must materially control the decision. When reliable exact comps and reliable strong similar comps are missing, treat the case as weak evidence, not as a normal resale opportunity.",
+    "In weak-evidence resale cases, prefer Pass or Need More Info at ordinary or ambitious asking prices. A speculative offer is allowed only at a substantial discount that protects the buyer from uncertain identity, uncertain demand, condition risk, fees, transport, shipping, breakage, time to sell, and the possibility of no buyer.",
+    "Do not use the high end of an AI-only resale range to justify Buy Here or a close-to-asking negotiation target. Use the conservative realized-sale case, and do not recommend buying when expected profit only exists near the optimistic top of a low-confidence range.",
+    "When no reliable comps exist, Suggested Listing Price is only an advertised starting point, not evidence of actual value. Expected Sale Price must be more conservative than Suggested Listing Price, and if evidence is too weak, say resale price cannot be estimated reliably from available evidence.",
+    "Decision priority for Worth Buying: identify the item reliably, verify relevant comps, confirm demand, compare the asking price to conservative supported value, require margin after risks and costs, and only then recommend Buy Here or Negotiate.",
     "For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.",
     "Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.",
     "Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.",
@@ -1166,10 +1171,18 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
 }
 
 function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "") {
-  const reliableCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
+  const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = liveSearch.webSearchExecuted;
-  const comparableItemsFound = reliableCompsFound ? liveSearch.comparableItemsFound : [];
+  const comparableItemsFound = sourceBackedCompsFound ? liveSearch.comparableItemsFound : [];
   const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
+  const reliableCompsFound = sourceBackedCompsFound && hasReliableMatch;
+  const liveComparableSearchStatus = reliableCompsFound
+    ? liveSearch.liveSearchStatus
+    : searchCompleted
+      ? "Live Search Completed - No Reliable Comps Found"
+      : liveSearch.liveSearchStatus;
+  const displayedExactItems = reliableCompsFound ? exactItems : [];
+  const displayedSimilarItems = reliableCompsFound ? similarItems : [];
   const hasAskingPrice = hasKnownValue(buyerIntake.asking_price);
   const resaleGuidance = buildResalePricingGuidance(report, {
     buyerIntake,
@@ -1181,7 +1194,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const liveSearchDidNotComplete = searchCompleted
     ? ""
     : buildLiveSearchDidNotCompleteMessage(liveSearch);
-  const noReliableMessage = !searchCompleted || hasReliableMatch
+  const noReliableMessage = !searchCompleted || reliableCompsFound
     ? ""
     : "Live search completed, but no reliable source-backed exact or strong similar matches passed match-quality checks. This may mean the item is generic, private-label, seasonal, poorly indexed, or missing strong identifiers. Treat the recommendation as lower-confidence.";
   const basis = reliableCompsFound
@@ -1195,13 +1208,17 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
 
   return {
     ...report,
-    purchaserDecision: guardBuyerDecision(report.purchaserDecision, reliableCompsFound),
-    liveComparableSearchStatus: liveSearch.liveSearchStatus,
-    weFoundThisItem: exactItems,
-    weFoundSimilarComparableItems: similarItems,
+    purchaserDecision: guardBuyerDecision(report.purchaserDecision, {
+      reliableCompsFound,
+      buyerIntake,
+      resaleGuidance
+    }),
+    liveComparableSearchStatus,
+    weFoundThisItem: displayedExactItems,
+    weFoundSimilarComparableItems: displayedSimilarItems,
     liveSearchDidNotComplete,
     noReliableComparableItemsFound: noReliableMessage,
-    searchCoverage: buildSearchCoverage(liveSearch),
+    searchCoverage: buildSearchCoverage({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus }),
     itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
     liveCompConfidence: reliableCompsFound
       ? ensureConfidenceLayer(report.liveCompConfidence, "Medium", "Source-backed comparable items were found, but match quality still depends on condition and exact item details.")
@@ -1218,10 +1235,25 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     expectedSellingTime: resaleGuidance.expectedSellingTime,
     platformSpecificSellingGuidance: resaleGuidance.platformSpecificSellingGuidance,
     itemIdentification: buildItemIdentification(identity),
-    currentPriceAssessment: hasAskingPrice
-      ? report.currentPriceAssessment
-      : ensurePrefix(report.currentPriceAssessment, "Unknown - Current price assessment requires the current asking price."),
+    currentPriceAssessment: buildCurrentPriceAssessment(report.currentPriceAssessment, {
+      buyerIntake,
+      reliableCompsFound,
+      resaleGuidance
+    }),
+    priceConfidence: reliableCompsFound
+      ? ensureConfidenceLayer(report.priceConfidence, "Medium", "Source-backed comps support pricing direction, but condition and local demand still matter.")
+      : forceLowConfidence(report.priceConfidence, "No reliable source-backed comps support the price estimate."),
     aiOnlyRoughValueRange,
+    maximumRecommendedBuyPrice: buildMaximumRecommendedBuyPrice(report.maximumRecommendedBuyPrice, {
+      buyerIntake,
+      reliableCompsFound,
+      resaleGuidance
+    }),
+    resalePotential: buildResalePotential(report.resalePotential, {
+      buyerIntake,
+      reliableCompsFound,
+      resaleGuidance
+    }),
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
@@ -1274,6 +1306,15 @@ function buildResalePricingGuidance(report, { buyerIntake, identity, platform, s
   ].join(" "));
   const fallback = buildFallbackSellPriceGuidance(moneyRange);
 
+  if (!reliableCompsFound) {
+    return buildLowConfidenceResaleGuidance({
+      report,
+      buyerIntake,
+      recommendedSellingPlatform,
+      moneyRange
+    });
+  }
+
   return {
     recommendedSellingPlatform,
     suggestedListingPrice: labelResalePriceGuidance(report.suggestedListingPrice, fallback.suggestedListingPrice, reliableCompsFound),
@@ -1283,6 +1324,72 @@ function buildResalePricingGuidance(report, { buyerIntake, identity, platform, s
     platformSpecificSellingGuidance: cleanText(report.platformSpecificSellingGuidance)
       || buildPlatformSpecificSellingGuidance(recommendedSellingPlatform, fallback)
   };
+}
+
+function buildLowConfidenceResaleGuidance({ report, buyerIntake, recommendedSellingPlatform, moneyRange }) {
+  const speculativeBuyCeiling = calculateSpeculativeBuyCeiling({ moneyRange, buyerIntake });
+  const speculativeOfferText = speculativeBuyCeiling
+    ? `A low-confidence speculative offer should stay around ${formatSpeculativeOfferRange(speculativeBuyCeiling)} or lower after inspection.`
+    : "No responsible speculative offer can be calculated until stronger identity, condition, and demand evidence is available.";
+  const cautiousAdvertisedRange = moneyRange
+    ? `A cautious advertised range may be around ${formatMoneyRange(roundMoney(moneyRange[0]), roundMoney(moneyRange[1]))} only after verification, but it is not proof of resale value.`
+    : "Resale price cannot be estimated reliably from available evidence.";
+  const expectedSaleRange = moneyRange
+    ? `If a buyer exists, a conservative realized sale would need to fall below the advertised range and should be treated as highly uncertain. ${cautiousAdvertisedRange}`
+    : "Resale price cannot be estimated reliably from available evidence.";
+
+  return {
+    recommendedSellingPlatform,
+    suggestedListingPrice: `AI-only low-confidence advertised guidance - ${cautiousAdvertisedRange}`,
+    expectedSalePrice: `Resale price cannot be estimated reliably from available evidence. ${expectedSaleRange} The item may fail to sell.`,
+    minimumAcceptablePrice: "No reliable minimum acceptable resale price is supported without exact or strong similar comps; do not treat any floor as guaranteed liquidity.",
+    expectedSellingTime: "Highly uncertain; sale may be slow, require repeated markdowns, or fail entirely until demand is verified.",
+    platformSpecificSellingGuidance: `${recommendedSellingPlatform || "Resale"} guidance - do not use an AI-only listing range to justify buying. ${speculativeOfferText} Account for fees, transport, shipping or breakage, condition uncertainty, negotiation, and time-to-sell before risking cash.`,
+    speculativeBuyCeiling,
+    speculativeOfferText
+  };
+}
+
+function calculateSpeculativeBuyCeiling({ moneyRange, buyerIntake }) {
+  if (!moneyRange) {
+    return null;
+  }
+
+  const conservativeSale = Math.min(...moneyRange);
+  if (!Number.isFinite(conservativeSale) || conservativeSale <= 0) {
+    return null;
+  }
+
+  const context = cleanText(buyerIntake.purchase_context).toLowerCase();
+  const platformIntent = cleanText(buyerIntake.purchase_intent).toLowerCase();
+  const condition = cleanText(buyerIntake.item_condition).toLowerCase();
+  const concerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns : [];
+  const localPurchase = /facebook|private|flea|estate|thrift|consignment|antique|local/.test(context);
+  const damagedOrUntested = /damaged|missing|untested|unknown/.test(condition) || concerns.some((item) => /damage|missing|cracks|not_working|untested|incomplete|authenticity|odor/.test(item));
+  const hasIdentifier = [
+    buyerIntake.item_name,
+    buyerIntake.known_brand,
+    buyerIntake.known_manufacturer,
+    buyerIntake.known_model,
+    buyerIntake.known_sku,
+    buyerIntake.known_upc
+  ].some(hasKnownValue);
+
+  const sellingCostRate = localPurchase ? 0.1 : 0.18;
+  const conditionAllowance = damagedOrUntested ? 0.18 : 0.08;
+  const identityAllowance = hasIdentifier ? 0.06 : 0.14;
+  const uncertaintyAllowance = 0.16 + Math.min(0.12, concerns.length * 0.03) + identityAllowance;
+  const requiredProfit = Math.max(conservativeSale <= 35 ? 8 : 10, conservativeSale * (platformIntent === "both" ? 0.14 : 0.16));
+  const riskAdjustedNet = conservativeSale * Math.max(0.2, 1 - sellingCostRate - conditionAllowance - uncertaintyAllowance);
+  const ceiling = roundMoney(riskAdjustedNet - requiredProfit);
+
+  return ceiling > 0 ? ceiling : null;
+}
+
+function formatSpeculativeOfferRange(ceiling) {
+  const high = roundMoney(ceiling);
+  const low = roundMoney(Math.max(1, high * 0.7));
+  return formatMoneyRange(low, high);
 }
 
 function labelResalePriceGuidance(value, fallback, reliableCompsFound) {
@@ -1385,6 +1492,63 @@ function buildCurrentAskingPrice(buyerIntake, identity = {}) {
   }
 
   return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously.";
+}
+
+function buildCurrentPriceAssessment(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
+  const text = cleanText(value);
+  if (reliableCompsFound) {
+    return text;
+  }
+
+  if (!hasKnownValue(buyerIntake.asking_price)) {
+    return ensurePrefix(text, "Unknown - Current price assessment requires the current asking price.");
+  }
+
+  if (isResaleIntent(buyerIntake.purchase_intent)) {
+    const askingPrice = buyerIntake.parsed_asking_price;
+    const ceiling = resaleGuidance.speculativeBuyCeiling;
+    if (Number.isFinite(askingPrice) && Number.isFinite(ceiling) && askingPrice <= ceiling && askingPrice <= 25) {
+      return `Low-confidence speculative - ${formatMoney(askingPrice)} may limit downside, but demand and realized resale value are unverified.`;
+    }
+
+    return `High risk - Current asking price is not supported by reliable exact or strong similar comps. ${resaleGuidance.speculativeOfferText || "Need more evidence before considering any offer."}`;
+  }
+
+  return ensurePrefix(text, "Unknown - Market support is low because reliable comps are missing.");
+}
+
+function buildMaximumRecommendedBuyPrice(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
+  const text = cleanText(value);
+  if (reliableCompsFound) {
+    return text;
+  }
+
+  if (!hasKnownValue(buyerIntake.asking_price)) {
+    return "Need More Info - Current asking price is required before a maximum recommended buy price can be trusted.";
+  }
+
+  if (isResaleIntent(buyerIntake.purchase_intent)) {
+    if (resaleGuidance.speculativeBuyCeiling) {
+      return `Low-confidence speculative ceiling: ${formatMoney(resaleGuidance.speculativeBuyCeiling)} or less. This ceiling uses conservative realized-sale logic and subtracts selling costs, transport or shipping risk, condition risk, identity risk, uncertainty, and required profit. It is not a confident buy price.`;
+    }
+
+    return "No reliable maximum buy price can be recommended because source-backed comps, demand, and realized resale value are not strong enough.";
+  }
+
+  return ensurePrefix(text, "Low confidence - Buy only if personal utility justifies the price; market value is not source-supported.");
+}
+
+function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
+  const text = cleanText(value);
+  if (!isResaleIntent(buyerIntake.purchase_intent)) {
+    return text || "Resale is not the main reason to buy.";
+  }
+
+  if (reliableCompsFound) {
+    return text;
+  }
+
+  return `Low-confidence speculative resale only - demand is unverified, the item may not sell, and an advertised listing price is not the same as realized value. ${resaleGuidance.speculativeOfferText || "Need stronger comps before risking resale capital."}`;
 }
 
 function buildItemIdentification(identity = {}) {
@@ -1507,13 +1671,35 @@ function buildAiOnlyRoughValueRange(report) {
   return ensurePrefix(valueRange, "AI-Only Rough Value Range - ");
 }
 
-function guardBuyerDecision(value, reliableCompsFound) {
+function guardBuyerDecision(value, { reliableCompsFound, buyerIntake, resaleGuidance }) {
   const text = cleanText(value || "Need More Info - Buyer decision requires more item details.");
-  if (reliableCompsFound || !/^buy here\b/i.test(text)) {
+  if (reliableCompsFound) {
     return text;
   }
 
-  return `Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident. ${text}`;
+  if (!hasKnownValue(buyerIntake.asking_price)) {
+    return `Need More Info - Current asking price is missing, and reliable source-backed comps are not available. ${stripDecisionLabel(text)}`;
+  }
+
+  if (isResaleIntent(buyerIntake.purchase_intent)) {
+    const askingPrice = buyerIntake.parsed_asking_price;
+    const ceiling = resaleGuidance.speculativeBuyCeiling;
+    if (Number.isFinite(askingPrice) && Number.isFinite(ceiling) && askingPrice <= ceiling && askingPrice <= 25) {
+      return `Negotiate - Low-confidence speculative purchase only because the current price is low enough to limit downside. Do not treat this as a proven resale opportunity; verify identity, condition, and demand before buying.`;
+    }
+
+    return `Pass - At the current asking price, reliable comps do not support a resale purchase. ${resaleGuidance.speculativeOfferText || "Need more information before considering a lower speculative offer."} ${stripDecisionLabel(text)}`;
+  }
+
+  if (/^buy here\b/i.test(text)) {
+    return `Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident unless personal-use value clearly justifies the price. ${stripDecisionLabel(text)}`;
+  }
+
+  return text;
+}
+
+function stripDecisionLabel(value) {
+  return cleanText(value).replace(/^(Buy Here|Negotiate|Buy Elsewhere|Wait|Pass|Need More Info)\s*[-:]\s*/i, "").trim();
 }
 
 function ensureConfidenceLayer(value, fallbackLabel, fallbackReason) {

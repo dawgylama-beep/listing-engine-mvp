@@ -324,6 +324,11 @@ Do not confuse purchase_context with platform: purchase_context is where the use
 Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.
 For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.
 For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.
+Low confidence must materially control the decision. When reliable exact comps and reliable strong similar comps are missing, treat the case as weak evidence, not as a normal resale opportunity.
+In weak-evidence resale cases, prefer Pass or Need More Info at ordinary or ambitious asking prices. A speculative offer is allowed only at a substantial discount that protects the buyer from uncertain identity, uncertain demand, condition risk, fees, transport, shipping, breakage, time to sell, and the possibility of no buyer.
+Do not use the high end of an AI-only resale range to justify Buy Here or a close-to-asking negotiation target. Use the conservative realized-sale case, and do not recommend buying when expected profit only exists near the optimistic top of a low-confidence range.
+When no reliable comps exist, Suggested Listing Price is only an advertised starting point, not evidence of actual value. Expected Sale Price must be more conservative than Suggested Listing Price, and if evidence is too weak, say resale price cannot be estimated reliably from available evidence.
+Decision priority for Worth Buying: identify the item reliably, verify relevant comps, confirm demand, compare the asking price to conservative supported value, require margin after risks and costs, and only then recommend Buy Here or Negotiate.
 For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.
 Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.
 Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.
@@ -558,7 +563,7 @@ function Set-LiveSearchHonesty {
     }
   }
 
-  if ($SearchCalls.Count -gt 0 -and $SourceBackedItems.Count -gt 0) {
+  if ($SearchCalls.Count -gt 0 -and $SourceBackedItems.Count -gt 0 -and $HasReliableMatch) {
     $Status = "Live Search Completed - Source-Backed Comps Found"
     $Basis = "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
   } elseif ($SearchCalls.Count -gt 0) {
@@ -575,9 +580,6 @@ function Set-LiveSearchHonesty {
     $SimilarItems = @()
   }
 
-  if (-not $HasReliableMatch -and (Clean-Text $Report.purchaserDecision) -match "^Buy Here\b") {
-    $Report | Add-Member -NotePropertyName "purchaserDecision" -NotePropertyValue "Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident. $(Clean-Text $Report.purchaserDecision)" -Force
-  }
   $Report | Add-Member -NotePropertyName "liveComparableSearchStatus" -NotePropertyValue $Status -Force
   $Report | Add-Member -NotePropertyName "weFoundThisItem" -NotePropertyValue @($ExactItems) -Force
   $Report | Add-Member -NotePropertyName "weFoundSimilarComparableItems" -NotePropertyValue @($SimilarItems) -Force
@@ -599,10 +601,12 @@ function Set-LiveSearchHonesty {
   $ReliableCompsFound = $Status -eq "Live Search Completed - Source-Backed Comps Found"
   $HasAskingPrice = Test-HasAskingPrice $BuyerIntake
   $ResaleGuidance = Get-ResalePricingGuidance -Report $Report -BuyerIntake $BuyerIntake -Platform $Platform -ReliableCompsFound $ReliableCompsFound
+  $Report | Add-Member -NotePropertyName "purchaserDecision" -NotePropertyValue (Get-GuardedBuyerDecision -Value $Report.purchaserDecision -ReliableCompsFound $ReliableCompsFound -BuyerIntake $BuyerIntake -ResaleGuidance $ResaleGuidance) -Force
   $Report | Add-Member -NotePropertyName "itemIdentificationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.itemIdentificationConfidence "Medium" "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details.") -Force
   if ($ReliableCompsFound) {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.liveCompConfidence "Medium" "Source-backed comparable items were found, but match quality still depends on condition and exact item details.") -Force
     $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.valuationConfidence "Medium" "Source-backed comps support the estimate, but condition and local demand can still shift value.") -Force
+    $Report | Add-Member -NotePropertyName "priceConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.priceConfidence "Medium" "Source-backed comps support pricing direction, but condition and local demand still matter.") -Force
     if ($HasAskingPrice) {
       $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.buyerDecisionConfidence "Medium" "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.") -Force
     } else {
@@ -612,6 +616,7 @@ function Set-LiveSearchHonesty {
   } else {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Force-LowConfidence $Report.liveCompConfidence "No source-backed exact or strong similar comps are available for this report.") -Force
     $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Force-LowConfidence $Report.valuationConfidence "The value range is AI-only market reasoning because reliable live comps were not available.") -Force
+    $Report | Add-Member -NotePropertyName "priceConfidence" -NotePropertyValue (Force-LowConfidence $Report.priceConfidence "No reliable source-backed comps support the price estimate.") -Force
     if ($HasAskingPrice) {
       $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "The buyer decision should be conservative because live comp support is missing.") -Force
     } else {
@@ -625,9 +630,7 @@ function Set-LiveSearchHonesty {
     $Report | Add-Member -NotePropertyName "aiOnlyRoughValueRange" -NotePropertyValue $AiOnlyRange -Force
   }
 
-  if (-not $HasAskingPrice) {
-    $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue (Ensure-Prefix $Report.currentPriceAssessment "Unknown - Current price assessment requires the current asking price.") -Force
-  }
+  $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue (Get-CurrentPriceAssessment -Value $Report.currentPriceAssessment -BuyerIntake $BuyerIntake -ReliableCompsFound $ReliableCompsFound -ResaleGuidance $ResaleGuidance) -Force
 
   $Report | Add-Member -NotePropertyName "currentAskingPrice" -NotePropertyValue (Get-CurrentAskingPriceText $BuyerIntake) -Force
   $Report | Add-Member -NotePropertyName "suggestedListingPrice" -NotePropertyValue $ResaleGuidance.suggestedListingPrice -Force
@@ -637,6 +640,8 @@ function Set-LiveSearchHonesty {
   $Report | Add-Member -NotePropertyName "expectedSellingTime" -NotePropertyValue $ResaleGuidance.expectedSellingTime -Force
   $Report | Add-Member -NotePropertyName "platformSpecificSellingGuidance" -NotePropertyValue $ResaleGuidance.platformSpecificSellingGuidance -Force
   $Report | Add-Member -NotePropertyName "itemIdentification" -NotePropertyValue (Get-ItemIdentificationText $Report) -Force
+  $Report | Add-Member -NotePropertyName "maximumRecommendedBuyPrice" -NotePropertyValue (Get-MaximumRecommendedBuyPrice -Value $Report.maximumRecommendedBuyPrice -BuyerIntake $BuyerIntake -ReliableCompsFound $ReliableCompsFound -ResaleGuidance $ResaleGuidance) -Force
+  $Report | Add-Member -NotePropertyName "resalePotential" -NotePropertyValue (Get-ResalePotential -Value $Report.resalePotential -BuyerIntake $BuyerIntake -ReliableCompsFound $ReliableCompsFound -ResaleGuidance $ResaleGuidance) -Force
 
   $PriceBasis = Clean-Text $Report.priceBasis
   if (-not $PriceBasis.ToLowerInvariant().StartsWith($Basis.ToLowerInvariant())) {
@@ -1289,6 +1294,10 @@ function Get-ResalePricingGuidance {
   ) -join " "
   $Fallback = Get-FallbackSellPriceGuidance (Get-MoneyRange $RangeSource)
 
+  if (-not $ReliableCompsFound) {
+    return Get-LowConfidenceResaleGuidance -Report $Report -BuyerIntake $BuyerIntake -RecommendedPlatform $RecommendedPlatform -MoneyRange (Get-MoneyRange $RangeSource)
+  }
+
   return [pscustomobject]@{
     recommendedSellingPlatform = $RecommendedPlatform
     suggestedListingPrice = Add-ResalePriceLabel $Report.suggestedListingPrice $Fallback.suggestedListingPrice $ReliableCompsFound
@@ -1297,6 +1306,245 @@ function Get-ResalePricingGuidance {
     expectedSellingTime = $(if (Clean-Text $Report.expectedSellingTime) { Clean-Text $Report.expectedSellingTime } else { $Fallback.expectedSellingTime })
     platformSpecificSellingGuidance = $(if (Clean-Text $Report.platformSpecificSellingGuidance) { Clean-Text $Report.platformSpecificSellingGuidance } else { Get-PlatformSpecificSellingGuidance $RecommendedPlatform $Fallback })
   }
+}
+
+function Get-LowConfidenceResaleGuidance {
+  param(
+    $Report,
+    $BuyerIntake,
+    [string]$RecommendedPlatform,
+    $MoneyRange
+  )
+
+  $SpeculativeBuyCeiling = Get-SpeculativeBuyCeiling -MoneyRange $MoneyRange -BuyerIntake $BuyerIntake
+  if ($null -ne $SpeculativeBuyCeiling) {
+    $SpeculativeOfferText = "A low-confidence speculative offer should stay around $(Format-SpeculativeOfferRange $SpeculativeBuyCeiling) or lower after inspection."
+  } else {
+    $SpeculativeOfferText = "No responsible speculative offer can be calculated until stronger identity, condition, and demand evidence is available."
+  }
+
+  if ($null -ne $MoneyRange -and $MoneyRange.Count -ge 2) {
+    $CautiousAdvertisedRange = "A cautious advertised range may be around $(Format-MoneyRange (Round-Money $MoneyRange[0]) (Round-Money $MoneyRange[1])) only after verification, but it is not proof of resale value."
+    $ExpectedSaleRange = "If a buyer exists, a conservative realized sale would need to fall below the advertised range and should be treated as highly uncertain. $CautiousAdvertisedRange"
+  } else {
+    $CautiousAdvertisedRange = "Resale price cannot be estimated reliably from available evidence."
+    $ExpectedSaleRange = "Resale price cannot be estimated reliably from available evidence."
+  }
+
+  return [pscustomobject]@{
+    recommendedSellingPlatform = $RecommendedPlatform
+    suggestedListingPrice = "AI-only low-confidence advertised guidance - $CautiousAdvertisedRange"
+    expectedSalePrice = "Resale price cannot be estimated reliably from available evidence. $ExpectedSaleRange The item may fail to sell."
+    minimumAcceptablePrice = "No reliable minimum acceptable resale price is supported without exact or strong similar comps; do not treat any floor as guaranteed liquidity."
+    expectedSellingTime = "Highly uncertain; sale may be slow, require repeated markdowns, or fail entirely until demand is verified."
+    platformSpecificSellingGuidance = "$RecommendedPlatform guidance - do not use an AI-only listing range to justify buying. $SpeculativeOfferText Account for fees, transport, shipping or breakage, condition uncertainty, negotiation, and time-to-sell before risking cash."
+    speculativeBuyCeiling = $SpeculativeBuyCeiling
+    speculativeOfferText = $SpeculativeOfferText
+  }
+}
+
+function Get-SpeculativeBuyCeiling {
+  param(
+    $MoneyRange,
+    $BuyerIntake
+  )
+
+  if ($null -eq $MoneyRange -or $MoneyRange.Count -lt 2) {
+    return $null
+  }
+
+  $ConservativeSale = [Math]::Min([double]$MoneyRange[0], [double]$MoneyRange[1])
+  if ($ConservativeSale -le 0) {
+    return $null
+  }
+
+  $Context = (Get-BuyerIntakeValue $BuyerIntake "purchase_context").ToLowerInvariant()
+  $Intent = (Get-BuyerIntakeValue $BuyerIntake "purchase_intent").ToLowerInvariant()
+  $Condition = (Get-BuyerIntakeValue $BuyerIntake "item_condition").ToLowerInvariant()
+  $Concerns = @()
+  if ($BuyerIntake.ContainsKey("condition_concerns") -and $BuyerIntake["condition_concerns"] -is [array]) {
+    $Concerns = @($BuyerIntake["condition_concerns"])
+  }
+
+  $LocalPurchase = $Context -match "facebook|private|flea|estate|thrift|consignment|antique|local"
+  $DamagedOrUntested = $Condition -match "damaged|missing|untested|unknown"
+  foreach ($Concern in $Concerns) {
+    if ((Clean-Text $Concern) -match "damage|missing|cracks|not_working|untested|incomplete|authenticity|odor") {
+      $DamagedOrUntested = $true
+    }
+  }
+
+  $HasIdentifier = $false
+  foreach ($Field in @("item_name", "known_brand", "known_manufacturer", "known_model", "known_sku", "known_upc")) {
+    if ((Get-BuyerIntakeValue $BuyerIntake $Field) -ne "not provided") {
+      $HasIdentifier = $true
+    }
+  }
+
+  $SellingCostRate = $(if ($LocalPurchase) { 0.10 } else { 0.18 })
+  $ConditionAllowance = $(if ($DamagedOrUntested) { 0.18 } else { 0.08 })
+  $IdentityAllowance = $(if ($HasIdentifier) { 0.06 } else { 0.14 })
+  $UncertaintyAllowance = 0.16 + [Math]::Min(0.12, $Concerns.Count * 0.03) + $IdentityAllowance
+  $ProfitRate = $(if ($Intent -eq "both") { 0.14 } else { 0.16 })
+  $RequiredProfit = [Math]::Max($(if ($ConservativeSale -le 35) { 8 } else { 10 }), $ConservativeSale * $ProfitRate)
+  $RiskAdjustedNet = $ConservativeSale * [Math]::Max(0.20, 1 - $SellingCostRate - $ConditionAllowance - $UncertaintyAllowance)
+  $Ceiling = Round-Money ($RiskAdjustedNet - $RequiredProfit)
+
+  if ($Ceiling -gt 0) {
+    return $Ceiling
+  }
+
+  return $null
+}
+
+function Format-SpeculativeOfferRange {
+  param([double]$Ceiling)
+
+  $High = Round-Money $Ceiling
+  $Low = Round-Money ([Math]::Max(1, $High * 0.7))
+  return Format-MoneyRange $Low $High
+}
+
+function Get-GuardedBuyerDecision {
+  param(
+    [string]$Value,
+    [bool]$ReliableCompsFound,
+    $BuyerIntake,
+    $ResaleGuidance
+  )
+
+  $Text = Clean-Text $Value
+  if (-not $Text) {
+    $Text = "Need More Info - Buyer decision requires more item details."
+  }
+  if ($ReliableCompsFound) {
+    return $Text
+  }
+
+  if (-not (Test-HasAskingPrice $BuyerIntake)) {
+    return "Need More Info - Current asking price is missing, and reliable source-backed comps are not available. $(Remove-DecisionLabel $Text)"
+  }
+
+  if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {
+    $AskingPrice = $null
+    if ($BuyerIntake.ContainsKey("parsed_asking_price") -and $null -ne $BuyerIntake["parsed_asking_price"]) {
+      $AskingPrice = [double]$BuyerIntake["parsed_asking_price"]
+    }
+    $Ceiling = $ResaleGuidance.speculativeBuyCeiling
+    if ($null -ne $AskingPrice -and $null -ne $Ceiling -and $AskingPrice -le $Ceiling -and $AskingPrice -le 25) {
+      return "Negotiate - Low-confidence speculative purchase only because the current price is low enough to limit downside. Do not treat this as a proven resale opportunity; verify identity, condition, and demand before buying."
+    }
+
+    $SpeculativeOfferText = Clean-Text $ResaleGuidance.speculativeOfferText
+    if (-not $SpeculativeOfferText) {
+      $SpeculativeOfferText = "Need more information before considering a lower speculative offer."
+    }
+    return "Pass - At the current asking price, reliable comps do not support a resale purchase. $SpeculativeOfferText $(Remove-DecisionLabel $Text)"
+  }
+
+  if ($Text -match "^Buy Here\b") {
+    return "Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident unless personal-use value clearly justifies the price. $(Remove-DecisionLabel $Text)"
+  }
+
+  return $Text
+}
+
+function Remove-DecisionLabel {
+  param([string]$Value)
+
+  return (Clean-Text $Value) -replace "^(Buy Here|Negotiate|Buy Elsewhere|Wait|Pass|Need More Info)\s*[-:]\s*", ""
+}
+
+function Get-CurrentPriceAssessment {
+  param(
+    [string]$Value,
+    $BuyerIntake,
+    [bool]$ReliableCompsFound,
+    $ResaleGuidance
+  )
+
+  $Text = Clean-Text $Value
+  if ($ReliableCompsFound) {
+    return $Text
+  }
+
+  if (-not (Test-HasAskingPrice $BuyerIntake)) {
+    return Ensure-Prefix $Text "Unknown - Current price assessment requires the current asking price."
+  }
+
+  if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {
+    $AskingPrice = $null
+    if ($BuyerIntake.ContainsKey("parsed_asking_price") -and $null -ne $BuyerIntake["parsed_asking_price"]) {
+      $AskingPrice = [double]$BuyerIntake["parsed_asking_price"]
+    }
+    $Ceiling = $ResaleGuidance.speculativeBuyCeiling
+    if ($null -ne $AskingPrice -and $null -ne $Ceiling -and $AskingPrice -le $Ceiling -and $AskingPrice -le 25) {
+      return "Low-confidence speculative - $(Format-Money $AskingPrice) may limit downside, but demand and realized resale value are unverified."
+    }
+
+    $SpeculativeOfferText = Clean-Text $ResaleGuidance.speculativeOfferText
+    if (-not $SpeculativeOfferText) {
+      $SpeculativeOfferText = "Need more evidence before considering any offer."
+    }
+    return "High risk - Current asking price is not supported by reliable exact or strong similar comps. $SpeculativeOfferText"
+  }
+
+  return Ensure-Prefix $Text "Unknown - Market support is low because reliable comps are missing."
+}
+
+function Get-MaximumRecommendedBuyPrice {
+  param(
+    [string]$Value,
+    $BuyerIntake,
+    [bool]$ReliableCompsFound,
+    $ResaleGuidance
+  )
+
+  $Text = Clean-Text $Value
+  if ($ReliableCompsFound) {
+    return $Text
+  }
+
+  if (-not (Test-HasAskingPrice $BuyerIntake)) {
+    return "Need More Info - Current asking price is required before a maximum recommended buy price can be trusted."
+  }
+
+  if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {
+    if ($null -ne $ResaleGuidance.speculativeBuyCeiling) {
+      return "Low-confidence speculative ceiling: $(Format-Money $ResaleGuidance.speculativeBuyCeiling) or less. This ceiling uses conservative realized-sale logic and subtracts selling costs, transport or shipping risk, condition risk, identity risk, uncertainty, and required profit. It is not a confident buy price."
+    }
+
+    return "No reliable maximum buy price can be recommended because source-backed comps, demand, and realized resale value are not strong enough."
+  }
+
+  return Ensure-Prefix $Text "Low confidence - Buy only if personal utility justifies the price; market value is not source-supported."
+}
+
+function Get-ResalePotential {
+  param(
+    [string]$Value,
+    $BuyerIntake,
+    [bool]$ReliableCompsFound,
+    $ResaleGuidance
+  )
+
+  $Text = Clean-Text $Value
+  if (-not (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent"))) {
+    if ($Text) {
+      return $Text
+    }
+    return "Resale is not the main reason to buy."
+  }
+
+  if ($ReliableCompsFound) {
+    return $Text
+  }
+
+  $SpeculativeOfferText = Clean-Text $ResaleGuidance.speculativeOfferText
+  if (-not $SpeculativeOfferText) {
+    $SpeculativeOfferText = "Need stronger comps before risking resale capital."
+  }
+  return "Low-confidence speculative resale only - demand is unverified, the item may not sell, and an advertised listing price is not the same as realized value. $SpeculativeOfferText"
 }
 
 function Add-ResalePriceLabel {
