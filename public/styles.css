@@ -253,7 +253,6 @@ h3 {
 }
 
 .field-control label,
-.condition-concerns legend,
 .details-panel summary {
   font-size: 0.9rem;
 }
@@ -354,16 +353,10 @@ h3 {
 
 .condition-concerns {
   margin: 0;
-  padding: 12px;
-  border: 1px solid rgba(203, 191, 172, 0.56);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
 }
 
-.condition-concerns legend {
-  padding: 0 6px;
-  color: var(--heading);
-  font-weight: 850;
+.condition-concerns .checkbox-grid {
+  padding: 14px;
 }
 
 .checkbox-grid {

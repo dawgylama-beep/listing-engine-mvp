@@ -103,6 +103,10 @@
 - Known Item Details now appears as a clear native collapsible dropdown with helper text, visible chevron state, hover feedback, focus feedback, and mobile-friendly tap target
 - Existing known-detail field IDs, names, buyerIntake payload behavior, Worth Buying behavior, and Generate Listing behavior preserved
 
+## Version 1.6.3 (Completed)
+- Condition Concerns now appears as a clear native collapsible dropdown matching the Known Item Details card, chevron, hover, focus, and mobile tap-target treatment
+- Existing condition concern checkbox names, values, multi-select behavior, buyerIntake payload behavior, Worth Buying behavior, and Generate Listing behavior preserved
+
 ## Version 2.0
 - User accounts
 - Saved listings
