@@ -126,6 +126,7 @@ async function handleSubmit(event) {
   const config = reportTypes[mode];
   const formData = new FormData(form);
   const platform = String(formData.get("platform") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
 
   if (mode === "listing" && !platform) {
     latestReport = null;
@@ -134,6 +135,16 @@ async function handleSubmit(event) {
     setOutputHeading(config);
     renderEmpty(config);
     setStatus("Choose a marketplace platform before generating a listing.", "error");
+    return;
+  }
+
+  if (mode === "listing" && !notes) {
+    latestReport = null;
+    latestSections = config.sections;
+    copyAllButton.disabled = true;
+    setOutputHeading(config);
+    renderEmpty(config);
+    setStatus("Add item notes before generating a listing.", "error");
     return;
   }
 
@@ -157,18 +168,23 @@ async function handleSubmit(event) {
 
   try {
     const photos = await preparePhotos(selectedPhotoFiles);
+    const requestBody = {
+      platform,
+      notes,
+      photos,
+      reportType: config.reportType
+    };
+
+    if (mode === "marketValue") {
+      requestBody.buyerIntake = getBuyerIntake(formData, notes);
+    }
 
     const response = await fetch("/api/generate-listing", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        platform,
-        notes: formData.get("notes"),
-        photos,
-        reportType: config.reportType
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const data = await response.json();
@@ -192,6 +208,26 @@ async function handleSubmit(event) {
   } finally {
     setLoading(false, mode);
   }
+}
+
+function getBuyerIntake(formData, notes) {
+  const getValue = (name) => String(formData.get(name) || "").trim();
+
+  return {
+    purchase_context: getValue("purchase_context"),
+    asking_price: getValue("asking_price"),
+    purchase_intent: getValue("purchase_intent"),
+    item_condition: getValue("item_condition"),
+    condition_concerns: formData.getAll("condition_concerns").map((value) => String(value || "").trim()).filter(Boolean),
+    item_name: getValue("item_name"),
+    known_brand: getValue("known_brand"),
+    known_manufacturer: getValue("known_manufacturer"),
+    known_model: getValue("known_model"),
+    known_sku: getValue("known_sku"),
+    known_upc: getValue("known_upc"),
+    approximate_age_era: getValue("approximate_age_era"),
+    buyer_notes: notes
+  };
 }
 
 async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {

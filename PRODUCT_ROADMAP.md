@@ -80,6 +80,17 @@
 - Santa's Workshop / Hubbard Ohio / SKU-style query quality improved
 - Search Coverage source summaries cleaned up
 
+## Version 1.6.0 (Completed)
+- Guided Buyer Intake added for Worth Buying
+- Structured purchase context captured
+- Asking-price awareness added with raw and parsed values
+- Purchase intent captured for personal use, resale, or both
+- Condition concerns captured as structured inputs
+- Optional known identity details added for item name, brand, manufacturer, model, SKU, UPC, and age/era
+- Mode-specific notes validation added
+- Buyer-context source routing improved
+- Confidence inputs improved for identification, live comps, valuation, and buyer decision
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -207,6 +207,10 @@ function Handle-GenerateListing {
   if ($ReportType -ne "marketValue") {
     $ReportType = "listing"
   }
+  $BuyerIntake = @{}
+  if ($ReportType -eq "marketValue") {
+    $BuyerIntake = Normalize-BuyerIntake $Body.buyerIntake
+  }
   $Photos = @()
 
   if ($null -ne $Body.photos) {
@@ -222,7 +226,7 @@ function Handle-GenerateListing {
     return
   }
 
-  if (-not $Notes) {
+  if ($ReportType -eq "listing" -and -not $Notes) {
     Send-Json $Stream 400 @{ error = "Add item notes before generating a listing." }
     return
   }
@@ -267,7 +271,7 @@ function Handle-GenerateListing {
   }
 
   try {
-    $Report = Generate-ReportWithOpenAI -ApiKey $ApiKey -Model $Model -Platform $Platform -Notes $Notes -Photos $SafePhotos -ReportType $ReportType
+    $Report = Generate-ReportWithOpenAI -ApiKey $ApiKey -Model $Model -Platform $Platform -Notes $Notes -Photos $SafePhotos -ReportType $ReportType -BuyerIntake $BuyerIntake
     if ($ReportType -eq "marketValue") {
       Send-Json $Stream 200 @{ valuation = $Report }
     } else {
@@ -285,11 +289,13 @@ function Generate-ReportWithOpenAI {
     [string]$Platform,
     [string]$Notes,
     [array]$Photos,
-    [string]$ReportType
+    [string]$ReportType,
+    $BuyerIntake = @{}
   )
 
   $UseWebSearch = $false
   if ($ReportType -eq "marketValue") {
+    $BuyerIntakeText = Format-BuyerIntakeForPrompt $BuyerIntake
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
     $UseWebSearch = $true
@@ -297,13 +303,22 @@ function Generate-ReportWithOpenAI {
     $TaskText = @"
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
+Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.
+Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.
+For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.
+For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.
+Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity or market research.
 You must use the web_search tool for live comparable search before completing the report.
 Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond source-backed results found by the web_search tool.
 First identify the item and buyer context, then choose relevant source categories, then search targeted comparable queries.
+Use typed buyer identity fields as strong clues only when they are consistent with photos, visible label wording, and source-backed results.
+Do not silently discard conflicts between item name, brand, manufacturer, model, SKU, UPC, approximate age or era, visible photo text, front-box text, back-label text, and manufacturer/location text. Conflicts should lower confidence or trigger Need More Info.
 Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.
 Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.
-Build diverse product-focused search queries, not repetitive code-only or platform-stuffed variants.
-Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful.
+Build diverse product-focused search queries in this priority order where appropriate: exact UPC, exact model, exact SKU, brand plus model, manufacturer plus item name, exact visible label wording, then descriptive fallback queries.
+Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful. Do not force identifiers into every query if they are irrelevant or unreliable.
+Use purchase context to route the search: retail store or mall means manufacturer, retailer, current-product, and price-comparison style sources; consignment, thrift, flea market, estate sale, and antique mall mean resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace or private seller means local value, pickup, negotiation, transport, and inspection risk.
+Reject or weaken comparable items that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.
 For a Santa decor box, include useful terms such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
 For boxed seasonal decor, vintage decor, collectible figurines, ceramic/resin figures, and unbranded or private-label seasonal items, prioritize eBay-style resale results, Etsy-style vintage/holiday decor results, Mercari-style resale results, collector/reference/brand clue results, and general web results using exact label text.
 Do not route boxed seasonal decor primarily to Home Depot/current retail unless the item clearly appears to be a current retail product.
@@ -320,6 +335,7 @@ The noReliableComparableItemsFound section must be empty when exact or similar s
 The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, whether source-backed comps passed match-quality checks, and why weak returned results were rejected. Do not dump long raw URLs in Search Coverage; reserve URLs for actual source-backed comp items only.
 Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
 The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.
+Use Item Identification Confidence for how well photos, typed details, labels, UPC/model/SKU, and source results agree. Use Live Comp Confidence for source-backed match quality. Use Valuation Confidence for price range reliability. Use Buyer Decision Confidence for whether enough price/context/condition evidence exists to recommend action.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
 The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
 The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
@@ -332,6 +348,7 @@ Use a broad estimatedMarketValue range, not a false-precision single number.
 The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
 In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not direct the user to perform additional marketplace searching, and do not claim actual cheaper listings were found unless source-backed results support that.
+Tailor negotiation guidance to purchase context. For flea market, estate sale, private seller, and Facebook Marketplace, include opening offer, target range, walk-away price, inspection, pickup, transport, and scam caution only when evidence supports it. For retail store or mall, consider sale price, coupons or markdown potential, return policy, and Buy Elsewhere only when source-backed lower prices exist. Do not generate a precise offer range when evidence is too weak.
 If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.
 Do not inflate values from generic category assumptions. Do not treat the user's asking price as market value. Do not treat weak lookalikes as strong comps.
 For retail/current/SKU/UPC/model items, prioritize brand/manufacturer, retailer, Google Shopping-style, Amazon/major retail signals; eBay is secondary only for used/refurbished/resale.
@@ -378,13 +395,16 @@ Do not claim unseen condition details. If something is uncertain from the photos
     $MarketContextBlock = "$ContextLine`n"
   }
   $NotesLabel = "Seller item notes"
+  $BuyerIntakeBlock = ""
   if ($ReportType -eq "marketValue") {
     $NotesLabel = "Buyer item notes"
+    $BuyerIntakeBlock = "Guided Buyer Intake:`n$BuyerIntakeText`n"
   }
 
   $UserText = @"
 $PlatformLine
 ${MarketContextBlock}${NotesLabel}: $Notes
+${BuyerIntakeBlock}
 
 $TaskText
 "@
@@ -467,7 +487,7 @@ $TaskText
   }
 
   if ($ReportType -eq "marketValue") {
-    return Set-LiveSearchHonesty -Report $Report -Response $Response
+    return Set-LiveSearchHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake
   }
 
   return $Report
@@ -476,7 +496,8 @@ $TaskText
 function Set-LiveSearchHonesty {
   param(
     $Report,
-    $Response
+    $Response,
+    $BuyerIntake = @{}
   )
 
   $SearchCalls = @(Get-WebSearchCalls $Response)
@@ -540,22 +561,35 @@ function Set-LiveSearchHonesty {
   $Report | Add-Member -NotePropertyName "searchCoverage" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force
   $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue @(Get-SearchQueriesUsed $Response) -Force
   $ReliableCompsFound = $Status -eq "Live Search Completed - Source-Backed Comps Found"
+  $HasAskingPrice = Test-HasAskingPrice $BuyerIntake
   $Report | Add-Member -NotePropertyName "itemIdentificationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.itemIdentificationConfidence "Medium" "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details.") -Force
   if ($ReliableCompsFound) {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.liveCompConfidence "Medium" "Source-backed comparable items were found, but match quality still depends on condition and exact item details.") -Force
     $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.valuationConfidence "Medium" "Source-backed comps support the estimate, but condition and local demand can still shift value.") -Force
-    $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.buyerDecisionConfidence "Medium" "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.") -Force
+    if ($HasAskingPrice) {
+      $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.buyerDecisionConfidence "Medium" "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.") -Force
+    } else {
+      $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "No current asking price was provided, so the buy decision cannot be fully assessed.") -Force
+    }
     $Report | Add-Member -NotePropertyName "aiOnlyRoughValueRange" -NotePropertyValue "" -Force
   } else {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Force-LowConfidence $Report.liveCompConfidence "No source-backed exact or strong similar comps are available for this report.") -Force
     $Report | Add-Member -NotePropertyName "valuationConfidence" -NotePropertyValue (Force-LowConfidence $Report.valuationConfidence "The value range is AI-only market reasoning because reliable live comps were not available.") -Force
-    $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "The buyer decision should be conservative because live comp support is missing.") -Force
+    if ($HasAskingPrice) {
+      $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "The buyer decision should be conservative because live comp support is missing.") -Force
+    } else {
+      $Report | Add-Member -NotePropertyName "buyerDecisionConfidence" -NotePropertyValue (Force-LowConfidence $Report.buyerDecisionConfidence "No current asking price was provided, and live comp support is missing.") -Force
+    }
     $AiOnlySource = Clean-Text $Report.aiOnlyRoughValueRange
     if (-not $AiOnlySource) {
       $AiOnlySource = Clean-Text $Report.estimatedMarketValue
     }
     $AiOnlyRange = Ensure-Prefix $AiOnlySource "AI-Only Rough Value Range - "
     $Report | Add-Member -NotePropertyName "aiOnlyRoughValueRange" -NotePropertyValue $AiOnlyRange -Force
+  }
+
+  if (-not $HasAskingPrice) {
+    $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue (Ensure-Prefix $Report.currentPriceAssessment "Unknown - Current price assessment requires the current asking price.") -Force
   }
 
   $PriceBasis = Clean-Text $Report.priceBasis
@@ -1000,6 +1034,160 @@ function Get-ContentType {
     ".svg" { return "image/svg+xml" }
     default { return "application/octet-stream" }
   }
+}
+
+function Normalize-BuyerIntake {
+  param($Value)
+
+  $AllowedConcerns = @(
+    "visible_damage",
+    "missing_parts",
+    "stains_or_wear",
+    "cracks_or_chips",
+    "not_working",
+    "untested",
+    "incomplete_set",
+    "authenticity_concern",
+    "odor_or_smoke",
+    "other"
+  )
+
+  $Intake = @{
+    purchase_context = ""
+    asking_price = ""
+    purchase_intent = ""
+    item_condition = ""
+    condition_concerns = @()
+    item_name = ""
+    known_brand = ""
+    known_manufacturer = ""
+    known_model = ""
+    known_sku = ""
+    known_upc = ""
+    approximate_age_era = ""
+    buyer_notes = ""
+    parsed_asking_price = $null
+  }
+
+  if ($null -eq $Value) {
+    return $Intake
+  }
+
+  $Fields = @(
+    "purchase_context",
+    "asking_price",
+    "purchase_intent",
+    "item_condition",
+    "item_name",
+    "known_brand",
+    "known_manufacturer",
+    "known_model",
+    "known_sku",
+    "known_upc",
+    "approximate_age_era",
+    "buyer_notes"
+  )
+
+  foreach ($Field in $Fields) {
+    if ($Value.PSObject.Properties.Name -contains $Field) {
+      $Intake[$Field] = Clean-Text $Value.PSObject.Properties[$Field].Value
+    }
+  }
+
+  $Concerns = @()
+  if ($Value.PSObject.Properties.Name -contains "condition_concerns") {
+    if ($Value.condition_concerns -is [array]) {
+      $Concerns = $Value.condition_concerns
+    } elseif ($null -ne $Value.condition_concerns) {
+      $Concerns = @($Value.condition_concerns)
+    }
+  }
+
+  $Intake.condition_concerns = @(
+    $Concerns |
+      ForEach-Object { Clean-Text $_ } |
+      Where-Object { $AllowedConcerns -contains $_ } |
+      Select-Object -Unique
+  )
+  $Intake.parsed_asking_price = ConvertTo-ParsedAskingPrice $Intake.asking_price
+
+  return $Intake
+}
+
+function ConvertTo-ParsedAskingPrice {
+  param([string]$Value)
+
+  $Text = Clean-Text $Value
+  if (-not $Text) {
+    return $null
+  }
+
+  $Match = [regex]::Match($Text, "(?:^|[^\d])(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?|\d{1,6}(?:\.\d{1,2})?)(?:[^\d]|$)")
+  if (-not $Match.Success) {
+    return $null
+  }
+
+  $NumberText = $Match.Groups[1].Value.Replace(",", "")
+  $Parsed = 0.0
+  if ([double]::TryParse($NumberText, [ref]$Parsed)) {
+    return $Parsed
+  }
+
+  return $null
+}
+
+function Format-BuyerIntakeForPrompt {
+  param($BuyerIntake)
+
+  $ParsedPrice = "null"
+  if ($BuyerIntake.ContainsKey("parsed_asking_price") -and $null -ne $BuyerIntake["parsed_asking_price"]) {
+    $ParsedPrice = [string]$BuyerIntake["parsed_asking_price"]
+  }
+
+  $Concerns = "none provided"
+  if ($BuyerIntake.ContainsKey("condition_concerns") -and $BuyerIntake["condition_concerns"] -and $BuyerIntake["condition_concerns"].Count -gt 0) {
+    $Concerns = ($BuyerIntake["condition_concerns"] -join ", ")
+  }
+
+  return @(
+    "purchase_context: $(Get-BuyerIntakeValue $BuyerIntake 'purchase_context')",
+    "asking_price_raw: $(Get-BuyerIntakeValue $BuyerIntake 'asking_price')",
+    "asking_price_number: $ParsedPrice",
+    "purchase_intent: $(Get-BuyerIntakeValue $BuyerIntake 'purchase_intent')",
+    "item_condition: $(Get-BuyerIntakeValue $BuyerIntake 'item_condition')",
+    "condition_concerns: $Concerns",
+    "item_name: $(Get-BuyerIntakeValue $BuyerIntake 'item_name')",
+    "known_brand: $(Get-BuyerIntakeValue $BuyerIntake 'known_brand')",
+    "known_manufacturer: $(Get-BuyerIntakeValue $BuyerIntake 'known_manufacturer')",
+    "known_model: $(Get-BuyerIntakeValue $BuyerIntake 'known_model')",
+    "known_sku: $(Get-BuyerIntakeValue $BuyerIntake 'known_sku')",
+    "known_upc: $(Get-BuyerIntakeValue $BuyerIntake 'known_upc')",
+    "approximate_age_era: $(Get-BuyerIntakeValue $BuyerIntake 'approximate_age_era')",
+    "buyer_notes: $(Get-BuyerIntakeValue $BuyerIntake 'buyer_notes')"
+  ) -join "`n"
+}
+
+function Get-BuyerIntakeValue {
+  param(
+    $BuyerIntake,
+    [string]$Key
+  )
+
+  if ($BuyerIntake.ContainsKey($Key) -and $BuyerIntake[$Key]) {
+    return $BuyerIntake[$Key]
+  }
+
+  return "not provided"
+}
+
+function Test-HasAskingPrice {
+  param($BuyerIntake)
+
+  if ($BuyerIntake.ContainsKey("asking_price")) {
+    return [bool](Clean-Text $BuyerIntake["asking_price"])
+  }
+
+  return $false
 }
 
 function Clean-Text {

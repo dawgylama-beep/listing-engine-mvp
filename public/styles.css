@@ -215,6 +215,106 @@ h3 {
   box-shadow: 0 8px 24px rgba(17, 24, 32, 0.05);
 }
 
+.buyer-intake {
+  gap: 14px;
+  border-color: rgba(15, 106, 98, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(246, 250, 247, 0.88) 100%);
+}
+
+.field-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.field-heading h2 {
+  font-size: 1.04rem;
+}
+
+.mini-eyebrow {
+  margin: 0 0 4px;
+  color: var(--teal);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.intake-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field-control {
+  display: grid;
+  gap: 7px;
+}
+
+.field-control label,
+.condition-concerns legend,
+.details-panel summary {
+  font-size: 0.9rem;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.details-panel {
+  border: 1px solid rgba(203, 191, 172, 0.56);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.details-panel summary {
+  min-height: 44px;
+  padding: 12px 13px;
+  color: var(--heading);
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.details-panel .intake-grid {
+  padding: 0 13px 13px;
+}
+
+.condition-concerns {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(203, 191, 172, 0.56);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.condition-concerns legend {
+  padding: 0 6px;
+  color: var(--heading);
+  font-weight: 850;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 12px;
+}
+
+.checkbox-grid label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  color: #344047;
+  font-weight: 650;
+}
+
+.checkbox-grid input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--teal);
+}
+
 label {
   color: var(--heading);
   font-weight: 800;
@@ -237,6 +337,7 @@ label {
 }
 
 input[type="file"],
+input[type="text"],
 select,
 textarea {
   width: 100%;
@@ -265,6 +366,11 @@ input[type="file"]::file-selector-button {
 }
 
 select {
+  min-height: 48px;
+  padding: 0 13px;
+}
+
+input[type="text"] {
   min-height: 48px;
   padding: 0 13px;
 }
@@ -554,6 +660,15 @@ button:disabled {
 
   .field {
     padding: 13px;
+  }
+
+  .field-heading {
+    display: grid;
+  }
+
+  .intake-grid,
+  .checkbox-grid {
+    grid-template-columns: 1fr;
   }
 
   .action-row {

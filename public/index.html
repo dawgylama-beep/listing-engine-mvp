@@ -46,10 +46,122 @@
               <p class="field-note">Required for Generate Listing. Optional for Worth Buying?</p>
             </div>
 
+            <section class="field buyer-intake" aria-labelledby="buyer-intake-title">
+              <div class="field-heading">
+                <div>
+                  <p class="mini-eyebrow">Worth Buying?</p>
+                  <h2 id="buyer-intake-title">Guided Buyer Intake</h2>
+                </div>
+                <p class="field-note">Optional for listings. Helps Market Intelligence judge this buying opportunity.</p>
+              </div>
+
+              <div class="intake-grid">
+                <div class="field-control">
+                  <label for="purchase_context">Where are you buying this?</label>
+                  <select id="purchase_context" name="purchase_context">
+                    <option value="">Select one</option>
+                    <option value="retail_store">Retail store</option>
+                    <option value="mall">Mall</option>
+                    <option value="consignment_store">Consignment store</option>
+                    <option value="thrift_store">Thrift store</option>
+                    <option value="flea_market">Flea market</option>
+                    <option value="estate_sale">Estate sale</option>
+                    <option value="antique_mall">Antique mall</option>
+                    <option value="facebook_marketplace">Facebook Marketplace</option>
+                    <option value="online_marketplace">Online marketplace</option>
+                    <option value="private_seller">Private seller</option>
+                    <option value="other">Other</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                <div class="field-control">
+                  <label for="asking_price">Current asking price</label>
+                  <input id="asking_price" name="asking_price" type="text" inputmode="decimal" placeholder="Seller/store price, e.g. $65 firm">
+                </div>
+
+                <div class="field-control">
+                  <label for="purchase_intent">Buying for</label>
+                  <select id="purchase_intent" name="purchase_intent">
+                    <option value="">Select one</option>
+                    <option value="personal_use">Personal use</option>
+                    <option value="resale">Resale</option>
+                    <option value="both">Both</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                <div class="field-control">
+                  <label for="item_condition">Condition</label>
+                  <select id="item_condition" name="item_condition">
+                    <option value="">Select one</option>
+                    <option value="new">New</option>
+                    <option value="open_box">Open box</option>
+                    <option value="used">Used</option>
+                    <option value="vintage">Vintage</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="missing_pieces">Missing pieces</option>
+                    <option value="untested">Untested</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+              </div>
+
+              <details class="details-panel">
+                <summary>Known item details</summary>
+                <div class="intake-grid">
+                  <div class="field-control">
+                    <label for="item_name">Item name</label>
+                    <input id="item_name" name="item_name" type="text" autocomplete="off">
+                  </div>
+                  <div class="field-control">
+                    <label for="known_brand">Brand</label>
+                    <input id="known_brand" name="known_brand" type="text" autocomplete="off">
+                  </div>
+                  <div class="field-control">
+                    <label for="known_manufacturer">Manufacturer</label>
+                    <input id="known_manufacturer" name="known_manufacturer" type="text" autocomplete="off">
+                  </div>
+                  <div class="field-control">
+                    <label for="known_model">Model</label>
+                    <input id="known_model" name="known_model" type="text" autocomplete="off">
+                  </div>
+                  <div class="field-control">
+                    <label for="known_sku">SKU</label>
+                    <input id="known_sku" name="known_sku" type="text" autocomplete="off">
+                  </div>
+                  <div class="field-control">
+                    <label for="known_upc">UPC</label>
+                    <input id="known_upc" name="known_upc" type="text" inputmode="numeric" autocomplete="off">
+                  </div>
+                  <div class="field-control full-span">
+                    <label for="approximate_age_era">Approximate age or era</label>
+                    <input id="approximate_age_era" name="approximate_age_era" type="text" autocomplete="off">
+                  </div>
+                </div>
+              </details>
+
+              <fieldset class="condition-concerns">
+                <legend>Condition concerns</legend>
+                <div class="checkbox-grid">
+                  <label><input type="checkbox" name="condition_concerns" value="visible_damage"> Visible damage</label>
+                  <label><input type="checkbox" name="condition_concerns" value="missing_parts"> Missing parts</label>
+                  <label><input type="checkbox" name="condition_concerns" value="stains_or_wear"> Stains or wear</label>
+                  <label><input type="checkbox" name="condition_concerns" value="cracks_or_chips"> Cracks or chips</label>
+                  <label><input type="checkbox" name="condition_concerns" value="not_working"> Not working</label>
+                  <label><input type="checkbox" name="condition_concerns" value="untested"> Untested</label>
+                  <label><input type="checkbox" name="condition_concerns" value="incomplete_set"> Incomplete set</label>
+                  <label><input type="checkbox" name="condition_concerns" value="authenticity_concern"> Authenticity concern</label>
+                  <label><input type="checkbox" name="condition_concerns" value="odor_or_smoke"> Odor or smoke</label>
+                  <label><input type="checkbox" name="condition_concerns" value="other"> Other</label>
+                </div>
+              </fieldset>
+            </section>
+
             <div class="field">
               <label for="notes">Item notes</label>
-              <textarea id="notes" name="notes" rows="8" placeholder="Current asking price, store or source, brand/manufacturer, model/SKU/UPC/barcode/style number, condition, and why you are considering buying it..." required></textarea>
-              <p class="field-note">For Worth Buying?, include the current price and where you found it when possible.</p>
+              <textarea id="notes" name="notes" rows="8" placeholder="Extra context, label wording, flaws, measurements, seller comments, or anything else you want the app to consider..."></textarea>
+              <p class="field-note">Optional for Worth Buying?. Required for Generate Listing.</p>
             </div>
 
             <div class="action-row">

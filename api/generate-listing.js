@@ -159,6 +159,8 @@ const itemIdentitySchema = {
     "visiblePrice",
     "brandSeries",
     "visibleText",
+    "guidedBuyerIntakeSummary",
+    "identityConflictNotes",
     "distinctiveVisualDescription",
     "likelyItemDescription",
     "strongestSearchableIdentifiers",
@@ -187,6 +189,13 @@ const itemIdentitySchema = {
       type: "array",
       minItems: 0,
       maxItems: 10,
+      items: { type: "string" }
+    },
+    guidedBuyerIntakeSummary: { type: "string" },
+    identityConflictNotes: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
       items: { type: "string" }
     },
     distinctiveVisualDescription: { type: "string" },
@@ -228,6 +237,34 @@ const liveCompsSearchSchema = {
   }
 };
 
+const buyerIntakeStringFields = [
+  "purchase_context",
+  "asking_price",
+  "purchase_intent",
+  "item_condition",
+  "item_name",
+  "known_brand",
+  "known_manufacturer",
+  "known_model",
+  "known_sku",
+  "known_upc",
+  "approximate_age_era",
+  "buyer_notes"
+];
+
+const allowedConditionConcerns = new Set([
+  "visible_damage",
+  "missing_parts",
+  "stains_or_wear",
+  "cracks_or_chips",
+  "not_working",
+  "untested",
+  "incomplete_set",
+  "authenticity_concern",
+  "odor_or_smoke",
+  "other"
+]);
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed." });
@@ -239,12 +276,13 @@ export default async function handler(req, res) {
     const notes = cleanText(body.notes);
     const photos = Array.isArray(body.photos) ? body.photos : [];
     const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
+    const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : null;
 
     if (reportType === "listing" && !platform) {
       return res.status(400).json({ error: "Choose a marketplace platform." });
     }
 
-    if (!notes) {
+    if (reportType === "listing" && !notes) {
       return res.status(400).json({ error: "Add item notes before generating a listing." });
     }
 
@@ -278,7 +316,8 @@ export default async function handler(req, res) {
       platform,
       notes,
       photos: safePhotos,
-      reportType
+      reportType,
+      buyerIntake
     });
 
     if (reportType === "marketValue") {
@@ -293,9 +332,9 @@ export default async function handler(req, res) {
   }
 }
 
-async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType }) {
+async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake }) {
   if (reportType === "marketValue") {
-    return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos });
+    return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake });
   }
 
   return generateListingWithOpenAI({ apiKey, model, platform, notes, photos });
@@ -331,22 +370,27 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
   return (await requestOpenAIJson({ apiKey, payload })).json;
 }
 
-async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos }) {
-  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos });
-  const sourceRoute = routeMarketSources(identity);
-  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes);
-  const liveSearch = await executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries });
-  const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch });
+async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
+  const intake = buyerIntake || normalizeBuyerIntake({});
+  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const sourceRoute = routeMarketSources(identity, intake);
+  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
+  const liveSearch = await executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake: intake });
+  const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake });
 
-  return enforceLiveSearchHonesty(report, liveSearch);
+  return enforceLiveSearchHonesty(report, liveSearch, intake);
 }
 
-async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
+async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
+  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const userContent = [
     {
       type: "input_text",
       text: [
         "Extract the strongest searchable item identity from the photos and buyer notes.",
+        "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
+        "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
+        "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
         "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
         "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
@@ -357,7 +401,9 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
         "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
         "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
         `Marketplace platform: ${platform || "No platform selected"}`,
-        `Buyer item notes: ${notes}`
+        `Buyer item notes: ${notes || "No additional notes provided."}`,
+        "Guided Buyer Intake:",
+        buyerIntakeText
       ].join("\n")
     },
     ...photos.map((photo) => ({
@@ -378,8 +424,9 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos }) {
   return normalizeIdentity((await requestOpenAIJson({ apiKey, payload })).json);
 }
 
-async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries }) {
+async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake }) {
   const searchStartedAt = new Date().toISOString();
+  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const userContent = [
     {
       type: "input_text",
@@ -392,11 +439,16 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
+        "Treat typed buyer identity fields as strong clues only when they do not conflict with photos, visible label wording, or source results.",
+        "Reject or weaken comps that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.",
+        "Use purchase context to route the search: retail/mall means current product and retailer sources; consignment/thrift/flea/estate/antique means resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace/private seller means local value, pickup, negotiation, and transport/inspection risk.",
         "Classify each reliable result as Exact Match, Strong Similar Match, or Weak Similar Match, and explain why it is or is not comparable.",
         "If no reliable source-backed comps are found, return an empty comparableItemsFound array.",
         "",
         `Marketplace platform: ${platform || "No platform selected"}`,
-        `Buyer item notes: ${notes}`,
+        `Buyer item notes: ${notes || "No additional notes provided."}`,
+        "Guided Buyer Intake:",
+        buyerIntakeText,
         `Extracted identity: ${JSON.stringify(identity)}`,
         `Source route: ${JSON.stringify(sourceRoute)}`,
         `Targeted search queries: ${JSON.stringify(searchQueries)}`
@@ -479,8 +531,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
   }
 }
 
-async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch }) {
+async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake }) {
   const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
+  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const liveSearchInstruction = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
     : liveSearch.webSearchExecuted
@@ -489,6 +542,14 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
   const taskText = [
     "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
     "Primary question: Should the user buy this item at this price, right now?",
+    "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
+    "Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.",
+    "For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.",
+    "For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.",
+    "Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity or market research.",
+    "If typed identity fields conflict with photo evidence, visible labels, or source-backed results, lower itemIdentificationConfidence and prefer Need More Info, Negotiate, Wait, or Pass.",
+    "Tailor negotiation guidance to purchase context: flea market, estate sale, private seller, and Facebook Marketplace can include opening offer, target range, walk-away price, inspection, pickup, transport, and scam caution when evidence supports it; retail store or mall should emphasize sale price, coupons/markdown potential, return policy, and buy-elsewhere only when source-backed lower prices exist.",
+    "Do not generate a precise offer range when evidence is too weak.",
     "Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond the live comparable search status and source-backed comparableItemsFound supplied by the backend.",
     "The purchaserDecision section must start with exactly one of these labels: Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info. Explain the reasoning briefly.",
     "If live search is unavailable or no reliable source-backed comps exist, do not overstate certainty. Lean Need More Info, Negotiate, Wait, or Pass unless the personal-use value is explicit.",
@@ -502,6 +563,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "The searchCoverage section must describe source categories targeted, sources searched or returned only when supplied by the backend, and whether source-backed comps passed match-quality checks.",
     "Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.",
     "The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.",
+    "Use Item Identification Confidence for how well photos, typed details, labels, UPC/model/SKU, and source results agree. Use Live Comp Confidence for source-backed match quality. Use Valuation Confidence for price range reliability. Use Buyer Decision Confidence for whether enough price/context/condition evidence exists to recommend action.",
     "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
     "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
     "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
@@ -534,7 +596,9 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
       text: [
         `Marketplace platform: ${platform || "No platform selected"}`,
         `Market analysis context: ${platformContext}`,
-        `Buyer item notes: ${notes}`,
+        `Buyer item notes: ${notes || "No additional notes provided."}`,
+        "Guided Buyer Intake:",
+        buyerIntakeText,
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
@@ -667,6 +731,8 @@ function normalizeIdentity(identity) {
     visiblePrice: cleanText(identity.visiblePrice || "Unknown") || "Unknown",
     brandSeries: cleanText(identity.brandSeries || "Unknown") || "Unknown",
     visibleText: normalizeStringArray(identity.visibleText, 10),
+    guidedBuyerIntakeSummary: cleanText(identity.guidedBuyerIntakeSummary || "Unknown") || "Unknown",
+    identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 6),
     distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
     strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 8),
@@ -674,9 +740,86 @@ function normalizeIdentity(identity) {
   };
 }
 
-function routeMarketSources(identity) {
+function normalizeBuyerIntake(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const intake = {};
+
+  for (const field of buyerIntakeStringFields) {
+    intake[field] = cleanText(source[field]);
+  }
+
+  intake.condition_concerns = normalizeConditionConcerns(source.condition_concerns);
+  intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
+
+  return intake;
+}
+
+function normalizeConditionConcerns(value) {
+  const items = Array.isArray(value) ? value : value ? [value] : [];
+  return [
+    ...new Set(
+      items
+        .map((item) => cleanText(item))
+        .filter((item) => allowedConditionConcerns.has(item))
+    )
+  ];
+}
+
+function parseAskingPrice(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(/(?:^|[^\d])(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?|\d{1,6}(?:\.\d{1,2})?)(?:[^\d]|$)/);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatBuyerIntakeForPrompt(buyerIntake) {
+  const intake = buyerIntake || normalizeBuyerIntake({});
+  const parsedPrice = intake.parsed_asking_price === null ? "null" : String(intake.parsed_asking_price);
+  return [
+    `purchase_context: ${intake.purchase_context || "not provided"}`,
+    `asking_price_raw: ${intake.asking_price || "not provided"}`,
+    `asking_price_number: ${parsedPrice}`,
+    `purchase_intent: ${intake.purchase_intent || "not provided"}`,
+    `item_condition: ${intake.item_condition || "not provided"}`,
+    `condition_concerns: ${intake.condition_concerns.length ? intake.condition_concerns.join(", ") : "none provided"}`,
+    `item_name: ${intake.item_name || "not provided"}`,
+    `known_brand: ${intake.known_brand || "not provided"}`,
+    `known_manufacturer: ${intake.known_manufacturer || "not provided"}`,
+    `known_model: ${intake.known_model || "not provided"}`,
+    `known_sku: ${intake.known_sku || "not provided"}`,
+    `known_upc: ${intake.known_upc || "not provided"}`,
+    `approximate_age_era: ${intake.approximate_age_era || "not provided"}`,
+    `buyer_notes: ${intake.buyer_notes || "not provided"}`
+  ].join("\n");
+}
+
+function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({})) {
   const route = [];
+  const purchaseContext = cleanText(buyerIntake.purchase_context);
+  const purchaseIntent = cleanText(buyerIntake.purchase_intent);
+  const itemCondition = cleanText(buyerIntake.item_condition);
+  const conditionConcerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const haystack = [
+    purchaseContext,
+    purchaseIntent,
+    itemCondition,
+    conditionConcerns,
+    buyerIntake.item_name,
+    buyerIntake.known_brand,
+    buyerIntake.known_manufacturer,
+    buyerIntake.known_model,
+    buyerIntake.known_sku,
+    buyerIntake.known_upc,
+    buyerIntake.approximate_age_era,
+    buyerIntake.asking_price,
     identity.category,
     identity.likelyItemDescription,
     identity.brand,
@@ -692,19 +835,40 @@ function routeMarketSources(identity) {
     identity.brandSeries,
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
     identity.distinctiveVisualDescription,
+    identity.guidedBuyerIntakeSummary,
+    identity.identityConflictNotes.join(" "),
     identity.buyerContext.join(" ")
   ].join(" ").toLowerCase();
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
+  const hasKnownIntakeIdentifier = hasKnownValue(buyerIntake.known_upc) || hasKnownValue(buyerIntake.known_model) || hasKnownValue(buyerIntake.known_sku);
   const isSeasonalDecor = /santa|christmas|holiday|seasonal|workshop|hubbard|figurine|boxed|box|resin|ceramic.*figure|decor/.test(haystack);
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
   const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
   const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
   const isVintageCollectible = /vintage|collectible|ceramic|canister|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy/.test(haystack);
-  const isRetailCurrent = hasIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
+  const isRetailContext = /^(retail_store|mall)$/.test(purchaseContext);
+  const isSecondhandContext = /^(consignment_store|thrift_store|flea_market|estate_sale|antique_mall)$/.test(purchaseContext);
+  const isLocalPrivateContext = /^(facebook_marketplace|private_seller)$/.test(purchaseContext);
+  const isOnlineContext = purchaseContext === "online_marketplace";
+  const isRetailCurrent = isRetailContext || hasIdentifier || hasKnownIntakeIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
 
-  if (isFurniture) {
+  if (isLocalPrivateContext || isFurniture) {
     route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
+    if (isElectronics) {
+      route.push("electronics model-number sources for better-price checks");
+    }
+    if (isVintageCollectible || isSeasonalDecor) {
+      route.push("collector/reference/brand clue results");
+    }
+    return route;
+  }
+
+  if (isSecondhandContext && (isSeasonalDecor || isVintageCollectible || !isRetailCurrent)) {
+    route.push("secondhand resale results", "vintage and collector sources", "specialty reference sources", "exact-label web results");
+    if (isSeasonalDecor || isVintageCollectible) {
+      route.push("eBay-style resale results", "Etsy-style vintage/holiday decor results", "Mercari-style resale results");
+    }
     return route;
   }
 
@@ -728,7 +892,7 @@ function routeMarketSources(identity) {
 
   if (isRetailCurrent) {
     route.push("brand/manufacturer site", "retailer sites", "Google Shopping-style web results", "Amazon/major retail when relevant");
-    if (/used|refurbished|resale|secondhand/.test(haystack)) {
+    if (/used|refurbished|resale|secondhand/.test(haystack) || isOnlineContext) {
       route.push("eBay used/refurbished secondary signal");
     }
     return route;
@@ -738,33 +902,42 @@ function routeMarketSources(identity) {
   return route;
 }
 
-function buildLiveSearchQueries(identity, sourceRoute, notes) {
+function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
-  const notesText = cleanText(notes);
-  const productTitle = firstKnown(identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
-  const brand = firstKnown(identity.brandSeries, identity.brand, identity.manufacturer);
-  const model = firstKnown(identity.model);
-  const itemCode = firstKnown(identity.sku, identity.styleNumber);
-  const upc = firstKnown(identity.upcBarcode);
+  const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
+  const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
+  const brand = firstKnown(buyerIntake.known_brand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
+  const manufacturer = firstKnown(buyerIntake.known_manufacturer, identity.manufacturer);
+  const model = firstKnown(buyerIntake.known_model, identity.model);
+  const itemCode = firstKnown(buyerIntake.known_sku, identity.sku, identity.styleNumber);
+  const upc = firstKnown(buyerIntake.known_upc, identity.upcBarcode);
+  const ageEra = firstKnown(buyerIntake.approximate_age_era);
+  const conditionText = firstKnown(buyerIntake.item_condition, identity.condition);
+  const concernText = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const locationText = firstKnown(identity.manufacturerLocationText);
   const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
   const visualPhrase = buildVisualPhrase(identity, notesText);
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
-  const price = extractPrice(identity.currentAskingPrice) || extractPrice(notesText);
+  const price = buyerIntake.parsed_asking_price === null ? extractPrice(identity.currentAskingPrice) || extractPrice(notesText) : String(buyerIntake.parsed_asking_price);
   const queries = [];
   const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
+
+  if (upc) {
+    queries.push(upc);
+    queries.push(compactWords([upc, brand || manufacturer || productTitle]));
+  }
 
   if (seasonalDecor) {
     queries.push(compactWords([brand, locationText, itemCode]));
     queries.push(compactWords([brand, itemCode, "Santa"]));
-    queries.push(compactWords([upc, brand]));
+    queries.push(compactWords([upc, brand || manufacturer]));
     queries.push(compactWords([brand, productTitle]));
     queries.push(compactWords(["boxed Santa Claus holiday figurine", itemCode]));
     queries.push(compactWords([brand, locationText, "Christmas decoration"]));
     queries.push(compactWords([labelText, itemCode]));
   } else {
-    if (upc) {
-      queries.push(upc);
+    if (model) {
+      queries.push(compactWords([brand || manufacturer, model]));
     }
 
     if (itemCode) {
@@ -775,11 +948,23 @@ function buildLiveSearchQueries(identity, sourceRoute, notes) {
       queries.push(compactWords([brand, model, extractSpecs(notesText), "price"]));
     }
 
+    if (manufacturer && productTitle) {
+      queries.push(compactWords([manufacturer, productTitle]));
+    }
+
+    if (labelText) {
+      queries.push(labelText);
+    }
+
     queries.push(compactWords([brand, productTitle]));
     queries.push(visualPhrase);
 
     if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
-      queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
+      queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase), conditionText, concernText]));
+    }
+
+    if (ageEra) {
+      queries.push(compactWords([ageEra, brand || manufacturer, mostDistinctiveProductWord(productTitle)]));
     }
 
     queries.push(categoryPhrase);
@@ -879,11 +1064,12 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
   };
 }
 
-function enforceLiveSearchHonesty(report, liveSearch) {
+function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({})) {
   const reliableCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = liveSearch.webSearchExecuted;
   const comparableItemsFound = reliableCompsFound ? liveSearch.comparableItemsFound : [];
   const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
+  const hasAskingPrice = hasKnownValue(buyerIntake.asking_price);
   const liveSearchDidNotComplete = searchCompleted
     ? ""
     : buildLiveSearchDidNotCompleteMessage(liveSearch);
@@ -915,13 +1101,24 @@ function enforceLiveSearchHonesty(report, liveSearch) {
     valuationConfidence: reliableCompsFound
       ? ensureConfidenceLayer(report.valuationConfidence, "Medium", "Source-backed comps support the estimate, but condition and local demand can still shift value.")
       : forceLowConfidence(report.valuationConfidence, "The value range is AI-only market reasoning because reliable live comps were not available."),
-    buyerDecisionConfidence: reliableCompsFound
-      ? ensureConfidenceLayer(report.buyerDecisionConfidence, "Medium", "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.")
-      : forceLowConfidence(report.buyerDecisionConfidence, "The buyer decision should be conservative because live comp support is missing."),
+    buyerDecisionConfidence: buildBuyerDecisionConfidence(report.buyerDecisionConfidence, reliableCompsFound, hasAskingPrice),
+    currentPriceAssessment: hasAskingPrice
+      ? report.currentPriceAssessment
+      : ensurePrefix(report.currentPriceAssessment, "Unknown - Current price assessment requires the current asking price."),
     aiOnlyRoughValueRange,
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
+}
+
+function buildBuyerDecisionConfidence(value, reliableCompsFound, hasAskingPrice) {
+  if (!hasAskingPrice) {
+    return forceLowConfidence(value, "No current asking price was provided, so the buy decision cannot be fully assessed.");
+  }
+
+  return reliableCompsFound
+    ? ensureConfidenceLayer(value, "Medium", "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.")
+    : forceLowConfidence(value, "The buyer decision should be conservative because live comp support is missing.");
 }
 
 function splitComparableItems(items) {
