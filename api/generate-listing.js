@@ -52,6 +52,14 @@ const valuationSchema = {
     "liveCompConfidence",
     "valuationConfidence",
     "buyerDecisionConfidence",
+    "currentAskingPrice",
+    "suggestedListingPrice",
+    "expectedSalePrice",
+    "minimumAcceptablePrice",
+    "recommendedSellingPlatform",
+    "expectedSellingTime",
+    "platformSpecificSellingGuidance",
+    "itemIdentification",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -94,6 +102,14 @@ const valuationSchema = {
     liveCompConfidence: { type: "string" },
     valuationConfidence: { type: "string" },
     buyerDecisionConfidence: { type: "string" },
+    currentAskingPrice: { type: "string" },
+    suggestedListingPrice: { type: "string" },
+    expectedSalePrice: { type: "string" },
+    minimumAcceptablePrice: { type: "string" },
+    recommendedSellingPlatform: { type: "string" },
+    expectedSellingTime: { type: "string" },
+    platformSpecificSellingGuidance: { type: "string" },
+    itemIdentification: { type: "string" },
     buyerTypeFit: {
       type: "array",
       minItems: 1,
@@ -142,6 +158,10 @@ const itemIdentitySchema = {
   required: [
     "brand",
     "manufacturer",
+    "teamName",
+    "schoolName",
+    "mascot",
+    "licensingStickerText",
     "model",
     "sku",
     "upcBarcode",
@@ -149,6 +169,10 @@ const itemIdentitySchema = {
     "size",
     "color",
     "material",
+    "dimensions",
+    "copyrightWording",
+    "year",
+    "missingComponentStatus",
     "condition",
     "currentAskingPrice",
     "category",
@@ -169,6 +193,10 @@ const itemIdentitySchema = {
   properties: {
     brand: { type: "string" },
     manufacturer: { type: "string" },
+    teamName: { type: "string" },
+    schoolName: { type: "string" },
+    mascot: { type: "string" },
+    licensingStickerText: { type: "string" },
     model: { type: "string" },
     sku: { type: "string" },
     upcBarcode: { type: "string" },
@@ -176,6 +204,10 @@ const itemIdentitySchema = {
     size: { type: "string" },
     color: { type: "string" },
     material: { type: "string" },
+    dimensions: { type: "string" },
+    copyrightWording: { type: "string" },
+    year: { type: "string" },
+    missingComponentStatus: { type: "string" },
     condition: { type: "string" },
     currentAskingPrice: { type: "string" },
     category: { type: "string" },
@@ -373,12 +405,12 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
 async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
   const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
-  const sourceRoute = routeMarketSources(identity, intake);
+  const sourceRoute = routeMarketSources(identity, intake, platform);
   const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
   const liveSearch = await executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake: intake });
   const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake });
 
-  return enforceLiveSearchHonesty(report, liveSearch, intake);
+  return enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform);
 }
 
 async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
@@ -393,6 +425,8 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
         "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
+        "For collegiate products, preserve team name, school name, mascot, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, lid status, and missing-component status when visible or provided.",
+        "Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, say that a closer photo is needed rather than treating all identification as failed.",
         "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
         "For boxed seasonal decor or unbranded/private-label holiday figures, treat brand/series, location text, item code, UPC, and box/label wording as primary identity clues.",
         "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
@@ -439,6 +473,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
+        "For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, eBay-style resale results, Etsy-style vintage results, Mercari-style resale results, collector/reference sources, team/school/mascot/licensee searches, and Google-style exact phrase results.",
+        "Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.",
+        "Do not list a source as meaningfully searched merely because a weak result appeared. Search evidence should distinguish targeted source categories, actual relevant results reviewed, rejected irrelevant sources, and reliable cited sources.",
         "Treat typed buyer identity fields as strong clues only when they do not conflict with photos, visible label wording, or source results.",
         "Reject or weaken comps that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.",
         "Use purchase context to route the search: retail/mall means current product and retailer sources; consignment/thrift/flea/estate/antique means resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace/private seller means local value, pickup, negotiation, and transport/inspection risk.",
@@ -533,6 +570,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
 
 async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake }) {
   const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
+  const resalePlatformContext = buildResalePlatformContext(platform, buyerIntake);
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const liveSearchInstruction = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
     ? "Live comparable search was performed. Source-backed results are listed when reliable matches were found."
@@ -543,10 +581,13 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
     "Primary question: Should the user buy this item at this price, right now?",
     "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
+    "Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.",
     "Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.",
+    "For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.",
     "For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.",
     "For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.",
-    "Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity or market research.",
+    "Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.",
+    "Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.",
     "If typed identity fields conflict with photo evidence, visible labels, or source-backed results, lower itemIdentificationConfidence and prefer Need More Info, Negotiate, Wait, or Pass.",
     "Tailor negotiation guidance to purchase context: flea market, estate sale, private seller, and Facebook Marketplace can include opening offer, target range, walk-away price, inspection, pickup, transport, and scam caution when evidence supports it; retail store or mall should emphasize sale price, coupons/markdown potential, return policy, and buy-elsewhere only when source-backed lower prices exist.",
     "Do not generate a precise offer range when evidence is too weak.",
@@ -564,6 +605,8 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.",
     "The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.",
     "Use Item Identification Confidence for how well photos, typed details, labels, UPC/model/SKU, and source results agree. Use Live Comp Confidence for source-backed match quality. Use Valuation Confidence for price range reliability. Use Buyer Decision Confidence for whether enough price/context/condition evidence exists to recommend action.",
+    "The currentAskingPrice section must state the current seller/store asking price when provided, or clearly say it was not provided.",
+    "The itemIdentification section must summarize the item, preserving school/team/mascot, licensing sticker, maker stamp, model/SKU/UPC, copyright/year, material, dimensions, product category, lid status, and missing-component status when known.",
     "The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.",
     "The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.",
     "The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.",
@@ -573,6 +616,11 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Use a broad estimatedMarketValue range, not a false-precision single number.",
     "The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.",
     "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
+    "When purchase_intent is resale or both, recommendedSellingPlatform, suggestedListingPrice, expectedSalePrice, minimumAcceptablePrice, priceBasis, expectedSellingTime, and platformSpecificSellingGuidance must be filled.",
+    "Suggested listing price is the starting advertised price. Expected sale price is the likely negotiated or realized sale price. Minimum acceptable price is the practical floor before fees, shipping, transport, condition risk, and time.",
+    "If no reliable live comps exist, still provide resale-price guidance as AI-only, low confidence, and preferably as a cautious range. Do not present a single number as source-backed fact.",
+    "For Facebook Marketplace guidance, include local pickup suitability, likely negotiation room, recommended starting price, realistic cash-acceptance range, transport or breakage considerations, and whether shipping should be avoided.",
+    "When purchase_intent is personal_use, keep resale-price fields empty unless there is a clearly relevant resale angle, and do not force resale pricing.",
     "In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not tell the user to go search elsewhere, and do not claim actual cheaper listings were found unless supplied in source-backed comparableItemsFound.",
     "If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.",
     "Do not inflate values from generic category assumptions. Do not treat the user's asking price as market value. Do not treat weak lookalikes as strong comps.",
@@ -581,6 +629,8 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
     "For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.",
     "For vintage/collectible/discontinued/holiday decor/ceramics/small shippable secondhand goods, eBay, Etsy, Mercari, Facebook Marketplace/local signals, and collector/reference sites may be relevant.",
+    "For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, eBay-style resale, Etsy-style vintage, Mercari-style resale, collector/reference clues, team/school/licensee searches, and exact phrase results. Deprioritize generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current retail, and generic visual lookalikes.",
+    "For collegiate products, do not treat an officially licensed sticker as proof of the manufacturer. If the manufacturer stamp is unclear, ask for a closer photo of the stamp while still preserving team/school/mascot clues.",
     "For furniture or bulky local goods, prioritize Facebook Marketplace-style local value logic, Craigslist/OfferUp/local pickup resale, and local consignment logic; do not overvalue eBay because shipping distorts bulky-item prices.",
     "In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.",
     "In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.",
@@ -596,6 +646,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
       text: [
         `Marketplace platform: ${platform || "No platform selected"}`,
         `Market analysis context: ${platformContext}`,
+        `Resale platform context: ${resalePlatformContext}`,
         `Buyer item notes: ${notes || "No additional notes provided."}`,
         "Guided Buyer Intake:",
         buyerIntakeText,
@@ -714,6 +765,10 @@ function normalizeIdentity(identity) {
   return {
     brand: cleanText(identity.brand || "Unknown") || "Unknown",
     manufacturer: cleanText(identity.manufacturer || "Unknown") || "Unknown",
+    teamName: cleanText(identity.teamName || "Unknown") || "Unknown",
+    schoolName: cleanText(identity.schoolName || "Unknown") || "Unknown",
+    mascot: cleanText(identity.mascot || "Unknown") || "Unknown",
+    licensingStickerText: cleanText(identity.licensingStickerText || "Unknown") || "Unknown",
     model: cleanText(identity.model || "Unknown") || "Unknown",
     sku: cleanText(identity.sku || "Unknown") || "Unknown",
     upcBarcode: cleanText(identity.upcBarcode || "Unknown") || "Unknown",
@@ -721,6 +776,10 @@ function normalizeIdentity(identity) {
     size: cleanText(identity.size || "Unknown") || "Unknown",
     color: cleanText(identity.color || "Unknown") || "Unknown",
     material: cleanText(identity.material || "Unknown") || "Unknown",
+    dimensions: cleanText(identity.dimensions || "Unknown") || "Unknown",
+    copyrightWording: cleanText(identity.copyrightWording || "Unknown") || "Unknown",
+    year: cleanText(identity.year || "Unknown") || "Unknown",
+    missingComponentStatus: cleanText(identity.missingComponentStatus || "Unknown") || "Unknown",
     condition: cleanText(identity.condition || "Unknown") || "Unknown",
     currentAskingPrice: cleanText(identity.currentAskingPrice || "Unknown") || "Unknown",
     category: cleanText(identity.category || "Unknown") || "Unknown",
@@ -801,13 +860,15 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
   ].join("\n");
 }
 
-function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({})) {
+function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), platform = "") {
   const route = [];
   const purchaseContext = cleanText(buyerIntake.purchase_context);
   const purchaseIntent = cleanText(buyerIntake.purchase_intent);
+  const selectedPlatform = cleanText(platform);
   const itemCondition = cleanText(buyerIntake.item_condition);
   const conditionConcerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const haystack = [
+    selectedPlatform,
     purchaseContext,
     purchaseIntent,
     itemCondition,
@@ -824,6 +885,10 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({})) {
     identity.likelyItemDescription,
     identity.brand,
     identity.manufacturer,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.licensingStickerText,
     identity.model,
     identity.sku,
     identity.upcBarcode,
@@ -833,6 +898,10 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({})) {
     identity.backLabelWording,
     identity.manufacturerLocationText,
     identity.brandSeries,
+    identity.copyrightWording,
+    identity.year,
+    identity.dimensions,
+    identity.missingComponentStatus,
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
     identity.distinctiveVisualDescription,
     identity.guidedBuyerIntakeSummary,
@@ -842,38 +911,58 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({})) {
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
   const hasKnownIntakeIdentifier = hasKnownValue(buyerIntake.known_upc) || hasKnownValue(buyerIntake.known_model) || hasKnownValue(buyerIntake.known_sku);
+  const hasResaleIntent = isResaleIntent(purchaseIntent);
   const isSeasonalDecor = /santa|christmas|holiday|seasonal|workshop|hubbard|figurine|boxed|box|resin|ceramic.*figure|decor/.test(haystack);
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
   const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
   const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
-  const isVintageCollectible = /vintage|collectible|ceramic|canister|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy/.test(haystack);
+  const isCollegiateCollectible = /collegiate|college|university|ncaa|officially licensed|license|licensing|team|school|mascot|bulldog|tigers|crimson|sooners|razorbacks|lsu|georgia|alabama|oklahoma|arkansas/.test(haystack);
+  const isCookieJarOrContainer = /cookie jar|container|canister|lid|lidded|ceramic jar|collectible jar/.test(haystack);
+  const isVintageCollectible = /vintage|collectible|ceramic|canister|cookie jar|container|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy|collegiate|mascot|licensed/.test(haystack);
   const isRetailContext = /^(retail_store|mall)$/.test(purchaseContext);
   const isSecondhandContext = /^(consignment_store|thrift_store|flea_market|estate_sale|antique_mall)$/.test(purchaseContext);
   const isLocalPrivateContext = /^(facebook_marketplace|private_seller)$/.test(purchaseContext);
   const isOnlineContext = purchaseContext === "online_marketplace";
+  const isLocalResalePlatform = hasResaleIntent && /facebook marketplace|craigslist|offerup|local/.test(selectedPlatform.toLowerCase());
   const isRetailCurrent = isRetailContext || hasIdentifier || hasKnownIntakeIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
 
-  if (isLocalPrivateContext || isFurniture) {
+  if (isLocalPrivateContext || isLocalResalePlatform || isFurniture) {
     route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
     if (isElectronics) {
       route.push("electronics model-number sources for better-price checks");
     }
-    if (isVintageCollectible || isSeasonalDecor) {
-      route.push("collector/reference/brand clue results");
+    if (isVintageCollectible || isSeasonalDecor || isCollegiateCollectible || isCookieJarOrContainer) {
+      route.push(
+        "exact label/stamp searches",
+        "eBay-style resale results",
+        "Etsy-style vintage results",
+        "Mercari-style resale results",
+        "collector/reference/brand clue results",
+        "team/school/mascot/licensee searches",
+        "Google-style exact phrase results"
+      );
     }
     return route;
   }
 
-  if (isSecondhandContext && (isSeasonalDecor || isVintageCollectible || !isRetailCurrent)) {
+  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
     route.push("secondhand resale results", "vintage and collector sources", "specialty reference sources", "exact-label web results");
-    if (isSeasonalDecor || isVintageCollectible) {
-      route.push("eBay-style resale results", "Etsy-style vintage/holiday decor results", "Mercari-style resale results");
+    if (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer) {
+      route.push(
+        "exact label/stamp searches",
+        "eBay-style resale results",
+        "Etsy-style vintage results",
+        "Mercari-style resale results",
+        "WorthPoint-style reference clues where accessible",
+        "team/school/mascot/licensee searches",
+        "Google-style exact phrase results"
+      );
     }
     return route;
   }
 
-  if (isSeasonalDecor || isVintageCollectible) {
-    route.push("eBay-style resale results", "Etsy-style vintage/holiday decor results", "Mercari-style resale results", "collector/reference/brand clue results", "general web results using exact label text");
+  if (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer) {
+    route.push("exact label/stamp searches", "eBay-style resale results", "Etsy-style vintage results", "Mercari-style resale results", "collector/reference/brand clue results", "team/school/mascot/licensee searches", "general web results using exact label text");
     return route;
   }
 
@@ -908,6 +997,9 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
   const brand = firstKnown(buyerIntake.known_brand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
   const manufacturer = firstKnown(buyerIntake.known_manufacturer, identity.manufacturer);
+  const teamName = firstKnown(identity.teamName);
+  const schoolName = firstKnown(identity.schoolName);
+  const mascot = firstKnown(identity.mascot);
   const model = firstKnown(buyerIntake.known_model, identity.model);
   const itemCode = firstKnown(buyerIntake.known_sku, identity.sku, identity.styleNumber);
   const upc = firstKnown(buyerIntake.known_upc, identity.upcBarcode);
@@ -915,19 +1007,28 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const conditionText = firstKnown(buyerIntake.item_condition, identity.condition);
   const concernText = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const locationText = firstKnown(identity.manufacturerLocationText);
-  const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
+  const licensingText = firstKnown(identity.licensingStickerText);
+  const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, identity.licensingStickerText, identity.copyrightWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
   const visualPhrase = buildVisualPhrase(identity, notesText);
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
   const price = buyerIntake.parsed_asking_price === null ? extractPrice(identity.currentAskingPrice) || extractPrice(notesText) : String(buyerIntake.parsed_asking_price);
   const queries = [];
   const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
+  const collegiateCollectible = isCollegiateCollectibleIdentity(identity, routeText, notesText);
 
   if (upc) {
     queries.push(upc);
     queries.push(compactWords([upc, brand || manufacturer || productTitle]));
   }
 
-  if (seasonalDecor) {
+  if (collegiateCollectible) {
+    queries.push(compactWords([schoolName || teamName, mascot, productTitle, "ceramic collectible"]));
+    queries.push(compactWords([schoolName || teamName, mascot, "cookie jar canister"]));
+    queries.push(compactWords([manufacturer, schoolName || teamName, mascot]));
+    queries.push(compactWords([labelText, itemCode || model || ageEra]));
+    queries.push(compactWords([licensingText, schoolName || teamName, mascot]));
+    queries.push(compactWords([schoolName || teamName, mascot, identity.material, identity.missingComponentStatus]));
+  } else if (seasonalDecor) {
     queries.push(compactWords([brand, locationText, itemCode]));
     queries.push(compactWords([brand, itemCode, "Santa"]));
     queries.push(compactWords([upc, brand || manufacturer]));
@@ -977,7 +1078,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     }
   }
 
-  return diverseQueries.slice(0, seasonalDecor ? 6 : 5);
+  return diverseQueries.slice(0, seasonalDecor || collegiateCollectible ? 6 : 5);
 }
 
 function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
@@ -986,7 +1087,7 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
   const sourcesSearched = collectWebSearchSources(responseData);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 6);
-  const comparableItemsFound = rawItems.filter((item) => hasCitedUrl(item, citations));
+  const comparableItemsFound = rawItems.filter((item) => hasCitedUrl(item, citations) && !isRejectedWeakComparableItem(item));
   let liveSearchStatus = "Live Search Unavailable - AI Reasoning Only";
 
   if (webSearchExecuted && comparableItemsFound.length) {
@@ -1064,12 +1165,19 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
   };
 }
 
-function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({})) {
+function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "") {
   const reliableCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = liveSearch.webSearchExecuted;
   const comparableItemsFound = reliableCompsFound ? liveSearch.comparableItemsFound : [];
   const { exactItems, similarItems, hasReliableMatch } = splitComparableItems(comparableItemsFound);
   const hasAskingPrice = hasKnownValue(buyerIntake.asking_price);
+  const resaleGuidance = buildResalePricingGuidance(report, {
+    buyerIntake,
+    identity,
+    platform,
+    sourceRoute: liveSearch.sourceRoute,
+    reliableCompsFound
+  });
   const liveSearchDidNotComplete = searchCompleted
     ? ""
     : buildLiveSearchDidNotCompleteMessage(liveSearch);
@@ -1102,6 +1210,14 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
       ? ensureConfidenceLayer(report.valuationConfidence, "Medium", "Source-backed comps support the estimate, but condition and local demand can still shift value.")
       : forceLowConfidence(report.valuationConfidence, "The value range is AI-only market reasoning because reliable live comps were not available."),
     buyerDecisionConfidence: buildBuyerDecisionConfidence(report.buyerDecisionConfidence, reliableCompsFound, hasAskingPrice),
+    currentAskingPrice: buildCurrentAskingPrice(buyerIntake, identity),
+    suggestedListingPrice: resaleGuidance.suggestedListingPrice,
+    expectedSalePrice: resaleGuidance.expectedSalePrice,
+    minimumAcceptablePrice: resaleGuidance.minimumAcceptablePrice,
+    recommendedSellingPlatform: resaleGuidance.recommendedSellingPlatform,
+    expectedSellingTime: resaleGuidance.expectedSellingTime,
+    platformSpecificSellingGuidance: resaleGuidance.platformSpecificSellingGuidance,
+    itemIdentification: buildItemIdentification(identity),
     currentPriceAssessment: hasAskingPrice
       ? report.currentPriceAssessment
       : ensurePrefix(report.currentPriceAssessment, "Unknown - Current price assessment requires the current asking price."),
@@ -1119,6 +1235,233 @@ function buildBuyerDecisionConfidence(value, reliableCompsFound, hasAskingPrice)
   return reliableCompsFound
     ? ensureConfidenceLayer(value, "Medium", "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.")
     : forceLowConfidence(value, "The buyer decision should be conservative because live comp support is missing.");
+}
+
+function buildResalePlatformContext(platform, buyerIntake = normalizeBuyerIntake({})) {
+  const selectedPlatform = cleanText(platform);
+  const intent = cleanText(buyerIntake.purchase_intent);
+
+  if (!isResaleIntent(intent)) {
+    return "Purchase intent is not resale or both; do not force resale pricing.";
+  }
+
+  return selectedPlatform
+    ? `${selectedPlatform} is the intended resale platform.`
+    : "No resale platform was selected; recommend the best likely selling platform.";
+}
+
+function buildResalePricingGuidance(report, { buyerIntake, identity, platform, sourceRoute, reliableCompsFound }) {
+  if (!isResaleIntent(buyerIntake.purchase_intent)) {
+    return {
+      recommendedSellingPlatform: "",
+      suggestedListingPrice: "",
+      expectedSalePrice: "",
+      minimumAcceptablePrice: "",
+      expectedSellingTime: "",
+      platformSpecificSellingGuidance: ""
+    };
+  }
+
+  const recommendedSellingPlatform = cleanText(report.recommendedSellingPlatform)
+    || recommendSellingPlatform({ platform, identity, sourceRoute });
+  const moneyRange = extractMoneyRange([
+    report.suggestedListingPrice,
+    report.expectedSalePrice,
+    report.minimumAcceptablePrice,
+    report.aiOnlyRoughValueRange,
+    report.estimatedMarketValue,
+    report.resalePotential
+  ].join(" "));
+  const fallback = buildFallbackSellPriceGuidance(moneyRange);
+
+  return {
+    recommendedSellingPlatform,
+    suggestedListingPrice: labelResalePriceGuidance(report.suggestedListingPrice, fallback.suggestedListingPrice, reliableCompsFound),
+    expectedSalePrice: labelResalePriceGuidance(report.expectedSalePrice, fallback.expectedSalePrice, reliableCompsFound),
+    minimumAcceptablePrice: labelResalePriceGuidance(report.minimumAcceptablePrice, fallback.minimumAcceptablePrice, reliableCompsFound),
+    expectedSellingTime: cleanText(report.expectedSellingTime) || fallback.expectedSellingTime,
+    platformSpecificSellingGuidance: cleanText(report.platformSpecificSellingGuidance)
+      || buildPlatformSpecificSellingGuidance(recommendedSellingPlatform, fallback)
+  };
+}
+
+function labelResalePriceGuidance(value, fallback, reliableCompsFound) {
+  const text = cleanText(value || fallback);
+  if (!text || reliableCompsFound || /ai-only|low confidence|source-backed/i.test(text)) {
+    return text;
+  }
+
+  return `AI-only low-confidence guidance - ${text}`;
+}
+
+function buildFallbackSellPriceGuidance(moneyRange) {
+  if (!moneyRange) {
+    return {
+      suggestedListingPrice: "No reliable price range was available; use a broad, cautious advertised range after verifying exact identity, condition, and local demand.",
+      expectedSalePrice: "No reliable price range was available; likely realized price is highly uncertain without stronger identity or comparable-sale evidence.",
+      minimumAcceptablePrice: "No reliable price range was available; set the practical floor only after accounting for fees, shipping or transport, breakage risk, condition risk, and time.",
+      expectedSellingTime: "Highly uncertain until exact identity, condition, and demand are clearer."
+    };
+  }
+
+  const [low, high] = moneyRange;
+  const suggestedLow = roundMoney(Math.max(low, high * 0.85));
+  const suggestedHigh = roundMoney(high * 1.15);
+  const expectedLow = roundMoney(Math.max(low, high * 0.5));
+  const expectedHigh = roundMoney(Math.max(expectedLow, high * 0.75));
+  const minimumLow = roundMoney(low);
+  const minimumHigh = roundMoney(Math.max(minimumLow, low * 1.35));
+
+  return {
+    suggestedListingPrice: `Approximately ${formatMoneyRange(suggestedLow, suggestedHigh)} starting advertised price, adjusted for condition, demand, and negotiation room.`,
+    expectedSalePrice: `Approximately ${formatMoneyRange(expectedLow, expectedHigh)} likely realized sale price after negotiation or platform friction.`,
+    minimumAcceptablePrice: `Approximately ${formatMoneyRange(minimumLow, minimumHigh)} practical floor before fees, shipping, transport, condition risk, and time are considered.`,
+    expectedSellingTime: "Several weeks to one to three months; faster only if the item has clear local demand, strong identity, and clean condition."
+  };
+}
+
+function recommendSellingPlatform({ platform, identity, sourceRoute = [] }) {
+  const selectedPlatform = cleanText(platform);
+  if (selectedPlatform) {
+    return selectedPlatform;
+  }
+
+  const haystack = [
+    sourceRoute.join(" "),
+    identity.category,
+    identity.productNameOrBoxTitle,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    identity.material,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.licensingStickerText
+  ].join(" ").toLowerCase();
+
+  if (/collegiate|college|university|ncaa|mascot|bulldog|officially licensed|licensee/.test(haystack)) {
+    return "Specialty collector group";
+  }
+  if (/furniture|bulky|fragile|ceramic|cookie jar|container|canister|local pickup/.test(haystack)) {
+    return "Facebook Marketplace";
+  }
+  if (/vintage|handmade|decor|collectible|etsy/.test(haystack)) {
+    return "Etsy";
+  }
+  if (/apparel|fashion|dress|shirt|shoe|poshmark/.test(haystack)) {
+    return "Poshmark";
+  }
+  if (/electronics|laptop|tablet|phone|model|refurbished/.test(haystack)) {
+    return "eBay";
+  }
+
+  return "eBay";
+}
+
+function buildPlatformSpecificSellingGuidance(platform, fallback) {
+  const platformText = cleanText(platform) || "the recommended platform";
+  if (/facebook marketplace/i.test(platformText)) {
+    return [
+      "Facebook Marketplace guidance - local pickup is suitable when the item is fragile, bulky, or low-to-mid value.",
+      `Start near ${fallback.suggestedListingPrice.toLowerCase()}`,
+      `Expect negotiation toward ${fallback.expectedSalePrice.toLowerCase()}`,
+      `Do not accept below ${fallback.minimumAcceptablePrice.toLowerCase()} unless time, storage, or condition risk matters more than margin.`,
+      "Confirm dimensions, lid or missing-component status, chips/cracks, and transport needs. Avoid shipping fragile ceramic unless packaging risk is acceptable."
+    ].join(" ");
+  }
+
+  return `${platformText} guidance - price with room for offers, disclose flaws and missing pieces plainly, account for fees and shipping friction, and avoid treating AI-only ranges as source-backed facts.`;
+}
+
+function buildCurrentAskingPrice(buyerIntake, identity = {}) {
+  const rawAskingPrice = cleanText(buyerIntake.asking_price);
+  if (rawAskingPrice) {
+    return `Current seller asking price: ${rawAskingPrice}`;
+  }
+
+  const visiblePrice = firstKnown(identity.currentAskingPrice, identity.visiblePrice);
+  if (visiblePrice) {
+    return `Current asking price visible or inferred from photos: ${visiblePrice}`;
+  }
+
+  return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously.";
+}
+
+function buildItemIdentification(identity = {}) {
+  const identityParts = [
+    firstKnown(identity.productNameOrBoxTitle, identity.likelyItemDescription, identity.category),
+    formatKnownPart("school/team", firstKnown(identity.schoolName, identity.teamName)),
+    formatKnownPart("mascot", identity.mascot),
+    formatKnownPart("licensing", identity.licensingStickerText),
+    formatKnownPart("maker/stamp", firstKnown(identity.manufacturer, identity.brand, identity.manufacturerLocationText)),
+    formatKnownPart("model/SKU/UPC", firstKnown(identity.model, identity.sku, identity.upcBarcode, identity.styleNumber)),
+    formatKnownPart("copyright/year", firstKnown(identity.copyrightWording, identity.year)),
+    formatKnownPart("material", identity.material),
+    formatKnownPart("dimensions", firstKnown(identity.dimensions, identity.size)),
+    formatKnownPart("condition", identity.condition),
+    formatKnownPart("lid/missing components", identity.missingComponentStatus)
+  ].filter(Boolean);
+
+  if (!identityParts.length) {
+    return "Need more info - item identification remains incomplete. A closer photo of labels, stamps, dimensions, lid status, and missing pieces would improve confidence.";
+  }
+
+  return `Identified as: ${identityParts.join("; ")}.`;
+}
+
+function formatKnownPart(label, value) {
+  const text = firstKnown(value);
+  return text ? `${label}: ${text}` : "";
+}
+
+function isResaleIntent(value) {
+  return /^(resale|both)$/i.test(cleanText(value));
+}
+
+function extractMoneyRange(text) {
+  const amounts = [];
+  const regex = /\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/g;
+  let match;
+
+  while ((match = regex.exec(String(text || ""))) !== null) {
+    const amount = Number(match[1].replace(/,/g, ""));
+    if (Number.isFinite(amount) && amount > 0 && amount < 100000) {
+      amounts.push(amount);
+    }
+  }
+
+  if (!amounts.length) {
+    return null;
+  }
+
+  const low = Math.min(...amounts);
+  const high = Math.max(...amounts);
+  if (low === high) {
+    return [low * 0.8, high * 1.2];
+  }
+
+  return [low, high];
+}
+
+function roundMoney(value) {
+  const step = value >= 25 ? 5 : 1;
+  return Math.max(step, Math.round(value / step) * step);
+}
+
+function formatMoneyRange(low, high) {
+  let roundedLow = Math.min(low, high);
+  let roundedHigh = Math.max(low, high);
+
+  if (roundedLow === roundedHigh) {
+    roundedLow = Math.max(1, roundedLow - 1);
+    roundedHigh += 1;
+  }
+
+  return `${formatMoney(roundedLow)}-${formatMoney(roundedHigh)}`;
+}
+
+function formatMoney(value) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
 }
 
 function splitComparableItems(items) {
@@ -1224,6 +1567,14 @@ function buildSearchCoverage(liveSearch) {
     coverage.push("Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.");
   }
 
+  if (/vintage|collectible|ceramic|cookie jar|container|canister|collegiate|mascot|licensee|etsy|mercari|collector|resale/.test(routeText)) {
+    coverage.push("Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.");
+  }
+
+  if (liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found") {
+    coverage.push("Reliable cited sources: comparable-item cards include only URL-cited exact or strong similar resale/reference results.");
+  }
+
   if (/\b\d{8,14}\b|sku|style|model|gab\d+/i.test(queryText)) {
     coverage.push("Searched using barcode/item code/model identifiers when available.");
   }
@@ -1327,6 +1678,30 @@ function isSeasonalDecorIdentity(identity, routeText, notesText) {
     && !/laptop|computer|electronics|dress|apparel|fashion|furniture|sofa|chair|table/.test(haystack);
 }
 
+function isCollegiateCollectibleIdentity(identity, routeText, notesText) {
+  const haystack = [
+    routeText,
+    notesText,
+    identity.category,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.brandSeries,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.licensingStickerText,
+    identity.copyrightWording,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
+  ].join(" ").toLowerCase();
+
+  return /collegiate|college|university|ncaa|officially licensed|license|licensing|team|school|mascot|bulldog|tigers|crimson|sooners|razorbacks|lsu|georgia|alabama|oklahoma|arkansas/.test(haystack)
+    && /ceramic|cookie jar|container|canister|decor|collectible|mascot|figurine|lid|lidded/.test(haystack);
+}
+
 function inferVisualTerms(text) {
   const lower = String(text || "").toLowerCase();
   const terms = [];
@@ -1338,9 +1713,15 @@ function inferVisualTerms(text) {
     ["green box", "green box"],
     ["red suit", "red suit"],
     ["tree", "tree"],
+    ["collegiate", "collegiate collectible"],
+    ["officially licensed", "officially licensed"],
+    ["bulldog", "bulldog mascot"],
+    ["mascot", "mascot"],
+    ["cookie jar", "cookie jar"],
     ["dress", "dress"],
     ["laptop", "laptop"],
     ["canister", "canister set"],
+    ["container", "container"],
     ["ceramic", "ceramic"],
     ["furniture", "furniture"]
   ];
@@ -1422,6 +1803,9 @@ function mostDistinctiveCategoryWord(text) {
   }
   if (/laptop|computer|electronics/i.test(cleaned)) {
     return "laptop model specs";
+  }
+  if (/collegiate|college|university|mascot|bulldog|licensed|cookie jar|container/i.test(cleaned)) {
+    return "collegiate ceramic mascot collectible cookie jar";
   }
   if (/canister|ceramic/i.test(cleaned)) {
     return "ceramic canister set pattern lids";
@@ -1624,6 +2008,10 @@ function hasCitedUrl(text, citations) {
 
   const urls = extractUrls(text).map(normalizeUrl);
   return urls.some((url) => citations.some((citation) => url === citation.url || url.startsWith(citation.url) || citation.url.startsWith(url)));
+}
+
+function isRejectedWeakComparableItem(text) {
+  return /restaurant[\s-]?supply|webstaurant|wholesale|bulk import|import catalog|manufacturing catalog|manufacturer catalog|alibaba|ali\s?express|made-in-china|global sources|dhgate|unrelated current retail|generic visual lookalike/i.test(String(text || ""));
 }
 
 function extractUrls(text) {

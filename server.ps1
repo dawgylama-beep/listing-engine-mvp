@@ -61,6 +61,14 @@ $ValuationSchema = @{
     "liveCompConfidence",
     "valuationConfidence",
     "buyerDecisionConfidence",
+    "currentAskingPrice",
+    "suggestedListingPrice",
+    "expectedSalePrice",
+    "minimumAcceptablePrice",
+    "recommendedSellingPlatform",
+    "expectedSellingTime",
+    "platformSpecificSellingGuidance",
+    "itemIdentification",
     "buyerTypeFit",
     "marketType",
     "itemClarityScore",
@@ -103,6 +111,14 @@ $ValuationSchema = @{
     liveCompConfidence = @{ type = "string" }
     valuationConfidence = @{ type = "string" }
     buyerDecisionConfidence = @{ type = "string" }
+    currentAskingPrice = @{ type = "string" }
+    suggestedListingPrice = @{ type = "string" }
+    expectedSalePrice = @{ type = "string" }
+    minimumAcceptablePrice = @{ type = "string" }
+    recommendedSellingPlatform = @{ type = "string" }
+    expectedSellingTime = @{ type = "string" }
+    platformSpecificSellingGuidance = @{ type = "string" }
+    itemIdentification = @{ type = "string" }
     buyerTypeFit = @{
       type = "array"
       minItems = 1
@@ -304,10 +320,13 @@ function Generate-ReportWithOpenAI {
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
 Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.
+Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.
 Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.
+For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.
 For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.
 For personal-use intent, value may include replacement cost, availability, and buyer utility, but do not disguise preference as market value.
-Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity or market research.
+Missing asking price should reduce Buyer Decision Confidence and limit maximum buy-price guidance, but it should not prevent useful identity, market research, or cautious resale-price guidance.
+Keep asking price, maximum recommended buy price, suggested listing price, expected sale price, and minimum acceptable price separate.
 You must use the web_search tool for live comparable search before completing the report.
 Do not claim live sold-comps, marketplace search, retail search, better-price lookup, current listings, source links, or external database checks beyond source-backed results found by the web_search tool.
 First identify the item and buyer context, then choose relevant source categories, then search targeted comparable queries.
@@ -315,12 +334,16 @@ Use typed buyer identity fields as strong clues only when they are consistent wi
 Do not silently discard conflicts between item name, brand, manufacturer, model, SKU, UPC, approximate age or era, visible photo text, front-box text, back-label text, and manufacturer/location text. Conflicts should lower confidence or trigger Need More Info.
 Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.
 Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.
+For collegiate products, inspect and preserve team name, school name, mascot, licensing sticker, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, lid status, and missing-component status.
+Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, ask for a closer photo rather than treating all identification as failed.
 Build diverse product-focused search queries in this priority order where appropriate: exact UPC, exact model, exact SKU, brand plus model, manufacturer plus item name, exact visible label wording, then descriptive fallback queries.
 Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful. Do not force identifiers into every query if they are irrelevant or unreliable.
 Use purchase context to route the search: retail store or mall means manufacturer, retailer, current-product, and price-comparison style sources; consignment, thrift, flea market, estate sale, and antique mall mean resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace or private seller means local value, pickup, negotiation, transport, and inspection risk.
 Reject or weaken comparable items that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.
 For a Santa decor box, include useful terms such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
 For boxed seasonal decor, vintage decor, collectible figurines, ceramic/resin figures, and unbranded or private-label seasonal items, prioritize eBay-style resale results, Etsy-style vintage/holiday decor results, Mercari-style resale results, collector/reference/brand clue results, and general web results using exact label text.
+For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, eBay-style resale, Etsy-style vintage, Mercari-style resale, collector/reference clues, WorthPoint-style reference clues where accessible, team/school/licensee searches, and exact phrase results.
+Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.
 Do not route boxed seasonal decor primarily to Home Depot/current retail unless the item clearly appears to be a current retail product.
 For a Santa's Workshop Hubbard Ohio GAB031-style item, use diverse queries such as: Santa's Workshop Hubbard Ohio GAB031; Santa's Workshop GAB031 Santa; 661565005611 Santa's Workshop; Santa's Workshop Santa Claus decoration; boxed Santa Claus holiday figurine GAB031; Santa's Workshop Hubbard Ohio Christmas decoration.
 Do not simply append platform names to every query.
@@ -336,6 +359,8 @@ The searchCoverage section must describe source categories targeted, sources sea
 Do not hand off marketplace discovery as a task to the user. Report what the system searched or found.
 The itemIdentificationConfidence, liveCompConfidence, valuationConfidence, and buyerDecisionConfidence sections must each start with High, Medium, or Low and include what supports confidence, what weakens confidence, and what evidence would improve confidence.
 Use Item Identification Confidence for how well photos, typed details, labels, UPC/model/SKU, and source results agree. Use Live Comp Confidence for source-backed match quality. Use Valuation Confidence for price range reliability. Use Buyer Decision Confidence for whether enough price/context/condition evidence exists to recommend action.
+The currentAskingPrice section must state the current seller/store asking price when provided, or clearly say it was not provided.
+The itemIdentification section must summarize the item, preserving school/team/mascot, licensing sticker, maker stamp, model/SKU/UPC, copyright/year, material, dimensions, product category, lid status, and missing-component status when known.
 The buyerTypeFit section must use one or more of these labels: Personal Use, Resale Opportunity, Both, Unclear.
 The marketType section must use one or more of these labels: Retail, Resale, Secondhand, Vintage, Collectible, Apparel/Fashion, Electronics, Home Goods, Local Marketplace, Unknown.
 The itemClarityScore section must start with High, Medium, or Low and explain what is known and what is missing.
@@ -347,6 +372,11 @@ If live search completed with no reliable matches, the priceBasis section must s
 Use a broad estimatedMarketValue range, not a false-precision single number.
 The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
+When purchase_intent is resale or both, recommendedSellingPlatform, suggestedListingPrice, expectedSalePrice, minimumAcceptablePrice, priceBasis, expectedSellingTime, and platformSpecificSellingGuidance must be filled.
+Suggested listing price is the starting advertised price. Expected sale price is the likely negotiated or realized sale price. Minimum acceptable price is the practical floor before fees, shipping, transport, condition risk, and time.
+If no reliable live comps exist, still provide resale-price guidance as AI-only, low confidence, and preferably as a cautious range. Do not present a single number as source-backed fact.
+For Facebook Marketplace guidance, include local pickup suitability, likely negotiation room, recommended starting price, realistic cash-acceptance range, transport or breakage considerations, and whether shipping should be avoided.
+When purchase_intent is personal_use, keep resale-price fields empty unless there is a clearly relevant resale angle, and do not force resale pricing.
 In betterPriceCheckNeeded, explain whether the source-backed results indicate a better price may exist. Do not direct the user to perform additional marketplace searching, and do not claim actual cheaper listings were found unless source-backed results support that.
 Tailor negotiation guidance to purchase context. For flea market, estate sale, private seller, and Facebook Marketplace, include opening offer, target range, walk-away price, inspection, pickup, transport, and scam caution only when evidence supports it. For retail store or mall, consider sale price, coupons or markdown potential, return policy, and Buy Elsewhere only when source-backed lower prices exist. Do not generate a precise offer range when evidence is too weak.
 If no reliable comps are found for a high-priced decor item such as a $65 Santa or holiday decoration, avoid a confident Buy Here recommendation unless personal-use value is the clear reason. Prefer Need More Info, Negotiate, or Pass and explain why $65 is difficult to justify without brand/rarity or source-backed comps.
@@ -382,6 +412,7 @@ Do not claim unseen condition details. If something is uncertain from the photos
 
   $PlatformLine = "Marketplace platform: $Platform"
   $ContextLine = ""
+  $ResaleContextLine = ""
   if ($ReportType -eq "marketValue") {
     if (-not $Platform) {
       $PlatformLine = "Marketplace platform: No platform selected"
@@ -389,10 +420,14 @@ Do not claim unseen condition details. If something is uncertain from the photos
     } else {
       $ContextLine = "Market analysis context: $Platform selected. Include platform-specific observations while still providing overall buyer-first market analysis."
     }
+    $ResaleContextLine = Get-ResalePlatformContext -Platform $Platform -BuyerIntake $BuyerIntake
   }
   $MarketContextBlock = ""
   if ($ContextLine) {
     $MarketContextBlock = "$ContextLine`n"
+  }
+  if ($ResaleContextLine) {
+    $MarketContextBlock = "${MarketContextBlock}Resale platform context: $ResaleContextLine`n"
   }
   $NotesLabel = "Seller item notes"
   $BuyerIntakeBlock = ""
@@ -487,7 +522,7 @@ $TaskText
   }
 
   if ($ReportType -eq "marketValue") {
-    return Set-LiveSearchHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake
+    return Set-LiveSearchHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake -Platform $Platform
   }
 
   return $Report
@@ -497,14 +532,15 @@ function Set-LiveSearchHonesty {
   param(
     $Report,
     $Response,
-    $BuyerIntake = @{}
+    $BuyerIntake = @{},
+    [string]$Platform = ""
   )
 
   $SearchCalls = @(Get-WebSearchCalls $Response)
   $Citations = @(Get-UrlCitations $Response)
   $SourceBackedItems = @(
     (Normalize-ReportArray $Report.weFoundThisItem) + (Normalize-ReportArray $Report.weFoundSimilarComparableItems) |
-      Where-Object { Test-CitedUrl $_ $Citations }
+      Where-Object { (Test-CitedUrl $_ $Citations) -and -not (Test-RejectedWeakComparableItem $_) }
   )
   $ExactItems = @()
   $SimilarItems = @()
@@ -562,6 +598,7 @@ function Set-LiveSearchHonesty {
   $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue @(Get-SearchQueriesUsed $Response) -Force
   $ReliableCompsFound = $Status -eq "Live Search Completed - Source-Backed Comps Found"
   $HasAskingPrice = Test-HasAskingPrice $BuyerIntake
+  $ResaleGuidance = Get-ResalePricingGuidance -Report $Report -BuyerIntake $BuyerIntake -Platform $Platform -ReliableCompsFound $ReliableCompsFound
   $Report | Add-Member -NotePropertyName "itemIdentificationConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.itemIdentificationConfidence "Medium" "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details.") -Force
   if ($ReliableCompsFound) {
     $Report | Add-Member -NotePropertyName "liveCompConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.liveCompConfidence "Medium" "Source-backed comparable items were found, but match quality still depends on condition and exact item details.") -Force
@@ -592,6 +629,15 @@ function Set-LiveSearchHonesty {
     $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue (Ensure-Prefix $Report.currentPriceAssessment "Unknown - Current price assessment requires the current asking price.") -Force
   }
 
+  $Report | Add-Member -NotePropertyName "currentAskingPrice" -NotePropertyValue (Get-CurrentAskingPriceText $BuyerIntake) -Force
+  $Report | Add-Member -NotePropertyName "suggestedListingPrice" -NotePropertyValue $ResaleGuidance.suggestedListingPrice -Force
+  $Report | Add-Member -NotePropertyName "expectedSalePrice" -NotePropertyValue $ResaleGuidance.expectedSalePrice -Force
+  $Report | Add-Member -NotePropertyName "minimumAcceptablePrice" -NotePropertyValue $ResaleGuidance.minimumAcceptablePrice -Force
+  $Report | Add-Member -NotePropertyName "recommendedSellingPlatform" -NotePropertyValue $ResaleGuidance.recommendedSellingPlatform -Force
+  $Report | Add-Member -NotePropertyName "expectedSellingTime" -NotePropertyValue $ResaleGuidance.expectedSellingTime -Force
+  $Report | Add-Member -NotePropertyName "platformSpecificSellingGuidance" -NotePropertyValue $ResaleGuidance.platformSpecificSellingGuidance -Force
+  $Report | Add-Member -NotePropertyName "itemIdentification" -NotePropertyValue (Get-ItemIdentificationText $Report) -Force
+
   $PriceBasis = Clean-Text $Report.priceBasis
   if (-not $PriceBasis.ToLowerInvariant().StartsWith($Basis.ToLowerInvariant())) {
     $PriceBasis = "$Basis $PriceBasis".Trim()
@@ -609,7 +655,7 @@ function Get-SearchCoverage {
 
   $Coverage = @(
     Normalize-ReportArray $Report.searchCoverage |
-      Where-Object { $_ -match "^Searched " }
+      Where-Object { $_ -match "^(Searched|Source categories targeted|Sources searched|Sources returned|Rejected|Reliable cited|Actual relevant)" }
   )
 
   if ($Status -eq "Live Search Unavailable - AI Reasoning Only") {
@@ -621,7 +667,7 @@ function Get-SearchCoverage {
 
   if ($Coverage.Count -gt 0) {
     if ($Status -eq "Live Search Completed - No Reliable Comps Found") {
-      return @($Coverage + "No source-backed exact or strong similar matches passed match-quality checks.")
+      return @($Coverage + "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes." + "No source-backed exact or strong similar matches passed match-quality checks.")
     }
     return $Coverage
   }
@@ -629,6 +675,7 @@ function Get-SearchCoverage {
   if ($Status -eq "Live Search Completed - No Reliable Comps Found") {
     return @(
       "Live web search completed.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
       "No source-backed exact or strong similar matches passed match-quality checks."
     )
   }
@@ -1190,6 +1237,259 @@ function Test-HasAskingPrice {
   return $false
 }
 
+function Get-ResalePlatformContext {
+  param(
+    [string]$Platform,
+    $BuyerIntake
+  )
+
+  if (-not (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent"))) {
+    return "Purchase intent is not resale or both; do not force resale pricing."
+  }
+
+  $SelectedPlatform = Clean-Text $Platform
+  if ($SelectedPlatform) {
+    return "$SelectedPlatform is the intended resale platform."
+  }
+
+  return "No resale platform was selected; recommend the best likely selling platform."
+}
+
+function Get-ResalePricingGuidance {
+  param(
+    $Report,
+    $BuyerIntake,
+    [string]$Platform,
+    [bool]$ReliableCompsFound
+  )
+
+  if (-not (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent"))) {
+    return [pscustomobject]@{
+      recommendedSellingPlatform = ""
+      suggestedListingPrice = ""
+      expectedSalePrice = ""
+      minimumAcceptablePrice = ""
+      expectedSellingTime = ""
+      platformSpecificSellingGuidance = ""
+    }
+  }
+
+  $RecommendedPlatform = Clean-Text $Report.recommendedSellingPlatform
+  if (-not $RecommendedPlatform) {
+    $RecommendedPlatform = Get-RecommendedSellingPlatform -Platform $Platform -Report $Report
+  }
+
+  $RangeSource = @(
+    $Report.suggestedListingPrice,
+    $Report.expectedSalePrice,
+    $Report.minimumAcceptablePrice,
+    $Report.aiOnlyRoughValueRange,
+    $Report.estimatedMarketValue,
+    $Report.resalePotential
+  ) -join " "
+  $Fallback = Get-FallbackSellPriceGuidance (Get-MoneyRange $RangeSource)
+
+  return [pscustomobject]@{
+    recommendedSellingPlatform = $RecommendedPlatform
+    suggestedListingPrice = Add-ResalePriceLabel $Report.suggestedListingPrice $Fallback.suggestedListingPrice $ReliableCompsFound
+    expectedSalePrice = Add-ResalePriceLabel $Report.expectedSalePrice $Fallback.expectedSalePrice $ReliableCompsFound
+    minimumAcceptablePrice = Add-ResalePriceLabel $Report.minimumAcceptablePrice $Fallback.minimumAcceptablePrice $ReliableCompsFound
+    expectedSellingTime = $(if (Clean-Text $Report.expectedSellingTime) { Clean-Text $Report.expectedSellingTime } else { $Fallback.expectedSellingTime })
+    platformSpecificSellingGuidance = $(if (Clean-Text $Report.platformSpecificSellingGuidance) { Clean-Text $Report.platformSpecificSellingGuidance } else { Get-PlatformSpecificSellingGuidance $RecommendedPlatform $Fallback })
+  }
+}
+
+function Add-ResalePriceLabel {
+  param(
+    [string]$Value,
+    [string]$Fallback,
+    [bool]$ReliableCompsFound
+  )
+
+  $Text = Clean-Text $(if ($Value) { $Value } else { $Fallback })
+  if (-not $Text -or $ReliableCompsFound -or $Text -match "ai-only|low confidence|source-backed") {
+    return $Text
+  }
+
+  return "AI-only low-confidence guidance - $Text"
+}
+
+function Get-FallbackSellPriceGuidance {
+  param($MoneyRange)
+
+  if ($null -eq $MoneyRange -or $MoneyRange.Count -lt 2) {
+    return [pscustomobject]@{
+      suggestedListingPrice = "No reliable price range was available; use a broad, cautious advertised range after verifying exact identity, condition, and local demand."
+      expectedSalePrice = "No reliable price range was available; likely realized price is highly uncertain without stronger identity or comparable-sale evidence."
+      minimumAcceptablePrice = "No reliable price range was available; set the practical floor only after accounting for fees, shipping or transport, breakage risk, condition risk, and time."
+      expectedSellingTime = "Highly uncertain until exact identity, condition, and demand are clearer."
+    }
+  }
+
+  $Low = [double]$MoneyRange[0]
+  $High = [double]$MoneyRange[1]
+  $SuggestedLow = Round-Money ([Math]::Max($Low, $High * 0.85))
+  $SuggestedHigh = Round-Money ($High * 1.15)
+  $ExpectedLow = Round-Money ([Math]::Max($Low, $High * 0.5))
+  $ExpectedHigh = Round-Money ([Math]::Max($ExpectedLow, $High * 0.75))
+  $MinimumLow = Round-Money $Low
+  $MinimumHigh = Round-Money ([Math]::Max($MinimumLow, $Low * 1.35))
+
+  return [pscustomobject]@{
+    suggestedListingPrice = "Approximately $(Format-MoneyRange $SuggestedLow $SuggestedHigh) starting advertised price, adjusted for condition, demand, and negotiation room."
+    expectedSalePrice = "Approximately $(Format-MoneyRange $ExpectedLow $ExpectedHigh) likely realized sale price after negotiation or platform friction."
+    minimumAcceptablePrice = "Approximately $(Format-MoneyRange $MinimumLow $MinimumHigh) practical floor before fees, shipping, transport, condition risk, and time are considered."
+    expectedSellingTime = "Several weeks to one to three months; faster only if the item has clear local demand, strong identity, and clean condition."
+  }
+}
+
+function Get-RecommendedSellingPlatform {
+  param(
+    [string]$Platform,
+    $Report
+  )
+
+  $SelectedPlatform = Clean-Text $Platform
+  if ($SelectedPlatform) {
+    return $SelectedPlatform
+  }
+
+  $Haystack = @(
+    $Report.itemIdentification,
+    $Report.marketType,
+    $Report.resalePotential,
+    $Report.searchCoverage
+  ) -join " "
+
+  if ($Haystack -match "collegiate|college|university|ncaa|mascot|bulldog|officially licensed|licensee") {
+    return "Specialty collector group"
+  }
+  if ($Haystack -match "furniture|bulky|fragile|ceramic|cookie jar|container|canister|local pickup") {
+    return "Facebook Marketplace"
+  }
+  if ($Haystack -match "vintage|handmade|decor|collectible|etsy") {
+    return "Etsy"
+  }
+  if ($Haystack -match "apparel|fashion|dress|shirt|shoe|poshmark") {
+    return "Poshmark"
+  }
+
+  return "eBay"
+}
+
+function Get-PlatformSpecificSellingGuidance {
+  param(
+    [string]$Platform,
+    $Fallback
+  )
+
+  $PlatformText = Clean-Text $Platform
+  if (-not $PlatformText) {
+    $PlatformText = "the recommended platform"
+  }
+
+  if ($PlatformText -match "Facebook Marketplace") {
+    return "Facebook Marketplace guidance - local pickup is suitable when the item is fragile, bulky, or low-to-mid value. Start near $($Fallback.suggestedListingPrice.ToLowerInvariant()) Expect negotiation toward $($Fallback.expectedSalePrice.ToLowerInvariant()) Do not accept below $($Fallback.minimumAcceptablePrice.ToLowerInvariant()) unless time, storage, or condition risk matters more than margin. Confirm dimensions, lid or missing-component status, chips/cracks, and transport needs. Avoid shipping fragile ceramic unless packaging risk is acceptable."
+  }
+
+  return "$PlatformText guidance - price with room for offers, disclose flaws and missing pieces plainly, account for fees and shipping friction, and avoid treating AI-only ranges as source-backed facts."
+}
+
+function Get-CurrentAskingPriceText {
+  param($BuyerIntake)
+
+  $AskingPrice = ""
+  if ($BuyerIntake.ContainsKey("asking_price")) {
+    $AskingPrice = Clean-Text $BuyerIntake["asking_price"]
+  }
+
+  if ($AskingPrice) {
+    return "Current seller asking price: $AskingPrice"
+  }
+
+  return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously."
+}
+
+function Get-ItemIdentificationText {
+  param($Report)
+
+  $Existing = Clean-Text $Report.itemIdentification
+  if ($Existing) {
+    return $Existing
+  }
+
+  return "Need more info - item identification remains incomplete. A closer photo of labels, stamps, dimensions, lid status, and missing pieces would improve confidence."
+}
+
+function Test-ResaleIntent {
+  param([string]$Value)
+
+  return (Clean-Text $Value) -match "^(resale|both)$"
+}
+
+function Get-MoneyRange {
+  param([string]$Text)
+
+  $Amounts = @()
+  foreach ($Match in [regex]::Matches($Text, "\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)")) {
+    $Amount = 0.0
+    if ([double]::TryParse($Match.Groups[1].Value.Replace(",", ""), [ref]$Amount) -and $Amount -gt 0 -and $Amount -lt 100000) {
+      $Amounts += $Amount
+    }
+  }
+
+  if ($Amounts.Count -eq 0) {
+    return $null
+  }
+
+  $Low = ($Amounts | Measure-Object -Minimum).Minimum
+  $High = ($Amounts | Measure-Object -Maximum).Maximum
+  if ($Low -eq $High) {
+    return @($Low * 0.8, $High * 1.2)
+  }
+
+  return @($Low, $High)
+}
+
+function Round-Money {
+  param([double]$Value)
+
+  $Step = 1
+  if ($Value -ge 25) {
+    $Step = 5
+  }
+
+  return [Math]::Max($Step, [Math]::Round($Value / $Step) * $Step)
+}
+
+function Format-MoneyRange {
+  param(
+    [double]$Low,
+    [double]$High
+  )
+
+  $RoundedLow = [Math]::Min($Low, $High)
+  $RoundedHigh = [Math]::Max($Low, $High)
+  if ($RoundedLow -eq $RoundedHigh) {
+    $RoundedLow = [Math]::Max(1, $RoundedLow - 1)
+    $RoundedHigh += 1
+  }
+
+  return "$(Format-Money $RoundedLow)-$(Format-Money $RoundedHigh)"
+}
+
+function Format-Money {
+  param([double]$Value)
+
+  return ('$' + [Math]::Round($Value).ToString('N0'))
+}
+
+function Test-RejectedWeakComparableItem {
+  param([string]$Text)
+
+  return $Text -match "restaurant[\s-]?supply|webstaurant|wholesale|bulk import|import catalog|manufacturing catalog|manufacturer catalog|alibaba|ali\s?express|made-in-china|global sources|dhgate|unrelated current retail|generic visual lookalike"
+}
+
 function Clean-Text {
   param($Value)
 
@@ -1260,14 +1560,14 @@ if ($env:PORT) {
 }
 
 if ($Check) {
-  Write-Host "Listing Engine server syntax OK"
+  Write-Host "Marketplace Edge server syntax OK"
   exit 0
 }
 
 $TcpListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), $Port)
 $TcpListener.Start()
 
-Write-Host "Listing Engine running at http://localhost:$Port/"
+Write-Host "Marketplace Edge running at http://localhost:$Port/"
 Write-Host "Press Ctrl+C to stop."
 
 try {

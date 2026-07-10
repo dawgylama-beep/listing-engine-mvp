@@ -1,4 +1,4 @@
-# Listing Engine Roadmap
+# Marketplace Edge Roadmap
 
 ## Version 1.0 (Completed)
 - Web MVP
@@ -90,6 +90,14 @@
 - Mode-specific notes validation added
 - Buyer-context source routing improved
 - Confidence inputs improved for identification, live comps, valuation, and buyer decision
+
+## Version 1.6.1 (Completed)
+- Worth Buying resale reports now include explicit suggested listing price, expected sale price, minimum acceptable price, recommended selling platform, expected selling time, and platform-specific selling guidance
+- Selected marketplace platform is treated as the intended resale platform when purchase intent is resale or both
+- Personal-use Worth Buying reports do not force resale pricing
+- Collectible, collegiate, ceramic, cookie-jar, decor, and secondhand source routing now prioritizes resale, vintage, collector, exact-label, team/school, and reference-style searches
+- Weak wholesale, restaurant-supply, bulk import/manufacturing, unrelated current-retail, and generic lookalike sources are rejected as meaningful comps
+- Visible app branding updated to Marketplace Edge
 
 ## Version 2.0
 - User accounts
