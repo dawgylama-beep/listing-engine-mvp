@@ -131,6 +131,14 @@
 - Active asking prices are not treated as sold evidence, and unsupported comps are not allowed to drive recommended listing price
 - Local Windows server parity updated for evidence-backed listing research
 
+## Version 1.8.0 (Completed)
+- Everyday-consumer decision layer added for Buying for Myself
+- Buying for Myself now produces value rating, personal-use recommendation, fair price range, recommended offer, walk-away guidance, condition risks, better-value considerations, research results, comparable quality, and pricing confidence
+- Buying to Resell remains separated from consumer logic and continues to use resale profit, fees, shipping, risk, margin, and platform guidance
+- Consumer decisions now use centralized price-to-value thresholds plus condition, identity, comparable quality, confidence, and risk flags
+- Personal-use reports display a prominent summary card with value rating, recommendation, asking price, estimated fair value, recommended offer, and pricing confidence
+- Market Edge now supports personal-use buying, resale buying, and selling from the same shared research foundation
+
 ## Version 2.0
 - User accounts
 - Saved listings

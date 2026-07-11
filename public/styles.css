@@ -730,6 +730,115 @@ button:disabled {
   margin-top: 8px;
 }
 
+.consumer-summary-card {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 106, 98, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(17, 24, 32, 0.98), rgba(36, 54, 64, 0.96) 52%, rgba(15, 106, 98, 0.96));
+  color: #ffffff;
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.consumer-summary-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--gold);
+}
+
+.consumer-summary-card.value-positive::before {
+  background: #7fc8a9;
+}
+
+.consumer-summary-card.value-fair::before {
+  background: var(--gold);
+}
+
+.consumer-summary-card.value-caution::before {
+  background: #e2a56c;
+}
+
+.consumer-summary-card.value-risk::before {
+  background: #e07770;
+}
+
+.consumer-summary-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  align-items: start;
+}
+
+.consumer-summary-header h3 {
+  grid-column: 1;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.05;
+}
+
+.summary-eyebrow {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.summary-badge {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  max-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.consumer-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.consumer-summary-grid div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.consumer-summary-grid dt {
+  margin: 0 0 5px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.consumer-summary-grid dd {
+  margin: 0;
+  color: #ffffff;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 .risk-score-card::before {
   background: linear-gradient(180deg, var(--teal), var(--gold));
 }
@@ -907,6 +1016,17 @@ button:disabled {
   .section-topline {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .consumer-summary-header,
+  .consumer-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-badge {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 
   h1 {

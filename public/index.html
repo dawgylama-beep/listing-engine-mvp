@@ -13,7 +13,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.7.2</p>
+            <p class="version-badge">Version 1.8.0</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -32,7 +32,7 @@
                     <li>Add photos.</li>
                     <li>Enter where you are buying it.</li>
                     <li>Enter the asking price.</li>
-                    <li>Choose personal, resale, or both.</li>
+                    <li>Choose Buying for Myself or Buying to Resell.</li>
                     <li>Tap Worth Buying.</li>
                   </ol>
                 </section>
@@ -40,7 +40,7 @@
                 <section class="guide-section" aria-labelledby="guide-what-does">
                   <h3 id="guide-what-does">What Marketplace Edge Does</h3>
                   <p>Marketplace Edge helps you decide whether an item is worth buying at this price, right now. Know before you buy. Then profit if you sell.</p>
-                  <p>It can identify an item from photos, compare the asking price with available market information, recommend Buy, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info, estimate resale potential, recommend a selling platform, suggest listing and sale prices, and generate a listing after the item is purchased.</p>
+                  <p>It can identify an item from photos, compare the asking price with available market information, give a personal-use value rating, support resale decisions, estimate resale potential, recommend a selling platform, suggest listing and sale prices, and generate a listing after the item is purchased.</p>
                   <p>Live results depend on available sources, photo quality, and identifiable item details. Treat the output as decision support, not a guarantee.</p>
                 </section>
 
@@ -50,7 +50,7 @@
                     <li>Take or upload clear photos.</li>
                     <li>Choose where you are buying the item.</li>
                     <li>Enter the seller's current asking price.</li>
-                    <li>Choose whether the item is for personal use, resale, or both.</li>
+                    <li>Choose Buying for Myself or Buying to Resell.</li>
                     <li>Select the condition.</li>
                     <li>Open Known Item Details and add any brand, model, SKU, UPC, manufacturer, item name, or age information you know.</li>
                     <li>Open Condition Concerns and select any problems.</li>
@@ -58,7 +58,7 @@
                     <li>Tap Worth Buying.</li>
                     <li>Review the recommendation, price guidance, selling platform, and confidence.</li>
                   </ol>
-                  <p>Marketplace platform is optional for Worth Buying. If resale or both is selected, the platform can indicate where you plan to sell. Asking price means what the current seller wants. Photos are required; notes are optional.</p>
+                  <p>Marketplace platform is optional for Worth Buying. If Buying to Resell is selected, the platform can indicate where you plan to sell. Asking price means what the current seller wants. Photos are required; notes are optional.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-photos">
@@ -88,8 +88,16 @@
                   <h3 id="guide-results">Understanding the Result</h3>
                   <dl class="guide-definition-list">
                     <div>
+                      <dt>Value Rating</dt>
+                      <dd>Exceptional Value, Good Value, Fair Price, Slightly Overpriced, Overpriced, Poor Value, or Insufficient Evidence for Buying for Myself.</dd>
+                    </div>
+                    <div>
+                      <dt>Recommendation</dt>
+                      <dd>Buy, Buy If It Fits Your Needs, Negotiate, Wait for a Better Price, Pass, or Need More Information for personal-use buyers.</dd>
+                    </div>
+                    <div>
                       <dt>Purchase Decision</dt>
-                      <dd>Buy, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info.</dd>
+                      <dd>Buy Here, Negotiate, Buy Elsewhere, Wait, Pass, or Need More Info for resale-focused buying decisions.</dd>
                     </div>
                     <div>
                       <dt>Current Asking Price</dt>
@@ -238,10 +246,10 @@
                   <label for="purchase_intent">Buying for</label>
                   <select id="purchase_intent" name="purchase_intent">
                     <option value="">Select one</option>
-                    <option value="personal_use">Personal use</option>
-                    <option value="resale">Resale</option>
-                    <option value="both">Both</option>
-                    <option value="unknown">Unknown</option>
+                    <option value="personal_use">Buying for Myself</option>
+                    <option value="resale">Buying to Resell</option>
+                    <option value="both">Both / Not sure yet</option>
+                    <option value="unknown">Not sure</option>
                   </select>
                 </div>
 
@@ -251,11 +259,15 @@
                     <option value="">Select one</option>
                     <option value="new">New</option>
                     <option value="open_box">Open box</option>
+                    <option value="like_new">Like new</option>
+                    <option value="good">Good</option>
                     <option value="used">Used</option>
-                    <option value="vintage">Vintage</option>
-                    <option value="damaged">Damaged</option>
+                    <option value="fair">Fair</option>
+                    <option value="vintage">Vintage / older item</option>
+                    <option value="poor">Poor</option>
                     <option value="missing_pieces">Missing pieces</option>
                     <option value="untested">Untested</option>
+                    <option value="for_parts">For parts</option>
                     <option value="unknown">Unknown</option>
                   </select>
                 </div>

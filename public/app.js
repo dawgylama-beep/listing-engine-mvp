@@ -77,6 +77,28 @@ const valuationSections = [
   ["searchQueriesUsed", "Search Queries Used"]
 ];
 
+const consumerSections = [
+  ["identifiedItem", "Identified Item"],
+  ["identificationConfidence", "Identification Confidence"],
+  ["evidenceFoundInPhotos", "Evidence Found in Photos"],
+  ["askingPrice", "Asking Price"],
+  ["estimatedFairMarketValue", "Estimated Fair Market Value"],
+  ["fairPriceRange", "Fair Price Range"],
+  ["valueRating", "Value Rating"],
+  ["recommendation", "Recommendation"],
+  ["recommendedOffer", "Recommended Offer"],
+  ["walkAwayPrice", "Walk-Away Price"],
+  ["negotiationGuidance", "Negotiation Guidance"],
+  ["reasonsToBuy", "Reasons to Buy"],
+  ["reasonsForCaution", "Reasons for Caution"],
+  ["productOrConditionRisks", "Product or Condition Risks"],
+  ["betterValueConsiderations", "Better-Value Considerations"],
+  ["researchResults", "Research Results"],
+  ["comparableQuality", "Comparable Quality"],
+  ["pricingConfidence", "Pricing Confidence"],
+  ["additionalInformationNeeded", "Additional Information Needed"]
+];
+
 const reportTypes = {
   listing: {
     reportType: "listing",
@@ -222,9 +244,11 @@ async function handleSubmit(event) {
       throw new Error(config.errorMessage);
     }
 
+    const sections = getSectionsForReport(config, report);
     latestReport = report;
-    latestSections = config.sections;
-    renderReport(report, config.sections);
+    latestSections = sections;
+    setOutputHeading(getDisplayConfig(config, report));
+    renderReport(report, sections);
     clearStatus();
     copyAllButton.disabled = false;
   } catch (error) {
@@ -255,6 +279,30 @@ function getBuyerIntake(formData, notes) {
   };
 }
 
+function getSectionsForReport(config, report) {
+  if (config.reportType === "marketValue" && isConsumerReport(report)) {
+    return consumerSections;
+  }
+
+  return config.sections;
+}
+
+function getDisplayConfig(config, report) {
+  if (config.reportType === "marketValue" && isConsumerReport(report)) {
+    return {
+      ...config,
+      eyebrow: "Personal-use buying decision",
+      title: "Buying for Myself"
+    };
+  }
+
+  return config;
+}
+
+function isConsumerReport(report) {
+  return String(report && report.buyerIntent || "").toLowerCase() === "personal_use";
+}
+
 async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
   const photos = [];
 
@@ -271,6 +319,10 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
 function renderReport(report, sections) {
   results.classList.remove("empty-state");
   results.innerHTML = "";
+
+  if (isConsumerReport(report)) {
+    results.appendChild(renderConsumerSummary(report));
+  }
 
   for (const [key, label] of sections) {
     if (!shouldRenderSection(key, report[key])) {
@@ -305,6 +357,70 @@ function renderReport(report, sections) {
     card.append(header, body);
     results.appendChild(card);
   }
+}
+
+function renderConsumerSummary(report) {
+  const card = document.createElement("article");
+  card.className = `consumer-summary-card ${getValueRatingModifier(report.valueRating)}`;
+
+  const header = document.createElement("div");
+  header.className = "consumer-summary-header";
+
+  const label = document.createElement("p");
+  label.className = "summary-eyebrow";
+  label.textContent = "Personal-use decision";
+
+  const title = document.createElement("h3");
+  title.textContent = report.recommendation || "Need More Information";
+
+  const badge = document.createElement("span");
+  badge.className = "summary-badge";
+  badge.textContent = report.valueRating || "Insufficient Evidence";
+
+  header.append(label, title, badge);
+
+  const grid = document.createElement("dl");
+  grid.className = "consumer-summary-grid";
+  const metrics = [
+    ["Asking Price", report.askingPrice],
+    ["Estimated Fair Value", report.estimatedFairMarketValue],
+    ["Recommended Offer", Array.isArray(report.recommendedOffer) ? report.recommendedOffer.join(" | ") : report.recommendedOffer],
+    ["Pricing Confidence", report.pricingConfidence]
+  ];
+
+  for (const [name, value] of metrics) {
+    if (!value || (Array.isArray(value) && !value.length)) {
+      continue;
+    }
+
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = name;
+    detail.textContent = value;
+    item.append(term, detail);
+    grid.appendChild(item);
+  }
+
+  card.append(header, grid);
+  return card;
+}
+
+function getValueRatingModifier(value) {
+  const text = String(value || "").toLowerCase();
+  if (text.includes("exceptional") || text.includes("good")) {
+    return "value-positive";
+  }
+  if (text.includes("fair")) {
+    return "value-fair";
+  }
+  if (text.includes("slightly") || text.includes("overpriced")) {
+    return "value-caution";
+  }
+  if (text.includes("poor") || text.includes("insufficient")) {
+    return "value-risk";
+  }
+  return "value-neutral";
 }
 
 function shouldRenderSection(key, value) {

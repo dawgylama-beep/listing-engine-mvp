@@ -6,7 +6,15 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.7.2"
+$AppVersion = "1.8.0"
+
+$ConsumerDecisionThresholds = @{
+  exceptionalMaxRatio = 0.72
+  goodMaxRatio = 0.90
+  fairMaxRatio = 1.08
+  slightlyOverpricedMaxRatio = 1.22
+  overpricedMaxRatio = 1.45
+}
 
 $ListingSchema = @{
   type = "object"
@@ -256,6 +264,134 @@ $ValuationSchema = @{
   }
 }
 
+$ConsumerDecisionSchema = @{
+  type = "object"
+  additionalProperties = $false
+  required = @(
+    "buyerIntent",
+    "identifiedItem",
+    "identificationConfidence",
+    "evidenceFoundInPhotos",
+    "askingPrice",
+    "estimatedFairMarketValue",
+    "fairPriceRange",
+    "valueRating",
+    "recommendation",
+    "recommendedOffer",
+    "openingOffer",
+    "targetPurchasePrice",
+    "maximumRecommendedPrice",
+    "walkAwayPrice",
+    "negotiationGuidance",
+    "reasonsToBuy",
+    "reasonsForCaution",
+    "productOrConditionRisks",
+    "riskFlags",
+    "betterValueConsiderations",
+    "researchResults",
+    "comparableQuality",
+    "pricingConfidence",
+    "pricingRationale",
+    "additionalInformationNeeded",
+    "searchQueriesUsed",
+    "sourcesSearched"
+  )
+  properties = @{
+    buyerIntent = @{ type = "string" }
+    identifiedItem = @{ type = "string" }
+    identificationConfidence = @{ type = "string" }
+    evidenceFoundInPhotos = @{
+      type = "array"
+      minItems = 1
+      maxItems = 12
+      items = @{ type = "string" }
+    }
+    askingPrice = @{ type = "string" }
+    estimatedFairMarketValue = @{ type = "string" }
+    fairPriceRange = @{
+      type = "array"
+      minItems = 1
+      maxItems = 4
+      items = @{ type = "string" }
+    }
+    valueRating = @{ type = "string" }
+    recommendation = @{ type = "string" }
+    recommendedOffer = @{
+      type = "array"
+      minItems = 1
+      maxItems = 4
+      items = @{ type = "string" }
+    }
+    openingOffer = @{ type = "string" }
+    targetPurchasePrice = @{ type = "string" }
+    maximumRecommendedPrice = @{ type = "string" }
+    walkAwayPrice = @{ type = "string" }
+    negotiationGuidance = @{ type = "string" }
+    reasonsToBuy = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    reasonsForCaution = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    productOrConditionRisks = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    riskFlags = @{
+      type = "array"
+      minItems = 0
+      maxItems = 10
+      items = @{ type = "string" }
+    }
+    betterValueConsiderations = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    researchResults = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    comparableQuality = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    pricingConfidence = @{ type = "string" }
+    pricingRationale = @{ type = "string" }
+    additionalInformationNeeded = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    searchQueriesUsed = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    sourcesSearched = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+  }
+}
+
 function Handle-Client {
   param([System.Net.Sockets.TcpClient]$Client)
 
@@ -405,8 +541,40 @@ function Generate-ReportWithOpenAI {
   )
 
   $UseWebSearch = $false
+  $IsConsumerIntent = $false
   if ($ReportType -eq "marketValue") {
     $BuyerIntakeText = Format-BuyerIntakeForPrompt $BuyerIntake
+    $IsConsumerIntent = ((Get-BuyerIntakeValue $BuyerIntake "purchase_intent") -eq "personal_use")
+    if ($IsConsumerIntent) {
+      $Schema = $ConsumerDecisionSchema
+      $SchemaName = "consumer_purchase_decision"
+      $UseWebSearch = $true
+      $SystemText = "You are Marketplace Edge, a careful consumer purchase decision assistant. Help everyday buyers decide whether an item is fairly priced for personal use. Return only the requested structured JSON."
+      $TaskText = @"
+Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.
+Primary question: Is this item fairly priced for someone buying it for themselves?
+Use the web_search tool for live comparable research before completing the report.
+Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.
+Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.
+Use valueRating exactly as one of: Exceptional Value, Good Value, Fair Price, Slightly Overpriced, Overpriced, Poor Value, Insufficient Evidence.
+Use recommendation exactly as one of: Buy, Buy If It Fits Your Needs, Negotiate, Wait for a Better Price, Pass, Need More Information.
+The valueRating and recommendation must be distinct. Example: Fair Price / Buy If It Fits Your Needs or Slightly Overpriced / Negotiate.
+Do not assign a positive value rating merely because the item looks inexpensive. Compare asking price to evidence-backed fair value, condition, completeness, and uncertainty.
+estimatedFairMarketValue must distinguish current retail price, active asking prices, used-market evidence, sold evidence only when actually available, refurbished/open-box pricing, reference-only results, and the system's fair-value estimate.
+fairPriceRange must include Low Fair Price, Typical Fair Price, and High Fair Price.
+recommendedOffer must include Opening Offer, Target Purchase Price, and Maximum Recommended Price when evidence supports those numbers.
+walkAwayPrice must be clear when evidence is sufficient. When evidence is weak, say the walk-away price is not supported yet.
+negotiationGuidance must be honest buyer-facing language. Do not encourage dishonest claims or pretend a lower comp exists unless source-backed results support it.
+reasonsToBuy and reasonsForCaution must be specific to the available evidence, not generic praise or generic warnings.
+productOrConditionRisks and riskFlags must show only supported risks such as Identity Not Confirmed, Price Above Market, Missing Parts, Condition Unclear, Authenticity Unclear, Compatibility Risk, No Return Protection, Weak Comparable Evidence, Older Model, or Repair Risk.
+researchResults must use only source-backed comparable/reference items supplied by web_search citations, or a clear no-usable-evidence message when none passed filtering.
+comparableQuality must classify evidence as Strong Comparable, Partial Comparable, Identity / Reference Result, Weak Match, or Rejected Match.
+pricingConfidence must start with High, Medium, or Low and explain why.
+Never fabricate sold data, URLs, prices, defects, authenticity, or source results. Never describe active asking prices as confirmed sales.
+If identity, condition, asking price, or reliable comps are weak, use Insufficient Evidence / Need More Information or a conservative recommendation. Do not give a precise walk-away price when confidence is insufficient.
+Ask for the single most useful next detail or photo when evidence is insufficient.
+"@
+    } else {
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
     $UseWebSearch = $true
@@ -508,6 +676,7 @@ For Facebook Marketplace or local furniture, consider local pickup, dimensions, 
 If no platform is selected, analyze the item using buyer-first market logic across likely retail, resale, online, local, collector, and secondhand contexts.
 If a platform is selected, include platform-specific observations while still providing an overall buyer-first market analysis.
 "@
+    }
   } else {
     $Schema = $ListingSchema
     $SchemaName = "marketplace_listing"
@@ -646,6 +815,9 @@ $TaskText
   }
 
   if ($ReportType -eq "marketValue") {
+    if ($IsConsumerIntent) {
+      return Set-ConsumerDecisionHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake
+    }
     return Set-LiveSearchHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake -Platform $Platform
   }
 
@@ -833,6 +1005,266 @@ function Set-LiveSearchHonesty {
   $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue $PriceBasis -Force
 
   return $Report
+}
+
+function Set-ConsumerDecisionHonesty {
+  param(
+    $Report,
+    $Response,
+    $BuyerIntake = @{}
+  )
+
+  $SearchCalls = @(Get-WebSearchCalls $Response)
+  $Citations = @(Get-UrlCitations $Response)
+  $SourceBackedResults = @(
+    Normalize-ReportArray $Report.researchResults |
+      Where-Object { (Test-CitedUrl $_ $Citations) -and -not (Test-RejectedWeakComparableItem $_) }
+  )
+  $ReliableCompsFound = ($SearchCalls.Count -gt 0 -and $SourceBackedResults.Count -gt 0)
+  $AskingPrice = Get-ConsumerAskingPriceNumber $BuyerIntake
+  $FairValue = Get-ConsumerFairValueNumber $Report
+  $ConditionProfile = Get-ConsumerConditionProfile $BuyerIntake
+  $RiskFlags = @(Get-ConsumerRiskFlags -BuyerIntake $BuyerIntake -AskingPrice $AskingPrice -FairValue $FairValue -ReliableCompsFound $ReliableCompsFound -ConditionProfile $ConditionProfile)
+  $Decision = Get-ConsumerDecision -AskingPrice $AskingPrice -FairValue $FairValue -ReliableCompsFound $ReliableCompsFound -ConditionProfile $ConditionProfile -RiskFlags $RiskFlags
+  $Offer = Get-ConsumerOffer -AskingPrice $AskingPrice -FairValue $FairValue -Decision $Decision -ConditionProfile $ConditionProfile
+  $Status = $(if ($ReliableCompsFound) { "Live Search Completed - Source-Backed Comps Found" } elseif ($SearchCalls.Count -gt 0) { "Live Search Completed - No Reliable Comps Found" } else { "Live Search Unavailable - AI Reasoning Only" })
+  $Basis = $(if ($ReliableCompsFound) { "Pricing uses source-backed comparable or reference results that passed filtering." } elseif ($SearchCalls.Count -gt 0) { "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence." } else { "Live research did not complete. Consumer decision is AI-reasoning-only and low confidence." })
+
+  if ($ReliableCompsFound) {
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @($SourceBackedResults | Select-Object -First 8) -Force
+    if (-not (Normalize-ReportArray $Report.comparableQuality).Count) {
+      $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Strong Comparable - source-backed research results were returned; verify exact item and condition before paying confidently.") -Force
+    }
+  } elseif ($SearchCalls.Count -gt 0) {
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @("Live research completed, but no source-backed exact or strong similar comparables passed filtering.") -Force
+    $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Rejected Match - no returned result had enough cited, relevant evidence to drive a personal-use value decision.") -Force
+  } else {
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @("Live comparable research was attempted but unavailable before source-backed results could be retrieved.") -Force
+    $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Rejected Match - live research did not return source-backed comparable evidence.") -Force
+  }
+
+  $Report | Add-Member -NotePropertyName "buyerIntent" -NotePropertyValue "personal_use" -Force
+  $Report | Add-Member -NotePropertyName "askingPrice" -NotePropertyValue (Get-ConsumerAskingPriceText $BuyerIntake) -Force
+  $Report | Add-Member -NotePropertyName "valueRating" -NotePropertyValue $Decision.valueRating -Force
+  $Report | Add-Member -NotePropertyName "recommendation" -NotePropertyValue $Decision.recommendation -Force
+  $Report | Add-Member -NotePropertyName "recommendedOffer" -NotePropertyValue @($Offer.recommendedOffer) -Force
+  $Report | Add-Member -NotePropertyName "openingOffer" -NotePropertyValue $Offer.openingOffer -Force
+  $Report | Add-Member -NotePropertyName "targetPurchasePrice" -NotePropertyValue $Offer.targetPurchasePrice -Force
+  $Report | Add-Member -NotePropertyName "maximumRecommendedPrice" -NotePropertyValue $Offer.maximumRecommendedPrice -Force
+  $Report | Add-Member -NotePropertyName "walkAwayPrice" -NotePropertyValue $Offer.walkAwayPrice -Force
+  $Report | Add-Member -NotePropertyName "riskFlags" -NotePropertyValue @($RiskFlags) -Force
+  $Report | Add-Member -NotePropertyName "pricingConfidence" -NotePropertyValue $Decision.pricingConfidence -Force
+  $Report | Add-Member -NotePropertyName "pricingRationale" -NotePropertyValue (Ensure-Prefix $Report.pricingRationale $Basis) -Force
+  $Report | Add-Member -NotePropertyName "sourcesSearched" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force
+  $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue @(Get-SearchQueriesUsed $Response) -Force
+
+  if (-not $ReliableCompsFound) {
+    $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue (Ensure-Prefix $Report.estimatedFairMarketValue "Insufficient evidence - ") -Force
+    $Report | Add-Member -NotePropertyName "fairPriceRange" -NotePropertyValue @("Insufficient evidence - Low, typical, and high fair prices are not supported until exact identity, condition, and comparable evidence improve.") -Force
+    $Report | Add-Member -NotePropertyName "additionalInformationNeeded" -NotePropertyValue @(Merge-ConsumerArrays $Report.additionalInformationNeeded @("Current asking price, exact identity, condition, and one source-backed exact or strong similar comparable result.")) -Force
+  }
+
+  $Risks = @(Merge-ConsumerArrays $Report.productOrConditionRisks @($RiskFlags | ForEach-Object { "Risk flag: $_" }))
+  $Report | Add-Member -NotePropertyName "productOrConditionRisks" -NotePropertyValue @($Risks | Select-Object -First 8) -Force
+
+  return $Report
+}
+
+function Get-ConsumerAskingPriceNumber {
+  param($BuyerIntake)
+
+  $Text = Clean-Text (Get-BuyerIntakeValue $BuyerIntake "asking_price")
+  foreach ($Match in [regex]::Matches($Text, "(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)")) {
+    $Amount = 0.0
+    if ([double]::TryParse($Match.Groups[1].Value.Replace(",", ""), [ref]$Amount)) {
+      return $Amount
+    }
+  }
+
+  return $null
+}
+
+function Get-ConsumerAskingPriceText {
+  param($BuyerIntake)
+
+  $Text = Clean-Text (Get-BuyerIntakeValue $BuyerIntake "asking_price")
+  if ($Text -and $Text -ne "not provided") {
+    return "Current asking price: $Text"
+  }
+
+  return "Not provided - enter the current asking price for a personal-use value decision."
+}
+
+function Get-ConsumerFairValueNumber {
+  param($Report)
+
+  $Parts = @((Clean-Text $Report.estimatedFairMarketValue))
+  $Parts += @(Normalize-ReportArray $Report.fairPriceRange)
+  $Amounts = @(Get-MoneyAmounts ($Parts -join " ") | Sort-Object)
+  if ($Amounts.Count -eq 0) {
+    return $null
+  }
+
+  $Middle = [Math]::Floor($Amounts.Count / 2)
+  if ($Amounts.Count % 2 -eq 1) {
+    return [double]$Amounts[$Middle]
+  }
+
+  return ([double]$Amounts[$Middle - 1] + [double]$Amounts[$Middle]) / 2
+}
+
+function Get-ConsumerConditionProfile {
+  param($BuyerIntake)
+
+  $Condition = (Get-BuyerIntakeValue $BuyerIntake "item_condition").ToLowerInvariant()
+  $Concerns = @()
+  if ($BuyerIntake.ContainsKey("condition_concerns") -and $BuyerIntake["condition_concerns"] -is [array]) {
+    $Concerns = @($BuyerIntake["condition_concerns"])
+  }
+  $ConcernText = ($Concerns -join " ").ToLowerInvariant()
+
+  return [pscustomobject]@{
+    isUnknown = (-not $Condition -or $Condition -eq "not provided" -or $Condition -match "unknown")
+    hasHardRisk = ($Condition -match "poor|for_parts|damaged|missing|not_working|untested" -or $ConcernText -match "missing|not_working|untested|incomplete|authenticity|cracks")
+    hasModerateRisk = ($Condition -match "used|vintage|fair|open_box" -or $ConcernText -match "visible_damage|stains_or_wear|odor_or_smoke|other")
+    missingParts = ($Condition -match "missing" -or $ConcernText -match "missing|incomplete")
+    repairRisk = ($Condition -match "poor|for_parts|damaged|not_working|untested" -or $ConcernText -match "not_working|untested|cracks|visible_damage")
+  }
+}
+
+function Get-ConsumerRiskFlags {
+  param(
+    $BuyerIntake,
+    $AskingPrice,
+    $FairValue,
+    [bool]$ReliableCompsFound,
+    $ConditionProfile
+  )
+
+  $Flags = @()
+  if (-not $ReliableCompsFound) { $Flags += "Weak Comparable Evidence" }
+  if ($null -ne $AskingPrice -and $null -ne $FairValue -and $FairValue -gt 0 -and $AskingPrice -gt ($FairValue * $ConsumerDecisionThresholds["fairMaxRatio"])) { $Flags += "Price Above Market" }
+  if ($ConditionProfile.isUnknown) { $Flags += "Condition Unclear" }
+  if ($ConditionProfile.missingParts) { $Flags += "Missing Parts" }
+  if ($ConditionProfile.repairRisk) { $Flags += "Repair Risk" }
+  if ((Get-BuyerIntakeValue $BuyerIntake "purchase_context") -match "facebook|private|flea|estate|thrift|consignment|antique") { $Flags += "No Return Protection" }
+  if ((Get-BuyerIntakeValue $BuyerIntake "known_model") -eq "not provided" -and (Get-BuyerIntakeValue $BuyerIntake "known_sku") -eq "not provided" -and (Get-BuyerIntakeValue $BuyerIntake "known_upc") -eq "not provided") { $Flags += "Identity Not Confirmed" }
+
+  return @($Flags | Where-Object { $_ } | Select-Object -Unique | Select-Object -First 10)
+}
+
+function Get-ConsumerDecision {
+  param(
+    $AskingPrice,
+    $FairValue,
+    [bool]$ReliableCompsFound,
+    $ConditionProfile,
+    [array]$RiskFlags
+  )
+
+  if ($null -eq $AskingPrice -or $null -eq $FairValue -or $FairValue -le 0 -or -not $ReliableCompsFound) {
+    return [pscustomobject]@{
+      valueRating = "Insufficient Evidence"
+      recommendation = "Need More Information"
+      pricingConfidence = (Force-LowConfidence "" "Consumer value rating is insufficient because asking price, fair value, or source-backed comparable evidence is missing.")
+    }
+  }
+
+  $Ratio = $AskingPrice / $FairValue
+  $ValueRating = "Poor Value"
+  $Recommendation = "Pass"
+
+  if ($Ratio -le $ConsumerDecisionThresholds["exceptionalMaxRatio"]) {
+    $ValueRating = "Exceptional Value"
+    $Recommendation = "Buy"
+  } elseif ($Ratio -le $ConsumerDecisionThresholds["goodMaxRatio"]) {
+    $ValueRating = "Good Value"
+    $Recommendation = "Buy"
+  } elseif ($Ratio -le $ConsumerDecisionThresholds["fairMaxRatio"]) {
+    $ValueRating = "Fair Price"
+    $Recommendation = "Buy If It Fits Your Needs"
+  } elseif ($Ratio -le $ConsumerDecisionThresholds["slightlyOverpricedMaxRatio"]) {
+    $ValueRating = "Slightly Overpriced"
+    $Recommendation = "Negotiate"
+  } elseif ($Ratio -le $ConsumerDecisionThresholds["overpricedMaxRatio"]) {
+    $ValueRating = "Overpriced"
+    $Recommendation = "Wait for a Better Price"
+  }
+
+  if ($ConditionProfile.hasHardRisk) {
+    if ($ValueRating -match "Exceptional|Good") { $ValueRating = "Fair Price" }
+    if ($Recommendation -eq "Buy") { $Recommendation = "Negotiate" }
+  } elseif ($ConditionProfile.hasModerateRisk -and $Recommendation -eq "Buy") {
+    $Recommendation = "Buy If It Fits Your Needs"
+  }
+
+  if ($ConditionProfile.isUnknown -and ($Recommendation -match "Buy")) {
+    $Recommendation = "Need More Information"
+    if ($ValueRating -match "Exceptional|Good") { $ValueRating = "Insufficient Evidence" }
+  }
+
+  return [pscustomobject]@{
+    valueRating = $ValueRating
+    recommendation = $Recommendation
+    pricingConfidence = (Ensure-ConfidenceLayer "" "Medium" "Source-backed evidence supports the price direction, but exact condition and personal fit still matter.")
+  }
+}
+
+function Get-ConsumerOffer {
+  param(
+    $AskingPrice,
+    $FairValue,
+    $Decision,
+    $ConditionProfile
+  )
+
+  if ($Decision.valueRating -eq "Insufficient Evidence" -or $null -eq $AskingPrice -or $null -eq $FairValue -or $FairValue -le 0) {
+    return [pscustomobject]@{
+      openingOffer = "Not supported yet - verify identity, condition, asking price, and reliable comparables first."
+      targetPurchasePrice = "Not supported yet - evidence is too weak for a responsible target price."
+      maximumRecommendedPrice = "Not supported yet - do not set a maximum from weak evidence."
+      walkAwayPrice = "Not enough evidence for a precise walk-away price."
+      recommendedOffer = @("Opening Offer: Not supported yet.", "Target Purchase Price: Not supported yet.", "Maximum Recommended Price: Not supported yet.")
+    }
+  }
+
+  $Multiplier = $(if ($ConditionProfile.hasHardRisk) { 0.84 } elseif ($ConditionProfile.hasModerateRisk) { 0.94 } else { 1.04 })
+  $MaxPrice = Round-Money ($FairValue * $Multiplier)
+  $TargetPrice = Round-Money ([Math]::Min($AskingPrice, $MaxPrice))
+  $OpeningOffer = Round-Money ([Math]::Max(1, $TargetPrice * 0.90))
+
+  if ($AskingPrice -le ($FairValue * $ConsumerDecisionThresholds["goodMaxRatio"])) {
+    $TargetPrice = Round-Money $AskingPrice
+    $OpeningOffer = Round-Money ([Math]::Max(1, $AskingPrice * 0.95))
+    $MaxPrice = Round-Money ([Math]::Max($TargetPrice, [Math]::Min($FairValue * 1.03, $MaxPrice)))
+  } elseif ($AskingPrice -gt ($FairValue * $ConsumerDecisionThresholds["fairMaxRatio"])) {
+    $TargetPrice = Round-Money ([Math]::Min($MaxPrice, $FairValue * 0.96))
+    $OpeningOffer = Round-Money ([Math]::Max(1, $TargetPrice * 0.88))
+  }
+
+  if ($OpeningOffer -gt $TargetPrice) { $OpeningOffer = $TargetPrice }
+  if ($TargetPrice -gt $MaxPrice) { $TargetPrice = $MaxPrice }
+
+  $OpeningText = "Opening Offer: $(Format-Money $OpeningOffer)"
+  $TargetText = "Target Purchase Price: $(Format-Money $TargetPrice)"
+  $MaxText = "Maximum Recommended Price: $(Format-Money $MaxPrice)"
+
+  return [pscustomobject]@{
+    openingOffer = $OpeningText
+    targetPurchasePrice = $TargetText
+    maximumRecommendedPrice = $MaxText
+    walkAwayPrice = "Walk-Away Price: $(Format-Money $MaxPrice) for personal use unless condition, accessories, warranty, return protection, or exact model evidence improves."
+    recommendedOffer = @($OpeningText, $TargetText, $MaxText)
+  }
+}
+
+function Merge-ConsumerArrays {
+  param($First, $Second)
+
+  $Items = @()
+  $Items += @(Normalize-ReportArray $First)
+  $Items += @(Normalize-ReportArray $Second)
+  return @($Items | Where-Object { $_ } | Select-Object -Unique | Select-Object -First 8)
 }
 
 function Get-SearchCoverage {
