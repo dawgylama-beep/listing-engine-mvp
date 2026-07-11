@@ -124,6 +124,13 @@
 - Low-dollar speculative purchases now remain clearly labeled as uncertain, while added costs, safety, authenticity, repair, storage, disposal, and fraud exposure can keep risk High or Very High
 - Recommendation alignment now blocks unexplained Very High Risk / Buy combinations and clarifies low-confidence speculative buys without changing Generate Listing behavior
 
+## Version 1.7.2 (Completed)
+- Generate Listing now reuses the shared item identity, source routing, query generation, live research, comparable filtering, and confidence foundation used by Worth Buying
+- Listing output now displays identified item, photo evidence, search queries, sources searched, research results, comparable quality, recommended listing price, offer range, pricing confidence, and pricing rationale
+- Listing prices are labeled as low confidence when live research is unavailable or no source-backed exact or strong similar comps pass filtering
+- Active asking prices are not treated as sold evidence, and unsupported comps are not allowed to drive recommended listing price
+- Local Windows server parity updated for evidence-backed listing research
+
 ## Version 2.0
 - User accounts
 - Saved listings

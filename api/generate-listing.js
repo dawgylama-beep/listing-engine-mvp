@@ -4,6 +4,23 @@ const listingSchema = {
   required: [
     "platform",
     "categorySuggestion",
+    "identifiedItem",
+    "identificationConfidence",
+    "evidenceFoundInPhotos",
+    "searchQueriesUsed",
+    "sourcesSearched",
+    "researchResults",
+    "comparableQuality",
+    "recommendedListingPrice",
+    "suggestedOfferRange",
+    "pricingConfidence",
+    "pricingRationale",
+    "optimizedListingTitle",
+    "listingDescription",
+    "itemSpecifics",
+    "conditionNotes",
+    "suggestedSellingPlatform",
+    "additionalInformationNeeded",
     "title",
     "description",
     "itemDetails",
@@ -16,6 +33,63 @@ const listingSchema = {
   properties: {
     platform: { type: "string" },
     categorySuggestion: { type: "string" },
+    identifiedItem: { type: "string" },
+    identificationConfidence: { type: "string" },
+    evidenceFoundInPhotos: {
+      type: "array",
+      minItems: 1,
+      maxItems: 12,
+      items: { type: "string" }
+    },
+    searchQueriesUsed: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    sourcesSearched: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    researchResults: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    comparableQuality: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    recommendedListingPrice: { type: "string" },
+    suggestedOfferRange: { type: "string" },
+    pricingConfidence: { type: "string" },
+    pricingRationale: { type: "string" },
+    optimizedListingTitle: { type: "string" },
+    listingDescription: { type: "string" },
+    itemSpecifics: {
+      type: "array",
+      minItems: 3,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    conditionNotes: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    suggestedSellingPlatform: { type: "string" },
+    additionalInformationNeeded: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
     title: { type: "string" },
     description: { type: "string" },
     itemDetails: {
@@ -389,31 +463,69 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
     return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake });
   }
 
-  return generateListingWithOpenAI({ apiKey, model, platform, notes, photos });
+  return generateListingWithResearch({ apiKey, model, platform, notes, photos });
 }
 
-async function generateListingWithOpenAI({ apiKey, model, platform, notes, photos }) {
+async function generateListingWithResearch({ apiKey, model, platform, notes, photos }) {
+  const research = await runResearchPipeline({
+    apiKey,
+    model,
+    platform,
+    notes,
+    photos,
+    buyerIntake: normalizeBuyerIntake({
+      purchase_context: "online_marketplace",
+      purchase_intent: "resale",
+      buyer_notes: notes
+    }),
+    researchPurpose: "listing"
+  });
+  const report = await generateFinalListingReport({ apiKey, model, platform, notes, research });
+
+  return enforceListingResearchHonesty(report, research, platform);
+}
+
+async function generateFinalListingReport({ apiKey, model, platform, notes, research }) {
+  const { identity, sourceRoute, searchQueries, liveSearch } = research;
+  const sourceBackedComps = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
+  const liveSearchBasis = sourceBackedComps
+    ? "Live comparable search was performed. Use only the source-backed comparable items supplied by the backend when supporting price."
+    : liveSearch.webSearchExecuted
+      ? "Live search completed, but no reliable source-backed exact or strong similar comps passed filtering. Listing price must be cautious, broad, and low-confidence."
+      : "Live search did not complete. Listing price must be cautious, broad, and low-confidence because it is not backed by live source results.";
   const userContent = [
     {
       type: "input_text",
       text: [
         `Marketplace platform: ${platform}`,
         `Seller item notes: ${notes}`,
+        `Extracted item identity: ${JSON.stringify(identity)}`,
+        `Source route: ${JSON.stringify(sourceRoute)}`,
+        `Search queries: ${JSON.stringify(searchQueries)}`,
+        `Live research result: ${JSON.stringify(liveSearch)}`,
         "",
-        "Create a practical marketplace listing. Be specific, honest, and concise.",
-        "Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify."
+        "Create an evidence-backed marketplace listing draft.",
+        "Use the extracted photo evidence, visible text, seller notes, search queries, source route, and live research result supplied by the backend.",
+        "Do not claim live sold evidence, marketplace activity, sold dates, prices, sources, demand, or search results beyond the supplied live research result.",
+        "Never describe an active asking price as a confirmed sold price.",
+        "Never fabricate sales, marketplace activity, sold dates, demand, prices, sources, URLs, or search results.",
+        "Do not invent URLs, sources, comparable items, or sold comps.",
+        "The researchResults section must use only source-backed comparable items supplied by the backend, or a clear no-usable-evidence message when none passed filtering.",
+        "The comparableQuality section must classify evidence as Strong Comparable, Partial Comparable, Identity / Reference Result, Weak Match, or Rejected Match. Weak or rejected results must not materially drive the price.",
+        "The recommendedListingPrice must distinguish asking prices, current retail pricing, reference-only results, source-backed comparable evidence, and the system's calculated estimate.",
+        "When research is weak or unavailable, lower pricingConfidence, widen the price range, state uncertainty, and request useful additional evidence.",
+        "Do not present a highly confident or precise price based only on visual opinion.",
+        "OptimizedListingTitle and title should match. ListingDescription and description should match.",
+        "ItemSpecifics and itemDetails should preserve brand, product name, series, model/item number, manufacturer/location, UPC/barcode, materials, colors, patterns, size/dimensions, piece count, packaging, condition, wear, damage, missing parts, maker marks, signatures, date/era clues, and distinctive visual features when known.",
+        "ConditionNotes should include only condition details visible in photos or provided in notes.",
+        `Research basis: ${liveSearchBasis}`
       ].join("\n")
-    },
-    ...photos.map((photo) => ({
-      type: "input_image",
-      image_url: photo.dataUrl,
-      detail: "auto"
-    }))
+    }
   ];
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON.",
+    systemText: "You are Listing Engine, a careful assistant that turns item photos, seller notes, and source-backed research into marketplace listing drafts. Return only the requested structured JSON.",
     userContent,
     schemaName: "marketplace_listing",
     schema: listingSchema
@@ -424,13 +536,38 @@ async function generateListingWithOpenAI({ apiKey, model, platform, notes, photo
 
 async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
-  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
-  const sourceRoute = routeMarketSources(identity, intake, platform);
-  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
-  const liveSearch = await executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake: intake });
+  const { identity, sourceRoute, searchQueries, liveSearch } = await runResearchPipeline({
+    apiKey,
+    model,
+    platform,
+    notes,
+    photos,
+    buyerIntake: intake,
+    researchPurpose: "buyer_decision"
+  });
   const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake });
 
   return enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform);
+}
+
+async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose }) {
+  const intake = buyerIntake || normalizeBuyerIntake({});
+  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const sourceRoute = routeMarketSources(identity, intake, platform);
+  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
+  const liveSearch = await executeLiveComparableSearch({
+    apiKey,
+    model,
+    platform,
+    notes,
+    identity,
+    sourceRoute,
+    searchQueries,
+    buyerIntake: intake,
+    researchPurpose
+  });
+
+  return { identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
 }
 
 async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
@@ -478,14 +615,18 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
   return normalizeIdentity((await requestOpenAIJson({ apiKey, payload })).json);
 }
 
-async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake }) {
+async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
+  const purposeText = researchPurpose === "listing"
+    ? "Generate Listing price-support research. The goal is to support a cautious marketplace listing price and make research evidence visible."
+    : "Worth Buying buyer-decision research. The goal is to decide whether the user should buy this item right now.";
   const userContent = [
     {
       type: "input_text",
       text: [
-        "Perform source-routed live comparable search for a buyer deciding whether to buy this item right now.",
+        "Perform source-routed live comparable search for marketplace item research.",
+        `Research purpose: ${purposeText}`,
         "You must use web search. Do not rely only on general model knowledge.",
         "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
         "Use the targeted search queries as product-focused search inputs. Do not replace them with repetitive code-only queries or platform-stuffed variants.",
@@ -493,6 +634,8 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
+        "Never describe active asking prices as confirmed sold prices.",
+        "For Generate Listing research, include source-backed comparable or reference evidence that can support a listing price, but label weak/reference-only evidence honestly.",
         "For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, eBay-style resale results, Etsy-style vintage results, Mercari-style resale results, collector/reference sources, team/school/mascot/licensee searches, and Google-style exact phrase results.",
         "Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.",
         "Do not list a source as meaningfully searched merely because a weak result appeared. Search evidence should distinguish targeted source categories, actual relevant results reviewed, rejected irrelevant sources, and reliable cited sources.",
@@ -1196,6 +1339,217 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
       includeFallbackReason
     }
   };
+}
+
+function enforceListingResearchHonesty(report, research, platform) {
+  const { identity, liveSearch } = research;
+  const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
+  const comparableItemsFound = sourceBackedCompsFound ? liveSearch.comparableItemsFound : [];
+  const { hasReliableMatch } = splitComparableItems(comparableItemsFound);
+  const reliableResearchFound = sourceBackedCompsFound && hasReliableMatch;
+  const listingBasis = reliableResearchFound
+    ? "Pricing uses source-backed live research results that passed comparable filtering."
+    : liveSearch.webSearchExecuted
+      ? "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact."
+      : "Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact.";
+  const title = cleanText(report.optimizedListingTitle || report.title || buildIdentifiedItem(identity));
+  const description = cleanText(report.listingDescription || report.description || "Description should be completed after verifying the item details and condition.");
+  const itemSpecifics = normalizeFlexibleArray(report.itemSpecifics, 10, normalizeFlexibleArray(report.itemDetails, 10, buildPhotoEvidence(identity)));
+  const conditionNotes = normalizeFlexibleArray(report.conditionNotes, 8, buildConditionNotes(identity));
+
+  return {
+    ...report,
+    platform,
+    categorySuggestion: cleanText(report.categorySuggestion || identity.category || "Uncategorized"),
+    identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
+    identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on photo evidence, visible text, seller notes, and source-routing results."),
+    evidenceFoundInPhotos: buildPhotoEvidence(identity),
+    searchQueriesUsed: buildListingSearchQueriesUsed(liveSearch),
+    sourcesSearched: buildSearchCoverage(liveSearch),
+    researchResults: buildListingResearchResults(liveSearch, comparableItemsFound),
+    comparableQuality: buildListingComparableQuality(liveSearch, comparableItemsFound),
+    recommendedListingPrice: buildListingPriceText(report.recommendedListingPrice, reliableResearchFound),
+    suggestedOfferRange: buildListingOfferRange(report.suggestedOfferRange, reliableResearchFound),
+    pricingConfidence: reliableResearchFound
+      ? ensureConfidenceLayer(report.pricingConfidence, "Medium", "Source-backed research exists, but final pricing still depends on condition, completeness, platform, and buyer demand.")
+      : forceLowConfidence(report.pricingConfidence || "Insufficient - No reliable source-backed exact or strong similar comps are available.", "Listing price support is weak because reliable live research evidence is missing."),
+    pricingRationale: ensurePrefix(report.pricingRationale, listingBasis),
+    optimizedListingTitle: title,
+    listingDescription: description,
+    itemSpecifics,
+    conditionNotes,
+    suggestedSellingPlatform: cleanText(report.suggestedSellingPlatform || platform || "Selected marketplace platform"),
+    additionalInformationNeeded: normalizeFlexibleArray(report.additionalInformationNeeded, 8, buildAdditionalInfoNeeded(identity, reliableResearchFound)),
+    title,
+    description,
+    itemDetails: normalizeFlexibleArray(report.itemDetails, 8, itemSpecifics).slice(0, 8),
+    priceStrategy: ensurePrefix(report.priceStrategy, listingBasis)
+  };
+}
+
+function buildListingSearchQueriesUsed(liveSearch) {
+  if (!liveSearch.searchQueries || !liveSearch.searchQueries.length) {
+    return [];
+  }
+
+  const lead = liveSearch.webSearchExecuted
+    ? "These are the queries the system used."
+    : "These are the queries the system attempted before live research became unavailable.";
+  return [lead, ...liveSearch.searchQueries];
+}
+
+function buildListingResearchResults(liveSearch, comparableItemsFound) {
+  if (comparableItemsFound.length) {
+    return comparableItemsFound;
+  }
+
+  if (liveSearch.webSearchExecuted) {
+    return [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      cleanText(liveSearch.noReliableMatchesReason || liveSearch.searchEvidenceSummary || "Weak, generic, conflicting, uncited, or irrelevant results were rejected and were not used as price support.")
+    ];
+  }
+
+  return [
+    `${liveSearch.liveSearchStatus}. Live comparable research was attempted but unavailable before source-backed results could be retrieved.`,
+    cleanText(liveSearch.searchEvidenceSummary || "No reliable source-backed research results are available for this listing price.")
+  ];
+}
+
+function buildListingComparableQuality(liveSearch, comparableItemsFound) {
+  if (!comparableItemsFound.length) {
+    return [
+      liveSearch.webSearchExecuted
+        ? "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+        : "Rejected Match - live research did not return source-backed comparable evidence."
+    ];
+  }
+
+  return comparableItemsFound.map((item) => {
+    if (/\bexact match\b|\blikely exact\b/i.test(item)) {
+      return `Strong Comparable - ${item}`;
+    }
+    if (/\bstrong similar match\b/i.test(item)) {
+      return `Partial Comparable - ${item}`;
+    }
+    if (/\bweak similar match\b|\bweak match\b/i.test(item)) {
+      return `Weak Match - ${item}`;
+    }
+    return `Identity / Reference Result - ${item}`;
+  });
+}
+
+function buildListingPriceText(value, reliableResearchFound) {
+  const text = cleanText(value || "Price range requires more evidence.");
+  if (reliableResearchFound) {
+    return text;
+  }
+
+  return ensurePrefix(text, "Low-confidence cautious estimate -");
+}
+
+function buildListingOfferRange(value, reliableResearchFound) {
+  const text = cleanText(value || "Offer range should stay flexible until stronger comparable evidence is available.");
+  if (reliableResearchFound) {
+    return text;
+  }
+
+  return ensurePrefix(text, "Low-confidence offer guidance -");
+}
+
+function buildIdentifiedItem(identity) {
+  return compactWords([
+    identity.brandSeries,
+    identity.brand,
+    identity.manufacturer,
+    identity.productNameOrBoxTitle,
+    identity.model,
+    identity.sku,
+    identity.category
+  ]) || cleanText(identity.likelyItemDescription || "Item identity needs verification.");
+}
+
+function buildPhotoEvidence(identity) {
+  const evidence = [];
+  const pairs = [
+    ["Brand", identity.brand],
+    ["Brand/series", identity.brandSeries],
+    ["Manufacturer", identity.manufacturer],
+    ["Manufacturer/location", identity.manufacturerLocationText],
+    ["Product or box title", identity.productNameOrBoxTitle],
+    ["Model", identity.model],
+    ["SKU/item code", identity.sku],
+    ["UPC/barcode", identity.upcBarcode],
+    ["Style/serial number", identity.styleNumber],
+    ["Material", identity.material],
+    ["Color/pattern", compactWords([identity.color, identity.pattern])],
+    ["Size/dimensions", compactWords([identity.size, identity.dimensions])],
+    ["Piece count", identity.pieceCount],
+    ["Packaging", identity.packaging],
+    ["Condition", identity.condition],
+    ["Visible price", identity.visiblePrice],
+    ["Maker marks/signature", compactWords([identity.makerMarks, identity.signatureText])],
+    ["Date/era", compactWords([identity.dateOrEraClues, identity.copyrightWording])],
+    ["Distinctive visual features", identity.distinctiveVisualDescription]
+  ];
+
+  for (const [label, value] of pairs) {
+    if (hasKnownValue(value)) {
+      evidence.push(`${label}: ${cleanText(value)}`);
+    }
+  }
+
+  for (const text of normalizeStringArray(identity.visibleText, 6)) {
+    evidence.push(`Visible text: ${text}`);
+  }
+
+  for (const conflict of normalizeStringArray(identity.identityConflictNotes, 4)) {
+    evidence.push(`Identity conflict or uncertainty: ${conflict}`);
+  }
+
+  return evidence.slice(0, 12).length ? evidence.slice(0, 12) : ["No strong visible product evidence was extracted. Add closer photos of labels, marks, tags, model numbers, or UPC/barcode details."];
+}
+
+function buildConditionNotes(identity) {
+  const notes = [];
+  for (const value of [identity.condition, identity.wearDamage, identity.missingComponentStatus, identity.packaging]) {
+    if (hasKnownValue(value)) {
+      notes.push(cleanText(value));
+    }
+  }
+  return notes.length ? notes : ["Condition should be verified from photos and in person before listing."];
+}
+
+function buildAdditionalInfoNeeded(identity, reliableResearchFound) {
+  const needed = [];
+  if (!reliableResearchFound) {
+    needed.push("Stronger source-backed comparable evidence before using a confident price.");
+  }
+
+  const checks = [
+    ["brand or manufacturer", identity.brand, identity.manufacturer],
+    ["model, SKU, item number, or UPC/barcode", identity.model, identity.sku, identity.upcBarcode],
+    ["exact condition and missing parts", identity.condition, identity.missingComponentStatus],
+    ["size, dimensions, material, or piece count", identity.size, identity.dimensions, identity.material, identity.pieceCount],
+    ["maker marks, signatures, date, or era clues", identity.makerMarks, identity.signatureText, identity.dateOrEraClues]
+  ];
+
+  for (const [label, ...values] of checks) {
+    if (!values.some(hasKnownValue)) {
+      needed.push(`Clearer ${label}.`);
+    }
+  }
+
+  return needed.slice(0, 8);
+}
+
+function normalizeFlexibleArray(value, maxItems, fallback = []) {
+  const items = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value.trim()
+      ? [value]
+      : fallback;
+  return items.map(cleanText).filter(Boolean).slice(0, maxItems);
 }
 
 function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "") {

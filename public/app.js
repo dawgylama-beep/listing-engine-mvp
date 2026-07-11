@@ -15,14 +15,28 @@ const outputTitle = document.querySelector("#output-title");
 const listingSections = [
   ["platform", "Platform"],
   ["categorySuggestion", "Category Suggestion"],
-  ["title", "Title"],
-  ["description", "Description"],
-  ["itemDetails", "Item Details"],
+  ["identifiedItem", "Identified Item"],
+  ["identificationConfidence", "Identification Confidence"],
+  ["evidenceFoundInPhotos", "Evidence Found in Photos"],
+  ["searchQueriesUsed", "Search Queries Used"],
+  ["sourcesSearched", "Sources Searched"],
+  ["researchResults", "Research Results"],
+  ["comparableQuality", "Comparable Quality"],
+  ["recommendedListingPrice", "Recommended Listing Price"],
+  ["suggestedOfferRange", "Suggested Offer Range"],
+  ["pricingConfidence", "Pricing Confidence"],
+  ["pricingRationale", "Pricing Rationale"],
+  ["optimizedListingTitle", "Optimized Listing Title"],
+  ["listingDescription", "Listing Description"],
+  ["itemSpecifics", "Item Specifics"],
+  ["conditionNotes", "Condition Notes"],
+  ["suggestedSellingPlatform", "Suggested Selling Platform"],
   ["priceStrategy", "Price Strategy"],
   ["expectedSellingTimeline", "Expected Selling Timeline"],
   ["shippingDelivery", "Shipping / Delivery"],
   ["stagingPhotos", "Staging & Photos"],
-  ["sellerNotes", "Seller Notes"]
+  ["sellerNotes", "Seller Notes"],
+  ["additionalInformationNeeded", "Additional Information Needed"]
 ];
 
 const valuationSections = [
@@ -71,7 +85,7 @@ const reportTypes = {
     eyebrow: "Generated draft",
     title: "Listing Sections",
     emptyMessage: "Your listing draft will appear here.",
-    loadingMessage: "Generating listing from photos and notes...",
+    loadingMessage: "Researching item evidence and generating listing...",
     errorMessage: "Unable to generate listing.",
     activeLabel: "Generating...",
     defaultLabel: "Generate Listing"

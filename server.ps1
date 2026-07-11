@@ -6,6 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
+$AppVersion = "1.7.2"
 
 $ListingSchema = @{
   type = "object"
@@ -13,6 +14,23 @@ $ListingSchema = @{
   required = @(
     "platform",
     "categorySuggestion",
+    "identifiedItem",
+    "identificationConfidence",
+    "evidenceFoundInPhotos",
+    "searchQueriesUsed",
+    "sourcesSearched",
+    "researchResults",
+    "comparableQuality",
+    "recommendedListingPrice",
+    "suggestedOfferRange",
+    "pricingConfidence",
+    "pricingRationale",
+    "optimizedListingTitle",
+    "listingDescription",
+    "itemSpecifics",
+    "conditionNotes",
+    "suggestedSellingPlatform",
+    "additionalInformationNeeded",
     "title",
     "description",
     "itemDetails",
@@ -25,6 +43,63 @@ $ListingSchema = @{
   properties = @{
     platform = @{ type = "string" }
     categorySuggestion = @{ type = "string" }
+    identifiedItem = @{ type = "string" }
+    identificationConfidence = @{ type = "string" }
+    evidenceFoundInPhotos = @{
+      type = "array"
+      minItems = 1
+      maxItems = 12
+      items = @{ type = "string" }
+    }
+    searchQueriesUsed = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    sourcesSearched = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    researchResults = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    comparableQuality = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    recommendedListingPrice = @{ type = "string" }
+    suggestedOfferRange = @{ type = "string" }
+    pricingConfidence = @{ type = "string" }
+    pricingRationale = @{ type = "string" }
+    optimizedListingTitle = @{ type = "string" }
+    listingDescription = @{ type = "string" }
+    itemSpecifics = @{
+      type = "array"
+      minItems = 3
+      maxItems = 10
+      items = @{ type = "string" }
+    }
+    conditionNotes = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    suggestedSellingPlatform = @{ type = "string" }
+    additionalInformationNeeded = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
     title = @{ type = "string" }
     description = @{ type = "string" }
     itemDetails = @{
@@ -436,9 +511,25 @@ If a platform is selected, include platform-specific observations while still pr
   } else {
     $Schema = $ListingSchema
     $SchemaName = "marketplace_listing"
+    $UseWebSearch = $true
     $SystemText = "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
     $TaskText = @"
-Create a practical marketplace listing. Be specific, honest, and concise.
+Create an evidence-backed marketplace listing draft. Be specific, honest, and concise.
+You must use the web_search tool for item research before recommending a listing price.
+Analyze all uploaded photos, extract visible product evidence, combine photo evidence with seller notes, identify the strongest probable item identity, build targeted searches, route sources by item type, evaluate comparable quality, and only then recommend a listing price.
+Preserve visible clues including brand, product name, series, model number, item number, manufacturer, manufacturer location, front-box wording, back-label wording, UPC/barcode, serial numbers, visible price stickers, materials, colors, patterns, dimensions, piece count, packaging, condition, wear, damage, missing parts, maker marks, signatures, date or era clues, and distinctive visual features.
+Do not treat typed notes as more authoritative than photo evidence.
+Use progressive fallback searches: exact identity query, strong attribute combination, broader category query, and reference or collector query where appropriate.
+Do not route every item through the same generic source mix. Use sources relevant to current retail products, used resale, vintage, antiques, collectibles, handmade goods, holiday decor, electronics, tools, furniture, household goods, reference results, or manufacturer results.
+Classify research evidence as Strong Comparable, Partial Comparable, Identity / Reference Result, Weak Match, or Rejected Match.
+Weak or rejected matches must not materially drive recommendedListingPrice.
+Never describe active asking prices as confirmed sold prices.
+Never fabricate sales, marketplace activity, sold dates, demand, prices, sources, URLs, or search results.
+When research is weak or unavailable, lower pricingConfidence, widen the price range, state uncertainty, and request useful additional evidence.
+Do not present a highly confident or precise price based only on visual opinion.
+The researchResults section must show source-backed results when they exist, or clearly say no usable source-backed research was found.
+The searchQueriesUsed and sourcesSearched sections must show what the system searched or attempted.
+OptimizedListingTitle and title should match. ListingDescription and description should match.
 Do not claim unseen condition details. If something is uncertain from the photos or notes, say what the seller should verify.
 "@
   }
@@ -556,6 +647,58 @@ $TaskText
 
   if ($ReportType -eq "marketValue") {
     return Set-LiveSearchHonesty -Report $Report -Response $Response -BuyerIntake $BuyerIntake -Platform $Platform
+  }
+
+  return Set-ListingResearchHonesty -Report $Report -Response $Response -Platform $Platform
+}
+
+function Set-ListingResearchHonesty {
+  param(
+    $Report,
+    $Response,
+    [string]$Platform
+  )
+
+  $SearchCalls = @(Get-WebSearchCalls $Response)
+  $Citations = @(Get-UrlCitations $Response)
+  $SourceBackedResults = @(
+    Normalize-ReportArray $Report.researchResults |
+      Where-Object { Test-CitedUrl $_ $Citations }
+  )
+
+  if ($SearchCalls.Count -gt 0 -and $SourceBackedResults.Count -gt 0) {
+    $Status = "Live Search Completed - Source-Backed Comps Found"
+    $Basis = "Pricing uses source-backed live research results that passed comparable filtering."
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @($SourceBackedResults) -Force
+    if (-not (Normalize-ReportArray $Report.comparableQuality).Count) {
+      $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Strong Comparable - source-backed research results were returned; verify exact match quality before pricing confidently.") -Force
+    }
+    $Report | Add-Member -NotePropertyName "pricingConfidence" -NotePropertyValue (Ensure-ConfidenceLayer $Report.pricingConfidence "Medium" "Source-backed research exists, but final pricing still depends on condition, completeness, platform, and buyer demand.") -Force
+  } elseif ($SearchCalls.Count -gt 0) {
+    $Status = "Live Search Completed - No Reliable Comps Found"
+    $Basis = "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact."
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @("Live research completed, but no source-backed exact or strong similar comparables passed filtering.") -Force
+    $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Rejected Match - no returned result had enough cited, relevant evidence to drive listing price.") -Force
+    $Report | Add-Member -NotePropertyName "pricingConfidence" -NotePropertyValue (Force-LowConfidence $Report.pricingConfidence "Listing price support is weak because reliable live research evidence is missing.") -Force
+  } else {
+    $Status = "Live Search Unavailable - AI Reasoning Only"
+    $Basis = "Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact."
+    $Report | Add-Member -NotePropertyName "researchResults" -NotePropertyValue @("Live comparable research was attempted but unavailable before source-backed results could be retrieved.") -Force
+    $Report | Add-Member -NotePropertyName "comparableQuality" -NotePropertyValue @("Rejected Match - live research did not return source-backed comparable evidence.") -Force
+    $Report | Add-Member -NotePropertyName "pricingConfidence" -NotePropertyValue (Force-LowConfidence $Report.pricingConfidence "Listing price support is weak because live research did not complete.") -Force
+  }
+
+  $QueriesUsed = @(Get-SearchQueriesUsed $Response)
+  if ($QueriesUsed.Count -gt 0) {
+    $Report | Add-Member -NotePropertyName "searchQueriesUsed" -NotePropertyValue $QueriesUsed -Force
+  }
+
+  $Report | Add-Member -NotePropertyName "sourcesSearched" -NotePropertyValue @(Get-SearchCoverage $Report $Status) -Force
+  $Report | Add-Member -NotePropertyName "pricingRationale" -NotePropertyValue (Ensure-Prefix $Report.pricingRationale $Basis) -Force
+  $Report | Add-Member -NotePropertyName "priceStrategy" -NotePropertyValue (Ensure-Prefix $Report.priceStrategy $Basis) -Force
+
+  if (-not (Clean-Text $Report.suggestedSellingPlatform)) {
+    $Report | Add-Member -NotePropertyName "suggestedSellingPlatform" -NotePropertyValue $Platform -Force
   }
 
   return $Report
@@ -2434,14 +2577,14 @@ if ($env:PORT) {
 }
 
 if ($Check) {
-  Write-Host "Marketplace Edge server syntax OK"
+  Write-Host "Marketplace Edge server syntax OK - Version $AppVersion"
   exit 0
 }
 
 $TcpListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), $Port)
 $TcpListener.Start()
 
-Write-Host "Marketplace Edge running at http://localhost:$Port/"
+Write-Host "Marketplace Edge Version $AppVersion running at http://localhost:$Port/"
 Write-Host "Press Ctrl+C to stop."
 
 try {
