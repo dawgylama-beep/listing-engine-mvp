@@ -4,10 +4,20 @@ const photosInput = document.querySelector("#photos");
 const preview = document.querySelector("#photo-preview");
 const statusBox = document.querySelector("#status");
 const results = document.querySelector("#results");
-const generateButton = document.querySelector("#generate-button");
-const marketValueButton = document.querySelector("#market-value-button");
-const buttonLabel = document.querySelector("#button-label");
-const marketValueLabel = document.querySelector("#market-value-label");
+const workflowInputs = Array.from(document.querySelectorAll('input[name="workflow_mode"]'));
+const workflowHelper = document.querySelector("#workflow-helper");
+const workflowSubmitButton = document.querySelector("#workflow-submit-button");
+const workflowSubmitLabel = document.querySelector("#workflow-submit-label");
+const platformField = document.querySelector("#platform-field");
+const platformInput = document.querySelector("#platform");
+const platformNote = document.querySelector("#platform-note");
+const buyerIntakeSection = document.querySelector("#buyer-intake-section");
+const buyerIntakeTitle = document.querySelector("#buyer-intake-title");
+const purchaseIntentControl = document.querySelector("#purchase-intent-control");
+const purchaseIntentInput = document.querySelector("#purchase_intent");
+const askingPriceInput = document.querySelector("#asking_price");
+const notesInput = document.querySelector("#notes");
+const notesNote = document.querySelector("#notes-note");
 const copyAllButton = document.querySelector("#copy-all");
 const outputEyebrow = document.querySelector("#output-eyebrow");
 const outputTitle = document.querySelector("#output-title");
@@ -126,12 +136,97 @@ const reportTypes = {
   }
 };
 
+const workflowConfigs = {
+  personal_use: {
+    ...reportTypes.marketValue,
+    workflow: "personal_use",
+    purchaseIntent: "personal_use",
+    sections: consumerSections,
+    eyebrow: "Personal-use buying decision",
+    title: "Buying for Myself",
+    emptyMessage: "Your personal-use buying recommendation will appear here.",
+    loadingMessage: "Searching comparable items for personal-use value...",
+    activeLabel: "Analyzing...",
+    defaultLabel: "Analyze Personal Buy",
+    workflowHelper: "Use this when you want to know if the item is fairly priced for you.",
+    platformNote: "Optional. Leave blank unless a marketplace context matters.",
+    notesNote: "Optional. Add flaws, label wording, seller comments, measurements, or personal-use concerns.",
+    buyerTitle: "Personal Buying Intake",
+    showPlatform: false,
+    showBuyerIntake: true,
+    platformRequired: false,
+    notesRequired: false,
+    askingPriceRequired: false
+  },
+  resale: {
+    ...reportTypes.marketValue,
+    workflow: "resale",
+    purchaseIntent: "resale",
+    eyebrow: "Resale buying decision",
+    title: "Buying to Resell",
+    emptyMessage: "Your resale buying analysis will appear here.",
+    loadingMessage: "Searching comparable items for resale potential...",
+    activeLabel: "Analyzing...",
+    defaultLabel: "Analyze Resale Buy",
+    workflowHelper: "Use this when you want margin, resale platform fit, risk, and profit guidance.",
+    platformNote: "Optional. Select where you may resell if you already know the target platform.",
+    notesNote: "Optional. Add flaws, seller comments, transport costs, shipping issues, or resale concerns.",
+    buyerTitle: "Resale Buying Intake",
+    showPlatform: true,
+    showBuyerIntake: true,
+    platformRequired: false,
+    notesRequired: false,
+    askingPriceRequired: false
+  },
+  market_value: {
+    ...reportTypes.marketValue,
+    workflow: "market_value",
+    purchaseIntent: "",
+    eyebrow: "Market value check",
+    title: "Check Market Value",
+    emptyMessage: "Your general market value report will appear here.",
+    loadingMessage: "Searching comparable items for market value...",
+    activeLabel: "Checking...",
+    defaultLabel: "Check Market Value",
+    workflowHelper: "Use this for a general value read when you are not choosing personal-use or resale logic yet.",
+    platformNote: "Optional. Leave blank for broad market logic.",
+    notesNote: "Optional. Add any item details, labels, flaws, measurements, or seller comments.",
+    buyerTitle: "Market Value Intake",
+    showPlatform: true,
+    showBuyerIntake: true,
+    platformRequired: false,
+    notesRequired: false,
+    askingPriceRequired: false
+  },
+  listing: {
+    ...reportTypes.listing,
+    workflow: "listing",
+    purchaseIntent: "",
+    workflowHelper: "Use this after you have the item and want a seller-ready marketplace listing.",
+    platformNote: "Required for Generate Listing.",
+    notesNote: "Required for Generate Listing. Add condition, flaws, measurements, and anything the buyer should know.",
+    showPlatform: true,
+    showBuyerIntake: false,
+    platformRequired: true,
+    notesRequired: true,
+    askingPriceRequired: false
+  }
+};
+
+const defaultWorkflow = "personal_use";
+
 let latestReport = null;
-let latestSections = listingSections;
+let latestSections = workflowConfigs[defaultWorkflow].sections;
 let cameraPhotoFiles = [];
+let currentWorkflow = defaultWorkflow;
+let activeRequestId = 0;
+let activeRequestController = null;
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", renderPhotoPreview);
+workflowInputs.forEach((input) => input.addEventListener("change", () => {
+  applyWorkflowState({ clearOutput: true, abortRequests: true });
+}));
 form.addEventListener("submit", handleSubmit);
 copyAllButton.addEventListener("click", () => {
   if (!latestReport) {
@@ -140,6 +235,11 @@ copyAllButton.addEventListener("click", () => {
 
   copyText(formatReport(latestReport, latestSections), copyAllButton);
 });
+window.addEventListener("pageshow", () => {
+  applyWorkflowState({ clearOutput: true, abortRequests: true });
+});
+
+applyWorkflowState({ clearOutput: true, abortRequests: false });
 
 function handleCameraPhotoChange() {
   const files = Array.from(cameraInput.files || []);
@@ -169,52 +269,46 @@ function renderPhotoPreview() {
 async function handleSubmit(event) {
   event.preventDefault();
 
-  const mode = event.submitter && event.submitter.dataset.action === "marketValue" ? "marketValue" : "listing";
-  const config = reportTypes[mode];
+  const workflow = getSelectedWorkflow();
+  const config = workflowConfigs[workflow];
+  syncWorkflowFormState(config);
   const formData = new FormData(form);
   const platform = String(formData.get("platform") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
 
-  if (mode === "listing" && !platform) {
-    latestReport = null;
-    latestSections = config.sections;
-    copyAllButton.disabled = true;
-    setOutputHeading(config);
-    renderEmpty(config);
+  if (config.platformRequired && !platform) {
+    clearWorkflowOutput(config);
     setStatus("Choose a marketplace platform before generating a listing.", "error");
     return;
   }
 
-  if (mode === "listing" && !notes) {
-    latestReport = null;
-    latestSections = config.sections;
-    copyAllButton.disabled = true;
-    setOutputHeading(config);
-    renderEmpty(config);
+  if (config.notesRequired && !notes) {
+    clearWorkflowOutput(config);
     setStatus("Add item notes before generating a listing.", "error");
     return;
   }
 
   const selectedPhotoFiles = getSelectedPhotoFiles();
   if (!selectedPhotoFiles.length) {
-    latestReport = null;
-    latestSections = config.sections;
-    copyAllButton.disabled = true;
-    setOutputHeading(config);
-    renderEmpty(config);
+    clearWorkflowOutput(config);
     setStatus("Take or upload at least one item photo before continuing.", "error");
     return;
   }
 
   latestReport = null;
   latestSections = config.sections;
-  copyAllButton.disabled = true;
+  resetCopyAllButton();
   setOutputHeading(config);
-  setLoading(true, mode);
+  const request = startWorkflowRequest(workflow);
+  setLoading(true, workflow);
   setStatus(config.loadingMessage, "loading");
 
   try {
     const photos = await preparePhotos(selectedPhotoFiles);
+    if (!isCurrentRequest(request.id, workflow)) {
+      return;
+    }
+
     const requestBody = {
       platform,
       notes,
@@ -222,8 +316,11 @@ async function handleSubmit(event) {
       reportType: config.reportType
     };
 
-    if (mode === "marketValue") {
-      requestBody.buyerIntake = getBuyerIntake(formData, notes);
+    if (config.reportType === "marketValue") {
+      requestBody.buyerIntake = {
+        ...getBuyerIntake(formData, notes),
+        purchase_intent: config.purchaseIntent
+      };
     }
 
     const response = await fetch("/api/generate-listing", {
@@ -231,8 +328,13 @@ async function handleSubmit(event) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      signal: request.controller.signal
     });
+
+    if (!isCurrentRequest(request.id, workflow)) {
+      return;
+    }
 
     const data = await response.json();
     if (!response.ok) {
@@ -252,11 +354,119 @@ async function handleSubmit(event) {
     clearStatus();
     copyAllButton.disabled = false;
   } catch (error) {
+    if (error.name === "AbortError" || !isCurrentRequest(request.id, workflow)) {
+      return;
+    }
+
     renderEmpty(config);
     setStatus(error.message || config.errorMessage, "error");
   } finally {
-    setLoading(false, mode);
+    if (isCurrentRequest(request.id, workflow)) {
+      activeRequestController = null;
+      setLoading(false, workflow);
+    }
   }
+}
+
+function getSelectedWorkflow() {
+  const selected = workflowInputs.find((input) => input.checked);
+  return selected && workflowConfigs[selected.value] ? selected.value : defaultWorkflow;
+}
+
+function applyWorkflowState({ clearOutput = false, abortRequests = false } = {}) {
+  const workflow = getSelectedWorkflow();
+  const config = workflowConfigs[workflow] || workflowConfigs[defaultWorkflow];
+  currentWorkflow = workflow;
+
+  if (abortRequests) {
+    abortActiveRequest();
+  }
+
+  syncWorkflowFormState(config);
+  setOutputHeading(config);
+  setLoading(false, workflow);
+
+  if (clearOutput) {
+    clearWorkflowOutput(config);
+  }
+}
+
+function syncWorkflowFormState(config) {
+  form.dataset.workflow = config.workflow;
+  workflowHelper.textContent = config.workflowHelper;
+  platformNote.textContent = config.platformNote;
+  notesNote.textContent = config.notesNote;
+  platformInput.required = Boolean(config.platformRequired);
+  notesInput.required = Boolean(config.notesRequired);
+  askingPriceInput.required = Boolean(config.askingPriceRequired);
+  purchaseIntentInput.value = config.purchaseIntent;
+
+  setWorkflowSectionState(platformField, {
+    visible: config.showPlatform,
+    disabled: !config.showPlatform
+  });
+  setWorkflowSectionState(buyerIntakeSection, {
+    visible: config.showBuyerIntake,
+    disabled: !config.showBuyerIntake
+  });
+  setWorkflowSectionState(purchaseIntentControl, {
+    visible: false,
+    disabled: true
+  });
+
+  if (config.showBuyerIntake) {
+    buyerIntakeTitle.textContent = config.buyerTitle;
+  }
+}
+
+function setWorkflowSectionState(element, { visible, disabled }) {
+  element.hidden = !visible;
+  element.setAttribute("aria-hidden", visible ? "false" : "true");
+  const controls = element.querySelectorAll("input, select, textarea, button");
+
+  for (const control of controls) {
+    control.disabled = Boolean(disabled);
+    if (disabled) {
+      control.required = false;
+    }
+  }
+}
+
+function clearWorkflowOutput(config) {
+  latestReport = null;
+  latestSections = config.sections;
+  resetCopyAllButton();
+  clearStatus();
+  setOutputHeading(config);
+  renderEmpty(config);
+}
+
+function resetCopyAllButton() {
+  copyAllButton.disabled = true;
+  copyAllButton.textContent = "Copy All";
+}
+
+function startWorkflowRequest(workflow) {
+  abortActiveRequest();
+  const controller = new AbortController();
+  activeRequestId += 1;
+  activeRequestController = controller;
+  return {
+    id: activeRequestId,
+    controller
+  };
+}
+
+function abortActiveRequest() {
+  activeRequestId += 1;
+  if (activeRequestController) {
+    activeRequestController.abort();
+    activeRequestController = null;
+  }
+}
+
+function isCurrentRequest(requestId, workflow) {
+  return requestId === activeRequestId && workflow === currentWorkflow;
 }
 
 function getBuyerIntake(formData, notes) {
@@ -516,7 +726,7 @@ function renderRiskScore(report) {
   return wrapper;
 }
 
-function renderEmpty(config = reportTypes.listing) {
+function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   latestReport = null;
   copyAllButton.disabled = true;
   results.className = "results empty-state";
@@ -528,11 +738,10 @@ function setOutputHeading(config) {
   outputTitle.textContent = config.title;
 }
 
-function setLoading(isLoading, mode) {
-  generateButton.disabled = isLoading;
-  marketValueButton.disabled = isLoading;
-  buttonLabel.textContent = isLoading && mode === "listing" ? reportTypes.listing.activeLabel : reportTypes.listing.defaultLabel;
-  marketValueLabel.textContent = isLoading && mode === "marketValue" ? reportTypes.marketValue.activeLabel : reportTypes.marketValue.defaultLabel;
+function setLoading(isLoading, workflow = currentWorkflow) {
+  const config = workflowConfigs[workflow] || workflowConfigs[defaultWorkflow];
+  workflowSubmitButton.disabled = isLoading;
+  workflowSubmitLabel.textContent = isLoading ? config.activeLabel : config.defaultLabel;
 }
 
 function setStatus(message, type) {

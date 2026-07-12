@@ -13,7 +13,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.8.0</p>
+            <p class="version-badge">Version 1.8.1</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -193,7 +193,42 @@
               <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
             </div>
 
-            <div class="field">
+            <fieldset id="workflow-field" class="field workflow-field">
+              <legend>What do you want to do?</legend>
+              <div class="workflow-options" role="radiogroup" aria-label="Workflow">
+                <label class="workflow-option">
+                  <input type="radio" name="workflow_mode" value="personal_use" checked>
+                  <span>
+                    <strong>Buying for Myself</strong>
+                    <small>Fair price, value rating, offer, and walk-away guidance</small>
+                  </span>
+                </label>
+                <label class="workflow-option">
+                  <input type="radio" name="workflow_mode" value="resale">
+                  <span>
+                    <strong>Buying to Resell</strong>
+                    <small>Margin, resale price, platform fit, risk, and profit logic</small>
+                  </span>
+                </label>
+                <label class="workflow-option">
+                  <input type="radio" name="workflow_mode" value="market_value">
+                  <span>
+                    <strong>Check Market Value</strong>
+                    <small>General value check when you are not ready to choose a buying purpose</small>
+                  </span>
+                </label>
+                <label class="workflow-option">
+                  <input type="radio" name="workflow_mode" value="listing">
+                  <span>
+                    <strong>Generate Listing</strong>
+                    <small>Create a seller-ready marketplace listing after you have the item</small>
+                  </span>
+                </label>
+              </div>
+              <p id="workflow-helper" class="field-note">Start with Buying for Myself to decide whether this is a fair personal-use purchase.</p>
+            </fieldset>
+
+            <div id="platform-field" class="field">
               <label for="platform">Marketplace platform</label>
               <select id="platform" name="platform">
                 <option value="">Select a platform</option>
@@ -205,10 +240,10 @@
                 <option>Craigslist</option>
                 <option>OfferUp</option>
               </select>
-              <p class="field-note">Required for Generate Listing. Optional for Worth Buying?</p>
+              <p id="platform-note" class="field-note">Optional for buyer workflows. Required for Generate Listing.</p>
             </div>
 
-            <section class="field buyer-intake" aria-labelledby="buyer-intake-title">
+            <section id="buyer-intake-section" class="field buyer-intake" aria-labelledby="buyer-intake-title">
               <div class="field-heading">
                 <div>
                   <p class="mini-eyebrow">Worth Buying?</p>
@@ -242,7 +277,7 @@
                   <input id="asking_price" name="asking_price" type="text" inputmode="decimal" placeholder="Seller/store price, e.g. $65 firm">
                 </div>
 
-                <div class="field-control">
+                <div id="purchase-intent-control" class="field-control">
                   <label for="purchase_intent">Buying for</label>
                   <select id="purchase_intent" name="purchase_intent">
                     <option value="">Select one</option>
@@ -339,15 +374,12 @@
             <div class="field">
               <label for="notes">Item notes</label>
               <textarea id="notes" name="notes" rows="8" placeholder="Extra context, label wording, flaws, measurements, seller comments, or anything else you want the app to consider..."></textarea>
-              <p class="field-note">Optional for Worth Buying?. Required for Generate Listing.</p>
+              <p id="notes-note" class="field-note">Optional for buyer workflows. Required for Generate Listing.</p>
             </div>
 
             <div class="action-row">
-              <button id="generate-button" class="primary-button" type="submit" data-action="listing">
-                <span id="button-label">Generate Listing</span>
-              </button>
-              <button id="market-value-button" class="value-button" type="submit" data-action="marketValue">
-                <span id="market-value-label">Worth Buying?</span>
+              <button id="workflow-submit-button" class="primary-button" type="submit">
+                <span id="workflow-submit-label">Analyze Personal Buy</span>
               </button>
             </div>
           </form>
@@ -356,15 +388,15 @@
         <div class="panel output-panel">
           <div class="output-heading">
             <div>
-              <p id="output-eyebrow" class="eyebrow">Generated draft</p>
-              <h2 id="output-title">Listing Sections</h2>
+              <p id="output-eyebrow" class="eyebrow">Personal-use buying decision</p>
+              <h2 id="output-title">Buying for Myself</h2>
             </div>
             <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
           </div>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
-            <p>Your listing draft will appear here.</p>
+            <p>Your personal-use buying recommendation will appear here.</p>
           </div>
         </div>
       </section>

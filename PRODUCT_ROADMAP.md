@@ -139,6 +139,13 @@
 - Personal-use reports display a prominent summary card with value rating, recommendation, asking price, estimated fair value, recommended offer, and pricing confidence
 - Market Edge now supports personal-use buying, resale buying, and selling from the same shared research foundation
 
+## Version 1.8.1 (Completed)
+- Dynamic workflow state repaired for Buying for Myself, Buying to Resell, Check Market Value, and Generate Listing
+- Workflow changes now immediately update visible controls, helper text, required fields, output headings, submit labels, and empty states
+- Previous workflow results, copy-button state, validation messages, and loading state are cleared when switching modes
+- In-flight requests are cancelled or ignored if the user switches workflows before the response returns
+- Generate Listing platform validation now becomes required immediately when that workflow is selected and optional again when leaving it
+
 ## Version 2.0
 - User accounts
 - Saved listings
