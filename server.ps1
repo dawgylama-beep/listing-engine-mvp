@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.8.1"
+$AppVersion = "1.8.2"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -392,6 +392,68 @@ $ConsumerDecisionSchema = @{
   }
 }
 
+$AskMarketEdgeSchema = @{
+  type = "object"
+  additionalProperties = $false
+  required = @(
+    "answer",
+    "answerType",
+    "evidenceBasis",
+    "assumptions",
+    "recalculatedFields",
+    "confidence",
+    "recommendedNextAction",
+    "needsNewSearch",
+    "needsAdditionalPhoto",
+    "suggestedPhoto",
+    "revisedListingFields",
+    "updatedScenario"
+  )
+  properties = @{
+    answer = @{ type = "string" }
+    answerType = @{
+      type = "string"
+      enum = @("explanation", "price_scenario", "condition_scenario", "research_question", "evidence_request", "listing_revision", "platform_guidance", "unsupported_or_unrelated")
+    }
+    evidenceBasis = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    assumptions = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    recalculatedFields = @{
+      type = "array"
+      minItems = 0
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    confidence = @{ type = "string" }
+    recommendedNextAction = @{ type = "string" }
+    needsNewSearch = @{ type = "boolean" }
+    needsAdditionalPhoto = @{ type = "boolean" }
+    suggestedPhoto = @{ type = "string" }
+    revisedListingFields = @{
+      type = "object"
+      additionalProperties = $false
+      required = @("title", "description", "priceStrategy", "conditionNotes", "sellerNotes")
+      properties = @{
+        title = @{ type = "string" }
+        description = @{ type = "string" }
+        priceStrategy = @{ type = "string" }
+        conditionNotes = @{ type = "string" }
+        sellerNotes = @{ type = "string" }
+      }
+    }
+    updatedScenario = @{ type = "string" }
+  }
+}
+
 function Handle-Client {
   param([System.Net.Sockets.TcpClient]$Client)
 
@@ -445,6 +507,12 @@ function Handle-GenerateListing {
     $Body = $Request.Body | ConvertFrom-Json
   } catch {
     Send-Json $Stream 400 @{ error = "Request body must be valid JSON." }
+    return
+  }
+
+  $Action = Clean-Text $Body.action
+  if ($Action -eq "ask_market_edge") {
+    Handle-AskMarketEdge $Stream $Body
     return
   }
 
@@ -526,6 +594,322 @@ function Handle-GenerateListing {
     }
   } catch {
     Send-Json $Stream 502 @{ error = $_.Exception.Message }
+  }
+}
+
+function Handle-AskMarketEdge {
+  param(
+    [System.Net.Sockets.NetworkStream]$Stream,
+    $Body
+  )
+
+  $BodyJson = $Body | ConvertTo-Json -Depth 60 -Compress
+  if ($BodyJson.Length -gt 180000) {
+    Send-Json $Stream 413 @{ error = "Ask Market Edge context is too large. Start a new item and try again." }
+    return
+  }
+
+  $SessionId = (Clean-Text $Body.sessionId)
+  $Workflow = Normalize-AskWorkflow $Body.workflow
+  $BuyerIntent = Clean-Text $Body.buyerIntent
+  $Question = Clean-Text $Body.question
+  $Context = $Body.currentItemContext
+  $RecentConversation = @()
+  if ($null -ne $Body.recentConversationContext) {
+    if ($Body.recentConversationContext -is [array]) {
+      $RecentConversation = @($Body.recentConversationContext | Select-Object -Last 4)
+    } else {
+      $RecentConversation = @($Body.recentConversationContext)
+    }
+  }
+
+  if (-not $SessionId) {
+    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a current item session." }
+    return
+  }
+
+  if (-not $Workflow) {
+    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a valid workflow." }
+    return
+  }
+
+  if (-not $Question) {
+    Send-Json $Stream 400 @{ error = "Enter a question about the current item." }
+    return
+  }
+
+  if ($null -eq $Context -or $null -eq $Context.currentReport) {
+    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a completed item report first." }
+    return
+  }
+
+  $ApiKey = $env:OPENAI_API_KEY
+  if (-not $ApiKey) {
+    $ApiKey = $env:OPEN_API_KEY
+  }
+
+  if (-not $ApiKey) {
+    Send-Json $Stream 500 @{ error = "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env." }
+    return
+  }
+
+  $Model = "gpt-4.1-mini"
+  if ($env:OPENAI_MODEL) {
+    $Model = $env:OPENAI_MODEL
+  }
+
+  try {
+    $AnswerType = Classify-AskQuestion $Question
+    $ProposedPrice = Get-AskProposedPrice $Question
+    $Scenario = Get-AskScenario -AnswerType $AnswerType -ProposedPrice $ProposedPrice -Workflow $Workflow -BuyerIntent $BuyerIntent -Context $Context
+    $Answer = Invoke-AskMarketEdge -ApiKey $ApiKey -Model $Model -SessionId $SessionId -Workflow $Workflow -BuyerIntent $BuyerIntent -Question $Question -AnswerType $AnswerType -ProposedPrice $ProposedPrice -Scenario $Scenario -Context $Context -RecentConversation $RecentConversation
+    $Normalized = Normalize-AskMarketEdgeAnswer -Answer $Answer -AnswerType $AnswerType -Scenario $Scenario
+    Send-Json $Stream 200 @{
+      action = "ask_market_edge"
+      sessionId = $SessionId
+      workflow = $Workflow
+      answer = $Normalized
+    }
+  } catch {
+    Send-Json $Stream 502 @{ error = $_.Exception.Message }
+  }
+}
+
+function Invoke-AskMarketEdge {
+  param(
+    [string]$ApiKey,
+    [string]$Model,
+    [string]$SessionId,
+    [string]$Workflow,
+    [string]$BuyerIntent,
+    [string]$Question,
+    [string]$AnswerType,
+    $ProposedPrice,
+    [string]$Scenario,
+    $Context,
+    $RecentConversation
+  )
+
+  $WorkflowInstruction = @{
+    personal_use = "Active workflow is Buying for Myself. Use personal-use value, offer, fair-price, condition-risk, fit, and walk-away logic. Do not use reseller margin logic."
+    resale = "Active workflow is Buying to Resell. Use resale margin, fees, shipping or transport, liquidity, max-buy-price, risk, and likely net-profit logic."
+    market_value = "Active workflow is Check Market Value. Explain value estimate, confidence, research quality, and what evidence would improve confidence."
+    listing = "Active workflow is Generate Listing. Help revise listing copy, platform fit, title, description, price strategy, condition disclosure, and seller notes without inventing facts."
+  }[$Workflow]
+  $PriceText = "No scenario price was parsed by the app."
+  if ($null -ne $ProposedPrice) {
+    $PriceText = "Proposed scenario price parsed by the app: $(Format-Money $ProposedPrice)."
+  }
+  $ScenarioText = "No deterministic scenario notes were available."
+  if ($Scenario) {
+    $ScenarioText = "Deterministic scenario notes: $Scenario"
+  }
+  $ContextJson = $Context | ConvertTo-Json -Depth 50 -Compress
+  $ConversationJson = $RecentConversation | ConvertTo-Json -Depth 20 -Compress
+  $Instruction = @"
+Answer a follow-up question about the current Marketplace Edge item session only.
+Do not behave like a generic chatbot. Use the supplied currentItemContext and recentConversationContext.
+No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.
+Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.
+Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.
+If the question asks for fresh evidence that is not in the current report, say the current evidence is insufficient and set needsNewSearch true.
+If the question gives new condition information, label it user-provided and not photo-verified unless current evidence already supports it.
+If asked for a better photo, recommend one most useful next photo only.
+If revising a listing, preserve verified facts, condition disclosures, pricing honesty, and uncertainty.
+If this is a price scenario, reuse the existing evidence only and explain that the research evidence has not changed.
+$WorkflowInstruction
+Controlled question route: $AnswerType.
+$PriceText
+$ScenarioText
+Session ID: $SessionId.
+"@
+
+  $Payload = @{
+    model = $Model
+    input = @(
+      @{
+        role = "system"
+        content = @(
+          @{
+            type = "input_text"
+            text = "You are Ask Market Edge, a context-aware item and report follow-up assistant. You answer only from the current item session and return structured JSON."
+          }
+        )
+      },
+      @{
+        role = "user"
+        content = @(
+          @{
+            type = "input_text"
+            text = @"
+Question: $Question
+
+Current item context:
+$ContextJson
+
+Recent conversation context:
+$ConversationJson
+
+$Instruction
+"@
+          }
+        )
+      }
+    )
+    text = @{
+      format = @{
+        type = "json_schema"
+        name = "ask_market_edge_answer"
+        schema = $AskMarketEdgeSchema
+        strict = $true
+      }
+    }
+  }
+
+  try {
+    $Response = Invoke-RestMethod `
+      -Uri "https://api.openai.com/v1/responses" `
+      -Method Post `
+      -Headers @{ Authorization = "Bearer $ApiKey" } `
+      -ContentType "application/json" `
+      -Body ($Payload | ConvertTo-Json -Depth 80 -Compress) `
+      -TimeoutSec 90
+  } catch {
+    throw (Get-OpenAIErrorMessage $_)
+  }
+
+  $OutputText = Extract-OutputText $Response
+  if (-not $OutputText) {
+    throw "OpenAI returned an empty Ask Market Edge response."
+  }
+
+  try {
+    return ($OutputText | ConvertFrom-Json)
+  } catch {
+    throw "OpenAI returned a response that was not valid Ask Market Edge JSON."
+  }
+}
+
+function Normalize-AskWorkflow {
+  param($Value)
+
+  $Text = Clean-Text $Value
+  if (@("personal_use", "resale", "market_value", "listing") -contains $Text) {
+    return $Text
+  }
+  return ""
+}
+
+function Classify-AskQuestion {
+  param([string]$Question)
+
+  $Text = (Clean-Text $Question).ToLowerInvariant()
+  if ($Text -match '\b(price|worth|offer|pay|deal|margin|profit|net|maximum|max|walk[- ]?away)\b|\$\s*\d') { return "price_scenario" }
+  if ($Text -match '\b(damage|damaged|condition|missing|included|box|crack|chip|stain|works|working|untested|part)\b') { return "condition_scenario" }
+  if ($Text -match '\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why)\b') { return "research_question" }
+  if ($Text -match '\b(photo|picture|label|barcode|serial|model|mark|measure|measurement|verify|check)\b') { return "evidence_request" }
+  if ($Text -match '\b(rewrite|title|description|shorter|listing|facebook|ebay|mercari|etsy|poshmark|disclosure)\b') { return "listing_revision" }
+  if ($Text -match '\b(platform|sell|local|pickup|ship|shipping|where)\b') { return "platform_guidance" }
+  if ($Text -match '\b(why|explain|rating|recommendation)\b') { return "explanation" }
+  return "unsupported_or_unrelated"
+}
+
+function Get-AskProposedPrice {
+  param([string]$Question)
+
+  $Amounts = @(Get-MoneyAmounts $Question)
+  if ($Amounts.Count -gt 0) {
+    return [double]$Amounts[0]
+  }
+  return $null
+}
+
+function Get-AskScenario {
+  param(
+    [string]$AnswerType,
+    $ProposedPrice,
+    [string]$Workflow,
+    [string]$BuyerIntent,
+    $Context
+  )
+
+  if ($AnswerType -ne "price_scenario" -or $null -eq $ProposedPrice) {
+    return ""
+  }
+
+  $Report = $Context.currentReport
+  $ValueText = @(
+    $Report.estimatedFairMarketValue,
+    $Report.fairPriceRange,
+    $Report.aiOnlyRoughValueRange,
+    $Report.expectedSalePrice,
+    $Report.suggestedListingPrice,
+    $Report.maximumRecommendedBuyPrice
+  ) -join " "
+  $Amounts = @(Get-MoneyAmounts $ValueText | Sort-Object)
+  if ($Amounts.Count -eq 0) {
+    return "Scenario price $(Format-Money $ProposedPrice) was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation."
+  }
+
+  $Midpoint = ([double]($Amounts[0] + $Amounts[$Amounts.Count - 1])) / 2
+  if ($Midpoint -le 0) {
+    return ""
+  }
+
+  $Ratio = [double]$ProposedPrice / $Midpoint
+  if ($Workflow -eq "personal_use" -or $BuyerIntent -eq "personal_use") {
+    if ($Ratio -le $ConsumerDecisionThresholds["goodMaxRatio"]) {
+      return "At $(Format-Money $ProposedPrice), the price is below the current fair-value midpoint of about $(Format-Money $Midpoint) and leans Good Value/Fair Price for personal use if condition assumptions still hold."
+    }
+    if ($Ratio -le $ConsumerDecisionThresholds["fairMaxRatio"]) {
+      return "At $(Format-Money $ProposedPrice), the price is close to the current fair-value midpoint of about $(Format-Money $Midpoint) and leans Fair Price for personal use if condition assumptions still hold."
+    }
+    return "At $(Format-Money $ProposedPrice), the price is above the current fair-value midpoint of about $(Format-Money $Midpoint) and should lean Negotiate/Pass unless condition, completeness, or fit improves."
+  }
+
+  $MaxBuyAmounts = @(Get-MoneyAmounts (Clean-Text $Report.maximumRecommendedBuyPrice) | Sort-Object)
+  if ($MaxBuyAmounts.Count -gt 0) {
+    $Ceiling = [double]$MaxBuyAmounts[$MaxBuyAmounts.Count - 1]
+    if ($ProposedPrice -le $Ceiling) {
+      return "At $(Format-Money $ProposedPrice), the scenario is at or below the current max-buy guidance of about $(Format-Money $Ceiling) before added resale costs."
+    }
+    return "At $(Format-Money $ProposedPrice), the scenario is above the current max-buy guidance of about $(Format-Money $Ceiling) and likely weakens resale margin."
+  }
+
+  return "At $(Format-Money $ProposedPrice), use reseller margin caution because the current report does not contain a clear numeric maximum buy price."
+}
+
+function Normalize-AskMarketEdgeAnswer {
+  param(
+    $Answer,
+    [string]$AnswerType,
+    [string]$Scenario
+  )
+
+  $Revised = $Answer.revisedListingFields
+  if ($null -eq $Revised) {
+    $Revised = [pscustomobject]@{}
+  }
+
+  return @{
+    answer = Clean-Text $Answer.answer
+    answerType = $(if (Clean-Text $Answer.answerType) { Clean-Text $Answer.answerType } else { $AnswerType })
+    evidenceBasis = @(Normalize-ReportArray $Answer.evidenceBasis | Select-Object -First 6)
+    assumptions = @(Normalize-ReportArray $Answer.assumptions | Select-Object -First 6)
+    recalculatedFields = @(Normalize-ReportArray $Answer.recalculatedFields | Select-Object -First 8)
+    confidence = Ensure-ConfidenceLayer $Answer.confidence "Low" "Ask Market Edge uses the current report context and does not perform a new live search."
+    recommendedNextAction = Clean-Text $Answer.recommendedNextAction
+    needsNewSearch = [bool]$Answer.needsNewSearch
+    needsAdditionalPhoto = [bool]$Answer.needsAdditionalPhoto
+    suggestedPhoto = Clean-Text $Answer.suggestedPhoto
+    revisedListingFields = @{
+      title = Clean-Text $Revised.title
+      description = Clean-Text $Revised.description
+      priceStrategy = Clean-Text $Revised.priceStrategy
+      conditionNotes = Clean-Text $Revised.conditionNotes
+      sellerNotes = Clean-Text $Revised.sellerNotes
+    }
+    updatedScenario = $(if (Clean-Text $Answer.updatedScenario) { Clean-Text $Answer.updatedScenario } else { $Scenario })
   }
 }
 

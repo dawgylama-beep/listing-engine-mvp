@@ -146,6 +146,14 @@
 - In-flight requests are cancelled or ignored if the user switches workflows before the response returns
 - Generate Listing platform validation now becomes required immediately when that workflow is selected and optional again when leaving it
 
+## Version 1.8.2 (Completed)
+- Ask Market Edge added as a context-aware current-item follow-up feature for all four workflows
+- Current item sessions now preserve structured report context, buyer intent, selected workflow, source coverage, pricing evidence, listing fields, and short conversation history
+- Follow-up answers distinguish current report evidence, user-provided scenario details, assumptions, and unavailable information without claiming a new live search
+- New Item clears the report, stale research context, Ask conversation, calculated values, and old in-flight responses
+- Mobile-first beta readiness pass added for workflow controls, Ask Market Edge, result cards, touch targets, copy buttons, and long-text wrapping
+- Major feature development should freeze after Version 1.8.2 except for visual repair, mobile polish, reliability fixes, wording improvements, and beta-discovered defects
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -19,8 +19,17 @@ const askingPriceInput = document.querySelector("#asking_price");
 const notesInput = document.querySelector("#notes");
 const notesNote = document.querySelector("#notes-note");
 const copyAllButton = document.querySelector("#copy-all");
+const newItemButton = document.querySelector("#new-item-button");
 const outputEyebrow = document.querySelector("#output-eyebrow");
 const outputTitle = document.querySelector("#output-title");
+const askPanel = document.querySelector("#ask-panel");
+const askForm = document.querySelector("#ask-form");
+const askQuestionInput = document.querySelector("#ask-question");
+const askSubmitButton = document.querySelector("#ask-submit-button");
+const askSubmitLabel = document.querySelector("#ask-submit-label");
+const askStatusBox = document.querySelector("#ask-status");
+const askHistory = document.querySelector("#ask-history");
+const clearAskButton = document.querySelector("#clear-ask-button");
 
 const listingSections = [
   ["platform", "Platform"],
@@ -219,8 +228,11 @@ let latestReport = null;
 let latestSections = workflowConfigs[defaultWorkflow].sections;
 let cameraPhotoFiles = [];
 let currentWorkflow = defaultWorkflow;
+let activeItemSession = null;
 let activeRequestId = 0;
 let activeRequestController = null;
+let activeAskRequestId = 0;
+let activeAskRequestController = null;
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", renderPhotoPreview);
@@ -235,6 +247,9 @@ copyAllButton.addEventListener("click", () => {
 
   copyText(formatReport(latestReport, latestSections), copyAllButton);
 });
+newItemButton.addEventListener("click", startNewItem);
+askForm.addEventListener("submit", submitAskQuestion);
+clearAskButton.addEventListener("click", clearAskConversation);
 window.addEventListener("pageshow", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
 });
@@ -297,6 +312,7 @@ async function handleSubmit(event) {
 
   latestReport = null;
   latestSections = config.sections;
+  clearItemSession({ abortAsk: true });
   resetCopyAllButton();
   setOutputHeading(config);
   const request = startWorkflowRequest(workflow);
@@ -349,8 +365,19 @@ async function handleSubmit(event) {
     const sections = getSectionsForReport(config, report);
     latestReport = report;
     latestSections = sections;
+    activeItemSession = createItemSession({
+      workflow,
+      config,
+      formData,
+      platform,
+      notes,
+      report,
+      sections,
+      photoCount: selectedPhotoFiles.length
+    });
     setOutputHeading(getDisplayConfig(config, report));
     renderReport(report, sections);
+    renderAskPanel();
     clearStatus();
     copyAllButton.disabled = false;
   } catch (error) {
@@ -435,6 +462,7 @@ function setWorkflowSectionState(element, { visible, disabled }) {
 function clearWorkflowOutput(config) {
   latestReport = null;
   latestSections = config.sections;
+  clearItemSession({ abortAsk: true });
   resetCopyAllButton();
   clearStatus();
   setOutputHeading(config);
@@ -467,6 +495,159 @@ function abortActiveRequest() {
 
 function isCurrentRequest(requestId, workflow) {
   return requestId === activeRequestId && workflow === currentWorkflow;
+}
+
+function createItemSession({ workflow, config, formData, platform, notes, report, sections, photoCount }) {
+  const buyerIntake = config.reportType === "marketValue"
+    ? {
+        ...getBuyerIntake(formData, notes),
+        purchase_intent: config.purchaseIntent
+      }
+    : {};
+  const reportContext = extractReportContext(report, sections);
+
+  return {
+    sessionId: createSessionId(),
+    workflow,
+    buyerIntent: config.purchaseIntent || (workflow === "listing" ? "seller_listing" : "market_value"),
+    reportType: config.reportType,
+    itemDescription: notes,
+    askingPrice: firstNonEmpty(buyerIntake.asking_price, reportContext.askingPrice, reportContext.currentAskingPrice),
+    selectedPlatform: platform,
+    photoCount,
+    buyerIntake,
+    reportContext,
+    conversationHistory: []
+  };
+}
+
+function createSessionId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function extractReportContext(report, sections = []) {
+  const contextKeys = [
+    "identifiedItem",
+    "itemIdentification",
+    "identificationConfidence",
+    "itemIdentificationConfidence",
+    "evidenceFoundInPhotos",
+    "searchQueriesUsed",
+    "sourcesSearched",
+    "searchCoverage",
+    "researchResults",
+    "comparableQuality",
+    "weFoundThisItem",
+    "weFoundSimilarComparableItems",
+    "currentAskingPrice",
+    "askingPrice",
+    "estimatedFairMarketValue",
+    "fairPriceRange",
+    "aiOnlyRoughValueRange",
+    "valueRating",
+    "recommendation",
+    "purchaserDecision",
+    "recommendedOffer",
+    "walkAwayPrice",
+    "currentPriceAssessment",
+    "priceConfidence",
+    "pricingConfidence",
+    "pricingRationale",
+    "buyerDecisionConfidence",
+    "liveComparableSearchStatus",
+    "liveCompConfidence",
+    "valuationConfidence",
+    "buyer_risk_score",
+    "buyer_risk_level",
+    "buyer_risk_summary",
+    "primary_risk_factors",
+    "riskFlags",
+    "resalePotential",
+    "maximumRecommendedBuyPrice",
+    "suggestedListingPrice",
+    "expectedSalePrice",
+    "minimumAcceptablePrice",
+    "recommendedSellingPlatform",
+    "platformSpecificSellingGuidance",
+    "betterPriceCheckNeeded",
+    "listingDescription",
+    "optimizedListingTitle",
+    "recommendedListingPrice",
+    "priceStrategy",
+    "itemSpecifics",
+    "conditionNotes",
+    "shippingDelivery",
+    "stagingPhotos",
+    "sellerNotes",
+    "additionalInformationNeeded",
+    "missingDetails",
+    "whatToVerifyBeforeBuying"
+  ];
+  const allowed = new Set([...contextKeys, ...sections.map(([key]) => key)]);
+  const context = {};
+
+  for (const key of allowed) {
+    const value = cleanContextValue(report[key]);
+    if (value !== null) {
+      context[key] = value;
+    }
+  }
+
+  return context;
+}
+
+function cleanContextValue(value) {
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => cleanContextValue(item))
+      .filter((item) => item !== null)
+      .slice(0, 10);
+    return items.length ? items : null;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .map(([key, item]) => [key, cleanContextValue(item)])
+      .filter(([, item]) => item !== null)
+      .slice(0, 18);
+    return entries.length ? Object.fromEntries(entries) : null;
+  }
+
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text ? text.slice(0, 1400) : null;
+}
+
+function firstNonEmpty(...values) {
+  return values.map((value) => String(value || "").trim()).find(Boolean) || "";
+}
+
+function clearItemSession({ abortAsk = false } = {}) {
+  if (abortAsk) {
+    abortActiveAskRequest();
+  }
+
+  activeItemSession = null;
+  hideAskPanel();
+}
+
+function startNewItem() {
+  abortActiveRequest();
+  abortActiveAskRequest();
+  form.reset();
+  cameraPhotoFiles = [];
+  photosInput.value = "";
+  cameraInput.value = "";
+  workflowInputs.forEach((input) => {
+    input.checked = input.value === defaultWorkflow;
+  });
+  renderPhotoPreview();
+  applyWorkflowState({ clearOutput: true, abortRequests: true });
+  askQuestionInput.value = "";
+  setStatus("Ready for a new item.", "success");
 }
 
 function getBuyerIntake(formData, notes) {
@@ -567,6 +748,321 @@ function renderReport(report, sections) {
     card.append(header, body);
     results.appendChild(card);
   }
+}
+
+async function submitAskQuestion(event) {
+  event.preventDefault();
+
+  const question = askQuestionInput.value.trim();
+  const session = activeItemSession;
+  const workflow = currentWorkflow;
+
+  if (!session || !latestReport) {
+    setAskStatus("Ask Market Edge needs a completed item report first.", "error");
+    return;
+  }
+
+  if (!question) {
+    setAskStatus("Enter a question about the current item first.", "error");
+    askQuestionInput.focus();
+    return;
+  }
+
+  const request = startAskRequest(session.sessionId, workflow);
+  setAskLoading(true);
+  setAskStatus("Reviewing your question...", "loading");
+
+  try {
+    const response = await fetch("/api/generate-listing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action: "ask_market_edge",
+        sessionId: session.sessionId,
+        workflow,
+        buyerIntent: session.buyerIntent,
+        question,
+        currentItemContext: buildAskContext(session),
+        recentConversationContext: getRecentConversationContext(session)
+      }),
+      signal: request.controller.signal
+    });
+
+    if (!isCurrentAskRequest(request.id, session.sessionId, workflow)) {
+      return;
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "We could not answer that question. Please try again.");
+    }
+
+    const answer = data.answer;
+    if (!answer || !answer.answer) {
+      throw new Error("Ask Market Edge returned an empty answer.");
+    }
+
+    session.conversationHistory.push({
+      question,
+      response: answer,
+      createdAt: new Date().toISOString()
+    });
+    session.conversationHistory = session.conversationHistory.slice(-8);
+    askQuestionInput.value = "";
+    renderAskConversation();
+    clearAskStatus();
+  } catch (error) {
+    if (error.name === "AbortError" || !isCurrentAskRequest(request.id, session.sessionId, workflow)) {
+      return;
+    }
+
+    setAskStatus(error.message || "We could not answer that question. Please try again.", "error");
+  } finally {
+    if (isCurrentAskRequest(request.id, session.sessionId, workflow)) {
+      activeAskRequestController = null;
+      setAskLoading(false);
+    }
+  }
+}
+
+function renderAskPanel() {
+  const hasReport = Boolean(activeItemSession && latestReport);
+  askPanel.hidden = !hasReport;
+
+  if (!hasReport) {
+    return;
+  }
+
+  renderAskConversation();
+  clearAskStatus();
+  setAskLoading(false);
+}
+
+function hideAskPanel() {
+  askPanel.hidden = true;
+  askHistory.innerHTML = "";
+  askQuestionInput.value = "";
+  clearAskStatus();
+  setAskLoading(false);
+}
+
+function clearAskConversation() {
+  abortActiveAskRequest();
+  if (activeItemSession) {
+    activeItemSession.conversationHistory = [];
+  }
+  renderAskConversation();
+  clearAskStatus();
+}
+
+function buildAskContext(session) {
+  return {
+    sessionId: session.sessionId,
+    workflow: session.workflow,
+    buyerIntent: session.buyerIntent,
+    itemDescription: session.itemDescription,
+    askingPrice: session.askingPrice,
+    selectedPlatform: session.selectedPlatform,
+    photoCount: session.photoCount,
+    buyerIntake: session.buyerIntake,
+    currentReport: session.reportContext
+  };
+}
+
+function getRecentConversationContext(session) {
+  return (session.conversationHistory || []).slice(-4).map((entry) => ({
+    question: entry.question,
+    answer: entry.response.answer,
+    answerType: entry.response.answerType,
+    assumptions: entry.response.assumptions,
+    updatedScenario: entry.response.updatedScenario
+  }));
+}
+
+function renderAskConversation() {
+  askHistory.innerHTML = "";
+  const history = activeItemSession ? activeItemSession.conversationHistory : [];
+
+  if (!history.length) {
+    const empty = document.createElement("p");
+    empty.className = "ask-empty";
+    empty.textContent = "Ask one focused question about the current item. The answer will use this report's evidence and will not run a new search.";
+    askHistory.appendChild(empty);
+    return;
+  }
+
+  for (const entry of history) {
+    askHistory.appendChild(renderAskEntry(entry));
+  }
+}
+
+function renderAskEntry(entry) {
+  const card = document.createElement("article");
+  card.className = "ask-entry";
+
+  const question = document.createElement("div");
+  question.className = "ask-question";
+  question.textContent = entry.question;
+
+  const answerTop = document.createElement("div");
+  answerTop.className = "ask-answer-top";
+  const answerType = document.createElement("span");
+  answerType.className = "ask-answer-type";
+  answerType.textContent = formatAnswerType(entry.response.answerType);
+  const confidence = document.createElement("span");
+  confidence.className = "ask-confidence";
+  confidence.textContent = entry.response.confidence || "Confidence: limited";
+  answerTop.append(answerType, confidence);
+
+  const answer = document.createElement("p");
+  answer.className = "ask-answer";
+  answer.textContent = entry.response.answer;
+
+  const details = document.createElement("div");
+  details.className = "ask-details";
+  appendAskDetail(details, "Evidence Basis", entry.response.evidenceBasis);
+  appendAskDetail(details, "Assumptions", entry.response.assumptions);
+  appendAskDetail(details, "Recalculated Fields", entry.response.recalculatedFields);
+  appendAskDetail(details, "Recommended Next Action", entry.response.recommendedNextAction);
+  appendAskDetail(details, "Suggested Photo", entry.response.suggestedPhoto);
+  appendAskDetail(details, "Updated Scenario", entry.response.updatedScenario);
+
+  const revisedListing = renderRevisedListing(entry.response.revisedListingFields);
+  if (revisedListing) {
+    details.appendChild(revisedListing);
+  }
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button ask-copy";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Answer";
+  copyButton.addEventListener("click", () => copyText(formatAskAnswer(entry), copyButton));
+
+  card.append(question, answerTop, answer, details, copyButton);
+  return card;
+}
+
+function appendAskDetail(parent, label, value) {
+  const values = Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
+  if (!values.length) {
+    return;
+  }
+
+  const block = document.createElement("div");
+  block.className = "ask-detail";
+  const title = document.createElement("h3");
+  title.textContent = label;
+  const list = document.createElement("ul");
+  for (const item of values.slice(0, 6)) {
+    const li = document.createElement("li");
+    li.textContent = item;
+    list.appendChild(li);
+  }
+  block.append(title, list);
+  parent.appendChild(block);
+}
+
+function renderRevisedListing(fields = {}) {
+  const entries = Object.entries(fields || {}).filter(([, value]) => String(value || "").trim());
+  if (!entries.length) {
+    return null;
+  }
+
+  const block = document.createElement("div");
+  block.className = "ask-detail revised-listing";
+  const title = document.createElement("h3");
+  title.textContent = "Revised Listing";
+  block.appendChild(title);
+
+  for (const [key, value] of entries) {
+    const item = document.createElement("p");
+    item.textContent = `${formatAnswerType(key)}: ${value}`;
+    block.appendChild(item);
+  }
+
+  const button = document.createElement("button");
+  button.className = "copy-button";
+  button.type = "button";
+  button.textContent = "Copy Revision";
+  button.addEventListener("click", () => copyText(entries.map(([key, value]) => `${formatAnswerType(key)}\n${value}`).join("\n\n"), button));
+  block.appendChild(button);
+  return block;
+}
+
+function formatAskAnswer(entry) {
+  const response = entry.response;
+  return [
+    `Question\n${entry.question}`,
+    `Answer\n${response.answer}`,
+    formatOptionalAskSection("Answer Type", formatAnswerType(response.answerType)),
+    formatOptionalAskSection("Evidence Basis", response.evidenceBasis),
+    formatOptionalAskSection("Assumptions", response.assumptions),
+    formatOptionalAskSection("Recalculated Fields", response.recalculatedFields),
+    formatOptionalAskSection("Confidence", response.confidence),
+    formatOptionalAskSection("Recommended Next Action", response.recommendedNextAction),
+    formatOptionalAskSection("Suggested Photo", response.suggestedPhoto),
+    formatOptionalAskSection("Updated Scenario", response.updatedScenario)
+  ].filter(Boolean).join("\n\n");
+}
+
+function formatOptionalAskSection(label, value) {
+  if (Array.isArray(value)) {
+    return value.length ? `${label}\n${value.map((item) => `- ${item}`).join("\n")}` : "";
+  }
+
+  return value ? `${label}\n${value}` : "";
+}
+
+function formatAnswerType(value) {
+  return String(value || "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function startAskRequest(sessionId, workflow) {
+  abortActiveAskRequest();
+  const controller = new AbortController();
+  activeAskRequestId += 1;
+  activeAskRequestController = controller;
+  return {
+    id: activeAskRequestId,
+    sessionId,
+    workflow,
+    controller
+  };
+}
+
+function abortActiveAskRequest() {
+  activeAskRequestId += 1;
+  if (activeAskRequestController) {
+    activeAskRequestController.abort();
+    activeAskRequestController = null;
+  }
+}
+
+function isCurrentAskRequest(requestId, sessionId, workflow) {
+  return requestId === activeAskRequestId
+    && activeItemSession
+    && activeItemSession.sessionId === sessionId
+    && workflow === currentWorkflow;
+}
+
+function setAskLoading(isLoading) {
+  askSubmitButton.disabled = isLoading;
+  askSubmitLabel.textContent = isLoading ? "Reviewing..." : "Ask Market Edge";
+}
+
+function setAskStatus(message, type) {
+  askStatusBox.textContent = message;
+  askStatusBox.className = `status ask-status is-visible is-${type}`;
+}
+
+function clearAskStatus() {
+  askStatusBox.textContent = "";
+  askStatusBox.className = "status ask-status";
 }
 
 function renderConsumerSummary(report) {

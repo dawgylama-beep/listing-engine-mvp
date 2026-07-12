@@ -374,6 +374,77 @@ const consumerDecisionSchema = {
   }
 };
 
+const askMarketEdgeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "answer",
+    "answerType",
+    "evidenceBasis",
+    "assumptions",
+    "recalculatedFields",
+    "confidence",
+    "recommendedNextAction",
+    "needsNewSearch",
+    "needsAdditionalPhoto",
+    "suggestedPhoto",
+    "revisedListingFields",
+    "updatedScenario"
+  ],
+  properties: {
+    answer: { type: "string" },
+    answerType: {
+      type: "string",
+      enum: [
+        "explanation",
+        "price_scenario",
+        "condition_scenario",
+        "research_question",
+        "evidence_request",
+        "listing_revision",
+        "platform_guidance",
+        "unsupported_or_unrelated"
+      ]
+    },
+    evidenceBasis: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    assumptions: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    recalculatedFields: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    confidence: { type: "string" },
+    recommendedNextAction: { type: "string" },
+    needsNewSearch: { type: "boolean" },
+    needsAdditionalPhoto: { type: "boolean" },
+    suggestedPhoto: { type: "string" },
+    revisedListingFields: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title", "description", "priceStrategy", "conditionNotes", "sellerNotes"],
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        priceStrategy: { type: "string" },
+        conditionNotes: { type: "string" },
+        sellerNotes: { type: "string" }
+      }
+    },
+    updatedScenario: { type: "string" }
+  }
+};
+
 const itemIdentitySchema = {
   type: "object",
   additionalProperties: false,
@@ -535,6 +606,12 @@ export default async function handler(req, res) {
 
   try {
     const body = parseBody(req.body);
+    const action = cleanText(body.action);
+
+    if (action === "ask_market_edge") {
+      return await handleAskMarketEdge({ body, res });
+    }
+
     const platform = cleanText(body.platform);
     const notes = cleanText(body.notes);
     const photos = Array.isArray(body.photos) ? body.photos : [];
@@ -593,6 +670,280 @@ export default async function handler(req, res) {
       error: error.message || "OpenAI API request failed."
     });
   }
+}
+
+async function handleAskMarketEdge({ body, res }) {
+  if (JSON.stringify(body || {}).length > 180000) {
+    return res.status(413).json({ error: "Ask Market Edge context is too large. Start a new item and try again." });
+  }
+
+  const sessionId = cleanText(body.sessionId).slice(0, 120);
+  const workflow = normalizeAskWorkflow(body.workflow);
+  const buyerIntent = cleanText(body.buyerIntent).slice(0, 80);
+  const question = cleanText(body.question).slice(0, 900);
+  const currentItemContext = sanitizeAskContext(body.currentItemContext);
+  const recentConversationContext = sanitizeAskConversation(body.recentConversationContext);
+
+  if (!sessionId) {
+    return res.status(400).json({ error: "Ask Market Edge needs a current item session." });
+  }
+
+  if (!workflow) {
+    return res.status(400).json({ error: "Ask Market Edge needs a valid workflow." });
+  }
+
+  if (!question) {
+    return res.status(400).json({ error: "Enter a question about the current item." });
+  }
+
+  if (!currentItemContext || !currentItemContext.currentReport) {
+    return res.status(400).json({ error: "Ask Market Edge needs a completed item report first." });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({
+      error: "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env."
+    });
+  }
+
+  const answerType = classifyAskQuestion(question);
+  const proposedPrice = extractProposedPrice(question);
+  const scenario = buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, currentItemContext });
+  const answer = await generateAskMarketEdgeAnswer({
+    apiKey,
+    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    sessionId,
+    workflow,
+    buyerIntent,
+    question,
+    answerType,
+    proposedPrice,
+    scenario,
+    currentItemContext,
+    recentConversationContext
+  });
+
+  return res.status(200).json({
+    action: "ask_market_edge",
+    sessionId,
+    workflow,
+    answer: normalizeAskAnswer(answer, { answerType, scenario })
+  });
+}
+
+async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow, buyerIntent, question, answerType, proposedPrice, scenario, currentItemContext, recentConversationContext }) {
+  const workflowInstruction = {
+    personal_use: "Active workflow is Buying for Myself. Use personal-use value, offer, fair-price, condition-risk, fit, and walk-away logic. Do not use reseller margin logic.",
+    resale: "Active workflow is Buying to Resell. Use resale margin, fees, shipping/transport, liquidity, max-buy-price, risk, and likely net-profit logic.",
+    market_value: "Active workflow is Check Market Value. Explain value estimate, confidence, research quality, and what evidence would improve confidence.",
+    listing: "Active workflow is Generate Listing. Help revise listing copy, platform fit, title, description, price strategy, condition disclosure, and seller notes without inventing facts."
+  }[workflow];
+  const prompt = [
+    "Answer a follow-up question about the current Marketplace Edge item session only.",
+    "Do not behave like a generic chatbot. Use the supplied currentItemContext and recentConversationContext.",
+    "No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.",
+    "Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.",
+    "Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.",
+    "If the question asks for fresh evidence that is not in the current report, say the current evidence is insufficient and set needsNewSearch true.",
+    "If the question gives new condition information, label it user-provided and not photo-verified unless current evidence already supports it.",
+    "If asked for a better photo, recommend one most useful next photo only.",
+    "If revising a listing, preserve verified facts, condition disclosures, pricing honesty, and uncertainty.",
+    "If this is a price scenario, reuse the existing evidence only and explain that the research evidence has not changed.",
+    workflowInstruction,
+    `Controlled question route: ${answerType}.`,
+    proposedPrice ? `Proposed scenario price parsed by the app: $${proposedPrice}.` : "No scenario price was parsed by the app.",
+    scenario ? `Deterministic scenario notes: ${scenario}.` : "No deterministic scenario notes were available.",
+    `Session ID: ${sessionId}.`
+  ].join("\n");
+  const userContent = [
+    {
+      type: "input_text",
+      text: [
+        `Question: ${question}`,
+        "",
+        "Current item context:",
+        JSON.stringify(currentItemContext),
+        "",
+        "Recent conversation context:",
+        JSON.stringify(recentConversationContext),
+        "",
+        prompt
+      ].join("\n")
+    }
+  ];
+  const payload = createResponsesPayload({
+    model,
+    systemText: "You are Ask Market Edge, a context-aware item and report follow-up assistant. You answer only from the current item session and return structured JSON.",
+    userContent,
+    schemaName: "ask_market_edge_answer",
+    schema: askMarketEdgeSchema
+  });
+
+  return (await requestOpenAIJson({ apiKey, payload })).json;
+}
+
+function normalizeAskAnswer(answer, { answerType, scenario }) {
+  const revised = answer.revisedListingFields || {};
+  return {
+    answer: cleanText(answer.answer),
+    answerType: cleanText(answer.answerType) || answerType,
+    evidenceBasis: normalizeStringArray(answer.evidenceBasis, 6),
+    assumptions: normalizeStringArray(answer.assumptions, 6),
+    recalculatedFields: normalizeStringArray(answer.recalculatedFields, 8),
+    confidence: ensureConfidenceLayer(answer.confidence, "Low", "Ask Market Edge uses the current report context and does not perform a new live search."),
+    recommendedNextAction: cleanText(answer.recommendedNextAction),
+    needsNewSearch: Boolean(answer.needsNewSearch),
+    needsAdditionalPhoto: Boolean(answer.needsAdditionalPhoto),
+    suggestedPhoto: cleanText(answer.suggestedPhoto),
+    revisedListingFields: {
+      title: cleanText(revised.title),
+      description: cleanText(revised.description),
+      priceStrategy: cleanText(revised.priceStrategy),
+      conditionNotes: cleanText(revised.conditionNotes),
+      sellerNotes: cleanText(revised.sellerNotes)
+    },
+    updatedScenario: cleanText(answer.updatedScenario || scenario)
+  };
+}
+
+function normalizeAskWorkflow(value) {
+  const workflow = cleanText(value);
+  return ["personal_use", "resale", "market_value", "listing"].includes(workflow) ? workflow : "";
+}
+
+function sanitizeAskContext(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const allowedTopLevel = new Set([
+    "sessionId",
+    "workflow",
+    "buyerIntent",
+    "itemDescription",
+    "askingPrice",
+    "selectedPlatform",
+    "photoCount",
+    "buyerIntake",
+    "currentReport"
+  ]);
+  const result = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!allowedTopLevel.has(key)) {
+      continue;
+    }
+    const sanitized = sanitizeAskValue(item, 0);
+    if (sanitized !== null) {
+      result[key] = sanitized;
+    }
+  }
+
+  return Object.keys(result).length ? result : null;
+}
+
+function sanitizeAskConversation(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.slice(-4).map((entry) => sanitizeAskValue(entry, 0)).filter(Boolean);
+}
+
+function sanitizeAskValue(value, depth) {
+  if (depth > 3) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    const items = value.map((item) => sanitizeAskValue(item, depth + 1)).filter((item) => item !== null).slice(0, 10);
+    return items.length ? items : null;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .map(([key, item]) => [cleanText(key).slice(0, 80), sanitizeAskValue(item, depth + 1)])
+      .filter(([key, item]) => key && item !== null)
+      .slice(0, 35);
+    return entries.length ? Object.fromEntries(entries) : null;
+  }
+
+  const text = cleanText(value).slice(0, 1400);
+  return text ? text : null;
+}
+
+function classifyAskQuestion(question) {
+  const text = cleanText(question).toLowerCase();
+  if (/\b(price|worth|offer|pay|at\s*\$|\$\s*\d|deal|margin|profit|net|maximum|max|walk[- ]?away)\b/.test(text)) {
+    return "price_scenario";
+  }
+  if (/\b(damage|damaged|condition|missing|included|box|crack|chip|stain|works|working|untested|part)\b/.test(text)) {
+    return "condition_scenario";
+  }
+  if (/\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why)\b/.test(text)) {
+    return "research_question";
+  }
+  if (/\b(photo|picture|label|barcode|serial|model|mark|measure|measurement|verify|check)\b/.test(text)) {
+    return "evidence_request";
+  }
+  if (/\b(rewrite|title|description|shorter|listing|facebook|ebay|mercari|etsy|poshmark|disclosure)\b/.test(text)) {
+    return "listing_revision";
+  }
+  if (/\b(platform|sell|local|pickup|ship|shipping|where)\b/.test(text)) {
+    return "platform_guidance";
+  }
+  if (/\b(why|explain|rating|recommendation)\b/.test(text)) {
+    return "explanation";
+  }
+  return "unsupported_or_unrelated";
+}
+
+function extractProposedPrice(question) {
+  const amounts = extractMoneyAmounts(question);
+  return amounts.length ? amounts[0] : null;
+}
+
+function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, currentItemContext }) {
+  if (answerType !== "price_scenario" || !Number.isFinite(proposedPrice)) {
+    return "";
+  }
+
+  const report = currentItemContext.currentReport || {};
+  const fairRange = extractMoneyRange([
+    report.estimatedFairMarketValue,
+    report.fairPriceRange,
+    report.aiOnlyRoughValueRange,
+    report.expectedSalePrice,
+    report.suggestedListingPrice,
+    report.maximumRecommendedBuyPrice
+  ].flat().join(" "));
+
+  if (!fairRange) {
+    return `Scenario price $${proposedPrice} was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation.`;
+  }
+
+  const midpoint = (fairRange[0] + fairRange[1]) / 2;
+  const ratio = proposedPrice / midpoint;
+  if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
+    if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
+      return `At $${proposedPrice}, the price is below the current fair-value midpoint of about $${Math.round(midpoint)} and leans Good Value/Fair Price for personal use if condition assumptions still hold.`;
+    }
+    if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
+      return `At $${proposedPrice}, the price is close to the current fair-value midpoint of about $${Math.round(midpoint)} and leans Fair Price for personal use if condition assumptions still hold.`;
+    }
+    return `At $${proposedPrice}, the price is above the current fair-value midpoint of about $${Math.round(midpoint)} and should lean Negotiate/Pass unless condition, completeness, or fit improves.`;
+  }
+
+  const maxBuy = extractMoneyRange(String(report.maximumRecommendedBuyPrice || ""));
+  if (maxBuy) {
+    const ceiling = maxBuy[1];
+    return proposedPrice <= ceiling
+      ? `At $${proposedPrice}, the scenario is at or below the current max-buy guidance of about $${Math.round(ceiling)} before added resale costs.`
+      : `At $${proposedPrice}, the scenario is above the current max-buy guidance of about $${Math.round(ceiling)} and likely weakens resale margin.`;
+  }
+
+  return `At $${proposedPrice}, use reseller margin caution because the current report does not contain a clear numeric maximum buy price.`;
 }
 
 async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake }) {

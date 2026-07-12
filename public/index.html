@@ -13,7 +13,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.8.1</p>
+            <p class="version-badge">Version 1.8.2</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -391,13 +391,38 @@
               <p id="output-eyebrow" class="eyebrow">Personal-use buying decision</p>
               <h2 id="output-title">Buying for Myself</h2>
             </div>
-            <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
+            <div class="output-actions">
+              <button id="new-item-button" class="secondary-button" type="button">New Item</button>
+              <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
+            </div>
           </div>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
             <p>Your personal-use buying recommendation will appear here.</p>
           </div>
+
+          <section id="ask-panel" class="ask-panel" aria-labelledby="ask-title" hidden>
+            <div class="ask-heading">
+              <div>
+                <p class="eyebrow">Context-aware follow-up</p>
+                <h2 id="ask-title">Ask Market Edge</h2>
+              </div>
+              <button id="clear-ask-button" class="secondary-button" type="button">Clear Conversation</button>
+            </div>
+            <p class="ask-helper">Ask a question about this item, its value, the recommendation, or the listing.</p>
+            <div id="ask-history" class="ask-history" aria-live="polite"></div>
+            <form id="ask-form" class="ask-form">
+              <label for="ask-question">Question</label>
+              <textarea id="ask-question" rows="4" maxlength="900" placeholder="Example: Would this be worth buying at $40?"></textarea>
+              <div class="ask-actions">
+                <button id="ask-submit-button" class="primary-button" type="submit">
+                  <span id="ask-submit-label">Ask Market Edge</span>
+                </button>
+              </div>
+            </form>
+            <div id="ask-status" class="status ask-status" role="status" aria-live="polite"></div>
+          </section>
         </div>
       </section>
     </main>
