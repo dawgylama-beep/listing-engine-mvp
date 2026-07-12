@@ -1061,7 +1061,7 @@ function renderAskConversation() {
   if (!history.length) {
     const empty = document.createElement("p");
     empty.className = "ask-empty";
-    empty.textContent = "Ask one focused question about the current item. The answer will use this report's evidence and will not run a new search.";
+    empty.textContent = "Ask about this item, the evidence, the recommendation, a different price, or the listing. Ask Market Edge uses the current report and will tell you when a new search or more evidence is needed.";
     askHistory.appendChild(empty);
     return;
   }

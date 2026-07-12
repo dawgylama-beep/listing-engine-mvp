@@ -169,7 +169,14 @@
 - Search generation now starts from the broad visual subject and then narrows toward organization, brand, character, visible words/letters, maker, model, SKU, UPC, or other identifiers
 - Artwork, logos, mascots, advertising, historical graphics, signs, plaques, prints, political memorabilia, military insignia, vintage packaging, and similar subjects now route toward reference-style searches before marketplace-only analysis
 - Ask Market Edge now answers visual identity questions from the Visual Recognition layer first
-- No additional engine features should be added after Version 1.8.4; beta work should focus on visual polish, mobile polish, wording improvements, reliability, bug fixes, and beta feedback
+
+## Version 1.8.4.1 (Completed)
+- Ask Market Edge instructions aligned with current-item session context, active report authority, workflow-specific reasoning, visual intelligence, scenario recalculation, and research-honesty rules
+- Follow-up question routing now explicitly distinguishes explanation, price scenario, condition update, research clarification, evidence request, listing revision, platform guidance, new live search request, and unsupported/unrelated questions
+- New-search follow-ups are labeled truthfully: Ask Market Edge must not claim a new search occurred unless source-backed new results are available
+- Ask Market Edge now emphasizes one-best-next-evidence guidance instead of long generic checklists when more proof is needed
+- This is an instruction-alignment patch, not a new feature release
+- No additional major engine features should be added after Version 1.8.4.1; beta work should focus on visual polish, mobile polish, wording improvements, reliability, bug fixes, and beta feedback
 
 ## Version 2.0
 - User accounts

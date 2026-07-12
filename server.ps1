@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.8.4"
+$AppVersion = "1.8.4.1"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -644,7 +644,7 @@ $AskMarketEdgeSchema = @{
     answer = @{ type = "string" }
     answerType = @{
       type = "string"
-      enum = @("explanation", "price_scenario", "condition_scenario", "research_question", "evidence_request", "listing_revision", "platform_guidance", "unsupported_or_unrelated")
+      enum = @("explanation", "price_scenario", "condition_scenario", "research_question", "evidence_request", "listing_revision", "platform_guidance", "new_live_search", "unsupported_or_unrelated")
     }
     evidenceBasis = @{
       type = "array"
@@ -938,21 +938,33 @@ function Invoke-AskMarketEdge {
   $ContextJson = $Context | ConvertTo-Json -Depth 50 -Compress
   $ConversationJson = $RecentConversation | ConvertTo-Json -Depth 20 -Compress
   $Instruction = @"
-Answer a follow-up question about the current Marketplace Edge item session only.
-Do not behave like a generic chatbot. Use the supplied currentItemContext and recentConversationContext.
-No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.
-Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.
-Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.
+Ask Market Edge is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.
+The current structured report is the authoritative starting point. Use the active report before generating new conclusions.
+Ground every answer in the active item session: uploaded-photo findings, user description, workflow, buyer intent, asking price, visual subject, visual confidence, exact product identity, exact product confidence, user-provided identity, photo evidence, search queries, sources searched, research results, comparable classifications, pricing estimates, recommendation, risk flags, listing content, prior follow-up exchanges, and user-provided scenario changes when available.
+Do not behave as though the user is asking about an unrelated new item unless the frontend has started a New Item session. Do not carry stale context from another workflow.
+Preserve verified facts, known uncertainty, condition disclosures, subject identity, exact-product uncertainty, source-backed facts versus inference, and prior scenario assumptions unless the user supplies new evidence that changes them.
+Avoid restarting the entire item analysis unless the user explicitly asks for a new analysis or a new search.
+No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.
+Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.
+Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.
+Question route behavior: explanation questions explain the current report, cite current evidence, do not rerun research, do not change the recommendation unless new information is supplied, and separate visual evidence, user input, search evidence, and inference.
+Question route behavior: price_scenario questions parse the proposed price, preserve current item identity and research, rerun only price or decision logic, state that no new market search occurred, and say only the price scenario changed.
+Never use reseller margin logic for a personal-use buyer. Use consumer fair-value, fit, condition risk, negotiation, alternatives, and walk-away logic for Buying for Myself.
+Use reseller profit, fees, shipping, net margin, max-buy price, liquidity, and risk logic for Buying to Resell.
+Question route behavior: condition_scenario questions record new details as user-provided, do not claim they were visually confirmed, preserve the original evidence record, distinguish observed condition from user-reported condition, and lower confidence when impact cannot be quantified.
+Question route behavior: research_question questions explain existing research, sources, rejected results, confidence, identity, authenticity, licensing, or verification status without fabricating additional support.
+Question route behavior: evidence_request questions identify the single most useful next detail or photo, such as a back label, maker mark, model number, dimensions, damage close-up, signature, copyright line, included accessories, or power-on photo.
+Question route behavior: listing_revision questions revise the current listing, preserve verified facts, visible condition issues, uncertainty disclosures, pricing honesty, and damage disclosures, and do not add official, licensed, authentic, rare, or exact era claims without support.
+Question route behavior: platform_guidance questions use current item characteristics like size, shipping difficulty, value, audience, collectibility, condition, confidence, and likely demand. Frame advice as practical guidance, not guaranteed platform performance.
+Question route behavior: new_live_search requests are deliberate search requests. Because this Ask endpoint does not execute a new follow-up live search, state that no new search occurred, answer only from current evidence, set needsNewSearch true, and do not fabricate sources or results.
+Question route behavior: unsupported_or_unrelated questions should explain that Ask Market Edge can only answer questions about the current item/report and should ask for a relevant item-specific question.
 Use the current report's Visual Recognition fields first for questions like what is this, why do you think it is a brand/organization/mascot/logo/character, what clues support that, or what should be photographed next.
-When identity is discussed, separate broad subject identity from exact product identity, maker, era, licensing, authenticity, and exact comparable status.
-If broad subject identity is supported but exact product is unverified, say that plainly rather than saying the whole identity is unverified.
+When identity is discussed, separate visual subject recognition, user-provided identity, exact product identity, maker, era, licensing, authenticity, exact comparable status, and pricing confidence.
+If broad subject identity is supported but exact product is unverified, preserve the supported subject instead of saying the whole identity is unverified.
+When exact evidence is unavailable, say what is known, what is likely, what came from the user, what the image supports, what searches support, what remains unverified, and what single next piece of evidence would help most.
 If asked whether an item is definitely a team/brand/mascot, explain subject confidence, visual consistency, user-provided identity, and what remains unverified.
 If asked whether it is authentic or licensed, do not infer authenticity from subject identity. Ask for the single most useful proof photo or marking.
-If the question asks for fresh evidence that is not in the current report, say the current evidence is insufficient and set needsNewSearch true.
-If the question gives new condition information, label it user-provided and not photo-verified unless current evidence already supports it.
-If asked for a better photo, recommend one most useful next photo only.
-If revising a listing, preserve verified facts, condition disclosures, pricing honesty, and uncertainty.
-If this is a price scenario, reuse the existing evidence only and explain that the research evidence has not changed.
+Use short recent conversation history to understand references like what about at `$30, does that change your answer, what if the box is missing, make it shorter, use Facebook instead, search older ones, or why not. Avoid repetition and carry forward scenario changes only within this active item session.
 $WorkflowInstruction
 Controlled question route: $AnswerType.
 $PriceText
@@ -968,7 +980,7 @@ Session ID: $SessionId.
         content = @(
           @{
             type = "input_text"
-            text = "You are Ask Market Edge, a context-aware item and report follow-up assistant. You answer only from the current item session and return structured JSON."
+            text = "You are Ask Market Edge, a context-aware item and report follow-up assistant. The current structured report is authoritative context. Answer only from the active item session and return structured JSON."
           }
         )
       },
@@ -1040,7 +1052,8 @@ function Classify-AskQuestion {
   param([string]$Question)
 
   $Text = (Clean-Text $Question).ToLowerInvariant()
-  if ($Text -match '\b(price|worth|offer|pay|deal|margin|profit|net|maximum|max|walk[- ]?away)\b|\$\s*\d') { return "price_scenario" }
+  if ($Text -match '\b(search|look\s+for|find|rerun|re-run|run)\b.*\b(older|historical|retired|exact|more|comp|comps|comparable|comparables|sold|examples|model|sku|upc|barcode|image|images|again|version|versions|match|matches|reference|references)\b' -or $Text -match '\b(search again|search older|look for historical|find more exact|look for sold|sold examples|live search|new search)\b') { return "new_live_search" }
+  if ($Text -match '\$\s*\d|\bat\s*\$|\b(what\s+(about|if)|would|should|could)\b.*\$\s*\d|\b(offer|pay|deal|margin|profit|net|maximum|max|most\s+i\s+should\s+pay|walk[- ]?away)\b' -or ($Text -match '\b(worth|value)\b' -and $Text -notmatch '\b(why|explain)\b')) { return "price_scenario" }
   if ($Text -match '\b(damage|damaged|condition|missing|included|box|crack|chip|stain|works|working|untested|part)\b') { return "condition_scenario" }
   if ($Text -match '\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why|definitely|identity|authentic|authenticity|licensed|licensing|real|verified|verify)\b') { return "research_question" }
   if ($Text -match '\b(photo|picture|label|barcode|serial|model|mark|measure|measurement|verify|check)\b') { return "evidence_request" }
@@ -1133,9 +1146,9 @@ function Normalize-AskMarketEdgeAnswer {
     evidenceBasis = @(Normalize-ReportArray $Answer.evidenceBasis | Select-Object -First 6)
     assumptions = @(Normalize-ReportArray $Answer.assumptions | Select-Object -First 6)
     recalculatedFields = @(Normalize-ReportArray $Answer.recalculatedFields | Select-Object -First 8)
-    confidence = Ensure-ConfidenceLayer $Answer.confidence "Low" "Ask Market Edge uses the current report context and does not perform a new live search."
+    confidence = Ensure-ConfidenceLayer $Answer.confidence "Low" "Ask Market Edge uses the current report context and does not perform a new live search unless source-backed new results are explicitly supplied."
     recommendedNextAction = Clean-Text $Answer.recommendedNextAction
-    needsNewSearch = [bool]$Answer.needsNewSearch
+    needsNewSearch = $(if ($AnswerType -eq "new_live_search") { $true } else { [bool]$Answer.needsNewSearch })
     needsAdditionalPhoto = [bool]$Answer.needsAdditionalPhoto
     suggestedPhoto = Clean-Text $Answer.suggestedPhoto
     revisedListingFields = @{
