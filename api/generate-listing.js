@@ -896,6 +896,9 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.",
     "Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.",
     "Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.",
+    "Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.",
+    "If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.",
+    "Never convert active asking prices, loose similar items, category-level references, or AI-only reasoning into a confident value rating or confirmed fair-market-value estimate.",
     "Question route behavior: explanation questions explain the current report, cite current evidence, do not rerun research, do not change the recommendation unless new information is supplied, and separate visual evidence, user input, search evidence, and inference.",
     "Question route behavior: price_scenario questions parse the proposed price, preserve current item identity and research, rerun only price or decision logic, state that no new market search occurred, and say only the price scenario changed.",
     "Never use reseller margin logic for a personal-use buyer. Use consumer fair-value, fit, condition risk, negotiation, alternatives, and walk-away logic for Buying for Myself.",
@@ -1078,7 +1081,15 @@ function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, cu
   }
 
   const report = currentItemContext.currentReport || {};
+  const classified = report.valuationEvidenceState
+    ? {
+        state: cleanText(report.valuationEvidenceState),
+        range: extractValuationEvidenceRange(report)
+      }
+    : classifyValuationEvidence({ report });
   const fairRange = extractMoneyRange([
+    report.preliminaryReferenceRange,
+    report.fairValueNotEstablished,
     report.estimatedFairMarketValue,
     report.fairPriceRange,
     report.aiOnlyRoughValueRange,
@@ -1089,6 +1100,14 @@ function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, cu
 
   if (!fairRange) {
     return `Scenario price $${proposedPrice} was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation.`;
+  }
+
+  if (classified.state !== "supported") {
+    const rangeText = classified.range || formatMoneyRange(fairRange[0], fairRange[1]);
+    if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
+      return `At $${proposedPrice}, compare the scenario only to the current preliminary reference range of ${rangeText}. The price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
+    }
+    return `At $${proposedPrice}, use reseller caution because the available range is preliminary reference evidence only (${rangeText}), not verified fair market value or confirmed sold-comps support.`;
   }
 
   const midpoint = (fairRange[0] + fairRange[1]) / 2;
@@ -1486,6 +1505,10 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Do not assign a positive value rating merely because the item looks inexpensive. Compare asking price to evidence-backed fair value, condition, completeness, and uncertainty.",
     "estimatedFairMarketValue must clearly distinguish source-backed current retail, active asking prices, used-market evidence, sold evidence only when actually present, refurbished/open-box pricing, reference-only results, and the system's fair-value estimate.",
     "fairPriceRange must include Low Fair Price, Typical Fair Price, and High Fair Price.",
+    "Use valuation evidence states consistently: supported, preliminary, or insufficient.",
+    "Use Estimated Fair Market Value only when exact or strong comparable evidence is sufficient. Use Preliminary Reference Range when evidence is weak, partial, active-listing-only, category-level, or AI-reasoning-only. Use Fair Value: Not established when no defensible range exists.",
+    "If valueRating is Insufficient Evidence, do not label any field as Estimated Fair Value, Fair Market Value, Typical Selling Price, or Confirmed Value. Use Preliminary Reference Range or Fair Value: Not established instead.",
+    "When active asking-price evidence is used, call it current active listings or results found during the current search. Never present active asking prices as confirmed sold evidence.",
     "recommendedOffer must include Opening Offer, Target Purchase Price, and Maximum Recommended Price when evidence supports those numbers.",
     "walkAwayPrice must be clear when evidence is sufficient. When evidence is weak, say the walk-away price is not supported yet.",
     "negotiationGuidance must be honest buyer-facing language. Do not encourage dishonest claims or pretend a lower comp exists unless source-backed results support it.",
@@ -1591,6 +1614,10 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "The currentPriceAssessment section must start with Fair, High, Low, or Unknown. If no current asking price is provided, say: Current price assessment requires the current asking price.",
     "The priceConfidence section must start with exactly one of these labels: High, Medium, or Low. Explain why confidence is high or low.",
     `The priceBasis section must distinguish source-backed live comparable search from AI-only fallback. Use this basis: ${liveSearchInstruction}`,
+    "Use valuation evidence states consistently: supported, preliminary, or insufficient.",
+    "Use Estimated Fair Market Value only when exact or strong comparable evidence is sufficient. Use Preliminary Reference Range when evidence is weak, partial, active-listing-only, category-level, or AI-reasoning-only. Use Fair Value: Not established when no defensible range exists.",
+    "If evidence is insufficient, do not label any range as Estimated Fair Value, Fair Market Value, Typical Selling Price, or Confirmed Value. Say the price may be favorable only relative to similar active listings when that is the only evidence.",
+    "Active asking-price ranges are reference evidence only. Never present them as confirmed sold evidence or verified fair market value.",
     "Use a broad estimatedMarketValue range, not a false-precision single number.",
     "The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.",
     "In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.",
@@ -2466,7 +2493,7 @@ function enforceListingResearchHonesty(report, research, platform) {
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, liveSearch);
 
-  return {
+  const normalizedReport = {
     ...report,
     platform,
     categorySuggestion: cleanText(report.categorySuggestion || identity.category || "Uncategorized"),
@@ -2496,6 +2523,12 @@ function enforceListingResearchHonesty(report, research, platform) {
     itemDetails: normalizeFlexibleArray(report.itemDetails, 8, itemSpecifics).slice(0, 8),
     priceStrategy: ensurePrefix(report.priceStrategy, listingBasis)
   };
+
+  return applyValuationEvidenceLabels(normalizedReport, {
+    reliableCompsFound: reliableResearchFound,
+    searchCompleted: Boolean(liveSearch.webSearchExecuted),
+    workflow: "listing"
+  });
 }
 
 function buildListingSearchQueriesUsed(liveSearch) {
@@ -2693,6 +2726,239 @@ function normalizeFlexibleArray(value, maxItems, fallback = []) {
   return items.map(cleanText).filter(Boolean).slice(0, maxItems);
 }
 
+function classifyValuationEvidence({ report = {}, reliableCompsFound = false, searchCompleted = false } = {}) {
+  const evidenceText = [
+    report.valueRating,
+    report.priceConfidence,
+    report.pricingConfidence,
+    report.valuationConfidence,
+    report.liveCompConfidence,
+    report.buyerDecisionConfidence,
+    report.priceBasis,
+    report.currentPriceAssessment,
+    report.researchResults,
+    report.comparableQuality,
+    report.noReliableComparableItemsFound,
+    report.aiOnlyRoughValueRange,
+    report.estimatedFairMarketValue,
+    report.fairPriceRange,
+    report.estimatedMarketValue
+  ].flat().map(cleanText).join(" ").toLowerCase();
+  const valueRating = cleanText(report.valueRating).toLowerCase();
+  const hasInsufficientRating = valueRating === "insufficient evidence" || /\binsufficient evidence\b/.test(evidenceText);
+  const hasWeakEvidence = /no reliable|weak|partial|rejected|ai-only|ai only|rough value|active listing|active asking|not established|unavailable|low confidence|source-backed comps? (?:were )?not available/.test(evidenceText);
+  const range = extractValuationEvidenceRange(report);
+
+  if (reliableCompsFound && !hasInsufficientRating && !hasWeakEvidence) {
+    return {
+      state: "supported",
+      label: "Estimated Fair Market Value",
+      range,
+      confidence: "Supported",
+      explanation: "Exact or strong source-backed comparable evidence supports a fair-market-value estimate."
+    };
+  }
+
+  if (range) {
+    return {
+      state: "preliminary",
+      label: "Preliminary Reference Range",
+      range,
+      confidence: "Low",
+      explanation: searchCompleted
+        ? "No strong or confirmed sold comparable evidence supports a fair-market-value estimate. This range is only a reference from weak, partial, active, or category-level evidence found during the current search."
+        : "Live comparable search did not produce source-backed valuation evidence. This range is only a cautious reference from item evidence and market reasoning."
+    };
+  }
+
+  return {
+    state: "insufficient",
+    label: "Fair Value Not Established",
+    range: "",
+    confidence: "Low",
+    explanation: "The available evidence is too weak for a defensible dollar range."
+  };
+}
+
+function applyValuationEvidenceLabels(report, { reliableCompsFound = false, searchCompleted = false, workflow = "" } = {}) {
+  const classified = classifyValuationEvidence({ report, reliableCompsFound, searchCompleted });
+  const normalized = {
+    ...report,
+    valuationEvidenceState: classified.state,
+    valuationEvidenceLabel: classified.label,
+    valuationEvidenceExplanation: classified.explanation
+  };
+
+  if (workflow === "listing") {
+    normalized.pricingEvidenceState = classified.state;
+    normalized.pricingRationale = ensurePrefix(normalized.pricingRationale, `Valuation evidence state: ${classified.state}. `);
+    return normalized;
+  }
+
+  if (classified.state === "supported") {
+    normalized.estimatedFairMarketValue = normalizeMoneyLabelText(normalized.estimatedFairMarketValue);
+    normalized.estimatedMarketValue = normalizeMoneyLabelText(normalized.estimatedMarketValue);
+    normalized.fairPriceRange = normalizeMoneyLabelArray(normalized.fairPriceRange);
+    normalized.preliminaryReferenceRange = "";
+    normalized.fairValueNotEstablished = "";
+    return normalized;
+  }
+
+  if (classified.state === "preliminary") {
+    const reference = buildPreliminaryReferenceRangeText(classified, { searchCompleted });
+    normalized.preliminaryReferenceRange = reference;
+    normalized.fairValueNotEstablished = "";
+    normalized.estimatedFairMarketValue = "";
+    normalized.estimatedMarketValue = "";
+    normalized.fairPriceRange = [];
+    normalized.valueRating = /insufficient evidence/i.test(cleanText(normalized.valueRating))
+      ? "Insufficient Evidence"
+      : normalized.valueRating;
+    normalized.whatThisMeans = buildWeakEvidenceMeaningText({ report: normalized, classified });
+    normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
+    normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Preliminary reference only - active asking prices, weak partial results, or AI reasoning are not confirmed fair market value. ");
+    normalized.currentPriceAssessment = buildCautiousCurrentPriceAssessment(normalized.currentPriceAssessment, { report: normalized, classified });
+    return normalized;
+  }
+
+  normalized.preliminaryReferenceRange = "";
+  normalized.fairValueNotEstablished = "Fair Value: Not established";
+  normalized.estimatedFairMarketValue = "";
+  normalized.estimatedMarketValue = "";
+  normalized.fairPriceRange = [];
+  normalized.valueRating = "Insufficient Evidence";
+  normalized.recommendation = cleanText(normalized.recommendation) || "Need More Information";
+  normalized.whatThisMeans = "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.";
+  normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
+  normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Fair value not established - available evidence is too weak for a defensible dollar range. ");
+  return normalized;
+}
+
+function extractValuationEvidenceRange(report = {}) {
+  const sourceText = [
+    report.preliminaryReferenceRange,
+    report.estimatedFairMarketValue,
+    report.fairPriceRange,
+    report.aiOnlyRoughValueRange,
+    report.estimatedMarketValue,
+    report.expectedSalePrice,
+    report.suggestedListingPrice
+  ].flat().map(cleanText).filter(Boolean).join(" ");
+  const strongRange = extractMoneyRange(sourceText);
+  if (strongRange) {
+    return formatMoneyRange(strongRange[0], strongRange[1]);
+  }
+
+  const looseAmounts = extractLooseMoneyAmounts(sourceText);
+  if (looseAmounts.length >= 2) {
+    return formatMoneyRange(Math.min(...looseAmounts), Math.max(...looseAmounts));
+  }
+
+  if (looseAmounts.length === 1) {
+    const amount = looseAmounts[0];
+    return formatMoneyRange(amount * 0.8, amount * 1.2);
+  }
+
+  return "";
+}
+
+function extractLooseMoneyAmounts(text) {
+  const values = [];
+  const source = String(text || "");
+  const patterns = [
+    /\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/g,
+    /\b(?:about|around|approx(?:imately)?|range|from|between|value|price|worth|listing|asking|listed)\D{0,24}(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to|and)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/gi,
+    /\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const groups = match.slice(1).filter(Boolean);
+      for (const group of groups) {
+        const amount = Number(group.replace(/,/g, ""));
+        if (Number.isFinite(amount) && amount > 0 && amount < 100000) {
+          values.push(amount);
+        }
+      }
+    }
+  }
+
+  return [...new Set(values)];
+}
+
+function buildPreliminaryReferenceRangeText(classified, { searchCompleted }) {
+  const evidence = searchCompleted
+    ? "based on similar active listings or partial references found during the current search"
+    : "based on item evidence and AI market reasoning because live source-backed comps were unavailable";
+  return `${classified.range} ${evidence}; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`;
+}
+
+function buildWeakEvidenceMeaningText({ report, classified }) {
+  const askingAmounts = extractMoneyAmounts([report.askingPrice, report.currentAskingPrice].join(" "));
+  const rangeAmounts = extractMoneyAmounts(classified.range);
+  if (askingAmounts.length && rangeAmounts.length >= 2) {
+    const asking = askingAmounts[0];
+    const low = Math.min(...rangeAmounts);
+    if (asking < low) {
+      return `At ${formatMoney(asking)}, the price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
+    }
+  }
+
+  return "The price may be directionally useful, but fair market value has not been established because no confirmed sales or strong comparable matches were found.";
+}
+
+function buildBestNextEvidenceStep(report) {
+  const existing = firstKnown(
+    Array.isArray(report.whatToVerifyBeforeBuying) ? report.whatToVerifyBeforeBuying[0] : report.whatToVerifyBeforeBuying,
+    Array.isArray(report.additionalInformationNeeded) ? report.additionalInformationNeeded[0] : report.additionalInformationNeeded,
+    Array.isArray(report.missingDetails) ? report.missingDetails[0] : report.missingDetails
+  );
+
+  return existing || "Add one clear close-up of the strongest label, model number, SKU, UPC/barcode, maker mark, measurement, or condition issue.";
+}
+
+function buildCautiousCurrentPriceAssessment(value, { report, classified }) {
+  const text = cleanText(value);
+  const meaning = buildWeakEvidenceMeaningText({ report, classified });
+  if (!text || /excellent value|good value|below market|fair market value/i.test(text)) {
+    return `Unknown - ${meaning}`;
+  }
+  return ensurePrefix(text, "Low-confidence assessment - ");
+}
+
+function normalizeMoneyLabelText(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+
+  return text
+    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(?:to|through)\s+\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`)
+    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*-\s*\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`);
+}
+
+function formatMoneyInputText(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+  if (/^\$/.test(text)) {
+    return normalizeMoneyLabelText(text);
+  }
+  const plainAmount = text.match(/^(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)$/);
+  if (plainAmount) {
+    return formatMoney(Number(plainAmount[1].replace(/,/g, "")));
+  }
+  return normalizeMoneyLabelText(text);
+}
+
+function normalizeMoneyLabelArray(value) {
+  return Array.isArray(value)
+    ? value.map(normalizeMoneyLabelText).filter(Boolean)
+    : normalizeMoneyLabelText(value);
+}
+
 function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "") {
   const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = liveSearch.webSearchExecuted;
@@ -2747,7 +3013,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   });
   const alignedPurchaserDecision = alignDecisionWithRisk(guardedPurchaserDecision, buyerRisk, buyerIntake);
 
-  return {
+  const normalizedReport = {
     ...report,
     purchaserDecision: alignedPurchaserDecision,
     buyer_risk_score: buyerRisk.score,
@@ -2805,6 +3071,12 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
+
+  return applyValuationEvidenceLabels(normalizedReport, {
+    reliableCompsFound,
+    searchCompleted,
+    workflow: "market_value"
+  });
 }
 
 function enforceConsumerDecisionHonesty(report, research, buyerIntake = normalizeBuyerIntake({}), platform = "") {
@@ -2860,7 +3132,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
 
-  return {
+  const normalizedReport = {
     ...report,
     buyerIntent: "personal_use",
     identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
@@ -2914,6 +3186,12 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     weFoundThisItem: reliableCompsFound ? exactItems : [],
     weFoundSimilarComparableItems: reliableCompsFound ? similarItems : []
   };
+
+  return applyValuationEvidenceLabels(normalizedReport, {
+    reliableCompsFound,
+    searchCompleted,
+    workflow: "personal_use"
+  });
 }
 
 function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCompsFound, exactItems, similarItems, conditionProfile, buyerIntake, identity }) {
@@ -3230,7 +3508,7 @@ function getConsumerAskingPriceNumber(buyerIntake, identity = {}) {
 function buildConsumerAskingPriceText(buyerIntake, identity = {}) {
   const raw = cleanText(buyerIntake.asking_price);
   if (raw) {
-    return `Current asking price: ${raw}`;
+    return `Current asking price: ${formatMoneyInputText(raw)}`;
   }
 
   const visible = firstKnown(identity.currentAskingPrice, identity.visiblePrice);
@@ -3985,7 +4263,7 @@ function buildPlatformSpecificSellingGuidance(platform, fallback) {
 function buildCurrentAskingPrice(buyerIntake, identity = {}) {
   const rawAskingPrice = cleanText(buyerIntake.asking_price);
   if (rawAskingPrice) {
-    return `Current seller asking price: ${rawAskingPrice}`;
+    return `Current seller asking price: ${formatMoneyInputText(rawAskingPrice)}`;
   }
 
   const visiblePrice = firstKnown(identity.currentAskingPrice, identity.visiblePrice);

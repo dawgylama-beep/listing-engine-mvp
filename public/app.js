@@ -87,6 +87,10 @@ const valuationSections = [
   ["buyer_risk_score", "Buyer Risk Score"],
   ["buyerDecisionConfidence", "Buyer Decision Confidence"],
   ["currentAskingPrice", "Current Asking Price"],
+  ["preliminaryReferenceRange", "Preliminary Reference Range"],
+  ["fairValueNotEstablished", "Fair Value Not Established"],
+  ["whatThisMeans", "What This Means"],
+  ["bestNextStep", "Best Next Step"],
   ["maximumRecommendedBuyPrice", "Maximum Recommended Buy Price"],
   ["suggestedListingPrice", "Suggested Listing Price"],
   ["expectedSalePrice", "Expected Sale Price"],
@@ -163,6 +167,10 @@ const consumerSections = [
   ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
+  ["preliminaryReferenceRange", "Preliminary Reference Range"],
+  ["fairValueNotEstablished", "Fair Value Not Established"],
+  ["whatThisMeans", "What This Means"],
+  ["bestNextStep", "Best Next Step"],
   ["estimatedFairMarketValue", "Estimated Fair Market Value"],
   ["fairPriceRange", "Fair Price Range"],
   ["valueRating", "Value Rating"],
@@ -457,10 +465,11 @@ async function handleSubmit(event) {
       throw new Error(data.error || config.errorMessage);
     }
 
-    const report = data[config.responseKey];
-    if (!report) {
+    const rawReport = data[config.responseKey];
+    if (!rawReport) {
       throw new Error(config.errorMessage);
     }
+    const report = normalizeReportForEvidenceDisplay(rawReport, workflow);
 
     const sections = getSectionsForReport(config, report);
     latestReport = report;
@@ -667,6 +676,13 @@ function extractReportContext(report, sections = []) {
     "weFoundSimilarComparableItems",
     "currentAskingPrice",
     "askingPrice",
+    "valuationEvidenceState",
+    "valuationEvidenceLabel",
+    "valuationEvidenceExplanation",
+    "preliminaryReferenceRange",
+    "fairValueNotEstablished",
+    "whatThisMeans",
+    "bestNextStep",
     "estimatedFairMarketValue",
     "fairPriceRange",
     "aiOnlyRoughValueRange",
@@ -814,6 +830,208 @@ function getDisplayConfig(config, report) {
 
 function isConsumerReport(report) {
   return String(report && report.buyerIntent || "").toLowerCase() === "personal_use";
+}
+
+function normalizeReportForEvidenceDisplay(report, workflow) {
+  const classified = classifyValuationEvidenceForDisplay(report);
+  const normalized = {
+    ...report,
+    valuationEvidenceState: classified.state,
+    valuationEvidenceLabel: classified.label,
+    valuationEvidenceExplanation: classified.explanation
+  };
+
+  if (workflow === "listing") {
+    normalized.pricingEvidenceState = classified.state;
+    return normalized;
+  }
+
+  if (classified.state === "supported") {
+    normalized.estimatedFairMarketValue = normalizeMoneyText(normalized.estimatedFairMarketValue);
+    normalized.estimatedMarketValue = normalizeMoneyText(normalized.estimatedMarketValue);
+    normalized.fairPriceRange = normalizeMoneyArray(normalized.fairPriceRange);
+    normalized.preliminaryReferenceRange = "";
+    normalized.fairValueNotEstablished = "";
+    return normalized;
+  }
+
+  if (classified.state === "preliminary") {
+    normalized.preliminaryReferenceRange = firstNonEmpty(
+      report.preliminaryReferenceRange,
+      `${classified.range} based on similar active listings or partial references; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`
+    );
+    normalized.fairValueNotEstablished = "";
+    normalized.estimatedFairMarketValue = "";
+    normalized.estimatedMarketValue = "";
+    normalized.fairPriceRange = [];
+    normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, buildPreliminaryMeaningText(report, classified));
+    normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
+    return normalized;
+  }
+
+  normalized.preliminaryReferenceRange = "";
+  normalized.fairValueNotEstablished = "Fair Value: Not established";
+  normalized.estimatedFairMarketValue = "";
+  normalized.estimatedMarketValue = "";
+  normalized.fairPriceRange = [];
+  normalized.valueRating = "Insufficient Evidence";
+  normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, "Fair market value has not been established from the available evidence.");
+  normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
+  return normalized;
+}
+
+function classifyValuationEvidenceForDisplay(report = {}) {
+  const state = String(report.valuationEvidenceState || "").toLowerCase();
+  const directRange = normalizeMoneyText(firstNonEmpty(report.preliminaryReferenceRange, report.estimatedFairMarketValue, report.estimatedMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, report.suggestedListingPrice));
+  if (state === "supported") {
+    return {
+      state: "supported",
+      label: "Estimated Fair Market Value",
+      range: directRange,
+      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Source-backed exact or strong comparable evidence supports this value.")
+    };
+  }
+  if (state === "preliminary") {
+    return {
+      state: "preliminary",
+      label: "Preliminary Reference Range",
+      range: directRange,
+      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "The range is tentative and not verified fair market value.")
+    };
+  }
+  if (state === "insufficient") {
+    return {
+      state: "insufficient",
+      label: "Fair Value Not Established",
+      range: "",
+      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "The evidence is too weak for a defensible dollar range.")
+    };
+  }
+
+  const evidenceText = [
+    report.valueRating,
+    report.priceConfidence,
+    report.pricingConfidence,
+    report.valuationConfidence,
+    report.liveCompConfidence,
+    report.buyerDecisionConfidence,
+    report.priceBasis,
+    report.currentPriceAssessment,
+    report.researchResults,
+    report.comparableQuality,
+    report.noReliableComparableItemsFound,
+    report.aiOnlyRoughValueRange
+  ].flat().map((item) => String(item || "")).join(" ").toLowerCase();
+  const hasInsufficientEvidence = /insufficient evidence|no reliable|weak|partial|rejected|ai-only|ai only|rough value|active listing|active asking|not established|unavailable|low confidence/.test(evidenceText);
+  const hasReliableComps = /source-backed comps found|exact match|strong similar match/.test(evidenceText) && !hasInsufficientEvidence;
+  const range = extractMoneyRangeText([
+    report.preliminaryReferenceRange,
+    report.estimatedFairMarketValue,
+    report.fairPriceRange,
+    report.aiOnlyRoughValueRange,
+    report.estimatedMarketValue,
+    report.expectedSalePrice,
+    report.suggestedListingPrice
+  ].flat().join(" "));
+
+  if (hasReliableComps) {
+    return {
+      state: "supported",
+      label: "Estimated Fair Market Value",
+      range,
+      explanation: "Source-backed exact or strong comparable evidence supports this value."
+    };
+  }
+
+  if (range) {
+    return {
+      state: "preliminary",
+      label: "Preliminary Reference Range",
+      range,
+      explanation: "The range is tentative and not verified fair market value."
+    };
+  }
+
+  return {
+    state: "insufficient",
+    label: "Fair Value Not Established",
+    range: "",
+    explanation: "The evidence is too weak for a defensible dollar range."
+  };
+}
+
+function buildPreliminaryMeaningText(report, classified) {
+  const asking = extractMoneyAmountsFromText(firstNonEmpty(report.askingPrice, report.currentAskingPrice));
+  const range = extractMoneyAmountsFromText(classified.range);
+  if (asking.length && range.length >= 2 && asking[0] < Math.min(...range)) {
+    return `At ${formatMoney(asking[0])}, the price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
+  }
+  return "The price may be directionally useful, but fair market value has not been established because no confirmed sales or strong comparable matches were found.";
+}
+
+function getOneBestNextEvidenceStep(report) {
+  return firstNonEmpty(
+    Array.isArray(report.whatToVerifyBeforeBuying) ? report.whatToVerifyBeforeBuying[0] : report.whatToVerifyBeforeBuying,
+    Array.isArray(report.additionalInformationNeeded) ? report.additionalInformationNeeded[0] : report.additionalInformationNeeded,
+    Array.isArray(report.missingDetails) ? report.missingDetails[0] : report.missingDetails,
+    "Add one clear close-up of the strongest label, model number, SKU, UPC/barcode, maker mark, measurement, or condition issue."
+  );
+}
+
+function extractMoneyRangeText(text) {
+  const amounts = extractMoneyAmountsFromText(text);
+  if (amounts.length >= 2) {
+    return `${formatMoney(Math.min(...amounts))}-${formatMoney(Math.max(...amounts))}`;
+  }
+  if (amounts.length === 1) {
+    const amount = amounts[0];
+    return `${formatMoney(amount * 0.8)}-${formatMoney(amount * 1.2)}`;
+  }
+  return "";
+}
+
+function extractMoneyAmountsFromText(text) {
+  const amounts = [];
+  const source = String(text || "");
+  const patterns = [
+    /\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/g,
+    /\b(?:about|around|approx(?:imately)?|range|from|between|value|price|worth|listing|asking|listed)\D{0,24}(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to|and)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/gi,
+    /\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      for (const group of match.slice(1).filter(Boolean)) {
+        const amount = Number(group.replace(/,/g, ""));
+        if (Number.isFinite(amount) && amount > 0 && amount < 100000) {
+          amounts.push(amount);
+        }
+      }
+    }
+  }
+
+  return [...new Set(amounts)];
+}
+
+function normalizeMoneyText(value) {
+  const text = normalizeDisplayValue(value);
+  if (!text) {
+    return "";
+  }
+  return text
+    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(?:to|through)\s+\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`)
+    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*-\s*\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`);
+}
+
+function normalizeMoneyArray(value) {
+  return Array.isArray(value)
+    ? value.map(normalizeMoneyText).filter(Boolean)
+    : normalizeMoneyText(value);
+}
+
+function formatMoney(value) {
+  return `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
 }
 
 async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
@@ -1090,16 +1308,17 @@ function getExecutiveSummary(report, workflow) {
   }
 
   if (workflow === "market_value") {
-    const value = firstNonEmpty(report.estimatedMarketValue, report.estimatedFairMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, "Value needs more evidence");
+    const valuation = classifyValuationEvidenceForDisplay(report);
+    const value = getValuationDisplayValue(report, valuation);
     const identity = firstNonEmpty(report.subjectIdentity, report.itemIdentification, report.identifiedItem, report.visualSubject, "Identity not verified");
     const confidence = getConfidenceText(report);
     return {
       eyebrow: "Executive Summary",
       title: value,
-      badge: "Market Value",
+      badge: valuation.label,
       tone: confidence,
       metrics: [
-        ["Estimated Value", value],
+        [valuation.label, value],
         ["Confidence", confidence],
         ["Most Likely Identity", identity]
       ]
@@ -1109,9 +1328,10 @@ function getExecutiveSummary(report, workflow) {
   const recommendation = firstNonEmpty(report.recommendation, report.purchaserDecision, "Need More Information");
   const valueRating = firstNonEmpty(report.valueRating, report.currentPriceAssessment, "Insufficient Evidence");
   const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, "Not provided");
-  const fairValue = firstNonEmpty(report.estimatedFairMarketValue, report.fairPriceRange, report.aiOnlyRoughValueRange, "Unclear");
+  const valuation = classifyValuationEvidenceForDisplay(report);
+  const fairValue = getValuationDisplayValue(report, valuation);
   const confidence = getConfidenceText(report);
-  const nextStep = firstNonEmpty(report.recommendedOffer, report.negotiationGuidance, report.whatToVerifyBeforeBuying, report.additionalInformationNeeded, "Verify identity, condition, and price evidence before acting.");
+  const nextStep = firstNonEmpty(report.bestNextStep, report.recommendedOffer, report.negotiationGuidance, report.whatToVerifyBeforeBuying, report.additionalInformationNeeded, "Verify identity, condition, and price evidence before acting.");
   return {
     eyebrow: "Executive Summary",
     title: recommendation,
@@ -1121,11 +1341,21 @@ function getExecutiveSummary(report, workflow) {
       ["Recommendation", recommendation],
       ["Value Rating", valueRating],
       ["Asking Price", askingPrice],
-      ["Estimated Fair Value", fairValue],
+      [valuation.label, fairValue],
       ["Confidence", confidence],
       ["Best Next Step", normalizeDisplayValue(nextStep)]
     ]
   };
+}
+
+function getValuationDisplayValue(report, valuation) {
+  if (valuation.state === "supported") {
+    return firstNonEmpty(report.estimatedFairMarketValue, report.estimatedMarketValue, report.fairPriceRange, valuation.range, "Value needs more evidence");
+  }
+  if (valuation.state === "preliminary") {
+    return firstNonEmpty(report.preliminaryReferenceRange, valuation.range, "Preliminary reference range needs more evidence");
+  }
+  return firstNonEmpty(report.fairValueNotEstablished, "Fair Value: Not established");
 }
 
 function renderConfidenceExplainer(report) {
@@ -1710,6 +1940,7 @@ function clearAskStatus() {
 }
 
 function renderConsumerSummary(report) {
+  const valuation = classifyValuationEvidenceForDisplay(report);
   const card = document.createElement("article");
   card.className = `consumer-summary-card ${getValueRatingModifier(report.valueRating)}`;
 
@@ -1733,7 +1964,7 @@ function renderConsumerSummary(report) {
   grid.className = "consumer-summary-grid";
   const metrics = [
     ["Asking Price", report.askingPrice],
-    ["Estimated Fair Value", report.estimatedFairMarketValue],
+    [valuation.label, getValuationDisplayValue(report, valuation)],
     ["Recommended Offer", Array.isArray(report.recommendedOffer) ? report.recommendedOffer.join(" | ") : report.recommendedOffer],
     ["Pricing Confidence", report.pricingConfidence]
   ];
@@ -1784,6 +2015,10 @@ function shouldRenderSection(key, value) {
 
   if ((key === "weFoundThisItem" || key === "weFoundSimilarComparableItems") && Array.isArray(value)) {
     return value.some((item) => /https?:\/\//i.test(String(item || "")));
+  }
+
+  if ((key === "estimatedFairMarketValue" || key === "fairPriceRange") && latestReport) {
+    return classifyValuationEvidenceForDisplay(latestReport).state === "supported";
   }
 
   if ((key === "noReliableComparableItemsFound" || key === "liveSearchDidNotComplete" || key === "aiOnlyRoughValueRange") && !value) {

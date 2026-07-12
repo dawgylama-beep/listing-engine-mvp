@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.0"
+$AppVersion = "1.9.1"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -947,6 +947,9 @@ Avoid restarting the entire item analysis unless the user explicitly asks for a 
 No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.
 Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.
 Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.
+Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.
+If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.
+Never convert active asking prices, loose similar items, category-level references, or AI-only reasoning into a confident value rating or confirmed fair-market-value estimate.
 Question route behavior: explanation questions explain the current report, cite current evidence, do not rerun research, do not change the recommendation unless new information is supplied, and separate visual evidence, user input, search evidence, and inference.
 Question route behavior: price_scenario questions parse the proposed price, preserve current item identity and research, rerun only price or decision logic, state that no new market search occurred, and say only the price scenario changed.
 Never use reseller margin logic for a personal-use buyer. Use consumer fair-value, fit, condition risk, negotiation, alternatives, and walk-away logic for Buying for Myself.
@@ -1087,7 +1090,10 @@ function Get-AskScenario {
   }
 
   $Report = $Context.currentReport
+  $EvidenceState = (Clean-Text $Report.valuationEvidenceState).ToLowerInvariant()
   $ValueText = @(
+    $Report.preliminaryReferenceRange,
+    $Report.fairValueNotEstablished,
     $Report.estimatedFairMarketValue,
     $Report.fairPriceRange,
     $Report.aiOnlyRoughValueRange,
@@ -1103,6 +1109,17 @@ function Get-AskScenario {
   $Midpoint = ([double]($Amounts[0] + $Amounts[$Amounts.Count - 1])) / 2
   if ($Midpoint -le 0) {
     return ""
+  }
+
+  if ($EvidenceState -and $EvidenceState -ne "supported") {
+    $RangeText = Get-ValuationEvidenceRange $Report
+    if (-not $RangeText) {
+      $RangeText = Format-MoneyRange $Amounts[0] $Amounts[$Amounts.Count - 1]
+    }
+    if ($Workflow -eq "personal_use" -or $BuyerIntent -eq "personal_use") {
+      return "At $(Format-Money $ProposedPrice), compare the scenario only to the current preliminary reference range of $RangeText. The price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation."
+    }
+    return "At $(Format-Money $ProposedPrice), use reseller caution because the available range is preliminary reference evidence only ($RangeText), not verified fair market value or confirmed sold-comps support."
   }
 
   $Ratio = [double]$ProposedPrice / $Midpoint
@@ -1200,6 +1217,10 @@ The valueRating and recommendation must be distinct. Example: Fair Price / Buy I
 Do not assign a positive value rating merely because the item looks inexpensive. Compare asking price to evidence-backed fair value, condition, completeness, and uncertainty.
 estimatedFairMarketValue must distinguish current retail price, active asking prices, used-market evidence, sold evidence only when actually available, refurbished/open-box pricing, reference-only results, and the system's fair-value estimate.
 fairPriceRange must include Low Fair Price, Typical Fair Price, and High Fair Price.
+Use valuation evidence states consistently: supported, preliminary, or insufficient.
+Use Estimated Fair Market Value only when exact or strong comparable evidence is sufficient. Use Preliminary Reference Range when evidence is weak, partial, active-listing-only, category-level, or AI-reasoning-only. Use Fair Value: Not established when no defensible range exists.
+If valueRating is Insufficient Evidence, do not label any field as Estimated Fair Value, Fair Market Value, Typical Selling Price, or Confirmed Value. Use Preliminary Reference Range or Fair Value: Not established instead.
+When active asking-price evidence is used, call it current active listings or results found during the current search. Never present active asking prices as confirmed sold evidence.
 recommendedOffer must include Opening Offer, Target Purchase Price, and Maximum Recommended Price when evidence supports those numbers.
 walkAwayPrice must be clear when evidence is sufficient. When evidence is weak, say the walk-away price is not supported yet.
 negotiationGuidance must be honest buyer-facing language. Do not encourage dishonest claims or pretend a lower comp exists unless source-backed results support it.
@@ -1288,6 +1309,10 @@ The priceConfidence section must start with exactly one of these labels: High, M
 If live search completed with reliable comps, the priceBasis section must say: Live comparable search was performed. Source-backed results are listed when reliable matches were found.
 If live search did not complete, the priceBasis section must say: Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence.
 If live search completed with no reliable matches, the priceBasis section must say: Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence.
+Use valuation evidence states consistently: supported, preliminary, or insufficient.
+Use Estimated Fair Market Value only when exact or strong comparable evidence is sufficient. Use Preliminary Reference Range when evidence is weak, partial, active-listing-only, category-level, or AI-reasoning-only. Use Fair Value: Not established when no defensible range exists.
+If evidence is insufficient, do not label any range as Estimated Fair Value, Fair Market Value, Typical Selling Price, or Confirmed Value. Say the price may be favorable only relative to similar active listings when that is the only evidence.
+Active asking-price ranges are reference evidence only. Never present them as confirmed sold evidence or verified fair market value.
 Use a broad estimatedMarketValue range, not a false-precision single number.
 The aiOnlyRoughValueRange section must be empty when reliable source-backed comps exist. If live search is unavailable or no reliable source-backed comps exist, label the value as AI-Only Rough Value Range and explain that it is not fact-backed by live comps.
 In maximumRecommendedBuyPrice, use value/savings logic for personal use and margin/profit logic for resale. If no asking price is provided, explain that buy-price guidance is limited.
@@ -1521,7 +1546,7 @@ function Set-ListingResearchHonesty {
     $Report | Add-Member -NotePropertyName "suggestedSellingPlatform" -NotePropertyValue $Platform -Force
   }
 
-  return $Report
+  return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound ($Status -eq "Live Search Completed - Source-Backed Comps Found") -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "listing"
 }
 
 function Set-LiveSearchHonesty {
@@ -1652,7 +1677,7 @@ function Set-LiveSearchHonesty {
   }
   $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue $PriceBasis -Force
 
-  return $Report
+  return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "market_value"
 }
 
 function Set-ConsumerDecisionHonesty {
@@ -1715,7 +1740,7 @@ function Set-ConsumerDecisionHonesty {
   $Risks = @(Merge-ConsumerArrays $Report.productOrConditionRisks @($RiskFlags | ForEach-Object { "Risk flag: $_" }))
   $Report | Add-Member -NotePropertyName "productOrConditionRisks" -NotePropertyValue @($Risks | Select-Object -First 8) -Force
 
-  return $Report
+  return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "personal_use"
 }
 
 function Get-ConsumerAskingPriceNumber {
@@ -1737,7 +1762,7 @@ function Get-ConsumerAskingPriceText {
 
   $Text = Clean-Text (Get-BuyerIntakeValue $BuyerIntake "asking_price")
   if ($Text -and $Text -ne "not provided") {
-    return "Current asking price: $Text"
+    return "Current asking price: $(Format-MoneyInputText $Text)"
   }
 
   return "Not provided - enter the current asking price for a personal-use value decision."
@@ -1994,6 +2019,297 @@ function Force-MediumConfidence {
   }
 
   return "Medium - $Reason $Detail".Trim()
+}
+
+function Join-ValuationText {
+  param([array]$Values)
+
+  $Parts = @()
+  foreach ($Value in $Values) {
+    if ($null -eq $Value) {
+      continue
+    }
+    if ($Value -is [array]) {
+      foreach ($Item in $Value) {
+        $Text = Clean-Text $Item
+        if ($Text) { $Parts += $Text }
+      }
+    } else {
+      $Text = Clean-Text $Value
+      if ($Text) { $Parts += $Text }
+    }
+  }
+
+  return ($Parts -join " ")
+}
+
+function Get-ValuationEvidenceClassification {
+  param(
+    $Report,
+    [bool]$ReliableCompsFound = $false,
+    [bool]$SearchCompleted = $false
+  )
+
+  $EvidenceText = (Join-ValuationText @(
+    $Report.valueRating,
+    $Report.priceConfidence,
+    $Report.pricingConfidence,
+    $Report.valuationConfidence,
+    $Report.liveCompConfidence,
+    $Report.buyerDecisionConfidence,
+    $Report.priceBasis,
+    $Report.currentPriceAssessment,
+    $Report.researchResults,
+    $Report.comparableQuality,
+    $Report.noReliableComparableItemsFound,
+    $Report.aiOnlyRoughValueRange,
+    $Report.estimatedFairMarketValue,
+    $Report.fairPriceRange,
+    $Report.estimatedMarketValue
+  )).ToLowerInvariant()
+  $ValueRating = (Clean-Text $Report.valueRating).ToLowerInvariant()
+  $HasInsufficientRating = ($ValueRating -eq "insufficient evidence" -or $EvidenceText -match "\binsufficient evidence\b")
+  $HasWeakEvidence = $EvidenceText -match "no reliable|weak|partial|rejected|ai-only|ai only|rough value|active listing|active asking|not established|unavailable|low confidence|source-backed comps? (?:were )?not available"
+  $Range = Get-ValuationEvidenceRange $Report
+
+  if ($ReliableCompsFound -and -not $HasInsufficientRating -and -not $HasWeakEvidence) {
+    return [pscustomobject]@{
+      state = "supported"
+      label = "Estimated Fair Market Value"
+      range = $Range
+      confidence = "Supported"
+      explanation = "Exact or strong source-backed comparable evidence supports a fair-market-value estimate."
+    }
+  }
+
+  if ($Range) {
+    $Explanation = "Live comparable search did not produce source-backed valuation evidence. This range is only a cautious reference from item evidence and market reasoning."
+    if ($SearchCompleted) {
+      $Explanation = "No strong or confirmed sold comparable evidence supports a fair-market-value estimate. This range is only a reference from weak, partial, active, or category-level evidence found during the current search."
+    }
+    return [pscustomobject]@{
+      state = "preliminary"
+      label = "Preliminary Reference Range"
+      range = $Range
+      confidence = "Low"
+      explanation = $Explanation
+    }
+  }
+
+  return [pscustomobject]@{
+    state = "insufficient"
+    label = "Fair Value Not Established"
+    range = ""
+    confidence = "Low"
+    explanation = "The available evidence is too weak for a defensible dollar range."
+  }
+}
+
+function Set-ValuationEvidenceLabels {
+  param(
+    $Report,
+    [bool]$ReliableCompsFound = $false,
+    [bool]$SearchCompleted = $false,
+    [string]$Workflow = ""
+  )
+
+  $Classified = Get-ValuationEvidenceClassification -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted $SearchCompleted
+  $Report | Add-Member -NotePropertyName "valuationEvidenceState" -NotePropertyValue $Classified.state -Force
+  $Report | Add-Member -NotePropertyName "valuationEvidenceLabel" -NotePropertyValue $Classified.label -Force
+  $Report | Add-Member -NotePropertyName "valuationEvidenceExplanation" -NotePropertyValue $Classified.explanation -Force
+
+  if ($Workflow -eq "listing") {
+    $Report | Add-Member -NotePropertyName "pricingEvidenceState" -NotePropertyValue $Classified.state -Force
+    $Report | Add-Member -NotePropertyName "pricingRationale" -NotePropertyValue (Ensure-Prefix $Report.pricingRationale "Valuation evidence state: $($Classified.state). ") -Force
+    return $Report
+  }
+
+  if ($Classified.state -eq "supported") {
+    $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue (Normalize-MoneyLabelText $Report.estimatedFairMarketValue) -Force
+    $Report | Add-Member -NotePropertyName "estimatedMarketValue" -NotePropertyValue (Normalize-MoneyLabelText $Report.estimatedMarketValue) -Force
+    $FairPriceRange = @(Normalize-ReportArray $Report.fairPriceRange | ForEach-Object { Normalize-MoneyLabelText $_ })
+    $Report | Add-Member -NotePropertyName "fairPriceRange" -NotePropertyValue @($FairPriceRange | Where-Object { $_ }) -Force
+    $Report | Add-Member -NotePropertyName "preliminaryReferenceRange" -NotePropertyValue "" -Force
+    $Report | Add-Member -NotePropertyName "fairValueNotEstablished" -NotePropertyValue "" -Force
+    return $Report
+  }
+
+  if ($Classified.state -eq "preliminary") {
+    $Reference = Get-PreliminaryReferenceRangeText -Classification $Classified -SearchCompleted $SearchCompleted
+    $Report | Add-Member -NotePropertyName "preliminaryReferenceRange" -NotePropertyValue $Reference -Force
+    $Report | Add-Member -NotePropertyName "fairValueNotEstablished" -NotePropertyValue "" -Force
+    $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue "" -Force
+    $Report | Add-Member -NotePropertyName "estimatedMarketValue" -NotePropertyValue "" -Force
+    $Report | Add-Member -NotePropertyName "fairPriceRange" -NotePropertyValue @() -Force
+    if ((Clean-Text $Report.valueRating) -match "Insufficient Evidence") {
+      $Report | Add-Member -NotePropertyName "valueRating" -NotePropertyValue "Insufficient Evidence" -Force
+    }
+    $Report | Add-Member -NotePropertyName "whatThisMeans" -NotePropertyValue (Get-WeakEvidenceMeaningText -Report $Report -Classification $Classified) -Force
+    $Report | Add-Member -NotePropertyName "bestNextStep" -NotePropertyValue (Get-BestNextEvidenceStep $Report) -Force
+    $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue (Ensure-Prefix $Report.priceBasis "Preliminary reference only - active asking prices, weak partial results, or AI reasoning are not confirmed fair market value. ") -Force
+    $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue (Get-CautiousCurrentPriceAssessment -Value $Report.currentPriceAssessment -Report $Report -Classification $Classified) -Force
+    return $Report
+  }
+
+  $Report | Add-Member -NotePropertyName "preliminaryReferenceRange" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "fairValueNotEstablished" -NotePropertyValue "Fair Value: Not established" -Force
+  $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "estimatedMarketValue" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "fairPriceRange" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "valueRating" -NotePropertyValue "Insufficient Evidence" -Force
+  if (-not (Clean-Text $Report.recommendation)) {
+    $Report | Add-Member -NotePropertyName "recommendation" -NotePropertyValue "Need More Information" -Force
+  }
+  $Report | Add-Member -NotePropertyName "whatThisMeans" -NotePropertyValue "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate." -Force
+  $Report | Add-Member -NotePropertyName "bestNextStep" -NotePropertyValue (Get-BestNextEvidenceStep $Report) -Force
+  $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue (Ensure-Prefix $Report.priceBasis "Fair value not established - available evidence is too weak for a defensible dollar range. ") -Force
+  return $Report
+}
+
+function Get-ValuationEvidenceRange {
+  param($Report)
+
+  $Text = Join-ValuationText @(
+    $Report.preliminaryReferenceRange,
+    $Report.estimatedFairMarketValue,
+    $Report.fairPriceRange,
+    $Report.aiOnlyRoughValueRange,
+    $Report.estimatedMarketValue,
+    $Report.expectedSalePrice,
+    $Report.suggestedListingPrice
+  )
+  $Range = Get-MoneyRange $Text
+  if ($Range -and $Range.Count -ge 2) {
+    return Format-MoneyRange $Range[0] $Range[1]
+  }
+
+  $LooseAmounts = @(Get-LooseMoneyAmounts $Text | Sort-Object)
+  if ($LooseAmounts.Count -ge 2) {
+    return Format-MoneyRange $LooseAmounts[0] $LooseAmounts[$LooseAmounts.Count - 1]
+  }
+  if ($LooseAmounts.Count -eq 1) {
+    return Format-MoneyRange ([double]$LooseAmounts[0] * 0.8) ([double]$LooseAmounts[0] * 1.2)
+  }
+
+  return ""
+}
+
+function Get-LooseMoneyAmounts {
+  param([string]$Text)
+
+  $Amounts = @()
+  foreach ($Pattern in @(
+    '\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)',
+    '\b(?:about|around|approx(?:imately)?|range|from|between|value|price|worth|listing|asking|listed)\D{0,24}(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to|and)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)',
+    '\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b'
+  )) {
+    foreach ($Match in [regex]::Matches($Text, $Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+      for ($Index = 1; $Index -lt $Match.Groups.Count; $Index += 1) {
+        $Raw = $Match.Groups[$Index].Value
+        if (-not $Raw) { continue }
+        $Amount = 0.0
+        if ([double]::TryParse($Raw.Replace(",", ""), [ref]$Amount) -and $Amount -gt 0 -and $Amount -lt 100000) {
+          $Amounts += $Amount
+        }
+      }
+    }
+  }
+
+  return @($Amounts | Select-Object -Unique)
+}
+
+function Get-PreliminaryReferenceRangeText {
+  param(
+    $Classification,
+    [bool]$SearchCompleted = $false
+  )
+
+  $Evidence = "based on item evidence and AI market reasoning because live source-backed comps were unavailable"
+  if ($SearchCompleted) {
+    $Evidence = "based on similar active listings or partial references found during the current search"
+  }
+  return "$($Classification.range) $Evidence; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate."
+}
+
+function Get-WeakEvidenceMeaningText {
+  param(
+    $Report,
+    $Classification
+  )
+
+  $AskingAmounts = @(Get-MoneyAmounts ((Clean-Text $Report.askingPrice) + " " + (Clean-Text $Report.currentAskingPrice)))
+  $RangeAmounts = @(Get-MoneyAmounts $Classification.range | Sort-Object)
+  if ($AskingAmounts.Count -gt 0 -and $RangeAmounts.Count -ge 2 -and [double]$AskingAmounts[0] -lt [double]$RangeAmounts[0]) {
+    return "At $(Format-Money $AskingAmounts[0]), the price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation."
+  }
+
+  return "The price may be directionally useful, but fair market value has not been established because no confirmed sales or strong comparable matches were found."
+}
+
+function Get-BestNextEvidenceStep {
+  param($Report)
+
+  foreach ($Value in @(
+    @(Normalize-ReportArray $Report.whatToVerifyBeforeBuying | Select-Object -First 1),
+    @(Normalize-ReportArray $Report.additionalInformationNeeded | Select-Object -First 1),
+    @(Normalize-ReportArray $Report.missingDetails | Select-Object -First 1)
+  )) {
+    $Text = Clean-Text $Value
+    if ($Text) { return $Text }
+  }
+
+  return "Add one clear close-up of the strongest label, model number, SKU, UPC/barcode, maker mark, measurement, or condition issue."
+}
+
+function Get-CautiousCurrentPriceAssessment {
+  param(
+    [string]$Value,
+    $Report,
+    $Classification
+  )
+
+  $Text = Clean-Text $Value
+  $Meaning = Get-WeakEvidenceMeaningText -Report $Report -Classification $Classification
+  if (-not $Text -or $Text -match "excellent value|good value|below market|fair market value") {
+    return "Unknown - $Meaning"
+  }
+  return Ensure-Prefix $Text "Low-confidence assessment - "
+}
+
+function Normalize-MoneyLabelText {
+  param([string]$Value)
+
+  $Text = Clean-Text $Value
+  if (-not $Text) {
+    return ""
+  }
+
+  $Text = [regex]::Replace($Text, '\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(?:to|through)\s+\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b', {
+    param($Match)
+    return "$(Format-Money ([double]$Match.Groups[1].Value.Replace(',', '')))-$(Format-Money ([double]$Match.Groups[2].Value.Replace(',', '')))"
+  }, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+  $Text = [regex]::Replace($Text, '\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*-\s*\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b', {
+    param($Match)
+    return "$(Format-Money ([double]$Match.Groups[1].Value.Replace(',', '')))-$(Format-Money ([double]$Match.Groups[2].Value.Replace(',', '')))"
+  }, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+  return $Text
+}
+
+function Format-MoneyInputText {
+  param([string]$Value)
+
+  $Text = Clean-Text $Value
+  if (-not $Text) {
+    return ""
+  }
+  if ($Text.StartsWith('$')) {
+    return Normalize-MoneyLabelText $Text
+  }
+  if ($Text -match '^(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)$') {
+    return Format-Money ([double]$Matches[1].Replace(",", ""))
+  }
+  return Normalize-MoneyLabelText $Text
 }
 
 function Ensure-Prefix {
@@ -3482,7 +3798,7 @@ function Get-CurrentAskingPriceText {
   }
 
   if ($AskingPrice) {
-    return "Current seller asking price: $AskingPrice"
+    return "Current seller asking price: $(Format-MoneyInputText $AskingPrice)"
   }
 
   return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously."

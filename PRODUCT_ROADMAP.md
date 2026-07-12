@@ -185,6 +185,13 @@
 - Confidence explanations, Why expansion, final appraiser-style summary, staged loading, clearer photo intake, removable thumbnails, improved copy confirmation, and lightweight beta feedback were added
 - Mobile spacing, wrapping, touch targets, focus states, and report scanning were tightened for beta readiness
 
+## Version 1.9.1 (Completed)
+- Valuation evidence labels now use one centralized state: supported, preliminary, or insufficient
+- Weak active-listing or partial evidence is labeled as a Preliminary Reference Range, not Estimated Fair Value
+- Insufficient evidence reports now show Fair Value: Not established instead of a false-precision value range
+- Executive Summary, detailed report cards, copy output, and Ask Market Edge context now use the same valuation evidence labels
+- Active asking prices remain reference evidence only and are not described as confirmed sold evidence or verified fair market value
+
 ## Version 2.0
 - User accounts
 - Saved listings
