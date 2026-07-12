@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.8.4.1"
+$AppVersion = "1.9.0"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72

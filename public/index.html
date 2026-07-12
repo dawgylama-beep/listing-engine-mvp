@@ -13,7 +13,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.8.4.1</p>
+            <p class="version-badge">Version 1.9.0</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -182,14 +182,16 @@
               <div class="photo-inputs">
                 <div class="photo-control">
                   <label for="camera-photo">Take Photo</label>
+                  <p class="control-helper">Opens your camera on phones and tablets.</p>
                   <input id="camera-photo" type="file" accept="image/*" capture="environment">
                 </div>
                 <div class="photo-control">
                   <label for="photos">Upload Photos</label>
+                  <p class="control-helper">Choose from your photo library or files.</p>
                   <input id="photos" name="photos" type="file" accept="image/*" multiple>
                 </div>
               </div>
-              <p class="field-note">Use your camera, photo library, or files. Add up to 6 item photos.</p>
+              <p class="field-note">Add up to 6 item photos. Clear close-ups of labels, marks, and damage usually improve confidence.</p>
               <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
             </div>
 
@@ -394,8 +396,22 @@
             <div class="output-actions">
               <button id="new-item-button" class="secondary-button" type="button">New Item</button>
               <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
+              <button id="feedback-button" class="secondary-button" type="button">Send Feedback</button>
             </div>
           </div>
+
+          <section id="feedback-panel" class="feedback-panel" aria-labelledby="feedback-title" hidden>
+            <div>
+              <h3 id="feedback-title">Beta Feedback</h3>
+              <p class="feedback-helper">Share what felt confusing, slow, wrong, or useful.</p>
+            </div>
+            <label for="feedback-text">Feedback</label>
+            <textarea id="feedback-text" rows="4" placeholder="Example: The recommendation was clear, but the price confidence explanation felt too vague."></textarea>
+            <div class="feedback-actions">
+              <button id="feedback-copy-button" class="primary-button" type="button">Copy Feedback</button>
+            </div>
+            <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
+          </section>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">

@@ -30,6 +30,11 @@ const askSubmitLabel = document.querySelector("#ask-submit-label");
 const askStatusBox = document.querySelector("#ask-status");
 const askHistory = document.querySelector("#ask-history");
 const clearAskButton = document.querySelector("#clear-ask-button");
+const feedbackButton = document.querySelector("#feedback-button");
+const feedbackPanel = document.querySelector("#feedback-panel");
+const feedbackText = document.querySelector("#feedback-text");
+const feedbackCopyButton = document.querySelector("#feedback-copy-button");
+const feedbackStatus = document.querySelector("#feedback-status");
 
 const listingSections = [
   ["platform", "Platform"],
@@ -290,6 +295,8 @@ let activeRequestId = 0;
 let activeRequestController = null;
 let activeAskRequestId = 0;
 let activeAskRequestController = null;
+let loadingProgressTimer = null;
+let loadingProgressIndex = 0;
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", renderPhotoPreview);
@@ -307,6 +314,8 @@ copyAllButton.addEventListener("click", () => {
 newItemButton.addEventListener("click", startNewItem);
 askForm.addEventListener("submit", submitAskQuestion);
 clearAskButton.addEventListener("click", clearAskConversation);
+feedbackButton.addEventListener("click", toggleFeedbackPanel);
+feedbackCopyButton.addEventListener("click", copyFeedbackText);
 window.addEventListener("pageshow", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
 });
@@ -328,14 +337,48 @@ function renderPhotoPreview() {
   preview.innerHTML = "";
   const files = getSelectedPhotoFiles();
 
-  for (const file of files) {
+  files.forEach((file, index) => {
+    const item = document.createElement("div");
+    item.className = "photo-preview-item";
+
     const image = document.createElement("img");
     image.className = "photo-thumb";
-    image.alt = file.name || "Uploaded item photo";
+    image.alt = file.name || `Item photo ${index + 1}`;
     image.src = URL.createObjectURL(file);
     image.addEventListener("load", () => URL.revokeObjectURL(image.src), { once: true });
-    preview.appendChild(image);
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "photo-remove-button";
+    removeButton.type = "button";
+    removeButton.setAttribute("aria-label", `Remove photo ${index + 1}`);
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => removePhotoAt(index));
+
+    item.append(image, removeButton);
+    preview.appendChild(item);
+  });
+}
+
+function removePhotoAt(index) {
+  if (index < cameraPhotoFiles.length) {
+    cameraPhotoFiles.splice(index, 1);
+    renderPhotoPreview();
+    return;
   }
+
+  const uploadIndex = index - cameraPhotoFiles.length;
+  const uploadedFiles = Array.from(photosInput.files || []);
+  uploadedFiles.splice(uploadIndex, 1);
+
+  if (typeof DataTransfer === "function") {
+    const transfer = new DataTransfer();
+    uploadedFiles.forEach((file) => transfer.items.add(file));
+    photosInput.files = transfer.files;
+  } else {
+    photosInput.value = "";
+  }
+
+  renderPhotoPreview();
 }
 
 async function handleSubmit(event) {
@@ -374,7 +417,7 @@ async function handleSubmit(event) {
   setOutputHeading(config);
   const request = startWorkflowRequest(workflow);
   setLoading(true, workflow);
-  setStatus(config.loadingMessage, "loading");
+  startLoadingProgress(config, request.id, workflow);
 
   try {
     const photos = await preparePhotos(selectedPhotoFiles);
@@ -443,7 +486,7 @@ async function handleSubmit(event) {
     }
 
     renderEmpty(config);
-    setStatus(error.message || config.errorMessage, "error");
+    setStatus(getFriendlyErrorMessage(error, config), "error");
   } finally {
     if (isCurrentRequest(request.id, workflow)) {
       activeRequestController = null;
@@ -544,6 +587,7 @@ function startWorkflowRequest(workflow) {
 
 function abortActiveRequest() {
   activeRequestId += 1;
+  stopLoadingProgress();
   if (activeRequestController) {
     activeRequestController.abort();
     activeRequestController = null;
@@ -787,53 +831,480 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
 
 function renderReport(report, sections) {
   results.classList.remove("empty-state");
+  results.classList.remove("loading-state");
   results.innerHTML = "";
 
-  if (hasVisualRecognition(report)) {
-    results.appendChild(renderVisualRecognitionSummary(report));
-  }
+  results.appendChild(renderExecutiveSummary(report, currentWorkflow));
 
-  if (isConsumerReport(report)) {
-    results.appendChild(renderConsumerSummary(report));
+  const whyCards = buildSectionCards(report, sections, isWhySection);
+  const whyGroup = renderReportGroup({
+    title: "Why",
+    helper: "The reasoning, confidence, risks, and evidence that shaped this recommendation.",
+    open: true,
+    children: whyCards.length ? whyCards : [renderPlainInsight("Why this result?", getBestWhyText(report))]
+  });
+  results.appendChild(whyGroup);
+
+  const researchChildren = [];
+  if (hasVisualRecognition(report)) {
+    researchChildren.push(renderVisualRecognitionSummary(report));
   }
 
   if (report.subjectIdentity || report.exactProductIdentity || report.whatIsStillUnknown) {
-    results.appendChild(renderIdentitySummary(report));
+    researchChildren.push(renderIdentitySummary(report));
   }
 
+  researchChildren.push(...buildSectionCards(report, sections, (key) => !isWhySection(key)));
+  if (!researchChildren.length) {
+    researchChildren.push(renderPlainInsight("Research details", "No detailed research sections were returned for this report."));
+  }
+
+  results.appendChild(renderReportGroup({
+    title: "Research Details",
+    helper: "Visual evidence, source coverage, comparable quality, pricing rationale, and detailed fields.",
+    open: false,
+    children: researchChildren
+  }));
+
+  results.appendChild(renderAppraiserSummary(report, currentWorkflow));
+}
+
+function buildSectionCards(report, sections, includeKey) {
+  const seen = new Set();
+  const cards = [];
+
   for (const [key, label] of sections) {
-    if (!shouldRenderSection(key, report[key])) {
+    if (seen.has(key) || !includeKey(key) || !shouldRenderSection(key, report[key])) {
       continue;
     }
 
-    const card = document.createElement("article");
-    card.className = key === "buyer_risk_score"
-      ? `section-card risk-score-card ${getRiskModifier(report.buyer_risk_level)}`
-      : "section-card";
-
-    const header = document.createElement("div");
-    header.className = "section-topline";
-
-    const title = document.createElement("h3");
-    title.textContent = label;
-
-    const copyButton = document.createElement("button");
-    copyButton.className = "copy-button";
-    copyButton.type = "button";
-    copyButton.textContent = "Copy";
-    copyButton.addEventListener("click", () => {
-      const copyValue = key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]);
-      copyText(copyValue, copyButton);
-    });
-
-    const body = document.createElement("div");
-    body.className = "section-body";
-    body.appendChild(key === "buyer_risk_score" ? renderRiskScore(report) : renderValue(report[key]));
-
-    header.append(title, copyButton);
-    card.append(header, body);
-    results.appendChild(card);
+    seen.add(key);
+    cards.push(renderSectionCard({ key, label, value: report[key], report }));
   }
+
+  return cards;
+}
+
+function renderSectionCard({ key, label, value, report }) {
+  const card = document.createElement("article");
+  card.className = key === "buyer_risk_score"
+    ? `section-card risk-score-card ${getRiskModifier(report.buyer_risk_level)}`
+    : "section-card";
+
+  const header = document.createElement("div");
+  header.className = "section-topline";
+
+  const title = document.createElement("h3");
+  title.textContent = label;
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Section";
+  copyButton.addEventListener("click", () => {
+    const copyValue = key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, value);
+    copyText(copyValue, copyButton);
+  });
+
+  const body = document.createElement("div");
+  body.className = "section-body";
+  body.appendChild(key === "buyer_risk_score" ? renderRiskScore(report) : renderValue(value));
+
+  header.append(title, copyButton);
+  card.append(header, body);
+  return card;
+}
+
+function renderReportGroup({ title, helper, open = false, children = [] }) {
+  const group = document.createElement("details");
+  group.className = "report-group";
+  group.open = open;
+
+  const summary = document.createElement("summary");
+  summary.className = "report-group-summary";
+  const text = document.createElement("span");
+  text.className = "details-summary-text";
+  const titleText = document.createElement("span");
+  titleText.className = "details-title";
+  titleText.textContent = title;
+  const helperText = document.createElement("span");
+  helperText.className = "details-helper";
+  helperText.textContent = helper;
+  const chevron = document.createElement("span");
+  chevron.className = "details-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  text.append(titleText, helperText);
+  summary.append(text, chevron);
+
+  const body = document.createElement("div");
+  body.className = "report-group-body";
+  children.forEach((child) => body.appendChild(child));
+  group.append(summary, body);
+  return group;
+}
+
+function renderPlainInsight(title, value) {
+  const card = document.createElement("article");
+  card.className = "section-card insight-card";
+  const header = document.createElement("div");
+  header.className = "section-topline";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  header.appendChild(heading);
+  const body = document.createElement("div");
+  body.className = "section-body";
+  const paragraph = document.createElement("p");
+  paragraph.textContent = value;
+  body.appendChild(paragraph);
+  card.append(header, body);
+  return card;
+}
+
+function isWhySection(key) {
+  return new Set([
+    "recommendation",
+    "purchaserDecision",
+    "valueRating",
+    "currentPriceAssessment",
+    "buyerDecisionConfidence",
+    "priceConfidence",
+    "pricingConfidence",
+    "pricingRationale",
+    "valuationConfidence",
+    "negotiationGuidance",
+    "reasonsToBuy",
+    "reasonsForCaution",
+    "productOrConditionRisks",
+    "primary_risk_factors",
+    "risk_reduction_actions",
+    "betterValueConsiderations",
+    "betterPriceCheckNeeded",
+    "resalePotential",
+    "priceBasis"
+  ]).has(key);
+}
+
+function getBestWhyText(report) {
+  return firstNonEmpty(
+    report.pricingRationale,
+    report.negotiationGuidance,
+    report.currentPriceAssessment,
+    report.priceBasis,
+    report.buyerDecisionConfidence,
+    "The recommendation is based on the item evidence, available comparables, confidence level, price, condition, and remaining unknowns."
+  );
+}
+
+function renderExecutiveSummary(report, workflow) {
+  const summary = getExecutiveSummary(report, workflow);
+  const card = document.createElement("article");
+  card.className = `executive-summary-card ${getValueRatingModifier(summary.tone)}`;
+
+  const header = document.createElement("div");
+  header.className = "executive-summary-header";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "summary-eyebrow";
+  eyebrow.textContent = summary.eyebrow;
+  const title = document.createElement("h3");
+  title.textContent = summary.title;
+  const badge = document.createElement("span");
+  badge.className = "summary-badge";
+  badge.textContent = summary.badge;
+  header.append(eyebrow, title, badge);
+
+  const metrics = document.createElement("dl");
+  metrics.className = "executive-metrics";
+  summary.metrics.forEach(([name, value]) => {
+    if (!value) {
+      return;
+    }
+
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = name;
+    detail.textContent = value;
+    item.append(term, detail);
+    metrics.appendChild(item);
+  });
+
+  const confidence = renderConfidenceExplainer(report);
+  const why = document.createElement("details");
+  why.className = "summary-why";
+  const whySummary = document.createElement("summary");
+  whySummary.textContent = "Why?";
+  const whyText = document.createElement("p");
+  whyText.textContent = getBestWhyText(report);
+  why.append(whySummary, whyText);
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button summary-copy";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Summary";
+  copyButton.addEventListener("click", () => copyText(formatExecutiveSummary(report, workflow), copyButton));
+
+  card.append(header, metrics, confidence, why, copyButton);
+  return card;
+}
+
+function getExecutiveSummary(report, workflow) {
+  if (workflow === "listing") {
+    const listingTitle = firstNonEmpty(report.optimizedListingTitle, report.title, report.listingTitle, report.identifiedItem, "Listing title needs review");
+    const price = firstNonEmpty(report.recommendedListingPrice, report.suggestedListingPrice, report.priceStrategy, "Price needs review");
+    const platform = firstNonEmpty(report.suggestedSellingPlatform, report.platform, report.recommendedSellingPlatform, "Platform not specified");
+    const confidence = getConfidenceText(report);
+    return {
+      eyebrow: "Executive Summary",
+      title: price,
+      badge: "Generate Listing",
+      tone: confidence,
+      metrics: [
+        ["Recommended Listing Price", price],
+        ["Listing Title", listingTitle],
+        ["Suggested Platform", platform],
+        ["Confidence", confidence]
+      ]
+    };
+  }
+
+  if (workflow === "resale") {
+    const decision = firstNonEmpty(report.purchaserDecision, report.recommendation, "Need More Info");
+    const purchasePrice = firstNonEmpty(report.currentAskingPrice, report.askingPrice, "Not provided");
+    const resaleRange = firstNonEmpty(report.expectedSalePrice, report.suggestedListingPrice, report.resalePotential, report.estimatedMarketValue, "Unclear");
+    const profit = firstNonEmpty(report.expectedProfitPotential, report.profitPotential, report.minimumAcceptablePrice, report.resalePotential, "Not reliable enough to estimate");
+    const maxBuy = firstNonEmpty(report.maximumRecommendedBuyPrice, report.walkAwayPrice, "No reliable maximum yet");
+    const confidence = getConfidenceText(report);
+    return {
+      eyebrow: "Executive Summary",
+      title: decision,
+      badge: "Resale Decision",
+      tone: decision,
+      metrics: [
+        ["Purchase Price", purchasePrice],
+        ["Estimated Resale Range", resaleRange],
+        ["Estimated Profit", profit],
+        ["Maximum Buy Price", maxBuy],
+        ["Confidence", confidence]
+      ]
+    };
+  }
+
+  if (workflow === "market_value") {
+    const value = firstNonEmpty(report.estimatedMarketValue, report.estimatedFairMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, "Value needs more evidence");
+    const identity = firstNonEmpty(report.subjectIdentity, report.itemIdentification, report.identifiedItem, report.visualSubject, "Identity not verified");
+    const confidence = getConfidenceText(report);
+    return {
+      eyebrow: "Executive Summary",
+      title: value,
+      badge: "Market Value",
+      tone: confidence,
+      metrics: [
+        ["Estimated Value", value],
+        ["Confidence", confidence],
+        ["Most Likely Identity", identity]
+      ]
+    };
+  }
+
+  const recommendation = firstNonEmpty(report.recommendation, report.purchaserDecision, "Need More Information");
+  const valueRating = firstNonEmpty(report.valueRating, report.currentPriceAssessment, "Insufficient Evidence");
+  const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, "Not provided");
+  const fairValue = firstNonEmpty(report.estimatedFairMarketValue, report.fairPriceRange, report.aiOnlyRoughValueRange, "Unclear");
+  const confidence = getConfidenceText(report);
+  const nextStep = firstNonEmpty(report.recommendedOffer, report.negotiationGuidance, report.whatToVerifyBeforeBuying, report.additionalInformationNeeded, "Verify identity, condition, and price evidence before acting.");
+  return {
+    eyebrow: "Executive Summary",
+    title: recommendation,
+    badge: valueRating,
+    tone: valueRating,
+    metrics: [
+      ["Recommendation", recommendation],
+      ["Value Rating", valueRating],
+      ["Asking Price", askingPrice],
+      ["Estimated Fair Value", fairValue],
+      ["Confidence", confidence],
+      ["Best Next Step", normalizeDisplayValue(nextStep)]
+    ]
+  };
+}
+
+function renderConfidenceExplainer(report) {
+  const drivers = getConfidenceDrivers(report);
+  const block = document.createElement("div");
+  block.className = "confidence-explainer";
+  const title = document.createElement("h4");
+  title.textContent = `Confidence: ${getConfidenceText(report)}`;
+  const list = document.createElement("ul");
+  drivers.forEach((driver) => {
+    const item = document.createElement("li");
+    item.textContent = driver;
+    list.appendChild(item);
+  });
+  block.append(title, list);
+  return block;
+}
+
+function getConfidenceDrivers(report) {
+  const drivers = [];
+  const visualConfidence = String(report.visualSubjectConfidence || report.subjectConfidence || "").toLowerCase();
+  const compText = normalizeDisplayValue(firstNonEmpty(report.comparableQuality, report.liveCompConfidence, report.researchResults)).toLowerCase();
+  const exactText = String(report.exactProductIdentity || report.exactProductConfidence || "").toLowerCase();
+  const priceText = normalizeDisplayValue(firstNonEmpty(report.priceConfidence, report.pricingConfidence, report.valuationConfidence, report.buyerDecisionConfidence)).toLowerCase();
+
+  if (/high|strong|clearly|confirmed/.test(visualConfidence)) {
+    drivers.push("Subject appears well supported by the photos.");
+  } else if (visualConfidence) {
+    drivers.push("Visual identification still has limits.");
+  }
+
+  if (/exact match|strong comparable|source-backed|reliable/.test(compText)) {
+    drivers.push("Comparable evidence appears useful enough to support the decision.");
+  } else if (/no reliable|weak|partial|rejected|ai-only|unavailable/.test(compText)) {
+    drivers.push("Comparable evidence is limited or did not pass match-quality checks.");
+  }
+
+  if (/unknown|unverified|not verified|low/.test(exactText)) {
+    drivers.push("Exact product, maker, date, licensing, or authenticity may still need verification.");
+  }
+
+  if (/low|insufficient|unclear|limited/.test(priceText)) {
+    drivers.push("Pricing should be treated cautiously until stronger evidence is available.");
+  } else if (/high|medium|moderate/.test(priceText)) {
+    drivers.push("Pricing confidence is supported by the available evidence, but final condition still matters.");
+  }
+
+  if (!drivers.length) {
+    drivers.push("Confidence depends on photo clarity, item identity, condition, and source-backed comparable quality.");
+  }
+
+  return drivers.slice(0, 4);
+}
+
+function renderAppraiserSummary(report, workflow) {
+  const card = document.createElement("article");
+  card.className = "appraiser-summary-card";
+  const header = document.createElement("div");
+  header.className = "appraiser-summary-header";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "summary-eyebrow";
+  eyebrow.textContent = "Final read";
+  const title = document.createElement("h3");
+  title.textContent = "Appraiser Summary";
+  header.append(eyebrow, title);
+
+  const grid = document.createElement("div");
+  grid.className = "appraiser-grid";
+  [
+    ["What I Know", getWhatIKnow(report)],
+    ["What I'm Unsure About", getWhatIsUnclear(report)],
+    ["What I'd Check Next", getWhatToCheckNext(report)],
+    ["Final Recommendation", getFinalRecommendation(report, workflow)]
+  ].forEach(([label, value]) => {
+    const section = document.createElement("section");
+    const heading = document.createElement("h4");
+    heading.textContent = label;
+    const paragraph = document.createElement("p");
+    paragraph.textContent = normalizeDisplayValue(value);
+    section.append(heading, paragraph);
+    grid.appendChild(section);
+  });
+
+  card.append(header, grid);
+  return card;
+}
+
+function getWhatIKnow(report) {
+  return firstNonEmpty(
+    report.whatIsKnown,
+    report.visualRecognitionSummary,
+    report.identitySummary,
+    report.itemIdentification,
+    report.identifiedItem,
+    report.subjectIdentity,
+    "The photos and notes provide enough context for a preliminary item read."
+  );
+}
+
+function getWhatIsUnclear(report) {
+  return firstNonEmpty(
+    report.whatIsStillUnknown,
+    report.missingDetails,
+    report.additionalInformationNeeded,
+    report.visualRecognitionUnknowns,
+    report.identityConflicts,
+    "Exact identity, condition, source-backed value, or buyer fit may still need verification."
+  );
+}
+
+function getWhatToCheckNext(report) {
+  return firstNonEmpty(
+    report.whatToVerifyBeforeBuying,
+    report.risk_reduction_actions,
+    report.additionalInformationNeeded,
+    report.stagingPhotos,
+    "Take one clear close-up of the strongest label, mark, model number, damage area, or size reference."
+  );
+}
+
+function getFinalRecommendation(report, workflow) {
+  if (workflow === "listing") {
+    return firstNonEmpty(report.priceStrategy, report.sellerNotes, report.recommendedListingPrice, "Use the listing draft, then verify facts and condition before posting.");
+  }
+
+  return firstNonEmpty(
+    report.recommendation,
+    report.purchaserDecision,
+    report.currentPriceAssessment,
+    report.maximumRecommendedBuyPrice,
+    "Treat this as decision support and verify identity, condition, and pricing before acting."
+  );
+}
+
+function getConfidenceText(report) {
+  return normalizeDisplayValue(firstNonEmpty(
+    report.buyerDecisionConfidence,
+    report.priceConfidence,
+    report.pricingConfidence,
+    report.valuationConfidence,
+    report.liveCompConfidence,
+    report.identificationConfidence,
+    report.itemIdentificationConfidence,
+    report.visualSubjectConfidence,
+    "Confidence depends on the evidence available."
+  ));
+}
+
+function normalizeDisplayValue(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(" | ");
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .filter(([, item]) => String(item || "").trim())
+      .map(([key, item]) => `${formatAnswerType(key)}: ${item}`)
+      .join(" | ");
+  }
+
+  return String(value || "").trim();
+}
+
+function formatExecutiveSummary(report, workflow) {
+  const summary = getExecutiveSummary(report, workflow);
+  return [
+    "Executive Summary",
+    summary.title,
+    "",
+    ...summary.metrics
+      .filter(([, value]) => value)
+      .map(([label, value]) => `${label}\n${value}`),
+    "",
+    "Confidence Because",
+    ...getConfidenceDrivers(report).map((item) => `- ${item}`),
+    "",
+    "Why",
+    getBestWhyText(report)
+  ].filter(Boolean).join("\n");
 }
 
 function hasVisualRecognition(report) {
@@ -1399,7 +1870,19 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   latestReport = null;
   copyAllButton.disabled = true;
   results.className = "results empty-state";
-  results.innerHTML = `<p>${config.emptyMessage}</p>`;
+  results.innerHTML = "";
+
+  const intro = document.createElement("div");
+  intro.className = "first-run-card";
+  const title = document.createElement("h3");
+  title.textContent = "Photograph any item.";
+  const copy = document.createElement("p");
+  copy.textContent = "We'll identify it, estimate its value, and help you make the smartest buying or selling decision.";
+  const helper = document.createElement("p");
+  helper.className = "first-run-helper";
+  helper.textContent = config.emptyMessage;
+  intro.append(title, copy, helper);
+  results.appendChild(intro);
 }
 
 function setOutputHeading(config) {
@@ -1411,6 +1894,87 @@ function setLoading(isLoading, workflow = currentWorkflow) {
   const config = workflowConfigs[workflow] || workflowConfigs[defaultWorkflow];
   workflowSubmitButton.disabled = isLoading;
   workflowSubmitLabel.textContent = isLoading ? config.activeLabel : config.defaultLabel;
+
+  if (!isLoading) {
+    stopLoadingProgress();
+  }
+}
+
+function startLoadingProgress(config, requestId, workflow) {
+  stopLoadingProgress();
+  loadingProgressIndex = 0;
+  const stages = getLoadingStages(workflow);
+  renderLoadingProgress(stages, loadingProgressIndex);
+  setStatus(stages[loadingProgressIndex], "loading");
+
+  loadingProgressTimer = setInterval(() => {
+    if (!isCurrentRequest(requestId, workflow)) {
+      stopLoadingProgress();
+      return;
+    }
+
+    loadingProgressIndex = Math.min(loadingProgressIndex + 1, stages.length - 1);
+    renderLoadingProgress(stages, loadingProgressIndex);
+    setStatus(stages[loadingProgressIndex], "loading");
+  }, 1500);
+}
+
+function stopLoadingProgress() {
+  if (loadingProgressTimer) {
+    clearInterval(loadingProgressTimer);
+    loadingProgressTimer = null;
+  }
+}
+
+function getLoadingStages(workflow) {
+  if (workflow === "listing") {
+    return [
+      "Identifying subject",
+      "Searching references",
+      "Evaluating comparable quality",
+      "Building listing price support",
+      "Preparing listing"
+    ];
+  }
+
+  return [
+    "Identifying subject",
+    "Searching references",
+    "Evaluating comparable quality",
+    "Calculating value",
+    "Preparing report"
+  ];
+}
+
+function renderLoadingProgress(stages, activeIndex) {
+  results.className = "results loading-state";
+  results.innerHTML = "";
+
+  const card = document.createElement("section");
+  card.className = "loading-card";
+  card.setAttribute("aria-label", "Analysis progress");
+
+  const title = document.createElement("h3");
+  title.textContent = "Analyzing item";
+  const helper = document.createElement("p");
+  helper.textContent = "Market Edge is checking the item step by step.";
+
+  const list = document.createElement("ol");
+  list.className = "loading-steps";
+  stages.forEach((stage, index) => {
+    const item = document.createElement("li");
+    item.textContent = stage;
+    if (index < activeIndex) {
+      item.className = "is-complete";
+    } else if (index === activeIndex) {
+      item.className = "is-active";
+      item.setAttribute("aria-current", "step");
+    }
+    list.appendChild(item);
+  });
+
+  card.append(title, helper, list);
+  results.appendChild(card);
 }
 
 function setStatus(message, type) {
@@ -1423,20 +1987,86 @@ function clearStatus() {
   statusBox.className = "status";
 }
 
+function getFriendlyErrorMessage(error, config) {
+  const message = String(error && error.message || "").trim();
+
+  if (/no results/i.test(message)) {
+    return "We could not find an exact match. Try one full-item photo plus one close-up of the label, mark, model number, barcode, or damage.";
+  }
+
+  if (/api key|OPENAI/i.test(message)) {
+    return message;
+  }
+
+  if (/network|failed to fetch|request failed|timeout/i.test(message)) {
+    return "The analysis could not finish because the connection stalled. Try again with the same photos, or start with fewer/lower-resolution photos.";
+  }
+
+  return message || `${config.errorMessage} The most useful next step is one clear full-item photo plus one close-up of any label, mark, model number, barcode, or condition issue.`;
+}
+
+function toggleFeedbackPanel() {
+  const shouldShow = feedbackPanel.hidden;
+  feedbackPanel.hidden = !shouldShow;
+  feedbackButton.setAttribute("aria-expanded", shouldShow ? "true" : "false");
+  feedbackStatus.textContent = "";
+
+  if (shouldShow) {
+    feedbackText.focus();
+  }
+}
+
+async function copyFeedbackText() {
+  const text = feedbackText.value.trim();
+  if (!text) {
+    feedbackStatus.textContent = "Add a quick note first.";
+    feedbackText.focus();
+    return;
+  }
+
+  const context = latestReport
+    ? `Workflow: ${workflowConfigs[currentWorkflow].title || currentWorkflow}\nCurrent result: ${normalizeDisplayValue(getFinalRecommendation(latestReport, currentWorkflow))}\n\n`
+    : "";
+  await navigator.clipboard.writeText(`${context}Feedback:\n${text}`);
+  feedbackStatus.textContent = "Feedback copied. Paste it into your beta feedback message.";
+  feedbackText.value = "";
+}
+
 async function copyText(text, button) {
   await navigator.clipboard.writeText(text);
   const original = button.textContent;
-  button.textContent = "Copied";
+  button.textContent = "Copied!";
+  button.classList.add("is-copied");
   setTimeout(() => {
     button.textContent = original;
+    button.classList.remove("is-copied");
   }, 1200);
 }
 
 function formatReport(report, sections) {
-  return sections
+  const detailText = sections
     .filter(([key]) => shouldRenderSection(key, report[key]))
     .map(([key, label]) => key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]))
     .join("\n\n");
+  const finalText = [
+    "What I Know",
+    normalizeDisplayValue(getWhatIKnow(report)),
+    "",
+    "What I'm Unsure About",
+    normalizeDisplayValue(getWhatIsUnclear(report)),
+    "",
+    "What I'd Check Next",
+    normalizeDisplayValue(getWhatToCheckNext(report)),
+    "",
+    "Final Recommendation",
+    normalizeDisplayValue(getFinalRecommendation(report, currentWorkflow))
+  ].join("\n");
+
+  return [
+    formatExecutiveSummary(report, currentWorkflow),
+    detailText,
+    finalText
+  ].filter(Boolean).join("\n\n");
 }
 
 function formatSection(label, value) {

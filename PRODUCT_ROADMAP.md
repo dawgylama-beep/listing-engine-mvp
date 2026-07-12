@@ -178,6 +178,13 @@
 - This is an instruction-alignment patch, not a new feature release
 - No additional major engine features should be added after Version 1.8.4.1; beta work should focus on visual polish, mobile polish, wording improvements, reliability, bug fixes, and beta feedback
 
+## Version 1.9.0 (Completed)
+- Beta polish and user experience pass completed without changing the core Market Edge engine
+- Every workflow now starts completed results with an Executive Summary card before detailed research
+- Reports are organized into Executive Summary, Why, Research Details, and Ask Market Edge conversation flow
+- Confidence explanations, Why expansion, final appraiser-style summary, staged loading, clearer photo intake, removable thumbnails, improved copy confirmation, and lightweight beta feedback were added
+- Mobile spacing, wrapping, touch targets, focus states, and report scanning were tightened for beta readiness
+
 ## Version 2.0
 - User accounts
 - Saved listings
