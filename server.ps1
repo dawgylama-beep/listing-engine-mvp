@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.1"
+$AppVersion = "1.9.2"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1546,6 +1546,12 @@ function Set-ListingResearchHonesty {
     $Report | Add-Member -NotePropertyName "suggestedSellingPlatform" -NotePropertyValue $Platform -Force
   }
 
+  $RejectedItems = @()
+  if ($SourceBackedResults.Count -eq 0) {
+    $RejectedItems = @(Normalize-ReportArray $Report.researchResults)
+  }
+  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
+
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound ($Status -eq "Live Search Completed - Source-Backed Comps Found") -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "listing"
 }
 
@@ -1677,6 +1683,12 @@ function Set-LiveSearchHonesty {
   }
   $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue $PriceBasis -Force
 
+  $RejectedItems = @()
+  if (-not $ReliableCompsFound) {
+    $RejectedItems = @((Normalize-ReportArray $Report.researchResults) + (Normalize-ReportArray $Report.noReliableComparableItemsFound))
+  }
+  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedItems -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
+
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "market_value"
 }
 
@@ -1739,6 +1751,12 @@ function Set-ConsumerDecisionHonesty {
 
   $Risks = @(Merge-ConsumerArrays $Report.productOrConditionRisks @($RiskFlags | ForEach-Object { "Risk flag: $_" }))
   $Report | Add-Member -NotePropertyName "productOrConditionRisks" -NotePropertyValue @($Risks | Select-Object -First 8) -Force
+
+  $RejectedItems = @()
+  if (-not $ReliableCompsFound) {
+    $RejectedItems = @(Normalize-ReportArray $Report.researchResults)
+  }
+  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
 
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "personal_use"
 }
@@ -2114,6 +2132,17 @@ function Set-ValuationEvidenceLabels {
   )
 
   $Classified = Get-ValuationEvidenceClassification -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted $SearchCompleted
+  $VisibleResultCount = Get-VisibleResearchResultCount $Report
+  $SupportingResultCount = Get-ReferenceSupportingResearchResultCount $Report
+  if ($Classified.state -eq "preliminary" -and $SupportingResultCount -eq 0) {
+    $Classified = [pscustomobject]@{
+      state = "insufficient"
+      label = "Fair Value Not Established"
+      range = ""
+      confidence = "Low"
+      explanation = "The report did not include visible structured strong, partial, or reference records to support a preliminary range."
+    }
+  }
   $Report | Add-Member -NotePropertyName "valuationEvidenceState" -NotePropertyValue $Classified.state -Force
   $Report | Add-Member -NotePropertyName "valuationEvidenceLabel" -NotePropertyValue $Classified.label -Force
   $Report | Add-Member -NotePropertyName "valuationEvidenceExplanation" -NotePropertyValue $Classified.explanation -Force
@@ -2135,8 +2164,11 @@ function Set-ValuationEvidenceLabels {
   }
 
   if ($Classified.state -eq "preliminary") {
-    $Reference = Get-PreliminaryReferenceRangeText -Classification $Classified -SearchCompleted $SearchCompleted
+    $Reference = Get-PreliminaryReferenceRangeText -Classification $Classified -SearchCompleted $SearchCompleted -VisibleResultCount $SupportingResultCount
     $Report | Add-Member -NotePropertyName "preliminaryReferenceRange" -NotePropertyValue $Reference -Force
+    if (-not (Clean-Text $Report.referenceRangeBasis)) {
+      $Report | Add-Member -NotePropertyName "referenceRangeBasis" -NotePropertyValue "$SupportingResultCount visible strong, partial, or reference result$(if ($SupportingResultCount -eq 1) { '' } else { 's' }) support this preliminary reference range. $VisibleResultCount total search result$(if ($VisibleResultCount -eq 1) { '' } else { 's' }) are visible in Research Details." -Force
+    }
     $Report | Add-Member -NotePropertyName "fairValueNotEstablished" -NotePropertyValue "" -Force
     $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue "" -Force
     $Report | Add-Member -NotePropertyName "estimatedMarketValue" -NotePropertyValue "" -Force
@@ -2163,7 +2195,179 @@ function Set-ValuationEvidenceLabels {
   $Report | Add-Member -NotePropertyName "whatThisMeans" -NotePropertyValue "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate." -Force
   $Report | Add-Member -NotePropertyName "bestNextStep" -NotePropertyValue (Get-BestNextEvidenceStep $Report) -Force
   $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue (Ensure-Prefix $Report.priceBasis "Fair value not established - available evidence is too weak for a defensible dollar range. ") -Force
+  $Report | Add-Member -NotePropertyName "referenceRangeBasis" -NotePropertyValue "No numeric preliminary range is shown because there are no visible structured source records supporting one." -Force
   return $Report
+}
+
+function Set-ResearchVisibilityFields {
+  param(
+    $Report,
+    [string]$Status,
+    [array]$StrongItems = @(),
+    [array]$RejectedItems = @(),
+    [bool]$SearchCompleted = $false
+  )
+
+  $StrongRecords = @(Convert-ToResearchResultRecords -Items $StrongItems -BucketName "strongComparables")
+  $RejectedRecords = @(Convert-ToResearchResultRecords -Items $RejectedItems -BucketName "rejectedMatches")
+  $ResultsFound = @($StrongRecords + $RejectedRecords)
+  $Limitations = @()
+  if (-not $SearchCompleted) {
+    $Limitations += "Live search was unavailable, so no source records could be retrieved."
+  } elseif ($ResultsFound.Count -eq 0) {
+    $Limitations += "Live search completed, but no visible structured source-backed result records were returned."
+  }
+  if ($StrongRecords.Count -eq 0) {
+    $Limitations += "No exact or strong comparable records are visible in this report."
+  }
+  if ($RejectedRecords.Count -gt 0) {
+    $Limitations += "Weak and rejected matches are shown for transparency but do not establish fair market value."
+  }
+  if ($ResultsFound | Where-Object { $_.priceType -eq "Active asking price" }) {
+    $Limitations += "Active asking prices are not confirmed sold evidence."
+  }
+  if ($Limitations.Count -eq 0) {
+    $Limitations += "Source-backed results are shown with their evidence role and limitations."
+  }
+
+  $Report | Add-Member -NotePropertyName "resultsFound" -NotePropertyValue @($ResultsFound) -Force
+  $Report | Add-Member -NotePropertyName "strongComparables" -NotePropertyValue @($StrongRecords) -Force
+  $Report | Add-Member -NotePropertyName "partialComparables" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "referenceResults" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "weakMatches" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "rejectedMatches" -NotePropertyValue @($RejectedRecords) -Force
+  $Report | Add-Member -NotePropertyName "searchLimitations" -NotePropertyValue @($Limitations) -Force
+  $Report | Add-Member -NotePropertyName "visibleResearchResultCount" -NotePropertyValue $ResultsFound.Count -Force
+  if (-not (Clean-Text $Report.referenceRangeBasis)) {
+    $Basis = "No visible structured source records were returned, so a preliminary reference range is not supported."
+    if ($StrongRecords.Count -gt 0) {
+      $Basis = "$($StrongRecords.Count) visible source-backed result$(if ($StrongRecords.Count -eq 1) { '' } else { 's' }) can support valuation only if identity, condition, and price type match."
+    }
+    $Report | Add-Member -NotePropertyName "referenceRangeBasis" -NotePropertyValue $Basis -Force
+  }
+
+  return $Report
+}
+
+function Convert-ToResearchResultRecords {
+  param(
+    [array]$Items,
+    [string]$BucketName
+  )
+
+  return @(
+    $Items |
+      ForEach-Object { Convert-ToResearchResultRecord -Text $_ -BucketName $BucketName } |
+      Where-Object { $_.rawText -or $_.title -or $_.url }
+  )
+}
+
+function Convert-ToResearchResultRecord {
+  param(
+    [string]$Text,
+    [string]$BucketName
+  )
+
+  $Raw = Clean-Text $Text
+  $Url = ""
+  $UrlMatch = [regex]::Match($Raw, "https?://[^\s),;]+")
+  if ($UrlMatch.Success) {
+    $Url = $UrlMatch.Value.TrimEnd(".", ")", "]")
+  }
+  $Source = "Source not supplied"
+  if ($Url) {
+    try {
+      $Source = ([uri]$Url).Host -replace "^www\.", ""
+    } catch {
+      $Source = "Source URL supplied"
+    }
+  }
+  $Price = ""
+  $PriceMatch = [regex]::Match($Raw, "\$\s*\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?")
+  if ($PriceMatch.Success) {
+    $Price = Normalize-MoneyLabelText $PriceMatch.Value
+  }
+  $Classification = "Rejected Match"
+  if ($BucketName -eq "strongComparables" -or $Raw -match "\bexact match\b|\blikely exact\b|\bstrong similar\b") {
+    $Classification = "Exact / Strong Comparable"
+  } elseif ($BucketName -eq "partialComparables" -or $Raw -match "\bpartial\b") {
+    $Classification = "Partial Comparable"
+  } elseif ($BucketName -eq "referenceResults" -or $Raw -match "\breference|identity\b") {
+    $Classification = "Reference Result"
+  } elseif ($BucketName -eq "weakMatches" -or $Raw -match "\bweak\b") {
+    $Classification = "Weak Match"
+  }
+  $PriceType = "Price type not confirmed"
+  if ($Raw -match "sold|completed sale|sale price|sold price" -and $Raw -notmatch "not sold|no sold") {
+    $PriceType = "Confirmed sold price"
+  } elseif ($Raw -match "active|asking|listed|listing price|current listing|for sale") {
+    $PriceType = "Active asking price"
+  }
+  $RejectionReason = ""
+  if ($BucketName -eq "rejectedMatches" -or $Classification -eq "Rejected Match") {
+    $RejectionReason = "Not reliable enough for valuation. The item, condition, price type, or source details did not qualify as a strong comparable."
+  }
+
+  return [pscustomobject]@{
+    title = (($Raw -replace "https?://[^\s),;]+", "") -replace "\s+", " ").Trim()
+    source = $Source
+    url = $Url
+    displayedPrice = $Price
+    currency = $(if ($Price) { "$" } else { "" })
+    priceType = $PriceType
+    condition = ""
+    classification = $Classification
+    evidenceRole = $(if ($Classification -match "Strong") { "Can support a value estimate if identity, condition, and price type match." } else { "Rejected or weak context; should not drive price." })
+    matchExplanation = $Raw
+    itemIdentityDifferences = ""
+    influencedReferenceRange = $(if ($Classification -match "Strong|Partial|Reference") { "Yes, as visible evidence only." } else { "No." })
+    rejectionReason = $RejectionReason
+    sourceBacked = $(if ($Url) { "URL provided by result text" } else { "No usable URL supplied by source." })
+    rawText = $Raw
+  }
+}
+
+function Get-VisibleResearchResultCount {
+  param($Report)
+
+  return @(
+    @(Normalize-ReportArray $Report.resultsFound)
+    @(Normalize-ReportArray $Report.strongComparables)
+    @(Normalize-ReportArray $Report.partialComparables)
+    @(Normalize-ReportArray $Report.referenceResults)
+    @(Normalize-ReportArray $Report.weakMatches)
+    @(Normalize-ReportArray $Report.rejectedMatches)
+  ).Count
+}
+
+function Get-ReferenceSupportingResearchResultCount {
+  param($Report)
+
+  $Items = @()
+  foreach ($Value in @($Report.strongComparables, $Report.partialComparables, $Report.referenceResults)) {
+    if ($null -eq $Value) { continue }
+    if ($Value -is [array]) {
+      $Items += $Value
+    } else {
+      $Items += $Value
+    }
+  }
+
+  return @($Items | Where-Object { Test-UsableSourceRecord $_ }).Count
+}
+
+function Test-UsableSourceRecord {
+  param($Item)
+
+  if ($null -eq $Item) {
+    return $false
+  }
+  if ($Item -is [string]) {
+    return ($Item -match "https?://" -or $Item -match "\b(source|platform|site|marketplace)\s*[:=-]")
+  }
+  $Url = Clean-Text $Item.url
+  $Source = Clean-Text $Item.source
+  return ($Url -or ($Source -and $Source -notmatch "not supplied"))
 }
 
 function Get-ValuationEvidenceRange {
@@ -2221,12 +2425,13 @@ function Get-LooseMoneyAmounts {
 function Get-PreliminaryReferenceRangeText {
   param(
     $Classification,
-    [bool]$SearchCompleted = $false
+    [bool]$SearchCompleted = $false,
+    [int]$VisibleResultCount = 0
   )
 
   $Evidence = "based on item evidence and AI market reasoning because live source-backed comps were unavailable"
   if ($SearchCompleted) {
-    $Evidence = "based on similar active listings or partial references found during the current search"
+    $Evidence = "based on $VisibleResultCount visible similar active listing or partial/reference result$(if ($VisibleResultCount -eq 1) { '' } else { 's' }) found during the current search"
   }
   return "$($Classification.range) $Evidence; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate."
 }

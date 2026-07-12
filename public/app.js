@@ -63,6 +63,14 @@ const listingSections = [
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["searchQueriesUsed", "Search Queries Used"],
   ["sourcesSearched", "Sources Searched"],
+  ["resultsFound", "Results Found"],
+  ["strongComparables", "Strong Comparables"],
+  ["partialComparables", "Partial Comparables"],
+  ["referenceResults", "Reference Results"],
+  ["weakMatches", "Weak Matches"],
+  ["rejectedMatches", "Rejected Matches"],
+  ["searchLimitations", "Search Limitations"],
+  ["referenceRangeBasis", "Reference Range Basis"],
   ["researchResults", "Research Results"],
   ["comparableQuality", "Comparable Quality"],
   ["recommendedListingPrice", "Recommended Listing Price"],
@@ -128,6 +136,14 @@ const valuationSections = [
   ["liveSearchDidNotComplete", "Live Search Did Not Complete"],
   ["noReliableComparableItemsFound", "No Reliable Comparable Items Found"],
   ["searchCoverage", "Search Coverage"],
+  ["resultsFound", "Results Found"],
+  ["strongComparables", "Strong Comparables"],
+  ["partialComparables", "Partial Comparables"],
+  ["referenceResults", "Reference Results"],
+  ["weakMatches", "Weak Matches"],
+  ["rejectedMatches", "Rejected Matches"],
+  ["searchLimitations", "Search Limitations"],
+  ["referenceRangeBasis", "Reference Range Basis"],
   ["liveCompConfidence", "Live Comp Confidence"],
   ["valuationConfidence", "Valuation Confidence"],
   ["aiOnlyRoughValueRange", "AI-Only Rough Value Range"],
@@ -182,6 +198,15 @@ const consumerSections = [
   ["reasonsForCaution", "Reasons for Caution"],
   ["productOrConditionRisks", "Product or Condition Risks"],
   ["betterValueConsiderations", "Better-Value Considerations"],
+  ["searchCoverage", "Search Coverage"],
+  ["resultsFound", "Results Found"],
+  ["strongComparables", "Strong Comparables"],
+  ["partialComparables", "Partial Comparables"],
+  ["referenceResults", "Reference Results"],
+  ["weakMatches", "Weak Matches"],
+  ["rejectedMatches", "Rejected Matches"],
+  ["searchLimitations", "Search Limitations"],
+  ["referenceRangeBasis", "Reference Range Basis"],
   ["researchResults", "Research Results"],
   ["comparableQuality", "Comparable Quality"],
   ["pricingConfidence", "Pricing Confidence"],
@@ -670,6 +695,14 @@ function extractReportContext(report, sections = []) {
     "searchQueriesUsed",
     "sourcesSearched",
     "searchCoverage",
+    "resultsFound",
+    "strongComparables",
+    "partialComparables",
+    "referenceResults",
+    "weakMatches",
+    "rejectedMatches",
+    "searchLimitations",
+    "referenceRangeBasis",
     "researchResults",
     "comparableQuality",
     "weFoundThisItem",
@@ -833,7 +866,17 @@ function isConsumerReport(report) {
 }
 
 function normalizeReportForEvidenceDisplay(report, workflow) {
-  const classified = classifyValuationEvidenceForDisplay(report);
+  const visibleResultCount = countVisibleResearchResults(report);
+  const supportingResultCount = countReferenceSupportingResearchResults(report);
+  const initialClassification = classifyValuationEvidenceForDisplay(report);
+  const classified = initialClassification.state === "preliminary" && supportingResultCount === 0
+    ? {
+        state: "insufficient",
+        label: "Fair Value Not Established",
+        range: "",
+        explanation: "No visible strong, partial, or reference source records support a preliminary range."
+      }
+    : initialClassification;
   const normalized = {
     ...report,
     valuationEvidenceState: classified.state,
@@ -858,7 +901,11 @@ function normalizeReportForEvidenceDisplay(report, workflow) {
   if (classified.state === "preliminary") {
     normalized.preliminaryReferenceRange = firstNonEmpty(
       report.preliminaryReferenceRange,
-      `${classified.range} based on similar active listings or partial references; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`
+      `${classified.range} based on ${supportingResultCount} visible strong, partial, or reference result${supportingResultCount === 1 ? "" : "s"}; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`
+    );
+    normalized.referenceRangeBasis = firstNonEmpty(
+      report.referenceRangeBasis,
+      `${supportingResultCount} visible supporting result${supportingResultCount === 1 ? "" : "s"} and ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`
     );
     normalized.fairValueNotEstablished = "";
     normalized.estimatedFairMarketValue = "";
@@ -877,6 +924,7 @@ function normalizeReportForEvidenceDisplay(report, workflow) {
   normalized.valueRating = "Insufficient Evidence";
   normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, "Fair market value has not been established from the available evidence.");
   normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
+  normalized.referenceRangeBasis = firstNonEmpty(report.referenceRangeBasis, "No numeric preliminary range is shown because there are no visible structured source records supporting one.");
   return normalized;
 }
 
@@ -978,6 +1026,35 @@ function getOneBestNextEvidenceStep(report) {
   );
 }
 
+function countVisibleResearchResults(report = {}) {
+  return [
+    report.resultsFound,
+    report.strongComparables,
+    report.partialComparables,
+    report.referenceResults,
+    report.weakMatches,
+    report.rejectedMatches
+  ].flat().filter(Boolean).length;
+}
+
+function countReferenceSupportingResearchResults(report = {}) {
+  return [
+    report.strongComparables,
+    report.partialComparables,
+    report.referenceResults
+  ].flat().filter(isUsableSourceRecord).length;
+}
+
+function isUsableSourceRecord(item) {
+  if (!item) {
+    return false;
+  }
+  if (typeof item === "string") {
+    return /https?:\/\//i.test(item) || /\b(source|platform|site|marketplace)\s*[:=-]/i.test(item);
+  }
+  return Boolean(item.url || (item.source && !/not supplied/i.test(item.source)));
+}
+
 function extractMoneyRangeText(text) {
   const amounts = extractMoneyAmountsFromText(text);
   if (amounts.length >= 2) {
@@ -1072,14 +1149,21 @@ function renderReport(report, sections) {
     researchChildren.push(renderIdentitySummary(report));
   }
 
-  researchChildren.push(...buildSectionCards(report, sections, (key) => !isWhySection(key)));
+  if (hasResearchVisibility(report)) {
+    researchChildren.push(renderResearchEvidencePanel(report));
+  }
+
+  researchChildren.push(...buildSectionCards(report, sections, (key) => !isWhySection(key) && !isResearchVisibilityKey(key)));
   if (!researchChildren.length) {
     researchChildren.push(renderPlainInsight("Research details", "No detailed research sections were returned for this report."));
   }
 
+  const researchResultCount = countVisibleResearchResults(report);
   results.appendChild(renderReportGroup({
-    title: "Research Details",
-    helper: "Visual evidence, source coverage, comparable quality, pricing rationale, and detailed fields.",
+    title: researchResultCount ? `Research Details - ${researchResultCount} results found` : "Research Details",
+    helper: researchResultCount
+      ? "Search queries, sources, visible result records, comparable classification, rejection reasons, and limitations."
+      : "Visual evidence, source coverage, comparable quality, pricing rationale, and detailed fields.",
     open: false,
     children: researchChildren
   }));
@@ -1101,6 +1185,73 @@ function buildSectionCards(report, sections, includeKey) {
   }
 
   return cards;
+}
+
+function hasResearchVisibility(report) {
+  return Boolean(
+    countVisibleResearchResults(report)
+    || normalizeDisplayValue(report.searchQueriesUsed)
+    || normalizeDisplayValue(report.sourcesSearched)
+    || normalizeDisplayValue(report.searchCoverage)
+    || normalizeDisplayValue(report.searchLimitations)
+  );
+}
+
+function isResearchVisibilityKey(key) {
+  return new Set([
+    "searchQueriesUsed",
+    "sourcesSearched",
+    "searchCoverage",
+    "resultsFound",
+    "strongComparables",
+    "partialComparables",
+    "referenceResults",
+    "weakMatches",
+    "rejectedMatches",
+    "searchLimitations",
+    "referenceRangeBasis"
+  ]).has(key);
+}
+
+function renderResearchEvidencePanel(report) {
+  const card = document.createElement("article");
+  card.className = "section-card research-evidence-card";
+  const header = document.createElement("div");
+  header.className = "section-topline";
+  const title = document.createElement("h3");
+  title.textContent = "Research Evidence";
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Section";
+  copyButton.addEventListener("click", () => copyText(formatResearchEvidence(report), copyButton));
+  header.append(title, copyButton);
+
+  const body = document.createElement("div");
+  body.className = "section-body research-evidence-body";
+  [
+    ["Search Queries", report.searchQueriesUsed],
+    ["Sources Searched", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
+    ["Strong Comparables", report.strongComparables],
+    ["Partial Comparables", report.partialComparables],
+    ["Reference Results", report.referenceResults],
+    ["Weak or Rejected Matches", [...normalizeArray(report.weakMatches), ...normalizeArray(report.rejectedMatches)]],
+    ["Search Limitations", report.searchLimitations],
+    ["Reference Range Basis", report.referenceRangeBasis]
+  ].forEach(([label, value]) => {
+    if (!shouldRenderSection(label, value)) {
+      return;
+    }
+    const subsection = document.createElement("section");
+    subsection.className = "research-subsection";
+    const heading = document.createElement("h4");
+    heading.textContent = label;
+    subsection.append(heading, renderValue(value));
+    body.appendChild(subsection);
+  });
+
+  card.append(header, body);
+  return card;
 }
 
 function renderSectionCard({ key, label, value, report }) {
@@ -1506,7 +1657,10 @@ function getConfidenceText(report) {
 
 function normalizeDisplayValue(value) {
   if (Array.isArray(value)) {
-    return value.filter(Boolean).join(" | ");
+    return value
+      .filter(Boolean)
+      .map((item) => item && typeof item === "object" ? formatResearchRecordText(item) : String(item))
+      .join(" | ");
   }
 
   if (value && typeof value === "object") {
@@ -1517,6 +1671,13 @@ function normalizeDisplayValue(value) {
   }
 
   return String(value || "").trim();
+}
+
+function normalizeArray(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  return value ? [value] : [];
 }
 
 function formatExecutiveSummary(report, workflow) {
@@ -2030,6 +2191,10 @@ function shouldRenderSection(key, value) {
 
 function renderValue(value) {
   if (Array.isArray(value)) {
+    if (value.some((item) => item && typeof item === "object")) {
+      return renderResearchResultList(value);
+    }
+
     const list = document.createElement("ul");
     for (const item of value) {
       const listItem = document.createElement("li");
@@ -2042,6 +2207,79 @@ function renderValue(value) {
   const paragraph = document.createElement("p");
   paragraph.textContent = value || "";
   return paragraph;
+}
+
+function renderResearchResultList(value) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "source-result-list";
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = String(item || "");
+      wrapper.appendChild(paragraph);
+      continue;
+    }
+
+    const card = document.createElement("article");
+    card.className = "source-result-card";
+    const heading = document.createElement("h5");
+    heading.textContent = item.title || "Source result";
+    card.appendChild(heading);
+
+    const meta = document.createElement("dl");
+    meta.className = "source-result-meta";
+    [
+      ["Source", item.source],
+      ["Price", item.displayedPrice || item.price],
+      ["Price Type", item.priceType],
+      ["Classification", item.classification],
+      ["Evidence Role", item.evidenceRole],
+      ["Condition", item.condition],
+      ["Influenced Range", item.influencedReferenceRange],
+      ["Identity Differences", item.itemIdentityDifferences],
+      ["Rejection Reason", item.rejectionReason],
+      ["Source Support", item.sourceBacked]
+    ].forEach(([label, detail]) => {
+      if (!detail) {
+        return;
+      }
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = detail;
+      row.append(term, description);
+      meta.appendChild(row);
+    });
+    card.appendChild(meta);
+
+    if (item.matchExplanation) {
+      const explanation = document.createElement("p");
+      explanation.className = "source-result-explanation";
+      explanation.textContent = item.matchExplanation;
+      card.appendChild(explanation);
+    }
+
+    if (item.url) {
+      const link = document.createElement("a");
+      link.className = "source-result-link";
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = item.url;
+      card.appendChild(link);
+    } else {
+      const noLink = document.createElement("p");
+      noLink.className = "source-result-link missing";
+      noLink.textContent = "No usable URL supplied by source.";
+      card.appendChild(noLink);
+    }
+
+    wrapper.appendChild(card);
+  }
+
+  return wrapper;
 }
 
 function renderRiskScore(report) {
@@ -2304,9 +2542,49 @@ function formatReport(report, sections) {
   ].filter(Boolean).join("\n\n");
 }
 
+function formatResearchEvidence(report) {
+  return [
+    formatSection("Search Queries", report.searchQueriesUsed),
+    formatSection("Sources Searched", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage),
+    formatSection("Strong Comparables", report.strongComparables),
+    formatSection("Partial Comparables", report.partialComparables),
+    formatSection("Reference Results", report.referenceResults),
+    formatSection("Weak Matches", report.weakMatches),
+    formatSection("Rejected Matches", report.rejectedMatches),
+    formatSection("Search Limitations", report.searchLimitations),
+    formatSection("Reference Range Basis", report.referenceRangeBasis)
+  ].filter((item) => item.trim()).join("\n\n");
+}
+
 function formatSection(label, value) {
-  const body = Array.isArray(value) ? value.map((item) => `- ${item}`).join("\n") : value;
+  const body = Array.isArray(value)
+    ? value.map((item) => item && typeof item === "object" ? formatResearchRecordText(item) : `- ${item}`).join("\n")
+    : value && typeof value === "object"
+      ? formatResearchRecordText(value)
+      : value;
   return `${label}\n${body || ""}`;
+}
+
+function formatResearchRecordText(item) {
+  const fields = [
+    ["Title", item.title],
+    ["Source", item.source],
+    ["URL", item.url || "No usable URL supplied by source."],
+    ["Displayed Price", item.displayedPrice || item.price],
+    ["Currency", item.currency],
+    ["Price Type", item.priceType],
+    ["Classification", item.classification],
+    ["Evidence Role", item.evidenceRole],
+    ["Condition", item.condition],
+    ["Match Explanation", item.matchExplanation],
+    ["Identity Differences", item.itemIdentityDifferences],
+    ["Influenced Reference Range", item.influencedReferenceRange],
+    ["Rejection Reason", item.rejectionReason],
+    ["Source Support", item.sourceBacked]
+  ]
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}: ${value}`);
+  return fields.length ? `- ${fields.join(" | ")}` : `- ${String(item.rawText || "")}`;
 }
 
 function formatRiskSection(report) {

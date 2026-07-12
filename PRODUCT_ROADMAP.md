@@ -192,6 +192,13 @@
 - Executive Summary, detailed report cards, copy output, and Ask Market Edge context now use the same valuation evidence labels
 - Active asking prices remain reference evidence only and are not described as confirmed sold evidence or verified fair market value
 
+## Version 1.9.2 (Completed)
+- Buying for Myself now exposes visible research evidence buckets instead of hiding weak, partial, reference, or rejected results
+- Research Details now shows Search Queries, Sources Searched, Strong Comparables, Partial Comparables, Reference Results, Weak or Rejected Matches, and Search Limitations
+- Preliminary Reference Range is blocked unless visible strong, partial, or reference records are returned and displayed
+- Source records render as mobile-friendly cards with source, URL, displayed price, price type, classification, evidence role, and rejection reason when available
+- Ask Market Edge context now includes the visible research records needed to answer questions about found listings, rejected comps, and asking-versus-sold evidence
+
 ## Version 2.0
 - User accounts
 - Saved listings

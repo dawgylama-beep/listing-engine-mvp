@@ -1242,6 +1242,82 @@ summary:focus-visible {
   margin-top: 8px;
 }
 
+.research-evidence-body {
+  display: grid;
+  gap: 18px;
+}
+
+.research-subsection {
+  display: grid;
+  gap: 10px;
+}
+
+.research-subsection h4 {
+  margin: 0;
+  color: #13201d;
+  font-size: 0.96rem;
+}
+
+.source-result-list {
+  display: grid;
+  gap: 12px;
+}
+
+.source-result-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(15, 106, 98, 0.18);
+  border-radius: 8px;
+  background: #fbfdfb;
+  overflow-wrap: anywhere;
+}
+
+.source-result-card h5 {
+  margin: 0;
+  color: #17211f;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.source-result-meta {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.source-result-meta div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.36fr) 1fr;
+  gap: 8px;
+}
+
+.source-result-meta dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.source-result-meta dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.source-result-explanation,
+.source-result-link {
+  margin: 0;
+}
+
+.source-result-link {
+  color: #0a665c;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.source-result-link.missing {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .ask-panel {
   display: grid;
   gap: 16px;
@@ -1852,6 +1928,10 @@ summary:focus-visible {
 
   .risk-score-top {
     align-items: flex-start;
+  }
+
+  .source-result-meta div {
+    grid-template-columns: 1fr;
   }
 
   .risk-score-number {

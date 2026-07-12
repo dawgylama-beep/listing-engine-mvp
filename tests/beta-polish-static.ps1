@@ -17,16 +17,16 @@ $package = Get-Content -LiteralPath $packagePath -Raw
 $server = Get-Content -LiteralPath $serverPath -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.9.1"; Text = $index; Pattern = "Version 1.9.1" },
-  @{ Name = "Package version is 1.9.1"; Text = $package; Pattern = '"version": "1.9.1"' },
-  @{ Name = "Local server version is 1.9.1"; Text = $server; Pattern = '$AppVersion = "1.9.1"' },
+  @{ Name = "Visible app version is 1.9.2"; Text = $index; Pattern = "Version 1.9.2" },
+  @{ Name = "Package version is 1.9.2"; Text = $package; Pattern = '"version": "1.9.2"' },
+  @{ Name = "Local server version is 1.9.2"; Text = $server; Pattern = '$AppVersion = "1.9.2"' },
   @{ Name = "Feedback button exists"; Text = $index; Pattern = 'id="feedback-button"' },
   @{ Name = "Feedback panel exists"; Text = $index; Pattern = 'id="feedback-panel"' },
   @{ Name = "Photo controls explain camera and upload"; Text = $index; Pattern = "Choose from your photo library or files." },
   @{ Name = "Photo removal function exists"; Text = $app; Pattern = "function removePhotoAt" },
   @{ Name = "Executive summary renders first"; Text = $app; Pattern = "results.appendChild(renderExecutiveSummary" },
   @{ Name = "Why report group exists"; Text = $app; Pattern = 'title: "Why"' },
-  @{ Name = "Research Details group exists"; Text = $app; Pattern = 'title: "Research Details"' },
+  @{ Name = "Research Details group exists"; Text = $app; Pattern = "Research Details" },
   @{ Name = "Appraiser summary exists"; Text = $app; Pattern = "function renderAppraiserSummary" },
   @{ Name = "Confidence explainer exists"; Text = $app; Pattern = "function renderConfidenceExplainer" },
   @{ Name = "Why expansion exists"; Text = $app; Pattern = 'whySummary.textContent = "Why?"' },

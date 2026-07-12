@@ -692,6 +692,11 @@ const liveCompsSearchSchema = {
   required: [
     "liveSearchStatus",
     "comparableItemsFound",
+    "strongComparables",
+    "partialComparables",
+    "referenceResults",
+    "weakMatches",
+    "rejectedMatches",
     "noReliableMatchesReason",
     "searchEvidenceSummary"
   ],
@@ -701,6 +706,36 @@ const liveCompsSearchSchema = {
       type: "array",
       minItems: 0,
       maxItems: 6,
+      items: { type: "string" }
+    },
+    strongComparables: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    partialComparables: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    referenceResults: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    weakMatches: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    rejectedMatches: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
       items: { type: "string" }
     },
     noReliableMatchesReason: { type: "string" },
@@ -1384,6 +1419,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Search exact identifiers, brand/product-title wording, visual descriptions, category terms, and price/context when present.",
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
+        "Also return every source-backed result reviewed in the right visibility bucket: strongComparables, partialComparables, referenceResults, weakMatches, or rejectedMatches.",
+        "For every bucket item, include title, source/platform/site, URL if available, displayed price, currency, sold versus active asking status, condition if available, exact/strong/partial/weak/rejected classification, evidence role, whether it influenced a reference range, match explanation, identity differences, and rejection reason when rejected.",
+        "Do not hide weak or rejected URL-cited results. If the search found five active listings but all were rejected, return those five rejectedMatches with specific rejection reasons.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
         "Never describe active asking prices as confirmed sold prices.",
         "For Generate Listing research, include source-backed comparable or reference evidence that can support a listing price, but label weak/reference-only evidence honestly.",
@@ -2396,8 +2434,12 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
   const webSearchExecuted = webSearchCalls.length > 0;
-  const rawItems = normalizeStringArray(result.comparableItemsFound, 6);
-  const comparableItemsFound = rawItems.filter((item) => hasCitedUrl(item, citations) && !isRejectedWeakComparableItem(item));
+  const rawItems = normalizeStringArray(result.comparableItemsFound, 8);
+  const bucketedResearch = buildResearchResultBuckets(result, rawItems, citations);
+  const comparableItemsFound = recordsToLegacyComparableStrings([
+    ...bucketedResearch.strongComparables,
+    ...bucketedResearch.partialComparables.filter((item) => /strong similar/i.test(item.classification))
+  ]);
   let liveSearchStatus = "Live Search Unavailable - AI Reasoning Only";
 
   if (webSearchExecuted && comparableItemsFound.length) {
@@ -2409,6 +2451,13 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
   return {
     liveSearchStatus,
     comparableItemsFound,
+    resultsFound: bucketedResearch.resultsFound,
+    strongComparables: bucketedResearch.strongComparables,
+    partialComparables: bucketedResearch.partialComparables,
+    referenceResults: bucketedResearch.referenceResults,
+    weakMatches: bucketedResearch.weakMatches,
+    rejectedMatches: bucketedResearch.rejectedMatches,
+    visibleResearchResultCount: bucketedResearch.resultsFound.length,
     noReliableMatchesReason: liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
       ? ""
       : "Live search completed, but no reliable source-backed exact or strong similar matches were found.",
@@ -2432,6 +2481,7 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
       webSearchCallAppeared: webSearchExecuted,
       urlCitationCount: citations.length,
       sourceBackedCompCount: comparableItemsFound.length,
+      visibleResearchResultCount: bucketedResearch.resultsFound.length,
       finalLiveSearchStatus: liveSearchStatus,
       includeSourcesRequested,
       includeFallbackReason
@@ -2446,6 +2496,13 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
   return {
     liveSearchStatus,
     comparableItemsFound: [],
+    resultsFound: [],
+    strongComparables: [],
+    partialComparables: [],
+    referenceResults: [],
+    weakMatches: [],
+    rejectedMatches: [],
+    visibleResearchResultCount: 0,
     noReliableMatchesReason: "Live search did not complete, so source-backed comps could not be retrieved.",
     searchEvidenceSummary: diagnostic.userMessage,
     sourceRoute,
@@ -2475,6 +2532,232 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
   };
 }
 
+function buildResearchResultBuckets(result, legacyItems, citations) {
+  const seen = new Set();
+  const buckets = {
+    strongComparables: [],
+    partialComparables: [],
+    referenceResults: [],
+    weakMatches: [],
+    rejectedMatches: []
+  };
+
+  const addRecord = (bucketName, text) => {
+    const record = normalizeResearchResultRecord(text, bucketName, citations);
+    if (!record.rawText) {
+      return;
+    }
+    const key = `${record.url || ""}|${record.title}|${record.classification}|${record.rejectionReason}`.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    buckets[bucketName].push(record);
+  };
+
+  normalizeStringArray(result.strongComparables, 6).forEach((item) => addRecord("strongComparables", item));
+  normalizeStringArray(result.partialComparables, 8).forEach((item) => addRecord("partialComparables", item));
+  normalizeStringArray(result.referenceResults, 8).forEach((item) => addRecord("referenceResults", item));
+  normalizeStringArray(result.weakMatches, 8).forEach((item) => addRecord("weakMatches", item));
+  normalizeStringArray(result.rejectedMatches, 8).forEach((item) => addRecord("rejectedMatches", item));
+
+  for (const item of legacyItems) {
+    if (isRejectedWeakComparableItem(item) || /\brejected\b/i.test(item)) {
+      addRecord("rejectedMatches", item);
+    } else if (/\bweak\b/i.test(item)) {
+      addRecord("weakMatches", item);
+    } else if (/\breference|identity\b/i.test(item)) {
+      addRecord("referenceResults", item);
+    } else if (/\bpartial|similar\b/i.test(item) && !/\bexact match\b|\blikely exact\b|\bstrong similar match\b/i.test(item)) {
+      addRecord("partialComparables", item);
+    } else {
+      addRecord("strongComparables", item);
+    }
+  }
+
+  buckets.strongComparables = buckets.strongComparables.slice(0, 6);
+  buckets.partialComparables = buckets.partialComparables.slice(0, 8);
+  buckets.referenceResults = buckets.referenceResults.slice(0, 8);
+  buckets.weakMatches = buckets.weakMatches.slice(0, 8);
+  buckets.rejectedMatches = buckets.rejectedMatches.slice(0, 8);
+  buckets.resultsFound = [
+    ...buckets.strongComparables,
+    ...buckets.partialComparables,
+    ...buckets.referenceResults,
+    ...buckets.weakMatches,
+    ...buckets.rejectedMatches
+  ].slice(0, 24);
+
+  return buckets;
+}
+
+function normalizeResearchResultRecord(value, bucketName, citations = []) {
+  const rawText = cleanText(value);
+  const url = extractFirstUrl(rawText);
+  const source = inferSourceFromResult(rawText, url);
+  const displayedPrice = extractDisplayedPrice(rawText);
+  const classification = inferResultClassification(rawText, bucketName);
+  const priceType = inferPriceType(rawText);
+  const rejected = bucketName === "rejectedMatches" || /rejected|not comparable|not a comparable|failed/i.test(rawText);
+
+  return {
+    title: extractResultTitle(rawText, source, url),
+    source,
+    url: url || "",
+    displayedPrice,
+    currency: displayedPrice ? "$" : "",
+    priceType,
+    condition: extractLabeledResultPart(rawText, /condition\s*[:=-]\s*([^|;.]+)/i),
+    classification,
+    evidenceRole: inferEvidenceRole(bucketName, classification),
+    matchExplanation: extractMatchExplanation(rawText),
+    itemIdentityDifferences: extractIdentityDifferences(rawText),
+    influencedReferenceRange: ["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No.",
+    rejectionReason: rejected ? extractRejectionReason(rawText, classification) : "",
+    sourceBacked: url && hasCitedUrl(rawText, citations) ? "URL-cited" : url ? "URL provided by result text" : "No usable URL supplied by source.",
+    rawText
+  };
+}
+
+function recordsToLegacyComparableStrings(records) {
+  return records
+    .filter((record) => record.url && record.sourceBacked === "URL-cited" && !/rejected|weak/i.test(record.classification))
+    .map(formatResearchRecordForLegacySection)
+    .slice(0, 6);
+}
+
+function formatResearchRecordForLegacySection(record) {
+  return [
+    `Source/platform/site: ${record.source || "Unknown source"}`,
+    `Title: ${record.title || "Title not supplied"}`,
+    record.displayedPrice ? `Price: ${record.displayedPrice}` : "",
+    record.priceType ? `Price Type: ${record.priceType}` : "",
+    record.condition ? `Condition: ${record.condition}` : "",
+    record.url ? `URL: ${record.url}` : "URL: No usable URL supplied by source.",
+    `Match quality: ${record.classification}`,
+    record.matchExplanation ? `Why: ${record.matchExplanation}` : ""
+  ].filter(Boolean).join(" | ");
+}
+
+function extractFirstUrl(text) {
+  const match = String(text || "").match(/https?:\/\/[^\s),;]+/i);
+  return match ? match[0].replace(/[.)\]]+$/, "") : "";
+}
+
+function inferSourceFromResult(text, url) {
+  const labeled = extractLabeledResultPart(text, /(?:source|platform|site|marketplace)\s*[:=-]\s*([^|;.]+)/i);
+  if (labeled) {
+    return labeled;
+  }
+  if (url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./i, "");
+    } catch {
+      return "Source URL supplied";
+    }
+  }
+  return "Source not supplied";
+}
+
+function extractDisplayedPrice(text) {
+  const match = String(text || "").match(/\$\s*\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?/);
+  return match ? normalizeMoneyLabelText(match[0]) : "";
+}
+
+function inferPriceType(text) {
+  const source = String(text || "").toLowerCase();
+  if (/sold|completed sale|sale price|sold price/.test(source) && !/not sold|no sold/.test(source)) {
+    return "Confirmed sold price";
+  }
+  if (/active|asking|listed|listing price|current listing|for sale/.test(source)) {
+    return "Active asking price";
+  }
+  if (/retail|msrp|store price/.test(source)) {
+    return "Current retail price";
+  }
+  return "Price type not confirmed";
+}
+
+function inferResultClassification(text, bucketName) {
+  const source = String(text || "").toLowerCase();
+  if (/\bexact match\b|\blikely exact\b/.test(source) || bucketName === "strongComparables") {
+    return /\bstrong similar\b/.test(source) ? "Strong Similar Match" : "Exact / Strong Comparable";
+  }
+  if (/\bpartial\b/.test(source) || bucketName === "partialComparables") {
+    return "Partial Comparable";
+  }
+  if (/\breference|identity\b/.test(source) || bucketName === "referenceResults") {
+    return "Reference Result";
+  }
+  if (/\bweak\b/.test(source) || bucketName === "weakMatches") {
+    return "Weak Match";
+  }
+  return "Rejected Match";
+}
+
+function inferEvidenceRole(bucketName, classification) {
+  if (bucketName === "strongComparables") {
+    return "Can support a value estimate if identity, condition, and price type match.";
+  }
+  if (bucketName === "partialComparables") {
+    return "Can support a preliminary reference range only.";
+  }
+  if (bucketName === "referenceResults") {
+    return "Identity or category reference only; not a direct value comp.";
+  }
+  if (bucketName === "weakMatches") {
+    return "Weak context only; should not drive price.";
+  }
+  return `Rejected evidence; should not drive price. ${classification}`;
+}
+
+function extractResultTitle(text, source, url) {
+  const labeled = extractLabeledResultPart(text, /title\s*[:=-]\s*([^|;.]+)/i);
+  if (labeled) {
+    return labeled;
+  }
+  return cleanText(String(text || "")
+    .replace(/https?:\/\/[^\s),;]+/gi, "")
+    .replace(/(?:source|platform|site|marketplace|price|shipping|condition|url|link|match quality|why)\s*[:=-]\s*[^|;]+/gi, "")
+    .replace(source || "", "")
+  ).slice(0, 160) || (url ? "Source result" : "Result title not supplied");
+}
+
+function extractLabeledResultPart(text, pattern) {
+  const match = String(text || "").match(pattern);
+  return match ? cleanText(match[1]) : "";
+}
+
+function extractMatchExplanation(text) {
+  return extractLabeledResultPart(text, /(?:why|match explanation|appears to match|reason)\s*[:=-]\s*([^|]+)/i)
+    || cleanText(text).slice(0, 260);
+}
+
+function extractIdentityDifferences(text) {
+  return extractLabeledResultPart(text, /(?:identity differences|differences|different because)\s*[:=-]\s*([^|]+)/i);
+}
+
+function extractRejectionReason(text, classification) {
+  const explicit = extractLabeledResultPart(text, /(?:rejection reason|reason rejected|rejected because|why rejected)\s*[:=-]\s*([^|]+)/i);
+  if (explicit) {
+    return explicit;
+  }
+  const source = String(text || "").toLowerCase();
+  const reasons = [
+    [/different maker|maker mismatch|brand mismatch/, "Different maker or brand."],
+    [/different year|era mismatch|date mismatch/, "Different year or era."],
+    [/different tray|design mismatch|pattern mismatch/, "Different design or pattern."],
+    [/different size|size mismatch|dimension/, "Different size or dimensions."],
+    [/reproduction|replica/, "Reproduction or replica risk."],
+    [/active asking|asking price only|listed price only/, "Active asking price only; not confirmed sold evidence."],
+    [/condition mismatch|damaged|missing|incomplete/, "Condition or completeness mismatch."],
+    [/generic|broad category|not exact/, "Generic category result rather than a matching item."],
+    [/insufficient|unclear|missing details/, "Insufficient item details to compare responsibly."]
+  ];
+  const found = reasons.find(([pattern]) => pattern.test(source));
+  return found ? found[1] : `Not reliable enough for valuation. Classification: ${classification}.`;
+}
+
 function enforceListingResearchHonesty(report, research, platform) {
   const { identity, liveSearch } = research;
   const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
@@ -2492,6 +2775,7 @@ function enforceListingResearchHonesty(report, research, platform) {
   const conditionNotes = normalizeFlexibleArray(report.conditionNotes, 8, buildConditionNotes(identity));
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, liveSearch);
+  const researchVisibility = buildResearchVisibilityFields(liveSearch);
 
   const normalizedReport = {
     ...report,
@@ -2501,6 +2785,7 @@ function enforceListingResearchHonesty(report, research, platform) {
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on photo evidence, visible text, seller notes, and source-routing results."),
     ...visualFields,
     ...identityFields,
+    ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     searchQueriesUsed: buildListingSearchQueriesUsed(liveSearch),
     sourcesSearched: buildSearchCoverage(liveSearch),
@@ -2543,6 +2828,11 @@ function buildListingSearchQueriesUsed(liveSearch) {
 }
 
 function buildListingResearchResults(liveSearch, comparableItemsFound) {
+  const visibility = buildResearchVisibilityFields(liveSearch);
+  if (visibility.resultsFound.length) {
+    return visibility.resultsFound;
+  }
+
   if (comparableItemsFound.length) {
     return comparableItemsFound;
   }
@@ -2561,6 +2851,17 @@ function buildListingResearchResults(liveSearch, comparableItemsFound) {
 }
 
 function buildListingComparableQuality(liveSearch, comparableItemsFound) {
+  const visibility = buildResearchVisibilityFields(liveSearch);
+  if (visibility.resultsFound.length) {
+    return [
+      `Strong Comparables: ${visibility.strongComparables.length}`,
+      `Partial Comparables: ${visibility.partialComparables.length}`,
+      `Reference Results: ${visibility.referenceResults.length}`,
+      `Weak Matches: ${visibility.weakMatches.length}`,
+      `Rejected Matches: ${visibility.rejectedMatches.length}`
+    ];
+  }
+
   if (!comparableItemsFound.length) {
     return [
       liveSearch.webSearchExecuted
@@ -2581,6 +2882,118 @@ function buildListingComparableQuality(liveSearch, comparableItemsFound) {
     }
     return `Identity / Reference Result - ${item}`;
   });
+}
+
+function buildResearchVisibilityFields(liveSearch = {}) {
+  const strongComparables = normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables");
+  const partialComparables = normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables");
+  const referenceResults = normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults");
+  const weakMatches = normalizeResearchRecordArray(liveSearch.weakMatches, "weakMatches");
+  const rejectedMatches = normalizeResearchRecordArray(liveSearch.rejectedMatches, "rejectedMatches");
+  const resultsFound = [
+    ...strongComparables,
+    ...partialComparables,
+    ...referenceResults,
+    ...weakMatches,
+    ...rejectedMatches
+  ].slice(0, 24);
+  const searchLimitations = buildSearchLimitations(liveSearch, resultsFound);
+  const visibleResearchResultCount = resultsFound.length;
+
+  return {
+    resultsFound,
+    strongComparables,
+    partialComparables,
+    referenceResults,
+    weakMatches,
+    rejectedMatches,
+    searchLimitations,
+    visibleResearchResultCount,
+    referenceRangeBasis: visibleResearchResultCount
+      ? `${visibleResearchResultCount} visible source-backed result${visibleResearchResultCount === 1 ? "" : "s"} were returned. Strong results can support value; partial/reference results can only support a preliminary range; weak/rejected matches do not establish fair value.`
+      : "No visible structured source records were returned, so a preliminary reference range is not supported."
+  };
+}
+
+function normalizeResearchRecordArray(value, bucketName) {
+  const items = Array.isArray(value) ? value : value ? [value] : [];
+  return items
+    .map((item) => typeof item === "object" && item !== null
+      ? normalizeExistingResearchRecord(item, bucketName)
+      : normalizeResearchResultRecord(item, bucketName, []))
+    .filter((item) => item && (item.rawText || item.title || item.url))
+    .slice(0, 8);
+}
+
+function normalizeExistingResearchRecord(item, bucketName) {
+  const rawText = cleanText(item.rawText || Object.entries(item).map(([key, value]) => `${key}: ${value}`).join(" | "));
+  const url = cleanText(item.url || extractFirstUrl(rawText));
+  return {
+    title: cleanText(item.title) || extractResultTitle(rawText, cleanText(item.source), url),
+    source: cleanText(item.source) || inferSourceFromResult(rawText, url),
+    url,
+    displayedPrice: normalizeMoneyLabelText(cleanText(item.displayedPrice || item.price)),
+    currency: cleanText(item.currency) || (item.displayedPrice || item.price ? "$" : ""),
+    priceType: cleanText(item.priceType) || inferPriceType(rawText),
+    condition: cleanText(item.condition),
+    classification: cleanText(item.classification) || inferResultClassification(rawText, bucketName),
+    evidenceRole: cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
+    matchExplanation: cleanText(item.matchExplanation) || extractMatchExplanation(rawText),
+    itemIdentityDifferences: cleanText(item.itemIdentityDifferences) || extractIdentityDifferences(rawText),
+    influencedReferenceRange: cleanText(item.influencedReferenceRange) || (["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No."),
+    rejectionReason: cleanText(item.rejectionReason) || (bucketName === "rejectedMatches" ? extractRejectionReason(rawText, cleanText(item.classification)) : ""),
+    sourceBacked: cleanText(item.sourceBacked) || (url ? "URL provided by result text" : "No usable URL supplied by source."),
+    rawText
+  };
+}
+
+function buildSearchLimitations(liveSearch, resultsFound) {
+  const limitations = [];
+  if (!liveSearch.webSearchExecuted) {
+    limitations.push("Live search was unavailable, so no source records could be retrieved.");
+  } else if (!resultsFound.length) {
+    limitations.push("Live search completed, but no visible structured source-backed result records were returned.");
+  }
+  if (!normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables").length) {
+    limitations.push("No exact or strong comparable records are visible in this report.");
+  }
+  if (normalizeResearchRecordArray(liveSearch.weakMatches, "weakMatches").length || normalizeResearchRecordArray(liveSearch.rejectedMatches, "rejectedMatches").length) {
+    limitations.push("Weak and rejected matches are shown for transparency but do not establish fair market value.");
+  }
+  if (resultsFound.some((item) => item.priceType === "Active asking price")) {
+    limitations.push("Active asking prices are not confirmed sold evidence.");
+  }
+
+  return limitations.length ? limitations : ["Source-backed results are shown with their evidence role and limitations."];
+}
+
+function countVisibleResearchResults(report = {}) {
+  return [
+    report.resultsFound,
+    report.strongComparables,
+    report.partialComparables,
+    report.referenceResults,
+    report.weakMatches,
+    report.rejectedMatches
+  ].flat().filter(Boolean).length;
+}
+
+function countReferenceSupportingResearchResults(report = {}) {
+  return [
+    report.strongComparables,
+    report.partialComparables,
+    report.referenceResults
+  ].flat().filter(isUsableSourceRecord).length;
+}
+
+function isUsableSourceRecord(item) {
+  if (!item) {
+    return false;
+  }
+  if (typeof item === "string") {
+    return /https?:\/\//i.test(item) || /\b(source|platform|site|marketplace)\s*[:=-]/i.test(item);
+  }
+  return Boolean(item.url || (item.source && !/not supplied/i.test(item.source)));
 }
 
 function buildListingPriceText(value, reliableResearchFound) {
@@ -2781,7 +3194,18 @@ function classifyValuationEvidence({ report = {}, reliableCompsFound = false, se
 }
 
 function applyValuationEvidenceLabels(report, { reliableCompsFound = false, searchCompleted = false, workflow = "" } = {}) {
-  const classified = classifyValuationEvidence({ report, reliableCompsFound, searchCompleted });
+  let classified = classifyValuationEvidence({ report, reliableCompsFound, searchCompleted });
+  const visibleResultCount = countVisibleResearchResults(report);
+  const supportingResultCount = countReferenceSupportingResearchResults(report);
+  if (classified.state === "preliminary" && supportingResultCount === 0) {
+    classified = {
+      state: "insufficient",
+      label: "Fair Value Not Established",
+      range: "",
+      confidence: "Low",
+      explanation: "The report did not include visible structured strong, partial, or reference records to support a preliminary range."
+    };
+  }
   const normalized = {
     ...report,
     valuationEvidenceState: classified.state,
@@ -2805,8 +3229,10 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
   }
 
   if (classified.state === "preliminary") {
-    const reference = buildPreliminaryReferenceRangeText(classified, { searchCompleted });
+    const reference = buildPreliminaryReferenceRangeText(classified, { searchCompleted, visibleResultCount: supportingResultCount });
     normalized.preliminaryReferenceRange = reference;
+    normalized.referenceRangeBasis = cleanText(normalized.referenceRangeBasis)
+      || `${supportingResultCount} visible strong, partial, or reference result${supportingResultCount === 1 ? "" : "s"} support this preliminary reference range. ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`;
     normalized.fairValueNotEstablished = "";
     normalized.estimatedFairMarketValue = "";
     normalized.estimatedMarketValue = "";
@@ -2831,6 +3257,7 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
   normalized.whatThisMeans = "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.";
   normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
   normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Fair value not established - available evidence is too weak for a defensible dollar range. ");
+  normalized.referenceRangeBasis = "No numeric preliminary range is shown because there are no visible structured source records supporting one.";
   return normalized;
 }
 
@@ -2887,9 +3314,9 @@ function extractLooseMoneyAmounts(text) {
   return [...new Set(values)];
 }
 
-function buildPreliminaryReferenceRangeText(classified, { searchCompleted }) {
+function buildPreliminaryReferenceRangeText(classified, { searchCompleted, visibleResultCount = 0 }) {
   const evidence = searchCompleted
-    ? "based on similar active listings or partial references found during the current search"
+    ? `based on ${visibleResultCount} visible similar active listing or partial/reference result${visibleResultCount === 1 ? "" : "s"} found during the current search`
     : "based on item evidence and AI market reasoning because live source-backed comps were unavailable";
   return `${classified.range} ${evidence}; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`;
 }
@@ -2996,6 +3423,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     : buildAiOnlyRoughValueRange(report);
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
+  const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
   const guardedPurchaserDecision = guardBuyerDecision(report.purchaserDecision, {
     reliableCompsFound,
     buyerIntake,
@@ -3027,6 +3455,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     liveSearchDidNotComplete,
     noReliableComparableItemsFound: noReliableMessage,
     searchCoverage: buildSearchCoverage({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus }),
+    ...researchVisibility,
     ...visualFields,
     ...identityFields,
     itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
@@ -3131,6 +3560,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   );
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
+  const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus });
 
   const normalizedReport = {
     ...report,
@@ -3139,6 +3569,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on submitted photos, visible text, typed buyer details, and source-routing results."),
     ...visualFields,
     ...identityFields,
+    ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     estimatedFairMarketValue: buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
