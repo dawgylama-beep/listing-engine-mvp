@@ -469,6 +469,21 @@ const itemIdentitySchema = {
     "condition",
     "currentAskingPrice",
     "category",
+    "subjectIdentity",
+    "subjectConfidence",
+    "userProvidedIdentity",
+    "visualIdentityEvidence",
+    "textIdentityEvidence",
+    "exactProductIdentity",
+    "exactProductConfidence",
+    "makerIdentity",
+    "makerConfidence",
+    "modelOrItemNumber",
+    "eraEstimate",
+    "eraConfidence",
+    "licensingStatus",
+    "authenticityStatus",
+    "exactComparableStatus",
     "productNameOrBoxTitle",
     "frontBoxWording",
     "backLabelWording",
@@ -478,6 +493,8 @@ const itemIdentitySchema = {
     "visibleText",
     "guidedBuyerIntakeSummary",
     "identityConflictNotes",
+    "identityUnknowns",
+    "identitySummary",
     "distinctiveVisualDescription",
     "likelyItemDescription",
     "strongestSearchableIdentifiers",
@@ -504,6 +521,31 @@ const itemIdentitySchema = {
     condition: { type: "string" },
     currentAskingPrice: { type: "string" },
     category: { type: "string" },
+    subjectIdentity: { type: "string" },
+    subjectConfidence: { type: "string" },
+    userProvidedIdentity: { type: "string" },
+    visualIdentityEvidence: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    textIdentityEvidence: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    exactProductIdentity: { type: "string" },
+    exactProductConfidence: { type: "string" },
+    makerIdentity: { type: "string" },
+    makerConfidence: { type: "string" },
+    modelOrItemNumber: { type: "string" },
+    eraEstimate: { type: "string" },
+    eraConfidence: { type: "string" },
+    licensingStatus: { type: "string" },
+    authenticityStatus: { type: "string" },
+    exactComparableStatus: { type: "string" },
     productNameOrBoxTitle: { type: "string" },
     frontBoxWording: { type: "string" },
     backLabelWording: { type: "string" },
@@ -523,6 +565,13 @@ const itemIdentitySchema = {
       maxItems: 6,
       items: { type: "string" }
     },
+    identityUnknowns: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    identitySummary: { type: "string" },
     distinctiveVisualDescription: { type: "string" },
     likelyItemDescription: { type: "string" },
     strongestSearchableIdentifiers: {
@@ -746,6 +795,10 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.",
     "Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.",
     "Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.",
+    "When identity is discussed, separate broad subject identity from exact product identity, maker, era, licensing, authenticity, and exact comparable status.",
+    "If broad subject identity is supported but exact product is unverified, say that plainly rather than saying the whole identity is unverified.",
+    "If asked whether an item is definitely a team/brand/mascot, explain subject confidence, visual consistency, user-provided identity, and what remains unverified.",
+    "If asked whether it is authentic or licensed, do not infer authenticity from subject identity. Ask for the single most useful proof photo or marking.",
     "If the question asks for fresh evidence that is not in the current report, say the current evidence is insufficient and set needsNewSearch true.",
     "If the question gives new condition information, label it user-provided and not photo-verified unless current evidence already supports it.",
     "If asked for a better photo, recommend one most useful next photo only.",
@@ -881,7 +934,7 @@ function classifyAskQuestion(question) {
   if (/\b(damage|damaged|condition|missing|included|box|crack|chip|stain|works|working|untested|part)\b/.test(text)) {
     return "condition_scenario";
   }
-  if (/\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why)\b/.test(text)) {
+  if (/\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why|definitely|identity|authentic|authenticity|licensed|licensing|real|verified|verify)\b/.test(text)) {
     return "research_question";
   }
   if (/\b(photo|picture|label|barcode|serial|model|mark|measure|measurement|verify|check)\b/.test(text)) {
@@ -994,6 +1047,8 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
         "",
         "Create an evidence-backed marketplace listing draft.",
         "Use the extracted photo evidence, visible text, seller notes, search queries, source route, and live research result supplied by the backend.",
+        "Separate broad subject identity from exact product identity. Use a supported subject in listing copy, but do not invent exact maker, year, model, licensing, or authenticity.",
+        "If exact product identity is unknown, preserve the supported broad subject and state that exact item, maker, era, licensing, or authenticity remain unverified.",
         "Do not claim live sold evidence, marketplace activity, sold dates, prices, sources, demand, or search results beyond the supplied live research result.",
         "Never describe an active asking price as a confirmed sold price.",
         "Never fabricate sales, marketplace activity, sold dates, demand, prices, sources, URLs, or search results.",
@@ -1085,6 +1140,15 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
       text: [
         "Extract the strongest searchable item identity from the photos and buyer notes.",
         "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
+        "Separate broad subject identity from exact product identity. Subject identity answers what is depicted or represented; exact product identity answers the exact item, maker, year, model, licensing, and comparable match.",
+        "A broad subject may be likely or strongly supported even when the exact product, maker, era, licensing, authenticity, or exact comparable cannot be verified.",
+        "Treat user-provided identity as meaningful evidence: do not accept it blindly, do not ignore it, and do not contradict it without visible or textual conflict.",
+        "When the photos are visually consistent with the user description, preserve the subject as likely or strongly supported and explain what remains unverified.",
+        "When the image is unclear, preserve the user description as a plausible but visually unconfirmed clue.",
+        "When visible evidence conflicts with the user description, record the conflict plainly in identityConflictNotes.",
+        "For sports/team/college imagery, subjectIdentity should preserve the likely team, school, mascot, logo, character, or subject even if exact product, maker, age, and licensing are unknown.",
+        "For the Georgia Bulldogs example, if notes say Georgia Bulldogs mascot and the image is visually consistent, subjectIdentity should be Likely Georgia Bulldogs mascot image; exactProductIdentity, makerIdentity, eraEstimate, licensingStatus, and authenticityStatus may remain unverified.",
+        "Use subjectConfidence separately from exactProductConfidence. Do not let no exact comparable found erase a supported broad subject identity.",
         "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
         "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
@@ -1249,6 +1313,8 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.",
     "Primary question: Is this item fairly priced for someone buying it for themselves?",
     "Use the shared research evidence supplied by the backend: extracted identity, photo evidence, source route, queries, live search status, and source-backed comparable results.",
+    "Separate broad subject identity from exact product identity. A likely subject can be recognized even when exact product, maker, era, licensing, authenticity, or exact comparable are unverified.",
+    "Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.",
     "Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.",
     "Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.",
     "Use valueRating exactly as one of: Exceptional Value, Good Value, Fair Price, Slightly Overpriced, Overpriced, Poor Value, Insufficient Evidence.",
@@ -1313,6 +1379,8 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
     "Primary question: Should the user buy this item at this price, right now?",
     "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
+    "Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.",
+    "Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.",
     "Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.",
     "Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.",
     "For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.",
@@ -1507,7 +1575,7 @@ async function requestOpenAIJson({ apiKey, payload }) {
 }
 
 function normalizeIdentity(identity) {
-  return {
+  const normalized = {
     brand: cleanText(identity.brand || "Unknown") || "Unknown",
     manufacturer: cleanText(identity.manufacturer || "Unknown") || "Unknown",
     teamName: cleanText(identity.teamName || "Unknown") || "Unknown",
@@ -1528,6 +1596,21 @@ function normalizeIdentity(identity) {
     condition: cleanText(identity.condition || "Unknown") || "Unknown",
     currentAskingPrice: cleanText(identity.currentAskingPrice || "Unknown") || "Unknown",
     category: cleanText(identity.category || "Unknown") || "Unknown",
+    subjectIdentity: cleanText(identity.subjectIdentity || "Unknown") || "Unknown",
+    subjectConfidence: normalizeIdentityConfidence(identity.subjectConfidence || "Unclear"),
+    userProvidedIdentity: cleanText(identity.userProvidedIdentity || "Unknown") || "Unknown",
+    visualIdentityEvidence: normalizeStringArray(identity.visualIdentityEvidence, 8),
+    textIdentityEvidence: normalizeStringArray(identity.textIdentityEvidence, 8),
+    exactProductIdentity: cleanText(identity.exactProductIdentity || "Unknown") || "Unknown",
+    exactProductConfidence: normalizeIdentityConfidence(identity.exactProductConfidence || "Unclear"),
+    makerIdentity: cleanText(identity.makerIdentity || "Unknown") || "Unknown",
+    makerConfidence: normalizeIdentityConfidence(identity.makerConfidence || "Unclear"),
+    modelOrItemNumber: cleanText(identity.modelOrItemNumber || "Unknown") || "Unknown",
+    eraEstimate: cleanText(identity.eraEstimate || "Unknown") || "Unknown",
+    eraConfidence: normalizeIdentityConfidence(identity.eraConfidence || "Unclear"),
+    licensingStatus: cleanText(identity.licensingStatus || "Not verified") || "Not verified",
+    authenticityStatus: cleanText(identity.authenticityStatus || "Not verified") || "Not verified",
+    exactComparableStatus: cleanText(identity.exactComparableStatus || "No exact comparable verified") || "No exact comparable verified",
     productNameOrBoxTitle: cleanText(identity.productNameOrBoxTitle || "Unknown") || "Unknown",
     frontBoxWording: cleanText(identity.frontBoxWording || "Unknown") || "Unknown",
     backLabelWording: cleanText(identity.backLabelWording || "Unknown") || "Unknown",
@@ -1537,11 +1620,186 @@ function normalizeIdentity(identity) {
     visibleText: normalizeStringArray(identity.visibleText, 10),
     guidedBuyerIntakeSummary: cleanText(identity.guidedBuyerIntakeSummary || "Unknown") || "Unknown",
     identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 6),
+    identityUnknowns: normalizeStringArray(identity.identityUnknowns, 8),
+    identitySummary: cleanText(identity.identitySummary || "Unknown") || "Unknown",
     distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
     strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 8),
     buyerContext: normalizeStringArray(identity.buyerContext, 8, ["unknown"])
   };
+
+  return reconcileIdentityEvidence(normalized);
+}
+
+function reconcileIdentityEvidence(identity) {
+  const subjectFromTeam = compactWords([
+    firstKnown(identity.schoolName, identity.teamName),
+    identity.mascot,
+    inferSubjectObjectWord(identity)
+  ]);
+  const subjectCandidate = firstKnown(
+    identity.subjectIdentity,
+    identity.userProvidedIdentity,
+    subjectFromTeam,
+    identity.productNameOrBoxTitle,
+    identity.likelyItemDescription,
+    identity.category
+  );
+  const exactCandidate = firstKnown(
+    identity.exactProductIdentity,
+    identity.productNameOrBoxTitle,
+    identity.model,
+    identity.sku,
+    identity.upcBarcode,
+    identity.styleNumber
+  );
+  const makerCandidate = firstKnown(identity.makerIdentity, identity.manufacturer, identity.brand, identity.manufacturerLocationText);
+  const modelCandidate = firstKnown(identity.modelOrItemNumber, identity.model, identity.sku, identity.upcBarcode, identity.styleNumber);
+  const unknowns = [...identity.identityUnknowns];
+
+  if (!hasKnownValue(exactCandidate)) {
+    unknowns.push("Exact product identity not verified.");
+  }
+  if (!hasKnownValue(makerCandidate)) {
+    unknowns.push("Maker or manufacturer not verified.");
+  }
+  if (!hasKnownValue(identity.eraEstimate) && !hasKnownValue(identity.year) && !hasKnownValue(identity.copyrightWording)) {
+    unknowns.push("Date or era not verified.");
+  }
+  if (!hasKnownValue(identity.licensingStatus) || /not verified|unknown/i.test(identity.licensingStatus)) {
+    unknowns.push("Licensing status not verified.");
+  }
+  if (!hasKnownValue(identity.authenticityStatus) || /not verified|unknown/i.test(identity.authenticityStatus)) {
+    unknowns.push("Authenticity not verified.");
+  }
+
+  const subjectConfidence = strengthenSubjectConfidence({
+    current: identity.subjectConfidence,
+    identity,
+    subjectCandidate
+  });
+  const exactProductIdentity = hasKnownValue(exactCandidate)
+    ? exactCandidate
+    : buildUnverifiedExactProductText(identity, subjectCandidate);
+
+  return {
+    ...identity,
+    subjectIdentity: subjectCandidate || "Unknown subject",
+    subjectConfidence,
+    exactProductIdentity,
+    exactProductConfidence: normalizeIdentityConfidence(identity.exactProductConfidence || (hasKnownValue(exactCandidate) ? "Plausible" : "Low - exact item not verified")),
+    makerIdentity: hasKnownValue(makerCandidate) ? makerCandidate : "Not verified",
+    makerConfidence: normalizeIdentityConfidence(identity.makerConfidence || (hasKnownValue(makerCandidate) ? "Plausible" : "Low - maker not verified")),
+    modelOrItemNumber: hasKnownValue(modelCandidate) ? modelCandidate : "Not verified",
+    eraEstimate: firstKnown(identity.eraEstimate, identity.year, identity.copyrightWording) || "Not verified",
+    eraConfidence: normalizeIdentityConfidence(identity.eraConfidence || "Low - era not verified"),
+    licensingStatus: hasKnownValue(identity.licensingStatus) ? identity.licensingStatus : "Not verified",
+    authenticityStatus: hasKnownValue(identity.authenticityStatus) ? identity.authenticityStatus : "Not verified",
+    exactComparableStatus: hasKnownValue(identity.exactComparableStatus) ? identity.exactComparableStatus : "No exact comparable verified",
+    identityUnknowns: [...new Set(unknowns.map(cleanText).filter(Boolean))].slice(0, 8),
+    identitySummary: buildIdentitySummaryText({
+      subjectIdentity: subjectCandidate,
+      subjectConfidence,
+      exactProductIdentity,
+      makerIdentity: hasKnownValue(makerCandidate) ? makerCandidate : "Not verified",
+      licensingStatus: identity.licensingStatus,
+      authenticityStatus: identity.authenticityStatus
+    })
+  };
+}
+
+function normalizeIdentityConfidence(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return "Unclear";
+  }
+  if (/high|confirmed|strong/i.test(text)) {
+    return text.includes("-") ? text : `${text} - supported by available subject evidence.`;
+  }
+  if (/medium|likely|plausible/i.test(text)) {
+    return text.includes("-") ? text : `${text} - plausible but still needs verification.`;
+  }
+  if (/low|unclear|insufficient|not verified|conflict/i.test(text)) {
+    return text.includes("-") ? text : `${text} - limited evidence.`;
+  }
+  return text;
+}
+
+function strengthenSubjectConfidence({ current, identity, subjectCandidate }) {
+  const currentText = normalizeIdentityConfidence(current);
+  const userProvided = firstKnown(identity.userProvidedIdentity, identity.guidedBuyerIntakeSummary, identity.likelyItemDescription);
+  const visualEvidence = normalizeStringArray(identity.visualIdentityEvidence, 8).join(" ");
+  const textEvidence = normalizeStringArray(identity.textIdentityEvidence, 8).join(" ");
+  const conflictText = normalizeStringArray(identity.identityConflictNotes, 6).join(" ");
+  const hasConflict = /conflict|inconsistent|different|mismatch/i.test(conflictText);
+  const hasSubject = hasKnownValue(subjectCandidate);
+  const subjectToken = mostDistinctiveProductWord(subjectCandidate);
+  const visualSupports = hasSubject && subjectToken && new RegExp(escapeRegExp(subjectToken), "i").test([visualEvidence, textEvidence, userProvided].join(" "));
+
+  if (hasConflict) {
+    return "Low - conflicting evidence must be resolved before subject identity is trusted.";
+  }
+
+  if (hasSubject && userProvided && (visualSupports || /likely|high|strong|confirmed/i.test(currentText))) {
+    return "High - user-provided identity is consistent with available visual or text evidence.";
+  }
+
+  if (hasSubject && userProvided) {
+    return "Plausible - user-provided identity is preserved as a clue, but stronger visual or text confirmation is needed.";
+  }
+
+  if (hasSubject && /high|strong|likely|plausible|medium/i.test(currentText)) {
+    return currentText;
+  }
+
+  return hasSubject ? "Plausible - broad subject is the strongest available identity, but exact verification is incomplete." : "Unclear - subject identity needs stronger visual, text, or user-provided evidence.";
+}
+
+function buildUnverifiedExactProductText(identity, subjectIdentity) {
+  const category = firstKnown(identity.category, inferSubjectObjectWord(identity), "item");
+  const subject = firstKnown(subjectIdentity, identity.userProvidedIdentity, identity.likelyItemDescription);
+  if (subject) {
+    return `Unverified exact product - likely ${subject}; exact item, maker, date, and licensing are not confirmed.`;
+  }
+  return `Unverified exact product - likely ${category}; exact item, maker, date, and licensing are not confirmed.`;
+}
+
+function buildIdentitySummaryText({ subjectIdentity, subjectConfidence, exactProductIdentity, makerIdentity, licensingStatus, authenticityStatus }) {
+  return [
+    `Subject Identity: ${subjectIdentity || "Unknown"}`,
+    `Subject Confidence: ${subjectConfidence || "Unclear"}`,
+    `Exact Product Identity: ${exactProductIdentity || "Not verified"}`,
+    `Maker / Manufacturer: ${makerIdentity || "Not verified"}`,
+    `Licensing / Authenticity: ${cleanText(licensingStatus || "Not verified")} / ${cleanText(authenticityStatus || "Not verified")}`
+  ].join(" | ");
+}
+
+function inferSubjectObjectWord(identity) {
+  const text = [
+    identity.category,
+    identity.likelyItemDescription,
+    identity.productNameOrBoxTitle,
+    identity.distinctiveVisualDescription,
+    identity.userProvidedIdentity
+  ].join(" ").toLowerCase();
+
+  if (/mascot|logo|bulldog|tiger|bear|bird|eagle|team|school|university/.test(text)) {
+    if (/image|print|picture|poster|art|artwork|plaque|sign|decal|sticker/.test(text)) {
+      return "mascot image";
+    }
+    return "mascot collectible";
+  }
+  if (/poster|print|picture|image|art|artwork/.test(text)) {
+    return "image";
+  }
+  if (/sign|plaque/.test(text)) {
+    return "sign or plaque";
+  }
+  return "";
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeBuyerIntake(value) {
@@ -1626,6 +1884,10 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     buyerIntake.known_upc,
     buyerIntake.approximate_age_era,
     buyerIntake.asking_price,
+    identity.subjectIdentity,
+    identity.userProvidedIdentity,
+    getVerifiedExactProductIdentity(identity.exactProductIdentity),
+    identity.identitySummary,
     identity.category,
     identity.likelyItemDescription,
     identity.brand,
@@ -1647,6 +1909,8 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     identity.year,
     identity.dimensions,
     identity.missingComponentStatus,
+    Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : "",
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
     identity.distinctiveVisualDescription,
     identity.guidedBuyerIntakeSummary,
@@ -1739,7 +2003,9 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
-  const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, identity.likelyItemDescription, notesText.slice(0, 120));
+  const subjectIdentity = firstKnown(identity.subjectIdentity, identity.userProvidedIdentity);
+  const exactProductIdentity = getVerifiedExactProductIdentity(identity.exactProductIdentity);
+  const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, exactProductIdentity, subjectIdentity, identity.likelyItemDescription, notesText.slice(0, 120));
   const brand = firstKnown(buyerIntake.known_brand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
   const manufacturer = firstKnown(buyerIntake.known_manufacturer, identity.manufacturer);
   const teamName = firstKnown(identity.teamName);
@@ -1756,6 +2022,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, identity.licensingStickerText, identity.copyrightWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
   const visualPhrase = buildVisualPhrase(identity, notesText);
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
+  const subjectPhrase = compactWords([subjectIdentity, categoryPhrase]);
   const price = buyerIntake.parsed_asking_price === null ? extractPrice(identity.currentAskingPrice) || extractPrice(notesText) : String(buyerIntake.parsed_asking_price);
   const queries = [];
   const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
@@ -1767,8 +2034,12 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   }
 
   if (collegiateCollectible) {
-    queries.push(compactWords([schoolName || teamName, mascot, productTitle, "ceramic collectible"]));
-    queries.push(compactWords([schoolName || teamName, mascot, "cookie jar canister"]));
+    queries.push(compactWords([subjectIdentity, "vintage mascot image"]));
+    queries.push(compactWords([schoolName || teamName, mascot, "vintage mascot image"]));
+    queries.push(compactWords([schoolName || teamName, mascot, "artwork print poster plaque"]));
+    queries.push(compactWords([schoolName || teamName, mascot, "collectible"]));
+    queries.push(compactWords([schoolName || teamName, mascot, productTitle, "collectible"]));
+    queries.push(compactWords([schoolName || teamName, mascot, "logo vintage"]));
     queries.push(compactWords([manufacturer, schoolName || teamName, mascot]));
     queries.push(compactWords([labelText, itemCode || model || ageEra]));
     queries.push(compactWords([licensingText, schoolName || teamName, mascot]));
@@ -1803,6 +2074,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     }
 
     queries.push(compactWords([brand, productTitle]));
+    queries.push(subjectPhrase);
     queries.push(visualPhrase);
 
     if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
@@ -1925,6 +2197,7 @@ function enforceListingResearchHonesty(report, research, platform) {
   const description = cleanText(report.listingDescription || report.description || "Description should be completed after verifying the item details and condition.");
   const itemSpecifics = normalizeFlexibleArray(report.itemSpecifics, 10, normalizeFlexibleArray(report.itemDetails, 10, buildPhotoEvidence(identity)));
   const conditionNotes = normalizeFlexibleArray(report.conditionNotes, 8, buildConditionNotes(identity));
+  const identityFields = buildIdentityReportFields(identity, liveSearch);
 
   return {
     ...report,
@@ -1932,6 +2205,7 @@ function enforceListingResearchHonesty(report, research, platform) {
     categorySuggestion: cleanText(report.categorySuggestion || identity.category || "Uncategorized"),
     identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on photo evidence, visible text, seller notes, and source-routing results."),
+    ...identityFields,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     searchQueriesUsed: buildListingSearchQueriesUsed(liveSearch),
     sourcesSearched: buildSearchCoverage(liveSearch),
@@ -2028,6 +2302,8 @@ function buildListingOfferRange(value, reliableResearchFound) {
 
 function buildIdentifiedItem(identity) {
   return compactWords([
+    identity.subjectIdentity,
+    getVerifiedExactProductIdentity(identity.exactProductIdentity),
     identity.brandSeries,
     identity.brand,
     identity.manufacturer,
@@ -2041,6 +2317,11 @@ function buildIdentifiedItem(identity) {
 function buildPhotoEvidence(identity) {
   const evidence = [];
   const pairs = [
+    ["Subject identity", identity.subjectIdentity],
+    ["Subject confidence", identity.subjectConfidence],
+    ["User-provided identity", identity.userProvidedIdentity],
+    ["Exact product identity", identity.exactProductIdentity],
+    ["Exact product confidence", identity.exactProductConfidence],
     ["Brand", identity.brand],
     ["Brand/series", identity.brandSeries],
     ["Manufacturer", identity.manufacturer],
@@ -2059,6 +2340,10 @@ function buildPhotoEvidence(identity) {
     ["Visible price", identity.visiblePrice],
     ["Maker marks/signature", compactWords([identity.makerMarks, identity.signatureText])],
     ["Date/era", compactWords([identity.dateOrEraClues, identity.copyrightWording])],
+    ["Era estimate", identity.eraEstimate],
+    ["Licensing status", identity.licensingStatus],
+    ["Authenticity status", identity.authenticityStatus],
+    ["Exact comparable status", identity.exactComparableStatus],
     ["Distinctive visual features", identity.distinctiveVisualDescription]
   ];
 
@@ -2070,6 +2355,14 @@ function buildPhotoEvidence(identity) {
 
   for (const text of normalizeStringArray(identity.visibleText, 6)) {
     evidence.push(`Visible text: ${text}`);
+  }
+
+  for (const text of normalizeStringArray(identity.visualIdentityEvidence, 4)) {
+    evidence.push(`Visual identity evidence: ${text}`);
+  }
+
+  for (const text of normalizeStringArray(identity.textIdentityEvidence, 4)) {
+    evidence.push(`Text/user identity evidence: ${text}`);
   }
 
   for (const conflict of normalizeStringArray(identity.identityConflictNotes, 4)) {
@@ -2156,6 +2449,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const aiOnlyRoughValueRange = reliableCompsFound
     ? ""
     : buildAiOnlyRoughValueRange(report);
+  const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
   const guardedPurchaserDecision = guardBuyerDecision(report.purchaserDecision, {
     reliableCompsFound,
     buyerIntake,
@@ -2187,6 +2481,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     liveSearchDidNotComplete,
     noReliableComparableItemsFound: noReliableMessage,
     searchCoverage: buildSearchCoverage({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus }),
+    ...identityFields,
     itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
     liveCompConfidence: reliableCompsFound
       ? ensureConfidenceLayer(report.liveCompConfidence, "Medium", "Source-backed comparable items were found, but match quality still depends on condition and exact item details.")
@@ -2281,12 +2576,14 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     conditionProfile.risks,
     8
   );
+  const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
 
   return {
     ...report,
     buyerIntent: "personal_use",
     identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on submitted photos, visible text, typed buyer details, and source-routing results."),
+    ...identityFields,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     estimatedFairMarketValue: buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
@@ -3355,6 +3652,9 @@ function recommendSellingPlatform({ platform, identity, sourceRoute = [] }) {
   const haystack = [
     sourceRoute.join(" "),
     identity.category,
+    identity.subjectIdentity,
+    identity.userProvidedIdentity,
+    identity.exactProductIdentity,
     identity.productNameOrBoxTitle,
     identity.likelyItemDescription,
     identity.distinctiveVisualDescription,
@@ -3472,6 +3772,10 @@ function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGu
 
 function buildItemIdentification(identity = {}) {
   const identityParts = [
+    formatKnownPart("subject", identity.subjectIdentity),
+    formatKnownPart("subject confidence", identity.subjectConfidence),
+    formatKnownPart("exact product", identity.exactProductIdentity),
+    formatKnownPart("exact product confidence", identity.exactProductConfidence),
     firstKnown(identity.productNameOrBoxTitle, identity.likelyItemDescription, identity.category),
     formatKnownPart("school/team", firstKnown(identity.schoolName, identity.teamName)),
     formatKnownPart("mascot", identity.mascot),
@@ -3490,6 +3794,64 @@ function buildItemIdentification(identity = {}) {
   }
 
   return `Identified as: ${identityParts.join("; ")}.`;
+}
+
+function buildIdentityReportFields(identity, liveSearch = {}) {
+  const known = [];
+  const unknowns = normalizeStringArray(identity.identityUnknowns, 8);
+  const visualEvidence = normalizeStringArray(identity.visualIdentityEvidence, 6);
+  const textEvidence = normalizeStringArray(identity.textIdentityEvidence, 6);
+  const conflicts = normalizeStringArray(identity.identityConflictNotes, 6);
+
+  if (hasKnownValue(identity.subjectIdentity)) {
+    known.push(`Subject: ${identity.subjectIdentity}`);
+  }
+  if (hasKnownValue(identity.userProvidedIdentity)) {
+    known.push(`User-provided identity: ${identity.userProvidedIdentity}`);
+  }
+  for (const item of visualEvidence.slice(0, 3)) {
+    known.push(`Visual evidence: ${item}`);
+  }
+  for (const item of textEvidence.slice(0, 3)) {
+    known.push(`Text evidence: ${item}`);
+  }
+  if (hasKnownValue(identity.exactComparableStatus)) {
+    known.push(`Comparable status: ${identity.exactComparableStatus}`);
+  } else if (liveSearch.liveSearchStatus && !/Source-Backed Comps Found/i.test(liveSearch.liveSearchStatus)) {
+    known.push("Comparable status: No source-backed exact comparable passed filtering.");
+  }
+
+  const makerDateLicensing = [
+    `Maker / Manufacturer: ${firstKnown(identity.makerIdentity, identity.manufacturer) || "Not verified"}`,
+    `Date / Era: ${firstKnown(identity.eraEstimate, identity.year, identity.copyrightWording) || "Not verified"}`,
+    `Licensing: ${identity.licensingStatus || "Not verified"}`,
+    `Authenticity: ${identity.authenticityStatus || "Not verified"}`
+  ];
+
+  return {
+    subjectIdentity: identity.subjectIdentity || "Unknown subject",
+    subjectConfidence: identity.subjectConfidence || "Unclear",
+    exactProductIdentity: identity.exactProductIdentity || "Not verified",
+    exactProductConfidence: identity.exactProductConfidence || "Low - exact product not verified.",
+    makerDateLicensingStatus: makerDateLicensing,
+    whatIsKnown: known.length ? known.slice(0, 8) : ["Broad subject identity needs stronger visual, text, or user-provided evidence."],
+    whatIsStillUnknown: unknowns.length ? unknowns : [
+      "Exact product identity",
+      "Maker or manufacturer",
+      "Date or era",
+      "Licensing or authenticity",
+      "Exact source-backed comparable match"
+    ],
+    identityConflicts: conflicts,
+    identitySummary: identity.identitySummary || buildIdentitySummaryText({
+      subjectIdentity: identity.subjectIdentity,
+      subjectConfidence: identity.subjectConfidence,
+      exactProductIdentity: identity.exactProductIdentity,
+      makerIdentity: identity.makerIdentity,
+      licensingStatus: identity.licensingStatus,
+      authenticityStatus: identity.authenticityStatus
+    })
+  };
 }
 
 function formatKnownPart(label, value) {
@@ -3773,6 +4135,14 @@ function buildVisualPhrase(identity, notes) {
   ]);
 }
 
+function getVerifiedExactProductIdentity(value) {
+  const text = cleanText(value);
+  if (!hasKnownValue(text) || /^(unverified|unknown|not verified|no exact)/i.test(text)) {
+    return "";
+  }
+  return text;
+}
+
 function buildCategoryPhrase(identity, routeText, notes) {
   const terms = [
     mostDistinctiveProductWord(identity.productNameOrBoxTitle),
@@ -3814,6 +4184,8 @@ function isSeasonalDecorIdentity(identity, routeText, notesText) {
     identity.brandSeries,
     identity.likelyItemDescription,
     identity.distinctiveVisualDescription,
+    Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : "",
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
   ].join(" ").toLowerCase();
 
@@ -3826,6 +4198,9 @@ function isCollegiateCollectibleIdentity(identity, routeText, notesText) {
     routeText,
     notesText,
     identity.category,
+    identity.subjectIdentity,
+    identity.userProvidedIdentity,
+    identity.exactProductIdentity,
     identity.productNameOrBoxTitle,
     identity.frontBoxWording,
     identity.backLabelWording,
@@ -3838,6 +4213,8 @@ function isCollegiateCollectibleIdentity(identity, routeText, notesText) {
     identity.copyrightWording,
     identity.likelyItemDescription,
     identity.distinctiveVisualDescription,
+    Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : "",
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
   ].join(" ").toLowerCase();
 

@@ -36,6 +36,15 @@ const listingSections = [
   ["categorySuggestion", "Category Suggestion"],
   ["identifiedItem", "Identified Item"],
   ["identificationConfidence", "Identification Confidence"],
+  ["subjectIdentity", "Subject Identity"],
+  ["subjectConfidence", "Subject Confidence"],
+  ["exactProductIdentity", "Exact Product Identity"],
+  ["exactProductConfidence", "Exact Product Confidence"],
+  ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
+  ["whatIsKnown", "What Is Known"],
+  ["whatIsStillUnknown", "What Is Still Unknown"],
+  ["identityConflicts", "Identity Conflicts"],
+  ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["searchQueriesUsed", "Search Queries Used"],
   ["sourcesSearched", "Sources Searched"],
@@ -75,6 +84,15 @@ const valuationSections = [
   ["platformSpecificSellingGuidance", "Platform-Specific Selling Guidance"],
   ["itemIdentification", "Item Identification"],
   ["liveComparableSearchStatus", "Live Comp Status"],
+  ["subjectIdentity", "Subject Identity"],
+  ["subjectConfidence", "Subject Confidence"],
+  ["exactProductIdentity", "Exact Product Identity"],
+  ["exactProductConfidence", "Exact Product Confidence"],
+  ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
+  ["whatIsKnown", "What Is Known"],
+  ["whatIsStillUnknown", "What Is Still Unknown"],
+  ["identityConflicts", "Identity Conflicts"],
+  ["identitySummary", "Identity Summary"],
   ["itemIdentificationConfidence", "Item Identification Confidence"],
   ["weFoundThisItem", "We Found This Item"],
   ["weFoundSimilarComparableItems", "We Found Similar Comparable Items"],
@@ -99,6 +117,15 @@ const valuationSections = [
 const consumerSections = [
   ["identifiedItem", "Identified Item"],
   ["identificationConfidence", "Identification Confidence"],
+  ["subjectIdentity", "Subject Identity"],
+  ["subjectConfidence", "Subject Confidence"],
+  ["exactProductIdentity", "Exact Product Identity"],
+  ["exactProductConfidence", "Exact Product Confidence"],
+  ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
+  ["whatIsKnown", "What Is Known"],
+  ["whatIsStillUnknown", "What Is Still Unknown"],
+  ["identityConflicts", "Identity Conflicts"],
+  ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
   ["estimatedFairMarketValue", "Estimated Fair Market Value"],
@@ -535,6 +562,15 @@ function extractReportContext(report, sections = []) {
     "itemIdentification",
     "identificationConfidence",
     "itemIdentificationConfidence",
+    "subjectIdentity",
+    "subjectConfidence",
+    "exactProductIdentity",
+    "exactProductConfidence",
+    "makerDateLicensingStatus",
+    "whatIsKnown",
+    "whatIsStillUnknown",
+    "identityConflicts",
+    "identitySummary",
     "evidenceFoundInPhotos",
     "searchQueriesUsed",
     "sourcesSearched",
@@ -715,6 +751,10 @@ function renderReport(report, sections) {
     results.appendChild(renderConsumerSummary(report));
   }
 
+  if (report.subjectIdentity || report.exactProductIdentity || report.whatIsStillUnknown) {
+    results.appendChild(renderIdentitySummary(report));
+  }
+
   for (const [key, label] of sections) {
     if (!shouldRenderSection(key, report[key])) {
       continue;
@@ -748,6 +788,38 @@ function renderReport(report, sections) {
     card.append(header, body);
     results.appendChild(card);
   }
+}
+
+function renderIdentitySummary(report) {
+  const card = document.createElement("article");
+  card.className = "identity-summary-card";
+
+  const header = document.createElement("div");
+  header.className = "identity-summary-header";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "summary-eyebrow";
+  eyebrow.textContent = "Identity evidence";
+  const title = document.createElement("h3");
+  title.textContent = report.subjectIdentity || report.identifiedItem || "Subject identity needs verification";
+  const badge = document.createElement("span");
+  badge.className = "summary-badge";
+  badge.textContent = report.subjectConfidence || "Subject confidence unclear";
+  header.append(eyebrow, title, badge);
+
+  const unknowns = Array.isArray(report.whatIsStillUnknown)
+    ? report.whatIsStillUnknown
+    : report.whatIsStillUnknown ? [report.whatIsStillUnknown] : [];
+  const details = document.createElement("div");
+  details.className = "identity-summary-details";
+  const exact = document.createElement("p");
+  exact.textContent = `Exact product: ${report.exactProductIdentity || "Not verified"}`;
+  const unverified = document.createElement("p");
+  unverified.textContent = unknowns.length
+    ? `Still unverified: ${unknowns.slice(0, 4).join("; ")}`
+    : "Still unverified: exact maker, date, licensing, authenticity, and comparable match unless shown below.";
+  details.append(exact, unverified);
+  card.append(header, details);
+  return card;
 }
 
 async function submitAskQuestion(event) {

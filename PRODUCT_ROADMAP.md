@@ -154,6 +154,15 @@
 - Mobile-first beta readiness pass added for workflow controls, Ask Market Edge, result cards, touch targets, copy buttons, and long-text wrapping
 - Major feature development should freeze after Version 1.8.2 except for visual repair, mobile polish, reliability fixes, wording improvements, and beta-discovered defects
 
+## Version 1.8.3 (Completed)
+- Identity Evidence Reconciliation separates broad subject recognition from exact product verification
+- User-provided identity is preserved as evidence when photos are consistent, without inventing exact maker, date, licensing, authenticity, or comparable matches
+- Exact comparable failure now lowers exact-product, pricing, and comparable confidence without erasing a supported subject identity
+- Reports now show Subject Identity, Subject Confidence, Exact Product Identity, Exact Product Confidence, Maker / Date / Licensing Status, What Is Known, and What Is Still Unknown
+- Broad subject identity now drives useful fallback queries when exact product identifiers are missing
+- Ask Market Edge can explain subject identity versus exact product, maker, licensing, authenticity, and comparable certainty
+- Major features should freeze after Version 1.8.3 except for visual repair, mobile polish, reliability fixes, wording improvements, and beta-discovered defects
+
 ## Version 2.0
 - User accounts
 - Saved listings

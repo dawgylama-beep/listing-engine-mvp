@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.8.2"
+$AppVersion = "1.8.3"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -24,6 +24,15 @@ $ListingSchema = @{
     "categorySuggestion",
     "identifiedItem",
     "identificationConfidence",
+    "subjectIdentity",
+    "subjectConfidence",
+    "exactProductIdentity",
+    "exactProductConfidence",
+    "makerDateLicensingStatus",
+    "whatIsKnown",
+    "whatIsStillUnknown",
+    "identityConflicts",
+    "identitySummary",
     "evidenceFoundInPhotos",
     "searchQueriesUsed",
     "sourcesSearched",
@@ -53,6 +62,35 @@ $ListingSchema = @{
     categorySuggestion = @{ type = "string" }
     identifiedItem = @{ type = "string" }
     identificationConfidence = @{ type = "string" }
+    subjectIdentity = @{ type = "string" }
+    subjectConfidence = @{ type = "string" }
+    exactProductIdentity = @{ type = "string" }
+    exactProductConfidence = @{ type = "string" }
+    makerDateLicensingStatus = @{
+      type = "array"
+      minItems = 1
+      maxItems = 5
+      items = @{ type = "string" }
+    }
+    whatIsKnown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    whatIsStillUnknown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    identityConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    identitySummary = @{ type = "string" }
     evidenceFoundInPhotos = @{
       type = "array"
       minItems = 1
@@ -145,6 +183,15 @@ $ValuationSchema = @{
     "liveSearchDidNotComplete",
     "noReliableComparableItemsFound",
     "searchCoverage",
+    "subjectIdentity",
+    "subjectConfidence",
+    "exactProductIdentity",
+    "exactProductConfidence",
+    "makerDateLicensingStatus",
+    "whatIsKnown",
+    "whatIsStillUnknown",
+    "identityConflicts",
+    "identitySummary",
     "itemIdentificationConfidence",
     "liveCompConfidence",
     "valuationConfidence",
@@ -210,6 +257,35 @@ $ValuationSchema = @{
       maxItems = 8
       items = @{ type = "string" }
     }
+    subjectIdentity = @{ type = "string" }
+    subjectConfidence = @{ type = "string" }
+    exactProductIdentity = @{ type = "string" }
+    exactProductConfidence = @{ type = "string" }
+    makerDateLicensingStatus = @{
+      type = "array"
+      minItems = 1
+      maxItems = 5
+      items = @{ type = "string" }
+    }
+    whatIsKnown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    whatIsStillUnknown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    identityConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    identitySummary = @{ type = "string" }
     itemIdentificationConfidence = @{ type = "string" }
     liveCompConfidence = @{ type = "string" }
     valuationConfidence = @{ type = "string" }
@@ -271,6 +347,15 @@ $ConsumerDecisionSchema = @{
     "buyerIntent",
     "identifiedItem",
     "identificationConfidence",
+    "subjectIdentity",
+    "subjectConfidence",
+    "exactProductIdentity",
+    "exactProductConfidence",
+    "makerDateLicensingStatus",
+    "whatIsKnown",
+    "whatIsStillUnknown",
+    "identityConflicts",
+    "identitySummary",
     "evidenceFoundInPhotos",
     "askingPrice",
     "estimatedFairMarketValue",
@@ -300,6 +385,35 @@ $ConsumerDecisionSchema = @{
     buyerIntent = @{ type = "string" }
     identifiedItem = @{ type = "string" }
     identificationConfidence = @{ type = "string" }
+    subjectIdentity = @{ type = "string" }
+    subjectConfidence = @{ type = "string" }
+    exactProductIdentity = @{ type = "string" }
+    exactProductConfidence = @{ type = "string" }
+    makerDateLicensingStatus = @{
+      type = "array"
+      minItems = 1
+      maxItems = 5
+      items = @{ type = "string" }
+    }
+    whatIsKnown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    whatIsStillUnknown = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    identityConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
+    identitySummary = @{ type = "string" }
     evidenceFoundInPhotos = @{
       type = "array"
       minItems = 1
@@ -712,6 +826,10 @@ Do not behave like a generic chatbot. Use the supplied currentItemContext and re
 No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.
 Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.
 Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.
+When identity is discussed, separate broad subject identity from exact product identity, maker, era, licensing, authenticity, and exact comparable status.
+If broad subject identity is supported but exact product is unverified, say that plainly rather than saying the whole identity is unverified.
+If asked whether an item is definitely a team/brand/mascot, explain subject confidence, visual consistency, user-provided identity, and what remains unverified.
+If asked whether it is authentic or licensed, do not infer authenticity from subject identity. Ask for the single most useful proof photo or marking.
 If the question asks for fresh evidence that is not in the current report, say the current evidence is insufficient and set needsNewSearch true.
 If the question gives new condition information, label it user-provided and not photo-verified unless current evidence already supports it.
 If asked for a better photo, recommend one most useful next photo only.
@@ -806,7 +924,7 @@ function Classify-AskQuestion {
   $Text = (Clean-Text $Question).ToLowerInvariant()
   if ($Text -match '\b(price|worth|offer|pay|deal|margin|profit|net|maximum|max|walk[- ]?away)\b|\$\s*\d') { return "price_scenario" }
   if ($Text -match '\b(damage|damaged|condition|missing|included|box|crack|chip|stain|works|working|untested|part)\b') { return "condition_scenario" }
-  if ($Text -match '\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why)\b') { return "research_question" }
+  if ($Text -match '\b(sold|asking|source|comp|comparable|result|rejected|searched|evidence|confidence|why|definitely|identity|authentic|authenticity|licensed|licensing|real|verified|verify)\b') { return "research_question" }
   if ($Text -match '\b(photo|picture|label|barcode|serial|model|mark|measure|measurement|verify|check)\b') { return "evidence_request" }
   if ($Text -match '\b(rewrite|title|description|shorter|listing|facebook|ebay|mercari|etsy|poshmark|disclosure)\b') { return "listing_revision" }
   if ($Text -match '\b(platform|sell|local|pickup|ship|shipping|where)\b') { return "platform_guidance" }
@@ -938,6 +1056,8 @@ function Generate-ReportWithOpenAI {
 Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.
 Primary question: Is this item fairly priced for someone buying it for themselves?
 Use the web_search tool for live comparable research before completing the report.
+Separate broad subject identity from exact product identity. A likely subject can be recognized even when exact product, maker, era, licensing, authenticity, or exact comparable are unverified.
+Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.
 Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.
 Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.
 Use valueRating exactly as one of: Exceptional Value, Good Value, Fair Price, Slightly Overpriced, Overpriced, Poor Value, Insufficient Evidence.
@@ -967,6 +1087,8 @@ Ask for the single most useful next detail or photo when evidence is insufficien
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
 Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.
+Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.
+Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.
 Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.
 Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.
 For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.
@@ -1070,6 +1192,8 @@ If a platform is selected, include platform-specific observations while still pr
 Create an evidence-backed marketplace listing draft. Be specific, honest, and concise.
 You must use the web_search tool for item research before recommending a listing price.
 Analyze all uploaded photos, extract visible product evidence, combine photo evidence with seller notes, identify the strongest probable item identity, build targeted searches, route sources by item type, evaluate comparable quality, and only then recommend a listing price.
+Separate broad subject identity from exact product identity. Use a supported subject in listing copy, but do not invent exact maker, year, model, licensing, or authenticity.
+If exact product identity is unknown, preserve the supported broad subject and state that exact item, maker, era, licensing, or authenticity remain unverified.
 Preserve visible clues including brand, product name, series, model number, item number, manufacturer, manufacturer location, front-box wording, back-label wording, UPC/barcode, serial numbers, visible price stickers, materials, colors, patterns, dimensions, piece count, packaging, condition, wear, damage, missing parts, maker marks, signatures, date or era clues, and distinctive visual features.
 Do not treat typed notes as more authoritative than photo evidence.
 Use progressive fallback searches: exact identity query, strong attribute combination, broader category query, and reference or collector query where appropriate.
