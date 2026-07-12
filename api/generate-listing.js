@@ -496,7 +496,7 @@ const visualRecognitionSchema = {
     visibleWords: {
       type: "array",
       minItems: 0,
-      maxItems: 10,
+      maxItems: 20,
       items: { type: "string" }
     },
     visibleColors: {
@@ -630,7 +630,7 @@ const itemIdentitySchema = {
     textIdentityEvidence: {
       type: "array",
       minItems: 0,
-      maxItems: 8,
+      maxItems: 14,
       items: { type: "string" }
     },
     exactProductIdentity: { type: "string" },
@@ -652,7 +652,7 @@ const itemIdentitySchema = {
     visibleText: {
       type: "array",
       minItems: 0,
-      maxItems: 10,
+      maxItems: 24,
       items: { type: "string" }
     },
     guidedBuyerIntakeSummary: { type: "string" },
@@ -674,7 +674,7 @@ const itemIdentitySchema = {
     strongestSearchableIdentifiers: {
       type: "array",
       minItems: 0,
-      maxItems: 8,
+      maxItems: 12,
       items: { type: "string" }
     },
     buyerContext: {
@@ -777,7 +777,11 @@ const consumerDecisionThresholds = {
   fairMaxRatio: 1.08,
   slightlyOverpricedMaxRatio: 1.22,
   overpricedMaxRatio: 1.45,
-  conditionRiskDowngradeCount: 2
+  conditionRiskDowngradeCount: 2,
+  lowDollarCautiousBuyMax: 25,
+  modestDollarCautiousBuyMax: 75,
+  cautiousBuyMaxRatio: 0.78,
+  activeListingReferenceMaxCount: 6
 };
 
 export default async function handler(req, res) {
@@ -1318,6 +1322,8 @@ async function recognizeVisualSubject({ apiKey, model, platform, notes, photos, 
         "Keep visual subject confidence independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.",
         "Low or missing exact-product evidence must not reduce confidence in an obvious broad visual subject.",
         "Only populate fields supported by the photo evidence, visible text, and user notes. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
+        "Preserve all meaningful visible wording from every uploaded image, including front text, back text, slogans, event names, dates, named people, copyright lines, manufacturer/location text, dimensions, licensing language, and collector-edition wording.",
+        "When multiple photos are provided, merge the evidence across photos before summarizing. Do not let a front-photo clue replace or discard a back-label clue.",
         "Use confidence language such as High, Medium, Low, Strongly Supported, Likely, Confirmed, Not Yet Verified, or Exact Product Unknown.",
         `Marketplace platform context: ${platform || "No platform selected"}`,
         `User item notes: ${notes || "No additional notes provided."}`,
@@ -1363,7 +1369,9 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
         "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
-        "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
+        "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, item code, slogan, event name, organization/team, named person, year, dimension, or reverse-side description appears.",
+        "For branded collectibles, advertising/promotional items, sports memorabilia, commemorative items, collector plates/trays, toys, books, art, tools, and appliances, preserve exact visible phrase combinations because they are usually stronger search keys than generic category descriptions.",
+        "For multi-photo items, merge front wording, reverse wording, side labels, tags, stamps, and visual form into one identity record. Do not treat one photo independently if another photo supplies stronger exact text.",
         "For institution, organization, school, team, mascot, logo, or character items, preserve names, visual symbols, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status when visible or provided.",
         "Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, say that a closer photo is needed rather than treating all identification as failed.",
         "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
@@ -1415,7 +1423,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         `Research purpose: ${purposeText}`,
         "You must use web search. Do not rely only on general model knowledge.",
         "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
-        "Use the targeted search queries as product-focused search inputs. Do not replace them with repetitive code-only queries or platform-stuffed variants.",
+        "Use the targeted search queries as product-focused search inputs in priority order. Start with exact visible phrases, brand/event/date/team/item-type combinations, model/SKU/UPC when available, and only then use broad fallback searches.",
+        "Do not replace exact visible phrases with generic descriptions. If the query contains quoted wording, preserve the quoted wording in the search.",
+        "Search merged multi-photo evidence. Front wording, back wording, tags, stamps, dimensions, slogans, event names, dates, named people, and visible item form should be considered together.",
         "Search exact identifiers, brand/product-title wording, visual descriptions, category terms, and price/context when present.",
         "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
         "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
@@ -1424,6 +1434,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Do not hide weak or rejected URL-cited results. If the search found five active listings but all were rejected, return those five rejectedMatches with specific rejection reasons.",
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
         "Never describe active asking prices as confirmed sold prices.",
+        "Do not reject an exact or strong identity match merely because it is an active asking-price listing instead of a sold result. Separate identity match strength from price evidence strength.",
+        "An exact active listing can be an Exact identity match and Active asking-price evidence, but not confirmed sold evidence.",
+        "Classify source-backed results by identity match first: Exact identity match, Strong identity match, Partial match, Weak match, or Rejected match. Then classify price type separately as confirmed sold price, active asking price, retail price, hidden price, or no usable price.",
         "For Generate Listing research, include source-backed comparable or reference evidence that can support a listing price, but label weak/reference-only evidence honestly.",
         "For vintage, collectible, organization, logo, mascot, character, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, resale results, vintage results, collector/reference sources, organization/brand/character/licensee searches, and exact phrase results.",
         "Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.",
@@ -1500,6 +1513,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     return normalizeLiveSearchResult({
       result: json,
       responseData: data,
+      identity,
       searchStartedAt,
       sourceRoute,
       searchQueries,
@@ -1841,7 +1855,7 @@ function normalizeIdentity(identity) {
     subjectConfidence: normalizeIdentityConfidence(identity.subjectConfidence || "Unclear"),
     userProvidedIdentity: cleanText(identity.userProvidedIdentity || "Unknown") || "Unknown",
     visualIdentityEvidence: normalizeStringArray(identity.visualIdentityEvidence, 8),
-    textIdentityEvidence: normalizeStringArray(identity.textIdentityEvidence, 8),
+    textIdentityEvidence: normalizeStringArray(identity.textIdentityEvidence, 14),
     exactProductIdentity: cleanText(identity.exactProductIdentity || "Unknown") || "Unknown",
     exactProductConfidence: normalizeIdentityConfidence(identity.exactProductConfidence || "Unclear"),
     makerIdentity: cleanText(identity.makerIdentity || "Unknown") || "Unknown",
@@ -1858,14 +1872,14 @@ function normalizeIdentity(identity) {
     manufacturerLocationText: cleanText(identity.manufacturerLocationText || "Unknown") || "Unknown",
     visiblePrice: cleanText(identity.visiblePrice || "Unknown") || "Unknown",
     brandSeries: cleanText(identity.brandSeries || "Unknown") || "Unknown",
-    visibleText: normalizeStringArray(identity.visibleText, 10),
+    visibleText: normalizeStringArray(identity.visibleText, 24),
     guidedBuyerIntakeSummary: cleanText(identity.guidedBuyerIntakeSummary || "Unknown") || "Unknown",
     identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 6),
     identityUnknowns: normalizeStringArray(identity.identityUnknowns, 8),
     identitySummary: cleanText(identity.identitySummary || "Unknown") || "Unknown",
     distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
-    strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 8),
+    strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 12),
     buyerContext: normalizeStringArray(identity.buyerContext, 8, ["unknown"])
   };
 
@@ -1885,7 +1899,7 @@ function normalizeVisualRecognition(value = {}) {
     recognizedTheme: cleanText(source.recognizedTheme || "Not verified") || "Not verified",
     visibleLogos: normalizeStringArray(source.visibleLogos, 8),
     visibleLetters: normalizeStringArray(source.visibleLetters, 8),
-    visibleWords: normalizeStringArray(source.visibleWords, 10),
+    visibleWords: normalizeStringArray(source.visibleWords, 20),
     visibleColors: normalizeStringArray(source.visibleColors, 8),
     visualStyle: cleanText(source.visualStyle || "Unknown") || "Unknown",
     estimatedEraStyle: cleanText(source.estimatedEraStyle || "Not verified") || "Not verified",
@@ -2226,8 +2240,10 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
   const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
   const isVisualReferenceSubject = /artwork|illustration|painting|print|poster|sign|plaque|decal|sticker|advertising|logo|mascot|character|institution|organization|university|government|corporation|historical graphic|retired logo|alternate logo|political memorabilia|military insignia|vintage graphic|vintage packaging/.test(haystack);
   const isOrganizationCollectible = /institution|organization|university|college|government|corporation|brand|officially licensed|license|licensing|team|school|mascot|logo|character|athletics|sports logo|school colors/.test(haystack);
+  const isBrandedMemorabilia = /memorabilia|commemorative|champion|championship|national champions?|sports|athletics|team|school|university|college|coach|player|mascot|official|licensed|souvenir|collector|collectible|advertising|promotional|promo|beverage|beer|tobacco|gas|oil|tray|serving tray|collector'?s tray|plate|plaque|tin|sign/.test(haystack);
+  const isPromotionalCollectible = /advertising|promotional|promo|brand|soda|beverage|beer|tobacco|gas|oil|automotive|commemorative|souvenir|licensed|collector|collectible|tray|plate|plaque|tin|sign/.test(haystack);
   const isCookieJarOrContainer = /cookie jar|container|canister|lid|lidded|ceramic jar|collectible jar/.test(haystack);
-  const isVintageCollectible = /vintage|collectible|ceramic|canister|cookie jar|container|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy|collegiate|mascot|licensed/.test(haystack);
+  const isVintageCollectible = /vintage|collectible|ceramic|canister|cookie jar|container|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy|collegiate|mascot|licensed|memorabilia|commemorative|champion|championship|advertising|promotional|tray|serving tray|plate|plaque|tin|sign/.test(haystack);
   const isRetailContext = /^(retail_store|mall)$/.test(purchaseContext);
   const isSecondhandContext = /^(consignment_store|thrift_store|flea_market|estate_sale|antique_mall)$/.test(purchaseContext);
   const isLocalPrivateContext = /^(facebook_marketplace|private_seller)$/.test(purchaseContext);
@@ -2254,7 +2270,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     return route;
   }
 
-  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
+  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isBrandedMemorabilia || isPromotionalCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
     route.push("secondhand resale results", "vintage and collector sources", "specialty reference sources", "exact-label web results");
     if (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer) {
       route.push(
@@ -2275,6 +2291,19 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     if (isVintageCollectible || isOrganizationCollectible) {
       route.push("collector/reference clues", "exact phrase visual subject searches");
     }
+    return route;
+  }
+
+  if (isBrandedMemorabilia || isPromotionalCollectible) {
+    route.push(
+      "exact visible phrase searches",
+      "eBay-style active and sold resale results",
+      "Etsy-style vintage and advertising collectible results",
+      "auction/archive source clues",
+      "collector/reference source clues",
+      "general web exact phrase results",
+      "organization/team/brand/event searches"
+    );
     return route;
   }
 
@@ -2309,6 +2338,35 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 }
 
 function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const queries = [
+    ...buildHighPriorityExactQueries(context),
+    ...buildFallbackSearchQueries(context)
+  ];
+
+  const diverseQueries = [];
+  const scored = [];
+  let index = 0;
+  for (const query of queries.map((item) => cleanSearchQuery(item, 14)).filter(Boolean)) {
+    if (!isRepetitiveQuery(query, diverseQueries)) {
+      diverseQueries.push(query);
+      scored.push({
+        query,
+        score: scoreSearchQuerySpecificity(query, context),
+        index
+      });
+    }
+    index += 1;
+  }
+
+  const maxQueries = context.hasHighSpecificityText ? 14 : context.seasonalDecor || context.organizationCollectible || context.visualReferenceSubject ? 8 : 6;
+  return scored
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.query)
+    .slice(0, maxQueries);
+}
+
+function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
   const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
@@ -2342,100 +2400,188 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
   const subjectPhrase = compactWords([subjectIdentity, categoryPhrase]);
   const price = buyerIntake.parsed_asking_price === null ? extractPrice(identity.currentAskingPrice) || extractPrice(notesText) : String(buyerIntake.parsed_asking_price);
-  const queries = [];
   const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
   const organizationCollectible = isOrganizationCollectibleIdentity(identity, routeText, notesText);
+  const brandedMemorabilia = isBrandedMemorabiliaIdentity(identity, routeText, notesText);
+  const promotionalCollectible = isPromotionalCollectibleIdentity(identity, routeText, notesText);
   const visualReferenceSubject = /visual subject reference|historical\/reference|logo\/mascot\/artwork|image\/reference|artwork|illustration|logo|mascot|advertising|poster|sign|plaque|print|political|military|insignia|vintage graphic/.test(routeText);
+  const visibleEvidence = collectVisibleSearchEvidence(identity, visualRecognition, notesText, buyerIntake);
+  const distinctivePhrases = extractDistinctiveSearchPhrases(visibleEvidence);
+  const years = extractSearchYears(visibleEvidence.join(" "));
+  const namedPeople = extractLikelyNamedPeople(visibleEvidence.join(" "));
+  const itemType = inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText);
+  const eventPhrases = distinctivePhrases.filter((phrase) => /champion|anniversary|tournament|bowl|series|festival|event|official|collector|edition|commemorative|national|world|regional|conference|\b\d{4}\b/i.test(phrase));
+  const hasHighSpecificityText = distinctivePhrases.length > 0 || upc || model || itemCode;
 
-  if (visualSubject) {
-    queries.push(compactWords([visualSubject, visualCategory]));
-  }
-  if (visualOrganization || visualCharacter || visibleLetters || visibleWords) {
-    queries.push(compactWords([visualOrganization || visualBrand, visualCharacter, visibleLetters, visibleWords, visualCategory]));
-  }
-  if (visualReferenceSubject) {
-    queries.push(compactWords([visualSubject, visualStyle, "reference"]));
-    queries.push(compactWords([visualOrganization || visualBrand, visualCharacter, "vintage artwork logo mascot"]));
-    queries.push(compactWords([visibleWords || visibleLetters, visualFeatures, "historical image"]));
-  }
-
-  if (upc) {
-    queries.push(upc);
-    queries.push(compactWords([upc, brand || manufacturer || productTitle]));
-  }
-
-  if (organizationCollectible) {
-    queries.push(compactWords([subjectIdentity, "vintage mascot image"]));
-    queries.push(compactWords([schoolName || teamName, mascot, "vintage mascot image"]));
-    queries.push(compactWords([schoolName || teamName, mascot, "artwork print poster plaque"]));
-    queries.push(compactWords([schoolName || teamName, mascot, "collectible"]));
-    queries.push(compactWords([schoolName || teamName, mascot, productTitle, "collectible"]));
-    queries.push(compactWords([schoolName || teamName, mascot, "logo vintage"]));
-    queries.push(compactWords([manufacturer, schoolName || teamName, mascot]));
-    queries.push(compactWords([labelText, itemCode || model || ageEra]));
-    queries.push(compactWords([licensingText, schoolName || teamName, mascot]));
-    queries.push(compactWords([schoolName || teamName, mascot, identity.material, identity.missingComponentStatus]));
-  } else if (seasonalDecor) {
-    queries.push(compactWords([brand, locationText, itemCode]));
-    queries.push(compactWords([brand, itemCode, "Santa"]));
-    queries.push(compactWords([upc, brand || manufacturer]));
-    queries.push(compactWords([brand, productTitle]));
-    queries.push(compactWords(["boxed Santa Claus holiday figurine", itemCode]));
-    queries.push(compactWords([brand, locationText, "Christmas decoration"]));
-    queries.push(compactWords([labelText, itemCode]));
-  } else {
-    if (model) {
-      queries.push(compactWords([brand || manufacturer, model]));
-    }
-
-    if (itemCode) {
-      queries.push(compactWords([itemCode, mostDistinctiveCategoryWord(identity.category || categoryPhrase)]));
-    }
-
-    if (model) {
-      queries.push(compactWords([brand, model, extractSpecs(notesText), "price"]));
-    }
-
-    if (manufacturer && productTitle) {
-      queries.push(compactWords([manufacturer, productTitle]));
-    }
-
-    if (labelText) {
-      queries.push(labelText);
-    }
-
-    queries.push(compactWords([brand, productTitle]));
-    queries.push(subjectPhrase);
-    queries.push(visualPhrase);
-
-    if (price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand/.test(routeText)) {
-      queries.push(compactWords([price, mostDistinctiveProductWord(productTitle), mostDistinctiveCategoryWord(identity.category || categoryPhrase), conditionText, concernText]));
-    }
-
-    if (ageEra) {
-      queries.push(compactWords([ageEra, brand || manufacturer, mostDistinctiveProductWord(productTitle)]));
-    }
-
-    queries.push(categoryPhrase);
-  }
-
-  const diverseQueries = [];
-  for (const query of queries.map(cleanSearchQuery).filter(Boolean)) {
-    if (!isRepetitiveQuery(query, diverseQueries)) {
-      diverseQueries.push(query);
-    }
-  }
-
-  return diverseQueries.slice(0, seasonalDecor || organizationCollectible || visualReferenceSubject ? 7 : 5);
+  return {
+    routeText,
+    notesText,
+    visualRecognition,
+    visualSubject,
+    visualCategory,
+    visualOrganization,
+    visualBrand,
+    visualCharacter,
+    visibleLetters,
+    visibleWords,
+    visualFeatures,
+    visualStyle,
+    subjectIdentity,
+    exactProductIdentity,
+    productTitle,
+    brand,
+    manufacturer,
+    teamName,
+    schoolName,
+    mascot,
+    model,
+    itemCode,
+    upc,
+    ageEra,
+    conditionText,
+    concernText,
+    locationText,
+    licensingText,
+    labelText,
+    visualPhrase,
+    categoryPhrase,
+    subjectPhrase,
+    price,
+    seasonalDecor,
+    organizationCollectible,
+    brandedMemorabilia,
+    promotionalCollectible,
+    visualReferenceSubject,
+    visibleEvidence,
+    distinctivePhrases,
+    years,
+    namedPeople,
+    itemType,
+    eventPhrases,
+    hasHighSpecificityText
+  };
 }
 
-function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
+function buildHighPriorityExactQueries(context) {
+  const queries = [];
+  const organization = firstKnown(context.visualOrganization, context.schoolName, context.teamName, context.subjectIdentity);
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const itemType = context.itemType;
+  const exactVisibleEntries = context.visibleEvidence
+    .map((item) => cleanSearchQuery(item, 8))
+    .filter((item) => isDistinctiveSearchPhrase(item) && (item.split(/\s+/).length <= 6 || /['&]|\b(?:18|19|20)\d{2}\b|champion|national/i.test(item)))
+    .slice(0, 8);
+  const sloganLikePhrases = context.distinctivePhrases.filter((phrase) => /['&]|slogan|motto|catchphrase/i.test(phrase)).slice(0, 3);
+  const primaryPhrases = mergeStringArrays(exactVisibleEntries, context.distinctivePhrases.slice(0, 7), sloganLikePhrases, 14);
+
+  if (context.upc) {
+    queries.push(context.upc);
+    queries.push(compactWords([context.upc, brand || context.productTitle, itemType]));
+  }
+  if (context.model || context.itemCode) {
+    queries.push(compactWords([brand || context.manufacturer, context.model || context.itemCode, itemType]));
+  }
+
+  for (const phrase of primaryPhrases) {
+    const quoted = quoteSearchPhrase(phrase);
+    queries.push(compactWords([quoted, brand, itemType]));
+    queries.push(compactWords([quoted, organization, brand, itemType]));
+  }
+
+  for (const phrase of context.eventPhrases.slice(0, 3)) {
+    queries.push(compactWords([quoteSearchPhrase(phrase), organization, brand, itemType]));
+  }
+
+  for (const year of context.years.slice(0, 2)) {
+    queries.push(compactWords([year, organization, brand, itemType]));
+    queries.push(compactWords([year, organization, context.eventPhrases[0], itemType]));
+  }
+
+  for (const person of context.namedPeople.slice(0, 3)) {
+    queries.push(compactWords([person, organization, brand, itemType]));
+  }
+
+  queries.push(compactWords([brand, organization, context.eventPhrases[0], itemType]));
+  queries.push(compactWords([brand, organization, context.productTitle, itemType]));
+  queries.push(compactWords([context.exactProductIdentity || context.productTitle, brand, itemType]));
+  queries.push(compactWords([context.labelText, context.itemCode || context.model || context.ageEra]));
+
+  return queries;
+}
+
+function buildFallbackSearchQueries(context) {
+  const queries = [];
+
+  if (context.visualSubject) {
+    queries.push(compactWords([context.visualSubject, context.visualCategory]));
+  }
+  if (context.visualOrganization || context.visualCharacter || context.visibleLetters || context.visibleWords) {
+    queries.push(compactWords([context.visualOrganization || context.visualBrand, context.visualCharacter, context.visibleLetters, context.visibleWords, context.visualCategory]));
+  }
+  if (context.visualReferenceSubject) {
+    queries.push(compactWords([context.visualSubject, context.visualStyle, "reference"]));
+    queries.push(compactWords([context.visualOrganization || context.visualBrand, context.visualCharacter, "vintage artwork logo mascot"]));
+    queries.push(compactWords([context.visibleWords || context.visibleLetters, context.visualFeatures, "historical image"]));
+  }
+
+  if (context.organizationCollectible || context.brandedMemorabilia || context.promotionalCollectible) {
+    queries.push(compactWords([context.subjectIdentity, "memorabilia collectible"]));
+    queries.push(compactWords([context.schoolName || context.teamName, context.mascot, context.itemType, "collectible"]));
+    queries.push(compactWords([context.schoolName || context.teamName, context.mascot, "artwork print poster plaque tray"]));
+    queries.push(compactWords([context.schoolName || context.teamName, context.mascot, context.productTitle, "collectible"]));
+    queries.push(compactWords([context.manufacturer || context.brand, context.schoolName || context.teamName, context.mascot, context.itemType]));
+    queries.push(compactWords([context.licensingText, context.schoolName || context.teamName, context.mascot, context.itemType]));
+  } else if (context.seasonalDecor) {
+    queries.push(compactWords([context.brand, context.locationText, context.itemCode]));
+    queries.push(compactWords([context.brand, context.itemCode, mostDistinctiveProductWord(context.productTitle)]));
+    queries.push(compactWords([context.upc, context.brand || context.manufacturer]));
+    queries.push(compactWords([context.brand, context.productTitle]));
+    queries.push(compactWords([context.productTitle, context.itemCode]));
+    queries.push(compactWords([context.brand, context.locationText, mostDistinctiveCategoryWord(context.categoryPhrase)]));
+    queries.push(compactWords([context.labelText, context.itemCode]));
+  } else {
+    if (context.model) {
+      queries.push(compactWords([context.brand || context.manufacturer, context.model]));
+      queries.push(compactWords([context.brand, context.model, extractSpecs(context.notesText), "price"]));
+    }
+
+    if (context.itemCode) {
+      queries.push(compactWords([context.itemCode, mostDistinctiveCategoryWord(context.categoryPhrase)]));
+    }
+
+    if (context.manufacturer && context.productTitle) {
+      queries.push(compactWords([context.manufacturer, context.productTitle]));
+    }
+
+    if (context.labelText) {
+      queries.push(context.labelText);
+    }
+
+    queries.push(compactWords([context.brand, context.productTitle]));
+    queries.push(context.subjectPhrase);
+    queries.push(context.visualPhrase);
+
+    if (context.price && /holiday|collectible|vintage|decor|ceramic|apparel|fashion|resale|secondhand|memorabilia|advertising|promotional/.test(context.routeText)) {
+      queries.push(compactWords([context.price, mostDistinctiveProductWord(context.productTitle), mostDistinctiveCategoryWord(context.categoryPhrase), context.conditionText, context.concernText]));
+    }
+
+    if (context.ageEra) {
+      queries.push(compactWords([context.ageEra, context.brand || context.manufacturer, mostDistinctiveProductWord(context.productTitle)]));
+    }
+
+    queries.push(context.categoryPhrase);
+  }
+
+  return queries;
+}
+
+function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 8);
-  const bucketedResearch = buildResearchResultBuckets(result, rawItems, citations);
+  const bucketedResearch = buildResearchResultBuckets(result, rawItems, citations, identity);
   const comparableItemsFound = recordsToLegacyComparableStrings([
     ...bucketedResearch.strongComparables,
     ...bucketedResearch.partialComparables.filter((item) => /strong similar/i.test(item.classification))
@@ -2447,6 +2593,14 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
   } else if (webSearchExecuted) {
     liveSearchStatus = "Live Search Completed - No Reliable Comps Found";
   }
+  const noReliableMatchesReason = liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
+    ? ""
+    : diagnoseSearchAcquisition({
+        webSearchExecuted,
+        citations,
+        bucketedResearch,
+        searchQueries
+      });
 
   return {
     liveSearchStatus,
@@ -2458,9 +2612,7 @@ function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sour
     weakMatches: bucketedResearch.weakMatches,
     rejectedMatches: bucketedResearch.rejectedMatches,
     visibleResearchResultCount: bucketedResearch.resultsFound.length,
-    noReliableMatchesReason: liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
-      ? ""
-      : "Live search completed, but no reliable source-backed exact or strong similar matches were found.",
+    noReliableMatchesReason,
     searchEvidenceSummary: cleanText(result.searchEvidenceSummary || ""),
     sourceRoute,
     searchQueries,
@@ -2532,7 +2684,32 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
   };
 }
 
-function buildResearchResultBuckets(result, legacyItems, citations) {
+function diagnoseSearchAcquisition({ webSearchExecuted, citations = [], bucketedResearch = {}, searchQueries = [] }) {
+  if (!webSearchExecuted) {
+    return "Live comparable search was unavailable before exact phrase queries could retrieve source results.";
+  }
+  const visibleCount = bucketedResearch.resultsFound?.length || 0;
+  const strongCount = bucketedResearch.strongComparables?.length || 0;
+  const rejectedCount = (bucketedResearch.weakMatches?.length || 0) + (bucketedResearch.rejectedMatches?.length || 0);
+  const exactPhraseQueries = searchQueries.filter((query) => /"[^"]{4,}"/.test(query));
+  if (!citations.length) {
+    return exactPhraseQueries.length
+      ? "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      : "Live search was executed, but no URL-cited source records were returned; this is an acquisition failure rather than a valuation conclusion.";
+  }
+  if (!visibleCount) {
+    return "Live search returned URL citations, but the response did not preserve usable structured result records.";
+  }
+  if (!strongCount && rejectedCount) {
+    return "Live search returned visible source records, but they were classified as weak or rejected after identity and item-type checks.";
+  }
+  if (!strongCount) {
+    return "Live search returned source records, but none qualified as exact or strong identity matches after filtering.";
+  }
+  return "Exact or strong identity matches were visible, but price evidence was not strong enough to mark confirmed fair-market value.";
+}
+
+function buildResearchResultBuckets(result, legacyItems, citations, identity = {}) {
   const seen = new Set();
   const buckets = {
     strongComparables: [],
@@ -2543,9 +2720,16 @@ function buildResearchResultBuckets(result, legacyItems, citations) {
   };
 
   const addRecord = (bucketName, text) => {
-    const record = normalizeResearchResultRecord(text, bucketName, citations);
+    const record = normalizeResearchResultRecord(text, bucketName, citations, identity);
     if (!record.rawText) {
       return;
+    }
+    const identityStrength = classifyIdentityMatchStrength(record, identity);
+    if (!/rejected|weak/i.test(record.classification) && /exact|strong/i.test(identityStrength)) {
+      bucketName = "strongComparables";
+      record.classification = identityStrength;
+      record.evidenceRole = buildEvidenceRoleForIdentityStrength(record);
+      record.influencedReferenceRange = record.displayedPrice ? "Yes, as visible asking/sold evidence with price-type limitations." : "No price supplied; identity support only.";
     }
     const key = `${record.url || ""}|${record.title}|${record.classification}|${record.rejectionReason}`.toLowerCase();
     if (seen.has(key)) {
@@ -2591,7 +2775,7 @@ function buildResearchResultBuckets(result, legacyItems, citations) {
   return buckets;
 }
 
-function normalizeResearchResultRecord(value, bucketName, citations = []) {
+function normalizeResearchResultRecord(value, bucketName, citations = [], identity = {}) {
   const rawText = cleanText(value);
   const url = extractFirstUrl(rawText);
   const source = inferSourceFromResult(rawText, url);
@@ -2599,6 +2783,7 @@ function normalizeResearchResultRecord(value, bucketName, citations = []) {
   const classification = inferResultClassification(rawText, bucketName);
   const priceType = inferPriceType(rawText);
   const rejected = bucketName === "rejectedMatches" || /rejected|not comparable|not a comparable|failed/i.test(rawText);
+  const identityStrength = classifyIdentityMatchStrength({ rawText, title: extractResultTitle(rawText, source, url), classification }, identity);
 
   return {
     title: extractResultTitle(rawText, source, url),
@@ -2608,8 +2793,8 @@ function normalizeResearchResultRecord(value, bucketName, citations = []) {
     currency: displayedPrice ? "$" : "",
     priceType,
     condition: extractLabeledResultPart(rawText, /condition\s*[:=-]\s*([^|;.]+)/i),
-    classification,
-    evidenceRole: inferEvidenceRole(bucketName, classification),
+    classification: identityStrength || classification,
+    evidenceRole: identityStrength ? buildEvidenceRoleForIdentityStrength({ priceType, displayedPrice }) : inferEvidenceRole(bucketName, classification),
     matchExplanation: extractMatchExplanation(rawText),
     itemIdentityDifferences: extractIdentityDifferences(rawText),
     influencedReferenceRange: ["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No.",
@@ -2693,6 +2878,112 @@ function inferResultClassification(text, bucketName) {
     return "Weak Match";
   }
   return "Rejected Match";
+}
+
+function classifyIdentityMatchStrength(record = {}, identity = {}) {
+  const resultText = [
+    record.title,
+    record.rawText,
+    record.matchExplanation
+  ].map(cleanText).join(" ").toLowerCase();
+  if (!resultText) {
+    return "";
+  }
+
+  if (/\b(exact match|likely exact|same item|same product)\b/i.test(resultText)) {
+    return "Exact Identity Match";
+  }
+
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
+  const exactSignals = [
+    identity.upcBarcode,
+    identity.model,
+    identity.sku,
+    identity.styleNumber,
+    identity.modelOrItemNumber,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.brandSeries
+  ].filter(hasKnownValue);
+  const majorSignals = [
+    identity.brand,
+    identity.manufacturer,
+    identity.recognizedBrand,
+    visualRecognition.recognizedBrand,
+    identity.teamName,
+    identity.schoolName,
+    identity.recognizedOrganization,
+    visualRecognition.recognizedOrganization,
+    identity.mascot,
+    identity.recognizedCharacter,
+    visualRecognition.recognizedCharacter,
+    identity.year,
+    identity.copyrightWording,
+    identity.category,
+    identity.visualSubject,
+    visualRecognition.visualSubject
+  ].filter(hasKnownValue);
+  const phraseSignals = extractDistinctiveSearchPhrases(collectVisibleSearchEvidence(identity, visualRecognition, "", normalizeBuyerIntake({}))).slice(0, 8);
+  let score = 0;
+
+  for (const signal of exactSignals) {
+    if (signalMatchesResult(signal, resultText)) {
+      score += 4;
+    }
+  }
+  for (const signal of majorSignals) {
+    if (signalMatchesResult(signal, resultText)) {
+      score += 2;
+    }
+  }
+  for (const phrase of phraseSignals) {
+    if (signalMatchesResult(phrase, resultText)) {
+      score += 3;
+    }
+  }
+
+  const sameItemType = signalMatchesResult(inferSearchItemType(identity, identity.visualSubjectCategory, identity.productNameOrBoxTitle, "", ""), resultText);
+  if (sameItemType) {
+    score += 2;
+  }
+
+  if (score >= 9) {
+    return "Exact Identity Match";
+  }
+  if (score >= 6) {
+    return "Strong Identity Match";
+  }
+  return "";
+}
+
+function signalMatchesResult(signal, resultText) {
+  const text = cleanText(signal).toLowerCase();
+  if (!text || text.length < 3) {
+    return false;
+  }
+  if (resultText.includes(text)) {
+    return true;
+  }
+  const tokens = text.split(/\s+/).filter((token) => token.length > 2 && !/^(the|and|with|for|from|official|collector|vintage|used|item)$/.test(token));
+  if (tokens.length < 2) {
+    return false;
+  }
+  const matched = tokens.filter((token) => resultText.includes(token)).length;
+  return matched / tokens.length >= 0.75;
+}
+
+function buildEvidenceRoleForIdentityStrength(record = {}) {
+  if (/sold/i.test(record.priceType || "")) {
+    return "Exact or strong identity match with confirmed sold-price evidence when the source label is accurate.";
+  }
+  if (/active|asking/i.test(record.priceType || "")) {
+    return "Exact or strong identity match with active asking-price evidence; useful for buyer context but not confirmed sold value.";
+  }
+  if (record.displayedPrice) {
+    return "Exact or strong identity match with visible price; price type must be verified before treating it as value evidence.";
+  }
+  return "Exact or strong identity match; supports identification but not a numeric value by itself.";
 }
 
 function inferEvidenceRole(bucketName, classification) {
@@ -2953,6 +3244,9 @@ function buildSearchLimitations(liveSearch, resultsFound) {
     limitations.push("Live search was unavailable, so no source records could be retrieved.");
   } else if (!resultsFound.length) {
     limitations.push("Live search completed, but no visible structured source-backed result records were returned.");
+  }
+  if (liveSearch.noReliableMatchesReason) {
+    limitations.push(liveSearch.noReliableMatchesReason);
   }
   if (!normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables").length) {
     limitations.push("No exact or strong comparable records are visible in this report.");
@@ -3521,9 +3815,10 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       ? "Live Search Completed - No Reliable Comps Found"
       : liveSearch.liveSearchStatus;
   const askingPriceNumber = getConsumerAskingPriceNumber(buyerIntake, identity);
-  const fairValueNumber = extractConsumerFairValueNumber(report);
+  const priceEvidence = summarizeConsumerVisiblePriceEvidence(liveSearch);
+  const fairValueNumber = extractConsumerFairValueNumber(report) || priceEvidence.referenceCenter;
   const conditionProfile = getConsumerConditionProfile(buyerIntake, identity);
-  const decision = deriveConsumerDecision({
+  const decision = classifyConsumerPurchaseDecision({
     askingPriceNumber,
     fairValueNumber,
     reliableCompsFound,
@@ -3531,7 +3826,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     similarItems,
     conditionProfile,
     buyerIntake,
-    identity
+    identity,
+    priceEvidence
   });
   const offer = buildConsumerOffer({
     askingPriceNumber,
@@ -3572,6 +3868,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
+    preliminaryReferenceRange: cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile),
+    referenceRangeBasis: cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
+    priceBasis: ensurePrefix(report.priceBasis, priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
     estimatedFairMarketValue: buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
       fairValueNumber,
       reliableCompsFound
@@ -3582,6 +3881,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     }),
     valueRating: decision.valueRating,
     recommendation: decision.recommendation,
+    consumerDownsideRisk: decision.downsideRisk.summary,
+    cautiousBuyExplanation: decision.cautiousBuyExplanation,
     recommendedOffer: offer.recommendedOffer,
     openingOffer: offer.openingOffer,
     targetPurchasePrice: offer.targetPurchasePrice,
@@ -3604,7 +3905,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     researchResults,
     comparableQuality,
     pricingConfidence: decision.pricingConfidence,
-    pricingRationale: ensurePrefix(report.pricingRationale, basis),
+    pricingRationale: ensurePrefix(report.pricingRationale, `${basis} ${decision.cautiousBuyExplanation || ""}`),
     additionalInformationNeeded: buildConsumerAdditionalInfoNeeded(report.additionalInformationNeeded, {
       reliableCompsFound,
       buyerIntake,
@@ -3625,7 +3926,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   });
 }
 
-function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCompsFound, exactItems, similarItems, conditionProfile, buyerIntake, identity }) {
+function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, reliableCompsFound, exactItems, similarItems, conditionProfile, buyerIntake, identity, priceEvidence = {} }) {
   const riskFlags = buildConsumerRiskFlags({
     askingPriceNumber,
     fairValueNumber,
@@ -3636,14 +3937,31 @@ function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCo
   });
   const hasAskingPrice = Number.isFinite(askingPriceNumber);
   const hasFairValue = Number.isFinite(fairValueNumber) && fairValueNumber > 0;
-  const hasReliableEvidence = reliableCompsFound && (exactItems.length > 0 || similarItems.length > 0);
+  const hasExactIdentityEvidence = priceEvidence.exactOrStrongCount > 0 || exactItems.length > 0;
+  const hasReliableEvidence = reliableCompsFound && (hasExactIdentityEvidence || similarItems.length > 0);
+  const downsideRisk = calculateConsumerDownsideRisk({
+    askingPriceNumber,
+    fairValueNumber,
+    conditionProfile,
+    buyerIntake
+  });
+  const cautiousBuy = isCautiousConsumerBuySupported({
+    askingPriceNumber,
+    fairValueNumber,
+    hasExactIdentityEvidence,
+    priceEvidence,
+    conditionProfile,
+    downsideRisk
+  });
 
-  if (!hasAskingPrice || !hasFairValue || !hasReliableEvidence) {
+  if (!hasAskingPrice || !hasFairValue || (!hasReliableEvidence && !cautiousBuy)) {
     return {
       valueRating: "Insufficient Evidence",
       recommendation: "Need More Information",
       pricingConfidence: forceLowConfidence("", buildConsumerLowConfidenceReason({ hasAskingPrice, hasFairValue, hasReliableEvidence })),
       riskFlags,
+      downsideRisk,
+      cautiousBuyExplanation: "",
       evidenceWarning: "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
     };
   }
@@ -3669,6 +3987,11 @@ function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCo
     recommendation = "Wait for a Better Price";
   }
 
+  if (cautiousBuy && (recommendation === "Pass" || recommendation === "Need More Information" || recommendation === "Wait for a Better Price" || recommendation === "Negotiate")) {
+    valueRating = priceEvidence.soldCount > 0 ? "Good Value" : "Potentially Good Value";
+    recommendation = "Buy";
+  }
+
   if (conditionProfile.hasHardRisk) {
     if (valueRating === "Exceptional Value" || valueRating === "Good Value") {
       valueRating = "Fair Price";
@@ -3676,11 +3999,11 @@ function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCo
     if (recommendation === "Buy") {
       recommendation = "Negotiate";
     }
-  } else if (conditionProfile.hasModerateRisk && recommendation === "Buy") {
+  } else if (conditionProfile.hasModerateRisk && recommendation === "Buy" && !cautiousBuy) {
     recommendation = "Buy If It Fits Your Needs";
   }
 
-  if (conditionProfile.isUnknown && (recommendation === "Buy" || recommendation === "Buy If It Fits Your Needs")) {
+  if (conditionProfile.isUnknown && !downsideRisk.lowDollarExposure && (recommendation === "Buy" || recommendation === "Buy If It Fits Your Needs")) {
     recommendation = "Need More Information";
     if (valueRating === "Exceptional Value" || valueRating === "Good Value") {
       valueRating = "Insufficient Evidence";
@@ -3694,12 +4017,169 @@ function deriveConsumerDecision({ askingPriceNumber, fairValueNumber, reliableCo
   return {
     valueRating,
     recommendation,
-    pricingConfidence: exactItems.length
-      ? ensureConfidenceLayer("", "Medium", "Exact or likely exact source-backed evidence supports the price direction, but condition and buyer fit still matter.")
-      : ensureConfidenceLayer("", "Medium", "Strong similar source-backed evidence supports the price direction, but exact model, condition, and accessories can shift value."),
+    pricingConfidence: cautiousBuy
+      ? ensureConfidenceLayer("", "Medium", "Exact or strong visible source-backed identity evidence and limited dollar downside support a cautious personal-use Buy; active asking prices are not confirmed sold prices.")
+      : exactItems.length || priceEvidence.exactOrStrongCount
+        ? ensureConfidenceLayer("", "Medium", "Exact or likely exact source-backed evidence supports the price direction, but condition and buyer fit still matter.")
+        : ensureConfidenceLayer("", "Medium", "Strong similar source-backed evidence supports the price direction, but exact model, condition, and accessories can shift value."),
     riskFlags,
-    evidenceWarning: ""
+    downsideRisk,
+    cautiousBuyExplanation: cautiousBuy ? buildCautiousBuyExplanation({
+      askingPriceNumber,
+      fairValueNumber,
+      priceEvidence,
+      conditionProfile,
+      downsideRisk
+    }) : "",
+    evidenceWarning: cautiousBuy
+      ? "Buy recommendation is cautious because the strongest price evidence may be active asking prices rather than confirmed sold prices."
+      : ""
   };
+}
+
+function deriveConsumerDecision(args) {
+  return classifyConsumerPurchaseDecision(args);
+}
+
+function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
+  const records = [
+    ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
+    ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
+    ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
+  ].filter(isUsableSourceRecord);
+  const exactOrStrongRecords = records.filter((record) => /exact|strong/i.test(record.classification || record.matchExplanation || record.rawText || ""));
+  const pricedRecords = exactOrStrongRecords
+    .map((record) => ({
+      ...record,
+      amount: extractFirstMoneyAmount(record.displayedPrice || record.rawText)
+    }))
+    .filter((record) => Number.isFinite(record.amount) && record.amount > 0);
+  const soldRecords = pricedRecords.filter((record) => /sold/i.test(record.priceType || ""));
+  const activeRecords = pricedRecords.filter((record) => /active|asking|listed|for sale/i.test(record.priceType || record.rawText || ""));
+  const amounts = pricedRecords.map((record) => record.amount).sort((a, b) => a - b);
+  const activeAmounts = activeRecords.map((record) => record.amount).sort((a, b) => a - b);
+  const soldAmounts = soldRecords.map((record) => record.amount).sort((a, b) => a - b);
+  const basisParts = [];
+
+  if (soldAmounts.length) {
+    basisParts.push(`${soldAmounts.length} exact/strong sold-price result${soldAmounts.length === 1 ? "" : "s"}`);
+  }
+  if (activeAmounts.length) {
+    basisParts.push(`${activeAmounts.length} exact/strong active asking-price result${activeAmounts.length === 1 ? "" : "s"}`);
+  }
+
+  const referenceCenter = amounts.length ? medianAmount(amounts) : null;
+  const low = amounts.length ? Math.min(...amounts) : null;
+  const high = amounts.length ? Math.max(...amounts) : null;
+
+  return {
+    records,
+    exactOrStrongRecords,
+    pricedRecords,
+    soldCount: soldAmounts.length,
+    activeCount: activeAmounts.length,
+    exactOrStrongCount: exactOrStrongRecords.length,
+    low,
+    high,
+    referenceCenter,
+    activeLow: activeAmounts.length ? Math.min(...activeAmounts) : null,
+    activeHigh: activeAmounts.length ? Math.max(...activeAmounts) : null,
+    priceBasis: basisParts.length
+      ? `Visible price basis - ${basisParts.join("; ")}. Active asking prices support a practical buyer comparison but are not confirmed sold values.`
+      : "",
+    referenceRangeBasis: amounts.length
+      ? `${amounts.length} visible priced exact/strong result${amounts.length === 1 ? "" : "s"} support a preliminary personal-use reference range. Active asking prices are labeled separately from sold prices.`
+      : ""
+  };
+}
+
+function calculateConsumerDownsideRisk({ askingPriceNumber, fairValueNumber, conditionProfile, buyerIntake }) {
+  const hasAsking = Number.isFinite(askingPriceNumber);
+  const exposure = hasAsking ? askingPriceNumber : null;
+  const lowDollarExposure = hasAsking && askingPriceNumber <= consumerDecisionThresholds.lowDollarCautiousBuyMax;
+  const modestDollarExposure = hasAsking && askingPriceNumber <= consumerDecisionThresholds.modestDollarCautiousBuyMax;
+  const ratio = Number.isFinite(fairValueNumber) && fairValueNumber > 0 && hasAsking
+    ? askingPriceNumber / fairValueNumber
+    : null;
+  const hardFactors = [];
+  const context = cleanText(buyerIntake.purchase_context).toLowerCase();
+
+  if (conditionProfile.hasHardRisk) hardFactors.push("hard condition/functionality risk");
+  if (conditionProfile.missingParts) hardFactors.push("missing parts risk");
+  if (conditionProfile.repairRisk) hardFactors.push("repair or functionality risk");
+  if (/freight|delivery|shipping|oversized|transport|appliance|furniture/.test(context)) hardFactors.push("possible transport or delivery exposure");
+
+  return {
+    exposure,
+    ratio,
+    lowDollarExposure,
+    modestDollarExposure,
+    hardFactors,
+    summary: hasAsking
+      ? `${lowDollarExposure ? "Low" : modestDollarExposure ? "Moderate" : "Higher"} absolute downside at ${formatMoney(askingPriceNumber)}${Number.isFinite(ratio) ? ` (${Math.round(ratio * 100)}% of the visible reference center)` : ""}. ${hardFactors.length ? `Caution factors: ${hardFactors.join(", ")}.` : "No major added-cost factor was identified from the intake."}`
+      : "Downside cannot be calculated because the asking price is missing."
+  };
+}
+
+function isCautiousConsumerBuySupported({ askingPriceNumber, fairValueNumber, hasExactIdentityEvidence, priceEvidence, conditionProfile, downsideRisk }) {
+  if (!Number.isFinite(askingPriceNumber) || !Number.isFinite(fairValueNumber) || fairValueNumber <= 0) {
+    return false;
+  }
+  if (!hasExactIdentityEvidence || !priceEvidence.pricedRecords?.length) {
+    return false;
+  }
+  if (conditionProfile.hasHardRisk || downsideRisk.hardFactors.length) {
+    return false;
+  }
+  const belowVisibleLow = Number.isFinite(priceEvidence.low) && askingPriceNumber < priceEvidence.low;
+  const favorableRatio = askingPriceNumber / fairValueNumber <= consumerDecisionThresholds.cautiousBuyMaxRatio;
+  return (downsideRisk.lowDollarExposure || downsideRisk.modestDollarExposure) && (belowVisibleLow || favorableRatio);
+}
+
+function buildCautiousBuyExplanation({ askingPriceNumber, fairValueNumber, priceEvidence, conditionProfile, downsideRisk }) {
+  const range = Number.isFinite(priceEvidence.low) && Number.isFinite(priceEvidence.high)
+    ? `${formatMoney(priceEvidence.low)}-${formatMoney(priceEvidence.high)}`
+    : "the visible exact/strong listing range";
+  const priceTypeText = priceEvidence.soldCount
+    ? `${priceEvidence.soldCount} sold result${priceEvidence.soldCount === 1 ? "" : "s"} plus ${priceEvidence.activeCount} active asking result${priceEvidence.activeCount === 1 ? "" : "s"}`
+    : `${priceEvidence.activeCount} active asking result${priceEvidence.activeCount === 1 ? "" : "s"} and no confirmed sold-price result`;
+  const conditionText = conditionProfile.hasModerateRisk
+    ? "Visible/entered wear or used condition lowers confidence and should keep the value estimate below clean examples."
+    : "No major condition adjustment was triggered by the current intake.";
+  return `Cautious Buy logic - The ${formatMoney(askingPriceNumber)} asking price is below the visible exact/strong reference center of about ${formatMoney(fairValueNumber)} and below or favorable to ${range}. Evidence is ${priceTypeText}, so this is a cautious personal-use Buy rather than a high-confidence fair-market-value call. ${conditionText} ${downsideRisk.summary}`;
+}
+
+function buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile) {
+  if (!priceEvidence.pricedRecords?.length || !Number.isFinite(priceEvidence.low) || !Number.isFinite(priceEvidence.high)) {
+    return "";
+  }
+  let low = priceEvidence.low;
+  let high = priceEvidence.high;
+  if (conditionProfile.hasHardRisk) {
+    low *= 0.55;
+    high *= 0.7;
+  } else if (conditionProfile.hasModerateRisk) {
+    low *= 0.8;
+    high *= 0.85;
+  }
+  return `Preliminary Reference Range - approximately ${formatMoneyRange(roundMoney(low), roundMoney(high))} based on visible exact/strong source records. Active asking prices are not confirmed sold values, and condition can move the practical value lower.`;
+}
+
+function extractFirstMoneyAmount(text) {
+  const amounts = extractMoneyAmounts(text);
+  return amounts.length ? amounts[0] : null;
+}
+
+function medianAmount(amounts) {
+  const sorted = amounts.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) {
+    return null;
+  }
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2) {
+    return sorted[middle];
+  }
+  return (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function buildConsumerRiskFlags({ askingPriceNumber, fairValueNumber, reliableCompsFound, conditionProfile, buyerIntake, identity }) {
@@ -5306,7 +5786,255 @@ function isOrganizationCollectibleIdentity(identity, routeText, notesText) {
   ].join(" ").toLowerCase();
 
   return /institution|organization|university|college|government|corporation|brand|officially licensed|license|licensing|team|school|mascot|logo|character|athletics|sports logo|school colors/.test(haystack)
-    && /ceramic|cookie jar|container|canister|decor|collectible|mascot|figurine|lid|lidded/.test(haystack);
+    && /ceramic|cookie jar|container|canister|decor|collectible|mascot|figurine|lid|lidded|memorabilia|commemorative|champion|championship|advertising|promotional|tray|serving tray|plate|plaque|tin|sign/.test(haystack);
+}
+
+function isBrandedMemorabiliaIdentity(identity, routeText, notesText) {
+  const haystack = buildIdentitySearchHaystack(identity, routeText, notesText);
+  return /memorabilia|commemorative|champion|championship|national champions?|sports|athletics|team|school|university|college|coach|player|mascot|official|licensed|souvenir|collector|collectible|tray|serving tray|collector'?s tray|plate|plaque|tin|sign/.test(haystack);
+}
+
+function isPromotionalCollectibleIdentity(identity, routeText, notesText) {
+  const haystack = buildIdentitySearchHaystack(identity, routeText, notesText);
+  return /advertising|promotional|promo|brand|beverage|soda|beer|tobacco|gas|oil|automotive|commemorative|souvenir|licensed|collector|collectible|tray|plate|plaque|tin|sign/.test(haystack);
+}
+
+function buildIdentitySearchHaystack(identity, routeText, notesText) {
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
+  return [
+    routeText,
+    notesText,
+    identity.category,
+    identity.subjectIdentity,
+    identity.userProvidedIdentity,
+    identity.exactProductIdentity,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.brandSeries,
+    identity.brand,
+    identity.manufacturer,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.licensingStickerText,
+    identity.copyrightWording,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    visualRecognition.visualSubject,
+    visualRecognition.visualSubjectCategory,
+    visualRecognition.recognizedOrganization,
+    visualRecognition.recognizedBrand,
+    normalizeStringArray(visualRecognition.visibleWords, 20).join(" "),
+    normalizeStringArray(visualRecognition.visibleLetters, 8).join(" "),
+    normalizeStringArray(visualRecognition.distinctiveFeatures, 10).join(" "),
+    Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
+  ].join(" ").toLowerCase();
+}
+
+function collectVisibleSearchEvidence(identity, visualRecognition, notesText, buyerIntake = normalizeBuyerIntake({})) {
+  const values = [
+    buyerIntake.item_name,
+    buyerIntake.known_brand,
+    buyerIntake.known_manufacturer,
+    buyerIntake.known_model,
+    buyerIntake.known_sku,
+    buyerIntake.known_upc,
+    buyerIntake.approximate_age_era,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.licensingStickerText,
+    identity.copyrightWording,
+    identity.brandSeries,
+    identity.brand,
+    identity.manufacturer,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.model,
+    identity.sku,
+    identity.upcBarcode,
+    identity.styleNumber,
+    identity.dimensions,
+    identity.category,
+    identity.subjectIdentity,
+    identity.exactProductIdentity,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    visualRecognition.visualSubject,
+    visualRecognition.visualSubjectCategory,
+    visualRecognition.recognizedOrganization,
+    visualRecognition.recognizedBrand,
+    visualRecognition.recognizedCharacter,
+    visualRecognition.recognizedInstitution,
+    visualRecognition.recognizedTheme,
+    notesText
+  ];
+  const arrays = [
+    visualRecognition.visibleWords,
+    visualRecognition.visibleLetters,
+    visualRecognition.visibleLogos,
+    visualRecognition.distinctiveFeatures,
+    visualRecognition.visualEvidence,
+    identity.visualIdentityEvidence,
+    identity.textIdentityEvidence,
+    identity.visibleText,
+    identity.strongestSearchableIdentifiers
+  ];
+  const evidence = [];
+  for (const value of values) {
+    addUnique(evidence, value);
+  }
+  for (const list of arrays) {
+    for (const item of normalizeStringArray(list, 24)) {
+      addUnique(evidence, item);
+    }
+  }
+  return evidence.slice(0, 42);
+}
+
+function extractDistinctiveSearchPhrases(evidenceItems) {
+  const phrases = [];
+  for (const item of evidenceItems) {
+    const source = normalizeTokenString(item).replace(/[?!]+/g, "").trim();
+    if (!source) {
+      continue;
+    }
+    const chunks = source
+      .split(/\s*(?:[.;:|/\\]+|\s+-\s+)\s*/g)
+      .map((chunk) => cleanSearchQuery(chunk, 9))
+      .filter(Boolean);
+    for (const chunk of chunks) {
+      if (isDistinctiveSearchPhrase(chunk)) {
+        addUnique(phrases, chunk);
+      }
+      const words = chunk.split(/\s+/).filter(Boolean);
+      if (words.length > 8) {
+        for (let start = 0; start <= words.length - 4; start += 2) {
+          const windowText = words.slice(start, start + 6).join(" ");
+          if (isDistinctiveSearchPhrase(windowText)) {
+            addUnique(phrases, windowText);
+          }
+        }
+      }
+    }
+  }
+  return phrases
+    .sort((a, b) => scoreDistinctivePhrase(b) - scoreDistinctivePhrase(a) || a.length - b.length)
+    .slice(0, 14);
+}
+
+function isDistinctiveSearchPhrase(value) {
+  const text = cleanText(value);
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 9) {
+    return false;
+  }
+  if (/^(unknown|not verified|not provided|item|photo|image|used|vintage|collectible|decor|memorabilia)$/i.test(text)) {
+    return false;
+  }
+  return /['&]|\b\d{3,14}\b|\b[A-Z][a-z]+ [A-Z][a-z]+\b|champion|official|collector|edition|commemorative|anniversary|licensed|national|world|conference|slogan|copyright|model|style|serial|upc|barcode|tray|plate|book|edition|author|artist|signature|brand|team|school|university/i.test(text);
+}
+
+function scoreDistinctivePhrase(value) {
+  const text = cleanText(value);
+  let score = 0;
+  if (/\b(?:18|19|20)\d{2}\b/.test(text)) score += 5;
+  if (/champion|national|world|conference|anniversary|commemorative|event/i.test(text)) score += 5;
+  if (/['&]/.test(text)) score += 4;
+  if (/official|collector|edition|licensed|copyright/i.test(text)) score += 3;
+  if (/model|style|serial|upc|barcode|\b\d{8,14}\b/i.test(text)) score += 6;
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 2 && wordCount <= 5) score += 3;
+  if (wordCount > 8) score -= 3;
+  return score;
+}
+
+function extractSearchYears(text) {
+  return [...new Set(String(text || "").match(/\b(?:18|19|20)\d{2}\b/g) || [])].slice(0, 4);
+}
+
+function extractLikelyNamedPeople(text) {
+  const names = [];
+  const source = String(text || "").replace(/[|/\\]+/g, " ");
+  const matches = source.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z']+){1,3}\b/g) || [];
+  for (const match of matches) {
+    if (!/\b(National Champions?|Collector|Official|Workshop|Christmas|United States|New York|Los Angeles|Limited Edition|Collector Edition)\b/i.test(match)) {
+      addUnique(names, match);
+    }
+  }
+  return names.slice(0, 6);
+}
+
+function inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText) {
+  const haystack = [
+    productTitle,
+    identity.category,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    identity.visualSubject,
+    visualCategory,
+    notesText,
+    routeText
+  ].join(" ").toLowerCase();
+  const knownTypes = [
+    ["collector tray", /collector'?s tray|collector tray|serving tray|tray\b/],
+    ["collector plate", /collector plate|commemorative plate|plate\b/],
+    ["advertising sign", /advertising sign|tin sign|sign\b/],
+    ["poster print", /poster|print|artwork|illustration/],
+    ["book", /\bbook|author|edition|isbn\b/],
+    ["toy", /\btoy|figure|action figure|doll\b/],
+    ["tool", /\btool|drill|saw|wrench|model number\b/],
+    ["appliance", /\bappliance|mixer|vacuum|washer|dryer|refrigerator\b/],
+    ["holiday decor", /holiday|christmas|santa|seasonal|decor|figurine/],
+    ["ceramic canister", /canister|cookie jar|ceramic jar|lidded/],
+    ["apparel", /dress|shirt|jacket|shoe|pants|apparel|fashion/],
+    ["electronics", /laptop|computer|phone|tablet|electronics/],
+    ["furniture", /sofa|chair|table|dresser|cabinet|furniture/]
+  ];
+  for (const [label, pattern] of knownTypes) {
+    if (pattern.test(haystack)) {
+      return label;
+    }
+  }
+  return mostDistinctiveCategoryWord(firstKnown(identity.category, visualCategory, productTitle, notesText));
+}
+
+function quoteSearchPhrase(value) {
+  const text = cleanText(value).replace(/"/g, "").trim();
+  if (!text) {
+    return "";
+  }
+  return `"${text}"`;
+}
+
+function scoreSearchQuerySpecificity(query, context) {
+  const text = String(query || "").toLowerCase();
+  const quoted = getQuotedQueryPhrase(query);
+  const quotedWordCount = quoted ? quoted.split(/\s+/).filter(Boolean).length : 0;
+  let score = 0;
+  if (/"[^"]{4,}"/.test(query)) score += 12;
+  if (quoted && quotedWordCount <= 5 && /\b(?:18|19|20)\d{2}\b|champion|national|official|collector|edition|commemorative|['&]/i.test(quoted)) score += 6;
+  if (quoted && /['&]|slogan|motto|catchphrase/i.test(quoted)) score += 8;
+  if (quotedWordCount > 8) score -= 3;
+  if (context.upc && text.includes(context.upc.toLowerCase())) score += 12;
+  if (context.model && text.includes(context.model.toLowerCase())) score += 9;
+  if (context.itemCode && text.includes(context.itemCode.toLowerCase())) score += 9;
+  if (context.brand && text.includes(context.brand.toLowerCase())) score += 7;
+  if (context.visualOrganization && text.includes(context.visualOrganization.toLowerCase())) score += 7;
+  if (context.schoolName && text.includes(context.schoolName.toLowerCase())) score += 6;
+  if (context.teamName && text.includes(context.teamName.toLowerCase())) score += 6;
+  if (context.itemType && text.includes(context.itemType.toLowerCase().split(/\s+/)[0])) score += 5;
+  if (/\b(?:18|19|20)\d{2}\b/.test(text)) score += 5;
+  if (/champion|official|collector|edition|commemorative|anniversary|licensed|slogan|signed|artist|author|model|style|barcode|upc/.test(text)) score += 4;
+  if (context.namedPeople.some((name) => text.includes(name.toLowerCase()))) score += 4;
+  if (/old|vintage item|football collectible|collectible decor|price resale value|broad web search/.test(text)) score -= 5;
+  return score;
 }
 
 function inferVisualTerms(text) {
@@ -5363,14 +6091,14 @@ function compactWords(parts) {
   return cleanSearchQuery(parts.filter(hasKnownValue).join(" "));
 }
 
-function cleanSearchQuery(value) {
+function cleanSearchQuery(value, maxTerms = 10) {
   const text = normalizeTokenString(value)
     .replace(/\b(unknown|n\/a|none|not visible)\b/gi, "")
     .replace(/\b([A-Za-z0-9']+\s+[A-Za-z0-9']+)(\s+\1\b)+/gi, "$1")
     .replace(/\b(\w+)(\s+\1\b)+/gi, "$1")
     .replace(/\s+/g, " ")
     .trim();
-  return trimQueryTerms(text, 10);
+  return trimQueryTerms(text, maxTerms);
 }
 
 function normalizeTokenString(value) {
@@ -5425,16 +6153,27 @@ function mostDistinctiveCategoryWord(text) {
 
 function isRepetitiveQuery(query, existingQueries) {
   const normalized = query.toLowerCase();
+  const quotedPhrase = getQuotedQueryPhrase(normalized);
   const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
   for (const existing of existingQueries) {
-    const existingTokens = new Set(existing.toLowerCase().split(/\s+/).filter(Boolean));
+    const existingNormalized = existing.toLowerCase();
+    const existingQuotedPhrase = getQuotedQueryPhrase(existingNormalized);
+    if (quotedPhrase && existingQuotedPhrase && quotedPhrase !== existingQuotedPhrase) {
+      continue;
+    }
+    const existingTokens = new Set(existingNormalized.split(/\s+/).filter(Boolean));
     const overlap = [...tokens].filter((token) => existingTokens.has(token)).length;
     const smaller = Math.min(tokens.size, existingTokens.size) || 1;
-    if (normalized === existing.toLowerCase() || overlap / smaller > 0.9) {
+    if (normalized === existingNormalized || overlap / smaller > 0.9) {
       return true;
     }
   }
   return false;
+}
+
+function getQuotedQueryPhrase(query) {
+  const match = String(query || "").match(/"([^"]{4,})"/);
+  return match ? match[1].trim() : "";
 }
 
 function createOpenAIRequestError({ statusCode = null, type = "", code = "", message = "OpenAI API request failed.", category = "provider_error", timedOut = false, cause = null }) {

@@ -191,6 +191,8 @@ const consumerSections = [
   ["fairPriceRange", "Fair Price Range"],
   ["valueRating", "Value Rating"],
   ["recommendation", "Recommendation"],
+  ["consumerDownsideRisk", "Consumer Downside Risk"],
+  ["cautiousBuyExplanation", "Cautious Buy Explanation"],
   ["recommendedOffer", "Recommended Offer"],
   ["walkAwayPrice", "Walk-Away Price"],
   ["negotiationGuidance", "Negotiation Guidance"],
@@ -721,6 +723,8 @@ function extractReportContext(report, sections = []) {
     "aiOnlyRoughValueRange",
     "valueRating",
     "recommendation",
+    "consumerDownsideRisk",
+    "cautiousBuyExplanation",
     "purchaserDecision",
     "recommendedOffer",
     "walkAwayPrice",
@@ -2552,7 +2556,9 @@ function formatResearchEvidence(report) {
     formatSection("Weak Matches", report.weakMatches),
     formatSection("Rejected Matches", report.rejectedMatches),
     formatSection("Search Limitations", report.searchLimitations),
-    formatSection("Reference Range Basis", report.referenceRangeBasis)
+    formatSection("Reference Range Basis", report.referenceRangeBasis),
+    formatSection("Consumer Downside Risk", report.consumerDownsideRisk),
+    formatSection("Cautious Buy Explanation", report.cautiousBuyExplanation)
   ].filter((item) => item.trim()).join("\n\n");
 }
 

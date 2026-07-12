@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.2"
+$AppVersion = "1.9.3"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -14,6 +14,9 @@ $ConsumerDecisionThresholds = @{
   fairMaxRatio = 1.08
   slightlyOverpricedMaxRatio = 1.22
   overpricedMaxRatio = 1.45
+  lowDollarCautiousBuyMax = 25
+  modestDollarCautiousBuyMax = 75
+  cautiousBuyMaxRatio = 0.78
 }
 
 $ListingSchema = @{
@@ -1221,6 +1224,10 @@ Use valuation evidence states consistently: supported, preliminary, or insuffici
 Use Estimated Fair Market Value only when exact or strong comparable evidence is sufficient. Use Preliminary Reference Range when evidence is weak, partial, active-listing-only, category-level, or AI-reasoning-only. Use Fair Value: Not established when no defensible range exists.
 If valueRating is Insufficient Evidence, do not label any field as Estimated Fair Value, Fair Market Value, Typical Selling Price, or Confirmed Value. Use Preliminary Reference Range or Fair Value: Not established instead.
 When active asking-price evidence is used, call it current active listings or results found during the current search. Never present active asking prices as confirmed sold evidence.
+When photos contain distinctive visible wording, branding, dates, names, slogans, event names, or item-form clues, preserve those exact phrases and use them before generic category searches.
+Merge text clues from all uploaded photos. Do not discard reverse-side label wording when front-side branding is also visible.
+Exact or strong active listings can support a cautious personal-use decision when clearly labeled as active asking-price evidence, not confirmed sold evidence.
+Low pricing confidence must soften the recommendation language, but it must not automatically force Need More Information when exact visible evidence and limited dollar downside support a cautious Buy.
 recommendedOffer must include Opening Offer, Target Purchase Price, and Maximum Recommended Price when evidence supports those numbers.
 walkAwayPrice must be clear when evidence is sufficient. When evidence is weak, say the walk-away price is not supported yet.
 negotiationGuidance must be honest buyer-facing language. Do not encourage dishonest claims or pretend a lower comp exists unless source-backed results support it.
@@ -1276,7 +1283,7 @@ Prioritize exact visible front-box wording, back-label wording, manufacturer/loc
 Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.
 For institution, organization, school, team, mascot, logo, or character items, inspect and preserve names, visual symbols, licensing sticker, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status.
 Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, ask for a closer photo rather than treating all identification as failed.
-Build diverse product-focused search queries in this priority order where appropriate: exact UPC, exact model, exact SKU, brand plus model, manufacturer plus item name, exact visible label wording, then descriptive fallback queries.
+Build diverse product-focused search queries in this priority order where appropriate: exact visible phrase combinations, brand plus event/date plus item type, brand plus organization/team plus item type, distinctive slogan or reverse-text phrase, exact UPC/model/SKU, manufacturer plus item name, then descriptive fallback queries.
 Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful. Do not force identifiers into every query if they are irrelevant or unreliable.
 Use purchase context to route the search: retail store or mall means manufacturer, retailer, current-product, and price-comparison style sources; consignment, thrift, flea market, estate sale, and antique mall mean resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace or private seller means local value, pickup, negotiation, transport, and inspection risk.
 Reject or weaken comparable items that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.
@@ -1732,6 +1739,8 @@ function Set-ConsumerDecisionHonesty {
   $Report | Add-Member -NotePropertyName "askingPrice" -NotePropertyValue (Get-ConsumerAskingPriceText $BuyerIntake) -Force
   $Report | Add-Member -NotePropertyName "valueRating" -NotePropertyValue $Decision.valueRating -Force
   $Report | Add-Member -NotePropertyName "recommendation" -NotePropertyValue $Decision.recommendation -Force
+  $Report | Add-Member -NotePropertyName "consumerDownsideRisk" -NotePropertyValue $Decision.downsideRisk -Force
+  $Report | Add-Member -NotePropertyName "cautiousBuyExplanation" -NotePropertyValue $Decision.cautiousBuyExplanation -Force
   $Report | Add-Member -NotePropertyName "recommendedOffer" -NotePropertyValue @($Offer.recommendedOffer) -Force
   $Report | Add-Member -NotePropertyName "openingOffer" -NotePropertyValue $Offer.openingOffer -Force
   $Report | Add-Member -NotePropertyName "targetPurchasePrice" -NotePropertyValue $Offer.targetPurchasePrice -Force
@@ -1864,6 +1873,9 @@ function Get-ConsumerDecision {
   $Ratio = $AskingPrice / $FairValue
   $ValueRating = "Poor Value"
   $Recommendation = "Pass"
+  $LowDollarExposure = ($AskingPrice -le $ConsumerDecisionThresholds["lowDollarCautiousBuyMax"])
+  $ModestDollarExposure = ($AskingPrice -le $ConsumerDecisionThresholds["modestDollarCautiousBuyMax"])
+  $CautiousBuySupported = ($ReliableCompsFound -and -not $ConditionProfile.hasHardRisk -and ($LowDollarExposure -or $ModestDollarExposure) -and ($Ratio -le $ConsumerDecisionThresholds["cautiousBuyMaxRatio"]))
 
   if ($Ratio -le $ConsumerDecisionThresholds["exceptionalMaxRatio"]) {
     $ValueRating = "Exceptional Value"
@@ -1882,22 +1894,35 @@ function Get-ConsumerDecision {
     $Recommendation = "Wait for a Better Price"
   }
 
+  if ($CautiousBuySupported -and ($Recommendation -match "Pass|Need More|Wait|Negotiate")) {
+    $ValueRating = "Potentially Good Value"
+    $Recommendation = "Buy"
+  }
+
   if ($ConditionProfile.hasHardRisk) {
     if ($ValueRating -match "Exceptional|Good") { $ValueRating = "Fair Price" }
     if ($Recommendation -eq "Buy") { $Recommendation = "Negotiate" }
-  } elseif ($ConditionProfile.hasModerateRisk -and $Recommendation -eq "Buy") {
+  } elseif ($ConditionProfile.hasModerateRisk -and $Recommendation -eq "Buy" -and -not $CautiousBuySupported) {
     $Recommendation = "Buy If It Fits Your Needs"
   }
 
-  if ($ConditionProfile.isUnknown -and ($Recommendation -match "Buy")) {
+  if ($ConditionProfile.isUnknown -and -not $LowDollarExposure -and ($Recommendation -match "Buy")) {
     $Recommendation = "Need More Information"
     if ($ValueRating -match "Exceptional|Good") { $ValueRating = "Insufficient Evidence" }
+  }
+
+  $DownsideRisk = "$(if ($LowDollarExposure) { 'Low' } elseif ($ModestDollarExposure) { 'Moderate' } else { 'Higher' }) absolute downside at $(Format-Money $AskingPrice); confidence can remain modest while a practical personal-use Buy is still supported."
+  $CautiousExplanation = ""
+  if ($CautiousBuySupported) {
+    $CautiousExplanation = "Cautious Buy logic - The asking price is below the supported reference value and absolute dollar exposure is limited. Active asking prices must remain labeled separately from confirmed sold evidence."
   }
 
   return [pscustomobject]@{
     valueRating = $ValueRating
     recommendation = $Recommendation
-    pricingConfidence = (Ensure-ConfidenceLayer "" "Medium" "Source-backed evidence supports the price direction, but exact condition and personal fit still matter.")
+    pricingConfidence = $(if ($CautiousBuySupported) { (Ensure-ConfidenceLayer "" "Medium" "Exact or strong source-backed evidence and limited dollar downside support a cautious personal-use Buy; active asking prices are not confirmed sold prices.") } else { (Ensure-ConfidenceLayer "" "Medium" "Source-backed evidence supports the price direction, but exact condition and personal fit still matter.") })
+    downsideRisk = $DownsideRisk
+    cautiousBuyExplanation = $CautiousExplanation
   }
 }
 

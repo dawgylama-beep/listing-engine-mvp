@@ -17,9 +17,9 @@ $package = Get-Content -LiteralPath $packagePath -Raw
 $server = Get-Content -LiteralPath $serverPath -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.9.2"; Text = $index; Pattern = "Version 1.9.2" },
-  @{ Name = "Package version is 1.9.2"; Text = $package; Pattern = '"version": "1.9.2"' },
-  @{ Name = "Local server version is 1.9.2"; Text = $server; Pattern = '$AppVersion = "1.9.2"' },
+  @{ Name = "Visible app version is 1.9.3"; Text = $index; Pattern = "Version 1.9.3" },
+  @{ Name = "Package version is 1.9.3"; Text = $package; Pattern = '"version": "1.9.3"' },
+  @{ Name = "Local server version is 1.9.3"; Text = $server; Pattern = '$AppVersion = "1.9.3"' },
   @{ Name = "Feedback button exists"; Text = $index; Pattern = 'id="feedback-button"' },
   @{ Name = "Feedback panel exists"; Text = $index; Pattern = 'id="feedback-panel"' },
   @{ Name = "Photo controls explain camera and upload"; Text = $index; Pattern = "Choose from your photo library or files." },

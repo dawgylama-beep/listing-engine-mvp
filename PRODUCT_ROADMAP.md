@@ -199,6 +199,13 @@
 - Source records render as mobile-friendly cards with source, URL, displayed price, price type, classification, evidence role, and rejection reason when available
 - Ask Market Edge context now includes the visible research records needed to answer questions about found listings, rejected comps, and asking-versus-sold evidence
 
+## Version 1.9.3 (Completed)
+- Buying for Myself now prioritizes exact visible wording, brand/event/date/team/item-type combinations, and multi-photo text clues before broad fallback searches
+- Branded sports, advertising, promotional, commemorative, and collectible items route toward resale, auction/archive, collector/reference, and exact web sources before generic retail
+- Exact active listings can be retained as exact identity matches while still labeled honestly as active asking-price evidence, not confirmed sold evidence
+- Consumer decisions now use centralized low-dollar downside logic so low confidence no longer automatically forces Need More Information when exact visible evidence supports a cautious Buy
+- Research limitations now distinguish acquisition failure, filtering failure, missing URL citations, weak matches, and price-evidence limitations
+
 ## Version 2.0
 - User accounts
 - Saved listings
