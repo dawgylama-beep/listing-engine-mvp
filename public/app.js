@@ -36,6 +36,16 @@ const listingSections = [
   ["categorySuggestion", "Category Suggestion"],
   ["identifiedItem", "Identified Item"],
   ["identificationConfidence", "Identification Confidence"],
+  ["visualRecognitionSummary", "Visual Recognition Summary"],
+  ["visualSubject", "Visual Subject"],
+  ["visualSubjectCategory", "Visual Subject Category"],
+  ["visualSubjectConfidence", "Visual Subject Confidence"],
+  ["recognizedOrganization", "Recognized Organization"],
+  ["recognizedBrand", "Recognized Brand"],
+  ["recognizedCharacter", "Recognized Character"],
+  ["visualRecognitionEvidence", "Visual Recognition Evidence"],
+  ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
+  ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
   ["subjectConfidence", "Subject Confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
@@ -84,6 +94,16 @@ const valuationSections = [
   ["platformSpecificSellingGuidance", "Platform-Specific Selling Guidance"],
   ["itemIdentification", "Item Identification"],
   ["liveComparableSearchStatus", "Live Comp Status"],
+  ["visualRecognitionSummary", "Visual Recognition Summary"],
+  ["visualSubject", "Visual Subject"],
+  ["visualSubjectCategory", "Visual Subject Category"],
+  ["visualSubjectConfidence", "Visual Subject Confidence"],
+  ["recognizedOrganization", "Recognized Organization"],
+  ["recognizedBrand", "Recognized Brand"],
+  ["recognizedCharacter", "Recognized Character"],
+  ["visualRecognitionEvidence", "Visual Recognition Evidence"],
+  ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
+  ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
   ["subjectConfidence", "Subject Confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
@@ -117,6 +137,16 @@ const valuationSections = [
 const consumerSections = [
   ["identifiedItem", "Identified Item"],
   ["identificationConfidence", "Identification Confidence"],
+  ["visualRecognitionSummary", "Visual Recognition Summary"],
+  ["visualSubject", "Visual Subject"],
+  ["visualSubjectCategory", "Visual Subject Category"],
+  ["visualSubjectConfidence", "Visual Subject Confidence"],
+  ["recognizedOrganization", "Recognized Organization"],
+  ["recognizedBrand", "Recognized Brand"],
+  ["recognizedCharacter", "Recognized Character"],
+  ["visualRecognitionEvidence", "Visual Recognition Evidence"],
+  ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
+  ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
   ["subjectConfidence", "Subject Confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
@@ -562,6 +592,18 @@ function extractReportContext(report, sections = []) {
     "itemIdentification",
     "identificationConfidence",
     "itemIdentificationConfidence",
+    "visualRecognitionSummary",
+    "visualSubject",
+    "visualSubjectCategory",
+    "visualSubjectConfidence",
+    "recognizedOrganization",
+    "recognizedBrand",
+    "recognizedCharacter",
+    "recognizedInstitution",
+    "recognizedTheme",
+    "visualRecognitionEvidence",
+    "visualRecognitionUnknowns",
+    "visualRecognitionConflicts",
     "subjectIdentity",
     "subjectConfidence",
     "exactProductIdentity",
@@ -747,6 +789,10 @@ function renderReport(report, sections) {
   results.classList.remove("empty-state");
   results.innerHTML = "";
 
+  if (hasVisualRecognition(report)) {
+    results.appendChild(renderVisualRecognitionSummary(report));
+  }
+
   if (isConsumerReport(report)) {
     results.appendChild(renderConsumerSummary(report));
   }
@@ -788,6 +834,61 @@ function renderReport(report, sections) {
     card.append(header, body);
     results.appendChild(card);
   }
+}
+
+function hasVisualRecognition(report) {
+  return Boolean(report.visualSubject || report.visualRecognitionSummary || report.visualRecognitionEvidence);
+}
+
+function renderVisualRecognitionSummary(report) {
+  const card = document.createElement("article");
+  card.className = "visual-summary-card";
+
+  const header = document.createElement("div");
+  header.className = "visual-summary-header";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "summary-eyebrow";
+  eyebrow.textContent = "Visual recognition";
+  const title = document.createElement("h3");
+  title.textContent = report.visualSubject || report.subjectIdentity || "Visual subject needs verification";
+  const badge = document.createElement("span");
+  badge.className = "summary-badge";
+  badge.textContent = report.visualSubjectConfidence || report.subjectConfidence || "Confidence unclear";
+  header.append(eyebrow, title, badge);
+
+  const details = document.createElement("div");
+  details.className = "visual-summary-details";
+  const category = document.createElement("p");
+  category.textContent = `Category: ${report.visualSubjectCategory || "Not verified"}`;
+  const recognized = [
+    formatSummaryPart("Organization", report.recognizedOrganization),
+    formatSummaryPart("Brand", report.recognizedBrand),
+    formatSummaryPart("Character", report.recognizedCharacter),
+    formatSummaryPart("Institution", report.recognizedInstitution),
+    formatSummaryPart("Theme", report.recognizedTheme)
+  ].filter(Boolean);
+  const recognizedLine = document.createElement("p");
+  recognizedLine.textContent = recognized.length
+    ? `Recognized clues: ${recognized.join("; ")}`
+    : "Recognized clues: none verified beyond the visible subject.";
+  const unknowns = Array.isArray(report.visualRecognitionUnknowns)
+    ? report.visualRecognitionUnknowns
+    : report.visualRecognitionUnknowns ? [report.visualRecognitionUnknowns] : [];
+  const unknownLine = document.createElement("p");
+  unknownLine.textContent = unknowns.length
+    ? `Still unknown: ${unknowns.slice(0, 5).join("; ")}`
+    : "Still unknown: exact product, maker, date, licensing, comparable confidence, and pricing confidence unless shown below.";
+  details.append(category, recognizedLine, unknownLine);
+  card.append(header, details);
+  return card;
+}
+
+function formatSummaryPart(label, value) {
+  const text = String(value || "").trim();
+  if (!text || /^(unknown|not verified|n\/a|none)$/i.test(text)) {
+    return "";
+  }
+  return `${label}: ${text}`;
 }
 
 function renderIdentitySummary(report) {

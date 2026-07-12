@@ -95,7 +95,7 @@
 - Worth Buying resale reports now include explicit suggested listing price, expected sale price, minimum acceptable price, recommended selling platform, expected selling time, and platform-specific selling guidance
 - Selected marketplace platform is treated as the intended resale platform when purchase intent is resale or both
 - Personal-use Worth Buying reports do not force resale pricing
-- Collectible, collegiate, ceramic, cookie-jar, decor, and secondhand source routing now prioritizes resale, vintage, collector, exact-label, team/school, and reference-style searches
+- Collectible, organization, logo, mascot, ceramic, cookie-jar, decor, and secondhand source routing now prioritizes resale, vintage, collector, exact-label, brand/organization, and reference-style searches
 - Weak wholesale, restaurant-supply, bulk import/manufacturing, unrelated current-retail, and generic lookalike sources are rejected as meaningful comps
 - Visible app branding updated to Marketplace Edge
 
@@ -161,7 +161,15 @@
 - Reports now show Subject Identity, Subject Confidence, Exact Product Identity, Exact Product Confidence, Maker / Date / Licensing Status, What Is Known, and What Is Still Unknown
 - Broad subject identity now drives useful fallback queries when exact product identifiers are missing
 - Ask Market Edge can explain subject identity versus exact product, maker, licensing, authenticity, and comparable certainty
-- Major features should freeze after Version 1.8.3 except for visual repair, mobile polish, reliability fixes, wording improvements, and beta-discovered defects
+
+## Version 1.8.4 (Completed)
+- Visual Intelligence Engine added as a universal first-stage analysis layer before exact product identification, live research, comparable analysis, valuation, or listing generation
+- Reports now show a concise Visual Recognition summary with visual subject, subject category, visual confidence, recognized clues, supporting evidence, and still-unknown items
+- Visual subject recognition remains independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence
+- Search generation now starts from the broad visual subject and then narrows toward organization, brand, character, visible words/letters, maker, model, SKU, UPC, or other identifiers
+- Artwork, logos, mascots, advertising, historical graphics, signs, plaques, prints, political memorabilia, military insignia, vintage packaging, and similar subjects now route toward reference-style searches before marketplace-only analysis
+- Ask Market Edge now answers visual identity questions from the Visual Recognition layer first
+- No additional engine features should be added after Version 1.8.4; beta work should focus on visual polish, mobile polish, wording improvements, reliability, bug fixes, and beta feedback
 
 ## Version 2.0
 - User accounts

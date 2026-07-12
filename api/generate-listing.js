@@ -445,6 +445,102 @@ const askMarketEdgeSchema = {
   }
 };
 
+const visualRecognitionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "visualSubject",
+    "visualSubjectCategory",
+    "visualSubjectConfidence",
+    "recognizedOrganization",
+    "recognizedBrand",
+    "recognizedCharacter",
+    "recognizedInstitution",
+    "recognizedTheme",
+    "visibleLogos",
+    "visibleLetters",
+    "visibleWords",
+    "visibleColors",
+    "visualStyle",
+    "estimatedEraStyle",
+    "distinctiveFeatures",
+    "visualEvidence",
+    "possibleInterpretations",
+    "visualConflicts",
+    "stillUnknown",
+    "userEvidenceReconciliation",
+    "visualSummary"
+  ],
+  properties: {
+    visualSubject: { type: "string" },
+    visualSubjectCategory: { type: "string" },
+    visualSubjectConfidence: { type: "string" },
+    recognizedOrganization: { type: "string" },
+    recognizedBrand: { type: "string" },
+    recognizedCharacter: { type: "string" },
+    recognizedInstitution: { type: "string" },
+    recognizedTheme: { type: "string" },
+    visibleLogos: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    visibleLetters: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    visibleWords: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    visibleColors: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    visualStyle: { type: "string" },
+    estimatedEraStyle: { type: "string" },
+    distinctiveFeatures: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    visualEvidence: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    possibleInterpretations: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    visualConflicts: {
+      type: "array",
+      minItems: 0,
+      maxItems: 6,
+      items: { type: "string" }
+    },
+    stillUnknown: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    userEvidenceReconciliation: { type: "string" },
+    visualSummary: { type: "string" }
+  }
+};
+
 const itemIdentitySchema = {
   type: "object",
   additionalProperties: false,
@@ -795,6 +891,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.",
     "Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.",
     "Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.",
+    "Use the current report's Visual Recognition fields first for questions like what is this, why do you think it is a brand/organization/mascot/logo/character, what clues support that, or what should be photographed next.",
     "When identity is discussed, separate broad subject identity from exact product identity, maker, era, licensing, authenticity, and exact comparable status.",
     "If broad subject identity is supported but exact product is unverified, say that plainly rather than saying the whole identity is unverified.",
     "If asked whether an item is definitely a team/brand/mascot, explain subject confidence, visual consistency, user-provided identity, and what remains unverified.",
@@ -1040,6 +1137,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
       text: [
         `Marketplace platform: ${platform}`,
         `Seller item notes: ${notes}`,
+        `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Source route: ${JSON.stringify(sourceRoute)}`,
         `Search queries: ${JSON.stringify(searchQueries)}`,
@@ -1047,6 +1145,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
         "",
         "Create an evidence-backed marketplace listing draft.",
         "Use the extracted photo evidence, visible text, seller notes, search queries, source route, and live research result supplied by the backend.",
+        "Use the Visual Recognition report before exact product identity. The listing title should preserve a strongly supported broad visual subject when exact product, maker, date, licensing, or authenticity remains unknown.",
         "Separate broad subject identity from exact product identity. Use a supported subject in listing copy, but do not invent exact maker, year, model, licensing, or authenticity.",
         "If exact product identity is unknown, preserve the supported broad subject and state that exact item, maker, era, licensing, or authenticity remain unverified.",
         "Do not claim live sold evidence, marketplace activity, sold dates, prices, sources, demand, or search results beyond the supplied live research result.",
@@ -1114,7 +1213,8 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
-  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const visualRecognition = await recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake, visualRecognition });
   const sourceRoute = routeMarketSources(identity, intake, platform);
   const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
   const liveSearch = await executeLiveComparableSearch({
@@ -1129,41 +1229,26 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     researchPurpose
   });
 
-  return { identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
+  return { visualRecognition, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
 }
 
-async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
+async function recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake }) {
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const userContent = [
     {
       type: "input_text",
       text: [
-        "Extract the strongest searchable item identity from the photos and buyer notes.",
-        "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
-        "Separate broad subject identity from exact product identity. Subject identity answers what is depicted or represented; exact product identity answers the exact item, maker, year, model, licensing, and comparable match.",
-        "A broad subject may be likely or strongly supported even when the exact product, maker, era, licensing, authenticity, or exact comparable cannot be verified.",
-        "Treat user-provided identity as meaningful evidence: do not accept it blindly, do not ignore it, and do not contradict it without visible or textual conflict.",
-        "When the photos are visually consistent with the user description, preserve the subject as likely or strongly supported and explain what remains unverified.",
-        "When the image is unclear, preserve the user description as a plausible but visually unconfirmed clue.",
-        "When visible evidence conflicts with the user description, record the conflict plainly in identityConflictNotes.",
-        "For sports/team/college imagery, subjectIdentity should preserve the likely team, school, mascot, logo, character, or subject even if exact product, maker, age, and licensing are unknown.",
-        "For the Georgia Bulldogs example, if notes say Georgia Bulldogs mascot and the image is visually consistent, subjectIdentity should be Likely Georgia Bulldogs mascot image; exactProductIdentity, makerIdentity, eraEstimate, licensingStatus, and authenticityStatus may remain unverified.",
-        "Use subjectConfidence separately from exactProductConfidence. Do not let no exact comparable found erase a supported broad subject identity.",
-        "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
-        "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
-        "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
-        "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
-        "For collegiate products, preserve team name, school name, mascot, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, lid status, and missing-component status when visible or provided.",
-        "Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, say that a closer photo is needed rather than treating all identification as failed.",
-        "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
-        "For boxed seasonal decor or unbranded/private-label holiday figures, treat brand/series, location text, item code, UPC, and box/label wording as primary identity clues.",
-        "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
-        "For electronics, capture exact model number, brand/manufacturer, specs visible in notes/photos, condition, charger/accessories, and current asking price.",
-        "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and current asking price.",
-        "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
-        "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
-        `Marketplace platform: ${platform || "No platform selected"}`,
-        `Buyer item notes: ${notes || "No additional notes provided."}`,
+        "Perform Visual Subject Recognition before any exact product identification, marketplace research, pricing, valuation, or listing generation.",
+        "First answer: What am I looking at?",
+        "Identify the broad visual subject independently of exact commercial product identity, maker, model, edition, date, licensing, authenticity, or comparable matches.",
+        "Do not force every image into a retail-product classification. Recognize categories such as sports, mascots, logos, artwork, illustrations, advertising, posters, signs, plaques, prints, political memorabilia, military insignia, historical graphics, vintage packaging, toys, figurines, furniture, tools, appliances, electronics, clothing, jewelry, coins, watches, books, household items, antiques, and collectibles when supported.",
+        "Treat user input as evidence. If it agrees with visual evidence, increase visual subject confidence. If it is neutral, preserve it as context. If it conflicts, report the conflict. Never silently discard user information and never blindly accept it.",
+        "Keep visual subject confidence independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.",
+        "Low or missing exact-product evidence must not reduce confidence in an obvious broad visual subject.",
+        "Only populate fields supported by the photo evidence, visible text, and user notes. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
+        "Use confidence language such as High, Medium, Low, Strongly Supported, Likely, Confirmed, Not Yet Verified, or Exact Product Unknown.",
+        `Marketplace platform context: ${platform || "No platform selected"}`,
+        `User item notes: ${notes || "No additional notes provided."}`,
         "Guided Buyer Intake:",
         buyerIntakeText
       ].join("\n")
@@ -1177,13 +1262,71 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You identify marketplace items from photos and buyer notes. Return only structured JSON.",
+    systemText: "You are Market Edge's Visual Intelligence Engine. Recognize broad visual subjects from photos before product identification. Return only structured JSON.",
+    userContent,
+    schemaName: "visual_subject_recognition",
+    schema: visualRecognitionSchema
+  });
+
+  return normalizeVisualRecognition((await requestOpenAIJson({ apiKey, payload })).json);
+}
+
+async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake, visualRecognition }) {
+  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
+  const userContent = [
+    {
+      type: "input_text",
+      text: [
+        "Extract the strongest searchable item identity from the photos, buyer notes, and Visual Recognition report.",
+        "This stage happens after Visual Subject Recognition. Preserve the visual subject first, then narrow toward exact product, maker, model, edition, artist, manufacturer, license, material, dimensions, and comparable identifiers.",
+        "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
+        "Separate broad subject identity from exact product identity. Subject identity answers what is depicted or represented; exact product identity answers the exact item, maker, year, model, licensing, and comparable match.",
+        "A broad subject may be likely or strongly supported even when the exact product, maker, era, licensing, authenticity, or exact comparable cannot be verified.",
+        "Treat user-provided identity as meaningful evidence: do not accept it blindly, do not ignore it, and do not contradict it without visible or textual conflict.",
+        "When the photos are visually consistent with the user description, preserve the subject as likely or strongly supported and explain what remains unverified.",
+        "When the image is unclear, preserve the user description as a plausible but visually unconfirmed clue.",
+        "When visible evidence conflicts with the user description, record the conflict plainly in identityConflictNotes.",
+        "For logos, mascots, institutions, organizations, brands, characters, artwork, advertising, historical graphics, signs, posters, and collectibles, subjectIdentity should preserve the supported broad visual subject even if exact product, maker, age, and licensing are unknown.",
+        "Use subjectConfidence separately from exactProductConfidence. Do not let no exact comparable found erase a supported broad subject identity.",
+        "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
+        "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
+        "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
+        "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.",
+        "For institution, organization, school, team, mascot, logo, or character items, preserve names, visual symbols, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status when visible or provided.",
+        "Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, say that a closer photo is needed rather than treating all identification as failed.",
+        "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
+        "For boxed seasonal decor or unbranded/private-label holiday figures, treat brand/series, location text, item code, UPC, and box/label wording as primary identity clues.",
+        "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
+        "For electronics, capture exact model number, brand/manufacturer, specs visible in notes/photos, condition, charger/accessories, and current asking price.",
+        "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and current asking price.",
+        "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
+        "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
+        `Marketplace platform: ${platform || "No platform selected"}`,
+        `Buyer item notes: ${notes || "No additional notes provided."}`,
+        `Visual Recognition Report: ${JSON.stringify(visualRecognition || {})}`,
+        "Guided Buyer Intake:",
+        buyerIntakeText
+      ].join("\n")
+    },
+    ...photos.map((photo) => ({
+      type: "input_image",
+      image_url: photo.dataUrl,
+      detail: "auto"
+    }))
+  ];
+
+  const payload = createResponsesPayload({
+    model,
+    systemText: "You identify marketplace items after broad visual subject recognition. Return only structured JSON.",
     userContent,
     schemaName: "item_identity",
     schema: itemIdentitySchema
   });
 
-  return normalizeIdentity((await requestOpenAIJson({ apiKey, payload })).json);
+  return normalizeIdentity({
+    ...(await requestOpenAIJson({ apiKey, payload })).json,
+    visualRecognition
+  });
 }
 
 async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
@@ -1207,7 +1350,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         "Do not invent URLs, prices, sources, sold comps, or platforms.",
         "Never describe active asking prices as confirmed sold prices.",
         "For Generate Listing research, include source-backed comparable or reference evidence that can support a listing price, but label weak/reference-only evidence honestly.",
-        "For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, eBay-style resale results, Etsy-style vintage results, Mercari-style resale results, collector/reference sources, team/school/mascot/licensee searches, and Google-style exact phrase results.",
+        "For vintage, collectible, organization, logo, mascot, character, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, resale results, vintage results, collector/reference sources, organization/brand/character/licensee searches, and exact phrase results.",
         "Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.",
         "Do not list a source as meaningfully searched merely because a weak result appeared. Search evidence should distinguish targeted source categories, actual relevant results reviewed, rejected irrelevant sources, and reliable cited sources.",
         "Treat typed buyer identity fields as strong clues only when they do not conflict with photos, visible label wording, or source results.",
@@ -1220,6 +1363,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         `Buyer item notes: ${notes || "No additional notes provided."}`,
         "Guided Buyer Intake:",
         buyerIntakeText,
+        `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted identity: ${JSON.stringify(identity)}`,
         `Source route: ${JSON.stringify(sourceRoute)}`,
         `Targeted search queries: ${JSON.stringify(searchQueries)}`
@@ -1313,6 +1457,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.",
     "Primary question: Is this item fairly priced for someone buying it for themselves?",
     "Use the shared research evidence supplied by the backend: extracted identity, photo evidence, source route, queries, live search status, and source-backed comparable results.",
+    "Use Visual Subject Recognition first. Explain what is visually supported before narrowing to exact product, model, maker, date, licensing, authenticity, pricing, or comparable evidence.",
     "Separate broad subject identity from exact product identity. A likely subject can be recognized even when exact product, maker, era, licensing, authenticity, or exact comparable are unverified.",
     "Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.",
     "Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.",
@@ -1345,6 +1490,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
         `Buyer item notes: ${notes || "No additional notes provided."}`,
         "Guided Buyer Intake:",
         buyerIntakeText,
+        `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
@@ -1378,6 +1524,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
   const taskText = [
     "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
     "Primary question: Should the user buy this item at this price, right now?",
+    "Use Visual Subject Recognition first. Preserve what the photos strongly support even if exact product identity, comps, maker, date, licensing, authenticity, or valuation remain uncertain.",
     "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
     "Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.",
     "Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.",
@@ -1442,8 +1589,8 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
     "For apparel/fashion with tag/SKU/style number, prioritize brand site, retailer sites, Google Shopping-style web results, and Poshmark/fashion resale; eBay only when used/resale comparison is useful.",
     "For electronics/model-number items, prioritize manufacturer, major retailers, refurbished listings, Amazon/Best Buy/Walmart/Newegg-style sources; eBay only for used/refurbished comparison.",
     "For vintage/collectible/discontinued/holiday decor/ceramics/small shippable secondhand goods, eBay, Etsy, Mercari, Facebook Marketplace/local signals, and collector/reference sites may be relevant.",
-    "For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, eBay-style resale, Etsy-style vintage, Mercari-style resale, collector/reference clues, team/school/licensee searches, and exact phrase results. Deprioritize generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current retail, and generic visual lookalikes.",
-    "For collegiate products, do not treat an officially licensed sticker as proof of the manufacturer. If the manufacturer stamp is unclear, ask for a closer photo of the stamp while still preserving team/school/mascot clues.",
+    "For vintage, collectible, organization, logo, mascot, character, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, resale, vintage, collector/reference clues, organization/brand/character/licensee searches, and exact phrase results. Deprioritize generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current retail, and generic visual lookalikes.",
+    "For institution, organization, school, team, mascot, logo, or character items, do not treat an officially licensed sticker as proof of the manufacturer. If the manufacturer stamp is unclear, ask for a closer photo of the stamp while still preserving visual subject clues.",
     "For furniture or bulky local goods, prioritize Facebook Marketplace-style local value logic, Craigslist/OfferUp/local pickup resale, and local consignment logic; do not overvalue eBay because shipping distorts bulky-item prices.",
     "In resalePotential, include expected resale range, likely selling timeline, and best selling platforms only if resale is relevant; otherwise say resale is not the main reason to buy.",
     "In missingDetails, include specific missing identifiers such as brand, manufacturer, model, SKU, UPC/barcode, style number, size, color, material, condition, age/era, authenticity markers, completeness/accessories, and current asking price.",
@@ -1463,6 +1610,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
         `Buyer item notes: ${notes || "No additional notes provided."}`,
         "Guided Buyer Intake:",
         buyerIntakeText,
+        `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
@@ -1575,7 +1723,17 @@ async function requestOpenAIJson({ apiKey, payload }) {
 }
 
 function normalizeIdentity(identity) {
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
   const normalized = {
+    visualRecognition,
+    visualSubject: firstKnown(identity.visualSubject, visualRecognition.visualSubject, identity.subjectIdentity),
+    visualSubjectCategory: firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category),
+    visualSubjectConfidence: normalizeIdentityConfidence(firstKnown(identity.visualSubjectConfidence, visualRecognition.visualSubjectConfidence, identity.subjectConfidence)),
+    recognizedOrganization: firstKnown(identity.recognizedOrganization, visualRecognition.recognizedOrganization, identity.schoolName, identity.teamName),
+    recognizedBrand: firstKnown(identity.recognizedBrand, visualRecognition.recognizedBrand, identity.brand, identity.brandSeries),
+    recognizedCharacter: firstKnown(identity.recognizedCharacter, visualRecognition.recognizedCharacter, identity.mascot),
+    recognizedInstitution: firstKnown(identity.recognizedInstitution, visualRecognition.recognizedInstitution, identity.schoolName),
+    recognizedTheme: firstKnown(identity.recognizedTheme, visualRecognition.recognizedTheme),
     brand: cleanText(identity.brand || "Unknown") || "Unknown",
     manufacturer: cleanText(identity.manufacturer || "Unknown") || "Unknown",
     teamName: cleanText(identity.teamName || "Unknown") || "Unknown",
@@ -1631,6 +1789,33 @@ function normalizeIdentity(identity) {
   return reconcileIdentityEvidence(normalized);
 }
 
+function normalizeVisualRecognition(value = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    visualSubject: cleanText(source.visualSubject || "Unknown subject") || "Unknown subject",
+    visualSubjectCategory: cleanText(source.visualSubjectCategory || "Unknown") || "Unknown",
+    visualSubjectConfidence: normalizeIdentityConfidence(source.visualSubjectConfidence || "Unclear"),
+    recognizedOrganization: cleanText(source.recognizedOrganization || "Not verified") || "Not verified",
+    recognizedBrand: cleanText(source.recognizedBrand || "Not verified") || "Not verified",
+    recognizedCharacter: cleanText(source.recognizedCharacter || "Not verified") || "Not verified",
+    recognizedInstitution: cleanText(source.recognizedInstitution || "Not verified") || "Not verified",
+    recognizedTheme: cleanText(source.recognizedTheme || "Not verified") || "Not verified",
+    visibleLogos: normalizeStringArray(source.visibleLogos, 8),
+    visibleLetters: normalizeStringArray(source.visibleLetters, 8),
+    visibleWords: normalizeStringArray(source.visibleWords, 10),
+    visibleColors: normalizeStringArray(source.visibleColors, 8),
+    visualStyle: cleanText(source.visualStyle || "Unknown") || "Unknown",
+    estimatedEraStyle: cleanText(source.estimatedEraStyle || "Not verified") || "Not verified",
+    distinctiveFeatures: normalizeStringArray(source.distinctiveFeatures, 10),
+    visualEvidence: normalizeStringArray(source.visualEvidence, 10),
+    possibleInterpretations: normalizeStringArray(source.possibleInterpretations, 6),
+    visualConflicts: normalizeStringArray(source.visualConflicts, 6),
+    stillUnknown: normalizeStringArray(source.stillUnknown, 8),
+    userEvidenceReconciliation: cleanText(source.userEvidenceReconciliation || "User input was preserved as evidence and reconciled against visible photo clues.") || "User input was preserved as evidence and reconciled against visible photo clues.",
+    visualSummary: cleanText(source.visualSummary || "Visual subject recognition is limited by the submitted photos and notes.") || "Visual subject recognition is limited by the submitted photos and notes."
+  };
+}
+
 function reconcileIdentityEvidence(identity) {
   const subjectFromTeam = compactWords([
     firstKnown(identity.schoolName, identity.teamName),
@@ -1638,6 +1823,7 @@ function reconcileIdentityEvidence(identity) {
     inferSubjectObjectWord(identity)
   ]);
   const subjectCandidate = firstKnown(
+    identity.visualSubject,
     identity.subjectIdentity,
     identity.userProvidedIdentity,
     subjectFromTeam,
@@ -1656,6 +1842,10 @@ function reconcileIdentityEvidence(identity) {
   const makerCandidate = firstKnown(identity.makerIdentity, identity.manufacturer, identity.brand, identity.manufacturerLocationText);
   const modelCandidate = firstKnown(identity.modelOrItemNumber, identity.model, identity.sku, identity.upcBarcode, identity.styleNumber);
   const unknowns = [...identity.identityUnknowns];
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition);
+  for (const unknown of visualRecognition.stillUnknown) {
+    unknowns.push(unknown);
+  }
 
   if (!hasKnownValue(exactCandidate)) {
     unknowns.push("Exact product identity not verified.");
@@ -1684,6 +1874,15 @@ function reconcileIdentityEvidence(identity) {
 
   return {
     ...identity,
+    visualRecognition,
+    visualSubject: firstKnown(identity.visualSubject, visualRecognition.visualSubject, subjectCandidate) || "Unknown subject",
+    visualSubjectCategory: firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category) || "Unknown",
+    visualSubjectConfidence: normalizeIdentityConfidence(firstKnown(identity.visualSubjectConfidence, visualRecognition.visualSubjectConfidence, subjectConfidence)),
+    recognizedOrganization: firstKnown(identity.recognizedOrganization, visualRecognition.recognizedOrganization, identity.schoolName, identity.teamName) || "Not verified",
+    recognizedBrand: firstKnown(identity.recognizedBrand, visualRecognition.recognizedBrand, identity.brand, identity.brandSeries) || "Not verified",
+    recognizedCharacter: firstKnown(identity.recognizedCharacter, visualRecognition.recognizedCharacter, identity.mascot) || "Not verified",
+    recognizedInstitution: firstKnown(identity.recognizedInstitution, visualRecognition.recognizedInstitution, identity.schoolName) || "Not verified",
+    recognizedTheme: firstKnown(identity.recognizedTheme, visualRecognition.recognizedTheme) || "Not verified",
     subjectIdentity: subjectCandidate || "Unknown subject",
     subjectConfidence,
     exactProductIdentity,
@@ -1783,7 +1982,7 @@ function inferSubjectObjectWord(identity) {
     identity.userProvidedIdentity
   ].join(" ").toLowerCase();
 
-  if (/mascot|logo|bulldog|tiger|bear|bird|eagle|team|school|university/.test(text)) {
+  if (/mascot|logo|team|school|university|college|athletics|character/.test(text)) {
     if (/image|print|picture|poster|art|artwork|plaque|sign|decal|sticker/.test(text)) {
       return "mascot image";
     }
@@ -1884,6 +2083,23 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     buyerIntake.known_upc,
     buyerIntake.approximate_age_era,
     buyerIntake.asking_price,
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.visualSubjectConfidence,
+    identity.recognizedOrganization,
+    identity.recognizedBrand,
+    identity.recognizedCharacter,
+    identity.recognizedInstitution,
+    identity.recognizedTheme,
+    identity.visualRecognition?.visualStyle,
+    identity.visualRecognition?.estimatedEraStyle,
+    Array.isArray(identity.visualRecognition?.visibleLogos) ? identity.visualRecognition.visibleLogos.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleLetters) ? identity.visualRecognition.visibleLetters.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleWords) ? identity.visualRecognition.visibleWords.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleColors) ? identity.visualRecognition.visibleColors.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.distinctiveFeatures) ? identity.visualRecognition.distinctiveFeatures.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visualEvidence) ? identity.visualRecognition.visualEvidence.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.possibleInterpretations) ? identity.visualRecognition.possibleInterpretations.join(" ") : "",
     identity.subjectIdentity,
     identity.userProvidedIdentity,
     getVerifiedExactProductIdentity(identity.exactProductIdentity),
@@ -1925,7 +2141,8 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
   const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
   const isFurniture = /furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack);
-  const isCollegiateCollectible = /collegiate|college|university|ncaa|officially licensed|license|licensing|team|school|mascot|bulldog|tigers|crimson|sooners|razorbacks|lsu|georgia|alabama|oklahoma|arkansas/.test(haystack);
+  const isVisualReferenceSubject = /artwork|illustration|painting|print|poster|sign|plaque|decal|sticker|advertising|logo|mascot|character|institution|organization|university|government|corporation|historical graphic|retired logo|alternate logo|political memorabilia|military insignia|vintage graphic|vintage packaging/.test(haystack);
+  const isOrganizationCollectible = /institution|organization|university|college|government|corporation|brand|officially licensed|license|licensing|team|school|mascot|logo|character|athletics|sports logo|school colors/.test(haystack);
   const isCookieJarOrContainer = /cookie jar|container|canister|lid|lidded|ceramic jar|collectible jar/.test(haystack);
   const isVintageCollectible = /vintage|collectible|ceramic|canister|cookie jar|container|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy|collegiate|mascot|licensed/.test(haystack);
   const isRetailContext = /^(retail_store|mall)$/.test(purchaseContext);
@@ -1940,7 +2157,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     if (isElectronics) {
       route.push("electronics model-number sources for better-price checks");
     }
-    if (isVintageCollectible || isSeasonalDecor || isCollegiateCollectible || isCookieJarOrContainer) {
+    if (isVintageCollectible || isSeasonalDecor || isOrganizationCollectible || isCookieJarOrContainer) {
       route.push(
         "exact label/stamp searches",
         "eBay-style resale results",
@@ -1954,9 +2171,9 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     return route;
   }
 
-  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
+  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
     route.push("secondhand resale results", "vintage and collector sources", "specialty reference sources", "exact-label web results");
-    if (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer) {
+    if (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer) {
       route.push(
         "exact label/stamp searches",
         "eBay-style resale results",
@@ -1970,7 +2187,15 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     return route;
   }
 
-  if (isSeasonalDecor || isVintageCollectible || isCollegiateCollectible || isCookieJarOrContainer) {
+  if (isVisualReferenceSubject && !isRetailCurrent) {
+    route.push("visual subject reference searches", "historical/reference sources", "logo/mascot/artwork reference sources", "general web image/reference results", "resale marketplaces only after subject reference");
+    if (isVintageCollectible || isOrganizationCollectible) {
+      route.push("collector/reference clues", "exact phrase visual subject searches");
+    }
+    return route;
+  }
+
+  if (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer) {
     route.push("exact label/stamp searches", "eBay-style resale results", "Etsy-style vintage results", "Mercari-style resale results", "collector/reference/brand clue results", "team/school/mascot/licensee searches", "general web results using exact label text");
     return route;
   }
@@ -2003,10 +2228,20 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
-  const subjectIdentity = firstKnown(identity.subjectIdentity, identity.userProvidedIdentity);
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
+  const visualSubject = firstKnown(identity.visualSubject, visualRecognition.visualSubject, identity.subjectIdentity, identity.userProvidedIdentity);
+  const visualCategory = firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category);
+  const visualOrganization = firstKnown(identity.recognizedOrganization, visualRecognition.recognizedOrganization, identity.recognizedInstitution, visualRecognition.recognizedInstitution, identity.schoolName, identity.teamName);
+  const visualBrand = firstKnown(identity.recognizedBrand, visualRecognition.recognizedBrand, identity.brandSeries, identity.brand);
+  const visualCharacter = firstKnown(identity.recognizedCharacter, visualRecognition.recognizedCharacter, identity.mascot);
+  const visibleLetters = normalizeStringArray(visualRecognition.visibleLetters, 8).join(" ");
+  const visibleWords = normalizeStringArray(visualRecognition.visibleWords, 10).join(" ");
+  const visualFeatures = normalizeStringArray(visualRecognition.distinctiveFeatures, 6).join(" ");
+  const visualStyle = firstKnown(visualRecognition.visualStyle, visualRecognition.estimatedEraStyle);
+  const subjectIdentity = firstKnown(visualSubject, identity.subjectIdentity, identity.userProvidedIdentity);
   const exactProductIdentity = getVerifiedExactProductIdentity(identity.exactProductIdentity);
   const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, exactProductIdentity, subjectIdentity, identity.likelyItemDescription, notesText.slice(0, 120));
-  const brand = firstKnown(buyerIntake.known_brand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
+  const brand = firstKnown(buyerIntake.known_brand, visualBrand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
   const manufacturer = firstKnown(buyerIntake.known_manufacturer, identity.manufacturer);
   const teamName = firstKnown(identity.teamName);
   const schoolName = firstKnown(identity.schoolName);
@@ -2026,14 +2261,27 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const price = buyerIntake.parsed_asking_price === null ? extractPrice(identity.currentAskingPrice) || extractPrice(notesText) : String(buyerIntake.parsed_asking_price);
   const queries = [];
   const seasonalDecor = isSeasonalDecorIdentity(identity, routeText, notesText);
-  const collegiateCollectible = isCollegiateCollectibleIdentity(identity, routeText, notesText);
+  const organizationCollectible = isOrganizationCollectibleIdentity(identity, routeText, notesText);
+  const visualReferenceSubject = /visual subject reference|historical\/reference|logo\/mascot\/artwork|image\/reference|artwork|illustration|logo|mascot|advertising|poster|sign|plaque|print|political|military|insignia|vintage graphic/.test(routeText);
+
+  if (visualSubject) {
+    queries.push(compactWords([visualSubject, visualCategory]));
+  }
+  if (visualOrganization || visualCharacter || visibleLetters || visibleWords) {
+    queries.push(compactWords([visualOrganization || visualBrand, visualCharacter, visibleLetters, visibleWords, visualCategory]));
+  }
+  if (visualReferenceSubject) {
+    queries.push(compactWords([visualSubject, visualStyle, "reference"]));
+    queries.push(compactWords([visualOrganization || visualBrand, visualCharacter, "vintage artwork logo mascot"]));
+    queries.push(compactWords([visibleWords || visibleLetters, visualFeatures, "historical image"]));
+  }
 
   if (upc) {
     queries.push(upc);
     queries.push(compactWords([upc, brand || manufacturer || productTitle]));
   }
 
-  if (collegiateCollectible) {
+  if (organizationCollectible) {
     queries.push(compactWords([subjectIdentity, "vintage mascot image"]));
     queries.push(compactWords([schoolName || teamName, mascot, "vintage mascot image"]));
     queries.push(compactWords([schoolName || teamName, mascot, "artwork print poster plaque"]));
@@ -2095,7 +2343,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     }
   }
 
-  return diverseQueries.slice(0, seasonalDecor || collegiateCollectible ? 6 : 5);
+  return diverseQueries.slice(0, seasonalDecor || organizationCollectible || visualReferenceSubject ? 7 : 5);
 }
 
 function normalizeLiveSearchResult({ result, responseData, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
@@ -2197,6 +2445,7 @@ function enforceListingResearchHonesty(report, research, platform) {
   const description = cleanText(report.listingDescription || report.description || "Description should be completed after verifying the item details and condition.");
   const itemSpecifics = normalizeFlexibleArray(report.itemSpecifics, 10, normalizeFlexibleArray(report.itemDetails, 10, buildPhotoEvidence(identity)));
   const conditionNotes = normalizeFlexibleArray(report.conditionNotes, 8, buildConditionNotes(identity));
+  const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, liveSearch);
 
   return {
@@ -2205,6 +2454,7 @@ function enforceListingResearchHonesty(report, research, platform) {
     categorySuggestion: cleanText(report.categorySuggestion || identity.category || "Uncategorized"),
     identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on photo evidence, visible text, seller notes, and source-routing results."),
+    ...visualFields,
     ...identityFields,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     searchQueriesUsed: buildListingSearchQueriesUsed(liveSearch),
@@ -2302,6 +2552,7 @@ function buildListingOfferRange(value, reliableResearchFound) {
 
 function buildIdentifiedItem(identity) {
   return compactWords([
+    identity.visualSubject,
     identity.subjectIdentity,
     getVerifiedExactProductIdentity(identity.exactProductIdentity),
     identity.brandSeries,
@@ -2317,6 +2568,12 @@ function buildIdentifiedItem(identity) {
 function buildPhotoEvidence(identity) {
   const evidence = [];
   const pairs = [
+    ["Visual subject", identity.visualSubject],
+    ["Visual subject category", identity.visualSubjectCategory],
+    ["Visual subject confidence", identity.visualSubjectConfidence],
+    ["Recognized organization", identity.recognizedOrganization],
+    ["Recognized brand", identity.recognizedBrand],
+    ["Recognized character", identity.recognizedCharacter],
     ["Subject identity", identity.subjectIdentity],
     ["Subject confidence", identity.subjectConfidence],
     ["User-provided identity", identity.userProvidedIdentity],
@@ -2359,6 +2616,10 @@ function buildPhotoEvidence(identity) {
 
   for (const text of normalizeStringArray(identity.visualIdentityEvidence, 4)) {
     evidence.push(`Visual identity evidence: ${text}`);
+  }
+
+  for (const text of normalizeStringArray(identity.visualRecognition?.visualEvidence, 4)) {
+    evidence.push(`Visual recognition evidence: ${text}`);
   }
 
   for (const text of normalizeStringArray(identity.textIdentityEvidence, 4)) {
@@ -2449,6 +2710,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const aiOnlyRoughValueRange = reliableCompsFound
     ? ""
     : buildAiOnlyRoughValueRange(report);
+  const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
   const guardedPurchaserDecision = guardBuyerDecision(report.purchaserDecision, {
     reliableCompsFound,
@@ -2481,6 +2743,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     liveSearchDidNotComplete,
     noReliableComparableItemsFound: noReliableMessage,
     searchCoverage: buildSearchCoverage({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus }),
+    ...visualFields,
     ...identityFields,
     itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
     liveCompConfidence: reliableCompsFound
@@ -2576,6 +2839,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     conditionProfile.risks,
     8
   );
+  const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
 
   return {
@@ -2583,6 +2847,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     buyerIntent: "personal_use",
     identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
     identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on submitted photos, visible text, typed buyer details, and source-routing results."),
+    ...visualFields,
     ...identityFields,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
@@ -3665,7 +3930,7 @@ function recommendSellingPlatform({ platform, identity, sourceRoute = [] }) {
     identity.licensingStickerText
   ].join(" ").toLowerCase();
 
-  if (/collegiate|college|university|ncaa|mascot|bulldog|officially licensed|licensee/.test(haystack)) {
+  if (/institution|organization|college|university|mascot|logo|character|sports logo|school colors|officially licensed|licensee/.test(haystack)) {
     return "Specialty collector group";
   }
   if (/furniture|bulky|fragile|ceramic|cookie jar|container|canister|local pickup/.test(haystack)) {
@@ -3852,6 +4117,75 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
       authenticityStatus: identity.authenticityStatus
     })
   };
+}
+
+function buildVisualRecognitionReportFields(identity = {}) {
+  const visual = normalizeVisualRecognition(identity.visualRecognition || {});
+  const visualSubject = firstKnown(identity.visualSubject, visual.visualSubject, identity.subjectIdentity);
+  const visualSubjectCategory = firstKnown(identity.visualSubjectCategory, visual.visualSubjectCategory, identity.category);
+  const visualSubjectConfidence = normalizeIdentityConfidence(firstKnown(identity.visualSubjectConfidence, visual.visualSubjectConfidence, identity.subjectConfidence));
+  const visualEvidence = mergeStringArrays(
+    visual.visualEvidence,
+    visual.distinctiveFeatures,
+    visual.visibleLogos.map((item) => `Visible logo/symbol: ${item}`),
+    visual.visibleLetters.map((item) => `Visible letter: ${item}`),
+    visual.visibleWords.map((item) => `Visible word: ${item}`),
+    visual.visibleColors.map((item) => `Visible color: ${item}`),
+    10
+  );
+  let unknowns = normalizeStringArray(visual.stillUnknown, 8);
+  if (!unknowns.length) {
+    unknowns = [
+      "Exact product identity",
+      "Maker or artist",
+      "Date or era",
+      "Licensing or authenticity",
+      "Comparable confidence",
+      "Pricing confidence"
+    ];
+  }
+
+  return {
+    visualSubject: visualSubject || "Unknown visual subject",
+    visualSubjectCategory: visualSubjectCategory || "Unknown",
+    visualSubjectConfidence: visualSubjectConfidence || "Unclear",
+    recognizedOrganization: firstKnown(identity.recognizedOrganization, visual.recognizedOrganization) || "Not verified",
+    recognizedBrand: firstKnown(identity.recognizedBrand, visual.recognizedBrand) || "Not verified",
+    recognizedCharacter: firstKnown(identity.recognizedCharacter, visual.recognizedCharacter) || "Not verified",
+    recognizedInstitution: firstKnown(identity.recognizedInstitution, visual.recognizedInstitution) || "Not verified",
+    recognizedTheme: firstKnown(identity.recognizedTheme, visual.recognizedTheme) || "Not verified",
+    visualRecognitionEvidence: visualEvidence.length ? visualEvidence : ["No strong visual subject evidence was extracted. Add clearer full-item and close-up photos."],
+    visualRecognitionUnknowns: unknowns,
+    visualRecognitionConflicts: normalizeStringArray(visual.visualConflicts, 6),
+    visualRecognitionSummary: buildVisualRecognitionSummaryText({
+      visualSubject,
+      visualSubjectCategory,
+      visualSubjectConfidence,
+      visual,
+      unknowns
+    })
+  };
+}
+
+function buildVisualRecognitionSummaryText({ visualSubject, visualSubjectCategory, visualSubjectConfidence, visual, unknowns }) {
+  const recognized = [
+    formatKnownPart("organization", visual.recognizedOrganization),
+    formatKnownPart("brand", visual.recognizedBrand),
+    formatKnownPart("character", visual.recognizedCharacter),
+    formatKnownPart("institution", visual.recognizedInstitution),
+    formatKnownPart("theme", visual.recognizedTheme)
+  ].filter(Boolean);
+  const evidence = mergeStringArrays(visual.visualEvidence, visual.distinctiveFeatures, 4);
+  return [
+    `Visual Subject: ${visualSubject || "Unknown visual subject"}`,
+    `Category: ${visualSubjectCategory || "Unknown"}`,
+    `Confidence: ${visualSubjectConfidence || "Unclear"}`,
+    recognized.length ? `Recognized clues: ${recognized.join("; ")}` : "",
+    evidence.length ? `Supporting evidence: ${evidence.join("; ")}` : "",
+    unknowns.length ? `Still unknown: ${unknowns.slice(0, 5).join("; ")}` : "",
+    visual.userEvidenceReconciliation ? `User evidence reconciliation: ${visual.userEvidenceReconciliation}` : "",
+    visual.visualSummary ? `Summary: ${visual.visualSummary}` : ""
+  ].filter(Boolean).join(" | ");
 }
 
 function formatKnownPart(label, value) {
@@ -4072,7 +4406,7 @@ function buildSearchCoverage(liveSearch) {
     coverage.push("Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.");
   }
 
-  if (/vintage|collectible|ceramic|cookie jar|container|canister|collegiate|mascot|licensee|etsy|mercari|collector|resale/.test(routeText)) {
+  if (/vintage|collectible|ceramic|cookie jar|container|canister|organization|logo|mascot|character|licensee|etsy|mercari|collector|resale/.test(routeText)) {
     coverage.push("Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.");
   }
 
@@ -4124,7 +4458,18 @@ function buildSearchQueriesUsed(liveSearch) {
 }
 
 function buildVisualPhrase(identity, notes) {
+  const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
   return compactWords([
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    visualRecognition.visualSubject,
+    visualRecognition.visualSubjectCategory,
+    firstKnown(identity.recognizedOrganization, visualRecognition.recognizedOrganization),
+    firstKnown(identity.recognizedBrand, visualRecognition.recognizedBrand),
+    firstKnown(identity.recognizedCharacter, visualRecognition.recognizedCharacter),
+    normalizeStringArray(visualRecognition.visibleWords, 4).join(" "),
+    normalizeStringArray(visualRecognition.visibleLetters, 4).join(" "),
+    normalizeStringArray(visualRecognition.distinctiveFeatures, 4).join(" "),
     identity.size,
     identity.distinctiveVisualDescription,
     identity.color,
@@ -4184,6 +4529,21 @@ function isSeasonalDecorIdentity(identity, routeText, notesText) {
     identity.brandSeries,
     identity.likelyItemDescription,
     identity.distinctiveVisualDescription,
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.recognizedOrganization,
+    identity.recognizedBrand,
+    identity.recognizedCharacter,
+    identity.recognizedInstitution,
+    identity.recognizedTheme,
+    identity.visualRecognition?.visualStyle,
+    identity.visualRecognition?.estimatedEraStyle,
+    Array.isArray(identity.visualRecognition?.visibleLogos) ? identity.visualRecognition.visibleLogos.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleLetters) ? identity.visualRecognition.visibleLetters.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleWords) ? identity.visualRecognition.visibleWords.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visibleColors) ? identity.visualRecognition.visibleColors.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.distinctiveFeatures) ? identity.visualRecognition.distinctiveFeatures.join(" ") : "",
+    Array.isArray(identity.visualRecognition?.visualEvidence) ? identity.visualRecognition.visualEvidence.join(" ") : "",
     Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
     Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : "",
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
@@ -4193,7 +4553,7 @@ function isSeasonalDecorIdentity(identity, routeText, notesText) {
     && !/laptop|computer|electronics|dress|apparel|fashion|furniture|sofa|chair|table/.test(haystack);
 }
 
-function isCollegiateCollectibleIdentity(identity, routeText, notesText) {
+function isOrganizationCollectibleIdentity(identity, routeText, notesText) {
   const haystack = [
     routeText,
     notesText,
@@ -4218,7 +4578,7 @@ function isCollegiateCollectibleIdentity(identity, routeText, notesText) {
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""
   ].join(" ").toLowerCase();
 
-  return /collegiate|college|university|ncaa|officially licensed|license|licensing|team|school|mascot|bulldog|tigers|crimson|sooners|razorbacks|lsu|georgia|alabama|oklahoma|arkansas/.test(haystack)
+  return /institution|organization|university|college|government|corporation|brand|officially licensed|license|licensing|team|school|mascot|logo|character|athletics|sports logo|school colors/.test(haystack)
     && /ceramic|cookie jar|container|canister|decor|collectible|mascot|figurine|lid|lidded/.test(haystack);
 }
 
@@ -4233,9 +4593,8 @@ function inferVisualTerms(text) {
     ["green box", "green box"],
     ["red suit", "red suit"],
     ["tree", "tree"],
-    ["collegiate", "collegiate collectible"],
+    ["collegiate", "institutional collectible"],
     ["officially licensed", "officially licensed"],
-    ["bulldog", "bulldog mascot"],
     ["mascot", "mascot"],
     ["cookie jar", "cookie jar"],
     ["dress", "dress"],
@@ -4324,8 +4683,8 @@ function mostDistinctiveCategoryWord(text) {
   if (/laptop|computer|electronics/i.test(cleaned)) {
     return "laptop model specs";
   }
-  if (/collegiate|college|university|mascot|bulldog|licensed|cookie jar|container/i.test(cleaned)) {
-    return "collegiate ceramic mascot collectible cookie jar";
+  if (/institution|organization|collegiate|college|university|mascot|logo|character|sports logo|licensed|cookie jar|container/i.test(cleaned)) {
+    return "organization logo mascot collectible decor";
   }
   if (/canister|ceramic/i.test(cleaned)) {
     return "ceramic canister set pattern lids";

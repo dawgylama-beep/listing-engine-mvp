@@ -756,6 +756,7 @@ button:disabled {
 .section-card,
 .section-body,
 .consumer-summary-card,
+.visual-summary-card,
 .identity-summary-card,
 .ask-panel,
 .ask-entry {
@@ -971,6 +972,44 @@ button:disabled {
   color: #ffffff;
   padding: 22px;
   box-shadow: var(--shadow-card);
+}
+
+.visual-summary-card {
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(193, 138, 60, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #172435 0%, #2a3044 46%, #4a2447 100%);
+  color: #ffffff;
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.visual-summary-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  align-items: start;
+}
+
+.visual-summary-header h3 {
+  grid-column: 1;
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.visual-summary-details {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.5;
+}
+
+.visual-summary-details p {
+  margin: 0;
 }
 
 .identity-summary-card {
@@ -1291,6 +1330,7 @@ button:disabled {
   }
 
   .consumer-summary-header,
+  .visual-summary-header,
   .identity-summary-header,
   .consumer-summary-grid {
     grid-template-columns: 1fr;

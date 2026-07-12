@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.8.3"
+$AppVersion = "1.8.4"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -24,6 +24,18 @@ $ListingSchema = @{
     "categorySuggestion",
     "identifiedItem",
     "identificationConfidence",
+    "visualRecognitionSummary",
+    "visualSubject",
+    "visualSubjectCategory",
+    "visualSubjectConfidence",
+    "recognizedOrganization",
+    "recognizedBrand",
+    "recognizedCharacter",
+    "recognizedInstitution",
+    "recognizedTheme",
+    "visualRecognitionEvidence",
+    "visualRecognitionUnknowns",
+    "visualRecognitionConflicts",
     "subjectIdentity",
     "subjectConfidence",
     "exactProductIdentity",
@@ -62,6 +74,33 @@ $ListingSchema = @{
     categorySuggestion = @{ type = "string" }
     identifiedItem = @{ type = "string" }
     identificationConfidence = @{ type = "string" }
+    visualRecognitionSummary = @{ type = "string" }
+    visualSubject = @{ type = "string" }
+    visualSubjectCategory = @{ type = "string" }
+    visualSubjectConfidence = @{ type = "string" }
+    recognizedOrganization = @{ type = "string" }
+    recognizedBrand = @{ type = "string" }
+    recognizedCharacter = @{ type = "string" }
+    recognizedInstitution = @{ type = "string" }
+    recognizedTheme = @{ type = "string" }
+    visualRecognitionEvidence = @{
+      type = "array"
+      minItems = 1
+      maxItems = 10
+      items = @{ type = "string" }
+    }
+    visualRecognitionUnknowns = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    visualRecognitionConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
     subjectIdentity = @{ type = "string" }
     subjectConfidence = @{ type = "string" }
     exactProductIdentity = @{ type = "string" }
@@ -183,6 +222,18 @@ $ValuationSchema = @{
     "liveSearchDidNotComplete",
     "noReliableComparableItemsFound",
     "searchCoverage",
+    "visualRecognitionSummary",
+    "visualSubject",
+    "visualSubjectCategory",
+    "visualSubjectConfidence",
+    "recognizedOrganization",
+    "recognizedBrand",
+    "recognizedCharacter",
+    "recognizedInstitution",
+    "recognizedTheme",
+    "visualRecognitionEvidence",
+    "visualRecognitionUnknowns",
+    "visualRecognitionConflicts",
     "subjectIdentity",
     "subjectConfidence",
     "exactProductIdentity",
@@ -255,6 +306,33 @@ $ValuationSchema = @{
       type = "array"
       minItems = 1
       maxItems = 8
+      items = @{ type = "string" }
+    }
+    visualRecognitionSummary = @{ type = "string" }
+    visualSubject = @{ type = "string" }
+    visualSubjectCategory = @{ type = "string" }
+    visualSubjectConfidence = @{ type = "string" }
+    recognizedOrganization = @{ type = "string" }
+    recognizedBrand = @{ type = "string" }
+    recognizedCharacter = @{ type = "string" }
+    recognizedInstitution = @{ type = "string" }
+    recognizedTheme = @{ type = "string" }
+    visualRecognitionEvidence = @{
+      type = "array"
+      minItems = 1
+      maxItems = 10
+      items = @{ type = "string" }
+    }
+    visualRecognitionUnknowns = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    visualRecognitionConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
       items = @{ type = "string" }
     }
     subjectIdentity = @{ type = "string" }
@@ -347,6 +425,18 @@ $ConsumerDecisionSchema = @{
     "buyerIntent",
     "identifiedItem",
     "identificationConfidence",
+    "visualRecognitionSummary",
+    "visualSubject",
+    "visualSubjectCategory",
+    "visualSubjectConfidence",
+    "recognizedOrganization",
+    "recognizedBrand",
+    "recognizedCharacter",
+    "recognizedInstitution",
+    "recognizedTheme",
+    "visualRecognitionEvidence",
+    "visualRecognitionUnknowns",
+    "visualRecognitionConflicts",
     "subjectIdentity",
     "subjectConfidence",
     "exactProductIdentity",
@@ -385,6 +475,33 @@ $ConsumerDecisionSchema = @{
     buyerIntent = @{ type = "string" }
     identifiedItem = @{ type = "string" }
     identificationConfidence = @{ type = "string" }
+    visualRecognitionSummary = @{ type = "string" }
+    visualSubject = @{ type = "string" }
+    visualSubjectCategory = @{ type = "string" }
+    visualSubjectConfidence = @{ type = "string" }
+    recognizedOrganization = @{ type = "string" }
+    recognizedBrand = @{ type = "string" }
+    recognizedCharacter = @{ type = "string" }
+    recognizedInstitution = @{ type = "string" }
+    recognizedTheme = @{ type = "string" }
+    visualRecognitionEvidence = @{
+      type = "array"
+      minItems = 1
+      maxItems = 10
+      items = @{ type = "string" }
+    }
+    visualRecognitionUnknowns = @{
+      type = "array"
+      minItems = 1
+      maxItems = 8
+      items = @{ type = "string" }
+    }
+    visualRecognitionConflicts = @{
+      type = "array"
+      minItems = 0
+      maxItems = 6
+      items = @{ type = "string" }
+    }
     subjectIdentity = @{ type = "string" }
     subjectConfidence = @{ type = "string" }
     exactProductIdentity = @{ type = "string" }
@@ -826,6 +943,7 @@ Do not behave like a generic chatbot. Use the supplied currentItemContext and re
 No new live search is being performed for this answer. Do not claim fresh marketplace search, sold-comps, source checks, or new URLs.
 Never invent marketplace evidence, sold dates, prices, sources, URLs, authenticity, defects, model identity, or condition.
 Clearly separate evidence already found, user-provided facts, system inference, scenario assumptions, and unavailable information.
+Use the current report's Visual Recognition fields first for questions like what is this, why do you think it is a brand/organization/mascot/logo/character, what clues support that, or what should be photographed next.
 When identity is discussed, separate broad subject identity from exact product identity, maker, era, licensing, authenticity, and exact comparable status.
 If broad subject identity is supported but exact product is unverified, say that plainly rather than saying the whole identity is unverified.
 If asked whether an item is definitely a team/brand/mascot, explain subject confidence, visual consistency, user-provided identity, and what remains unverified.
@@ -1056,6 +1174,9 @@ function Generate-ReportWithOpenAI {
 Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.
 Primary question: Is this item fairly priced for someone buying it for themselves?
 Use the web_search tool for live comparable research before completing the report.
+First perform Visual Subject Recognition: answer what the photos broadly show before exact product identification, marketplace research, comparable analysis, pricing, or decision logic.
+Visual subject confidence must remain independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.
+Fill visualRecognitionSummary, visualSubject, visualSubjectCategory, visualSubjectConfidence, recognizedOrganization, recognizedBrand, recognizedCharacter, recognizedInstitution, recognizedTheme, visualRecognitionEvidence, visualRecognitionUnknowns, and visualRecognitionConflicts from supported visual evidence only.
 Separate broad subject identity from exact product identity. A likely subject can be recognized even when exact product, maker, era, licensing, authenticity, or exact comparable are unverified.
 Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.
 Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.
@@ -1086,6 +1207,9 @@ Ask for the single most useful next detail or photo when evidence is insufficien
     $TaskText = @"
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
+First perform Visual Subject Recognition: answer what the photos broadly show before exact product identification, marketplace research, comparable analysis, pricing, or decision logic.
+Visual subject confidence must remain independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.
+Fill visualRecognitionSummary, visualSubject, visualSubjectCategory, visualSubjectConfidence, recognizedOrganization, recognizedBrand, recognizedCharacter, recognizedInstitution, recognizedTheme, visualRecognitionEvidence, visualRecognitionUnknowns, and visualRecognitionConflicts from supported visual evidence only.
 Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.
 Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.
 Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.
@@ -1116,7 +1240,7 @@ Use typed buyer identity fields as strong clues only when they are consistent wi
 Do not silently discard conflicts between item name, brand, manufacturer, model, SKU, UPC, approximate age or era, visible photo text, front-box text, back-label text, and manufacturer/location text. Conflicts should lower confidence or trigger Need More Info.
 Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.
 Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, or item code appears.
-For collegiate products, inspect and preserve team name, school name, mascot, licensing sticker, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, lid status, and missing-component status.
+For institution, organization, school, team, mascot, logo, or character items, inspect and preserve names, visual symbols, licensing sticker, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status.
 Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, ask for a closer photo rather than treating all identification as failed.
 Build diverse product-focused search queries in this priority order where appropriate: exact UPC, exact model, exact SKU, brand plus model, manufacturer plus item name, exact visible label wording, then descriptive fallback queries.
 Use query types such as exact identifier, brand/product-title, visual descriptive, category/source-routed, and price/context when helpful. Do not force identifiers into every query if they are irrelevant or unreliable.
@@ -1124,7 +1248,7 @@ Use purchase context to route the search: retail store or mall means manufacture
 Reject or weaken comparable items that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.
 For a Santa decor box, include useful terms such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.
 For boxed seasonal decor, vintage decor, collectible figurines, ceramic/resin figures, and unbranded or private-label seasonal items, prioritize eBay-style resale results, Etsy-style vintage/holiday decor results, Mercari-style resale results, collector/reference/brand clue results, and general web results using exact label text.
-For vintage, collectible, collegiate, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, eBay-style resale, Etsy-style vintage, Mercari-style resale, collector/reference clues, WorthPoint-style reference clues where accessible, team/school/licensee searches, and exact phrase results.
+For vintage, collectible, organization, logo, mascot, character, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label and stamp searches, resale, vintage, collector/reference clues, organization/brand/character/licensee searches, and exact phrase results.
 Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.
 Do not route boxed seasonal decor primarily to Home Depot/current retail unless the item clearly appears to be a current retail product.
 For a Santa's Workshop Hubbard Ohio GAB031-style item, use diverse queries such as: Santa's Workshop Hubbard Ohio GAB031; Santa's Workshop GAB031 Santa; 661565005611 Santa's Workshop; Santa's Workshop Santa Claus decoration; boxed Santa Claus holiday figurine GAB031; Santa's Workshop Hubbard Ohio Christmas decoration.
@@ -1191,6 +1315,9 @@ If a platform is selected, include platform-specific observations while still pr
     $TaskText = @"
 Create an evidence-backed marketplace listing draft. Be specific, honest, and concise.
 You must use the web_search tool for item research before recommending a listing price.
+First perform Visual Subject Recognition: answer what the photos broadly show before exact product identification, marketplace research, comparable analysis, pricing, or listing generation.
+Visual subject confidence must remain independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.
+Fill visualRecognitionSummary, visualSubject, visualSubjectCategory, visualSubjectConfidence, recognizedOrganization, recognizedBrand, recognizedCharacter, recognizedInstitution, recognizedTheme, visualRecognitionEvidence, visualRecognitionUnknowns, and visualRecognitionConflicts from supported visual evidence only.
 Analyze all uploaded photos, extract visible product evidence, combine photo evidence with seller notes, identify the strongest probable item identity, build targeted searches, route sources by item type, evaluate comparable quality, and only then recommend a listing price.
 Separate broad subject identity from exact product identity. Use a supported subject in listing copy, but do not invent exact maker, year, model, licensing, or authenticity.
 If exact product identity is unknown, preserve the supported broad subject and state that exact item, maker, era, licensing, or authenticity remain unverified.
@@ -3299,7 +3426,7 @@ function Get-RecommendedSellingPlatform {
     $Report.searchCoverage
   ) -join " "
 
-  if ($Haystack -match "collegiate|college|university|ncaa|mascot|bulldog|officially licensed|licensee") {
+  if ($Haystack -match "institution|organization|college|university|mascot|logo|character|sports logo|school colors|officially licensed|licensee") {
     return "Specialty collector group"
   }
   if ($Haystack -match "furniture|bulky|fragile|ceramic|cookie jar|container|canister|local pickup") {
