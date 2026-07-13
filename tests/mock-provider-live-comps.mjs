@@ -4,8 +4,11 @@ const leakedPhrase = "Perform source-routed live comparable search";
 const originalFetch = globalThis.fetch;
 const originalEnvKey = process.env.OPENAI_API_KEY;
 const originalFallbackKey = process.env.OPEN_API_KEY;
+const originalSerperKey = process.env.SERPER_API_KEY;
+const fakeSerperKeyValue = ["test", "serper", "placeholder"].join("-");
 let activeFixture = null;
 let livePayloads = [];
+let serperPayloads = [];
 
 function assert(condition, message) {
   if (!condition) {
@@ -240,6 +243,103 @@ function liveSearchJsonFor(query, zeroResults) {
   };
 }
 
+function serperResponseFor(query) {
+  if (activeFixture === "zero") {
+    return {
+      organic: [],
+      shopping: [],
+      relatedSearches: [{ query: "generic related search that must not become evidence" }]
+    };
+  }
+
+  if (activeFixture === "holiday") {
+    return {
+      organic: [
+        {
+          title: "Santa's Workshop Hubbard Ohio GAB031 Santa Claus holiday figurine",
+          link: "https://www.ebay.com/itm/santas-workshop-gab031-santa?utm_source=test",
+          snippet: "Active listing for boxed Santa Claus holiday decoration. Price $64.99.",
+          position: 1
+        },
+        {
+          title: "Santa's Workshop Christmas decoration reference",
+          link: "https://www.etsy.com/listing/santas-workshop-hubbard-ohio-reference",
+          snippet: "Vintage-style holiday decor reference with Hubbard Ohio label text.",
+          position: 2
+        }
+      ],
+      shopping: [],
+      knowledgeGraph: {
+        title: "Santa's Workshop",
+        website: "https://example.com/santas-workshop-reference",
+        description: "Brand/reference identity only, not price evidence."
+      },
+      relatedSearches: [{ query: "Santa's Workshop Santa figurine" }]
+    };
+  }
+
+  const exactRecord = {
+    title: "1980 Georgia Bulldogs Coca-Cola National Champions collector tray",
+    link: "https://www.ebay.com/itm/georgia-coca-cola-tray?utm_source=test",
+    snippet: "HOW 'BOUT THEM DAWGS Vince Dooley collector tray active listing. Price $24.99.",
+    position: 1
+  };
+  return {
+    organic: [
+      exactRecord,
+      {
+        title: "1981 Georgia Bulldogs Coca-Cola serving tray",
+        link: "https://picclick.com/1981-georgia-bulldogs-coca-cola-serving-tray.html",
+        snippet: "Similar Georgia Bulldogs Coca-Cola collector serving tray. Asking price $29.99.",
+        position: 2
+      },
+      {
+        title: "Georgia Bulldogs Coca-Cola championship bottle",
+        link: "https://www.ebay.com/itm/georgia-coca-cola-bottle",
+        snippet: "Bottle, not a tray. Asking $12.00.",
+        position: 3
+      },
+      {
+        title: "Vintage Coca-Cola serving tray",
+        link: "https://www.etsy.com/listing/generic-coca-cola-serving-tray",
+        snippet: "Generic Coca-Cola tray without Georgia Bulldogs identity. Price $18.00.",
+        position: 4
+      },
+      {
+        ...exactRecord,
+        link: "https://www.ebay.com/itm/georgia-coca-cola-tray?utm_medium=duplicate",
+        position: 5
+      }
+    ],
+    shopping: [
+      {
+        title: "Georgia Bulldogs Coca-Cola collector tray shopping result",
+        link: "https://www.mercari.com/us/item/georgia-coca-cola-tray/",
+        source: "Mercari",
+        price: "$22.00",
+        delivery: "$7.99 delivery",
+        position: 1
+      }
+    ],
+    knowledgeGraph: {
+      title: "Georgia Bulldogs football",
+      website: "https://georgiadogs.com",
+      description: "Reference identity only; not a price comp."
+    },
+    relatedSearches: [{ query: "Georgia Bulldogs Coca-Cola tray" }]
+  };
+}
+
+function serperHttpResponse(json) {
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return json;
+    }
+  };
+}
+
 function consumerDecisionJson(zeroResults) {
   return {
     buyerIntent: "personal_use",
@@ -273,6 +373,19 @@ function consumerDecisionJson(zeroResults) {
 }
 
 globalThis.fetch = async (_url, options = {}) => {
+  if (_url === "https://google.serper.dev/search") {
+    const payload = JSON.parse(options.body);
+    serperPayloads.push({
+      q: payload.q,
+      gl: payload.gl,
+      hl: payload.hl,
+      num: payload.num,
+      hasApiKeyHeader: Boolean(options.headers && options.headers["X-API-KEY"]),
+      headerValue: options.headers && options.headers["X-API-KEY"]
+    });
+    return serperHttpResponse(serperResponseFor(payload.q));
+  }
+
   const payload = JSON.parse(options.body);
   const schema = schemaNameFromPayload(payload);
 
@@ -327,6 +440,7 @@ function createResponse() {
 async function runScenario(fixture, bodyOverrides = {}) {
   activeFixture = fixture;
   livePayloads = [];
+  serperPayloads = [];
   const req = {
     method: "POST",
     body: {
@@ -352,12 +466,13 @@ async function runScenario(fixture, bodyOverrides = {}) {
   const res = createResponse();
   await handler(req, res);
   assert(res.statusCode === 200, `${fixture} scenario should return 200, got ${res.statusCode}: ${JSON.stringify(res.payload)}`);
-  return { report: res.payload.valuation, livePayloads: [...livePayloads], json: JSON.stringify(res.payload) };
+  return { report: res.payload.valuation, livePayloads: [...livePayloads], serperPayloads: [...serperPayloads], json: JSON.stringify(res.payload) };
 }
 
 try {
   process.env.OPENAI_API_KEY = "test-openai-key-not-real";
   delete process.env.OPEN_API_KEY;
+  process.env.SERPER_API_KEY = fakeSerperKeyValue;
 
   const holiday = await runScenario("holiday");
   assert(holiday.report.analysisId === "analysis-test-holiday", "Holiday analysis id should round-trip.");
@@ -368,33 +483,48 @@ try {
   assert(!georgia.json.includes("\\n"), "Client-visible Georgia JSON should not include literal slash-n sequences.");
   assert(!/holiday decor \/ collectible/i.test(georgia.json), "Georgia report should not inherit old holiday decor wording.");
   assert(!/Santa's Workshop|GAB031/i.test(georgia.json), "Georgia report should not inherit the prior holiday session.");
+  assert(!georgia.json.includes(fakeSerperKeyValue), "Client-visible Georgia JSON should not include the Serper key value.");
+  assert(!georgia.json.includes("X-API-KEY"), "Client-visible Georgia JSON should not include Serper authentication headers.");
 
   const diagnostics = georgia.report.searchDiagnostics;
-  assert(diagnostics.queryTransmissionMode === "query_bound_provider_requests", "Diagnostics should use query-bound provider mode.");
+  assert(diagnostics.searchProviderUsed === "Serper Google Search", "Serper should be the primary search provider when configured.");
+  assert(diagnostics.queryTransmissionMode === "query_bound_serper_requests", "Diagnostics should use query-bound Serper request mode.");
+  assert(diagnostics.serperConfigured === true, "Diagnostics should confirm Serper is configured without exposing the key.");
+  assert(diagnostics.fallbackProviderUsed === false, "OpenAI web_search fallback should not run when Serper succeeds.");
   assert(Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length > 0, "Provider request records should exist.");
+  assert(diagnostics.providerRequestRecords.length <= 6, "Serper query budget should stay within six ordinary calls.");
   assert(diagnostics.providerRequestRecords.every((record) => record.attempted === true), "Every sent query record should be attempted.");
   assert(diagnostics.providerRequestRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
   assert(diagnostics.providerRequestRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
   assert(diagnostics.providerRequestRecords.some((record) => /Coca-Cola/i.test(record.query)), "Coca-Cola punctuation should survive attempted queries.");
   assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "open_web_exact"), "Open-web exact pass should be recorded.");
-  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "marketplace_domain"), "Marketplace-domain pass should be recorded.");
+  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "marketplace_site_google"), "Marketplace site pass should be recorded.");
   assert(Array.isArray(diagnostics.allowedDomainsRequested) && diagnostics.allowedDomainsRequested.includes("ebay.com"), "Marketplace allowed domains should include ebay.com for sports collectible tray routing.");
   assert(diagnostics.providerSourceCount > 0, "Provider source count should be tracked separately from visible comps.");
-  assert(diagnostics.domainsActuallyReturned.includes("example.com"), "Returned domains should come from actual provider source URLs.");
-  assert(diagnostics.safeRawResults.some((record) => record.query && /Georgia|Coca-Cola|DAWGS|NATIONAL/i.test(record.query)), "Raw provider summaries should retain producing query.");
+  assert(diagnostics.organicResultCount > 0, "Organic result count should be tracked.");
+  assert(diagnostics.shoppingResultCount > 0, "Shopping result count should be tracked.");
+  assert(diagnostics.domainsActuallyReturned.includes("ebay.com"), "Returned domains should come from actual Serper result URLs.");
+  assert(diagnostics.deduplicatedCandidateCount < diagnostics.providerSourceCount, "Duplicate listings should merge after URL canonicalization.");
+  assert(diagnostics.exactCandidateCount > 0, "Exact candidates should be counted.");
+  assert(diagnostics.strongSimilarCandidateCount > 0, "Strong-similar candidates should be counted.");
   assert(Array.isArray(georgia.report.weFoundThisItem) && georgia.report.weFoundThisItem.length > 0, "Exact active listing should remain visible.");
+  assert(JSON.stringify(georgia.report.strongComparables || []).includes("https://www.ebay.com/itm/georgia-coca-cola-tray"), "Exact tray URL should remain visible.");
+  assert(JSON.stringify(georgia.report.strongComparables || []).includes("Active Asking") || JSON.stringify(georgia.report.strongComparables || []).includes("Shopping Offer"), "Visible exact/strong cards should label asking/shopping evidence accurately.");
+  assert(JSON.stringify(georgia.report.rejectedMatches || []).includes("bottle"), "Unrelated bottle result should be rejected as an item-type mismatch.");
 
   const querySet = new Set(diagnostics.providerRequestRecords.map((record) => record.query.toLowerCase()));
-  assert(querySet.size < diagnostics.providerRequestRecords.length, "Strong exact queries may be sent once open-web and once with marketplace-domain filters.");
-  assert(livePayloads.every((item) => !item.query.includes(leakedPhrase)), "Mocked provider query strings should not be internal prompts.");
-  assert(livePayloads.every((item) => item.toolType === "web_search"), "Live payloads should use current web_search.");
-  assert(livePayloads.every((item) => item.toolChoice === "required"), "Live payloads should force web_search execution.");
-  assert(livePayloads.every((item) => item.include.includes("web_search_call.action.sources")), "Live payloads should request web_search action sources.");
-  assert(livePayloads.some((item) => item.searchContextSize === "medium"), "Live payloads should request medium search context when supported.");
-  assert(livePayloads.some((item) => item.allowedDomains.includes("ebay.com")), "At least one marketplace-domain payload should request ebay.com.");
+  assert(querySet.size === diagnostics.providerRequestRecords.length, "Duplicate Serper queries should not be sent.");
+  assert(georgia.serperPayloads.length === diagnostics.providerRequestRecords.length, "Serper payload count should match provider request records.");
+  assert(georgia.serperPayloads.every((item) => item.hasApiKeyHeader), "Serper requests should include the server-side API key header.");
+  assert(georgia.serperPayloads.every((item) => item.gl === "us" && item.hl === "en" && item.num === 10), "Serper requests should use expected US English defaults.");
+  assert(georgia.serperPayloads.every((item) => !item.q.includes(leakedPhrase)), "Serper query strings should not include internal prompts.");
+  assert(georgia.serperPayloads.some((item) => /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(item.q)), "At least one Serper query should use Google marketplace site routing.");
+  assert(georgia.livePayloads.length === 0, "OpenAI web_search live comparable fallback should not run when Serper succeeds.");
 
   const zero = await runScenario("zero");
   assert(!zero.json.includes(leakedPhrase), "Zero-result JSON should not include leaked prompt phrase.");
+  assert(zero.report.searchDiagnostics.searchProviderUsed === "Serper Google Search", "Zero-result diagnostics should still identify Serper as the provider.");
+  assert(zero.report.searchDiagnostics.acquisitionFailureStage === "serper_zero_results", "Zero-result diagnostics should use controlled Serper zero-result stage.");
   assert(zero.report.valuationEvidenceState === "insufficient", "Zero retained results should keep valuation evidence insufficient.");
   assert(/not established/i.test([zero.report.fairValueNotEstablished, zero.report.estimatedFairMarketValue].filter(Boolean).join(" ")), "Zero retained results should not preserve unsupported fair value.");
   assert(!JSON.stringify(zero.report.productOrConditionRisks || []).includes("Older Model"), "Ordinary collectible zero-result risk list should suppress Older Model.");
@@ -416,5 +546,10 @@ try {
     delete process.env.OPEN_API_KEY;
   } else {
     process.env.OPEN_API_KEY = originalFallbackKey;
+  }
+  if (originalSerperKey === undefined) {
+    delete process.env.SERPER_API_KEY;
+  } else {
+    process.env.SERPER_API_KEY = originalSerperKey;
   }
 }

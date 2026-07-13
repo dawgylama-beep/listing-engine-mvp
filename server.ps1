@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.6"
+$AppVersion = "1.9.7"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -954,7 +954,9 @@ Preserve verified facts, known uncertainty, condition disclosures, subject ident
 Avoid restarting the entire item analysis unless the user explicitly asks for a new analysis or a new search.
 No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.
 Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.
-For questions about search activity, answer from searchDiagnostics fields such as allowedDomainsRequested, providerRequestRecords, providerCallsSucceeded, domainsActuallyReturned, providerSourceCount, retainedVisibleResultCount, and rejectedCandidateCount. Distinguish a targeted domain from a provider call, a returned URL domain, and a retained comparable record.
+For questions about search activity, answer from stored searchDiagnostics fields such as searchProviderUsed, serperConfigured, serperCallsAttempted, serperCallsSucceeded, fallbackProviderUsed, providerRequestRecords, providerResponseSummaries, domainsActuallyReturned, organicResultCount, shoppingResultCount, providerSourceCount, retainedVisibleResultCount, rejectedCandidateCount, and droppedResultReasons.
+If asked what Google or Serper returned, use only stored provider diagnostics and visible source records. Do not perform a new search, invent search activity, reveal provider keys, or claim a domain was searched unless a query record targeted it or a source-backed result returned it.
+Distinguish a targeted marketplace domain, a provider call, a returned URL domain, a raw Google provider result, a parsed candidate, and a retained comparable record.
 Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.
 Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.
 If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.
@@ -2475,6 +2477,8 @@ function New-SearchDiagnostics {
   $RetainedCount = Get-ReferenceSupportingResearchResultCount $Report
   $RejectedCount = $RejectedRecords.Count
   $DroppedReasons = @(Get-DroppedResultReasons -Report $Report -SearchCompleted $SearchCompleted)
+  $SerperConfigured = [bool](Clean-Text $env:SERPER_API_KEY)
+  $PrimaryProviderState = $(if ($SerperConfigured) { "fallback_openai_used" } else { "serper_not_configured" })
 
   return [pscustomobject]@{
     queriesGenerated = @($Queries)
@@ -2486,12 +2490,22 @@ function New-SearchDiagnostics {
     sourceCategoriesTargeted = @(Get-SearchCoverage $Report $Status)
     allowedDomainsRequested = @()
     searchProviderUsed = "OpenAI web_search"
+    providerKey = "openai_web_search"
+    serperConfigured = $SerperConfigured
+    serperCallsAttempted = 0
+    serperCallsSucceeded = 0
+    fallbackProviderUsed = $SerperConfigured
+    primarySearchProvider = $(if ($SerperConfigured) { "serper_google" } else { "OpenAI web_search" })
+    primaryProviderFailureState = $PrimaryProviderState
+    fallbackProvider = "OpenAI web_search"
     sourcesRequested = @(Get-SearchCoverage $Report $Status)
     sourcesActuallyQueried = $(if ($SearchCompleted) { @("OpenAI web_search") } else { @() })
     sourceRoute = @("OpenAI web_search")
     providerCallsAttempted = $(if ($SearchCompleted -or $SearchCalls.Count -gt 0) { [math]::Max(1, $SearchCalls.Count) } else { 1 })
     providerCallsSucceeded = $SearchCalls.Count
     providerSourceCount = $Citations.Count
+    organicResultCount = 0
+    shoppingResultCount = 0
     domainsActuallyReturned = @(Summarize-SourceLabels $Citations | Select-Object -First 8)
     sourceURLsReturned = @($Citations | Select-Object -First 50)
     providerErrors = @()
@@ -2500,6 +2514,7 @@ function New-SearchDiagnostics {
     rawResultCount = $RawSummaries.Count
     parsedCandidateCount = $ParsedCount
     normalizedCandidateCount = $NormalizedCount
+    deduplicatedCandidateCount = $NormalizedCount
     rejectedCandidateCount = $RejectedCount
     parsedResultCount = $ParsedCount
     normalizedResultCount = $NormalizedCount

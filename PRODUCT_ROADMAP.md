@@ -230,6 +230,14 @@
 - Worth Buying and Buying for Myself reports now avoid unsupported wait-for-another-item guidance when the decision is a low-dollar Buy without a concrete condition, authenticity, compatibility, safety, price, or return-policy issue
 - Completed reports now render under one current report root and end with a single visible End of Report marker for mobile beta readability
 
+## Version 1.9.7 (Completed)
+- Serper Google Search is now the primary server-side live comparable acquisition provider when SERPER_API_KEY is configured
+- OpenAI web_search remains an honestly labeled fallback when Serper is missing, unavailable, or fails with a controlled provider state
+- Serper organic, shopping, and knowledge graph references are parsed into source-backed records while related searches are not treated as evidence
+- Comparable diagnostics now separate provider results, organic results, shopping results, unique candidates, retained visible records, rejected candidates, fallback use, and acquisition failure stage
+- Visible source cards now show provider, source type, query, search pass, active/sold/reference status, identity match strength, and price evidence type
+- Zero-evidence guard still prevents unsupported market values when no visible source-backed evidence is retained
+
 ## Version 2.0
 - User accounts
 - Saved listings

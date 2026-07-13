@@ -1371,9 +1371,16 @@ function renderSearchDiagnostics(diagnostics) {
     ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
+    ["Serper Configured", diagnostics.serperConfigured === undefined ? "" : diagnostics.serperConfigured ? "Yes" : "No"],
+    ["Fallback Provider Used", diagnostics.fallbackProviderUsed === undefined ? "" : diagnostics.fallbackProviderUsed ? "Yes" : "No"],
+    ["Serper Calls Attempted", diagnostics.serperCallsAttempted],
+    ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
     ["Provider Sources Returned", diagnostics.providerSourceCount],
+    ["Organic Results Returned", diagnostics.organicResultCount],
+    ["Shopping Results Returned", diagnostics.shoppingResultCount],
     ["Structured Candidates Created", diagnostics.parsedCandidateCount ?? diagnostics.parsedResultCount],
     ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
+    ["Unique Candidates", diagnostics.deduplicatedCandidateCount ?? diagnostics.deduplicatedResultCount],
     ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
     ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
     ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
@@ -1425,9 +1432,12 @@ function renderQueryDiagnosticCard(item) {
     ["Provider", item.provider || item.source],
     ["Search Pass", formatSearchPass(item.searchPass)],
     ["Allowed Domains", item.allowedDomainsRequested || item.allowedDomains],
+    ["Marketplace Domains", item.marketplaceDomainsRequested],
     ["Attempted", (item.attempted ?? item.requestAttempted) ? "Yes" : "No"],
     ["Succeeded", (item.succeeded ?? item.requestSucceeded) ? "Yes" : "No"],
     ["Provider Sources Returned", item.providerSourceCount ?? item.rawResultCount],
+    ["Organic Results", item.organicResultCount],
+    ["Shopping Results", item.shoppingResultCount],
     ["Domains Returned", item.domainsReturned],
     ["Structured Candidates Created", item.parsedResultCount],
     ["Normalized Candidates", item.normalizedResultCount],
@@ -2440,10 +2450,16 @@ function renderResearchResultList(value) {
     const meta = document.createElement("dl");
     meta.className = "source-result-meta";
     [
+      ["Provider", item.providerLabel || item.provider],
       ["Source", item.source],
+      ["Source Type", item.sourceType],
+      ["Search Pass", formatSearchPass(item.searchPass)],
+      ["Query", item.query],
       ["Price", item.displayedPrice || item.price],
       ["Price Type", item.priceType],
+      ["Active/Sold/Reference Status", item.activeSoldReferenceStatus],
       ["Classification", item.classification],
+      ["Identity Match", item.identityMatchStrength],
       ["Evidence Role", item.evidenceRole],
       ["Condition", item.condition],
       ["Influenced Range", item.influencedReferenceRange],
@@ -2784,9 +2800,16 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
+    ["Serper Configured", diagnostics.serperConfigured === undefined ? "" : diagnostics.serperConfigured ? "Yes" : "No"],
+    ["Fallback Provider Used", diagnostics.fallbackProviderUsed === undefined ? "" : diagnostics.fallbackProviderUsed ? "Yes" : "No"],
+    ["Serper Calls Attempted", diagnostics.serperCallsAttempted],
+    ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
     ["Provider Sources Returned", diagnostics.providerSourceCount],
+    ["Organic Results Returned", diagnostics.organicResultCount],
+    ["Shopping Results Returned", diagnostics.shoppingResultCount],
     ["Structured Candidates Created", diagnostics.parsedCandidateCount ?? diagnostics.parsedResultCount],
     ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
+    ["Unique Candidates", diagnostics.deduplicatedCandidateCount ?? diagnostics.deduplicatedResultCount],
     ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
     ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
     ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
@@ -2807,7 +2830,7 @@ function formatSearchDiagnosticsText(diagnostics) {
   if (Array.isArray(records) && records.length) {
     rows.push("Search Queries Actually Sent:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 
@@ -2826,12 +2849,18 @@ function formatSection(label, value) {
 function formatResearchRecordText(item) {
   const fields = [
     ["Title", item.title],
+    ["Provider", item.providerLabel || item.provider],
     ["Source", item.source],
+    ["Source Type", item.sourceType],
+    ["Search Pass", formatSearchPass(item.searchPass)],
+    ["Query", item.query],
     ["URL", item.url || "No usable URL supplied by source."],
     ["Displayed Price", item.displayedPrice || item.price],
     ["Currency", item.currency],
     ["Price Type", item.priceType],
+    ["Active/Sold/Reference Status", item.activeSoldReferenceStatus],
     ["Classification", item.classification],
+    ["Identity Match", item.identityMatchStrength],
     ["Evidence Role", item.evidenceRole],
     ["Condition", item.condition],
     ["Match Explanation", item.matchExplanation],

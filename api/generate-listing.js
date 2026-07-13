@@ -940,7 +940,9 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "Avoid restarting the entire item analysis unless the user explicitly asks for a new analysis or a new search.",
     "No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.",
     "Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.",
-    "For questions about search activity, answer from searchDiagnostics fields such as allowedDomainsRequested, providerRequestRecords, providerCallsSucceeded, domainsActuallyReturned, providerSourceCount, retainedVisibleResultCount, and rejectedCandidateCount. Distinguish a targeted domain from a provider call, a returned URL domain, and a retained comparable record.",
+    "For questions about search activity, answer from stored searchDiagnostics fields such as searchProviderUsed, serperConfigured, serperCallsAttempted, serperCallsSucceeded, fallbackProviderUsed, providerRequestRecords, providerResponseSummaries, domainsActuallyReturned, organicResultCount, shoppingResultCount, providerSourceCount, retainedVisibleResultCount, rejectedCandidateCount, and droppedResultReasons.",
+    "If asked what Google or Serper returned, use only stored Serper diagnostics and visible source records. Do not perform a new search, invent search activity, reveal provider keys, or claim a domain was searched unless a query record targeted it or a source-backed result returned it.",
+    "Distinguish a targeted marketplace domain, a provider call, a returned URL domain, a raw Google provider result, a parsed candidate, and a retained comparable record.",
     "Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.",
     "Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.",
     "If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.",
@@ -1468,7 +1470,36 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
   });
 }
 
-async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
+async function executeLiveComparableSearch(args) {
+  const serperApiKey = getSerperApiKey();
+  if (serperApiKey) {
+    const serperResult = await executeSerperComparableSearch({ ...args, serperApiKey });
+    if (!serperResult.shouldUseOpenAIFallback) {
+      return serperResult;
+    }
+
+    const fallbackResult = await executeOpenAIWebComparableSearch(args);
+    return annotateOpenAIFallbackResult(fallbackResult, serperResult);
+  }
+
+  const fallbackResult = await executeOpenAIWebComparableSearch(args);
+  return {
+    ...fallbackResult,
+    serperConfigured: false,
+    primarySearchProvider: "OpenAI web_search",
+    fallbackProviderUsed: false,
+    primaryProviderFailureState: "serper_not_configured",
+    searchDiagnostics: {
+      ...(fallbackResult.searchDiagnostics || {}),
+      serperConfigured: false,
+      fallbackProviderUsed: false,
+      primarySearchProvider: "OpenAI web_search",
+      primaryProviderFailureState: "serper_not_configured"
+    }
+  };
+}
+
+async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
   const requestStartedAtMs = Date.now();
   const queriesPrioritized = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
@@ -1676,6 +1707,1166 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     includeFallbackReason,
     searchControlsFallbackReason
   });
+}
+
+function getSerperApiKey() {
+  return cleanText(process.env.SERPER_API_KEY || "");
+}
+
+async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
+  const searchStartedAt = new Date().toISOString();
+  const requestStartedAtMs = Date.now();
+  const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
+  const providerRequestRecords = queriesPrioritized.map((queryRecord) => createSerperRequestRecord(queryRecord));
+  const providerResponseSummaries = [];
+  const providerErrors = [];
+  const rawProviderRecords = [];
+
+  await Promise.all(providerRequestRecords.map(async (requestRecord, index) => {
+    const queryRecord = queriesPrioritized[index];
+    try {
+      const response = await requestSerperSearch({
+        apiKey: serperApiKey,
+        query: queryRecord.query,
+        timeoutMs: 7000,
+        maxRetries: 1
+      });
+      const parsed = parseSerperResponse(response.json, queryRecord);
+      rawProviderRecords.push(...parsed.records);
+      requestRecord.succeeded = true;
+      requestRecord.statusCode = response.statusCode;
+      requestRecord.elapsedMilliseconds = response.elapsedMs;
+      requestRecord.organicResultCount = parsed.organicResultCount;
+      requestRecord.shoppingResultCount = parsed.shoppingResultCount;
+      requestRecord.knowledgeGraphResultCount = parsed.knowledgeGraphResultCount;
+      requestRecord.providerSourceCount = parsed.records.length;
+      requestRecord.rawResultCount = parsed.records.length;
+      requestRecord.parsedResultCount = parsed.records.length;
+      requestRecord.normalizedResultCount = parsed.records.length;
+      requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
+      requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
+    } catch (error) {
+      const diagnostic = classifySerperError(error);
+      requestRecord.succeeded = false;
+      requestRecord.errorCode = diagnostic.code || diagnostic.category;
+      requestRecord.failureStage = diagnostic.category;
+      providerErrors.push({
+        ...diagnostic,
+        query: queryRecord.query,
+        priority: queryRecord.priority
+      });
+      providerResponseSummaries.push({
+        query: queryRecord.query,
+        priority: queryRecord.priority,
+        searchPass: queryRecord.searchPass,
+        provider: "Serper Google Search",
+        providerKey: "serper_google",
+        marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
+        statusCode: diagnostic.statusCode || null,
+        providerSourceCount: 0,
+        organicResultCount: 0,
+        shoppingResultCount: 0,
+        domainsReturned: [],
+        sourceURLsReturned: [],
+        errorCode: diagnostic.code || diagnostic.category,
+        errorMessage: diagnostic.message
+      });
+    }
+  }));
+
+  const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
+  const elapsedMs = Date.now() - requestStartedAtMs;
+  if (!successfulRecords.length) {
+    return buildSerperUnavailableLiveSearchResult({
+      error: providerErrors[0] || createSerperRequestError({ category: "serper_provider_error", message: "Serper Google Search failed before source results could be retrieved." }),
+      sourceRoute,
+      searchQueries,
+      queriesPrioritized,
+      providerRequestRecords,
+      providerResponseSummaries,
+      providerErrors,
+      searchStartedAt,
+      elapsedMs
+    });
+  }
+
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context);
+  const dedupedRecords = dedupeSerperCandidateRecords(normalizedRecords);
+  applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords);
+  return normalizeSerperLiveSearchResult({
+    records: dedupedRecords,
+    rawProviderRecords,
+    searchStartedAt,
+    sourceRoute,
+    searchQueries,
+    queriesPrioritized,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    elapsedMs,
+    researchPurpose
+  });
+}
+
+function createSerperRequestRecord(queryRecord) {
+  return {
+    query: queryRecord.query,
+    priority: queryRecord.priority,
+    searchPass: queryRecord.searchPass,
+    sourceRoute: queryRecord.sourceRoute,
+    marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
+    allowedDomainsRequested: queryRecord.marketplaceDomains || [],
+    provider: "Serper Google Search",
+    providerKey: "serper_google",
+    attempted: true,
+    succeeded: false,
+    providerSourceCount: 0,
+    organicResultCount: 0,
+    shoppingResultCount: 0,
+    knowledgeGraphResultCount: 0,
+    rawResultCount: 0,
+    parsedResultCount: 0,
+    normalizedResultCount: 0,
+    retainedResultCount: 0,
+    domainsReturned: [],
+    sourceURLsReturned: [],
+    errorCode: "",
+    failureStage: "serper_provider_error"
+  };
+}
+
+async function requestSerperSearch({ apiKey, query, timeoutMs = 7000, maxRetries = 1 }) {
+  const safeQuery = cleanSerperQuery(query);
+  if (!safeQuery) {
+    throw createSerperRequestError({ category: "serper_provider_error", code: "empty_query", message: "Serper query was empty after normalization." });
+  }
+
+  let lastError = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
+    try {
+      const response = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": apiKey
+        },
+        body: JSON.stringify({
+          q: safeQuery,
+          gl: "us",
+          hl: "en",
+          num: 10
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const category = classifySerperStatus(response.status, data);
+        throw createSerperRequestError({
+          category,
+          statusCode: response.status,
+          code: cleanText(data?.error || data?.code || ""),
+          message: summarizeSerperErrorMessage(data, response.status)
+        });
+      }
+      return { json: data, statusCode: response.status, elapsedMs: Date.now() - startedAt };
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error.name === "AbortError"
+        ? createSerperRequestError({ category: "serper_timeout", code: "timeout", message: "Serper request timed out." })
+        : error;
+      const diagnostic = classifySerperError(lastError);
+      if (attempt >= maxRetries || ["serper_authentication_failure", "serper_rate_limited"].includes(diagnostic.category)) {
+        throw lastError;
+      }
+    }
+  }
+  throw lastError || createSerperRequestError({ category: "serper_provider_error", message: "Serper request failed." });
+}
+
+function parseSerperResponse(data = {}, queryRecord = {}) {
+  const records = [];
+  const organic = Array.isArray(data.organic) ? data.organic : [];
+  const shopping = Array.isArray(data.shopping) ? data.shopping : [];
+  const knowledgeGraph = data.knowledgeGraph && typeof data.knowledgeGraph === "object" ? data.knowledgeGraph : null;
+
+  organic.forEach((item, index) => {
+    const url = canonicalizeComparableUrl(item.link || item.url);
+    if (!url) return;
+    records.push(createSerperProviderRecord({
+      provider: "serper_google",
+      queryRecord,
+      title: item.title,
+      url,
+      snippet: item.snippet,
+      displayedPriceText: extractDisplayedPrice([item.title, item.snippet].join(" ")),
+      sourceType: "organic",
+      position: item.position || index + 1,
+      date: item.date
+    }));
+  });
+
+  shopping.forEach((item, index) => {
+    const url = canonicalizeComparableUrl(item.link || item.url);
+    if (!url) return;
+    records.push(createSerperProviderRecord({
+      provider: "serper_google",
+      queryRecord,
+      title: item.title,
+      url,
+      snippet: [item.source, item.delivery, item.rating ? `Rating ${item.rating}` : ""].filter(Boolean).join(" | "),
+      displayedPriceText: item.price || extractDisplayedPrice([item.title, item.source].join(" ")),
+      sourceType: "shopping",
+      position: item.position || index + 1,
+      delivery: item.delivery,
+      imageUrl: item.imageUrl,
+      rating: item.rating,
+      ratingCount: item.ratingCount
+    }));
+  });
+
+  if (knowledgeGraph) {
+    const kgUrl = canonicalizeComparableUrl(knowledgeGraph.website || knowledgeGraph.link || knowledgeGraph.url);
+    if (kgUrl) {
+      records.push(createSerperProviderRecord({
+        provider: "serper_google",
+        queryRecord,
+        title: knowledgeGraph.title,
+        url: kgUrl,
+        snippet: knowledgeGraph.description,
+        displayedPriceText: "",
+        sourceType: "knowledge_graph_reference",
+        position: 0
+      }));
+    }
+  }
+
+  return {
+    records,
+    organicResultCount: organic.length,
+    shoppingResultCount: shopping.length,
+    knowledgeGraphResultCount: knowledgeGraph ? 1 : 0,
+    relatedSearchCount: Array.isArray(data.relatedSearches) ? data.relatedSearches.length : 0
+  };
+}
+
+function createSerperProviderRecord({ provider, queryRecord, title, url, snippet, displayedPriceText, sourceType, position, date = "", delivery = "", imageUrl = "", rating = "", ratingCount = "" }) {
+  const canonicalUrl = canonicalizeComparableUrl(url);
+  return {
+    provider,
+    query: cleanText(queryRecord.query),
+    searchPass: cleanText(queryRecord.searchPass),
+    marketplaceDomainsRequested: normalizeStringArray(queryRecord.marketplaceDomains, 8),
+    title: cleanText(title || canonicalUrl),
+    url: canonicalUrl,
+    canonicalUrl,
+    domain: hostnameFromUrl(canonicalUrl),
+    snippet: cleanText(snippet),
+    displayedPriceText: normalizeMoneyLabelText(cleanText(displayedPriceText)),
+    parsedPrice: parseDisplayedPrice(displayedPriceText),
+    currency: displayedPriceText ? "$" : "",
+    sourceType: cleanText(sourceType),
+    position: Number(position || 0),
+    date: cleanText(date),
+    delivery: cleanText(delivery),
+    imageUrl: cleanText(imageUrl),
+    rating: cleanText(rating),
+    ratingCount: cleanText(ratingCount)
+  };
+}
+
+function normalizeSerperCandidateRecords(records = [], identity = {}, context = {}) {
+  return records
+    .filter((record) => record.url && /^https?:\/\//i.test(record.url))
+    .map((record) => {
+      const identityMatchStrength = classifySerperIdentityMatch(record, identity, context);
+      const priceEvidenceType = classifySerperPriceEvidence(record);
+      const rejectionReason = buildSerperRejectionReason(record, identityMatchStrength, context);
+      return {
+        ...record,
+        identityMatchStrength,
+        priceEvidenceType,
+        retained: !/Rejected/i.test(identityMatchStrength),
+        rejectionReason,
+        sourceBacked: "URL-cited",
+        matchExplanation: buildSerperMatchExplanation(record, identityMatchStrength, priceEvidenceType),
+        evidenceRole: buildSerperEvidenceRole(identityMatchStrength, priceEvidenceType),
+        itemIdentityDifferences: /Rejected|Weak|Partial/i.test(identityMatchStrength) ? rejectionReason : "",
+        influencedReferenceRange: /Exact|Strong|Partial|Reference/.test(identityMatchStrength) && record.displayedPriceText
+          ? "Yes, as visible asking/shopping/reference evidence with price-type limitations."
+          : "No price supplied or not reliable for valuation."
+      };
+    });
+}
+
+function dedupeSerperCandidateRecords(records = []) {
+  const byUrl = new Map();
+  for (const record of records) {
+    const key = record.canonicalUrl || record.url;
+    const existing = byUrl.get(key);
+    if (!existing) {
+      byUrl.set(key, {
+        ...record,
+        queriesFound: [record.query].filter(Boolean),
+        searchPassesFound: [record.searchPass].filter(Boolean)
+      });
+      continue;
+    }
+    const merged = preferRicherSerperRecord(existing, record);
+    merged.queriesFound = mergeStringArrays(existing.queriesFound, [record.query], 8);
+    merged.searchPassesFound = mergeStringArrays(existing.searchPassesFound, [record.searchPass], 6);
+    byUrl.set(key, merged);
+  }
+  return [...byUrl.values()];
+}
+
+function applySerperRecordAccountingToRequests(providerRequestRecords = [], providerResponseSummaries = [], records = []) {
+  for (const requestRecord of providerRequestRecords) {
+    const query = cleanText(requestRecord.query);
+    const matchingRecords = records.filter((record) => {
+      const queriesFound = normalizeStringArray(record.queriesFound, 12);
+      return record.query === query || queriesFound.includes(query);
+    });
+    const retained = matchingRecords.filter((record) => /Exact|Strong Similar|Partial|Reference Only/i.test(record.identityMatchStrength));
+    const rejected = matchingRecords.filter((record) => /Rejected/i.test(record.identityMatchStrength));
+    requestRecord.normalizedResultCount = matchingRecords.length || requestRecord.normalizedResultCount || 0;
+    requestRecord.retainedResultCount = retained.length;
+    requestRecord.rejectedResultCount = rejected.length;
+    requestRecord.failureStage = classifySerperAcquisitionStage({
+      providerCallsSucceeded: requestRecord.succeeded ? 1 : 0,
+      providerSourceCount: requestRecord.providerSourceCount,
+      normalizedCandidateCount: requestRecord.normalizedResultCount,
+      retainedVisibleResultCount: requestRecord.retainedResultCount,
+      rejectedCandidateCount: requestRecord.rejectedResultCount,
+      providerErrors: requestRecord.errorCode ? [{ category: requestRecord.errorCode }] : []
+    });
+  }
+
+  for (const summary of providerResponseSummaries) {
+    const matchingRequest = providerRequestRecords.find((record) => record.query === summary.query);
+    if (!matchingRequest) continue;
+    summary.normalizedResultCount = matchingRequest.normalizedResultCount;
+    summary.retainedResultCount = matchingRequest.retainedResultCount;
+    summary.rejectedResultCount = matchingRequest.rejectedResultCount;
+    summary.failureStage = matchingRequest.failureStage;
+  }
+}
+
+function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchStartedAt, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, elapsedMs }) {
+  const buckets = bucketSerperRecords(records);
+  const strongVisible = [...buckets.strongComparables, ...buckets.partialComparables.filter((item) => /Strong Similar/i.test(item.classification))];
+  const comparableItemsFound = recordsToLegacyComparableStrings(strongVisible);
+  const providerSourceCount = rawProviderRecords.length;
+  const retainedVisibleResultCount = [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.referenceResults].length;
+  const rejectedCandidateCount = records.filter((record) => !record.retained || /Rejected/i.test(record.identityMatchStrength)).length;
+  const domainsActuallyReturned = summarizeSourceLabels(records.map((record) => record.domain));
+  const liveSearchStatus = comparableItemsFound.length
+    ? "Live Search Completed - Source-Backed Comps Found"
+    : "Live Search Completed - No Reliable Comps Found";
+  const acquisitionFailureStage = classifySerperAcquisitionStage({
+    providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
+    providerSourceCount,
+    normalizedCandidateCount: records.length,
+    retainedVisibleResultCount,
+    rejectedCandidateCount,
+    providerErrors
+  });
+  const diagnostics = buildSerperSearchDiagnostics({
+    sourceRoute,
+    searchQueries,
+    queriesPrioritized,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    records,
+    providerSourceCount,
+    retainedVisibleResultCount,
+    rejectedCandidateCount,
+    acquisitionFailureStage,
+    elapsedMs,
+    liveSearchStatus
+  });
+
+  return {
+    liveSearchStatus,
+    comparableItemsFound,
+    resultsFound: [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.referenceResults, ...buckets.weakMatches, ...buckets.rejectedMatches].slice(0, 24),
+    strongComparables: buckets.strongComparables,
+    partialComparables: buckets.partialComparables,
+    referenceResults: buckets.referenceResults,
+    weakMatches: buckets.weakMatches,
+    rejectedMatches: buckets.rejectedMatches,
+    visibleResearchResultCount: retainedVisibleResultCount,
+    noReliableMatchesReason: comparableItemsFound.length ? "" : "Serper Google Search completed, but no source-backed exact or strong similar matches passed match-quality checks.",
+    searchEvidenceSummary: comparableItemsFound.length ? "Serper Google Search returned source-backed exact or strong similar evidence." : "Serper Google Search returned no retained exact or strong similar comparable evidence.",
+    sourceRoute,
+    searchQueries,
+    queriesPrioritized,
+    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerSourceRecords: records.slice(0, 50),
+    sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "Serper Google Search",
+    primarySearchProvider: "serper_google",
+    serperConfigured: true,
+    fallbackProviderUsed: false,
+    primaryProviderFailureState: acquisitionFailureStage,
+    domainsActuallyReturned,
+    sourceURLsReturned: records.map((record) => record.url).filter(Boolean).slice(0, 50),
+    providerSourceCount,
+    organicResultCount: providerRequestRecords.reduce((sum, record) => sum + Number(record.organicResultCount || 0), 0),
+    shoppingResultCount: providerRequestRecords.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0),
+    parsedCandidateCount: rawProviderRecords.length,
+    normalizedCandidateCount: records.length,
+    deduplicatedCandidateCount: records.length,
+    retainedVisibleResultCount,
+    rejectedCandidateCount,
+    sourcesSearched: ["Serper Google Search"],
+    sourcesReturned: domainsActuallyReturned,
+    searchStartedAt,
+    searchCompletedAt: new Date().toISOString(),
+    webSearchExecuted: true,
+    citations: records.map((record) => ({ url: record.url, title: record.title })),
+    diagnostics: {
+      elapsedMilliseconds: elapsedMs,
+      webSearchCallAppeared: false,
+      sourceBackedCompCount: comparableItemsFound.length,
+      visibleResearchResultCount: retainedVisibleResultCount,
+      finalLiveSearchStatus: liveSearchStatus,
+      serperConfigured: true,
+      fallbackProviderUsed: false
+    },
+    searchDiagnostics: diagnostics,
+    shouldUseOpenAIFallback: false
+  };
+}
+
+function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, searchStartedAt, elapsedMs }) {
+  const diagnostic = classifySerperError(error);
+  const diagnostics = buildSerperSearchDiagnostics({
+    sourceRoute,
+    searchQueries,
+    queriesPrioritized,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors: providerErrors.length ? providerErrors : [diagnostic],
+    records: [],
+    providerSourceCount: 0,
+    retainedVisibleResultCount: 0,
+    rejectedCandidateCount: 0,
+    acquisitionFailureStage: diagnostic.category,
+    elapsedMs,
+    liveSearchStatus: "Live Search Unavailable - Serper Provider Error"
+  });
+
+  return {
+    liveSearchStatus: "Live Search Unavailable - Serper Provider Error",
+    comparableItemsFound: [],
+    resultsFound: [],
+    strongComparables: [],
+    partialComparables: [],
+    referenceResults: [],
+    weakMatches: [],
+    rejectedMatches: [],
+    visibleResearchResultCount: 0,
+    noReliableMatchesReason: "Serper Google Search was unavailable before source-backed comparable results could be retrieved.",
+    searchEvidenceSummary: diagnostic.userMessage,
+    sourceRoute,
+    searchQueries,
+    queriesPrioritized,
+    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerSourceRecords: [],
+    sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "Serper Google Search",
+    primarySearchProvider: "serper_google",
+    serperConfigured: true,
+    fallbackProviderUsed: false,
+    primaryProviderFailureState: diagnostic.category,
+    domainsActuallyReturned: [],
+    sourceURLsReturned: [],
+    providerSourceCount: 0,
+    organicResultCount: 0,
+    shoppingResultCount: 0,
+    parsedCandidateCount: 0,
+    normalizedCandidateCount: 0,
+    deduplicatedCandidateCount: 0,
+    retainedVisibleResultCount: 0,
+    rejectedCandidateCount: 0,
+    sourcesSearched: [],
+    sourcesReturned: [],
+    searchStartedAt,
+    searchCompletedAt: new Date().toISOString(),
+    webSearchExecuted: false,
+    citations: [],
+    diagnostics: {
+      elapsedMilliseconds: elapsedMs,
+      errorCategory: diagnostic.category,
+      finalLiveSearchStatus: "Live Search Unavailable - Serper Provider Error",
+      serperConfigured: true,
+      fallbackProviderUsed: false
+    },
+    searchDiagnostics: diagnostics,
+    shouldUseOpenAIFallback: true
+  };
+}
+
+function annotateOpenAIFallbackResult(openaiResult, serperResult) {
+  const serperDiagnostics = serperResult.searchDiagnostics || {};
+  const openaiDiagnostics = openaiResult.searchDiagnostics || {};
+  return {
+    ...openaiResult,
+    searchEvidenceSummary: ensurePrefix(openaiResult.searchEvidenceSummary, "Primary Google-result provider unavailable - Serper Google Search could not complete, so OpenAI web_search fallback was used. "),
+    serperConfigured: true,
+    primarySearchProvider: "serper_google",
+    fallbackProviderUsed: true,
+    primaryProviderFailureState: serperResult.primaryProviderFailureState || serperDiagnostics.acquisitionFailureStage || "serper_provider_error",
+    searchDiagnostics: {
+      ...openaiDiagnostics,
+      serperConfigured: true,
+      fallbackProviderUsed: true,
+      primarySearchProvider: "serper_google",
+      primaryProviderFailureState: serperResult.primaryProviderFailureState || serperDiagnostics.acquisitionFailureStage || "serper_provider_error",
+      fallbackProvider: "OpenAI web_search",
+      serperProviderRequestRecords: serperDiagnostics.providerRequestRecords || [],
+      serperProviderResponseSummaries: serperDiagnostics.providerResponseSummaries || []
+    }
+  };
+}
+
+function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" } = {}) {
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const sourceCategories = buildSourcesTargeted(sourceRoute);
+  const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake).slice(0, 5);
+  const domainRecords = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
+  const highPriorityQueries = mergeStringArrays(
+    domainRecords.filter((record) => record.searchPass === "open_web_exact").map((record) => record.query),
+    buildHighPriorityExactQueries(context).map((query) => cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12)),
+    searchQueries.map((query) => cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12)),
+    24
+  ).map(cleanSerperQuery).filter(Boolean);
+  const fallbackQueries = mergeStringArrays(
+    domainRecords.filter((record) => record.searchPass !== "open_web_exact").map((record) => record.query),
+    buildFallbackSearchQueries(context).map((query) => cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12)),
+    16
+  ).map(cleanSerperQuery).filter(Boolean);
+  const records = [];
+  const signatures = new Set();
+  const addRecord = ({ query, searchPass, marketplaceDomains: requestedDomains = [] }) => {
+    const cleaned = cleanSerperQuery(query);
+    if (!cleaned || isInternalPromptFragment(cleaned)) return;
+    const domainKey = requestedDomains.map((domain) => domain.toLowerCase()).join("|");
+    const signature = `${querySemanticSignature(cleaned)}|${domainKey}`;
+    if (!signature.trim() || signatures.has(signature)) return;
+    signatures.add(signature);
+    records.push({
+      query: cleaned,
+      priority: records.length + 1,
+      searchPass,
+      sourceRoute: sourceCategories,
+      marketplaceDomains: requestedDomains,
+      allowedDomains: requestedDomains
+    });
+  };
+
+  highPriorityQueries.slice(0, 4).forEach((query) => {
+    addRecord({ query, searchPass: "open_web_exact" });
+  });
+
+  if (marketplaceDomains.length && records.length < 6) {
+    const seedQuery = highPriorityQueries.find((query) => isMarketplaceUsefulQuery(query, context))
+      || highPriorityQueries[0]
+      || fallbackQueries[0]
+      || compactWords([context.brand, context.productTitle, context.itemType]);
+    const siteQuery = buildSerperMarketplaceQuery(seedQuery, marketplaceDomains);
+    addRecord({ query: siteQuery, searchPass: "marketplace_site_google", marketplaceDomains });
+  }
+
+  for (const query of fallbackQueries) {
+    if (records.length >= 6) break;
+    addRecord({ query, searchPass: "broader_fallback" });
+  }
+
+  if (!records.length) {
+    addRecord({
+      query: compactWords([context.productTitle, context.brand, context.itemType, context.itemCode || context.model || context.upc]),
+      searchPass: "broader_fallback"
+    });
+  }
+
+  return records.slice(0, 6).map((record, index) => ({
+    ...record,
+    priority: index + 1
+  }));
+}
+
+function buildSerperMarketplaceQuery(seedQuery, marketplaceDomains = []) {
+  const baseQuery = cleanSerperQuery(seedQuery);
+  const sites = marketplaceDomains
+    .map((domain) => cleanText(domain).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0])
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((domain) => `site:${domain}`);
+  if (!baseQuery || !sites.length) {
+    return baseQuery;
+  }
+  return cleanSerperQuery(`${baseQuery} (${sites.join(" OR ")})`, 260);
+}
+
+function cleanSerperQuery(value, maxLength = 240) {
+  let text = normalizeTokenString(value)
+    .replace(/\b(unknown|n\/a|none|not visible)\b/gi, "")
+    .replace(/\b([A-Za-z0-9']+\s+[A-Za-z0-9']+)(\s+\1\b)+/gi, "$1")
+    .replace(/\b(\w+)(\s+\1\b)+/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || isInternalPromptFragment(text)) {
+    return "";
+  }
+  if (text.length <= maxLength) {
+    return text;
+  }
+  const sitePart = (text.match(/\((?:site:[^)]+)\)$/i) || [])[0] || "";
+  const textWithoutSites = sitePart ? text.slice(0, -sitePart.length).trim() : text;
+  const trimmed = trimQueryTerms(textWithoutSites, sitePart ? 14 : 18);
+  return `${trimmed}${sitePart ? ` ${sitePart}` : ""}`.slice(0, maxLength).trim();
+}
+
+function createSerperRequestError({ category = "serper_provider_error", code = "", statusCode = null, message = "Serper Google Search request failed." } = {}) {
+  const error = new Error(sanitizeErrorText(message));
+  error.category = category;
+  error.code = sanitizeErrorText(code);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function classifySerperStatus(statusCode, data = {}) {
+  const haystack = [data.error, data.message, data.code, data?.error?.message].map((value) => String(value || "").toLowerCase()).join(" ");
+  if (statusCode === 401 || statusCode === 403 || /auth|api key|unauthorized|forbidden/.test(haystack)) {
+    return "serper_authentication_failure";
+  }
+  if (statusCode === 429 || /rate|quota|limit|billing/.test(haystack)) {
+    return "serper_rate_limited";
+  }
+  if (statusCode === 408 || statusCode === 504 || /timeout|timed out/.test(haystack)) {
+    return "serper_timeout";
+  }
+  return "serper_provider_error";
+}
+
+function summarizeSerperErrorMessage(data = {}, statusCode = null) {
+  const message = data?.error?.message || data?.message || data?.error || data?.code || "";
+  return sanitizeErrorText(message || `Serper Google Search request failed with status ${statusCode || "unknown"}.`);
+}
+
+function classifySerperError(error = {}) {
+  const category = error.category
+    || (error.name === "AbortError" ? "serper_timeout" : "")
+    || classifySerperStatus(error.statusCode, error);
+  const message = sanitizeErrorText(error.message || "Serper Google Search was unavailable before source results could be retrieved.");
+  const userMessage = category === "serper_authentication_failure"
+    ? "Serper Google Search authentication failed. The key value was not exposed."
+    : category === "serper_rate_limited"
+      ? "Serper Google Search was rate limited or quota-limited."
+      : category === "serper_timeout"
+        ? "Serper Google Search timed out before source results could be retrieved."
+        : message;
+  return {
+    category,
+    statusCode: error.statusCode || null,
+    code: sanitizeErrorText(error.code || ""),
+    message,
+    userMessage
+  };
+}
+
+function canonicalizeComparableUrl(url) {
+  const text = cleanText(url);
+  if (!/^https?:\/\//i.test(text)) {
+    return "";
+  }
+  try {
+    const parsed = new URL(text);
+    parsed.hash = "";
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (/^utm_/i.test(key) || /^(fbclid|gclid|msclkid|igshid|mc_cid|mc_eid|ref|spm|campid|customid)$/i.test(key)) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    return parsed.toString().replace(/[.,;]+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function parseDisplayedPrice(text) {
+  const normalized = extractDisplayedPrice(text);
+  if (!normalized) {
+    return null;
+  }
+  const amount = Number(normalized.replace(/[$,]/g, ""));
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
+  return {
+    query: queryRecord.query,
+    priority: queryRecord.priority,
+    searchPass: queryRecord.searchPass,
+    provider: "Serper Google Search",
+    providerKey: "serper_google",
+    marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
+    allowedDomainsRequested: queryRecord.marketplaceDomains || [],
+    statusCode: requestRecord.statusCode || null,
+    webSearchCallAppeared: false,
+    providerSourceCount: parsed.records.length,
+    organicResultCount: parsed.organicResultCount,
+    shoppingResultCount: parsed.shoppingResultCount,
+    knowledgeGraphResultCount: parsed.knowledgeGraphResultCount,
+    relatedSearchCount: parsed.relatedSearchCount,
+    parsedCandidateCount: parsed.records.length,
+    retainedResultCount: requestRecord.retainedResultCount || 0,
+    sourceURLsReturned: requestRecord.sourceURLsReturned || [],
+    domainsReturned: requestRecord.domainsReturned || []
+  };
+}
+
+function classifySerperIdentityMatch(record = {}, identity = {}, context = {}) {
+  const haystack = normalizeComparableText([
+    record.title,
+    record.snippet,
+    record.domain,
+    record.url
+  ].join(" "));
+  if (!haystack) {
+    return "Rejected";
+  }
+
+  const itemType = cleanText(context.itemType || inferSearchItemType(identity, context.visualCategory, context.productTitle, context.notesText, context.routeText));
+  if (hasStrongItemTypeMismatch(haystack, itemType)) {
+    return "Rejected";
+  }
+
+  const identifiers = [
+    context.upc,
+    context.model,
+    context.itemCode,
+    identity.upcBarcode,
+    identity.model,
+    identity.sku,
+    identity.styleNumber,
+    identity.modelOrItemNumber
+  ].map(cleanText).filter(hasKnownValue);
+  if (identifiers.some((identifier) => containsNormalizedPhrase(haystack, identifier))) {
+    return "Exact";
+  }
+
+  const distinctivePhrases = mergeStringArrays(
+    context.distinctivePhrases,
+    context.eventPhrases,
+    context.visibleEvidence,
+    identity.strongestSearchableIdentifiers,
+    identity.textIdentityEvidence,
+    24
+  ).filter((phrase) => cleanText(phrase).split(/\s+/).length >= 2);
+  const exactPhraseHits = distinctivePhrases.filter((phrase) => containsNormalizedPhrase(haystack, phrase));
+  const brandHit = containsAnyKnownPhrase(haystack, [context.brand, context.visualBrand, identity.brand, identity.brandSeries, identity.manufacturer]);
+  const organizationHit = containsAnyKnownPhrase(haystack, [context.visualOrganization, context.schoolName, context.teamName, identity.schoolName, identity.teamName, identity.recognizedOrganization]);
+  const personHit = containsAnyKnownPhrase(haystack, context.namedPeople || []);
+  const yearHit = containsAnyKnownPhrase(haystack, context.years || []);
+  const itemTypeHit = hasItemTypeSupport(haystack, itemType);
+  const productHit = containsAnyKnownPhrase(haystack, [context.productTitle, context.subjectIdentity, context.exactProductIdentity, identity.productNameOrBoxTitle]);
+  const score = [
+    exactPhraseHits.length >= 2 ? 4 : exactPhraseHits.length ? 3 : 0,
+    itemTypeHit ? 2 : 0,
+    brandHit ? 2 : 0,
+    organizationHit ? 2 : 0,
+    personHit ? 1 : 0,
+    yearHit ? 1 : 0,
+    productHit ? 1 : 0
+  ].reduce((sum, value) => sum + value, 0);
+
+  if ((exactPhraseHits.length && itemTypeHit && (brandHit || organizationHit || productHit)) || score >= 7) {
+    return "Exact";
+  }
+  if ((itemTypeHit && (brandHit || organizationHit || productHit)) || score >= 5) {
+    return "Strong Similar";
+  }
+  if (score >= 3 || exactPhraseHits.length || (itemTypeHit && (brandHit || organizationHit))) {
+    return "Partial";
+  }
+  if (record.sourceType === "knowledge_graph_reference" || brandHit || organizationHit || productHit) {
+    return "Reference Only";
+  }
+  if (score > 0 || itemTypeHit) {
+    return "Weak";
+  }
+  return "Rejected";
+}
+
+function normalizeComparableText(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[’]/g, "'")
+    .replace(/[^a-z0-9$.'":\/ -]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function containsNormalizedPhrase(haystack, phrase) {
+  const needle = normalizeComparableText(phrase).replace(/^["']|["']$/g, "");
+  if (!needle || !hasKnownValue(needle)) {
+    return false;
+  }
+  if (needle.length <= 3) {
+    return new RegExp(`\\b${escapeRegExp(needle)}\\b`, "i").test(haystack);
+  }
+  return haystack.includes(needle);
+}
+
+function containsAnyKnownPhrase(haystack, values = []) {
+  return normalizeStringArray(values, 20).filter(hasKnownValue).some((value) => containsNormalizedPhrase(haystack, value));
+}
+
+function hasItemTypeSupport(haystack, itemType) {
+  const tokens = itemTypeTokens(itemType);
+  return tokens.some((token) => new RegExp(`\\b${escapeRegExp(token)}s?\\b`, "i").test(haystack));
+}
+
+function itemTypeTokens(itemType) {
+  const text = normalizeComparableText(itemType);
+  const tokens = [];
+  const groups = [
+    ["tray", /tray|serving tray|collector tray|plate|platter/],
+    ["figurine", /figurine|figure|statue|decoration|decor|ornament|santa|christmas|holiday/],
+    ["dress", /dress|gown|skirt|apparel|clothing|shirt|jacket|shoe|boots?/],
+    ["laptop", /laptop|computer|notebook|macbook|chromebook/],
+    ["canister", /canister|cookie jar|jar|container|set/],
+    ["furniture", /furniture|sofa|chair|table|dresser|cabinet|desk|couch/],
+    ["bag", /bag|purse|handbag|tote|wallet/],
+    ["watch", /watch|wristwatch/],
+    ["phone", /phone|smartphone|iphone|android/]
+  ];
+  for (const [token, pattern] of groups) {
+    if (pattern.test(text)) tokens.push(token);
+  }
+  if (!tokens.length) {
+    tokens.push(...text.split(/\s+/).filter((token) => token.length > 3).slice(0, 3));
+  }
+  return [...new Set(tokens)];
+}
+
+function hasStrongItemTypeMismatch(haystack, itemType) {
+  const tokens = itemTypeTokens(itemType);
+  if (tokens.includes("tray") && /\b(bottle|can|mug|tumbler|glass|cooler|sign|shirt|cap|hat)\b/i.test(haystack) && !/\btray|platter|plate\b/i.test(haystack)) {
+    return true;
+  }
+  if (tokens.includes("figurine") && /\b(card|book|shirt|poster|sticker|mug|plate)\b/i.test(haystack) && !/\bfigurine|figure|statue|decoration|decor|ornament|santa|christmas|holiday\b/i.test(haystack)) {
+    return true;
+  }
+  if (tokens.includes("dress") && /\b(handbag|shoe|watch|jewelry|perfume|coat)\b/i.test(haystack) && !/\bdress|gown|skirt\b/i.test(haystack)) {
+    return true;
+  }
+  if (tokens.includes("laptop") && /\b(case|charger|battery|keyboard|skin|sleeve)\b/i.test(haystack) && !/\blaptop|notebook|computer|macbook|chromebook\b/i.test(haystack)) {
+    return true;
+  }
+  return false;
+}
+
+function classifySerperPriceEvidence(record = {}) {
+  const text = normalizeComparableText([record.title, record.snippet, record.domain, record.displayedPriceText].join(" "));
+  const hasPrice = Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice));
+  if (record.sourceType === "shopping" && hasPrice) {
+    return "Shopping Offer";
+  }
+  if (hasPrice && /\b(sold for|sold price|price realized|hammer price|final sale price)\b/i.test(text)) {
+    return "Confirmed Sold";
+  }
+  if (hasPrice && /\b(sold|ended|completed)\b/i.test(text)) {
+    return "Ended Listing Without Confirmed Sale";
+  }
+  if (hasPrice) {
+    return "Active Asking";
+  }
+  if (record.sourceType === "knowledge_graph_reference" || /reference|archive|worthpoint|picclick|collector|history|wiki/.test(text)) {
+    return "Reference Without Price";
+  }
+  return "No Usable Price Evidence";
+}
+
+function buildSerperRejectionReason(record = {}, identityMatchStrength = "", context = {}) {
+  const haystack = normalizeComparableText([record.title, record.snippet, record.url].join(" "));
+  if (identityMatchStrength === "Rejected" && hasStrongItemTypeMismatch(haystack, context.itemType)) {
+    return `Rejected as an item-type mismatch for expected ${context.itemType || "item"}.`;
+  }
+  if (identityMatchStrength === "Rejected") {
+    return "Rejected because the result did not share enough specific identity signals with the submitted item.";
+  }
+  if (identityMatchStrength === "Weak") {
+    return "Weak identity overlap only; not used to establish fair value.";
+  }
+  if (identityMatchStrength === "Partial") {
+    return "Partial match; useful only as directional context unless stronger identifiers are verified.";
+  }
+  if (identityMatchStrength === "Reference Only") {
+    return "Reference source only; useful for identity context but not direct valuation.";
+  }
+  return "";
+}
+
+function buildSerperMatchExplanation(record = {}, identityMatchStrength = "", priceEvidenceType = "") {
+  const source = record.domain || "source";
+  if (identityMatchStrength === "Exact") {
+    return `Appears to match specific visible identifiers, wording, brand, or item type from the submitted item. Price evidence: ${priceEvidenceType}.`;
+  }
+  if (identityMatchStrength === "Strong Similar") {
+    return `Shares strong brand/category/identity signals with the submitted item, but one or more exact details may differ. Price evidence: ${priceEvidenceType}.`;
+  }
+  if (identityMatchStrength === "Partial") {
+    return `Shares some identity or category signals from ${source}, but it is not exact enough for fair-market value by itself.`;
+  }
+  if (identityMatchStrength === "Reference Only") {
+    return `Source-backed identity/reference result from ${source}; no direct comparable price should be inferred.`;
+  }
+  if (identityMatchStrength === "Weak") {
+    return `Weak overlap with the submitted item; shown for transparency and not used as a valuation comp.`;
+  }
+  return `Rejected because it is not comparable to the submitted item.`;
+}
+
+function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "") {
+  if (/Exact|Strong Similar/.test(identityMatchStrength) && !/No Usable|Reference Without Price/.test(priceEvidenceType)) {
+    return `Comparable evidence - ${priceEvidenceType}`;
+  }
+  if (/Exact|Strong Similar/.test(identityMatchStrength)) {
+    return "Identity evidence only - no usable price";
+  }
+  if (identityMatchStrength === "Partial") {
+    return "Directional context only";
+  }
+  if (identityMatchStrength === "Reference Only") {
+    return "Identity/reference context only";
+  }
+  if (identityMatchStrength === "Weak") {
+    return "Weak match shown for transparency only";
+  }
+  return "Rejected - not used for valuation";
+}
+
+function preferRicherSerperRecord(existing = {}, incoming = {}) {
+  const score = (record) => {
+    let value = 0;
+    if (record.displayedPriceText) value += 8;
+    if (record.snippet) value += 2;
+    if (record.sourceType === "shopping") value += 2;
+    if (record.identityMatchStrength === "Exact") value += 10;
+    else if (record.identityMatchStrength === "Strong Similar") value += 7;
+    else if (record.identityMatchStrength === "Partial") value += 4;
+    else if (record.identityMatchStrength === "Reference Only") value += 2;
+    value += Math.min(4, Math.floor(cleanText(record.title).length / 40));
+    return value;
+  };
+  return score(incoming) > score(existing)
+    ? { ...incoming, queriesFound: existing.queriesFound, searchPassesFound: existing.searchPassesFound }
+    : { ...existing };
+}
+
+function bucketSerperRecords(records = []) {
+  const buckets = {
+    strongComparables: [],
+    partialComparables: [],
+    referenceResults: [],
+    weakMatches: [],
+    rejectedMatches: []
+  };
+  for (const record of records) {
+    const visible = serperRecordToVisibleResearchRecord(record);
+    if (record.identityMatchStrength === "Exact" || record.identityMatchStrength === "Strong Similar") {
+      buckets.strongComparables.push(visible);
+    } else if (record.identityMatchStrength === "Partial") {
+      buckets.partialComparables.push(visible);
+    } else if (record.identityMatchStrength === "Reference Only") {
+      buckets.referenceResults.push(visible);
+    } else if (record.identityMatchStrength === "Weak") {
+      buckets.weakMatches.push(visible);
+    } else {
+      buckets.rejectedMatches.push(visible);
+    }
+  }
+  return {
+    strongComparables: buckets.strongComparables.slice(0, 8),
+    partialComparables: buckets.partialComparables.slice(0, 8),
+    referenceResults: buckets.referenceResults.slice(0, 8),
+    weakMatches: buckets.weakMatches.slice(0, 8),
+    rejectedMatches: buckets.rejectedMatches.slice(0, 8)
+  };
+}
+
+function serperRecordToVisibleResearchRecord(record = {}) {
+  const classification = record.identityMatchStrength === "Exact"
+    ? "Exact Match"
+    : record.identityMatchStrength === "Strong Similar"
+      ? "Strong Similar Match"
+      : record.identityMatchStrength === "Partial"
+        ? "Partial Comparable"
+        : record.identityMatchStrength === "Reference Only"
+          ? "Reference Only"
+          : record.identityMatchStrength === "Weak"
+            ? "Weak Match"
+            : "Rejected Match";
+  const status = /sold/i.test(record.priceEvidenceType)
+    ? "sold/ended evidence status requires source context"
+    : /Active Asking|Shopping Offer/i.test(record.priceEvidenceType)
+      ? "active/reference asking evidence"
+      : "reference/no-price evidence";
+  return {
+    title: record.title || record.url || "Source result",
+    source: record.domain || record.source || "Serper Google result",
+    url: record.url,
+    canonicalUrl: record.canonicalUrl,
+    displayedPrice: record.displayedPriceText,
+    price: record.displayedPriceText,
+    parsedPrice: record.parsedPrice,
+    currency: record.currency,
+    priceType: record.priceEvidenceType,
+    condition: inferConditionFromSerperRecord(record),
+    classification,
+    identityMatchStrength: record.identityMatchStrength,
+    evidenceRole: record.evidenceRole,
+    matchExplanation: record.matchExplanation,
+    itemIdentityDifferences: record.itemIdentityDifferences,
+    influencedReferenceRange: record.influencedReferenceRange,
+    rejectionReason: record.rejectionReason,
+    sourceBacked: record.sourceBacked,
+    provider: "serper_google",
+    providerLabel: "Serper Google Search",
+    sourceType: record.sourceType,
+    searchPass: record.searchPass,
+    query: record.query,
+    queriesFound: record.queriesFound || [record.query].filter(Boolean),
+    searchPassesFound: record.searchPassesFound || [record.searchPass].filter(Boolean),
+    activeSoldReferenceStatus: status,
+    snippet: record.snippet,
+    rawText: [
+      `Provider: serper_google`,
+      `Source/platform/site: ${record.domain || "Unknown source"}`,
+      `Title: ${record.title || "Title not supplied"}`,
+      record.displayedPriceText ? `Price: ${record.displayedPriceText}` : "",
+      `Price Type: ${record.priceEvidenceType}`,
+      `URL: ${record.url}`,
+      `Match quality: ${classification}`,
+      `Source Type: ${record.sourceType}`,
+      `Search pass: ${record.searchPass}`,
+      `Query: ${record.query}`,
+      `Why: ${record.matchExplanation}`
+    ].filter(Boolean).join(" | ")
+  };
+}
+
+function inferConditionFromSerperRecord(record = {}) {
+  const text = normalizeComparableText([record.title, record.snippet].join(" "));
+  if (/\bnew with tags|nwt|new\b/.test(text)) return "New or retail listing language visible";
+  if (/\bused|preowned|pre-owned|vintage|antique\b/.test(text)) return "Used/vintage listing language visible";
+  if (/\bdamaged|cracked|chips?|repair|parts only\b/.test(text)) return "Condition issue language visible";
+  return "";
+}
+
+function classifySerperAcquisitionStage({ providerCallsSucceeded = 0, providerSourceCount = 0, normalizedCandidateCount = 0, retainedVisibleResultCount = 0, rejectedCandidateCount = 0, providerErrors = [] } = {}) {
+  if (retainedVisibleResultCount > 0) return "none";
+  if (!providerCallsSucceeded) {
+    return providerErrors[0]?.category || "serper_provider_error";
+  }
+  if (providerSourceCount === 0) return "serper_zero_results";
+  if (normalizedCandidateCount === 0) return "normalization_failure";
+  if (rejectedCandidateCount > 0 || normalizedCandidateCount > 0) return "filtering_failure";
+  return "unknown";
+}
+
+function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], records = [], providerSourceCount = 0, retainedVisibleResultCount = 0, rejectedCandidateCount = 0, acquisitionFailureStage = "unknown", elapsedMs = 0, liveSearchStatus = "" } = {}) {
+  const providerCallsAttempted = providerRequestRecords.filter((record) => record.attempted).length;
+  const providerCallsSucceeded = providerRequestRecords.filter((record) => record.succeeded).length;
+  const organicResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.organicResultCount || 0), 0);
+  const shoppingResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0);
+  const droppedResultReasons = normalizeDropReasons(records
+    .filter((record) => record.rejectionReason)
+    .map((record) => record.rejectionReason));
+  return {
+    queriesGenerated: searchQueries,
+    queriesPrioritized,
+    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    queryTransmissionMode: "query_bound_serper_requests",
+    executionLimitation: "Each prioritized query was sent server-side to Serper Google Search. Provider results are source-backed Google result records; only retained exact, strong, partial, or reference records are shown as visible evidence.",
+    queryCount: searchQueries.length,
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "Serper Google Search",
+    providerKey: "serper_google",
+    serperConfigured: true,
+    sourcesRequested: buildSourcesTargeted(sourceRoute),
+    sourcesActuallyQueried: providerCallsAttempted ? ["Serper Google Search"] : [],
+    sourceRoute,
+    providerCallsAttempted,
+    providerCallsSucceeded,
+    serperCallsAttempted: providerCallsAttempted,
+    serperCallsSucceeded: providerCallsSucceeded,
+    providerSourceCount,
+    organicResultCount,
+    shoppingResultCount,
+    domainsActuallyReturned: summarizeSourceLabels(records.map((record) => record.domain).filter(Boolean)),
+    sourceURLsReturned: [...new Set(records.map((record) => record.url).filter(Boolean))].slice(0, 50),
+    providerErrors: providerErrors.map(sanitizeProviderErrorSummary),
+    providerRequestRecords: providerRequestRecords.map(sanitizeProviderRequestRecord),
+    providerResponseSummaries: providerResponseSummaries.map(sanitizeProviderResponseSummary),
+    providerSourceRecords: records.map(serperRecordToVisibleResearchRecord).slice(0, 50),
+    rawResultCount: providerSourceCount,
+    parsedCandidateCount: providerSourceCount,
+    normalizedCandidateCount: records.length,
+    deduplicatedCandidateCount: records.length,
+    exactCandidateCount: records.filter((record) => record.identityMatchStrength === "Exact").length,
+    strongSimilarCandidateCount: records.filter((record) => record.identityMatchStrength === "Strong Similar").length,
+    visibleRetainedResultCount: retainedVisibleResultCount,
+    retainedVisibleResultCount,
+    rejectedCandidateCount,
+    rejectedResultCount: rejectedCandidateCount,
+    droppedResultReasons,
+    queryResultsSummary: buildQueryResultsSummary({
+      searchQueries,
+      queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+      queryTransmissionMode: "query_bound_serper_requests",
+      retainedVisibleResultCount,
+      providerErrors,
+      providerRequestRecords
+    }),
+    fallbackProviderUsed: false,
+    acquisitionFailureStage,
+    safeRawResults: [],
+    sourcesSearched: providerCallsAttempted ? ["Serper Google Search"] : [],
+    sourcesReturned: summarizeSourceLabels(records.map((record) => record.domain || record.title || record.url)),
+    elapsedMilliseconds: elapsedMs,
+    liveSearchStatus
+  };
+}
+
+function collectMarketplaceDomainsRequested(providerRequestRecords = []) {
+  const domains = [];
+  for (const record of providerRequestRecords) {
+    for (const domain of normalizeStringArray(record.marketplaceDomainsRequested || record.allowedDomainsRequested || record.allowedDomains, 12)) {
+      addUnique(domains, domain);
+    }
+  }
+  return domains.slice(0, 24);
 }
 
 function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true, useSearchControls = true }) {
@@ -3360,13 +4551,17 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
     return providerRequestRecords.map((record) => ({
       query: cleanText(record.query),
       source: cleanText(record.provider || "OpenAI web_search"),
+      providerKey: cleanText(record.providerKey || ""),
       searchPass: cleanText(record.searchPass),
       sourceRoute: normalizeStringArray(record.sourceRoute, 8),
       allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
+      marketplaceDomainsRequested: normalizeStringArray(record.marketplaceDomainsRequested, 8),
       allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
       requestAttempted: Boolean(record.attempted),
       requestSucceeded: Boolean(record.succeeded),
       providerSourceCount: Number(record.providerSourceCount || 0),
+      organicResultCount: Number(record.organicResultCount || 0),
+      shoppingResultCount: Number(record.shoppingResultCount || 0),
       domainsReturned: normalizeStringArray(record.domainsReturned, 8),
       sourceURLsReturned: normalizeStringArray(record.sourceURLsReturned, 12),
       rawResultCount: Number(record.rawResultCount || 0),
@@ -3416,17 +4611,23 @@ function sanitizeProviderRequestRecord(record = {}) {
     searchPass: cleanText(record.searchPass),
     sourceRoute: normalizeStringArray(record.sourceRoute, 8),
     allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
+    marketplaceDomainsRequested: normalizeStringArray(record.marketplaceDomainsRequested, 8),
     allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
     provider: cleanText(record.provider || "OpenAI web_search"),
+    providerKey: cleanText(record.providerKey || ""),
     attempted: Boolean(record.attempted),
     succeeded: Boolean(record.succeeded),
     providerSourceCount: Number(record.providerSourceCount || 0),
+    organicResultCount: Number(record.organicResultCount || 0),
+    shoppingResultCount: Number(record.shoppingResultCount || 0),
+    knowledgeGraphResultCount: Number(record.knowledgeGraphResultCount || 0),
     domainsReturned: normalizeStringArray(record.domainsReturned, 8),
     sourceURLsReturned: normalizeStringArray(record.sourceURLsReturned, 12),
     rawResultCount: Number(record.rawResultCount || 0),
     parsedResultCount: Number(record.parsedResultCount || 0),
     normalizedResultCount: Number(record.normalizedResultCount || 0),
     retainedResultCount: Number(record.retainedResultCount || 0),
+    rejectedResultCount: Number(record.rejectedResultCount || 0),
     errorCode: cleanText(record.errorCode),
     failureStage: cleanText(record.failureStage || "unknown")
   };
@@ -3438,15 +4639,26 @@ function sanitizeProviderResponseSummary(summary = {}) {
     priority: Number(summary.priority || 0),
     searchPass: cleanText(summary.searchPass),
     provider: cleanText(summary.provider || "OpenAI web_search"),
+    providerKey: cleanText(summary.providerKey || ""),
     allowedDomainsRequested: normalizeStringArray(summary.allowedDomainsRequested, 8),
+    marketplaceDomainsRequested: normalizeStringArray(summary.marketplaceDomainsRequested, 8),
     allowedDomainsApplied: Boolean(summary.allowedDomainsApplied),
     statusCode: summary.statusCode || null,
     webSearchCallAppeared: Boolean(summary.webSearchCallAppeared),
     urlCitationCount: Number(summary.urlCitationCount || 0),
     providerSourceCount: Number(summary.providerSourceCount || 0),
+    organicResultCount: Number(summary.organicResultCount || 0),
+    shoppingResultCount: Number(summary.shoppingResultCount || 0),
+    knowledgeGraphResultCount: Number(summary.knowledgeGraphResultCount || 0),
+    relatedSearchCount: Number(summary.relatedSearchCount || 0),
+    parsedCandidateCount: Number(summary.parsedCandidateCount || 0),
+    normalizedResultCount: Number(summary.normalizedResultCount || 0),
+    retainedResultCount: Number(summary.retainedResultCount || 0),
+    rejectedResultCount: Number(summary.rejectedResultCount || 0),
     sourceURLsReturned: normalizeStringArray(summary.sourceURLsReturned, 12),
     domainsReturned: normalizeStringArray(summary.domainsReturned, 8),
     providerActionQueries: normalizeStringArray(summary.providerActionQueries, 4).filter((query) => !isInternalPromptFragment(query)),
+    failureStage: cleanText(summary.failureStage || ""),
     errorCode: cleanText(summary.errorCode),
     errorMessage: sanitizeErrorText(summary.errorMessage || "")
   };
@@ -3649,11 +4861,16 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
   const priceType = inferPriceType(rawText);
   const rejected = bucketName === "rejectedMatches" || /rejected|not comparable|not a comparable|failed/i.test(rawText);
   const identityStrength = classifyIdentityMatchStrength({ rawText, title: extractResultTitle(rawText, source, url), classification }, identity);
+  const sourceType = extractLabeledResultPart(rawText, /source\s*type\s*[:=-]\s*([^|;.]+)/i);
+  const searchPass = extractLabeledResultPart(rawText, /search\s*pass\s*[:=-]\s*([^|;.]+)/i);
+  const query = extractLabeledResultPart(rawText, /query\s*[:=-]\s*([^|;.]+)/i);
+  const provider = extractLabeledResultPart(rawText, /provider\s*[:=-]\s*([^|;.]+)/i);
 
   return {
     title: extractResultTitle(rawText, source, url),
     source,
     url: url || "",
+    canonicalUrl: canonicalizeComparableUrl(url) || url || "",
     displayedPrice,
     currency: displayedPrice ? "$" : "",
     priceType,
@@ -3665,6 +4882,11 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     influencedReferenceRange: ["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No.",
     rejectionReason: rejected ? extractRejectionReason(rawText, classification) : "",
     sourceBacked: url && hasCitedUrl(rawText, citations) ? "URL-cited" : url ? "URL provided by result text" : "No usable URL supplied by source.",
+    provider,
+    sourceType,
+    searchPass,
+    query,
+    activeSoldReferenceStatus: inferActiveSoldReferenceStatus(priceType, rawText),
     rawText
   };
 }
@@ -3678,6 +4900,7 @@ function recordsToLegacyComparableStrings(records) {
 
 function formatResearchRecordForLegacySection(record) {
   return [
+    record.provider ? `Provider: ${record.provider}` : "",
     `Source/platform/site: ${record.source || "Unknown source"}`,
     `Title: ${record.title || "Title not supplied"}`,
     record.displayedPrice ? `Price: ${record.displayedPrice}` : "",
@@ -3685,6 +4908,10 @@ function formatResearchRecordForLegacySection(record) {
     record.condition ? `Condition: ${record.condition}` : "",
     record.url ? `URL: ${record.url}` : "URL: No usable URL supplied by source.",
     `Match quality: ${record.classification}`,
+    record.sourceType ? `Source Type: ${record.sourceType}` : "",
+    record.activeSoldReferenceStatus ? `Active/Sold/Reference Status: ${record.activeSoldReferenceStatus}` : "",
+    record.searchPass ? `Search pass: ${record.searchPass}` : "",
+    record.query ? `Query: ${record.query}` : "",
     record.matchExplanation ? `Why: ${record.matchExplanation}` : ""
   ].filter(Boolean).join(" | ");
 }
@@ -3726,6 +4953,15 @@ function inferPriceType(text) {
     return "Current retail price";
   }
   return "Price type not confirmed";
+}
+
+function inferActiveSoldReferenceStatus(priceType, rawText = "") {
+  const text = [priceType, rawText].map(cleanText).join(" ").toLowerCase();
+  if (/confirmed sold|sold price|sold for|price realized/.test(text)) return "confirmed sold evidence";
+  if (/ended listing/.test(text)) return "ended listing without confirmed sale";
+  if (/active asking|asking price|for sale|current listing|shopping offer/.test(text)) return "active/reference asking evidence";
+  if (/reference/.test(text)) return "reference/no-price evidence";
+  return "";
 }
 
 function inferResultClassification(text, bucketName) {
@@ -4088,21 +5324,33 @@ function normalizeResearchRecordArray(value, bucketName) {
 function normalizeExistingResearchRecord(item, bucketName) {
   const rawText = cleanText(item.rawText || Object.entries(item).map(([key, value]) => `${key}: ${value}`).join(" | "));
   const url = cleanText(item.url || extractFirstUrl(rawText));
+  const displayedPrice = normalizeMoneyLabelText(cleanText(item.displayedPrice || item.displayedPriceText || item.price));
+  const priceType = cleanText(item.priceType || item.priceEvidenceType) || inferPriceType(rawText);
   return {
     title: cleanText(item.title) || extractResultTitle(rawText, cleanText(item.source), url),
     source: cleanText(item.source) || inferSourceFromResult(rawText, url),
     url,
-    displayedPrice: normalizeMoneyLabelText(cleanText(item.displayedPrice || item.price)),
-    currency: cleanText(item.currency) || (item.displayedPrice || item.price ? "$" : ""),
-    priceType: cleanText(item.priceType) || inferPriceType(rawText),
+    canonicalUrl: cleanText(item.canonicalUrl) || canonicalizeComparableUrl(url) || url,
+    displayedPrice,
+    currency: cleanText(item.currency) || (displayedPrice ? "$" : ""),
+    priceType,
     condition: cleanText(item.condition),
     classification: cleanText(item.classification) || inferResultClassification(rawText, bucketName),
+    identityMatchStrength: cleanText(item.identityMatchStrength),
     evidenceRole: cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
     matchExplanation: cleanText(item.matchExplanation) || extractMatchExplanation(rawText),
     itemIdentityDifferences: cleanText(item.itemIdentityDifferences) || extractIdentityDifferences(rawText),
     influencedReferenceRange: cleanText(item.influencedReferenceRange) || (["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No."),
     rejectionReason: cleanText(item.rejectionReason) || (bucketName === "rejectedMatches" ? extractRejectionReason(rawText, cleanText(item.classification)) : ""),
     sourceBacked: cleanText(item.sourceBacked) || (url ? "URL provided by result text" : "No usable URL supplied by source."),
+    provider: cleanText(item.provider || item.providerKey || extractLabeledResultPart(rawText, /provider\s*[:=-]\s*([^|;.]+)/i)),
+    providerLabel: cleanText(item.providerLabel),
+    sourceType: cleanText(item.sourceType || extractLabeledResultPart(rawText, /source\s*type\s*[:=-]\s*([^|;.]+)/i)),
+    searchPass: cleanText(item.searchPass || extractLabeledResultPart(rawText, /search\s*pass\s*[:=-]\s*([^|;.]+)/i)),
+    query: cleanText(item.query || extractLabeledResultPart(rawText, /query\s*[:=-]\s*([^|;.]+)/i)),
+    queriesFound: normalizeStringArray(item.queriesFound, 8),
+    searchPassesFound: normalizeStringArray(item.searchPassesFound, 6),
+    activeSoldReferenceStatus: cleanText(item.activeSoldReferenceStatus) || inferActiveSoldReferenceStatus(priceType, rawText),
     rawText
   };
 }
@@ -6742,6 +7990,8 @@ function buildSearchCoverage(liveSearch) {
   const allowedDomains = normalizeStringArray(liveSearch.allowedDomainsRequested || diagnostics.allowedDomainsRequested, 24);
   const domainsReturned = normalizeStringArray(liveSearch.domainsActuallyReturned || diagnostics.domainsActuallyReturned || liveSearch.sourcesReturned, 24);
   const providerSourceCount = Number(liveSearch.providerSourceCount || diagnostics.providerSourceCount || 0);
+  const organicResultCount = Number(liveSearch.organicResultCount || diagnostics.organicResultCount || 0);
+  const shoppingResultCount = Number(liveSearch.shoppingResultCount || diagnostics.shoppingResultCount || 0);
   const parsedCandidateCount = Number(liveSearch.parsedCandidateCount || diagnostics.parsedCandidateCount || diagnostics.parsedResultCount || 0);
   const normalizedCandidateCount = Number(liveSearch.normalizedCandidateCount || diagnostics.normalizedCandidateCount || diagnostics.normalizedResultCount || 0);
   const retainedVisibleResultCount = Number(liveSearch.retainedVisibleResultCount || diagnostics.retainedVisibleResultCount || 0);
@@ -6751,6 +8001,9 @@ function buildSearchCoverage(liveSearch) {
   ];
 
   coverage.push(`Search provider used: ${cleanText(liveSearch.searchProviderUsed || diagnostics.searchProviderUsed || "OpenAI web_search")}.`);
+  if (diagnostics.serperConfigured !== undefined) {
+    coverage.push(`Serper configured: ${diagnostics.serperConfigured ? "Yes" : "No"}. Fallback provider used: ${diagnostics.fallbackProviderUsed ? "Yes" : "No"}.`);
+  }
 
   if (allowedDomains.length) {
     coverage.push(`Marketplace-domain search requested across: ${allowedDomains.join(", ")}.`);
@@ -6773,6 +8026,9 @@ function buildSearchCoverage(liveSearch) {
   }
 
   coverage.push(`${providerSourceCount} provider source${providerSourceCount === 1 ? "" : "s"} returned.`);
+  if (organicResultCount || shoppingResultCount) {
+    coverage.push(`${organicResultCount} organic Google result${organicResultCount === 1 ? "" : "s"} and ${shoppingResultCount} shopping result${shoppingResultCount === 1 ? "" : "s"} returned by the provider.`);
+  }
   coverage.push(`${parsedCandidateCount} structured candidate${parsedCandidateCount === 1 ? "" : "s"} created; ${normalizedCandidateCount} normalized; ${retainedVisibleResultCount} visible comparable/reference record${retainedVisibleResultCount === 1 ? "" : "s"} retained; ${rejectedCandidateCount} rejected.`);
 
   for (const marketplaceDomain of allowedDomains.filter((domain) => /ebay\.com|etsy\.com|mercari\.com|poshmark\.com|worthpoint\.com|picclick\.com|facebook\.com|craigslist\.org|offerup\.com/i.test(domain))) {
