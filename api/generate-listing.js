@@ -940,6 +940,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "Avoid restarting the entire item analysis unless the user explicitly asks for a new analysis or a new search.",
     "No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.",
     "Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.",
+    "For questions about search activity, answer from searchDiagnostics fields such as allowedDomainsRequested, providerRequestRecords, providerCallsSucceeded, domainsActuallyReturned, providerSourceCount, retainedVisibleResultCount, and rejectedCandidateCount. Distinguish a targeted domain from a provider call, a returned URL domain, and a retained comparable record.",
     "Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.",
     "Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.",
     "If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.",
@@ -1470,24 +1471,33 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
 async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
   const requestStartedAtMs = Date.now();
-  const queriesPrioritized = buildPrioritizedQueryRecords(searchQueries, sourceRoute);
+  const queriesPrioritized = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const providerRequestRecords = [];
   const providerResponseSummaries = [];
   const providerErrors = [];
   const responseDataList = [];
   const resultList = [];
   const safeRawResultSummaries = [];
+  const providerSourceRecords = [];
   let includeSourcesRequested = true;
   let includeFallbackReason = "";
+  let searchControlsSupported = true;
+  let searchControlsFallbackReason = "";
 
   for (const queryRecord of queriesPrioritized) {
     const requestRecord = {
       query: queryRecord.query,
       priority: queryRecord.priority,
+      searchPass: queryRecord.searchPass,
       sourceRoute: queryRecord.sourceRoute,
+      allowedDomainsRequested: queryRecord.allowedDomains,
+      allowedDomainsApplied: Boolean(queryRecord.allowedDomains?.length),
       provider: "OpenAI web_search",
       attempted: true,
       succeeded: false,
+      providerSourceCount: 0,
+      domainsReturned: [],
+      sourceURLsReturned: [],
       rawResultCount: 0,
       parsedResultCount: 0,
       normalizedResultCount: 0,
@@ -1507,18 +1517,26 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
         queryRecord,
         buyerIntake,
         researchPurpose,
-        includeSources: includeSourcesRequested
+        includeSources: includeSourcesRequested,
+        useSearchControls: searchControlsSupported
       });
       let response;
       try {
         response = await requestOpenAIJson({ apiKey, payload });
       } catch (error) {
-        if (!isIncludeCompatibilityError(error)) {
+        if (!isWebSearchOptionCompatibilityError(error)) {
           throw error;
         }
 
-        includeSourcesRequested = false;
-        includeFallbackReason = "Source include was not accepted by the provider; query-bound live search was retried without source-list include.";
+        if (isIncludeCompatibilityError(error)) {
+          includeSourcesRequested = false;
+          includeFallbackReason = "Source include was not accepted by the provider; query-bound live search was retried without source-list include.";
+        }
+        if (isSearchControlCompatibilityError(error)) {
+          searchControlsSupported = false;
+          searchControlsFallbackReason = "Search controls such as allowed domain filters or search_context_size were not accepted by the provider; the request was retried without those controls.";
+        }
+        requestRecord.allowedDomainsApplied = searchControlsSupported && Boolean(queryRecord.allowedDomains?.length);
         response = await requestOpenAIJson({
           apiKey,
           payload: createQueryBoundLiveSearchPayload({
@@ -1530,7 +1548,8 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
             queryRecord,
             buyerIntake,
             researchPurpose,
-            includeSources: false
+            includeSources: includeSourcesRequested,
+            useSearchControls: searchControlsSupported
           })
         });
       }
@@ -1538,6 +1557,9 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
       const { json, data, statusCode } = response;
       const citations = collectUrlCitations(data);
       const webSearchCalls = collectWebSearchCalls(data);
+      const sourceRecords = collectWebSearchSourceRecords(data, queryRecord);
+      const sourceBackfillRecords = sourceRecords.length ? [] : citations.map((citation) => sourceRecordFromCitation(citation, queryRecord));
+      const requestSourceRecords = [...sourceRecords, ...sourceBackfillRecords];
       const rawSummaries = collectSafeRawResultSummaries({
         result: json,
         citations,
@@ -1546,15 +1568,20 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
       }).map((summary) => ({ ...summary, query: queryRecord.query }));
       const bucketedResearch = buildResearchResultBuckets(json, normalizeStringArray(json.comparableItemsFound, 8), citations, identity);
       const normalization = bucketedResearch.normalizationDiagnostics || {};
+      const domainsReturned = summarizeSourceLabels(requestSourceRecords.map((record) => record.domain).filter(Boolean));
+      const sourceURLsReturned = [...new Set(requestSourceRecords.map((record) => record.url).filter(Boolean))].slice(0, 20);
 
       requestRecord.succeeded = webSearchCalls.length > 0;
+      requestRecord.providerSourceCount = requestSourceRecords.length;
+      requestRecord.domainsReturned = domainsReturned;
+      requestRecord.sourceURLsReturned = sourceURLsReturned;
       requestRecord.rawResultCount = rawSummaries.length;
       requestRecord.parsedResultCount = Number(normalization.parsedResultCount || 0);
       requestRecord.normalizedResultCount = Number(normalization.normalizedResultCount || 0);
       requestRecord.retainedResultCount = Number(normalization.retainedVisibleResultCount || 0);
       requestRecord.failureStage = classifySearchFailureStage({
         providerCallsSucceeded: webSearchCalls.length,
-        rawResultCount: requestRecord.rawResultCount,
+        rawResultCount: requestRecord.providerSourceCount || requestRecord.rawResultCount,
         parsedResultCount: requestRecord.parsedResultCount,
         normalizedResultCount: requestRecord.normalizedResultCount,
         retainedVisibleResultCount: requestRecord.retainedResultCount,
@@ -1566,14 +1593,20 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
       resultList.push(json);
       responseDataList.push(data);
       safeRawResultSummaries.push(...rawSummaries);
+      providerSourceRecords.push(...requestSourceRecords);
       providerResponseSummaries.push({
         query: queryRecord.query,
         priority: queryRecord.priority,
+        searchPass: queryRecord.searchPass,
         provider: "OpenAI web_search",
+        allowedDomainsRequested: queryRecord.allowedDomains,
+        allowedDomainsApplied: requestRecord.allowedDomainsApplied,
         statusCode,
         webSearchCallAppeared: webSearchCalls.length > 0,
         urlCitationCount: citations.length,
-        domainsReturned: summarizeSourceLabels(citations.map((citation) => sourceLabelFromCitation(citation)).filter(Boolean)),
+        providerSourceCount: requestSourceRecords.length,
+        sourceURLsReturned,
+        domainsReturned,
         providerActionQueries: collectWebSearchActionQueries(webSearchCalls).filter((query) => !isInternalPromptFragment(query)).slice(0, 4)
       });
     } catch (error) {
@@ -1589,10 +1622,15 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
       providerResponseSummaries.push({
         query: queryRecord.query,
         priority: queryRecord.priority,
+        searchPass: queryRecord.searchPass,
         provider: "OpenAI web_search",
+        allowedDomainsRequested: queryRecord.allowedDomains,
+        allowedDomainsApplied: requestRecord.allowedDomainsApplied,
         statusCode: diagnostic.statusCode || null,
         webSearchCallAppeared: false,
         urlCitationCount: 0,
+        providerSourceCount: 0,
+        sourceURLsReturned: [],
         domainsReturned: [],
         errorCode: requestRecord.errorCode,
         errorMessage: diagnostic.message
@@ -1613,6 +1651,7 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
       elapsedMs: Date.now() - requestStartedAtMs,
       includeSourcesRequested,
       includeFallbackReason,
+      searchControlsFallbackReason,
       providerErrors
     });
   }
@@ -1629,15 +1668,17 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     providerRequestRecords,
     providerResponseSummaries,
     providerErrors,
+    providerSourceRecords,
     safeRawResultSummaries,
     elapsedMs: Date.now() - requestStartedAtMs,
     statusCode: providerResponseSummaries.find((item) => item.statusCode)?.statusCode || null,
     includeSourcesRequested,
-    includeFallbackReason
+    includeFallbackReason,
+    searchControlsFallbackReason
   });
 }
 
-function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true }) {
+function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true, useSearchControls = true }) {
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const purposeText = researchPurpose === "listing"
     ? "Generate Listing price-support research."
@@ -1650,9 +1691,18 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
     "Classify identity match separately from price evidence type.",
     "Return only source-backed URL results that came from this query, and put weak or irrelevant URL-cited results in rejectedMatches with reasons."
   ].join(" ");
+  const tool = { type: "web_search" };
+  if (useSearchControls) {
+    tool.search_context_size = "medium";
+    if (queryRecord.allowedDomains?.length) {
+      tool.filters = {
+        allowed_domains: queryRecord.allowedDomains
+      };
+    }
+  }
   const payload = {
     model,
-    tools: [{ type: "web_search" }],
+    tools: [tool],
     tool_choice: "required",
     input: [
       {
@@ -1673,6 +1723,10 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
               researchPromptInternal,
               `Research purpose: ${purposeText}`,
               `Search query to execute exactly: ${queryRecord.query}`,
+              `Search pass: ${queryRecord.searchPass}`,
+              queryRecord.allowedDomains?.length
+                ? `Allowed domains requested: ${queryRecord.allowedDomains.join(", ")}`
+                : "Allowed domains requested: none (open web search).",
               `Query priority: ${queryRecord.priority}`,
               `Source route requested: ${JSON.stringify(sourceRoute)}`,
               `Marketplace platform context: ${platform || "No platform selected"}`,
@@ -1705,15 +1759,132 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
 }
 
 function buildPrioritizedQueryRecords(searchQueries = [], sourceRoute = []) {
-  return searchQueries
-    .map((query) => cleanText(query))
-    .filter((query) => query && !isInternalPromptFragment(query))
-    .map((query, index) => ({
+  return buildDomainDirectedSearchPlan({ searchQueries, sourceRoute });
+}
+
+function buildDomainDirectedSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" } = {}) {
+  const sourceCategories = buildSourcesTargeted(sourceRoute);
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake);
+  const cleanedQueries = [];
+  for (const query of searchQueries) {
+    const cleaned = cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12);
+    if (cleaned && !isInternalPromptFragment(cleaned) && !isRepetitiveQuery(cleaned, cleanedQueries)) {
+      cleanedQueries.push(cleaned);
+    }
+  }
+
+  const exactQueries = cleanedQueries.filter((query) => isHighValueExactQuery(query, context));
+  const marketplaceSeedQueries = cleanedQueries.filter((query) => isMarketplaceUsefulQuery(query, context));
+  const fallbackQueries = cleanedQueries.filter((query) => !exactQueries.includes(query));
+  const records = [];
+
+  const addRecord = ({ query, searchPass, allowedDomains = [] }) => {
+    const domainKey = allowedDomains.join("|").toLowerCase();
+    if (!query || records.some((record) => (
+      queriesAreSemanticallySame(record.query, query)
+        && (record.allowedDomains || []).join("|").toLowerCase() === domainKey
+    ))) {
+      return;
+    }
+    records.push({
       query,
-      priority: index + 1,
-      sourceRoute: buildSourcesTargeted(sourceRoute)
-    }))
-    .slice(0, 8);
+      priority: records.length + 1,
+      searchPass,
+      sourceRoute: sourceCategories,
+      allowedDomains
+    });
+  };
+
+  mergeStringArrays(exactQueries, cleanedQueries, 6).slice(0, 4).forEach((query) => {
+    addRecord({ query, searchPass: "open_web_exact" });
+  });
+
+  if (marketplaceDomains.length) {
+    mergeStringArrays(exactQueries, marketplaceSeedQueries, cleanedQueries, 6).slice(0, 3).forEach((query) => {
+      addRecord({ query, searchPass: "marketplace_domain", allowedDomains: marketplaceDomains });
+    });
+  }
+
+  mergeStringArrays(fallbackQueries, cleanedQueries, 4).slice(0, 2).forEach((query) => {
+    addRecord({ query, searchPass: "broader_fallback" });
+  });
+
+  return records.slice(0, 8).map((record, index) => ({
+    ...record,
+    priority: index + 1
+  }));
+}
+
+function selectMarketplaceAllowedDomains(context = {}, sourceRoute = [], buyerIntake = normalizeBuyerIntake({})) {
+  const routeText = sourceRoute.join(" ").toLowerCase();
+  const haystack = [
+    context.routeText,
+    routeText,
+    buyerIntake.purchase_context,
+    buyerIntake.purchase_intent,
+    context.itemType,
+    context.visualCategory,
+    context.categoryPhrase,
+    context.productTitle,
+    context.subjectIdentity
+  ].join(" ").toLowerCase();
+
+  if (/apparel|fashion|dress|shirt|jacket|shoe|poshmark|depop/.test(haystack)) {
+    return ["poshmark.com", "ebay.com", "mercari.com", "depop.com"];
+  }
+  if (/electronics|laptop|computer|phone|tablet|camera|refurb|model specs/.test(haystack)) {
+    return ["ebay.com", "bestbuy.com", "walmart.com", "amazon.com", "newegg.com"];
+  }
+  if (/furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack)) {
+    return ["facebook.com", "craigslist.org", "offerup.com", "ebay.com"];
+  }
+  if (/vintage|collectible|memorabilia|commemorative|advertising|promotional|sports|team|school|mascot|licensed|collector|tray|serving tray|plate|plaque|tin|sign|holiday|christmas|santa|ceramic|canister|cookie jar|etsy|mercari|worthpoint|picclick/.test(haystack)) {
+    return ["ebay.com", "etsy.com", "mercari.com", "worthpoint.com", "picclick.com"];
+  }
+  if (/retail|manufacturer|brand site|shopping|new with tags|sku|upc|barcode/.test(haystack)) {
+    return ["amazon.com", "walmart.com", "target.com", "ebay.com"];
+  }
+  return [];
+}
+
+function isHighValueExactQuery(query, context = {}) {
+  const text = cleanText(query);
+  if (!text) return false;
+  return /"[^"]{4,}"/.test(text)
+    || context.upc && text.includes(context.upc)
+    || context.model && text.toLowerCase().includes(context.model.toLowerCase())
+    || context.itemCode && text.toLowerCase().includes(context.itemCode.toLowerCase())
+    || /(?:18|19|20)\d{2}|champion|national|official|collector|commemorative|licensed|slogan|team|school|coach|brand|tray|plate|sku|upc/i.test(text);
+}
+
+function isMarketplaceUsefulQuery(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  const itemType = cleanText(context.itemType).toLowerCase();
+  return isHighValueExactQuery(query, context)
+    || text.includes(itemType)
+    || /brand|model|sku|upc|collector|vintage|resale|tray|plate|dress|laptop|furniture|canister/.test(text);
+}
+
+function queriesAreSemanticallySame(left, right) {
+  const a = querySemanticSignature(left);
+  const b = querySemanticSignature(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const aTokens = new Set(a.split(" "));
+  const bTokens = new Set(b.split(" "));
+  const overlap = [...aTokens].filter((token) => bTokens.has(token)).length;
+  const smaller = Math.min(aTokens.size, bTokens.size) || 1;
+  return overlap / smaller > 0.92;
+}
+
+function querySemanticSignature(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/["'’]/g, "")
+    .replace(/\b(?:the|and|with|for|official|collector'?s?|collectible|vintage|used|item|listing|price|resale|ebay|etsy|mercari|worthpoint|picclick)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function mergeLiveSearchResults(results = []) {
@@ -1784,7 +1955,9 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "negotiationGuidance must be honest buyer-facing language. Do not encourage dishonest claims or pretend a lower comp exists unless source-backed results support it.",
     "reasonsToBuy and reasonsForCaution must be specific to the available evidence, not generic praise or generic warnings.",
     "productOrConditionRisks and riskFlags must show only supported risks such as Identity Not Confirmed, Price Above Market, Missing Parts, Condition Unclear, Authenticity Unclear, Compatibility Risk, No Return Protection, Weak Comparable Evidence, Older Model, or Repair Risk.",
+    "For ordinary vintage, collectible, advertising, commemorative, holiday, or decorative items, do not treat Older Model, No Warranty, or No Return Protection as risks unless the purchase context, seller terms, electronics/compatibility concerns, or condition facts make them material.",
     "betterValueConsiderations may mention newer, older, refurbished, open-box, used, local pickup, competing brand, or waiting only when the available evidence supports it. Do not invent specific alternatives.",
+    "Do not recommend waiting for a similar item when the recommendation is Buy or Buy If It Fits Your Needs unless a concrete condition, authenticity, compatibility, safety, price, or return-policy problem supports waiting.",
     "researchResults must use only source-backed comparable/reference items supplied by the backend, or a clear no-usable-evidence message when none passed filtering.",
     "comparableQuality must classify evidence as Strong Comparable, Partial Comparable, Identity / Reference Result, Weak Match, or Rejected Match.",
     "pricingConfidence must start with High, Medium, or Low and explain why.",
@@ -2565,7 +2738,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const diverseQueries = [];
   const scored = [];
   let index = 0;
-  for (const query of queries.map((item) => cleanSearchQuery(item, 14)).filter(Boolean)) {
+  for (const query of queries.map((item) => cleanSearchQuery(removeUnsupportedQueryDescriptors(item, context), 12)).filter(Boolean)) {
     if (!isRepetitiveQuery(query, diverseQueries)) {
       diverseQueries.push(query);
       scored.push({
@@ -2738,6 +2911,7 @@ function buildDiverseSearchIntentQueries(context) {
   const eventPhrase = selectEventSearchPhrase(context);
   const namedPerson = context.namedPeople[0] || "";
   const year = context.years[0] || "";
+  const followOnYear = year && Number.isFinite(Number(year)) ? String(Number(year) + 1) : "";
 
   if (exactVisiblePhrase) {
     queries.push(compactWords([quoteSearchPhrase(exactVisiblePhrase), brand, itemType]));
@@ -2751,11 +2925,14 @@ function buildDiverseSearchIntentQueries(context) {
   if (eventPhrase || year) {
     queries.push(compactWords([year, organization, eventPhrase, brand, itemType]));
   }
-  if (year && /champion|commemorative|collector|official|edition/i.test([eventPhrase, context.productTitle, context.subjectIdentity].join(" "))) {
-    queries.push(compactWords([String(Number(year) + 1), organization, eventPhrase, brand, itemType]));
+  if (followOnYear && /champion|commemorative|collector|official|edition/i.test([eventPhrase, context.productTitle, context.subjectIdentity].join(" "))) {
+    queries.push(compactWords([followOnYear, organization, year, eventPhrase, brand, itemType]));
   }
   if (brand || organization || itemType) {
-    queries.push(compactWords([brand, organization, itemType, "eBay"]));
+    queries.push(compactWords([brand, organization, itemType]));
+  }
+  if (/official|licensed|collector|commemorative/i.test([context.licensingText, context.eventPhrases, context.productTitle, context.subjectIdentity].join(" "))) {
+    queries.push(compactWords(["official", brand, organization, itemType]));
   }
   queries.push(compactWords([context.exactProductIdentity || context.productTitle || context.subjectIdentity, brand, itemType]));
 
@@ -2864,10 +3041,13 @@ function buildFallbackSearchQueries(context) {
   return queries;
 }
 
-function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, queriesActuallySent = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], safeRawResultSummaries = [], elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
+function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, queriesActuallySent = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], providerSourceRecords = [], safeRawResultSummaries = [], elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason }) {
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
+  const sourceRecords = dedupeProviderSourceRecords(providerSourceRecords.length ? providerSourceRecords : citations.map((citation) => sourceRecordFromCitation(citation, {})));
+  const domainsActuallyReturned = summarizeSourceLabels(sourceRecords.map((record) => record.domain).filter(Boolean));
+  const sourceURLsReturned = [...new Set(sourceRecords.map((record) => record.url).filter(Boolean))].slice(0, 50);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 8);
   const rawResultSummaries = safeRawResultSummaries.length
@@ -2912,9 +3092,20 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
     queriesActuallySent,
     providerRequestRecords,
     providerResponseSummaries,
+    providerSourceRecords: sourceRecords.slice(0, 50),
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectAllowedDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "OpenAI web_search",
+    domainsActuallyReturned,
+    sourceURLsReturned,
+    providerSourceCount: sourceRecords.length,
+    parsedCandidateCount: Number(bucketedResearch.normalizationDiagnostics?.parsedResultCount || 0),
+    normalizedCandidateCount: Number(bucketedResearch.normalizationDiagnostics?.normalizedResultCount || 0),
+    retainedVisibleResultCount: Number(bucketedResearch.normalizationDiagnostics?.retainedVisibleResultCount || 0),
+    rejectedCandidateCount: Number(bucketedResearch.normalizationDiagnostics?.rejectedResultCount || 0),
     sourcesSearched,
-    sourcesReturned: summarizeSourceLabels(citations.map((citation) => sourceLabelFromCitation(citation)).filter(Boolean)),
+    sourcesReturned: domainsActuallyReturned,
     searchStartedAt,
     searchCompletedAt: new Date().toISOString(),
     webSearchExecuted,
@@ -2932,7 +3123,8 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
       visibleResearchResultCount: bucketedResearch.resultsFound.length,
       finalLiveSearchStatus: liveSearchStatus,
       includeSourcesRequested,
-      includeFallbackReason
+      includeFallbackReason,
+      searchControlsFallbackReason
     },
     searchDiagnostics: buildSearchDiagnostics({
       searchQueries,
@@ -2941,6 +3133,7 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
       sourceRoute,
       sourcesSearched,
       citations,
+      providerSourceRecords: sourceRecords,
       webSearchCalls,
       rawResultSummaries,
       bucketedResearch,
@@ -2948,12 +3141,13 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
       providerRequestRecords,
       providerResponseSummaries,
       liveSearchStatus,
-      elapsedMs
+      elapsedMs,
+      searchControlsFallbackReason
     })
   };
 }
 
-function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason }) {
+function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason }) {
   const diagnostic = classifyLiveSearchError(error);
   const liveSearchStatus = statusForLiveSearchError(diagnostic.category);
   const errors = providerErrors.length ? providerErrors : [diagnostic];
@@ -2976,7 +3170,18 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
     queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
     providerRequestRecords,
     providerResponseSummaries,
+    providerSourceRecords: [],
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectAllowedDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "OpenAI web_search",
+    domainsActuallyReturned: [],
+    sourceURLsReturned: [],
+    providerSourceCount: 0,
+    parsedCandidateCount: 0,
+    normalizedCandidateCount: 0,
+    retainedVisibleResultCount: 0,
+    rejectedCandidateCount: 0,
     sourcesSearched: [],
     sourcesReturned: [],
     searchStartedAt,
@@ -2996,7 +3201,8 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
       finalLiveSearchStatus: liveSearchStatus,
       errorCategory: diagnostic.category,
       includeSourcesRequested,
-      includeFallbackReason
+      includeFallbackReason,
+      searchControlsFallbackReason
     },
     searchDiagnostics: buildSearchDiagnostics({
       searchQueries,
@@ -3005,6 +3211,7 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
       sourceRoute,
       sourcesSearched: [],
       citations: [],
+      providerSourceRecords: [],
       webSearchCalls: [],
       rawResultSummaries: [],
       bucketedResearch: buildEmptyResearchBuckets(),
@@ -3012,7 +3219,8 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
       providerRequestRecords,
       providerResponseSummaries,
       liveSearchStatus,
-      elapsedMs
+      elapsedMs,
+      searchControlsFallbackReason
     })
   };
 }
@@ -3066,11 +3274,13 @@ function buildEmptyResearchBuckets() {
   };
 }
 
-function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0 }) {
+function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], providerSourceRecords = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0, searchControlsFallbackReason = "" }) {
   const normalization = bucketedResearch.normalizationDiagnostics || {};
   const safeQueriesActuallySent = queriesActuallySent.map(cleanText).filter((query) => query && !isInternalPromptFragment(query)).slice(0, 20);
   const queryTransmissionMode = providerRequestRecords.length ? "query_bound_provider_requests" : "no_query_bound_provider_records";
+  const sourceRecords = dedupeProviderSourceRecords(providerSourceRecords);
   const rawResultCount = rawResultSummaries.length;
+  const providerSourceCount = sourceRecords.length || providerRequestRecords.reduce((sum, record) => sum + Number(record.providerSourceCount || 0), 0);
   const parsedResultCount = Number(normalization.parsedResultCount || 0);
   const normalizedResultCount = Number(normalization.normalizedResultCount || 0);
   const deduplicatedResultCount = Number(normalization.deduplicatedResultCount || 0);
@@ -3095,15 +3305,25 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
       ? "Each prioritized query was sent in its own OpenAI web_search-enabled request. The provider does not expose every downstream marketplace endpoint, so source accounting is based on provider request records and returned URL citations."
       : "No query-bound provider request records were available, so the app does not claim individual queries were sent.",
     queryCount: searchQueries.length,
+    sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    allowedDomainsRequested: collectAllowedDomainsRequested(providerRequestRecords),
+    searchProviderUsed: "OpenAI web_search",
     sourcesRequested: buildSourcesTargeted(sourceRoute),
     sourcesActuallyQueried: providerRequestRecords.some((record) => record.attempted) ? ["OpenAI web_search"] : [],
     sourceRoute,
     providerCallsAttempted: providerRequestRecords.filter((record) => record.attempted).length,
     providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
+    providerSourceCount,
+    domainsActuallyReturned: summarizeSourceLabels(sourceRecords.map((record) => record.domain).filter(Boolean)),
+    sourceURLsReturned: [...new Set(sourceRecords.map((record) => record.url).filter(Boolean))].slice(0, 50),
     providerErrors: providerErrors.map(sanitizeProviderErrorSummary),
     providerRequestRecords: providerRequestRecords.map(sanitizeProviderRequestRecord),
     providerResponseSummaries: providerResponseSummaries.map(sanitizeProviderResponseSummary),
+    providerSourceRecords: sourceRecords.slice(0, 50),
     rawResultCount,
+    parsedCandidateCount: parsedResultCount,
+    normalizedCandidateCount: normalizedResultCount,
+    rejectedCandidateCount: rejectedResultCount,
     parsedResultCount,
     normalizedResultCount,
     deduplicatedResultCount,
@@ -3118,7 +3338,7 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
     queryResultsSummary,
     acquisitionFailureStage: classifySearchFailureStage({
       providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
-      rawResultCount,
+      rawResultCount: providerSourceCount || rawResultCount,
       parsedResultCount,
       normalizedResultCount,
       retainedVisibleResultCount,
@@ -3127,7 +3347,8 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
     }),
     safeRawResults: rawResultSummaries.filter((item) => !isInternalPromptFragment(Object.values(item || {}).join(" "))).slice(0, 16),
     sourcesSearched: summarizeSourceLabels(sourcesSearched),
-    sourcesReturned: summarizeSourceLabels(citations.map((citation) => citation.title || citation.url)),
+    sourcesReturned: summarizeSourceLabels(sourceRecords.map((record) => record.domain || record.title || record.url)),
+    searchControlsFallbackReason,
     elapsedMilliseconds: elapsedMs,
     liveSearchStatus
   };
@@ -3139,9 +3360,15 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
     return providerRequestRecords.map((record) => ({
       query: cleanText(record.query),
       source: cleanText(record.provider || "OpenAI web_search"),
+      searchPass: cleanText(record.searchPass),
       sourceRoute: normalizeStringArray(record.sourceRoute, 8),
+      allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
+      allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
       requestAttempted: Boolean(record.attempted),
       requestSucceeded: Boolean(record.succeeded),
+      providerSourceCount: Number(record.providerSourceCount || 0),
+      domainsReturned: normalizeStringArray(record.domainsReturned, 8),
+      sourceURLsReturned: normalizeStringArray(record.sourceURLsReturned, 12),
       rawResultCount: Number(record.rawResultCount || 0),
       parsedResultCount: Number(record.parsedResultCount || 0),
       normalizedResultCount: Number(record.normalizedResultCount || 0),
@@ -3186,10 +3413,16 @@ function sanitizeProviderRequestRecord(record = {}) {
   return {
     query: cleanText(record.query),
     priority: Number(record.priority || 0),
+    searchPass: cleanText(record.searchPass),
     sourceRoute: normalizeStringArray(record.sourceRoute, 8),
+    allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
+    allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
     provider: cleanText(record.provider || "OpenAI web_search"),
     attempted: Boolean(record.attempted),
     succeeded: Boolean(record.succeeded),
+    providerSourceCount: Number(record.providerSourceCount || 0),
+    domainsReturned: normalizeStringArray(record.domainsReturned, 8),
+    sourceURLsReturned: normalizeStringArray(record.sourceURLsReturned, 12),
     rawResultCount: Number(record.rawResultCount || 0),
     parsedResultCount: Number(record.parsedResultCount || 0),
     normalizedResultCount: Number(record.normalizedResultCount || 0),
@@ -3203,15 +3436,30 @@ function sanitizeProviderResponseSummary(summary = {}) {
   return {
     query: cleanText(summary.query),
     priority: Number(summary.priority || 0),
+    searchPass: cleanText(summary.searchPass),
     provider: cleanText(summary.provider || "OpenAI web_search"),
+    allowedDomainsRequested: normalizeStringArray(summary.allowedDomainsRequested, 8),
+    allowedDomainsApplied: Boolean(summary.allowedDomainsApplied),
     statusCode: summary.statusCode || null,
     webSearchCallAppeared: Boolean(summary.webSearchCallAppeared),
     urlCitationCount: Number(summary.urlCitationCount || 0),
+    providerSourceCount: Number(summary.providerSourceCount || 0),
+    sourceURLsReturned: normalizeStringArray(summary.sourceURLsReturned, 12),
     domainsReturned: normalizeStringArray(summary.domainsReturned, 8),
     providerActionQueries: normalizeStringArray(summary.providerActionQueries, 4).filter((query) => !isInternalPromptFragment(query)),
     errorCode: cleanText(summary.errorCode),
     errorMessage: sanitizeErrorText(summary.errorMessage || "")
   };
+}
+
+function collectAllowedDomainsRequested(providerRequestRecords = []) {
+  const domains = [];
+  for (const record of providerRequestRecords) {
+    for (const domain of normalizeStringArray(record.allowedDomainsRequested || record.allowedDomains, 12)) {
+      addUnique(domains, domain);
+    }
+  }
+  return domains.slice(0, 24);
 }
 
 function classifySearchFailureStage({ providerCallsSucceeded, rawResultCount, parsedResultCount, normalizedResultCount, retainedVisibleResultCount, rejectedResultCount, providerErrors = [] }) {
@@ -6490,22 +6738,47 @@ function buildSearchCoverage(liveSearch) {
 
   const queryText = liveSearch.searchQueries.join(" ").toLowerCase();
   const routeText = liveSearch.sourceRoute.join(" ").toLowerCase();
+  const diagnostics = liveSearch.searchDiagnostics || {};
+  const allowedDomains = normalizeStringArray(liveSearch.allowedDomainsRequested || diagnostics.allowedDomainsRequested, 24);
+  const domainsReturned = normalizeStringArray(liveSearch.domainsActuallyReturned || diagnostics.domainsActuallyReturned || liveSearch.sourcesReturned, 24);
+  const providerSourceCount = Number(liveSearch.providerSourceCount || diagnostics.providerSourceCount || 0);
+  const parsedCandidateCount = Number(liveSearch.parsedCandidateCount || diagnostics.parsedCandidateCount || diagnostics.parsedResultCount || 0);
+  const normalizedCandidateCount = Number(liveSearch.normalizedCandidateCount || diagnostics.normalizedCandidateCount || diagnostics.normalizedResultCount || 0);
+  const retainedVisibleResultCount = Number(liveSearch.retainedVisibleResultCount || diagnostics.retainedVisibleResultCount || 0);
+  const rejectedCandidateCount = Number(liveSearch.rejectedCandidateCount || diagnostics.rejectedCandidateCount || diagnostics.rejectedResultCount || 0);
   const coverage = [
     `Source categories targeted: ${buildSourcesTargeted(liveSearch.sourceRoute).join("; ")}`
   ];
 
-  if (liveSearch.searchDiagnostics?.sourcesActuallyQueried?.length) {
-    coverage.push(`Search providers queried: ${summarizeSourceLabels(liveSearch.searchDiagnostics.sourcesActuallyQueried).join("; ")}`);
+  coverage.push(`Search provider used: ${cleanText(liveSearch.searchProviderUsed || diagnostics.searchProviderUsed || "OpenAI web_search")}.`);
+
+  if (allowedDomains.length) {
+    coverage.push(`Marketplace-domain search requested across: ${allowedDomains.join(", ")}.`);
+  } else {
+    coverage.push("Marketplace-domain restrictions requested: none for open-web pass.");
+  }
+
+  if (diagnostics.sourcesActuallyQueried?.length) {
+    coverage.push(`Provider queried: ${summarizeSourceLabels(diagnostics.sourcesActuallyQueried).join("; ")}.`);
   } else if (liveSearch.sourcesSearched && liveSearch.sourcesSearched.length) {
-    coverage.push(`Provider-reported source scope: ${summarizeSourceLabels(liveSearch.sourcesSearched).join("; ")}`);
+    coverage.push(`Provider-reported source scope: ${summarizeSourceLabels(liveSearch.sourcesSearched).join("; ")}.`);
   } else {
     coverage.push("Search provider queried: Live web search executed, but provider-level source scope was not separately exposed.");
   }
 
-  if (liveSearch.sourcesReturned && liveSearch.sourcesReturned.length) {
-    coverage.push(`Sources returned with URL citations: ${summarizeSourceLabels(liveSearch.sourcesReturned).join("; ")}`);
+  if (domainsReturned.length) {
+    coverage.push(`Domains actually returned: ${domainsReturned.join(", ")}.`);
   } else {
-    coverage.push("Sources returned with URL citations: None.");
+    coverage.push("Domains actually returned: none with URL-cited provider sources.");
+  }
+
+  coverage.push(`${providerSourceCount} provider source${providerSourceCount === 1 ? "" : "s"} returned.`);
+  coverage.push(`${parsedCandidateCount} structured candidate${parsedCandidateCount === 1 ? "" : "s"} created; ${normalizedCandidateCount} normalized; ${retainedVisibleResultCount} visible comparable/reference record${retainedVisibleResultCount === 1 ? "" : "s"} retained; ${rejectedCandidateCount} rejected.`);
+
+  for (const marketplaceDomain of allowedDomains.filter((domain) => /ebay\.com|etsy\.com|mercari\.com|poshmark\.com|worthpoint\.com|picclick\.com|facebook\.com|craigslist\.org|offerup\.com/i.test(domain))) {
+    if (!domainsReturned.some((domain) => domain.toLowerCase() === marketplaceDomain.toLowerCase())) {
+      coverage.push(`${marketplaceDomain}-restricted search was requested where supported, but no ${marketplaceDomain} source URLs were returned.`);
+    }
   }
 
   if (liveSearch.liveSearchStatus === "Live Search Completed - No Reliable Comps Found") {
@@ -7004,6 +7277,33 @@ function cleanSearchQuery(value, maxTerms = 10) {
   return trimQueryTerms(text, maxTerms);
 }
 
+function removeUnsupportedQueryDescriptors(value, context = {}) {
+  let text = cleanText(value);
+  const evidenceText = [
+    context.visibleEvidence,
+    context.distinctivePhrases,
+    context.eventPhrases,
+    context.notesText,
+    context.labelText,
+    context.productTitle,
+    context.subjectIdentity
+  ].flat().map(cleanText).join(" ").toLowerCase();
+
+  if (!/\blimited edition\b/.test(evidenceText)) {
+    text = text.replace(/\blimited edition\b/gi, "");
+  }
+
+  text = text
+    .replace(/\b(?:prominent|bold|large|red|black|white|green|blue|yellow|gold|silver)\s+(?:lettering|letters|text|wording|font|type)\b/gi, "")
+    .replace(/\btext on\b/gi, "")
+    .replace(/\b(?:features?|shows?|depicts?)\b/gi, "")
+    .replace(/\b(?:photo|image|picture|front|back)\s+(?:of|shows?)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return text;
+}
+
 function normalizeTokenString(value) {
   return String(value || "")
     .replace(/[|[\]{}]+/g, " ")
@@ -7157,6 +7457,21 @@ function isIncludeCompatibilityError(error) {
   return /include|web_search_call\.action\.sources|unknown parameter|invalid.*include|unsupported.*include/.test(text);
 }
 
+function isSearchControlCompatibilityError(error) {
+  const text = [
+    error.openAIErrorType,
+    error.openAIErrorCode,
+    error.openAIErrorMessage,
+    error.message
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+
+  return /filters|allowed_domains|search_context_size|unknown parameter|invalid.*tools|unsupported.*web_search|unsupported.*filters|unsupported.*search_context/.test(text);
+}
+
+function isWebSearchOptionCompatibilityError(error) {
+  return isIncludeCompatibilityError(error) || isSearchControlCompatibilityError(error);
+}
+
 function sanitizeErrorText(value) {
   return cleanText(value)
     .replace(/sk-[A-Za-z0-9_-]+/g, "[redacted-api-key]")
@@ -7218,6 +7533,70 @@ function collectWebSearchSources(data) {
   }
 
   return [...new Set(sources)].slice(0, 8);
+}
+
+function collectWebSearchSourceRecords(data, queryRecord = {}) {
+  const records = [];
+  for (const call of collectWebSearchCalls(data)) {
+    const actionSources = call.action && Array.isArray(call.action.sources) ? call.action.sources : [];
+    for (const source of actionSources) {
+      const record = normalizeProviderSourceRecord(source, queryRecord);
+      if (record.url || record.title || record.domain) {
+        records.push(record);
+      }
+    }
+  }
+  return dedupeProviderSourceRecords(records).slice(0, 50);
+}
+
+function normalizeProviderSourceRecord(source, queryRecord = {}) {
+  const value = typeof source === "string" ? { title: source, url: extractFirstUrl(source) } : source || {};
+  const url = normalizeUrl(cleanText(value.url || value.link || value.uri || ""));
+  const title = cleanText(value.title || value.name || value.source || value.site || url || "");
+  const snippet = cleanText(value.snippet || value.description || value.text || value.summary || "");
+  const domain = hostnameFromUrl(url) || sourceLabel(title);
+  return {
+    title,
+    url,
+    domain,
+    source: domain || title,
+    snippet,
+    displayedPriceText: extractDisplayedPrice([title, snippet].join(" ")),
+    query: cleanText(queryRecord.query),
+    searchPass: cleanText(queryRecord.searchPass),
+    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8)
+  };
+}
+
+function sourceRecordFromCitation(citation, queryRecord = {}) {
+  const url = normalizeUrl(citation.url);
+  const title = cleanText(citation.title || url);
+  const domain = hostnameFromUrl(url) || sourceLabelFromCitation(citation);
+  return {
+    title,
+    url,
+    domain,
+    source: domain || title,
+    snippet: "URL citation returned by provider.",
+    displayedPriceText: "",
+    query: cleanText(queryRecord.query),
+    searchPass: cleanText(queryRecord.searchPass),
+    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8)
+  };
+}
+
+function dedupeProviderSourceRecords(records = []) {
+  const seen = new Set();
+  const output = [];
+  for (const record of records) {
+    const key = `${record.url || ""}|${record.title || ""}|${record.query || ""}`.toLowerCase();
+    if (!key.trim() || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push(record);
+  }
+  return output;
 }
 
 function summarizeSourceLabels(sources) {

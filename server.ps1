@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.5"
+$AppVersion = "1.9.6"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -954,6 +954,7 @@ Preserve verified facts, known uncertainty, condition disclosures, subject ident
 Avoid restarting the entire item analysis unless the user explicitly asks for a new analysis or a new search.
 No new live search is being performed inside this Ask response. Do not claim fresh marketplace search, sold-comps, source checks, new URLs, historical image search, or external database checks unless source-backed new results are explicitly supplied in the current context.
 Never invent marketplace evidence, search results, sold prices, sold dates, platform activity, exact image matches, exact product matches, maker, artist, date, edition, licensing, authenticity, defects, demand, historical references, prices, sources, or URLs.
+For questions about search activity, answer from searchDiagnostics fields such as allowedDomainsRequested, providerRequestRecords, providerCallsSucceeded, domainsActuallyReturned, providerSourceCount, retainedVisibleResultCount, and rejectedCandidateCount. Distinguish a targeted domain from a provider call, a returned URL domain, and a retained comparable record.
 Clearly separate Visual Evidence, User-Provided Information, Search Evidence, Comparable Evidence, System Inference, Scenario Assumption, and Unknown or Unverified when those labels improve clarity.
 Preserve the current report's valuationEvidenceState. If it is preliminary, call the range a Preliminary Reference Range, not Estimated Fair Value or Fair Market Value.
 If asked what it is worth and evidence is insufficient, say: The current search suggests a preliminary reference range from similar active listings, but fair market value is not established because no strong or confirmed sold comparables were found.
@@ -1468,6 +1469,7 @@ $TaskText
     $Payload.tools = @(
       @{
         type = "web_search"
+        search_context_size = "medium"
       }
     )
     $Payload.tool_choice = "required"
@@ -2481,15 +2483,24 @@ function New-SearchDiagnostics {
     queryTransmissionMode = $(if ($Queries.Count -gt 0) { "provider_action_queries_exposed" } else { "single_model_web_search_request_no_safe_query_records" })
     executionLimitation = $(if ($Queries.Count -gt 0) { "The local Windows server uses one OpenAI web_search-enabled request and records safe provider-exposed action queries when available. It cannot guarantee one downstream marketplace request per generated query." } else { "The local Windows server uses one OpenAI web_search-enabled request, but the provider did not expose a safe individual query string. The app therefore does not claim any individual query was sent." })
     queryCount = $Queries.Count
+    sourceCategoriesTargeted = @(Get-SearchCoverage $Report $Status)
+    allowedDomainsRequested = @()
+    searchProviderUsed = "OpenAI web_search"
     sourcesRequested = @(Get-SearchCoverage $Report $Status)
     sourcesActuallyQueried = $(if ($SearchCompleted) { @("OpenAI web_search") } else { @() })
     sourceRoute = @("OpenAI web_search")
     providerCallsAttempted = $(if ($SearchCompleted -or $SearchCalls.Count -gt 0) { [math]::Max(1, $SearchCalls.Count) } else { 1 })
     providerCallsSucceeded = $SearchCalls.Count
+    providerSourceCount = $Citations.Count
+    domainsActuallyReturned = @(Summarize-SourceLabels $Citations | Select-Object -First 8)
+    sourceURLsReturned = @($Citations | Select-Object -First 50)
     providerErrors = @()
     providerRequestRecords = @(Get-QueryResultsSummary -Queries $Queries -SearchCompleted $SearchCompleted -RawSummaries $RawSummaries -RetainedCount $RetainedCount -FailureStage (Get-SearchAcquisitionFailureStage -ProviderCallsSucceeded $SearchCalls.Count -RawResultCount $RawSummaries.Count -ParsedResultCount $ParsedCount -NormalizedResultCount $NormalizedCount -RetainedVisibleResultCount $RetainedCount -RejectedResultCount $RejectedCount))
     providerResponseSummaries = @(Get-ProviderResponseSummaries -Queries $Queries -SearchCompleted $SearchCompleted -Citations $Citations -SearchCalls $SearchCalls)
     rawResultCount = $RawSummaries.Count
+    parsedCandidateCount = $ParsedCount
+    normalizedCandidateCount = $NormalizedCount
+    rejectedCandidateCount = $RejectedCount
     parsedResultCount = $ParsedCount
     normalizedResultCount = $NormalizedCount
     deduplicatedResultCount = $NormalizedCount
@@ -2539,13 +2550,20 @@ function Get-QueryResultsSummary {
   return @(
     foreach ($Query in ($Queries | Select-Object -First 20)) {
       $MatchingRaw = @($RawSummaries | Where-Object { (Clean-Text $_.query).ToLowerInvariant() -eq (Clean-Text $Query).ToLowerInvariant() })
+      $MatchingSources = @($MatchingRaw | ForEach-Object { if ($_.url) { $_.url } elseif ($_.source) { $_.source } })
       [pscustomobject]@{
         query = $Query
         source = "OpenAI web_search"
+        provider = "OpenAI web_search"
+        searchPass = "local_single_request"
+        allowedDomainsRequested = @()
         requestAttempted = $true
         requestSucceeded = $SearchCompleted
+        providerSourceCount = $MatchingRaw.Count
+        domainsReturned = @(Summarize-SourceLabels $MatchingSources | Select-Object -First 8)
         rawResultCount = $MatchingRaw.Count
         parsedResultCount = $MatchingRaw.Count
+        normalizedResultCount = $MatchingRaw.Count
         retainedResultCount = $(if ($RetainedCount -gt 0) { $RetainedCount } else { 0 })
         controlledError = $(if ($SearchCompleted) { "" } else { "Live search did not expose a completed web_search_call." })
         primaryRejectionStageOrReason = $(if ($RetainedCount -gt 0) { "none" } else { $FailureStage })
@@ -2566,7 +2584,9 @@ function Get-QueryPriorityRecords {
       [pscustomobject]@{
         query = $Query
         priority = $Priority
+        searchPass = "local_single_request"
         sourceRoute = @($SourcesRequested | Select-Object -First 8)
+        allowedDomainsRequested = @()
       }
       $Priority += 1
     }
@@ -2585,9 +2605,13 @@ function Get-ProviderResponseSummaries {
     foreach ($Query in ($Queries | Select-Object -First 20)) {
       [pscustomobject]@{
         query = $Query
+        searchPass = "local_single_request"
         provider = "OpenAI web_search"
+        allowedDomainsRequested = @()
         webSearchCallAppeared = $SearchCompleted
         urlCitationCount = $Citations.Count
+        providerSourceCount = $Citations.Count
+        sourceURLsReturned = @($Citations | Select-Object -First 12)
         domainsReturned = @(Summarize-SourceLabels $Citations | Select-Object -First 8)
         providerActionQueries = @($Queries | Select-Object -First 4)
         webSearchCallCount = $SearchCalls.Count

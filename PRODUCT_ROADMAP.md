@@ -222,6 +222,14 @@
 - Technical Search Details now render as readable stacked query cards on mobile without literal \n leakage
 - Vintage collectible risk cleanup suppresses unsupported Older Model, No Warranty, and No Return Protection-style conclusions unless the transaction context supports them
 
+## Version 1.9.6 (Completed)
+- Live comparable search now runs bounded open-web exact, marketplace-domain, and broader fallback passes using OpenAI web_search where supported
+- Marketplace-domain requests preserve allowed domains separately from domains actually returned, so the app does not claim eBay, Etsy, Mercari, or other marketplace results without provider-level evidence
+- Technical Search Details now separate provider sources returned, structured candidates created, normalized candidates, visible comparable/reference records retained, rejected candidates, and acquisition failure stage
+- Exact-query cleanup removes unsupported verbose wording such as limited-edition or visual-layout filler unless supported by visible/user evidence
+- Worth Buying and Buying for Myself reports now avoid unsupported wait-for-another-item guidance when the decision is a low-dollar Buy without a concrete condition, authenticity, compatibility, safety, price, or return-policy issue
+- Completed reports now render under one current report root and end with a single visible End of Report marker for mobile beta readability
+
 ## Version 2.0
 - User accounts
 - Saved listings

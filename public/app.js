@@ -335,6 +335,7 @@ let activeAskRequestId = 0;
 let activeAskRequestController = null;
 let loadingProgressTimer = null;
 let loadingProgressIndex = 0;
+let reportRenderSequence = 0;
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", renderPhotoPreview);
@@ -1214,11 +1215,18 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
 }
 
 function renderReport(report, sections) {
+  stopLoadingProgress();
+  const renderId = `report-${++reportRenderSequence}`;
   results.classList.remove("empty-state");
   results.classList.remove("loading-state");
   results.innerHTML = "";
+  results.dataset.currentReportId = renderId;
 
-  results.appendChild(renderExecutiveSummary(report, currentWorkflow));
+  const reportRoot = document.createElement("div");
+  reportRoot.className = "report-root";
+  reportRoot.dataset.reportId = renderId;
+
+  reportRoot.appendChild(renderExecutiveSummary(report, currentWorkflow));
 
   const whyCards = buildSectionCards(report, sections, isWhySection);
   const whyGroup = renderReportGroup({
@@ -1227,7 +1235,7 @@ function renderReport(report, sections) {
     open: true,
     children: whyCards.length ? whyCards : [renderPlainInsight("Why this result?", getBestWhyText(report))]
   });
-  results.appendChild(whyGroup);
+  reportRoot.appendChild(whyGroup);
 
   const researchChildren = [];
   if (hasVisualRecognition(report)) {
@@ -1248,8 +1256,8 @@ function renderReport(report, sections) {
   }
 
   const researchResultCount = countVisibleResearchResults(report);
-  results.appendChild(renderReportGroup({
-    title: researchResultCount ? `Research Details - ${researchResultCount} results found` : "Research Details",
+  reportRoot.appendChild(renderReportGroup({
+    title: researchResultCount ? `Research Details - ${researchResultCount} visible records` : "Research Details",
     helper: researchResultCount
       ? "Search queries, sources, visible result records, comparable classification, rejection reasons, and limitations."
       : "Visual evidence, source coverage, comparable quality, pricing rationale, and detailed fields.",
@@ -1257,7 +1265,9 @@ function renderReport(report, sections) {
     children: researchChildren
   }));
 
-  results.appendChild(renderAppraiserSummary(report, currentWorkflow));
+  reportRoot.appendChild(renderAppraiserSummary(report, currentWorkflow));
+  reportRoot.appendChild(renderEndOfReportMarker());
+  results.appendChild(reportRoot);
 }
 
 function buildSectionCards(report, sections, includeKey) {
@@ -1322,7 +1332,7 @@ function renderResearchEvidencePanel(report) {
   body.className = "section-body research-evidence-body";
   [
     ["Search Queries", report.searchQueriesUsed],
-    ["Sources Searched", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
+    ["Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
     ["Strong Comparables", report.strongComparables],
     ["Partial Comparables", report.partialComparables],
     ["Reference Results", report.referenceResults],
@@ -1355,16 +1365,18 @@ function renderSearchDiagnostics(diagnostics) {
   const summaryRows = [
     ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
-    ["Sources Requested", diagnostics.sourcesRequested],
-    ["Search Providers Queried", diagnostics.sourcesActuallyQueried],
+    ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
+    ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
+    ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
+    ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
-    ["Raw Results Returned", diagnostics.rawResultCount],
-    ["Results Parsed", diagnostics.parsedResultCount],
-    ["Results Normalized", diagnostics.normalizedResultCount],
-    ["Results Retained", diagnostics.retainedVisibleResultCount],
-    ["Results Rejected", diagnostics.rejectedResultCount],
-    ["Search Failure Stage", diagnostics.acquisitionFailureStage]
+    ["Provider Sources Returned", diagnostics.providerSourceCount],
+    ["Structured Candidates Created", diagnostics.parsedCandidateCount ?? diagnostics.parsedResultCount],
+    ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
+    ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
+    ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
+    ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
   ];
 
   const list = document.createElement("dl");
@@ -1411,12 +1423,15 @@ function renderQueryDiagnosticCard(item) {
   facts.className = "query-diagnostic-facts";
   [
     ["Provider", item.provider || item.source],
+    ["Search Pass", formatSearchPass(item.searchPass)],
+    ["Allowed Domains", item.allowedDomainsRequested || item.allowedDomains],
     ["Attempted", (item.attempted ?? item.requestAttempted) ? "Yes" : "No"],
     ["Succeeded", (item.succeeded ?? item.requestSucceeded) ? "Yes" : "No"],
-    ["Raw", item.rawResultCount],
-    ["Parsed", item.parsedResultCount],
-    ["Normalized", item.normalizedResultCount],
-    ["Retained", item.retainedResultCount],
+    ["Provider Sources Returned", item.providerSourceCount ?? item.rawResultCount],
+    ["Domains Returned", item.domainsReturned],
+    ["Structured Candidates Created", item.parsedResultCount],
+    ["Normalized Candidates", item.normalizedResultCount],
+    ["Comparable Records Retained", item.retainedResultCount],
     ["Failure", item.failureStage || item.primaryRejectionStageOrReason],
     ["Error", item.errorCode || item.controlledError]
   ].forEach(([label, value]) => {
@@ -1433,6 +1448,11 @@ function renderQueryDiagnosticCard(item) {
 
 function cleanDiagnosticText(value) {
   return String(value || "").replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function formatSearchPass(value) {
+  const text = cleanDiagnosticText(value);
+  return text ? text.replace(/_/g, " ") : "";
 }
 
 function renderSectionCard({ key, label, value, report }) {
@@ -1773,6 +1793,14 @@ function renderAppraiserSummary(report, workflow) {
 
   card.append(header, grid);
   return card;
+}
+
+function renderEndOfReportMarker() {
+  const marker = document.createElement("p");
+  marker.className = "end-of-report-marker";
+  marker.setAttribute("role", "note");
+  marker.textContent = "End of Report";
+  return marker;
 }
 
 function getWhatIKnow(report) {
@@ -2714,7 +2742,9 @@ function formatReport(report, sections) {
     normalizeDisplayValue(getWhatToCheckNext(report)),
     "",
     "Final Recommendation",
-    normalizeDisplayValue(getFinalRecommendation(report, currentWorkflow))
+    normalizeDisplayValue(getFinalRecommendation(report, currentWorkflow)),
+    "",
+    "End of Report"
   ].join("\n");
 
   return [
@@ -2727,7 +2757,7 @@ function formatReport(report, sections) {
 function formatResearchEvidence(report) {
   return [
     formatSection("Search Queries", report.searchQueriesUsed),
-    formatSection("Sources Searched", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage),
+    formatSection("Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage),
     formatSection("Strong Comparables", report.strongComparables),
     formatSection("Partial Comparables", report.partialComparables),
     formatSection("Reference Results", report.referenceResults),
@@ -2748,16 +2778,18 @@ function formatSearchDiagnosticsText(diagnostics) {
   const rows = [
     ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
-    ["Sources Requested", diagnostics.sourcesRequested],
-    ["Search Providers Queried", diagnostics.sourcesActuallyQueried],
+    ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
+    ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
+    ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
+    ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
-    ["Raw Results Returned", diagnostics.rawResultCount],
-    ["Results Parsed", diagnostics.parsedResultCount],
-    ["Results Normalized", diagnostics.normalizedResultCount],
-    ["Results Retained", diagnostics.retainedVisibleResultCount],
-    ["Results Rejected", diagnostics.rejectedResultCount],
-    ["Search Failure Stage", diagnostics.acquisitionFailureStage]
+    ["Provider Sources Returned", diagnostics.providerSourceCount],
+    ["Structured Candidates Created", diagnostics.parsedCandidateCount ?? diagnostics.parsedResultCount],
+    ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
+    ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
+    ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
+    ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
   ]
     .filter(([, value]) => shouldRenderSection("diagnostic", value))
     .map(([label, value]) => `${label}: ${cleanDiagnosticText(normalizeDisplayValue(value))}`);
@@ -2775,7 +2807,7 @@ function formatSearchDiagnosticsText(diagnostics) {
   if (Array.isArray(records) && records.length) {
     rows.push("Search Queries Actually Sent:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Raw: ${item.rawResultCount} | Parsed: ${item.parsedResultCount} | Normalized: ${item.normalizedResultCount || 0} | Retained: ${item.retainedResultCount} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

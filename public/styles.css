@@ -804,7 +804,13 @@ summary:focus-visible {
   gap: 14px;
 }
 
+.report-root {
+  display: grid;
+  gap: 14px;
+}
+
 .results,
+.report-root,
 .section-card,
 .section-body,
 .executive-summary-card,
@@ -1318,7 +1324,7 @@ summary:focus-visible {
 
 .query-diagnostic-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
   gap: 7px 10px;
   margin: 0;
 }
@@ -1335,6 +1341,17 @@ summary:focus-visible {
   color: var(--text);
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.end-of-report-marker {
+  margin: 2px 0 0;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(203, 191, 172, 0.62);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .source-result-list {
@@ -1999,6 +2016,15 @@ summary:focus-visible {
   .ask-question,
   .ask-detail {
     padding: 11px;
+  }
+
+  .diagnostic-summary,
+  .query-diagnostic-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .query-diagnostic-row {
+    padding: 12px;
   }
 
   .ask-form textarea {

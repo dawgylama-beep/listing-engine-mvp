@@ -18,7 +18,14 @@ function openAIResponse(json, { query = "", citations = [], webSearchCall = fals
   if (webSearchCall) {
     output.push({
       type: "web_search_call",
-      action: { query }
+      action: {
+        query,
+        sources: citations.map((citation) => ({
+          title: citation.title,
+          url: citation.url,
+          snippet: "Mock source returned by web_search action sources."
+        }))
+      }
     });
   }
   output.push({
@@ -52,6 +59,11 @@ function schemaNameFromPayload(payload) {
 function exactQueryFromPayload(payload) {
   const text = payload?.input?.[1]?.content?.[0]?.text || "";
   return (text.match(/Search query to execute exactly:\s*(.+)/) || [])[1]?.trim() || "";
+}
+
+function searchPassFromPayload(payload) {
+  const text = payload?.input?.[1]?.content?.[0]?.text || "";
+  return (text.match(/Search pass:\s*(.+)/) || [])[1]?.trim() || "";
 }
 
 function visualRecognitionFor(fixture) {
@@ -274,8 +286,15 @@ globalThis.fetch = async (_url, options = {}) => {
 
   if (schema === "live_comparable_search") {
     const query = exactQueryFromPayload(payload);
+    const tool = payload.tools?.[0] || {};
     livePayloads.push({
       query,
+      searchPass: searchPassFromPayload(payload),
+      toolChoice: payload.tool_choice,
+      toolType: tool.type,
+      searchContextSize: tool.search_context_size,
+      allowedDomains: tool.filters?.allowed_domains || [],
+      include: payload.include || [],
       bodyText: payload.input?.[1]?.content?.[0]?.text || ""
     });
     const zeroResults = activeFixture === "zero";
@@ -357,12 +376,22 @@ try {
   assert(diagnostics.providerRequestRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
   assert(diagnostics.providerRequestRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
   assert(diagnostics.providerRequestRecords.some((record) => /Coca-Cola/i.test(record.query)), "Coca-Cola punctuation should survive attempted queries.");
+  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "open_web_exact"), "Open-web exact pass should be recorded.");
+  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "marketplace_domain"), "Marketplace-domain pass should be recorded.");
+  assert(Array.isArray(diagnostics.allowedDomainsRequested) && diagnostics.allowedDomainsRequested.includes("ebay.com"), "Marketplace allowed domains should include ebay.com for sports collectible tray routing.");
+  assert(diagnostics.providerSourceCount > 0, "Provider source count should be tracked separately from visible comps.");
+  assert(diagnostics.domainsActuallyReturned.includes("example.com"), "Returned domains should come from actual provider source URLs.");
   assert(diagnostics.safeRawResults.some((record) => record.query && /Georgia|Coca-Cola|DAWGS|NATIONAL/i.test(record.query)), "Raw provider summaries should retain producing query.");
   assert(Array.isArray(georgia.report.weFoundThisItem) && georgia.report.weFoundThisItem.length > 0, "Exact active listing should remain visible.");
 
   const querySet = new Set(diagnostics.providerRequestRecords.map((record) => record.query.toLowerCase()));
-  assert(querySet.size === diagnostics.providerRequestRecords.length, "Attempted queries should be deduplicated.");
+  assert(querySet.size < diagnostics.providerRequestRecords.length, "Strong exact queries may be sent once open-web and once with marketplace-domain filters.");
   assert(livePayloads.every((item) => !item.query.includes(leakedPhrase)), "Mocked provider query strings should not be internal prompts.");
+  assert(livePayloads.every((item) => item.toolType === "web_search"), "Live payloads should use current web_search.");
+  assert(livePayloads.every((item) => item.toolChoice === "required"), "Live payloads should force web_search execution.");
+  assert(livePayloads.every((item) => item.include.includes("web_search_call.action.sources")), "Live payloads should request web_search action sources.");
+  assert(livePayloads.some((item) => item.searchContextSize === "medium"), "Live payloads should request medium search context when supported.");
+  assert(livePayloads.some((item) => item.allowedDomains.includes("ebay.com")), "At least one marketplace-domain payload should request ebay.com.");
 
   const zero = await runScenario("zero");
   assert(!zero.json.includes(leakedPhrase), "Zero-result JSON should not include leaked prompt phrase.");

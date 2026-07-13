@@ -32,7 +32,7 @@ $checks = @(
   @{ Name = "API exposes reference range basis"; Text = $api; Pattern = "referenceRangeBasis" },
   @{ Name = "API preserves rejected result reasons"; Text = $api; Pattern = "function extractRejectionReason" },
   @{ Name = "Frontend research panel exists"; Text = $app; Pattern = "function renderResearchEvidencePanel" },
-  @{ Name = "Frontend research title shows result count"; Text = $app; Pattern = 'Research Details - ${researchResultCount} results found' },
+  @{ Name = "Frontend research title shows visible record count"; Text = $app; Pattern = 'Research Details - ${researchResultCount} visible records' },
   @{ Name = "Frontend source cards render"; Text = $app; Pattern = "function renderResearchResultList" },
   @{ Name = "Frontend source links render"; Text = $app; Pattern = "source-result-link" },
   @{ Name = "Frontend copy formats source records"; Text = $app; Pattern = "function formatResearchRecordText" },
@@ -41,8 +41,8 @@ $checks = @(
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
   @{ Name = "Server has research visibility fields"; Text = $server; Pattern = "function Set-ResearchVisibilityFields" },
   @{ Name = "Server blocks preliminary range without supporting records"; Text = $server; Pattern = "Get-ReferenceSupportingResearchResultCount" },
-  @{ Name = "Visible app version is 1.9.5"; Text = $index; Pattern = "Version 1.9.5" },
-  @{ Name = "Package version is 1.9.5"; Text = $package; Pattern = '"version": "1.9.5"' },
+  @{ Name = "Visible app version is 1.9.6"; Text = $index; Pattern = "Version 1.9.6" },
+  @{ Name = "Package version is 1.9.6"; Text = $package; Pattern = '"version": "1.9.6"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }
 )
 
