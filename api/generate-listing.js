@@ -2579,8 +2579,10 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
+  const queriesActuallySent = collectWebSearchActionQueries(webSearchCalls);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 8);
+  const rawResultSummaries = collectSafeRawResultSummaries({ result, citations, searchQueries, queriesActuallySent });
   const bucketedResearch = buildResearchResultBuckets(result, rawItems, citations, identity);
   const comparableItemsFound = recordsToLegacyComparableStrings([
     ...bucketedResearch.strongComparables,
@@ -2637,7 +2639,20 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
       finalLiveSearchStatus: liveSearchStatus,
       includeSourcesRequested,
       includeFallbackReason
-    }
+    },
+    searchDiagnostics: buildSearchDiagnostics({
+      searchQueries,
+      queriesActuallySent,
+      sourceRoute,
+      sourcesSearched,
+      citations,
+      webSearchCalls,
+      rawResultSummaries,
+      bucketedResearch,
+      providerErrors: [],
+      liveSearchStatus,
+      elapsedMs
+    })
   };
 }
 
@@ -2680,7 +2695,20 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
       errorCategory: diagnostic.category,
       includeSourcesRequested,
       includeFallbackReason
-    }
+    },
+    searchDiagnostics: buildSearchDiagnostics({
+      searchQueries,
+      queriesActuallySent: [],
+      sourceRoute,
+      sourcesSearched: [],
+      citations: [],
+      webSearchCalls: [],
+      rawResultSummaries: [],
+      bucketedResearch: buildEmptyResearchBuckets(),
+      providerErrors: [diagnostic],
+      liveSearchStatus,
+      elapsedMs
+    })
   };
 }
 
@@ -2709,21 +2737,239 @@ function diagnoseSearchAcquisition({ webSearchExecuted, citations = [], bucketed
   return "Exact or strong identity matches were visible, but price evidence was not strong enough to mark confirmed fair-market value.";
 }
 
-function buildResearchResultBuckets(result, legacyItems, citations, identity = {}) {
-  const seen = new Set();
-  const buckets = {
+function buildEmptyResearchBuckets() {
+  return {
     strongComparables: [],
     partialComparables: [],
     referenceResults: [],
     weakMatches: [],
-    rejectedMatches: []
+    rejectedMatches: [],
+    resultsFound: [],
+    normalizationDiagnostics: {
+      parsedResultCount: 0,
+      normalizedResultCount: 0,
+      deduplicatedResultCount: 0,
+      exactMatchCountBeforeFiltering: 0,
+      strongMatchCountBeforeFiltering: 0,
+      partialMatchCountBeforeFiltering: 0,
+      referenceResultCountBeforeFiltering: 0,
+      weakMatchCountBeforeFiltering: 0,
+      rejectedResultCount: 0,
+      retainedVisibleResultCount: 0,
+      droppedResultReasons: []
+    }
+  };
+}
+
+function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], sourceRoute = [], sourcesSearched = [], citations = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], liveSearchStatus = "", elapsedMs = 0 }) {
+  const normalization = bucketedResearch.normalizationDiagnostics || {};
+  const queryTransmissionMode = queriesActuallySent.length ? "provider_action_queries_exposed" : "prompt_supplied_to_search_controller";
+  const rawResultCount = rawResultSummaries.length;
+  const parsedResultCount = Number(normalization.parsedResultCount || 0);
+  const normalizedResultCount = Number(normalization.normalizedResultCount || 0);
+  const deduplicatedResultCount = Number(normalization.deduplicatedResultCount || 0);
+  const retainedVisibleResultCount = Number(normalization.retainedVisibleResultCount || 0);
+  const rejectedResultCount = Number(normalization.rejectedResultCount || 0);
+  const queryResultsSummary = buildQueryResultsSummary({
+    searchQueries,
+    queriesActuallySent,
+    queryTransmissionMode,
+    webSearchCalls,
+    rawResultSummaries,
+    retainedVisibleResultCount,
+    providerErrors
+  });
+  const diagnostics = {
+    queriesGenerated: searchQueries,
+    queriesActuallySent: queriesActuallySent.length ? queriesActuallySent : searchQueries,
+    queryTransmissionMode,
+    queryCount: searchQueries.length,
+    sourcesRequested: buildSourcesTargeted(sourceRoute),
+    sourceRoute,
+    providerCallsAttempted: webSearchCalls.length || providerErrors.length ? 1 : 0,
+    providerCallsSucceeded: webSearchCalls.length,
+    providerErrors: providerErrors.map(sanitizeProviderErrorSummary),
+    rawResultCount,
+    parsedResultCount,
+    normalizedResultCount,
+    deduplicatedResultCount,
+    exactMatchCountBeforeFiltering: Number(normalization.exactMatchCountBeforeFiltering || 0),
+    strongMatchCountBeforeFiltering: Number(normalization.strongMatchCountBeforeFiltering || 0),
+    partialMatchCountBeforeFiltering: Number(normalization.partialMatchCountBeforeFiltering || 0),
+    referenceResultCountBeforeFiltering: Number(normalization.referenceResultCountBeforeFiltering || 0),
+    weakMatchCountBeforeFiltering: Number(normalization.weakMatchCountBeforeFiltering || 0),
+    rejectedResultCount,
+    retainedVisibleResultCount,
+    droppedResultReasons: normalizeDropReasons(normalization.droppedResultReasons),
+    queryResultsSummary,
+    acquisitionFailureStage: classifySearchFailureStage({
+      providerCallsSucceeded: webSearchCalls.length,
+      rawResultCount,
+      parsedResultCount,
+      normalizedResultCount,
+      retainedVisibleResultCount,
+      rejectedResultCount,
+      providerErrors
+    }),
+    safeRawResults: rawResultSummaries.slice(0, 16),
+    sourcesSearched: summarizeSourceLabels(sourcesSearched),
+    sourcesReturned: summarizeSourceLabels(citations.map((citation) => citation.title || citation.url)),
+    elapsedMilliseconds: elapsedMs,
+    liveSearchStatus
+  };
+  return diagnostics;
+}
+
+function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = [], queryTransmissionMode = "", webSearchCalls = [], rawResultSummaries = [], retainedVisibleResultCount = 0, providerErrors = [] }) {
+  const exposedQueries = new Set(queriesActuallySent.map((query) => cleanText(query).toLowerCase()).filter(Boolean));
+  const providerSucceeded = webSearchCalls.length > 0;
+  const queryLevelCountsAvailable = queriesActuallySent.length > 0;
+  return searchQueries.map((query) => {
+    const normalized = cleanText(query).toLowerCase();
+    const matchingRaw = rawResultSummaries.filter((item) => cleanText(item.query).toLowerCase() === normalized);
+    const queryWasExposed = exposedQueries.has(normalized);
+    return {
+      query,
+      source: "OpenAI web_search",
+      requestAttempted: queryTransmissionMode === "prompt_supplied_to_search_controller" || queryWasExposed,
+      requestSucceeded: providerSucceeded,
+      rawResultCount: queryLevelCountsAvailable ? matchingRaw.length : 0,
+      parsedResultCount: queryLevelCountsAvailable ? matchingRaw.length : 0,
+      retainedResultCount: queryLevelCountsAvailable ? matchingRaw.filter((item) => item.retained).length : 0,
+      controlledError: providerErrors.length
+        ? providerErrors.map((error) => sanitizeProviderErrorSummary(error).message).filter(Boolean).join("; ")
+        : queryLevelCountsAvailable
+          ? ""
+          : "Provider did not expose query-level result counts; query was supplied to the search controller.",
+      primaryRejectionStageOrReason: retainedVisibleResultCount
+        ? "none"
+        : queryLevelCountsAvailable && matchingRaw.length
+          ? "filtering_failure"
+          : providerSucceeded
+            ? "provider_zero_results_or_unexposed_query_results"
+            : "provider_request_failure"
+    };
+  }).slice(0, 20);
+}
+
+function classifySearchFailureStage({ providerCallsSucceeded, rawResultCount, parsedResultCount, normalizedResultCount, retainedVisibleResultCount, rejectedResultCount, providerErrors = [] }) {
+  if (retainedVisibleResultCount > 0) return "none";
+  if (providerErrors.length) return "provider_request_failure";
+  if (!providerCallsSucceeded) return "query_transmission_failure";
+  if (rawResultCount === 0) return "provider_zero_results";
+  if (parsedResultCount === 0) return "raw_parse_failure";
+  if (normalizedResultCount === 0) return "normalization_failure";
+  if (rejectedResultCount > 0 || normalizedResultCount > 0) return "filtering_failure";
+  return "unknown";
+}
+
+function collectSafeRawResultSummaries({ result = {}, citations = [], searchQueries = [], queriesActuallySent = [] }) {
+  const summaries = [];
+  const fallbackQuery = queriesActuallySent[0] || searchQueries[0] || "";
+  const addSummary = (value, bucketName, query = fallbackQuery) => {
+    const rawText = cleanText(value);
+    if (!rawText) return;
+    const url = extractFirstUrl(rawText);
+    summaries.push({
+      title: extractResultTitle(rawText, inferSourceFromResult(rawText, url), url),
+      url,
+      source: inferSourceFromResult(rawText, url),
+      displayedPriceText: extractDisplayedPrice(rawText),
+      snippet: rawText.replace(/https?:\/\/[^\s),;]+/gi, "").slice(0, 260),
+      query,
+      bucketName,
+      retained: /strong|partial|reference/i.test(bucketName)
+    });
+  };
+
+  normalizeStringArray(result.comparableItemsFound, 12).forEach((item) => addSummary(item, "comparableItemsFound"));
+  normalizeStringArray(result.strongComparables, 12).forEach((item) => addSummary(item, "strongComparables"));
+  normalizeStringArray(result.partialComparables, 12).forEach((item) => addSummary(item, "partialComparables"));
+  normalizeStringArray(result.referenceResults, 12).forEach((item) => addSummary(item, "referenceResults"));
+  normalizeStringArray(result.weakMatches, 12).forEach((item) => addSummary(item, "weakMatches"));
+  normalizeStringArray(result.rejectedMatches, 12).forEach((item) => addSummary(item, "rejectedMatches"));
+
+  for (const citation of citations.slice(0, 12)) {
+    summaries.push({
+      title: cleanText(citation.title || citation.url),
+      url: cleanText(citation.url),
+      source: sourceLabelFromCitation(citation),
+      displayedPriceText: "",
+      snippet: "URL citation returned by provider.",
+      query: fallbackQuery,
+      bucketName: "urlCitation",
+      retained: false
+    });
+  }
+
+  return summaries.slice(0, 24);
+}
+
+function addDropReason(diagnostics, reason) {
+  diagnostics.droppedResultReasons.push(reason);
+}
+
+function normalizeDropReasons(reasons = []) {
+  const counts = new Map();
+  for (const reason of reasons.map(cleanText).filter(Boolean)) {
+    counts.set(reason, (counts.get(reason) || 0) + 1);
+  }
+  return [...counts.entries()].map(([reason, count]) => ({ reason, count })).slice(0, 12);
+}
+
+function incrementPreFilterCount(diagnostics, bucketName, record) {
+  const classification = cleanText(record.classification).toLowerCase();
+  if (/exact/.test(classification)) diagnostics.exactMatchCountBeforeFiltering += 1;
+  else if (/strong/.test(classification)) diagnostics.strongMatchCountBeforeFiltering += 1;
+  else if (bucketName === "partialComparables" || /partial/.test(classification)) diagnostics.partialMatchCountBeforeFiltering += 1;
+  else if (bucketName === "referenceResults" || /reference/.test(classification)) diagnostics.referenceResultCountBeforeFiltering += 1;
+  else if (bucketName === "weakMatches" || /weak/.test(classification)) diagnostics.weakMatchCountBeforeFiltering += 1;
+  if (bucketName === "rejectedMatches" || /rejected/.test(classification)) diagnostics.rejectedResultCount += 1;
+}
+
+function trimBucketWithReason(bucket, maxItems, diagnostics, reason) {
+  if (bucket.length <= maxItems) return;
+  const dropped = bucket.length - maxItems;
+  bucket.splice(maxItems);
+  for (let index = 0; index < dropped; index += 1) {
+    addDropReason(diagnostics, reason);
+  }
+}
+
+function sanitizeProviderErrorSummary(error = {}) {
+  return {
+    category: cleanText(error.category || error.liveSearchErrorCategory || "unknown"),
+    statusCode: error.statusCode || error.openAIStatusCode || null,
+    type: cleanText(error.type || error.openAIErrorType || ""),
+    code: cleanText(error.code || error.openAIErrorCode || ""),
+    message: sanitizeErrorText(error.message || error.openAIErrorMessage || error.userMessage || "")
+  };
+}
+
+function buildResearchResultBuckets(result, legacyItems, citations, identity = {}) {
+  const seen = new Set();
+  const buckets = buildEmptyResearchBuckets();
+  const diagnostics = {
+    parsedResultCount: 0,
+    normalizedResultCount: 0,
+    deduplicatedResultCount: 0,
+    droppedResultReasons: [],
+    exactMatchCountBeforeFiltering: 0,
+    strongMatchCountBeforeFiltering: 0,
+    partialMatchCountBeforeFiltering: 0,
+    referenceResultCountBeforeFiltering: 0,
+    weakMatchCountBeforeFiltering: 0,
+    rejectedResultCount: 0
   };
 
   const addRecord = (bucketName, text) => {
+    diagnostics.parsedResultCount += 1;
     const record = normalizeResearchResultRecord(text, bucketName, citations, identity);
     if (!record.rawText) {
+      addDropReason(diagnostics, "missing title or raw result text");
       return;
     }
+    diagnostics.normalizedResultCount += 1;
     const identityStrength = classifyIdentityMatchStrength(record, identity);
     if (!/rejected|weak/i.test(record.classification) && /exact|strong/i.test(identityStrength)) {
       bucketName = "strongComparables";
@@ -2733,9 +2979,12 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
     }
     const key = `${record.url || ""}|${record.title}|${record.classification}|${record.rejectionReason}`.toLowerCase();
     if (seen.has(key)) {
+      addDropReason(diagnostics, "duplicate");
       return;
     }
     seen.add(key);
+    diagnostics.deduplicatedResultCount += 1;
+    incrementPreFilterCount(diagnostics, bucketName, record);
     buckets[bucketName].push(record);
   };
 
@@ -2759,11 +3008,11 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
     }
   }
 
-  buckets.strongComparables = buckets.strongComparables.slice(0, 6);
-  buckets.partialComparables = buckets.partialComparables.slice(0, 8);
-  buckets.referenceResults = buckets.referenceResults.slice(0, 8);
-  buckets.weakMatches = buckets.weakMatches.slice(0, 8);
-  buckets.rejectedMatches = buckets.rejectedMatches.slice(0, 8);
+  trimBucketWithReason(buckets.strongComparables, 6, diagnostics, "strong comparable display cap");
+  trimBucketWithReason(buckets.partialComparables, 8, diagnostics, "partial comparable display cap");
+  trimBucketWithReason(buckets.referenceResults, 8, diagnostics, "reference result display cap");
+  trimBucketWithReason(buckets.weakMatches, 8, diagnostics, "weak match display cap");
+  trimBucketWithReason(buckets.rejectedMatches, 8, diagnostics, "rejected match display cap");
   buckets.resultsFound = [
     ...buckets.strongComparables,
     ...buckets.partialComparables,
@@ -2771,6 +3020,12 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
     ...buckets.weakMatches,
     ...buckets.rejectedMatches
   ].slice(0, 24);
+  diagnostics.retainedVisibleResultCount = [
+    ...buckets.strongComparables,
+    ...buckets.partialComparables,
+    ...buckets.referenceResults
+  ].filter(isUsableSourceRecord).length;
+  buckets.normalizationDiagnostics = diagnostics;
 
   return buckets;
 }
@@ -3200,6 +3455,7 @@ function buildResearchVisibilityFields(liveSearch = {}) {
     rejectedMatches,
     searchLimitations,
     visibleResearchResultCount,
+    searchDiagnostics: liveSearch.searchDiagnostics || null,
     referenceRangeBasis: visibleResearchResultCount
       ? `${visibleResearchResultCount} visible source-backed result${visibleResearchResultCount === 1 ? "" : "s"} were returned. Strong results can support value; partial/reference results can only support a preliminary range; weak/rejected matches do not establish fair value.`
       : "No visible structured source records were returned, so a preliminary reference range is not supported."
@@ -3507,6 +3763,10 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
     valuationEvidenceExplanation: classified.explanation
   };
 
+  if (supportingResultCount === 0) {
+    return applyZeroEvidenceGuard(normalized, { workflow });
+  }
+
   if (workflow === "listing") {
     normalized.pricingEvidenceState = classified.state;
     normalized.pricingRationale = ensurePrefix(normalized.pricingRationale, `Valuation evidence state: ${classified.state}. `);
@@ -3553,6 +3813,131 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
   normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Fair value not established - available evidence is too weak for a defensible dollar range. ");
   normalized.referenceRangeBasis = "No numeric preliminary range is shown because there are no visible structured source records supporting one.";
   return normalized;
+}
+
+function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
+  const askingPriceText = firstKnown(report.askingPrice, report.currentAskingPrice, report.visiblePrice);
+  const safeLowDownsideText = buildZeroEvidenceLowDownsideText(askingPriceText);
+  const sanitized = sanitizeZeroEvidenceMarketText(report, askingPriceText);
+
+  const guarded = {
+    ...sanitized,
+    valuationEvidenceState: "insufficient",
+    valuationEvidenceLabel: "Fair Value Not Established",
+    valuationEvidenceExplanation: "Zero visible structured source-backed comparable results were retained. Market value is not established.",
+    pricingEvidenceState: workflow === "listing" ? "insufficient" : sanitized.pricingEvidenceState,
+    estimatedFairMarketValue: null,
+    estimatedMarketValue: null,
+    fairPriceRange: [],
+    preliminaryReferenceRange: null,
+    referenceRangeBasis: null,
+    referenceCenter: null,
+    marketLow: null,
+    marketHigh: null,
+    activeAskingRange: null,
+    soldRange: null,
+    priceToMarketRatio: null,
+    belowMarketPercent: null,
+    aiOnlyRoughValueRange: null,
+    suggestedListingPrice: null,
+    expectedSalePrice: null,
+    minimumAcceptablePrice: null,
+    recommendedListingPrice: null,
+    suggestedOfferRange: null,
+    fairValueNotEstablished: "Fair Value: Not established",
+    valueRating: "Insufficient Evidence",
+    whatThisMeans: "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
+    priceBasis: "Fair value not established - the current search did not return visible source-backed comparable evidence.",
+    currentPriceAssessment: "Insufficient evidence - no source-backed market comparison is supported.",
+    pricingRationale: safeLowDownsideText,
+    cautiousBuyExplanation: shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)
+      ? safeLowDownsideText
+      : "",
+    consumerDownsideRisk: askingPriceText
+      ? `Limited-dollar exposure can be considered from the user's asking price (${askingPriceText}) only. No market comparison was established.`
+      : "No asking price was available for a downside-only personal-use assessment.",
+    recommendedOffer: [],
+    openingOffer: "Not source-supported - no market value was established.",
+    targetPurchasePrice: "Not source-supported - no market value was established.",
+    maximumRecommendedPrice: "Not source-supported - no market value was established.",
+    maximumRecommendedBuyPrice: "Not source-supported - no market value was established.",
+    walkAwayPrice: "No market-based walk-away price is supported without visible comparable evidence.",
+    negotiationGuidance: askingPriceText
+      ? `Only the user's asking price (${askingPriceText}) is visible. Any personal-use decision should be based on limited financial exposure, condition, and whether the buyer likes the item; not on an established market value.`
+      : "No market-based negotiation guidance is supported without visible comparable evidence.",
+    reasonsForCaution: mergeStringArrays(
+      sanitized.reasonsForCaution,
+      ["No visible source-backed comparable evidence was retained.", "Market value was not established."],
+      8
+    ),
+    additionalInformationNeeded: mergeStringArrays(
+      sanitized.additionalInformationNeeded,
+      ["Visible exact or strong source-backed comparable records are needed before showing source-backed price guidance."],
+      8
+    )
+  };
+
+  if (shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)) {
+    guarded.recommendation = cleanText(report.recommendation) && !/need more information/i.test(report.recommendation)
+      ? report.recommendation
+      : "Buy";
+    guarded.reasonsToBuy = [safeLowDownsideText];
+  } else if (!cleanText(guarded.recommendation)) {
+    guarded.recommendation = "Need More Information";
+  }
+
+  return guarded;
+}
+
+function shouldAllowZeroEvidencePersonalBuy(report, askingPriceText) {
+  const amount = extractFirstMoneyAmount(askingPriceText);
+  return /personal_use/i.test(cleanText(report.buyerIntent || report.purchase_intent || ""))
+    && Number.isFinite(amount)
+    && amount <= consumerDecisionThresholds.lowDollarCautiousBuyMax
+    && !/repair|missing|not working|for parts|unsafe|authenticity/i.test([report.productOrConditionRisks, report.riskFlags].flat().join(" "));
+}
+
+function buildZeroEvidenceLowDownsideText(askingPriceText) {
+  const price = askingPriceText || "the stated asking price";
+  return `At ${price}, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established.`;
+}
+
+function sanitizeZeroEvidenceMarketText(value, askingPriceText, key = "") {
+  const allowedPriceKeys = new Set(["askingPrice", "currentAskingPrice", "visiblePrice"]);
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeZeroEvidenceMarketText(item, askingPriceText, key)).filter((item) => item !== "");
+  }
+  if (value && typeof value === "object") {
+    const result = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      result[childKey] = sanitizeZeroEvidenceMarketText(childValue, askingPriceText, childKey);
+    }
+    return result;
+  }
+  if (typeof value !== "string") {
+    return value;
+  }
+  if (allowedPriceKeys.has(key)) {
+    return value;
+  }
+  return sanitizeUnsupportedMarketText(value, askingPriceText);
+}
+
+function sanitizeUnsupportedMarketText(text, askingPriceText = "") {
+  const source = cleanText(text);
+  if (!source) return source;
+  const hasUnsupportedMarketClaim = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value/i.test(source);
+  const hasMoneyRange = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(source);
+  const hasPercentMarket = /\b\d{1,3}%\b.*\b(market|value|below|above|discount)/i.test(source);
+  const askingAmount = extractFirstMoneyAmount(askingPriceText);
+  const amounts = extractMoneyAmounts(source);
+  const hasNonAskingMoney = amounts.some((amount) => !Number.isFinite(askingAmount) || Math.round(amount) !== Math.round(askingAmount));
+
+  if (hasUnsupportedMarketClaim || hasMoneyRange || hasPercentMarket || (hasNonAskingMoney && /\bmarket|value|range|reference|asking|sold|price|below|above\b/i.test(source))) {
+    return "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
+  }
+
+  return source;
 }
 
 function extractValuationEvidenceRange(report = {}) {
@@ -3816,7 +4201,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       : liveSearch.liveSearchStatus;
   const askingPriceNumber = getConsumerAskingPriceNumber(buyerIntake, identity);
   const priceEvidence = summarizeConsumerVisiblePriceEvidence(liveSearch);
-  const fairValueNumber = extractConsumerFairValueNumber(report) || priceEvidence.referenceCenter;
+  const retainedVisibleResultCount = Number(liveSearch.searchDiagnostics?.retainedVisibleResultCount || liveSearch.visibleResearchResultCount || 0);
+  const fairValueNumber = priceEvidence.referenceCenter || (retainedVisibleResultCount ? extractConsumerFairValueNumber(report) : null);
   const conditionProfile = getConsumerConditionProfile(buyerIntake, identity);
   const decision = classifyConsumerPurchaseDecision({
     askingPriceNumber,
@@ -3953,6 +4339,25 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
     conditionProfile,
     downsideRisk
   });
+  const clearIdentity = hasClearConsumerIdentity(identity);
+  const zeroEvidenceLowDownsideBuy = hasAskingPrice
+    && !hasFairValue
+    && downsideRisk.lowDollarExposure
+    && clearIdentity
+    && !conditionProfile.hasHardRisk
+    && !downsideRisk.hardFactors.length;
+
+  if (zeroEvidenceLowDownsideBuy) {
+    return {
+      valueRating: "Insufficient Evidence",
+      recommendation: "Buy",
+      pricingConfidence: forceLowConfidence("", "Market value is not established because no visible structured comparable evidence was retained. The recommendation is based only on limited dollar exposure and item clarity."),
+      riskFlags,
+      downsideRisk,
+      cautiousBuyExplanation: buildZeroEvidenceLowDownsideText(formatMoney(askingPriceNumber)),
+      evidenceWarning: "Valuation evidence is insufficient; this is a low-dollar personal-use decision, not a market-value conclusion."
+    };
+  }
 
   if (!hasAskingPrice || !hasFairValue || (!hasReliableEvidence && !cautiousBuy)) {
     return {
@@ -4039,6 +4444,23 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
 
 function deriveConsumerDecision(args) {
   return classifyConsumerPurchaseDecision(args);
+}
+
+function hasClearConsumerIdentity(identity = {}) {
+  const evidence = [
+    identity.subjectIdentity,
+    identity.exactProductIdentity,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.brand,
+    identity.teamName,
+    identity.schoolName,
+    identity.visualSubject,
+    identity.likelyItemDescription,
+    ...(Array.isArray(identity.visibleText) ? identity.visibleText : [])
+  ].filter(hasKnownValue);
+  return evidence.length >= 3 && !normalizeStringArray(identity.identityConflictNotes, 4).length;
 }
 
 function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
@@ -6280,6 +6702,26 @@ function collectUrlCitations(data) {
 
 function collectWebSearchCalls(data) {
   return (data.output || []).filter((item) => item.type === "web_search_call");
+}
+
+function collectWebSearchActionQueries(calls) {
+  const queries = [];
+  for (const call of calls || []) {
+    const action = call.action || {};
+    const candidates = [
+      action.query,
+      action.search_query,
+      action.searchQuery,
+      action.q
+    ];
+    for (const candidate of candidates) {
+      const query = cleanText(candidate);
+      if (query) {
+        addUnique(queries, query);
+      }
+    }
+  }
+  return queries.slice(0, 20);
 }
 
 function collectWebSearchSources(data) {

@@ -206,6 +206,13 @@
 - Consumer decisions now use centralized low-dollar downside logic so low confidence no longer automatically forces Need More Information when exact visible evidence supports a cautious Buy
 - Research limitations now distinguish acquisition failure, filtering failure, missing URL citations, weak matches, and price-evidence limitations
 
+## Version 1.9.4 (Completed)
+- Search pipeline diagnostics now record generated queries, queries sent, provider call counts, raw/parsed/normalized/retained result counts, rejection reasons, and acquisition failure stage
+- Research Details now includes Technical Search Details so beta users can see where search results disappeared without exposing secrets
+- Zero visible retained comparable evidence now forces Fair Value: Not established and prevents unsupported market ranges, reference centers, ratios, or inferred fair-market-value claims
+- Model-generated unsupported market-value wording is sanitized after the report is produced, including copied text and Ask Market Edge context
+- Low-dollar personal-use Buy/Cautious Buy can still appear only as limited-downside reasoning, not as a market-value comparison
+
 ## Version 2.0
 - User accounts
 - Saved listings

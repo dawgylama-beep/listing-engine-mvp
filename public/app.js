@@ -71,6 +71,7 @@ const listingSections = [
   ["rejectedMatches", "Rejected Matches"],
   ["searchLimitations", "Search Limitations"],
   ["referenceRangeBasis", "Reference Range Basis"],
+  ["searchDiagnostics", "Technical Search Details"],
   ["researchResults", "Research Results"],
   ["comparableQuality", "Comparable Quality"],
   ["recommendedListingPrice", "Recommended Listing Price"],
@@ -144,6 +145,7 @@ const valuationSections = [
   ["rejectedMatches", "Rejected Matches"],
   ["searchLimitations", "Search Limitations"],
   ["referenceRangeBasis", "Reference Range Basis"],
+  ["searchDiagnostics", "Technical Search Details"],
   ["liveCompConfidence", "Live Comp Confidence"],
   ["valuationConfidence", "Valuation Confidence"],
   ["aiOnlyRoughValueRange", "AI-Only Rough Value Range"],
@@ -209,6 +211,7 @@ const consumerSections = [
   ["rejectedMatches", "Rejected Matches"],
   ["searchLimitations", "Search Limitations"],
   ["referenceRangeBasis", "Reference Range Basis"],
+  ["searchDiagnostics", "Technical Search Details"],
   ["researchResults", "Research Results"],
   ["comparableQuality", "Comparable Quality"],
   ["pricingConfidence", "Pricing Confidence"],
@@ -705,6 +708,7 @@ function extractReportContext(report, sections = []) {
     "rejectedMatches",
     "searchLimitations",
     "referenceRangeBasis",
+    "searchDiagnostics",
     "researchResults",
     "comparableQuality",
     "weFoundThisItem",
@@ -872,6 +876,9 @@ function isConsumerReport(report) {
 function normalizeReportForEvidenceDisplay(report, workflow) {
   const visibleResultCount = countVisibleResearchResults(report);
   const supportingResultCount = countReferenceSupportingResearchResults(report);
+  if (supportingResultCount === 0) {
+    return applyFrontendZeroEvidenceGuard(report, workflow);
+  }
   const initialClassification = classifyValuationEvidenceForDisplay(report);
   const classified = initialClassification.state === "preliminary" && supportingResultCount === 0
     ? {
@@ -930,6 +937,79 @@ function normalizeReportForEvidenceDisplay(report, workflow) {
   normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
   normalized.referenceRangeBasis = firstNonEmpty(report.referenceRangeBasis, "No numeric preliminary range is shown because there are no visible structured source records supporting one.");
   return normalized;
+}
+
+function applyFrontendZeroEvidenceGuard(report, workflow) {
+  const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, report.visiblePrice);
+  const safeExplanation = askingPrice
+    ? `At ${askingPrice}, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established.`
+    : "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
+  const guarded = {
+    ...report,
+    valuationEvidenceState: "insufficient",
+    valuationEvidenceLabel: "Fair Value Not Established",
+    valuationEvidenceExplanation: "Zero visible structured source-backed comparable results were retained. Market value is not established.",
+    fairValueNotEstablished: "Fair Value: Not established",
+    estimatedFairMarketValue: "",
+    estimatedMarketValue: "",
+    fairPriceRange: [],
+    preliminaryReferenceRange: "",
+    referenceRangeBasis: "",
+    referenceCenter: "",
+    marketLow: "",
+    marketHigh: "",
+    activeAskingRange: "",
+    soldRange: "",
+    priceToMarketRatio: "",
+    belowMarketPercent: "",
+    aiOnlyRoughValueRange: "",
+    suggestedListingPrice: "",
+    expectedSalePrice: "",
+    minimumAcceptablePrice: "",
+    recommendedListingPrice: "",
+    suggestedOfferRange: "",
+    valueRating: "Insufficient Evidence",
+    whatThisMeans: "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
+    priceBasis: "Fair value not established - the current search did not return visible source-backed comparable evidence.",
+    currentPriceAssessment: "Insufficient evidence - no source-backed market comparison is supported.",
+    pricingRationale: safeExplanation,
+    cautiousBuyExplanation: /personal/i.test(firstNonEmpty(report.buyerIntent, workflow)) ? safeExplanation : "",
+    consumerDownsideRisk: askingPrice ? `Only the asking price (${askingPrice}) is available for a limited-downside personal-use assessment.` : report.consumerDownsideRisk
+  };
+
+  return sanitizeFrontendZeroEvidenceText(guarded, askingPrice);
+}
+
+function sanitizeFrontendZeroEvidenceText(value, askingPrice, key = "") {
+  const allowedPriceKeys = new Set(["askingPrice", "currentAskingPrice", "visiblePrice"]);
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeFrontendZeroEvidenceText(item, askingPrice, key)).filter((item) => item !== "");
+  }
+  if (value && typeof value === "object") {
+    const result = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      result[childKey] = sanitizeFrontendZeroEvidenceText(childValue, askingPrice, childKey);
+    }
+    return result;
+  }
+  if (typeof value !== "string" || allowedPriceKeys.has(key)) {
+    return value;
+  }
+  return sanitizeUnsupportedFrontendMarketText(value, askingPrice);
+}
+
+function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
+  const text = String(value || "");
+  if (!text) return text;
+  const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market/i.test(text);
+  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
+  const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
+  const amounts = extractMoneyAmountsFromText(text);
+  const nonAskingMoney = amounts.some((amount) => !Number.isFinite(askingAmount) || Math.round(amount) !== Math.round(askingAmount));
+  if (unsupported || range || (nonAskingMoney && /\bmarket|value|range|reference|asking|sold|price|below|above\b/i.test(text))) {
+    return "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
+  }
+  return text;
 }
 
 function classifyValuationEvidenceForDisplay(report = {}) {
@@ -1198,6 +1278,7 @@ function hasResearchVisibility(report) {
     || normalizeDisplayValue(report.sourcesSearched)
     || normalizeDisplayValue(report.searchCoverage)
     || normalizeDisplayValue(report.searchLimitations)
+    || normalizeDisplayValue(report.searchDiagnostics)
   );
 }
 
@@ -1213,7 +1294,8 @@ function isResearchVisibilityKey(key) {
     "weakMatches",
     "rejectedMatches",
     "searchLimitations",
-    "referenceRangeBasis"
+    "referenceRangeBasis",
+    "searchDiagnostics"
   ]).has(key);
 }
 
@@ -1241,7 +1323,8 @@ function renderResearchEvidencePanel(report) {
     ["Reference Results", report.referenceResults],
     ["Weak or Rejected Matches", [...normalizeArray(report.weakMatches), ...normalizeArray(report.rejectedMatches)]],
     ["Search Limitations", report.searchLimitations],
-    ["Reference Range Basis", report.referenceRangeBasis]
+    ["Reference Range Basis", report.referenceRangeBasis],
+    ["Technical Search Details", report.searchDiagnostics]
   ].forEach(([label, value]) => {
     if (!shouldRenderSection(label, value)) {
       return;
@@ -1250,12 +1333,75 @@ function renderResearchEvidencePanel(report) {
     subsection.className = "research-subsection";
     const heading = document.createElement("h4");
     heading.textContent = label;
-    subsection.append(heading, renderValue(value));
+    subsection.append(heading, label === "Technical Search Details" ? renderSearchDiagnostics(value) : renderValue(value));
     body.appendChild(subsection);
   });
 
   card.append(header, body);
   return card;
+}
+
+function renderSearchDiagnostics(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== "object") {
+    return renderValue(diagnostics);
+  }
+  const wrapper = document.createElement("div");
+  wrapper.className = "search-diagnostics";
+  const summaryRows = [
+    ["Search Queries Sent", diagnostics.queriesActuallySent || diagnostics.queriesGenerated],
+    ["Sources Requested", diagnostics.sourcesRequested],
+    ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
+    ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
+    ["Raw Results Returned", diagnostics.rawResultCount],
+    ["Results Parsed", diagnostics.parsedResultCount],
+    ["Results Normalized", diagnostics.normalizedResultCount],
+    ["Results Retained", diagnostics.retainedVisibleResultCount],
+    ["Results Rejected", diagnostics.rejectedResultCount],
+    ["Search Failure Stage", diagnostics.acquisitionFailureStage]
+  ];
+
+  const list = document.createElement("dl");
+  list.className = "diagnostic-summary";
+  summaryRows.forEach(([label, value]) => {
+    if (!shouldRenderSection(label, value)) return;
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.textContent = normalizeDisplayValue(value);
+    list.append(dt, dd);
+  });
+  wrapper.appendChild(list);
+
+  if (Array.isArray(diagnostics.droppedResultReasons) && diagnostics.droppedResultReasons.length) {
+    const title = document.createElement("h5");
+    title.textContent = "Top Rejection Reasons";
+    wrapper.append(title, renderValue(diagnostics.droppedResultReasons.map((item) => `${item.reason}: ${item.count}`)));
+  }
+
+  if (Array.isArray(diagnostics.queryResultsSummary) && diagnostics.queryResultsSummary.length) {
+    const title = document.createElement("h5");
+    title.textContent = "Query-by-Query Diagnostics";
+    const rows = document.createElement("div");
+    rows.className = "query-diagnostic-list";
+    diagnostics.queryResultsSummary.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "query-diagnostic-row";
+      row.textContent = [
+        `Query: ${item.query}`,
+        `Attempted: ${item.requestAttempted ? "yes" : "no"}`,
+        `Succeeded: ${item.requestSucceeded ? "yes" : "no"}`,
+        `Raw: ${item.rawResultCount}`,
+        `Parsed: ${item.parsedResultCount}`,
+        `Retained: ${item.retainedResultCount}`,
+        item.controlledError ? `Note: ${item.controlledError}` : "",
+        item.primaryRejectionStageOrReason ? `Stage: ${item.primaryRejectionStageOrReason}` : ""
+      ].filter(Boolean).join(" | ");
+      rows.appendChild(row);
+    });
+    wrapper.append(title, rows);
+  }
+
+  return wrapper;
 }
 
 function renderSectionCard({ key, label, value, report }) {
@@ -2557,9 +2703,46 @@ function formatResearchEvidence(report) {
     formatSection("Rejected Matches", report.rejectedMatches),
     formatSection("Search Limitations", report.searchLimitations),
     formatSection("Reference Range Basis", report.referenceRangeBasis),
+    formatSection("Technical Search Details", formatSearchDiagnosticsText(report.searchDiagnostics)),
     formatSection("Consumer Downside Risk", report.consumerDownsideRisk),
     formatSection("Cautious Buy Explanation", report.cautiousBuyExplanation)
   ].filter((item) => item.trim()).join("\n\n");
+}
+
+function formatSearchDiagnosticsText(diagnostics) {
+  if (!diagnostics || typeof diagnostics !== "object") {
+    return "";
+  }
+  const rows = [
+    ["Search Queries Sent", diagnostics.queriesActuallySent || diagnostics.queriesGenerated],
+    ["Sources Requested", diagnostics.sourcesRequested],
+    ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
+    ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
+    ["Raw Results Returned", diagnostics.rawResultCount],
+    ["Results Parsed", diagnostics.parsedResultCount],
+    ["Results Normalized", diagnostics.normalizedResultCount],
+    ["Results Retained", diagnostics.retainedVisibleResultCount],
+    ["Results Rejected", diagnostics.rejectedResultCount],
+    ["Search Failure Stage", diagnostics.acquisitionFailureStage]
+  ]
+    .filter(([, value]) => shouldRenderSection("diagnostic", value))
+    .map(([label, value]) => `${label}: ${normalizeDisplayValue(value)}`);
+
+  if (Array.isArray(diagnostics.droppedResultReasons) && diagnostics.droppedResultReasons.length) {
+    rows.push("Top Rejection Reasons:");
+    diagnostics.droppedResultReasons.forEach((item) => {
+      rows.push(`- ${item.reason}: ${item.count}`);
+    });
+  }
+
+  if (Array.isArray(diagnostics.queryResultsSummary) && diagnostics.queryResultsSummary.length) {
+    rows.push("Query-by-Query Diagnostics:");
+    diagnostics.queryResultsSummary.forEach((item) => {
+      rows.push(`- Query: ${item.query} | Attempted: ${item.requestAttempted ? "yes" : "no"} | Succeeded: ${item.requestSucceeded ? "yes" : "no"} | Raw: ${item.rawResultCount} | Parsed: ${item.parsedResultCount} | Retained: ${item.retainedResultCount} | Stage: ${item.primaryRejectionStageOrReason || "none"}${item.controlledError ? ` | Note: ${item.controlledError}` : ""}`);
+    });
+  }
+
+  return rows.join("\n");
 }
 
 function formatSection(label, value) {

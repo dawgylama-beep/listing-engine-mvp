@@ -1258,6 +1258,51 @@ summary:focus-visible {
   font-size: 0.96rem;
 }
 
+.search-diagnostics {
+  display: grid;
+  gap: 14px;
+}
+
+.diagnostic-summary {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.85fr) minmax(0, 1.15fr);
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.diagnostic-summary dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.diagnostic-summary dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.search-diagnostics h5 {
+  margin: 0 0 8px;
+  color: var(--heading);
+  font-size: 0.9rem;
+}
+
+.query-diagnostic-list {
+  display: grid;
+  gap: 8px;
+}
+
+.query-diagnostic-row {
+  border: 1px solid rgba(15, 106, 98, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #324047;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
 .source-result-list {
   display: grid;
   gap: 12px;

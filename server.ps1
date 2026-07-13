@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.3"
+$AppVersion = "1.9.4"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1557,7 +1557,7 @@ function Set-ListingResearchHonesty {
   if ($SourceBackedResults.Count -eq 0) {
     $RejectedItems = @(Normalize-ReportArray $Report.researchResults)
   }
-  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
+  $Report = Set-ResearchVisibilityFields -Report $Report -Response $Response -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
 
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound ($Status -eq "Live Search Completed - Source-Backed Comps Found") -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "listing"
 }
@@ -1694,7 +1694,7 @@ function Set-LiveSearchHonesty {
   if (-not $ReliableCompsFound) {
     $RejectedItems = @((Normalize-ReportArray $Report.researchResults) + (Normalize-ReportArray $Report.noReliableComparableItemsFound))
   }
-  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedItems -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
+  $Report = Set-ResearchVisibilityFields -Report $Report -Response $Response -Status $Status -StrongItems $SourceBackedItems -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
 
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "market_value"
 }
@@ -1714,7 +1714,7 @@ function Set-ConsumerDecisionHonesty {
   )
   $ReliableCompsFound = ($SearchCalls.Count -gt 0 -and $SourceBackedResults.Count -gt 0)
   $AskingPrice = Get-ConsumerAskingPriceNumber $BuyerIntake
-  $FairValue = Get-ConsumerFairValueNumber $Report
+  $FairValue = $(if ($ReliableCompsFound) { Get-ConsumerFairValueNumber $Report } else { $null })
   $ConditionProfile = Get-ConsumerConditionProfile $BuyerIntake
   $RiskFlags = @(Get-ConsumerRiskFlags -BuyerIntake $BuyerIntake -AskingPrice $AskingPrice -FairValue $FairValue -ReliableCompsFound $ReliableCompsFound -ConditionProfile $ConditionProfile)
   $Decision = Get-ConsumerDecision -AskingPrice $AskingPrice -FairValue $FairValue -ReliableCompsFound $ReliableCompsFound -ConditionProfile $ConditionProfile -RiskFlags $RiskFlags
@@ -1765,7 +1765,7 @@ function Set-ConsumerDecisionHonesty {
   if (-not $ReliableCompsFound) {
     $RejectedItems = @(Normalize-ReportArray $Report.researchResults)
   }
-  $Report = Set-ResearchVisibilityFields -Report $Report -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
+  $Report = Set-ResearchVisibilityFields -Report $Report -Response $Response -Status $Status -StrongItems $SourceBackedResults -RejectedItems $RejectedItems -SearchCompleted ($SearchCalls.Count -gt 0)
 
   return Set-ValuationEvidenceLabels -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted ($SearchCalls.Count -gt 0) -Workflow "personal_use"
 }
@@ -2148,6 +2148,168 @@ function Get-ValuationEvidenceClassification {
   }
 }
 
+function Get-ZeroEvidenceAskingPriceText {
+  param($Report)
+
+  foreach ($Value in @($Report.askingPrice, $Report.currentAskingPrice, $Report.visiblePrice)) {
+    $Text = Clean-Text $Value
+    if ($Text) {
+      return $Text
+    }
+  }
+
+  return ""
+}
+
+function Get-ZeroEvidenceLowDownsideText {
+  param([string]$AskingPriceText)
+
+  $Price = $(if ($AskingPriceText) { $AskingPriceText } else { "the stated asking price" })
+  return "At $Price, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established."
+}
+
+function Test-ZeroEvidencePersonalBuyAllowed {
+  param(
+    $Report,
+    [string]$AskingPriceText,
+    [string]$Workflow = ""
+  )
+
+  $IntentText = (Clean-Text "$Workflow $($Report.buyerIntent) $($Report.purchase_intent)").ToLowerInvariant()
+  $Amounts = @(Get-MoneyAmounts $AskingPriceText)
+  if ($Amounts.Count -eq 0) {
+    return $false
+  }
+
+  $RiskText = (Join-ValuationText @($Report.productOrConditionRisks, $Report.riskFlags, $Report.primary_risk_factors, $Report.conditionNotes)).ToLowerInvariant()
+  return ($IntentText -match "personal|myself|personal_use" -and [double]$Amounts[0] -le $ConsumerDecisionThresholds["lowDollarCautiousBuyMax"] -and $RiskText -notmatch "repair|missing|not working|not_working|for parts|unsafe|authenticity")
+}
+
+function Sanitize-UnsupportedMarketText {
+  param(
+    [string]$Text,
+    [string]$AskingPriceText = ""
+  )
+
+  $Source = Clean-Text $Text
+  if (-not $Source) {
+    return $Source
+  }
+
+  $UnsupportedClaim = $Source -match "reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value"
+  $MoneyRange = $Source -match "\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?"
+  $AskingAmounts = @(Get-MoneyAmounts $AskingPriceText)
+  $AskingAmount = $(if ($AskingAmounts.Count) { [double]$AskingAmounts[0] } else { $null })
+  $HasNonAskingMoney = $false
+  foreach ($Amount in @(Get-MoneyAmounts $Source)) {
+    if ($null -eq $AskingAmount -or [math]::Round([double]$Amount) -ne [math]::Round($AskingAmount)) {
+      $HasNonAskingMoney = $true
+      break
+    }
+  }
+
+  if ($UnsupportedClaim -or $MoneyRange -or ($HasNonAskingMoney -and $Source -match "\bmarket|value|range|reference|asking|sold|price|below|above\b")) {
+    return "The current search did not return visible source-backed comparable evidence. Fair value is not established."
+  }
+
+  return $Source
+}
+
+function Sanitize-ZeroEvidenceReportText {
+  param(
+    $Report,
+    [string]$AskingPriceText
+  )
+
+  $AllowedPriceKeys = @("askingPrice", "currentAskingPrice", "visiblePrice")
+  foreach ($Property in @($Report.PSObject.Properties)) {
+    if ($Property.Name -eq "searchDiagnostics") {
+      continue
+    }
+
+    if ($AllowedPriceKeys -contains $Property.Name) {
+      continue
+    }
+
+    if ($Property.Value -is [string]) {
+      $Report | Add-Member -NotePropertyName $Property.Name -NotePropertyValue (Sanitize-UnsupportedMarketText -Text $Property.Value -AskingPriceText $AskingPriceText) -Force
+    } elseif ($Property.Value -is [array]) {
+      $CleanItems = @(
+        foreach ($Item in $Property.Value) {
+          if ($Item -is [string]) {
+            Sanitize-UnsupportedMarketText -Text $Item -AskingPriceText $AskingPriceText
+          } else {
+            $Item
+          }
+        }
+      )
+      $Report | Add-Member -NotePropertyName $Property.Name -NotePropertyValue @($CleanItems | Where-Object { $_ -ne "" }) -Force
+    }
+  }
+
+  return $Report
+}
+
+function Set-ZeroEvidenceGuard {
+  param(
+    $Report,
+    [string]$Workflow = ""
+  )
+
+  $AskingPriceText = Get-ZeroEvidenceAskingPriceText $Report
+  $SafeLowDownsideText = Get-ZeroEvidenceLowDownsideText $AskingPriceText
+  $Report = Sanitize-ZeroEvidenceReportText -Report $Report -AskingPriceText $AskingPriceText
+  $PersonalBuyAllowed = Test-ZeroEvidencePersonalBuyAllowed -Report $Report -AskingPriceText $AskingPriceText -Workflow $Workflow
+
+  $Report | Add-Member -NotePropertyName "valuationEvidenceState" -NotePropertyValue "insufficient" -Force
+  $Report | Add-Member -NotePropertyName "valuationEvidenceLabel" -NotePropertyValue "Fair Value Not Established" -Force
+  $Report | Add-Member -NotePropertyName "valuationEvidenceExplanation" -NotePropertyValue "Zero visible structured source-backed comparable results were retained. Market value is not established." -Force
+  if ($Workflow -eq "listing") {
+    $Report | Add-Member -NotePropertyName "pricingEvidenceState" -NotePropertyValue "insufficient" -Force
+  }
+  $Report | Add-Member -NotePropertyName "estimatedFairMarketValue" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "estimatedMarketValue" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "fairPriceRange" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "preliminaryReferenceRange" -NotePropertyValue "" -Force
+  $Report | Add-Member -NotePropertyName "referenceRangeBasis" -NotePropertyValue "" -Force
+  foreach ($Name in @("referenceCenter", "marketLow", "marketHigh", "activeAskingRange", "soldRange", "priceToMarketRatio", "belowMarketPercent", "aiOnlyRoughValueRange", "suggestedListingPrice", "expectedSalePrice", "minimumAcceptablePrice", "recommendedListingPrice", "suggestedOfferRange")) {
+    $Report | Add-Member -NotePropertyName $Name -NotePropertyValue "" -Force
+  }
+  $Report | Add-Member -NotePropertyName "fairValueNotEstablished" -NotePropertyValue "Fair Value: Not established" -Force
+  $Report | Add-Member -NotePropertyName "valueRating" -NotePropertyValue "Insufficient Evidence" -Force
+  $Report | Add-Member -NotePropertyName "whatThisMeans" -NotePropertyValue "The current search did not return visible source-backed comparable evidence. Fair value is not established." -Force
+  $Report | Add-Member -NotePropertyName "priceBasis" -NotePropertyValue "Fair value not established - the current search did not return visible source-backed comparable evidence." -Force
+  $Report | Add-Member -NotePropertyName "currentPriceAssessment" -NotePropertyValue "Insufficient evidence - no source-backed market comparison is supported." -Force
+  $Report | Add-Member -NotePropertyName "pricingRationale" -NotePropertyValue $SafeLowDownsideText -Force
+  $Report | Add-Member -NotePropertyName "consumerDownsideRisk" -NotePropertyValue $(if ($AskingPriceText) { "Limited-dollar exposure can be considered from the user's asking price ($AskingPriceText) only. No market comparison was established." } else { "No asking price was available for a downside-only personal-use assessment." }) -Force
+  $Report | Add-Member -NotePropertyName "recommendedOffer" -NotePropertyValue @() -Force
+  $Report | Add-Member -NotePropertyName "openingOffer" -NotePropertyValue "Not source-supported - no market value was established." -Force
+  $Report | Add-Member -NotePropertyName "targetPurchasePrice" -NotePropertyValue "Not source-supported - no market value was established." -Force
+  $Report | Add-Member -NotePropertyName "maximumRecommendedPrice" -NotePropertyValue "Not source-supported - no market value was established." -Force
+  $Report | Add-Member -NotePropertyName "maximumRecommendedBuyPrice" -NotePropertyValue "Not source-supported - no market value was established." -Force
+  $Report | Add-Member -NotePropertyName "walkAwayPrice" -NotePropertyValue "No market-based walk-away price is supported without visible comparable evidence." -Force
+  $Report | Add-Member -NotePropertyName "negotiationGuidance" -NotePropertyValue $(if ($AskingPriceText) { "Only the user's asking price ($AskingPriceText) is visible. Any personal-use decision should be based on limited financial exposure, condition, and whether the buyer likes the item; not on an established market value." } else { "No market-based negotiation guidance is supported without visible comparable evidence." }) -Force
+  $Report | Add-Member -NotePropertyName "reasonsForCaution" -NotePropertyValue @(Merge-ConsumerArrays $Report.reasonsForCaution @("No visible source-backed comparable evidence was retained.", "Market value was not established.")) -Force
+  $Report | Add-Member -NotePropertyName "additionalInformationNeeded" -NotePropertyValue @(Merge-ConsumerArrays $Report.additionalInformationNeeded @("Visible exact or strong source-backed comparable records are needed before showing source-backed price guidance.")) -Force
+
+  if ($PersonalBuyAllowed) {
+    $ExistingRecommendation = Clean-Text $Report.recommendation
+    if (-not $ExistingRecommendation -or $ExistingRecommendation -match "Need More Information") {
+      $ExistingRecommendation = "Buy"
+    }
+    $Report | Add-Member -NotePropertyName "recommendation" -NotePropertyValue $ExistingRecommendation -Force
+    $Report | Add-Member -NotePropertyName "cautiousBuyExplanation" -NotePropertyValue $SafeLowDownsideText -Force
+    $Report | Add-Member -NotePropertyName "reasonsToBuy" -NotePropertyValue @($SafeLowDownsideText) -Force
+  } else {
+    if (-not (Clean-Text $Report.recommendation)) {
+      $Report | Add-Member -NotePropertyName "recommendation" -NotePropertyValue "Need More Information" -Force
+    }
+    $Report | Add-Member -NotePropertyName "cautiousBuyExplanation" -NotePropertyValue "" -Force
+  }
+
+  return $Report
+}
+
 function Set-ValuationEvidenceLabels {
   param(
     $Report,
@@ -2156,9 +2318,13 @@ function Set-ValuationEvidenceLabels {
     [string]$Workflow = ""
   )
 
-  $Classified = Get-ValuationEvidenceClassification -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted $SearchCompleted
   $VisibleResultCount = Get-VisibleResearchResultCount $Report
   $SupportingResultCount = Get-ReferenceSupportingResearchResultCount $Report
+  if ($SupportingResultCount -eq 0) {
+    return Set-ZeroEvidenceGuard -Report $Report -Workflow $Workflow
+  }
+
+  $Classified = Get-ValuationEvidenceClassification -Report $Report -ReliableCompsFound $ReliableCompsFound -SearchCompleted $SearchCompleted
   if ($Classified.state -eq "preliminary" -and $SupportingResultCount -eq 0) {
     $Classified = [pscustomobject]@{
       state = "insufficient"
@@ -2227,6 +2393,7 @@ function Set-ValuationEvidenceLabels {
 function Set-ResearchVisibilityFields {
   param(
     $Report,
+    $Response = $null,
     [string]$Status,
     [array]$StrongItems = @(),
     [array]$RejectedItems = @(),
@@ -2271,7 +2438,182 @@ function Set-ResearchVisibilityFields {
     $Report | Add-Member -NotePropertyName "referenceRangeBasis" -NotePropertyValue $Basis -Force
   }
 
+  $Report | Add-Member -NotePropertyName "searchDiagnostics" -NotePropertyValue (New-SearchDiagnostics -Report $Report -Response $Response -Status $Status -StrongItems $StrongItems -RejectedItems $RejectedItems -SearchCompleted $SearchCompleted) -Force
+
   return $Report
+}
+
+function New-SearchDiagnostics {
+  param(
+    $Report,
+    $Response = $null,
+    [string]$Status = "",
+    [array]$StrongItems = @(),
+    [array]$RejectedItems = @(),
+    [bool]$SearchCompleted = $false
+  )
+
+  $SearchCalls = @(Get-WebSearchCalls $Response)
+  $Citations = @(Get-UrlCitations $Response)
+  $Queries = @(Get-SearchQueriesUsed $Response | Where-Object { $_ -and $_ -ne "These are the queries the system used." })
+  $StrongRecords = @(Normalize-ReportArray $Report.strongComparables)
+  $PartialRecords = @(Normalize-ReportArray $Report.partialComparables)
+  $ReferenceRecords = @(Normalize-ReportArray $Report.referenceResults)
+  $WeakRecords = @(Normalize-ReportArray $Report.weakMatches)
+  $RejectedRecords = @(Normalize-ReportArray $Report.rejectedMatches)
+  $VisibleRecords = @(Normalize-ReportArray $Report.resultsFound)
+  $RawSummaries = @(Get-SafeRawResultSummaries -Items @($StrongItems + $RejectedItems) -Citations $Citations -Queries $Queries)
+  $ParsedCount = @(($StrongItems + $RejectedItems) | Where-Object { Clean-Text $_ }).Count
+  $NormalizedCount = $VisibleRecords.Count
+  $RetainedCount = Get-ReferenceSupportingResearchResultCount $Report
+  $RejectedCount = $RejectedRecords.Count
+  $DroppedReasons = @(Get-DroppedResultReasons -Report $Report -SearchCompleted $SearchCompleted)
+
+  return [pscustomobject]@{
+    queriesGenerated = @($Queries)
+    queriesActuallySent = @($Queries)
+    queryCount = $Queries.Count
+    sourcesRequested = @(Get-SearchCoverage $Report $Status)
+    sourceRoute = @("OpenAI web_search")
+    providerCallsAttempted = $(if ($SearchCompleted -or $SearchCalls.Count -gt 0) { [math]::Max(1, $SearchCalls.Count) } else { 1 })
+    providerCallsSucceeded = $SearchCalls.Count
+    providerErrors = @()
+    rawResultCount = $RawSummaries.Count
+    parsedResultCount = $ParsedCount
+    normalizedResultCount = $NormalizedCount
+    deduplicatedResultCount = $NormalizedCount
+    exactMatchCountBeforeFiltering = @(($StrongRecords + $VisibleRecords) | Where-Object { $_ -match "exact|likely exact" }).Count
+    strongMatchCountBeforeFiltering = @(($StrongRecords + $VisibleRecords) | Where-Object { $_ -match "strong" }).Count
+    partialMatchCountBeforeFiltering = $PartialRecords.Count
+    referenceResultCountBeforeFiltering = $ReferenceRecords.Count
+    weakMatchCountBeforeFiltering = $WeakRecords.Count
+    rejectedResultCount = $RejectedCount
+    retainedVisibleResultCount = $RetainedCount
+    droppedResultReasons = @($DroppedReasons)
+    queryResultsSummary = @(Get-QueryResultsSummary -Queries $Queries -SearchCompleted $SearchCompleted -RawSummaries $RawSummaries -RetainedCount $RetainedCount -FailureStage (Get-SearchAcquisitionFailureStage -ProviderCallsSucceeded $SearchCalls.Count -RawResultCount $RawSummaries.Count -ParsedResultCount $ParsedCount -NormalizedResultCount $NormalizedCount -RetainedVisibleResultCount $RetainedCount -RejectedResultCount $RejectedCount))
+    acquisitionFailureStage = Get-SearchAcquisitionFailureStage -ProviderCallsSucceeded $SearchCalls.Count -RawResultCount $RawSummaries.Count -ParsedResultCount $ParsedCount -NormalizedResultCount $NormalizedCount -RetainedVisibleResultCount $RetainedCount -RejectedResultCount $RejectedCount
+    safeRawResults = @($RawSummaries | Select-Object -First 16)
+    liveSearchStatus = $Status
+  }
+}
+
+function Get-SearchAcquisitionFailureStage {
+  param(
+    [int]$ProviderCallsSucceeded = 0,
+    [int]$RawResultCount = 0,
+    [int]$ParsedResultCount = 0,
+    [int]$NormalizedResultCount = 0,
+    [int]$RetainedVisibleResultCount = 0,
+    [int]$RejectedResultCount = 0
+  )
+
+  if ($RetainedVisibleResultCount -gt 0) { return "none" }
+  if ($ProviderCallsSucceeded -le 0) { return "query_transmission_failure" }
+  if ($RawResultCount -eq 0) { return "provider_zero_results" }
+  if ($ParsedResultCount -eq 0) { return "raw_parse_failure" }
+  if ($NormalizedResultCount -eq 0) { return "normalization_failure" }
+  if ($RejectedResultCount -gt 0 -or $NormalizedResultCount -gt 0) { return "filtering_failure" }
+  return "unknown"
+}
+
+function Get-QueryResultsSummary {
+  param(
+    [array]$Queries = @(),
+    [bool]$SearchCompleted = $false,
+    [array]$RawSummaries = @(),
+    [int]$RetainedCount = 0,
+    [string]$FailureStage = "unknown"
+  )
+
+  return @(
+    foreach ($Query in ($Queries | Select-Object -First 20)) {
+      $MatchingRaw = @($RawSummaries | Where-Object { (Clean-Text $_.query).ToLowerInvariant() -eq (Clean-Text $Query).ToLowerInvariant() })
+      [pscustomobject]@{
+        query = $Query
+        source = "OpenAI web_search"
+        requestAttempted = $true
+        requestSucceeded = $SearchCompleted
+        rawResultCount = $MatchingRaw.Count
+        parsedResultCount = $MatchingRaw.Count
+        retainedResultCount = $(if ($RetainedCount -gt 0) { $RetainedCount } else { 0 })
+        controlledError = $(if ($SearchCompleted) { "" } else { "Live search did not expose a completed web_search_call." })
+        primaryRejectionStageOrReason = $(if ($RetainedCount -gt 0) { "none" } else { $FailureStage })
+      }
+    }
+  )
+}
+
+function Get-DroppedResultReasons {
+  param(
+    $Report,
+    [bool]$SearchCompleted = $false
+  )
+
+  $Reasons = @()
+  foreach ($Item in @(Normalize-ReportArray $Report.rejectedMatches)) {
+    if ($Item -match "duplicate") { $Reasons += "duplicate" }
+    elseif ($Item -match "missing title") { $Reasons += "missing title" }
+    elseif ($Item -match "missing URL|no usable URL|without URL") { $Reasons += "missing URL" }
+    elseif ($Item -match "item type|mismatch") { $Reasons += "item-type mismatch" }
+    elseif ($Item -match "brand") { $Reasons += "brand mismatch" }
+    elseif ($Item -match "team|organization") { $Reasons += "organization or team mismatch" }
+    elseif ($Item -match "condition") { $Reasons += "weak visual/text alignment" }
+    else { $Reasons += "unknown reason" }
+  }
+  if (-not $SearchCompleted) {
+    $Reasons += "live search unavailable"
+  }
+
+  return @(
+    $Reasons |
+      Where-Object { $_ } |
+      Group-Object |
+      Sort-Object Count -Descending |
+      Select-Object -First 12 |
+      ForEach-Object { [pscustomobject]@{ reason = $_.Name; count = $_.Count } }
+  )
+}
+
+function Get-SafeRawResultSummaries {
+  param(
+    [array]$Items = @(),
+    [array]$Citations = @(),
+    [array]$Queries = @()
+  )
+
+  $FallbackQuery = $(if ($Queries.Count) { $Queries[0] } else { "" })
+  $Summaries = @()
+  foreach ($Item in ($Items | Select-Object -First 16)) {
+    $Record = Convert-ToResearchResultRecord -Text (Clean-Text $Item) -BucketName "rawResult"
+    if (-not $Record.rawText) {
+      continue
+    }
+    $Summaries += [pscustomobject]@{
+      title = $Record.title
+      url = $Record.url
+      source = $Record.source
+      displayedPriceText = $Record.displayedPrice
+      snippet = (($Record.rawText -replace "https?://[^\s),;]+", "") -replace "\s+", " ").Trim()
+      query = $FallbackQuery
+    }
+  }
+
+  foreach ($Url in ($Citations | Select-Object -First 12)) {
+    $Source = "URL citation"
+    try {
+      $Source = ([uri]$Url).Host -replace "^www\.", ""
+    } catch {}
+    $Summaries += [pscustomobject]@{
+      title = $Url
+      url = $Url
+      source = $Source
+      displayedPriceText = ""
+      snippet = "URL citation returned by provider."
+      query = $FallbackQuery
+    }
+  }
+
+  return @($Summaries | Select-Object -First 24)
 }
 
 function Convert-ToResearchResultRecords {
