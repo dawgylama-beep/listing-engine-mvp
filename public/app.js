@@ -464,6 +464,7 @@ async function handleSubmit(event) {
     }
 
     const requestBody = {
+      analysisId: request.analysisId,
       platform,
       notes,
       photos,
@@ -512,7 +513,8 @@ async function handleSubmit(event) {
       notes,
       report,
       sections,
-      photoCount: selectedPhotoFiles.length
+      photoCount: selectedPhotoFiles.length,
+      analysisId: request.analysisId
     });
     setOutputHeading(getDisplayConfig(config, report));
     renderReport(report, sections);
@@ -620,6 +622,7 @@ function startWorkflowRequest(workflow) {
   activeRequestController = controller;
   return {
     id: activeRequestId,
+    analysisId: createSessionId(),
     controller
   };
 }
@@ -637,7 +640,7 @@ function isCurrentRequest(requestId, workflow) {
   return requestId === activeRequestId && workflow === currentWorkflow;
 }
 
-function createItemSession({ workflow, config, formData, platform, notes, report, sections, photoCount }) {
+function createItemSession({ workflow, config, formData, platform, notes, report, sections, photoCount, analysisId }) {
   const buyerIntake = config.reportType === "marketValue"
     ? {
         ...getBuyerIntake(formData, notes),
@@ -647,7 +650,8 @@ function createItemSession({ workflow, config, formData, platform, notes, report
   const reportContext = extractReportContext(report, sections);
 
   return {
-    sessionId: createSessionId(),
+    sessionId: firstNonEmpty(report.analysisId, analysisId, createSessionId()),
+    analysisId: firstNonEmpty(report.analysisId, analysisId),
     workflow,
     buyerIntent: config.purchaseIntent || (workflow === "listing" ? "seller_listing" : "market_value"),
     reportType: config.reportType,
@@ -671,6 +675,7 @@ function createSessionId() {
 
 function extractReportContext(report, sections = []) {
   const contextKeys = [
+    "analysisId",
     "identifiedItem",
     "itemIdentification",
     "identificationConfidence",
@@ -1348,8 +1353,10 @@ function renderSearchDiagnostics(diagnostics) {
   const wrapper = document.createElement("div");
   wrapper.className = "search-diagnostics";
   const summaryRows = [
-    ["Search Queries Sent", diagnostics.queriesActuallySent || diagnostics.queriesGenerated],
+    ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
+    ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Sources Requested", diagnostics.sourcesRequested],
+    ["Search Providers Queried", diagnostics.sourcesActuallyQueried],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
     ["Raw Results Returned", diagnostics.rawResultCount],
@@ -1367,10 +1374,23 @@ function renderSearchDiagnostics(diagnostics) {
     const dt = document.createElement("dt");
     dt.textContent = label;
     const dd = document.createElement("dd");
-    dd.textContent = normalizeDisplayValue(value);
+    dd.textContent = cleanDiagnosticText(normalizeDisplayValue(value));
     list.append(dt, dd);
   });
   wrapper.appendChild(list);
+
+  const records = Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length
+    ? diagnostics.providerRequestRecords
+    : diagnostics.queryResultsSummary;
+
+  if (Array.isArray(records) && records.length) {
+    const title = document.createElement("h5");
+    title.textContent = "Search Queries Actually Sent";
+    const rows = document.createElement("div");
+    rows.className = "query-diagnostic-list";
+    records.forEach((item) => rows.appendChild(renderQueryDiagnosticCard(item)));
+    wrapper.append(title, rows);
+  }
 
   if (Array.isArray(diagnostics.droppedResultReasons) && diagnostics.droppedResultReasons.length) {
     const title = document.createElement("h5");
@@ -1378,30 +1398,41 @@ function renderSearchDiagnostics(diagnostics) {
     wrapper.append(title, renderValue(diagnostics.droppedResultReasons.map((item) => `${item.reason}: ${item.count}`)));
   }
 
-  if (Array.isArray(diagnostics.queryResultsSummary) && diagnostics.queryResultsSummary.length) {
-    const title = document.createElement("h5");
-    title.textContent = "Query-by-Query Diagnostics";
-    const rows = document.createElement("div");
-    rows.className = "query-diagnostic-list";
-    diagnostics.queryResultsSummary.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "query-diagnostic-row";
-      row.textContent = [
-        `Query: ${item.query}`,
-        `Attempted: ${item.requestAttempted ? "yes" : "no"}`,
-        `Succeeded: ${item.requestSucceeded ? "yes" : "no"}`,
-        `Raw: ${item.rawResultCount}`,
-        `Parsed: ${item.parsedResultCount}`,
-        `Retained: ${item.retainedResultCount}`,
-        item.controlledError ? `Note: ${item.controlledError}` : "",
-        item.primaryRejectionStageOrReason ? `Stage: ${item.primaryRejectionStageOrReason}` : ""
-      ].filter(Boolean).join(" | ");
-      rows.appendChild(row);
-    });
-    wrapper.append(title, rows);
-  }
-
   return wrapper;
+}
+
+function renderQueryDiagnosticCard(item) {
+  const row = document.createElement("div");
+  row.className = "query-diagnostic-row";
+  const query = document.createElement("p");
+  query.className = "query-diagnostic-query";
+  query.textContent = cleanDiagnosticText(item.query || "Query not supplied");
+  const facts = document.createElement("dl");
+  facts.className = "query-diagnostic-facts";
+  [
+    ["Provider", item.provider || item.source],
+    ["Attempted", (item.attempted ?? item.requestAttempted) ? "Yes" : "No"],
+    ["Succeeded", (item.succeeded ?? item.requestSucceeded) ? "Yes" : "No"],
+    ["Raw", item.rawResultCount],
+    ["Parsed", item.parsedResultCount],
+    ["Normalized", item.normalizedResultCount],
+    ["Retained", item.retainedResultCount],
+    ["Failure", item.failureStage || item.primaryRejectionStageOrReason],
+    ["Error", item.errorCode || item.controlledError]
+  ].forEach(([label, value]) => {
+    if (!shouldRenderSection(label, value)) return;
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.textContent = cleanDiagnosticText(normalizeDisplayValue(value));
+    facts.append(dt, dd);
+  });
+  row.append(query, facts);
+  return row;
+}
+
+function cleanDiagnosticText(value) {
+  return String(value || "").replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function renderSectionCard({ key, label, value, report }) {
@@ -1820,7 +1851,7 @@ function normalizeDisplayValue(value) {
       .join(" | ");
   }
 
-  return String(value || "").trim();
+  return String(value || "").replace(/\\n/g, " ").trim();
 }
 
 function normalizeArray(value) {
@@ -2045,6 +2076,7 @@ function clearAskConversation() {
 function buildAskContext(session) {
   return {
     sessionId: session.sessionId,
+    analysisId: session.analysisId,
     workflow: session.workflow,
     buyerIntent: session.buyerIntent,
     itemDescription: session.itemDescription,
@@ -2714,8 +2746,10 @@ function formatSearchDiagnosticsText(diagnostics) {
     return "";
   }
   const rows = [
-    ["Search Queries Sent", diagnostics.queriesActuallySent || diagnostics.queriesGenerated],
+    ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
+    ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Sources Requested", diagnostics.sourcesRequested],
+    ["Search Providers Queried", diagnostics.sourcesActuallyQueried],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
     ["Raw Results Returned", diagnostics.rawResultCount],
@@ -2726,7 +2760,7 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Search Failure Stage", diagnostics.acquisitionFailureStage]
   ]
     .filter(([, value]) => shouldRenderSection("diagnostic", value))
-    .map(([label, value]) => `${label}: ${normalizeDisplayValue(value)}`);
+    .map(([label, value]) => `${label}: ${cleanDiagnosticText(normalizeDisplayValue(value))}`);
 
   if (Array.isArray(diagnostics.droppedResultReasons) && diagnostics.droppedResultReasons.length) {
     rows.push("Top Rejection Reasons:");
@@ -2735,10 +2769,13 @@ function formatSearchDiagnosticsText(diagnostics) {
     });
   }
 
-  if (Array.isArray(diagnostics.queryResultsSummary) && diagnostics.queryResultsSummary.length) {
-    rows.push("Query-by-Query Diagnostics:");
-    diagnostics.queryResultsSummary.forEach((item) => {
-      rows.push(`- Query: ${item.query} | Attempted: ${item.requestAttempted ? "yes" : "no"} | Succeeded: ${item.requestSucceeded ? "yes" : "no"} | Raw: ${item.rawResultCount} | Parsed: ${item.parsedResultCount} | Retained: ${item.retainedResultCount} | Stage: ${item.primaryRejectionStageOrReason || "none"}${item.controlledError ? ` | Note: ${item.controlledError}` : ""}`);
+  const records = Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length
+    ? diagnostics.providerRequestRecords
+    : diagnostics.queryResultsSummary;
+  if (Array.isArray(records) && records.length) {
+    rows.push("Search Queries Actually Sent:");
+    records.forEach((item) => {
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Raw: ${item.rawResultCount} | Parsed: ${item.parsedResultCount} | Normalized: ${item.normalizedResultCount || 0} | Retained: ${item.retainedResultCount} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

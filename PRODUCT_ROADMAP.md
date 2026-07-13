@@ -213,6 +213,15 @@
 - Model-generated unsupported market-value wording is sanitized after the report is produced, including copied text and Ask Market Edge context
 - Low-dollar personal-use Buy/Cautious Buy can still appear only as limited-downside reasoning, not as a market-value comparison
 
+## Version 1.9.5 (Completed)
+- Live-search diagnostics now separate internal research prompts, generated queries, prioritized queries, actually attempted query strings, provider request records, and provider response summaries
+- Worth Buying live comps now send prioritized query-bound OpenAI web_search requests and record per-query attempted/succeeded/result-count/failure-stage details
+- Client-visible API, local server, Ask Market Edge context, copied output, and mobile diagnostics now filter internal prompt fragments and literal prompt templates
+- New analysis/session identifiers isolate each Generate Listing, Worth Buying, Buying for Myself, and Buying to Resell run from prior item state
+- Exact-query generation now prioritizes visible text, brand/team/object, named-person, event/year, marketplace, and fallback diversity while deduplicating clipped repeats
+- Technical Search Details now render as readable stacked query cards on mobile without literal \n leakage
+- Vintage collectible risk cleanup suppresses unsupported Older Model, No Warranty, and No Return Protection-style conclusions unless the transaction context supports them
+
 ## Version 2.0
 - User accounts
 - Saved listings

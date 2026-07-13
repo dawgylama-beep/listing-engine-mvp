@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.9.4"
+$AppVersion = "1.9.5"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -752,6 +752,10 @@ function Handle-GenerateListing {
 
   $Platform = Clean-Text $Body.platform
   $Notes = Clean-Text $Body.notes
+  $AnalysisId = Clean-Text $Body.analysisId
+  if (-not $AnalysisId) {
+    $AnalysisId = New-AnalysisId
+  }
   $ReportType = Clean-Text $Body.reportType
   if ($ReportType -ne "marketValue") {
     $ReportType = "listing"
@@ -821,6 +825,7 @@ function Handle-GenerateListing {
 
   try {
     $Report = Generate-ReportWithOpenAI -ApiKey $ApiKey -Model $Model -Platform $Platform -Notes $Notes -Photos $SafePhotos -ReportType $ReportType -BuyerIntake $BuyerIntake
+    $Report | Add-Member -NotePropertyName "analysisId" -NotePropertyValue $AnalysisId -Force
     if ($ReportType -eq "marketValue") {
       Send-Json $Stream 200 @{ valuation = $Report }
     } else {
@@ -1847,7 +1852,7 @@ function Get-ConsumerRiskFlags {
   if ($ConditionProfile.isUnknown) { $Flags += "Condition Unclear" }
   if ($ConditionProfile.missingParts) { $Flags += "Missing Parts" }
   if ($ConditionProfile.repairRisk) { $Flags += "Repair Risk" }
-  if ((Get-BuyerIntakeValue $BuyerIntake "purchase_context") -match "facebook|private|flea|estate|thrift|consignment|antique") { $Flags += "No Return Protection" }
+  if ((Get-BuyerIntakeValue $BuyerIntake "purchase_context") -match "facebook_marketplace|private_seller|flea_market|estate_sale" -or (Get-BuyerIntakeValue $BuyerIntake "buyer_notes") -match "as[-\s]?is|final sale|no returns?|cash only") { $Flags += "No Return Protection" }
   if ((Get-BuyerIntakeValue $BuyerIntake "known_model") -eq "not provided" -and (Get-BuyerIntakeValue $BuyerIntake "known_sku") -eq "not provided" -and (Get-BuyerIntakeValue $BuyerIntake "known_upc") -eq "not provided") { $Flags += "Identity Not Confirmed" }
 
   return @($Flags | Where-Object { $_ } | Select-Object -Unique | Select-Object -First 10)
@@ -2471,13 +2476,19 @@ function New-SearchDiagnostics {
 
   return [pscustomobject]@{
     queriesGenerated = @($Queries)
+    queriesPrioritized = @(Get-QueryPriorityRecords -Queries $Queries -SourcesRequested (Get-SearchCoverage $Report $Status))
     queriesActuallySent = @($Queries)
+    queryTransmissionMode = $(if ($Queries.Count -gt 0) { "provider_action_queries_exposed" } else { "single_model_web_search_request_no_safe_query_records" })
+    executionLimitation = $(if ($Queries.Count -gt 0) { "The local Windows server uses one OpenAI web_search-enabled request and records safe provider-exposed action queries when available. It cannot guarantee one downstream marketplace request per generated query." } else { "The local Windows server uses one OpenAI web_search-enabled request, but the provider did not expose a safe individual query string. The app therefore does not claim any individual query was sent." })
     queryCount = $Queries.Count
     sourcesRequested = @(Get-SearchCoverage $Report $Status)
+    sourcesActuallyQueried = $(if ($SearchCompleted) { @("OpenAI web_search") } else { @() })
     sourceRoute = @("OpenAI web_search")
     providerCallsAttempted = $(if ($SearchCompleted -or $SearchCalls.Count -gt 0) { [math]::Max(1, $SearchCalls.Count) } else { 1 })
     providerCallsSucceeded = $SearchCalls.Count
     providerErrors = @()
+    providerRequestRecords = @(Get-QueryResultsSummary -Queries $Queries -SearchCompleted $SearchCompleted -RawSummaries $RawSummaries -RetainedCount $RetainedCount -FailureStage (Get-SearchAcquisitionFailureStage -ProviderCallsSucceeded $SearchCalls.Count -RawResultCount $RawSummaries.Count -ParsedResultCount $ParsedCount -NormalizedResultCount $NormalizedCount -RetainedVisibleResultCount $RetainedCount -RejectedResultCount $RejectedCount))
+    providerResponseSummaries = @(Get-ProviderResponseSummaries -Queries $Queries -SearchCompleted $SearchCompleted -Citations $Citations -SearchCalls $SearchCalls)
     rawResultCount = $RawSummaries.Count
     parsedResultCount = $ParsedCount
     normalizedResultCount = $NormalizedCount
@@ -2541,6 +2552,75 @@ function Get-QueryResultsSummary {
       }
     }
   )
+}
+
+function Get-QueryPriorityRecords {
+  param(
+    [array]$Queries = @(),
+    [array]$SourcesRequested = @()
+  )
+
+  $Priority = 1
+  return @(
+    foreach ($Query in ($Queries | Select-Object -First 20)) {
+      [pscustomobject]@{
+        query = $Query
+        priority = $Priority
+        sourceRoute = @($SourcesRequested | Select-Object -First 8)
+      }
+      $Priority += 1
+    }
+  )
+}
+
+function Get-ProviderResponseSummaries {
+  param(
+    [array]$Queries = @(),
+    [bool]$SearchCompleted = $false,
+    [array]$Citations = @(),
+    [array]$SearchCalls = @()
+  )
+
+  return @(
+    foreach ($Query in ($Queries | Select-Object -First 20)) {
+      [pscustomobject]@{
+        query = $Query
+        provider = "OpenAI web_search"
+        webSearchCallAppeared = $SearchCompleted
+        urlCitationCount = $Citations.Count
+        domainsReturned = @(Summarize-SourceLabels $Citations | Select-Object -First 8)
+        providerActionQueries = @($Queries | Select-Object -First 4)
+        webSearchCallCount = $SearchCalls.Count
+      }
+    }
+  )
+}
+
+function Summarize-SourceLabels {
+  param([array]$Sources = @())
+
+  $Labels = @()
+  foreach ($Source in $Sources) {
+    $Text = Clean-Text $Source
+    if (-not $Text) {
+      continue
+    }
+
+    try {
+      if ($Text -match "^https?://") {
+        $Uri = [Uri]$Text
+        $Text = $Uri.Host -replace "^www\.", ""
+      }
+    } catch {
+      $Text = Clean-Text $Source
+    }
+
+    if ($Text -and -not ($Labels -contains $Text)) {
+      $Labels += $Text
+    }
+  }
+
+  return @($Labels | Select-Object -First 8)
 }
 
 function Get-DroppedResultReasons {
@@ -2904,7 +2984,10 @@ function Get-SearchQueriesUsed {
   $Queries = @()
   foreach ($Call in Get-WebSearchCalls $Data) {
     if ($Call.action -and $Call.action.query) {
-      $Queries += (Clean-Text $Call.action.query)
+      $Query = Clean-Text $Call.action.query
+      if ($Query -and -not (Test-InternalPromptFragment $Query)) {
+        $Queries += $Query
+      }
     }
   }
 
@@ -3181,7 +3264,8 @@ function Send-Json {
     $Data
   )
 
-  $Json = $Data | ConvertTo-Json -Depth 80
+  $SafeData = Protect-ClientVisibleData $Data
+  $Json = $SafeData | ConvertTo-Json -Depth 80
   $Bytes = [System.Text.Encoding]::UTF8.GetBytes($Json)
   Send-Bytes $Stream $StatusCode "application/json; charset=utf-8" $Bytes
 }
@@ -4483,6 +4567,98 @@ function Clean-Text {
   }
 
   return ([string]$Value -replace "\s+", " ").Trim()
+}
+
+function New-AnalysisId {
+  $Stamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $Suffix = ([guid]::NewGuid().ToString("N")).Substring(0, 12)
+  return "analysis-$Stamp-$Suffix"
+}
+
+function Test-SensitiveClientFieldName {
+  param([string]$Key)
+
+  return $Key -match "researchPromptInternal|systemPrompt|developerPrompt|promptTemplate|authorization|headers|apiKey|secret|environment"
+}
+
+function Test-InternalPromptFragment {
+  param($Value)
+
+  $Text = (Clean-Text $Value).ToLowerInvariant()
+  if (-not $Text) {
+    return $false
+  }
+
+  return $Text -match "perform source-routed live comparable search|use web_search for this one exact query|you are a live comparable search controller|you are a query-bound live comparable search executor|return only structured json|tool_choice|authorization\s*:|bearer\s+sk-|process\.env|openai_api_key|open_api_key|developer instructions|system instructions|research prompt bodies|literal prompt templates"
+}
+
+function Protect-ClientVisibleData {
+  param(
+    $Value,
+    [string]$Key = ""
+  )
+
+  if ($Key -and (Test-SensitiveClientFieldName $Key)) {
+    return $null
+  }
+
+  if ($null -eq $Value) {
+    return $null
+  }
+
+  if ($Value -is [string]) {
+    $Text = Clean-Text ($Value -replace "\\n", " ")
+    if (Test-InternalPromptFragment $Text) {
+      return ""
+    }
+    return $Text
+  }
+
+  if ($Value -is [ValueType]) {
+    return $Value
+  }
+
+  if ($Value -is [System.Collections.IDictionary]) {
+    $Result = [ordered]@{}
+    foreach ($ChildKey in $Value.Keys) {
+      $CleanKey = [string]$ChildKey
+      if (Test-SensitiveClientFieldName $CleanKey) {
+        continue
+      }
+      $CleanValue = Protect-ClientVisibleData -Value $Value[$ChildKey] -Key $CleanKey
+      if ($null -ne $CleanValue -and $CleanValue -ne "") {
+        $Result[$CleanKey] = $CleanValue
+      }
+    }
+    return $Result
+  }
+
+  if ($Value -is [System.Array]) {
+    $Items = @()
+    foreach ($Item in $Value) {
+      $CleanItem = Protect-ClientVisibleData -Value $Item -Key $Key
+      if ($null -ne $CleanItem -and $CleanItem -ne "") {
+        $Items += $CleanItem
+      }
+    }
+    return @($Items)
+  }
+
+  if ($Value.PSObject -and $Value.PSObject.Properties.Count -gt 0) {
+    $Result = [ordered]@{}
+    foreach ($Property in $Value.PSObject.Properties) {
+      if (Test-SensitiveClientFieldName $Property.Name) {
+        continue
+      }
+      $CleanValue = Protect-ClientVisibleData -Value $Property.Value -Key $Property.Name
+      if ($null -ne $CleanValue -and $CleanValue -ne "") {
+        $Result[$Property.Name] = $CleanValue
+      }
+    }
+    return $Result
+  }
+
+  return $Value
 }
 
 function Load-DotEnv {

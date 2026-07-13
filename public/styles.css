@@ -1265,7 +1265,7 @@ summary:focus-visible {
 
 .diagnostic-summary {
   display: grid;
-  grid-template-columns: minmax(120px, 0.85fr) minmax(0, 1.15fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px 12px;
   margin: 0;
 }
@@ -1281,6 +1281,11 @@ summary:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.diagnostic-summary dt,
+.diagnostic-summary dd {
+  min-width: 0;
+}
+
 .search-diagnostics h5 {
   margin: 0 0 8px;
   color: var(--heading);
@@ -1293,6 +1298,8 @@ summary:focus-visible {
 }
 
 .query-diagnostic-row {
+  display: grid;
+  gap: 10px;
   border: 1px solid rgba(15, 106, 98, 0.12);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.68);
@@ -1300,6 +1307,33 @@ summary:focus-visible {
   font-size: 0.86rem;
   line-height: 1.45;
   padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.query-diagnostic-query {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 850;
+}
+
+.query-diagnostic-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 7px 10px;
+  margin: 0;
+}
+
+.query-diagnostic-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.query-diagnostic-facts dd {
+  margin: 0;
+  color: var(--text);
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

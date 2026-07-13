@@ -802,6 +802,7 @@ export default async function handler(req, res) {
     const photos = Array.isArray(body.photos) ? body.photos : [];
     const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
     const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : null;
+    const analysisId = cleanText(body.analysisId || createServerAnalysisId()).slice(0, 120);
 
     if (reportType === "listing" && !platform) {
       return res.status(400).json({ error: "Choose a marketplace platform." });
@@ -845,11 +846,16 @@ export default async function handler(req, res) {
       buyerIntake
     });
 
+    const safeReport = sanitizeClientVisiblePayload({
+      ...report,
+      analysisId
+    });
+
     if (reportType === "marketValue") {
-      return res.status(200).json({ valuation: report });
+      return res.status(200).json({ valuation: safeReport });
     }
 
-    return res.status(200).json({ listing: report });
+    return res.status(200).json({ listing: safeReport });
   } catch (error) {
     return res.status(502).json({
       error: error.message || "OpenAI API request failed."
@@ -914,7 +920,7 @@ async function handleAskMarketEdge({ body, res }) {
     action: "ask_market_edge",
     sessionId,
     workflow,
-    answer: normalizeAskAnswer(answer, { answerType, scenario })
+    answer: sanitizeClientVisiblePayload(normalizeAskAnswer(answer, { answerType, scenario }))
   });
 }
 
@@ -1025,6 +1031,7 @@ function sanitizeAskContext(value) {
 
   const allowedTopLevel = new Set([
     "sessionId",
+    "analysisId",
     "workflow",
     "buyerIntent",
     "itemDescription",
@@ -1074,8 +1081,59 @@ function sanitizeAskValue(value, depth) {
     return entries.length ? Object.fromEntries(entries) : null;
   }
 
-  const text = cleanText(value).slice(0, 1400);
+  const text = cleanText(value).replace(/\\n/g, " ").slice(0, 1400);
+  if (isInternalPromptFragment(text)) {
+    return null;
+  }
   return text ? text : null;
+}
+
+function createServerAnalysisId() {
+  return `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sanitizeClientVisiblePayload(value, key = "") {
+  if (key === "researchPromptInternal") {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeClientVisiblePayload(item, key))
+      .filter((item) => item !== undefined && item !== null && item !== "");
+  }
+  if (value && typeof value === "object") {
+    const result = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+      if (isSensitiveClientFieldName(childKey)) {
+        continue;
+      }
+      const sanitized = sanitizeClientVisiblePayload(childValue, childKey);
+      if (sanitized !== undefined && sanitized !== null && sanitized !== "") {
+        result[childKey] = sanitized;
+      }
+    }
+    return result;
+  }
+  if (typeof value !== "string") {
+    return value;
+  }
+  const text = cleanText(value.replace(/\\n/g, " "));
+  if (!text || isInternalPromptFragment(text)) {
+    return "";
+  }
+  return text;
+}
+
+function isSensitiveClientFieldName(key) {
+  return /researchPromptInternal|systemPrompt|developerPrompt|promptTemplate|authorization|headers|apiKey|secret|environment/i.test(String(key || ""));
+}
+
+function isInternalPromptFragment(value) {
+  const text = cleanText(value).toLowerCase();
+  if (!text) {
+    return false;
+  }
+  return /perform source-routed live comparable search|use web_search for this one exact query|you are a live comparable search controller|you are a query-bound live comparable search executor|return only structured json|tool_choice|authorization\s*:|bearer\s+sk-|process\.env|openai_api_key|open_api_key|developer instructions|system instructions|research prompt bodies|literal prompt templates/.test(text);
 }
 
 function classifyAskQuestion(question) {
@@ -1411,72 +1469,222 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
 
 async function executeLiveComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
+  const requestStartedAtMs = Date.now();
+  const queriesPrioritized = buildPrioritizedQueryRecords(searchQueries, sourceRoute);
+  const providerRequestRecords = [];
+  const providerResponseSummaries = [];
+  const providerErrors = [];
+  const responseDataList = [];
+  const resultList = [];
+  const safeRawResultSummaries = [];
+  let includeSourcesRequested = true;
+  let includeFallbackReason = "";
+
+  for (const queryRecord of queriesPrioritized) {
+    const requestRecord = {
+      query: queryRecord.query,
+      priority: queryRecord.priority,
+      sourceRoute: queryRecord.sourceRoute,
+      provider: "OpenAI web_search",
+      attempted: true,
+      succeeded: false,
+      rawResultCount: 0,
+      parsedResultCount: 0,
+      normalizedResultCount: 0,
+      retainedResultCount: 0,
+      errorCode: "",
+      failureStage: "provider_request_failure"
+    };
+    providerRequestRecords.push(requestRecord);
+
+    try {
+      const payload = createQueryBoundLiveSearchPayload({
+        model,
+        platform,
+        notes,
+        identity,
+        sourceRoute,
+        queryRecord,
+        buyerIntake,
+        researchPurpose,
+        includeSources: includeSourcesRequested
+      });
+      let response;
+      try {
+        response = await requestOpenAIJson({ apiKey, payload });
+      } catch (error) {
+        if (!isIncludeCompatibilityError(error)) {
+          throw error;
+        }
+
+        includeSourcesRequested = false;
+        includeFallbackReason = "Source include was not accepted by the provider; query-bound live search was retried without source-list include.";
+        response = await requestOpenAIJson({
+          apiKey,
+          payload: createQueryBoundLiveSearchPayload({
+            model,
+            platform,
+            notes,
+            identity,
+            sourceRoute,
+            queryRecord,
+            buyerIntake,
+            researchPurpose,
+            includeSources: false
+          })
+        });
+      }
+
+      const { json, data, statusCode } = response;
+      const citations = collectUrlCitations(data);
+      const webSearchCalls = collectWebSearchCalls(data);
+      const rawSummaries = collectSafeRawResultSummaries({
+        result: json,
+        citations,
+        searchQueries: [queryRecord.query],
+        queriesActuallySent: [queryRecord.query]
+      }).map((summary) => ({ ...summary, query: queryRecord.query }));
+      const bucketedResearch = buildResearchResultBuckets(json, normalizeStringArray(json.comparableItemsFound, 8), citations, identity);
+      const normalization = bucketedResearch.normalizationDiagnostics || {};
+
+      requestRecord.succeeded = webSearchCalls.length > 0;
+      requestRecord.rawResultCount = rawSummaries.length;
+      requestRecord.parsedResultCount = Number(normalization.parsedResultCount || 0);
+      requestRecord.normalizedResultCount = Number(normalization.normalizedResultCount || 0);
+      requestRecord.retainedResultCount = Number(normalization.retainedVisibleResultCount || 0);
+      requestRecord.failureStage = classifySearchFailureStage({
+        providerCallsSucceeded: webSearchCalls.length,
+        rawResultCount: requestRecord.rawResultCount,
+        parsedResultCount: requestRecord.parsedResultCount,
+        normalizedResultCount: requestRecord.normalizedResultCount,
+        retainedVisibleResultCount: requestRecord.retainedResultCount,
+        rejectedResultCount: Number(normalization.rejectedResultCount || 0),
+        providerErrors: []
+      });
+      requestRecord.errorCode = "";
+
+      resultList.push(json);
+      responseDataList.push(data);
+      safeRawResultSummaries.push(...rawSummaries);
+      providerResponseSummaries.push({
+        query: queryRecord.query,
+        priority: queryRecord.priority,
+        provider: "OpenAI web_search",
+        statusCode,
+        webSearchCallAppeared: webSearchCalls.length > 0,
+        urlCitationCount: citations.length,
+        domainsReturned: summarizeSourceLabels(citations.map((citation) => sourceLabelFromCitation(citation)).filter(Boolean)),
+        providerActionQueries: collectWebSearchActionQueries(webSearchCalls).filter((query) => !isInternalPromptFragment(query)).slice(0, 4)
+      });
+    } catch (error) {
+      const diagnostic = classifyLiveSearchError(error);
+      requestRecord.succeeded = false;
+      requestRecord.errorCode = diagnostic.code || diagnostic.type || diagnostic.category || "provider_error";
+      requestRecord.failureStage = diagnostic.category === "timeout" ? "provider_request_failure" : "provider_request_failure";
+      providerErrors.push({
+        ...diagnostic,
+        query: queryRecord.query,
+        priority: queryRecord.priority
+      });
+      providerResponseSummaries.push({
+        query: queryRecord.query,
+        priority: queryRecord.priority,
+        provider: "OpenAI web_search",
+        statusCode: diagnostic.statusCode || null,
+        webSearchCallAppeared: false,
+        urlCitationCount: 0,
+        domainsReturned: [],
+        errorCode: requestRecord.errorCode,
+        errorMessage: diagnostic.message
+      });
+    }
+  }
+
+  const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
+  if (!successfulRecords.length) {
+    return buildUnavailableLiveSearchResult({
+      error: providerErrors[0] || new Error("Live search failed before source results could be retrieved."),
+      sourceRoute,
+      searchQueries,
+      queriesPrioritized,
+      providerRequestRecords,
+      providerResponseSummaries,
+      searchStartedAt,
+      elapsedMs: Date.now() - requestStartedAtMs,
+      includeSourcesRequested,
+      includeFallbackReason,
+      providerErrors
+    });
+  }
+
+  return normalizeLiveSearchResult({
+    result: mergeLiveSearchResults(resultList),
+    responseData: mergeResponseData(responseDataList),
+    identity,
+    searchStartedAt,
+    sourceRoute,
+    searchQueries,
+    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    queriesPrioritized,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    safeRawResultSummaries,
+    elapsedMs: Date.now() - requestStartedAtMs,
+    statusCode: providerResponseSummaries.find((item) => item.statusCode)?.statusCode || null,
+    includeSourcesRequested,
+    includeFallbackReason
+  });
+}
+
+function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true }) {
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const purposeText = researchPurpose === "listing"
-    ? "Generate Listing price-support research. The goal is to support a cautious marketplace listing price and make research evidence visible."
-    : "Worth Buying buyer-decision research. The goal is to decide whether the user should buy this item right now.";
-  const userContent = [
-    {
-      type: "input_text",
-      text: [
-        "Perform source-routed live comparable search for marketplace item research.",
-        `Research purpose: ${purposeText}`,
-        "You must use web search. Do not rely only on general model knowledge.",
-        "Use only the source route and targeted queries below. Do not default to eBay unless the route includes an eBay-related source.",
-        "Use the targeted search queries as product-focused search inputs in priority order. Start with exact visible phrases, brand/event/date/team/item-type combinations, model/SKU/UPC when available, and only then use broad fallback searches.",
-        "Do not replace exact visible phrases with generic descriptions. If the query contains quoted wording, preserve the quoted wording in the search.",
-        "Search merged multi-photo evidence. Front wording, back wording, tags, stamps, dimensions, slogans, event names, dates, named people, and visible item form should be considered together.",
-        "Search exact identifiers, brand/product-title wording, visual descriptions, category terms, and price/context when present.",
-        "Return comparableItemsFound only when the result is source-backed and includes a URL from the live search results.",
-        "Each comparableItemsFound string must include source/platform/site, title, price when visible, shipping when visible, condition when visible, URL/source link, match quality, and why it appears to match or is only similar.",
-        "Also return every source-backed result reviewed in the right visibility bucket: strongComparables, partialComparables, referenceResults, weakMatches, or rejectedMatches.",
-        "For every bucket item, include title, source/platform/site, URL if available, displayed price, currency, sold versus active asking status, condition if available, exact/strong/partial/weak/rejected classification, evidence role, whether it influenced a reference range, match explanation, identity differences, and rejection reason when rejected.",
-        "Do not hide weak or rejected URL-cited results. If the search found five active listings but all were rejected, return those five rejectedMatches with specific rejection reasons.",
-        "Do not invent URLs, prices, sources, sold comps, or platforms.",
-        "Never describe active asking prices as confirmed sold prices.",
-        "Do not reject an exact or strong identity match merely because it is an active asking-price listing instead of a sold result. Separate identity match strength from price evidence strength.",
-        "An exact active listing can be an Exact identity match and Active asking-price evidence, but not confirmed sold evidence.",
-        "Classify source-backed results by identity match first: Exact identity match, Strong identity match, Partial match, Weak match, or Rejected match. Then classify price type separately as confirmed sold price, active asking price, retail price, hidden price, or no usable price.",
-        "For Generate Listing research, include source-backed comparable or reference evidence that can support a listing price, but label weak/reference-only evidence honestly.",
-        "For vintage, collectible, organization, logo, mascot, character, ceramic, cookie-jar, decor, and secondhand items, prioritize exact label/stamp searches, resale results, vintage results, collector/reference sources, organization/brand/character/licensee searches, and exact phrase results.",
-        "Reject generic wholesalers, unrelated restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail products, and generic visual lookalikes as meaningful comps.",
-        "Do not list a source as meaningfully searched merely because a weak result appeared. Search evidence should distinguish targeted source categories, actual relevant results reviewed, rejected irrelevant sources, and reliable cited sources.",
-        "Treat typed buyer identity fields as strong clues only when they do not conflict with photos, visible label wording, or source results.",
-        "Reject or weaken comps that conflict with reliable UPC, model, SKU, maker, brand, piece count, material, era, size, pattern, condition, or product type.",
-        "Use purchase context to route the search: retail/mall means current product and retailer sources; consignment/thrift/flea/estate/antique means resale, vintage, collector, specialty reference, and exact-label searches; Facebook Marketplace/private seller means local value, pickup, negotiation, and transport/inspection risk.",
-        "Classify each reliable result as Exact Match, Strong Similar Match, or Weak Similar Match, and explain why it is or is not comparable.",
-        "If no reliable source-backed comps are found, return an empty comparableItemsFound array.",
-        "",
-        `Marketplace platform: ${platform || "No platform selected"}`,
-        `Buyer item notes: ${notes || "No additional notes provided."}`,
-        "Guided Buyer Intake:",
-        buyerIntakeText,
-        `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
-        `Extracted identity: ${JSON.stringify(identity)}`,
-        `Source route: ${JSON.stringify(sourceRoute)}`,
-        `Targeted search queries: ${JSON.stringify(searchQueries)}`
-      ].join("\n")
-    }
-  ];
-
+    ? "Generate Listing price-support research."
+    : "Worth Buying buyer-decision research.";
+  const researchPromptInternal = [
+    "Use web_search for this one exact query only.",
+    "Do not replace the query with the whole instruction block.",
+    "Do not invent URLs, prices, sources, sold comps, or platforms.",
+    "Never describe active asking prices as confirmed sold prices.",
+    "Classify identity match separately from price evidence type.",
+    "Return only source-backed URL results that came from this query, and put weak or irrelevant URL-cited results in rejectedMatches with reasons."
+  ].join(" ");
   const payload = {
     model,
     tools: [{ type: "web_search" }],
     tool_choice: "required",
-    include: ["web_search_call.action.sources"],
     input: [
       {
         role: "system",
         content: [
           {
             type: "input_text",
-            text: "You are a live comparable search controller. Search the web using the provided source route, then return only structured JSON."
+            text: "You are a query-bound live comparable search executor. Search exactly the supplied query and return structured JSON."
           }
         ]
       },
       {
         role: "user",
-        content: userContent
+        content: [
+          {
+            type: "input_text",
+            text: [
+              researchPromptInternal,
+              `Research purpose: ${purposeText}`,
+              `Search query to execute exactly: ${queryRecord.query}`,
+              `Query priority: ${queryRecord.priority}`,
+              `Source route requested: ${JSON.stringify(sourceRoute)}`,
+              `Marketplace platform context: ${platform || "No platform selected"}`,
+              `Buyer item notes: ${notes || "No additional notes provided."}`,
+              "Guided Buyer Intake:",
+              buyerIntakeText,
+              `Extracted identity: ${JSON.stringify(identity)}`,
+              "Return every source-backed result reviewed in the correct visibility bucket: strongComparables, partialComparables, referenceResults, weakMatches, or rejectedMatches.",
+              "Each result string must include source/platform/site, title, visible price if any, URL, match quality, price evidence type, and why it matches or was rejected."
+            ].join("\n")
+          }
+        ]
       }
     ],
     text: {
@@ -1489,50 +1697,60 @@ async function executeLiveComparableSearch({ apiKey, model, platform, notes, ide
     }
   };
 
-  const requestStartedAtMs = Date.now();
-  let includeSourcesRequested = true;
-  let includeFallbackReason = "";
-
-  try {
-    let response;
-    try {
-      response = await requestOpenAIJson({ apiKey, payload });
-    } catch (error) {
-      if (!isIncludeCompatibilityError(error)) {
-        throw error;
-      }
-
-      includeSourcesRequested = false;
-      includeFallbackReason = "Source include was not accepted by the provider; live search was retried without source-list include.";
-      const retryPayload = { ...payload };
-      delete retryPayload.include;
-      response = await requestOpenAIJson({ apiKey, payload: retryPayload });
-    }
-
-    const { json, data, statusCode } = response;
-    return normalizeLiveSearchResult({
-      result: json,
-      responseData: data,
-      identity,
-      searchStartedAt,
-      sourceRoute,
-      searchQueries,
-      elapsedMs: Date.now() - requestStartedAtMs,
-      statusCode,
-      includeSourcesRequested,
-      includeFallbackReason
-    });
-  } catch (error) {
-    return buildUnavailableLiveSearchResult({
-      error,
-      sourceRoute,
-      searchQueries,
-      searchStartedAt,
-      elapsedMs: Date.now() - requestStartedAtMs,
-      includeSourcesRequested,
-      includeFallbackReason
-    });
+  if (includeSources) {
+    payload.include = ["web_search_call.action.sources"];
   }
+
+  return payload;
+}
+
+function buildPrioritizedQueryRecords(searchQueries = [], sourceRoute = []) {
+  return searchQueries
+    .map((query) => cleanText(query))
+    .filter((query) => query && !isInternalPromptFragment(query))
+    .map((query, index) => ({
+      query,
+      priority: index + 1,
+      sourceRoute: buildSourcesTargeted(sourceRoute)
+    }))
+    .slice(0, 8);
+}
+
+function mergeLiveSearchResults(results = []) {
+  const merged = {
+    liveSearchStatus: "",
+    comparableItemsFound: [],
+    strongComparables: [],
+    partialComparables: [],
+    referenceResults: [],
+    weakMatches: [],
+    rejectedMatches: [],
+    sourcesSearched: [],
+    searchCoverage: [],
+    noReliableMatchesReason: "",
+    searchEvidenceSummary: "",
+    searchQueriesUsed: []
+  };
+
+  for (const result of results) {
+    for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
+      merged[key].push(...normalizeStringArray(result?.[key], 24));
+    }
+    merged.noReliableMatchesReason = firstKnown(merged.noReliableMatchesReason, result?.noReliableMatchesReason);
+    merged.searchEvidenceSummary = firstKnown(merged.searchEvidenceSummary, result?.searchEvidenceSummary);
+  }
+
+  for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
+    merged[key] = [...new Set(merged[key])].slice(0, 24);
+  }
+
+  return merged;
+}
+
+function mergeResponseData(responseDataList = []) {
+  return {
+    output: responseDataList.flatMap((data) => Array.isArray(data?.output) ? data.output : [])
+  };
 }
 
 async function generateFinalConsumerDecisionReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake }) {
@@ -2474,6 +2692,8 @@ function buildHighPriorityExactQueries(context) {
   const sloganLikePhrases = context.distinctivePhrases.filter((phrase) => /['&]|slogan|motto|catchphrase/i.test(phrase)).slice(0, 3);
   const primaryPhrases = mergeStringArrays(exactVisibleEntries, context.distinctivePhrases.slice(0, 7), sloganLikePhrases, 14);
 
+  queries.push(...buildDiverseSearchIntentQueries(context));
+
   if (context.upc) {
     queries.push(context.upc);
     queries.push(compactWords([context.upc, brand || context.productTitle, itemType]));
@@ -2507,6 +2727,75 @@ function buildHighPriorityExactQueries(context) {
   queries.push(compactWords([context.labelText, context.itemCode || context.model || context.ageEra]));
 
   return queries;
+}
+
+function buildDiverseSearchIntentQueries(context) {
+  const queries = [];
+  const organization = firstKnown(context.visualOrganization, context.schoolName, context.teamName, context.subjectIdentity);
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const itemType = context.itemType;
+  const exactVisiblePhrase = selectExactVisiblePhrase(context);
+  const eventPhrase = selectEventSearchPhrase(context);
+  const namedPerson = context.namedPeople[0] || "";
+  const year = context.years[0] || "";
+
+  if (exactVisiblePhrase) {
+    queries.push(compactWords([quoteSearchPhrase(exactVisiblePhrase), brand, itemType]));
+  }
+  if (brand || organization || itemType) {
+    queries.push(compactWords([brand, organization, itemType]));
+  }
+  if (namedPerson) {
+    queries.push(compactWords([namedPerson, organization, brand, itemType]));
+  }
+  if (eventPhrase || year) {
+    queries.push(compactWords([year, organization, eventPhrase, brand, itemType]));
+  }
+  if (year && /champion|commemorative|collector|official|edition/i.test([eventPhrase, context.productTitle, context.subjectIdentity].join(" "))) {
+    queries.push(compactWords([String(Number(year) + 1), organization, eventPhrase, brand, itemType]));
+  }
+  if (brand || organization || itemType) {
+    queries.push(compactWords([brand, organization, itemType, "eBay"]));
+  }
+  queries.push(compactWords([context.exactProductIdentity || context.productTitle || context.subjectIdentity, brand, itemType]));
+
+  return queries.filter(Boolean);
+}
+
+function selectExactVisiblePhrase(context) {
+  const candidates = mergeStringArrays(
+    context.distinctivePhrases,
+    context.eventPhrases,
+    context.visibleEvidence,
+    24
+  );
+  return candidates
+    .map((item) => cleanSearchQuery(item, 7))
+    .filter((item) => isDistinctiveSearchPhrase(item))
+    .sort((a, b) => {
+      const scoreA = scoreExactVisiblePhrase(a);
+      const scoreB = scoreExactVisiblePhrase(b);
+      return scoreB - scoreA || a.length - b.length;
+    })[0] || "";
+}
+
+function selectEventSearchPhrase(context) {
+  return context.eventPhrases
+    .map((item) => cleanSearchQuery(item, 7))
+    .sort((a, b) => scoreExactVisiblePhrase(b) - scoreExactVisiblePhrase(a) || a.length - b.length)[0] || "";
+}
+
+function scoreExactVisiblePhrase(value) {
+  const text = cleanText(value);
+  let score = 0;
+  if (/[A-Z]{2,}/.test(value)) score += 2;
+  if (/['’]/.test(text)) score += 8;
+  if (/\b(?:18|19|20)\d{2}\b/.test(text)) score += 5;
+  if (/champion|national|official|collector|commemorative|edition|slogan|motto/i.test(text)) score += 5;
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 3 && wordCount <= 6) score += 3;
+  if (wordCount > 8) score -= 4;
+  return score;
 }
 
 function buildFallbackSearchQueries(context) {
@@ -2575,14 +2864,15 @@ function buildFallbackSearchQueries(context) {
   return queries;
 }
 
-function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
+function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, queriesActuallySent = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], safeRawResultSummaries = [], elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason }) {
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
-  const queriesActuallySent = collectWebSearchActionQueries(webSearchCalls);
   const webSearchExecuted = webSearchCalls.length > 0;
   const rawItems = normalizeStringArray(result.comparableItemsFound, 8);
-  const rawResultSummaries = collectSafeRawResultSummaries({ result, citations, searchQueries, queriesActuallySent });
+  const rawResultSummaries = safeRawResultSummaries.length
+    ? safeRawResultSummaries
+    : collectSafeRawResultSummaries({ result, citations, searchQueries, queriesActuallySent });
   const bucketedResearch = buildResearchResultBuckets(result, rawItems, citations, identity);
   const comparableItemsFound = recordsToLegacyComparableStrings([
     ...bucketedResearch.strongComparables,
@@ -2618,6 +2908,10 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
     searchEvidenceSummary: cleanText(result.searchEvidenceSummary || ""),
     sourceRoute,
     searchQueries,
+    queriesPrioritized,
+    queriesActuallySent,
+    providerRequestRecords,
+    providerResponseSummaries,
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
     sourcesSearched,
     sourcesReturned: summarizeSourceLabels(citations.map((citation) => sourceLabelFromCitation(citation)).filter(Boolean)),
@@ -2643,22 +2937,26 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
     searchDiagnostics: buildSearchDiagnostics({
       searchQueries,
       queriesActuallySent,
+      queriesPrioritized,
       sourceRoute,
       sourcesSearched,
       citations,
       webSearchCalls,
       rawResultSummaries,
       bucketedResearch,
-      providerErrors: [],
+      providerErrors,
+      providerRequestRecords,
+      providerResponseSummaries,
       liveSearchStatus,
       elapsedMs
     })
   };
 }
 
-function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason }) {
+function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason }) {
   const diagnostic = classifyLiveSearchError(error);
   const liveSearchStatus = statusForLiveSearchError(diagnostic.category);
+  const errors = providerErrors.length ? providerErrors : [diagnostic];
 
   return {
     liveSearchStatus,
@@ -2674,6 +2972,10 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
     searchEvidenceSummary: diagnostic.userMessage,
     sourceRoute,
     searchQueries,
+    queriesPrioritized,
+    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    providerRequestRecords,
+    providerResponseSummaries,
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
     sourcesSearched: [],
     sourcesReturned: [],
@@ -2698,14 +3000,17 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, s
     },
     searchDiagnostics: buildSearchDiagnostics({
       searchQueries,
-      queriesActuallySent: [],
+      queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+      queriesPrioritized,
       sourceRoute,
       sourcesSearched: [],
       citations: [],
       webSearchCalls: [],
       rawResultSummaries: [],
       bucketedResearch: buildEmptyResearchBuckets(),
-      providerErrors: [diagnostic],
+      providerErrors: errors,
+      providerRequestRecords,
+      providerResponseSummaries,
       liveSearchStatus,
       elapsedMs
     })
@@ -2761,9 +3066,10 @@ function buildEmptyResearchBuckets() {
   };
 }
 
-function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], sourceRoute = [], sourcesSearched = [], citations = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], liveSearchStatus = "", elapsedMs = 0 }) {
+function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0 }) {
   const normalization = bucketedResearch.normalizationDiagnostics || {};
-  const queryTransmissionMode = queriesActuallySent.length ? "provider_action_queries_exposed" : "prompt_supplied_to_search_controller";
+  const safeQueriesActuallySent = queriesActuallySent.map(cleanText).filter((query) => query && !isInternalPromptFragment(query)).slice(0, 20);
+  const queryTransmissionMode = providerRequestRecords.length ? "query_bound_provider_requests" : "no_query_bound_provider_records";
   const rawResultCount = rawResultSummaries.length;
   const parsedResultCount = Number(normalization.parsedResultCount || 0);
   const normalizedResultCount = Number(normalization.normalizedResultCount || 0);
@@ -2772,23 +3078,31 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
   const rejectedResultCount = Number(normalization.rejectedResultCount || 0);
   const queryResultsSummary = buildQueryResultsSummary({
     searchQueries,
-    queriesActuallySent,
+    queriesActuallySent: safeQueriesActuallySent,
     queryTransmissionMode,
     webSearchCalls,
     rawResultSummaries,
     retainedVisibleResultCount,
-    providerErrors
+    providerErrors,
+    providerRequestRecords
   });
   const diagnostics = {
     queriesGenerated: searchQueries,
-    queriesActuallySent: queriesActuallySent.length ? queriesActuallySent : searchQueries,
+    queriesPrioritized: queriesPrioritized.length ? queriesPrioritized : searchQueries.map((query, index) => ({ query, priority: index + 1, sourceRoute: buildSourcesTargeted(sourceRoute) })),
+    queriesActuallySent: safeQueriesActuallySent,
     queryTransmissionMode,
+    executionLimitation: queryTransmissionMode === "query_bound_provider_requests"
+      ? "Each prioritized query was sent in its own OpenAI web_search-enabled request. The provider does not expose every downstream marketplace endpoint, so source accounting is based on provider request records and returned URL citations."
+      : "No query-bound provider request records were available, so the app does not claim individual queries were sent.",
     queryCount: searchQueries.length,
     sourcesRequested: buildSourcesTargeted(sourceRoute),
+    sourcesActuallyQueried: providerRequestRecords.some((record) => record.attempted) ? ["OpenAI web_search"] : [],
     sourceRoute,
-    providerCallsAttempted: webSearchCalls.length || providerErrors.length ? 1 : 0,
-    providerCallsSucceeded: webSearchCalls.length,
+    providerCallsAttempted: providerRequestRecords.filter((record) => record.attempted).length,
+    providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
     providerErrors: providerErrors.map(sanitizeProviderErrorSummary),
+    providerRequestRecords: providerRequestRecords.map(sanitizeProviderRequestRecord),
+    providerResponseSummaries: providerResponseSummaries.map(sanitizeProviderResponseSummary),
     rawResultCount,
     parsedResultCount,
     normalizedResultCount,
@@ -2803,7 +3117,7 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
     droppedResultReasons: normalizeDropReasons(normalization.droppedResultReasons),
     queryResultsSummary,
     acquisitionFailureStage: classifySearchFailureStage({
-      providerCallsSucceeded: webSearchCalls.length,
+      providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
       rawResultCount,
       parsedResultCount,
       normalizedResultCount,
@@ -2811,7 +3125,7 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
       rejectedResultCount,
       providerErrors
     }),
-    safeRawResults: rawResultSummaries.slice(0, 16),
+    safeRawResults: rawResultSummaries.filter((item) => !isInternalPromptFragment(Object.values(item || {}).join(" "))).slice(0, 16),
     sourcesSearched: summarizeSourceLabels(sourcesSearched),
     sourcesReturned: summarizeSourceLabels(citations.map((citation) => citation.title || citation.url)),
     elapsedMilliseconds: elapsedMs,
@@ -2820,7 +3134,23 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
   return diagnostics;
 }
 
-function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = [], queryTransmissionMode = "", webSearchCalls = [], rawResultSummaries = [], retainedVisibleResultCount = 0, providerErrors = [] }) {
+function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = [], queryTransmissionMode = "", webSearchCalls = [], rawResultSummaries = [], retainedVisibleResultCount = 0, providerErrors = [], providerRequestRecords = [] }) {
+  if (providerRequestRecords.length) {
+    return providerRequestRecords.map((record) => ({
+      query: cleanText(record.query),
+      source: cleanText(record.provider || "OpenAI web_search"),
+      sourceRoute: normalizeStringArray(record.sourceRoute, 8),
+      requestAttempted: Boolean(record.attempted),
+      requestSucceeded: Boolean(record.succeeded),
+      rawResultCount: Number(record.rawResultCount || 0),
+      parsedResultCount: Number(record.parsedResultCount || 0),
+      normalizedResultCount: Number(record.normalizedResultCount || 0),
+      retainedResultCount: Number(record.retainedResultCount || 0),
+      controlledError: cleanText(record.errorCode),
+      primaryRejectionStageOrReason: cleanText(record.failureStage || "unknown")
+    })).slice(0, 20);
+  }
+
   const exposedQueries = new Set(queriesActuallySent.map((query) => cleanText(query).toLowerCase()).filter(Boolean));
   const providerSucceeded = webSearchCalls.length > 0;
   const queryLevelCountsAvailable = queriesActuallySent.length > 0;
@@ -2850,6 +3180,38 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
             : "provider_request_failure"
     };
   }).slice(0, 20);
+}
+
+function sanitizeProviderRequestRecord(record = {}) {
+  return {
+    query: cleanText(record.query),
+    priority: Number(record.priority || 0),
+    sourceRoute: normalizeStringArray(record.sourceRoute, 8),
+    provider: cleanText(record.provider || "OpenAI web_search"),
+    attempted: Boolean(record.attempted),
+    succeeded: Boolean(record.succeeded),
+    rawResultCount: Number(record.rawResultCount || 0),
+    parsedResultCount: Number(record.parsedResultCount || 0),
+    normalizedResultCount: Number(record.normalizedResultCount || 0),
+    retainedResultCount: Number(record.retainedResultCount || 0),
+    errorCode: cleanText(record.errorCode),
+    failureStage: cleanText(record.failureStage || "unknown")
+  };
+}
+
+function sanitizeProviderResponseSummary(summary = {}) {
+  return {
+    query: cleanText(summary.query),
+    priority: Number(summary.priority || 0),
+    provider: cleanText(summary.provider || "OpenAI web_search"),
+    statusCode: summary.statusCode || null,
+    webSearchCallAppeared: Boolean(summary.webSearchCallAppeared),
+    urlCitationCount: Number(summary.urlCitationCount || 0),
+    domainsReturned: normalizeStringArray(summary.domainsReturned, 8),
+    providerActionQueries: normalizeStringArray(summary.providerActionQueries, 4).filter((query) => !isInternalPromptFragment(query)),
+    errorCode: cleanText(summary.errorCode),
+    errorMessage: sanitizeErrorText(summary.errorMessage || "")
+  };
 }
 
 function classifySearchFailureStage({ providerCallsSucceeded, rawResultCount, parsedResultCount, normalizedResultCount, retainedVisibleResultCount, rejectedResultCount, providerErrors = [] }) {
@@ -3363,14 +3725,17 @@ function enforceListingResearchHonesty(report, research, platform) {
 }
 
 function buildListingSearchQueriesUsed(liveSearch) {
-  if (!liveSearch.searchQueries || !liveSearch.searchQueries.length) {
+  const sentQueries = normalizeStringArray(liveSearch.queriesActuallySent, 20);
+  const generatedQueries = normalizeStringArray(liveSearch.searchQueries, 20);
+  const queries = sentQueries.length ? sentQueries : generatedQueries;
+  if (!queries.length) {
     return [];
   }
 
   const lead = liveSearch.webSearchExecuted
     ? "These are the queries the system used."
     : "These are the queries the system attempted before live research became unavailable.";
-  return [lead, ...liveSearch.searchQueries];
+  return [lead, ...queries];
 }
 
 function buildListingResearchResults(liveSearch, comparableItemsFound) {
@@ -4234,11 +4599,18 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     decision.evidenceWarning ? [decision.evidenceWarning] : [],
     8
   );
-  const productRisks = mergeStringArrays(
-    report.productOrConditionRisks,
-    decision.riskFlags.map((flag) => `Risk flag: ${flag}`),
-    conditionProfile.risks,
-    8
+  const productRisks = sanitizeConsumerRiskList(
+    mergeStringArrays(
+      report.productOrConditionRisks,
+      decision.riskFlags.map((flag) => `Risk flag: ${flag}`),
+      conditionProfile.risks,
+      12
+    ),
+    { buyerIntake, identity }
+  ).slice(0, 8);
+  const betterValueConsiderations = sanitizeBetterValueConsiderations(
+    normalizeFlexibleArray(report.betterValueConsiderations, 8, buildConsumerBetterValueConsiderations(decision, conditionProfile)),
+    { decision, conditionProfile }
   );
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
@@ -4287,7 +4659,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     reasonsForCaution: cautionItems,
     productOrConditionRisks: productRisks,
     riskFlags: decision.riskFlags,
-    betterValueConsiderations: normalizeFlexibleArray(report.betterValueConsiderations, 8, buildConsumerBetterValueConsiderations(decision, conditionProfile)),
+    betterValueConsiderations,
     researchResults,
     comparableQuality,
     pricingConfidence: decision.pricingConfidence,
@@ -4630,6 +5002,7 @@ function buildConsumerRiskFlags({ askingPriceNumber, fairValueNumber, reliableCo
     buyerIntake.buyer_notes,
     buyerIntake.approximate_age_era
   ].join(" ").toLowerCase();
+  const olderModelSupported = isOlderModelRiskSupported({ buyerIntake, identity });
 
   if (identityValues.length < 2 || normalizeStringArray(identity.identityConflictNotes, 6).length) {
     addUnique(flags, "Identity Not Confirmed");
@@ -4649,7 +5022,7 @@ function buildConsumerRiskFlags({ askingPriceNumber, fairValueNumber, reliableCo
   if (concerns.some((item) => /authenticity/.test(item))) {
     addUnique(flags, "Authenticity Unclear");
   }
-  if (/facebook|private|flea|estate|thrift|consignment|antique/.test(context)) {
+  if (isNoReturnProtectionSupported({ buyerIntake, identity })) {
     addUnique(flags, "No Return Protection");
   }
   if (/electronics|laptop|phone|tablet|camera|charger|software|locked|compatibility/.test(itemText)) {
@@ -4658,11 +5031,114 @@ function buildConsumerRiskFlags({ askingPriceNumber, fairValueNumber, reliableCo
   if (conditionProfile.repairRisk) {
     addUnique(flags, "Repair Risk");
   }
-  if (/older model|outdated|vintage|discontinued|old|legacy/.test(itemText)) {
+  if (olderModelSupported) {
     addUnique(flags, "Older Model");
   }
 
   return flags.slice(0, 10);
+}
+
+function sanitizeConsumerRiskList(items, { buyerIntake, identity }) {
+  const olderModelSupported = isOlderModelRiskSupported({ buyerIntake, identity });
+  const noReturnSupported = isNoReturnProtectionSupported({ buyerIntake, identity });
+  const noWarrantySupported = isNoWarrantyRiskSupported({ buyerIntake, identity });
+
+  return normalizeStringArray(items, 12).filter((item) => {
+    if (/^older model\b/i.test(item) || /\bolder model\b/i.test(item)) {
+      return olderModelSupported;
+    }
+    if (/^no warranty\b/i.test(item) || /\bno warranty\b/i.test(item)) {
+      return noWarrantySupported;
+    }
+    if (/^no return protection\b/i.test(item) || /\bno return protection\b/i.test(item)) {
+      return noReturnSupported;
+    }
+    return true;
+  });
+}
+
+function sanitizeBetterValueConsiderations(items, { decision, conditionProfile }) {
+  const values = normalizeStringArray(items, 8);
+  if (decision.recommendation !== "Buy" && decision.recommendation !== "Buy If It Fits Your Needs") {
+    return values;
+  }
+
+  const riskText = [
+    conditionProfile.risks,
+    decision.riskFlags,
+    decision.downsideRisk?.hardFactors,
+    decision.downsideRisk?.moderateFactors
+  ].flat().map(cleanText).join(" ").toLowerCase();
+  const hasConcreteWaitRisk = /condition|missing|repair|authenticity|price above|compatibility|return protection|shipping|damage|incomplete|unclear/.test(riskText);
+
+  return values.filter((item) => {
+    if (!/\b(wait|similar item|another item|better value may be available|cleaner comparable|open-box|refurbished|comparable model)\b/i.test(item)) {
+      return true;
+    }
+    return hasConcreteWaitRisk;
+  });
+}
+
+function isOrdinaryVintageCollectibleContext({ buyerIntake, identity }) {
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  return /vintage|collectible|memorabilia|commemorative|souvenir|advertising|promotional|sports|team|school|mascot|licensed|collector'?s?\s+(?:tray|plate)|serving tray|plaque|tin|sign|ceramic|canister|cookie jar|holiday|christmas|santa|seasonal|antique/.test(text)
+    && !/electronics|laptop|phone|tablet|camera|charger|appliance|tool|software|locked|compatibility|battery|processor|model specs/.test(text);
+}
+
+function isNoReturnProtectionSupported({ buyerIntake, identity }) {
+  const context = cleanText(buyerIntake.purchase_context).toLowerCase();
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  return /^(facebook_marketplace|private_seller|flea_market|estate_sale)$/.test(context)
+    || /\b(as[-\s]?is|final sale|no returns?|cash only|private seller|yard sale|garage sale|estate sale|flea market)\b/.test(text);
+}
+
+function isNoWarrantyRiskSupported({ buyerIntake, identity }) {
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  return /\b(no warranty|as[-\s]?is|final sale|untested|not working|for parts|electronics|laptop|phone|tablet|camera|appliance|power tool|battery|charger|software|locked)\b/.test(text);
+}
+
+function isOlderModelRiskSupported({ buyerIntake, identity }) {
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  if (isOrdinaryVintageCollectibleContext({ buyerIntake, identity })) {
+    return false;
+  }
+  return /\b(older model|outdated|legacy|obsolete|unsupported|discontinued)\b/.test(text)
+    && /\b(electronics|laptop|phone|tablet|camera|appliance|tool|software|compatibility|battery|charger|parts?)\b/.test(text);
+}
+
+function buildConsumerRiskContextText({ buyerIntake, identity }) {
+  return [
+    buyerIntake.purchase_context,
+    buyerIntake.item_condition,
+    buyerIntake.item_name,
+    buyerIntake.known_brand,
+    buyerIntake.known_manufacturer,
+    buyerIntake.known_model,
+    buyerIntake.known_sku,
+    buyerIntake.approximate_age_era,
+    buyerIntake.buyer_notes,
+    Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "",
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.category,
+    identity.likelyItemDescription,
+    identity.productNameOrBoxTitle,
+    identity.subjectIdentity,
+    identity.exactProductIdentity,
+    identity.distinctiveVisualDescription,
+    identity.brand,
+    identity.manufacturer,
+    identity.teamName,
+    identity.schoolName,
+    identity.mascot,
+    identity.model,
+    identity.sku,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.brandSeries,
+    Array.isArray(identity.visualIdentityEvidence) ? identity.visualIdentityEvidence.join(" ") : "",
+    Array.isArray(identity.textIdentityEvidence) ? identity.textIdentityEvidence.join(" ") : ""
+  ].map(cleanText).join(" ").toLowerCase();
 }
 
 function getConsumerConditionProfile(buyerIntake, identity = {}) {
@@ -6018,10 +6494,12 @@ function buildSearchCoverage(liveSearch) {
     `Source categories targeted: ${buildSourcesTargeted(liveSearch.sourceRoute).join("; ")}`
   ];
 
-  if (liveSearch.sourcesSearched && liveSearch.sourcesSearched.length) {
-    coverage.push(`Sources searched: ${summarizeSourceLabels(liveSearch.sourcesSearched).join("; ")}`);
+  if (liveSearch.searchDiagnostics?.sourcesActuallyQueried?.length) {
+    coverage.push(`Search providers queried: ${summarizeSourceLabels(liveSearch.searchDiagnostics.sourcesActuallyQueried).join("; ")}`);
+  } else if (liveSearch.sourcesSearched && liveSearch.sourcesSearched.length) {
+    coverage.push(`Provider-reported source scope: ${summarizeSourceLabels(liveSearch.sourcesSearched).join("; ")}`);
   } else {
-    coverage.push("Sources searched: Live web search executed, but the provider did not return a separate source list.");
+    coverage.push("Search provider queried: Live web search executed, but provider-level source scope was not separately exposed.");
   }
 
   if (liveSearch.sourcesReturned && liveSearch.sourcesReturned.length) {
@@ -6055,8 +6533,10 @@ function buildSearchCoverage(liveSearch) {
     coverage.push("Searched using visual item description and category terms.");
   }
 
-  if (/holiday|collectible|vintage|ceramic|etsy|mercari|collector|resale/.test(routeText)) {
-    coverage.push("Searched relevant holiday decor / collectible sources.");
+  if (/holiday|christmas|santa|seasonal/.test(routeText)) {
+    coverage.push("Targeted seasonal decor and collectible resale/reference source categories.");
+  } else if (/collectible|vintage|ceramic|etsy|mercari|collector|resale|memorabilia|commemorative|advertising|promotional|sports|team|school|mascot/.test(routeText)) {
+    coverage.push("Targeted collectible, resale, auction/archive, and reference source categories.");
   }
 
   if (/manufacturer site|retailer|google shopping|amazon|major retail/.test(routeText)) {
@@ -6079,11 +6559,12 @@ function buildSearchCoverage(liveSearch) {
 }
 
 function buildSearchQueriesUsed(liveSearch) {
-  if (!liveSearch.webSearchExecuted || !liveSearch.searchQueries.length) {
+  const sentQueries = normalizeStringArray(liveSearch.queriesActuallySent, 20);
+  if (!liveSearch.webSearchExecuted || !sentQueries.length) {
     return [];
   }
 
-  return ["These are the queries the system used.", ...liveSearch.searchQueries];
+  return ["These are the queries the system used.", ...sentQueries];
 }
 
 function buildVisualPhrase(identity, notes) {
@@ -6631,7 +7112,7 @@ function classifyOpenAIErrorDetails({ statusCode, type, code, message }) {
 }
 
 function classifyLiveSearchError(error) {
-  const category = error.liveSearchErrorCategory || classifyOpenAIErrorDetails({
+  const category = error.liveSearchErrorCategory || error.category || classifyOpenAIErrorDetails({
     statusCode: error.openAIStatusCode,
     type: error.openAIErrorType,
     code: error.openAIErrorCode,
