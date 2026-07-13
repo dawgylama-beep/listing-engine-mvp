@@ -13,10 +13,10 @@ $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.9.9"; Text = $index; Pattern = "Version 1.9.9" },
-  @{ Name = "Package version is 1.9.9"; Text = $package; Pattern = '"version": "1.9.9"' },
-  @{ Name = "Server version is 1.9.9"; Text = $server; Pattern = '$AppVersion = "1.9.9"' },
-  @{ Name = "Roadmap documents 1.9.9"; Text = $roadmap; Pattern = "Version 1.9.9 (Completed)" },
+  @{ Name = "Visible app version is 1.10.0"; Text = $index; Pattern = "Version 1.10.0" },
+  @{ Name = "Package version is 1.10.0"; Text = $package; Pattern = '"version": "1.10.0"' },
+  @{ Name = "Server version is 1.10.0"; Text = $server; Pattern = '$AppVersion = "1.10.0"' },
+  @{ Name = "Roadmap documents 1.10.0"; Text = $roadmap; Pattern = "Version 1.10.0 (Completed)" },
   @{ Name = "API uses current web_search tool"; Text = $api; Pattern = 'type: "web_search"' },
   @{ Name = "API forces live search tool execution"; Text = $api; Pattern = 'tool_choice: "required"' },
   @{ Name = "API requests complete provider sources"; Text = $api; Pattern = 'web_search_call.action.sources' },
@@ -42,7 +42,7 @@ $checks = @(
   @{ Name = "API preserves zero-evidence guard"; Text = $api; Pattern = "function applyZeroEvidenceGuard" },
   @{ Name = "API suppresses unsupported wait guidance"; Text = $api; Pattern = "function sanitizeBetterValueConsiderations" },
   @{ Name = "Frontend renders one report root"; Text = $app; Pattern = 'reportRoot.className = "report-root"' },
-  @{ Name = "Frontend clears previous report before rendering"; Text = $app; Pattern = 'results.innerHTML = ""' },
+  @{ Name = "Frontend replaces previous report before rendering"; Text = $app; Pattern = "results.replaceChildren(reportRoot);" },
   @{ Name = "Frontend renders end marker function"; Text = $app; Pattern = "function renderEndOfReportMarker" },
   @{ Name = "Frontend marker says End of Report"; Text = $app; Pattern = 'marker.textContent = "End of Report"' },
   @{ Name = "Frontend stops loading progress before final render"; Text = $app; Pattern = "stopLoadingProgress();" },

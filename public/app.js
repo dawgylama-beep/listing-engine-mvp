@@ -1243,9 +1243,7 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
 function renderReport(report, sections) {
   stopLoadingProgress();
   const renderId = `report-${++reportRenderSequence}`;
-  results.classList.remove("empty-state");
-  results.classList.remove("loading-state");
-  results.innerHTML = "";
+  results.className = "results";
   results.dataset.currentReportId = renderId;
 
   const reportRoot = document.createElement("div");
@@ -1293,7 +1291,7 @@ function renderReport(report, sections) {
 
   reportRoot.appendChild(renderAppraiserSummary(report, currentWorkflow));
   reportRoot.appendChild(renderEndOfReportMarker());
-  results.appendChild(reportRoot);
+  results.replaceChildren(reportRoot);
 }
 
 function buildSectionCards(report, sections, includeKey) {
@@ -1374,12 +1372,27 @@ function renderResearchEvidencePanel(report) {
     subsection.className = "research-subsection";
     const heading = document.createElement("h4");
     heading.textContent = label;
-    subsection.append(heading, label === "Technical Search Details" ? renderSearchDiagnostics(value) : renderValue(value));
+    if (label === "Technical Search Details") {
+      subsection.classList.add("technical-search-details");
+      subsection.append(heading, renderTechnicalSearchDetails(value));
+    } else {
+      subsection.append(heading, renderValue(value));
+    }
     body.appendChild(subsection);
   });
 
   card.append(header, body);
   return card;
+}
+
+function renderTechnicalSearchDetails(value) {
+  const details = document.createElement("details");
+  details.className = "technical-details-disclosure";
+  const summary = document.createElement("summary");
+  summary.className = "technical-details-summary";
+  summary.textContent = "Show Technical Search Details";
+  details.append(summary, renderSearchDiagnostics(value));
+  return details;
 }
 
 function renderSearchDiagnostics(diagnostics) {
@@ -1429,12 +1442,35 @@ function renderSearchDiagnostics(diagnostics) {
     : diagnostics.queryResultsSummary;
 
   if (Array.isArray(records) && records.length) {
+    const attemptedRecords = records.filter(isAttemptedDiagnosticRecord);
+    const rejectedRecords = records.filter((record) => !isAttemptedDiagnosticRecord(record));
     const title = document.createElement("h5");
     title.textContent = "Search Query Diagnostics";
-    const rows = document.createElement("div");
-    rows.className = "query-diagnostic-list";
-    records.forEach((item) => rows.appendChild(renderQueryDiagnosticCard(item)));
-    wrapper.append(title, rows);
+    wrapper.appendChild(title);
+
+    const controls = document.createElement("div");
+    controls.className = "query-diagnostic-controls";
+    const toggleDetails = document.createElement("button");
+    toggleDetails.className = "query-diagnostic-toggle";
+    toggleDetails.type = "button";
+    toggleDetails.textContent = "Show all details";
+    toggleDetails.addEventListener("click", () => toggleAllQueryDetails(wrapper, toggleDetails));
+    controls.appendChild(toggleDetails);
+    wrapper.appendChild(controls);
+
+    if (attemptedRecords.length) {
+      wrapper.appendChild(renderQueryDiagnosticList(attemptedRecords));
+    }
+
+    if (rejectedRecords.length) {
+      wrapper.appendChild(renderRejectedQuerySummary(rejectedRecords));
+      const rejectedDisclosure = document.createElement("details");
+      rejectedDisclosure.className = "rejected-query-disclosure";
+      const rejectedSummary = document.createElement("summary");
+      rejectedSummary.textContent = `Show rejected queries (${rejectedRecords.length})`;
+      rejectedDisclosure.append(rejectedSummary, renderQueryDiagnosticList(rejectedRecords, "rejected"));
+      wrapper.appendChild(rejectedDisclosure);
+    }
   }
 
   if (Array.isArray(diagnostics.droppedResultReasons) && diagnostics.droppedResultReasons.length) {
@@ -1446,12 +1482,67 @@ function renderSearchDiagnostics(diagnostics) {
   return wrapper;
 }
 
+function renderQueryDiagnosticList(records, modifier = "") {
+  const rows = document.createElement("div");
+  rows.className = ["query-diagnostic-list", modifier && `is-${modifier}`].filter(Boolean).join(" ");
+  records.forEach((item) => rows.appendChild(renderQueryDiagnosticCard(item)));
+  return rows;
+}
+
+function isAttemptedDiagnosticRecord(item) {
+  return Boolean(item?.attempted ?? item?.requestAttempted);
+}
+
+function renderRejectedQuerySummary(records) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "rejected-query-summary";
+  const title = document.createElement("p");
+  title.textContent = `${records.length} rejected quer${records.length === 1 ? "y" : "ies"} blocked before provider calls.`;
+  const list = document.createElement("ul");
+  const reasonCounts = new Map();
+  records.forEach((record) => {
+    const reason = cleanDiagnosticText(record.validationFailureReason || record.failureStage || record.primaryRejectionStageOrReason || "not recorded");
+    reasonCounts.set(reason, (reasonCounts.get(reason) || 0) + 1);
+  });
+  [...reasonCounts.entries()].forEach(([reason, count]) => {
+    const item = document.createElement("li");
+    item.textContent = `${count}: ${reason}`;
+    list.appendChild(item);
+  });
+  wrapper.append(title, list);
+  return wrapper;
+}
+
+function toggleAllQueryDetails(wrapper, button) {
+  const queryDetails = Array.from(wrapper.querySelectorAll("details.query-diagnostic-row"));
+  const rejectedDisclosure = wrapper.querySelector("details.rejected-query-disclosure");
+  const shouldOpen = queryDetails.some((details) => !details.open);
+  if (rejectedDisclosure) {
+    rejectedDisclosure.open = shouldOpen;
+  }
+  queryDetails.forEach((details) => {
+    details.open = shouldOpen;
+  });
+  button.textContent = shouldOpen ? "Hide all details" : "Show all details";
+  button.setAttribute("aria-pressed", shouldOpen ? "true" : "false");
+}
+
 function renderQueryDiagnosticCard(item) {
-  const row = document.createElement("div");
-  row.className = "query-diagnostic-row";
-  const query = document.createElement("p");
+  const row = document.createElement("details");
+  row.className = `query-diagnostic-row ${isAttemptedDiagnosticRecord(item) ? "is-attempted" : "is-rejected"}`;
+  const summary = document.createElement("summary");
+  summary.className = "query-diagnostic-summary";
+  const query = document.createElement("span");
   query.className = "query-diagnostic-query";
-  query.textContent = cleanDiagnosticText(item.query || "Query not supplied");
+  query.textContent = cleanDiagnosticText(item.finalQuery || item.query || "Query not supplied");
+  const meta = document.createElement("span");
+  meta.className = "query-diagnostic-meta";
+  meta.textContent = [
+    isAttemptedDiagnosticRecord(item) ? "Attempted" : "Rejected",
+    formatSearchPass(item.searchPass) || "search pass not recorded",
+    item.validationPassed === false ? cleanDiagnosticText(item.validationFailureReason || "invalid query preflight") : ""
+  ].filter(Boolean).join(" - ");
+  summary.append(query, meta);
   const facts = document.createElement("dl");
   facts.className = "query-diagnostic-facts";
   [
@@ -1484,7 +1575,7 @@ function renderQueryDiagnosticCard(item) {
     dd.textContent = cleanDiagnosticText(normalizeDisplayValue(value));
     facts.append(dt, dd);
   });
-  row.append(query, facts);
+  row.append(summary, facts);
   return row;
 }
 
@@ -2598,10 +2689,10 @@ function renderRiskScore(report) {
 }
 
 function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
+  stopLoadingProgress();
   latestReport = null;
   copyAllButton.disabled = true;
   results.className = "results empty-state";
-  results.innerHTML = "";
 
   const intro = document.createElement("div");
   intro.className = "first-run-card";
@@ -2613,7 +2704,7 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   helper.className = "first-run-helper";
   helper.textContent = config.emptyMessage;
   intro.append(title, copy, helper);
-  results.appendChild(intro);
+  results.replaceChildren(intro);
 }
 
 function setOutputHeading(config) {
@@ -2679,7 +2770,6 @@ function getLoadingStages(workflow) {
 
 function renderLoadingProgress(stages, activeIndex) {
   results.className = "results loading-state";
-  results.innerHTML = "";
 
   const card = document.createElement("section");
   card.className = "loading-card";
@@ -2705,7 +2795,7 @@ function renderLoadingProgress(stages, activeIndex) {
   });
 
   card.append(title, helper, list);
-  results.appendChild(card);
+  results.replaceChildren(card);
 }
 
 function setStatus(message, type) {

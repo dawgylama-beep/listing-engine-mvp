@@ -253,6 +253,14 @@
 - Search diagnostics now show raw candidate, candidate origin, normalized candidate, final query, validation status, and failure reason
 - Serper requests continue to use United States English localization with `gl: "us"` and `hl: "en"`
 
+## Version 1.10.0 (Completed)
+- Mobile report length repaired by collapsing Technical Search Details by default
+- Query diagnostics now render as compact one-line disclosures instead of fully expanded cards
+- Invalid/rejected query candidates are summarized by count and reason, with deliberate expansion required to inspect them
+- Final report rendering now replaces the current report root instead of appending report content
+- Loading progress content is replaced and progress timers are stopped before final report rendering
+- End of Report marker remains the final element inside the current report root
+
 ## Version 2.0
 - User accounts
 - Saved listings
