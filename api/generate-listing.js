@@ -1722,12 +1722,22 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
   const providerErrors = [];
   const rawProviderRecords = [];
 
-  await Promise.all(providerRequestRecords.map(async (requestRecord, index) => {
-    const queryRecord = queriesPrioritized[index];
+  providerRequestRecords.forEach((requestRecord, index) => {
+    if (!requestRecord.attempted) {
+      providerResponseSummaries.push(createSerperPreflightRejectedResponseSummary(queriesPrioritized[index], requestRecord));
+    }
+  });
+
+  const executableRequests = providerRequestRecords
+    .map((requestRecord, index) => ({ requestRecord, queryRecord: queriesPrioritized[index] }))
+    .filter(({ requestRecord }) => requestRecord.attempted);
+
+  await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }) => {
     try {
       const response = await requestSerperSearch({
         apiKey: serperApiKey,
         query: queryRecord.query,
+        prevalidated: queryRecord.validationPassed !== false,
         timeoutMs: 7000,
         maxRetries: 1
       });
@@ -1764,6 +1774,12 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
         provider: "Serper Google Search",
         providerKey: "serper_google",
         marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
+        rawCandidate: queryRecord.rawCandidate || queryRecord.query,
+        candidateOrigin: queryRecord.candidateOrigin || queryRecord.searchPass,
+        normalizedCandidate: queryRecord.normalizedCandidate || queryRecord.query,
+        finalQuery: queryRecord.finalQuery || queryRecord.query,
+        validationPassed: queryRecord.validationPassed !== false,
+        validationFailureReason: queryRecord.validationFailureReason || "",
         statusCode: diagnostic.statusCode || null,
         providerSourceCount: 0,
         organicResultCount: 0,
@@ -1812,6 +1828,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
 }
 
 function createSerperRequestRecord(queryRecord) {
+  const validationPassed = queryRecord.validationPassed !== false;
   return {
     query: queryRecord.query,
     priority: queryRecord.priority,
@@ -1819,9 +1836,15 @@ function createSerperRequestRecord(queryRecord) {
     sourceRoute: queryRecord.sourceRoute,
     marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
     allowedDomainsRequested: queryRecord.marketplaceDomains || [],
+    rawCandidate: cleanText(queryRecord.rawCandidate || queryRecord.query),
+    candidateOrigin: cleanText(queryRecord.candidateOrigin || queryRecord.searchPass),
+    normalizedCandidate: cleanText(queryRecord.normalizedCandidate || queryRecord.query),
+    finalQuery: cleanText(queryRecord.finalQuery || queryRecord.query),
+    validationPassed,
+    validationFailureReason: cleanText(queryRecord.validationFailureReason),
     provider: "Serper Google Search",
     providerKey: "serper_google",
-    attempted: true,
+    attempted: validationPassed,
     succeeded: false,
     providerSourceCount: 0,
     organicResultCount: 0,
@@ -1833,15 +1856,46 @@ function createSerperRequestRecord(queryRecord) {
     retainedResultCount: 0,
     domainsReturned: [],
     sourceURLsReturned: [],
-    errorCode: "",
-    failureStage: "serper_provider_error"
+    errorCode: validationPassed ? "" : "invalid_query_preflight",
+    failureStage: validationPassed ? "serper_provider_error" : "invalid_query_preflight"
   };
 }
 
-async function requestSerperSearch({ apiKey, query, timeoutMs = 7000, maxRetries = 1 }) {
+function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestRecord = {}) {
+  return {
+    query: requestRecord.query || queryRecord.query,
+    priority: requestRecord.priority || queryRecord.priority,
+    searchPass: requestRecord.searchPass || queryRecord.searchPass,
+    provider: "Serper Google Search",
+    providerKey: "serper_google",
+    marketplaceDomainsRequested: requestRecord.marketplaceDomainsRequested || queryRecord.marketplaceDomains || [],
+    allowedDomainsRequested: requestRecord.allowedDomainsRequested || queryRecord.marketplaceDomains || [],
+    rawCandidate: requestRecord.rawCandidate || queryRecord.rawCandidate || "",
+    candidateOrigin: requestRecord.candidateOrigin || queryRecord.candidateOrigin || "",
+    normalizedCandidate: requestRecord.normalizedCandidate || queryRecord.normalizedCandidate || "",
+    finalQuery: requestRecord.finalQuery || queryRecord.finalQuery || queryRecord.query || "",
+    validationPassed: false,
+    validationFailureReason: requestRecord.validationFailureReason || queryRecord.validationFailureReason || "invalid_query_preflight",
+    statusCode: null,
+    providerSourceCount: 0,
+    organicResultCount: 0,
+    shoppingResultCount: 0,
+    knowledgeGraphResultCount: 0,
+    domainsReturned: [],
+    sourceURLsReturned: [],
+    errorCode: "invalid_query_preflight",
+    errorMessage: "Query rejected locally before Serper execution.",
+    failureStage: "invalid_query_preflight"
+  };
+}
+
+async function requestSerperSearch({ apiKey, query, prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
   const safeQuery = cleanSerperQuery(query);
-  if (!safeQuery) {
-    throw createSerperRequestError({ category: "serper_provider_error", code: "empty_query", message: "Serper query was empty after normalization." });
+  const validation = prevalidated
+    ? validateSerperTransportQuery(safeQuery)
+    : validateSerperQueryCandidate(safeQuery);
+  if (!validation.passed) {
+    throw createSerperRequestError({ category: "invalid_query_preflight", code: validation.reason, message: "Serper query was rejected before provider execution." });
   }
 
   let lastError = null;
@@ -2262,51 +2316,85 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     buildFallbackSearchQueries(context).map((query) => cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12)),
     16
   ).map(cleanSerperQuery).filter(Boolean);
-  const records = [];
-  const signatures = new Set();
-  const addRecord = ({ query, searchPass, marketplaceDomains: requestedDomains = [] }) => {
-    const cleaned = cleanSerperQuery(query);
-    if (!cleaned || isInternalPromptFragment(cleaned)) return;
-    const domainKey = requestedDomains.map((domain) => domain.toLowerCase()).join("|");
-    const signature = `${querySemanticSignature(cleaned)}|${domainKey}`;
-    if (!signature.trim() || signatures.has(signature)) return;
-    signatures.add(signature);
-    records.push({
-      query: cleaned,
-      priority: records.length + 1,
+  const validRecords = [];
+  const rejectedRecords = [];
+  const signatureIndexes = new Map();
+  const addRecord = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [] }) => {
+    const normalizedCandidate = cleanSerperQuery(query);
+    const finalQuery = normalizedCandidate;
+    const validation = validateSerperQueryCandidate(finalQuery, context, { searchPass, marketplaceDomains: requestedDomains });
+    const baseRecord = {
+      query: finalQuery || cleanText(rawCandidate),
+      rawCandidate: cleanText(rawCandidate || query),
+      candidateOrigin: cleanText(candidateOrigin || searchPass),
+      normalizedCandidate,
+      finalQuery,
       searchPass,
       sourceRoute: sourceCategories,
       marketplaceDomains: requestedDomains,
-      allowedDomains: requestedDomains
-    });
+      allowedDomains: requestedDomains,
+      validationPassed: validation.passed,
+      validationFailureReason: validation.passed ? "" : validation.reason
+    };
+    if (!validation.passed) {
+      rejectedRecords.push({
+        ...baseRecord,
+        priority: validRecords.length + rejectedRecords.length + 1
+      });
+      return;
+    }
+    const domainKey = requestedDomains.map((domain) => domain.toLowerCase()).join("|");
+    const signature = `${querySemanticSignature(finalQuery)}|${domainKey}`;
+    if (!signature.trim()) return;
+    const candidateRecord = {
+      ...baseRecord,
+      query: finalQuery,
+      priority: validRecords.length + 1
+    };
+    if (signatureIndexes.has(signature)) {
+      const existingIndex = signatureIndexes.get(signature);
+      if (shouldPreferSerperQueryRecord(candidateRecord, validRecords[existingIndex], context)) {
+        validRecords[existingIndex] = {
+          ...candidateRecord,
+          priority: existingIndex + 1
+        };
+      }
+      return;
+    }
+    signatureIndexes.set(signature, validRecords.length);
+    validRecords.push(candidateRecord);
   };
 
   highPriorityQueries.slice(0, 4).forEach((query) => {
-    addRecord({ query, searchPass: "open_web_exact" });
+    addRecord({ query, rawCandidate: query, candidateOrigin: "high_priority_exact", searchPass: "open_web_exact" });
   });
 
-  if (marketplaceDomains.length && records.length < 6) {
+  if (marketplaceDomains.length && validRecords.length < 6) {
     const seedQuery = highPriorityQueries.find((query) => isMarketplaceUsefulQuery(query, context))
       || highPriorityQueries[0]
       || fallbackQueries[0]
       || compactWords([context.brand, context.productTitle, context.itemType]);
     const siteQuery = buildSerperMarketplaceQuery(seedQuery, marketplaceDomains);
-    addRecord({ query: siteQuery, searchPass: "marketplace_site_google", marketplaceDomains });
+    addRecord({ query: siteQuery, rawCandidate: seedQuery, candidateOrigin: "marketplace_domain_composition", searchPass: "marketplace_site_google", marketplaceDomains });
   }
 
   for (const query of fallbackQueries) {
-    if (records.length >= 6) break;
-    addRecord({ query, searchPass: "broader_fallback" });
+    if (validRecords.length >= 6) break;
+    addRecord({ query, rawCandidate: query, candidateOrigin: "broader_fallback", searchPass: "broader_fallback" });
   }
 
-  if (!records.length) {
+  if (!validRecords.length) {
     addRecord({
       query: compactWords([context.productTitle, context.brand, context.itemType, context.itemCode || context.model || context.upc]),
+      candidateOrigin: "last_resort_identity_fallback",
       searchPass: "broader_fallback"
     });
   }
 
-  return records.slice(0, 6).map((record, index) => ({
+  return [
+    ...validRecords.slice(0, 6),
+    ...rejectedRecords.slice(0, 24)
+  ].map((record, index) => ({
     ...record,
     priority: index + 1
   }));
@@ -2314,7 +2402,7 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
 
 function buildSerperMarketplaceQuery(seedQuery, marketplaceDomains = []) {
   const baseQuery = cleanSerperQuery(seedQuery);
-  const sites = marketplaceDomains
+  let sites = marketplaceDomains
     .map((domain) => cleanText(domain).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0])
     .filter(Boolean)
     .slice(0, 5)
@@ -2322,7 +2410,17 @@ function buildSerperMarketplaceQuery(seedQuery, marketplaceDomains = []) {
   if (!baseQuery || !sites.length) {
     return baseQuery;
   }
-  return cleanSerperQuery(`${baseQuery} (${sites.join(" OR ")})`, 260);
+  let candidate = `${baseQuery} (${sites.join(" OR ")})`;
+  while (candidate.length > 260 && sites.length > 1) {
+    sites = sites.slice(0, -1);
+    candidate = `${baseQuery} (${sites.join(" OR ")})`;
+  }
+  if (candidate.length <= 260) {
+    return cleanSerperQuery(candidate, 260);
+  }
+  const sitePart = `(${sites.join(" OR ")})`;
+  const shortenedBase = shortenQueryCoreWholeTerms(baseQuery, Math.max(120, 260 - sitePart.length - 1));
+  return cleanSerperQuery(`${shortenedBase} ${sitePart}`, 260);
 }
 
 function cleanSerperQuery(value, maxLength = 240) {
@@ -2338,10 +2436,215 @@ function cleanSerperQuery(value, maxLength = 240) {
   if (text.length <= maxLength) {
     return text;
   }
-  const sitePart = (text.match(/\((?:site:[^)]+)\)$/i) || [])[0] || "";
-  const textWithoutSites = sitePart ? text.slice(0, -sitePart.length).trim() : text;
-  const trimmed = trimQueryTerms(textWithoutSites, sitePart ? 14 : 18);
-  return `${trimmed}${sitePart ? ` ${sitePart}` : ""}`.slice(0, maxLength).trim();
+  return shortenSerperQueryWithoutFragments(text, maxLength);
+}
+
+function shortenSerperQueryWithoutFragments(text, maxLength) {
+  const { coreQuery, sitePart } = splitSerperSiteRestriction(text);
+  const siteBudget = sitePart ? sitePart.length + 1 : 0;
+  const coreBudget = Math.max(80, maxLength - siteBudget);
+  const shortenedCore = shortenQueryCoreWholeTerms(coreQuery, coreBudget);
+  const candidate = `${shortenedCore}${sitePart ? ` ${sitePart}` : ""}`.trim();
+  if (!candidate || candidate.length <= maxLength) {
+    return candidate;
+  }
+  const reducedSitePart = reduceSiteRestriction(sitePart);
+  const reducedCandidate = `${coreQuery}${reducedSitePart ? ` ${reducedSitePart}` : ""}`.trim();
+  if (!reducedCandidate || reducedCandidate.length <= maxLength) {
+    return reducedCandidate;
+  }
+  return shortenQueryCoreWholeTerms(coreQuery, maxLength);
+}
+
+function splitSerperSiteRestriction(text) {
+  const value = cleanText(text);
+  const match = value.match(/\s*(\((?:site:[^)]+)\))\s*$/i);
+  if (!match) {
+    return { coreQuery: value, sitePart: "" };
+  }
+  return {
+    coreQuery: value.slice(0, match.index).trim(),
+    sitePart: match[1].trim()
+  };
+}
+
+function reduceSiteRestriction(sitePart) {
+  const sites = String(sitePart || "").match(/site:[A-Za-z0-9.-]+/gi) || [];
+  return sites.length ? `(${sites[0]})` : "";
+}
+
+function shortenQueryCoreWholeTerms(coreQuery, maxLength) {
+  const core = cleanText(coreQuery);
+  if (!core || core.length <= maxLength) {
+    return core;
+  }
+  const terms = splitQueryTermsPreservingQuotes(core);
+  const kept = [];
+  for (const term of terms) {
+    const candidate = [...kept, term].join(" ");
+    if (candidate.length > maxLength) {
+      continue;
+    }
+    kept.push(term);
+  }
+  return kept.length ? kept.join(" ") : core;
+}
+
+function validateSerperQueryCandidate(query, context = {}, options = {}) {
+  const finalQuery = cleanSerperQuery(query);
+  const { coreQuery } = splitSerperSiteRestriction(finalQuery);
+  const core = cleanText(coreQuery);
+  const terms = extractMeaningfulQueryTerms(core);
+  const hasLongIdentifier = hasLongIdentifierTerm(core, context);
+  const hasQuotedPhrase = /"[^"]{4,}"/.test(core);
+  const hasItemNoun = hasQueryItemNoun(core, context);
+  const hasAnchor = hasQueryIdentityAnchor(core, context);
+
+  if (!core || isInternalPromptFragment(core)) {
+    return { passed: false, reason: "empty_or_internal_query" };
+  }
+  if (isIncompleteQueryFragment(core)) {
+    return { passed: false, reason: "incomplete_word_fragment" };
+  }
+  if (isYearPlusShortFragment(core)) {
+    return { passed: false, reason: "year_plus_short_fragment" };
+  }
+  if (!hasLongIdentifier && terms.length < 2) {
+    return { passed: false, reason: "fewer_than_two_meaningful_identity_terms" };
+  }
+  if (isGenericCategoryOnlyQuery(core, context)) {
+    return { passed: false, reason: "generic_category_only" };
+  }
+  if (!hasItemNoun && !hasAnchor) {
+    return { passed: false, reason: "missing_item_noun_and_identity_anchor" };
+  }
+  if (usesPersonNameWithoutItemAnchor(core, context)) {
+    return { passed: false, reason: "person_name_without_item_anchor" };
+  }
+  if (options.searchPass === "broader_fallback" && !hasLongIdentifier && !hasQuotedPhrase && (!hasItemNoun || !hasAnchor)) {
+    return { passed: false, reason: !hasItemNoun ? "fallback_missing_item_noun" : "fallback_missing_identity_anchor" };
+  }
+  return { passed: true, reason: "" };
+}
+
+function validateSerperTransportQuery(query) {
+  const finalQuery = cleanSerperQuery(query);
+  const { coreQuery } = splitSerperSiteRestriction(finalQuery);
+  const core = cleanText(coreQuery);
+  if (!core || isInternalPromptFragment(core)) {
+    return { passed: false, reason: "empty_or_internal_query" };
+  }
+  if (isIncompleteQueryFragment(core)) {
+    return { passed: false, reason: "incomplete_word_fragment" };
+  }
+  if (isYearPlusShortFragment(core)) {
+    return { passed: false, reason: "year_plus_short_fragment" };
+  }
+  return { passed: true, reason: "" };
+}
+
+function extractMeaningfulQueryTerms(query) {
+  const { coreQuery } = splitSerperSiteRestriction(query);
+  return cleanText(coreQuery)
+    .replace(/"([^"]+)"/g, " $1 ")
+    .replace(/site:[A-Za-z0-9.-]+/gi, " ")
+    .toLowerCase()
+    .match(/[a-z0-9][a-z0-9'-]*/g)?.filter((term) => {
+      if (/^(?:18|19|20)\d{2}$/.test(term) || /^\d{3,14}$/.test(term)) return true;
+      if (term.length < 3) return false;
+      return !isQueryStopWord(term) && !isGenericSearchOnlyTerm(term);
+    }) || [];
+}
+
+function isQueryStopWord(term) {
+  return /^(?:the|and|or|for|with|from|this|that|them|they|his|her|its|our|your|about|into|onto|near|price|value|listing|search|used|old|new|item|photo|image)$/.test(term);
+}
+
+function isGenericSearchOnlyTerm(term) {
+  return /^(?:vintage|collectible|collectibles|decor|decoration|memorabilia|resale|marketplace|official|licensed|limited|edition|collector|commemorative|unknown|generic)$/.test(term);
+}
+
+function isIncompleteQueryFragment(query) {
+  const core = cleanText(query).replace(/^"|"$/g, "");
+  const terms = extractMeaningfulQueryTerms(core);
+  return terms.length <= 1 && /^[A-Za-z]{2,3}$/.test(core) && !/^(sku|upc)$/i.test(core);
+}
+
+function isYearPlusShortFragment(query) {
+  const core = cleanText(query).replace(/["]/g, "");
+  const parts = core.split(/\s+/).filter(Boolean);
+  return parts.length <= 2
+    && parts.some((part) => /^(?:18|19|20)\d{2}$/.test(part))
+    && parts.some((part) => /^[A-Za-z]{1,3}$/.test(part));
+}
+
+function isGenericCategoryOnlyQuery(query) {
+  const terms = extractMeaningfulQueryTerms(query);
+  return terms.length > 0 && terms.every((term) => isGenericSearchOnlyTerm(term));
+}
+
+function hasLongIdentifierTerm(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  const knownIdentifiers = [
+    context.upc,
+    context.model,
+    context.itemCode
+  ].map(cleanText).filter(Boolean);
+  if (knownIdentifiers.some((identifier) => text.includes(identifier.toLowerCase()))) {
+    return true;
+  }
+  return /\b\d{8,14}\b/.test(text) || /\b[A-Z0-9]{4,}[-_][A-Z0-9-]{2,}\b/i.test(query);
+}
+
+function hasQueryItemNoun(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  const itemTokens = itemTypeTokens(context.itemType).filter((token) => token.length >= 3);
+  if (itemTokens.some((token) => text.includes(token))) {
+    return true;
+  }
+  return /\b(?:tray|plate|plaque|sign|poster|print|sticker|decal|figurine|figure|statue|box|jar|canister|set|dress|shirt|jacket|shoe|laptop|computer|phone|tablet|chair|table|sofa|dresser|cabinet|lamp|vase|book|toy|tool|watch|coin|bag|purse)\b/i.test(text);
+}
+
+function hasQueryIdentityAnchor(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  if (/"[^"]{4,}"/.test(query)) return true;
+  if (/\b(?:18|19|20)\d{2}\b/.test(text)) return true;
+  if (hasLongIdentifierTerm(query, context)) return true;
+  const anchors = [
+    context.brand,
+    context.visualBrand,
+    context.manufacturer,
+    context.visualOrganization,
+    context.schoolName,
+    context.teamName,
+    context.subjectIdentity,
+    context.productTitle,
+    context.exactProductIdentity,
+    ...normalizeStringArray(context.distinctivePhrases, 8),
+    ...normalizeStringArray(context.eventPhrases, 6)
+  ].map(cleanText).filter((value) => value.length >= 4);
+  return anchors.some((anchor) => containsNormalizedPhrase(text, anchor));
+}
+
+function usesPersonNameWithoutItemAnchor(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  const people = normalizeStringArray(context.namedPeople, 6);
+  if (!people.some((name) => containsNormalizedPhrase(text, name))) {
+    return false;
+  }
+  return !hasQueryItemNoun(query, context)
+    && !hasLongIdentifierTerm(query, context)
+    && ![context.brand, context.visualBrand, context.visualOrganization, context.schoolName, context.teamName].map(cleanText).some((anchor) => anchor && containsNormalizedPhrase(text, anchor));
+}
+
+function shouldPreferSerperQueryRecord(candidate, existing, context = {}) {
+  if (!existing) return true;
+  const candidateScore = scoreSearchQuerySpecificity(candidate.query, context) + extractMeaningfulQueryTerms(candidate.query).length;
+  const existingScore = scoreSearchQuerySpecificity(existing.query, context) + extractMeaningfulQueryTerms(existing.query).length;
+  if (candidateScore !== existingScore) {
+    return candidateScore > existingScore;
+  }
+  return cleanText(candidate.query).length > cleanText(existing.query).length;
 }
 
 function createSerperRequestError({ category = "serper_provider_error", code = "", statusCode = null, message = "Serper Google Search request failed." } = {}) {
@@ -2429,6 +2732,12 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
     providerKey: "serper_google",
     marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
     allowedDomainsRequested: queryRecord.marketplaceDomains || [],
+    rawCandidate: queryRecord.rawCandidate || queryRecord.query,
+    candidateOrigin: queryRecord.candidateOrigin || queryRecord.searchPass,
+    normalizedCandidate: queryRecord.normalizedCandidate || queryRecord.query,
+    finalQuery: queryRecord.finalQuery || queryRecord.query,
+    validationPassed: queryRecord.validationPassed !== false,
+    validationFailureReason: queryRecord.validationFailureReason || "",
     statusCode: requestRecord.statusCode || null,
     webSearchCallAppeared: false,
     providerSourceCount: parsed.records.length,
@@ -2797,6 +3106,7 @@ function classifySerperAcquisitionStage({ providerCallsSucceeded = 0, providerSo
 function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], records = [], providerSourceCount = 0, retainedVisibleResultCount = 0, rejectedCandidateCount = 0, acquisitionFailureStage = "unknown", elapsedMs = 0, liveSearchStatus = "" } = {}) {
   const providerCallsAttempted = providerRequestRecords.filter((record) => record.attempted).length;
   const providerCallsSucceeded = providerRequestRecords.filter((record) => record.succeeded).length;
+  const invalidQueryPreflightCount = providerRequestRecords.filter((record) => record.validationPassed === false || record.failureStage === "invalid_query_preflight").length;
   const organicResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.organicResultCount || 0), 0);
   const shoppingResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0);
   const droppedResultReasons = normalizeDropReasons(records
@@ -2819,6 +3129,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     sourceRoute,
     providerCallsAttempted,
     providerCallsSucceeded,
+    invalidQueryPreflightCount,
     serperCallsAttempted: providerCallsAttempted,
     serperCallsSucceeded: providerCallsSucceeded,
     providerSourceCount,
@@ -2828,6 +3139,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     sourceURLsReturned: [...new Set(records.map((record) => record.url).filter(Boolean))].slice(0, 50),
     providerErrors: providerErrors.map(sanitizeProviderErrorSummary),
     providerRequestRecords: providerRequestRecords.map(sanitizeProviderRequestRecord),
+    queryCandidateDiagnostics: providerRequestRecords.map(sanitizeProviderRequestRecord),
     providerResponseSummaries: providerResponseSummaries.map(sanitizeProviderResponseSummary),
     providerSourceRecords: records.map(serperRecordToVisibleResearchRecord).slice(0, 50),
     rawResultCount: providerSourceCount,
@@ -4557,6 +4869,12 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
       allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
       marketplaceDomainsRequested: normalizeStringArray(record.marketplaceDomainsRequested, 8),
       allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
+      rawCandidate: cleanText(record.rawCandidate),
+      candidateOrigin: cleanText(record.candidateOrigin),
+      normalizedCandidate: cleanText(record.normalizedCandidate),
+      finalQuery: cleanText(record.finalQuery || record.query),
+      validationPassed: record.validationPassed !== false,
+      validationFailureReason: cleanText(record.validationFailureReason),
       requestAttempted: Boolean(record.attempted),
       requestSucceeded: Boolean(record.succeeded),
       providerSourceCount: Number(record.providerSourceCount || 0),
@@ -4613,6 +4931,12 @@ function sanitizeProviderRequestRecord(record = {}) {
     allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
     marketplaceDomainsRequested: normalizeStringArray(record.marketplaceDomainsRequested, 8),
     allowedDomainsApplied: Boolean(record.allowedDomainsApplied),
+    rawCandidate: cleanText(record.rawCandidate),
+    candidateOrigin: cleanText(record.candidateOrigin),
+    normalizedCandidate: cleanText(record.normalizedCandidate),
+    finalQuery: cleanText(record.finalQuery || record.query),
+    validationPassed: record.validationPassed !== false,
+    validationFailureReason: cleanText(record.validationFailureReason),
     provider: cleanText(record.provider || "OpenAI web_search"),
     providerKey: cleanText(record.providerKey || ""),
     attempted: Boolean(record.attempted),
@@ -4643,6 +4967,12 @@ function sanitizeProviderResponseSummary(summary = {}) {
     allowedDomainsRequested: normalizeStringArray(summary.allowedDomainsRequested, 8),
     marketplaceDomainsRequested: normalizeStringArray(summary.marketplaceDomainsRequested, 8),
     allowedDomainsApplied: Boolean(summary.allowedDomainsApplied),
+    rawCandidate: cleanText(summary.rawCandidate),
+    candidateOrigin: cleanText(summary.candidateOrigin),
+    normalizedCandidate: cleanText(summary.normalizedCandidate),
+    finalQuery: cleanText(summary.finalQuery || summary.query),
+    validationPassed: summary.validationPassed !== false,
+    validationFailureReason: cleanText(summary.validationFailureReason),
     statusCode: summary.statusCode || null,
     webSearchCallAppeared: Boolean(summary.webSearchCallAppeared),
     urlCitationCount: Number(summary.urlCitationCount || 0),
@@ -8568,8 +8898,12 @@ function normalizeTokenString(value) {
 }
 
 function trimQueryTerms(text, maxTerms) {
-  const terms = text.split(/\s+/).filter(Boolean);
+  const terms = splitQueryTermsPreservingQuotes(text);
   return terms.slice(0, maxTerms).join(" ");
+}
+
+function splitQueryTermsPreservingQuotes(text) {
+  return cleanText(text).match(/"[^"]+"|\S+/g) || [];
 }
 
 function mostDistinctiveProductWord(text) {
@@ -8970,3 +9304,13 @@ function parseBody(body) {
 
   return body || {};
 }
+
+export const __queryIntegrityTestHooks = {
+  buildSerperSearchPlan,
+  buildSerperMarketplaceQuery,
+  cleanSerperQuery,
+  validateSerperQueryCandidate,
+  splitQueryTermsPreservingQuotes,
+  shortenSerperQueryWithoutFragments,
+  createSerperRequestRecord
+};

@@ -13,10 +13,10 @@ $package = Get-Content -LiteralPath (Join-Path $Root "package.json") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.9.8"; Text = $index; Pattern = "Version 1.9.8" },
-  @{ Name = "Package version is 1.9.8"; Text = $package; Pattern = '"version": "1.9.8"' },
-  @{ Name = "Server version is 1.9.8"; Text = $server; Pattern = '$AppVersion = "1.9.8"' },
-  @{ Name = "Roadmap documents 1.9.8"; Text = $roadmap; Pattern = "Version 1.9.8 (Completed)" },
+  @{ Name = "Visible app version is 1.9.9"; Text = $index; Pattern = "Version 1.9.9" },
+  @{ Name = "Package version is 1.9.9"; Text = $package; Pattern = '"version": "1.9.9"' },
+  @{ Name = "Server version is 1.9.9"; Text = $server; Pattern = '$AppVersion = "1.9.9"' },
+  @{ Name = "Roadmap documents 1.9.9"; Text = $roadmap; Pattern = "Version 1.9.9 (Completed)" },
   @{ Name = "API has query-bound live-search payload"; Text = $api; Pattern = "function createQueryBoundLiveSearchPayload" },
   @{ Name = "API builds prioritized query records"; Text = $api; Pattern = "function buildPrioritizedQueryRecords" },
   @{ Name = "API records provider request records"; Text = $api; Pattern = "providerRequestRecords" },
@@ -43,7 +43,7 @@ $checks = @(
   @{ Name = "Frontend stores analysis id in session"; Text = $app; Pattern = "analysisId: firstNonEmpty(report.analysisId, analysisId)" },
   @{ Name = "Frontend clears item session before run"; Text = $app; Pattern = "clearItemSession({ abortAsk: true })" },
   @{ Name = "Frontend renders query cards"; Text = $app; Pattern = "function renderQueryDiagnosticCard" },
-  @{ Name = "Frontend shows actual query label"; Text = $app; Pattern = "Search Queries Actually Sent" },
+  @{ Name = "Frontend shows query diagnostic label"; Text = $app; Pattern = "Search Query Diagnostics" },
   @{ Name = "Frontend cleans literal slash-n"; Text = $app; Pattern = "function cleanDiagnosticText" },
   @{ Name = "Styles stack diagnostic rows"; Text = $styles; Pattern = ".query-diagnostic-facts" },
   @{ Name = "Server protects client-visible data"; Text = $server; Pattern = "function Protect-ClientVisibleData" },

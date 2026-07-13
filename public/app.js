@@ -1430,7 +1430,7 @@ function renderSearchDiagnostics(diagnostics) {
 
   if (Array.isArray(records) && records.length) {
     const title = document.createElement("h5");
-    title.textContent = "Search Queries Actually Sent";
+    title.textContent = "Search Query Diagnostics";
     const rows = document.createElement("div");
     rows.className = "query-diagnostic-list";
     records.forEach((item) => rows.appendChild(renderQueryDiagnosticCard(item)));
@@ -1455,6 +1455,12 @@ function renderQueryDiagnosticCard(item) {
   const facts = document.createElement("dl");
   facts.className = "query-diagnostic-facts";
   [
+    ["Raw Candidate", item.rawCandidate],
+    ["Candidate Origin", item.candidateOrigin],
+    ["Normalized Candidate", item.normalizedCandidate],
+    ["Final Query", item.finalQuery || item.query],
+    ["Validation", item.validationPassed === false ? "Rejected before provider call" : "Passed"],
+    ["Validation Reason", item.validationFailureReason],
     ["Provider", item.provider || item.source],
     ["Search Pass", formatSearchPass(item.searchPass)],
     ["Allowed Domains", item.allowedDomainsRequested || item.allowedDomains],
@@ -2854,9 +2860,9 @@ function formatSearchDiagnosticsText(diagnostics) {
     ? diagnostics.providerRequestRecords
     : diagnostics.queryResultsSummary;
   if (Array.isArray(records) && records.length) {
-    rows.push("Search Queries Actually Sent:");
+    rows.push("Search Query Diagnostics:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

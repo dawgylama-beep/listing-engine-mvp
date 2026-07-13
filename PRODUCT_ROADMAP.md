@@ -245,6 +245,14 @@
 - Removing one thumbnail no longer depends on rewriting the browser-native FileList and does not remove other photos
 - Duplicate event processing is guarded by file name, size, last-modified time, and MIME type while allowing removed photos to be selected again
 
+## Version 1.9.9 (Completed)
+- Serper query pipeline now validates every candidate before spending a provider call
+- Short fragments such as one-token partial words or year-plus-fragment searches are rejected locally with `invalid_query_preflight`
+- Marketplace site restrictions are appended to complete identity queries instead of shortening the item identity to make room for domains
+- Query cleanup now preserves quoted exact phrases and avoids raw mid-word truncation
+- Search diagnostics now show raw candidate, candidate origin, normalized candidate, final query, validation status, and failure reason
+- Serper requests continue to use United States English localization with `gl: "us"` and `hl: "en"`
+
 ## Version 2.0
 - User accounts
 - Saved listings

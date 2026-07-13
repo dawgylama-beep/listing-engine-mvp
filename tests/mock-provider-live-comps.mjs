@@ -1,4 +1,4 @@
-import handler from "../api/generate-listing.js";
+import handler, { __queryIntegrityTestHooks } from "../api/generate-listing.js";
 
 const leakedPhrase = "Perform source-routed live comparable search";
 const originalFetch = globalThis.fetch;
@@ -474,6 +474,43 @@ try {
   delete process.env.OPEN_API_KEY;
   process.env.SERPER_API_KEY = fakeSerperKeyValue;
 
+  const queryPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: [
+      "Vin",
+      "1980 Un",
+      "1980 University of Georgia Bulldogs Coca-Cola collector tray",
+      "\"HOW 'BOUT THEM DAWGS\" Coca-Cola collector tray",
+      "1980 University of Georgia Bulldogs Coca-Cola collector tray"
+    ],
+    sourceRoute: [
+      "eBay-style active and sold resale results",
+      "Etsy-style vintage and advertising collectible results",
+      "Mercari-style resale results",
+      "WorthPoint-style reference clues where accessible",
+      "PicClick-style marketplace index results"
+    ],
+    identity: identityFor("georgia"),
+    buyerIntake: {
+      purchase_context: "antique_mall",
+      asking_price: "$10",
+      purchase_intent: "personal_use",
+      item_condition: "used",
+      buyer_notes: "vintage Coca-Cola Georgia Bulldogs tray"
+    },
+    notes: "vintage Coca-Cola Georgia Bulldogs collector tray 1980 University of Georgia National Champions Vince Dooley"
+  });
+  const invalidPlanRecords = queryPlan.filter((record) => record.validationPassed === false);
+  const validPlanRecords = queryPlan.filter((record) => record.validationPassed !== false);
+  assert(invalidPlanRecords.some((record) => record.rawCandidate === "Vin" && record.validationFailureReason === "incomplete_word_fragment"), "Vin should be rejected before provider execution.");
+  assert(invalidPlanRecords.some((record) => record.rawCandidate === "1980 Un" && record.validationFailureReason === "year_plus_short_fragment"), "1980 Un should be rejected before provider execution.");
+  assert(invalidPlanRecords.every((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted === false), "Invalid query records should not be attempted.");
+  assert(validPlanRecords.some((record) => /1980 University of Georgia Bulldogs Coca-Cola collector tray/i.test(record.query)), "Long identity phrase should survive to final provider query.");
+  assert(validPlanRecords.some((record) => /"HOW 'BOUT THEM DAWGS"/i.test(record.query)), "Exact quoted visible wording should be preserved.");
+  const marketplacePlanRecord = validPlanRecords.find((record) => record.searchPass === "marketplace_site_google");
+  assert(marketplacePlanRecord && /Coca-Cola|Georgia Bulldogs|collector tray|1980/i.test(marketplacePlanRecord.query), "Marketplace site query should append domains to a complete identity query.");
+  assert(marketplacePlanRecord && /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(marketplacePlanRecord.query), "Marketplace site query should retain domain routing.");
+  assert(new Set(validPlanRecords.map((record) => record.query.toLowerCase())).size === validPlanRecords.length, "Duplicate cleanup should not keep repeated weaker query records.");
+
   const holiday = await runScenario("holiday");
   assert(holiday.report.analysisId === "analysis-test-holiday", "Holiday analysis id should round-trip.");
 
@@ -514,9 +551,11 @@ try {
 
   const querySet = new Set(diagnostics.providerRequestRecords.map((record) => record.query.toLowerCase()));
   assert(querySet.size === diagnostics.providerRequestRecords.length, "Duplicate Serper queries should not be sent.");
-  assert(georgia.serperPayloads.length === diagnostics.providerRequestRecords.length, "Serper payload count should match provider request records.");
+  assert(georgia.serperPayloads.length === diagnostics.providerRequestRecords.filter((record) => record.attempted).length, "Serper payload count should match attempted provider request records.");
   assert(georgia.serperPayloads.every((item) => item.hasApiKeyHeader), "Serper requests should include the server-side API key header.");
   assert(georgia.serperPayloads.every((item) => item.gl === "us" && item.hl === "en" && item.num === 10), "Serper requests should use expected US English defaults.");
+  assert(georgia.serperPayloads.every((item) => item.q !== "Vin" && item.q !== "1980 Un"), "Invalid query fragments should never be sent to Serper.");
+  assert(diagnostics.providerRequestRecords.filter((record) => record.validationPassed === false).every((record) => record.attempted === false), "Preflight-rejected records should consume zero mocked Serper calls.");
   assert(georgia.serperPayloads.every((item) => !item.q.includes(leakedPhrase)), "Serper query strings should not include internal prompts.");
   assert(georgia.serperPayloads.some((item) => /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(item.q)), "At least one Serper query should use Google marketplace site routing.");
   assert(georgia.livePayloads.length === 0, "OpenAI web_search live comparable fallback should not run when Serper succeeds.");
