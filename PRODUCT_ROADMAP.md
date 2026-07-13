@@ -238,6 +238,13 @@
 - Visible source cards now show provider, source type, query, search pass, active/sold/reference status, identity match strength, and price evidence type
 - Zero-evidence guard still prevents unsupported market values when no visible source-backed evidence is retained
 
+## Version 1.9.8 (Completed)
+- Photo-library multi-upload behavior restored for mobile and desktop browsers
+- Reopening the photo library now appends newly selected photos instead of replacing prior selections
+- Take Photo and Upload Photos now share one ordered 6-photo state so camera captures can be added after library photos
+- Removing one thumbnail no longer depends on rewriting the browser-native FileList and does not remove other photos
+- Duplicate event processing is guarded by file name, size, last-modified time, and MIME type while allowing removed photos to be selected again
+
 ## Version 2.0
 - User accounts
 - Saved listings

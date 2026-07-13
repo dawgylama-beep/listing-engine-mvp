@@ -323,10 +323,11 @@ const workflowConfigs = {
 };
 
 const defaultWorkflow = "personal_use";
+const MAX_PHOTO_COUNT = 6;
 
 let latestReport = null;
 let latestSections = workflowConfigs[defaultWorkflow].sections;
-let cameraPhotoFiles = [];
+let selectedPhotoFiles = [];
 let currentWorkflow = defaultWorkflow;
 let activeItemSession = null;
 let activeRequestId = 0;
@@ -338,7 +339,7 @@ let loadingProgressIndex = 0;
 let reportRenderSequence = 0;
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
-photosInput.addEventListener("change", renderPhotoPreview);
+photosInput.addEventListener("change", handleLibraryPhotoChange);
 workflowInputs.forEach((input) => input.addEventListener("change", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
 }));
@@ -363,13 +364,51 @@ applyWorkflowState({ clearOutput: true, abortRequests: false });
 
 function handleCameraPhotoChange() {
   const files = Array.from(cameraInput.files || []);
-  cameraPhotoFiles = [...cameraPhotoFiles, ...files].slice(0, 6);
+  appendSelectedPhotoFiles(files);
   cameraInput.value = "";
   renderPhotoPreview();
 }
 
+function handleLibraryPhotoChange() {
+  const files = Array.from(photosInput.files || []);
+  appendSelectedPhotoFiles(files);
+  photosInput.value = "";
+  renderPhotoPreview();
+}
+
+function appendSelectedPhotoFiles(files) {
+  const existingSignatures = new Set(selectedPhotoFiles.map(getPhotoFileSignature));
+  const additions = [];
+
+  for (const file of files) {
+    if (selectedPhotoFiles.length + additions.length >= MAX_PHOTO_COUNT) {
+      break;
+    }
+    const signature = getPhotoFileSignature(file);
+    if (!signature || existingSignatures.has(signature)) {
+      continue;
+    }
+    existingSignatures.add(signature);
+    additions.push(file);
+  }
+
+  selectedPhotoFiles = [...selectedPhotoFiles, ...additions].slice(0, MAX_PHOTO_COUNT);
+}
+
+function getPhotoFileSignature(file) {
+  if (!file) {
+    return "";
+  }
+  return [
+    file.name || "unnamed-photo",
+    file.size || 0,
+    file.lastModified || 0,
+    file.type || "unknown-type"
+  ].join("|");
+}
+
 function getSelectedPhotoFiles() {
-  return [...cameraPhotoFiles, ...Array.from(photosInput.files || [])].slice(0, 6);
+  return selectedPhotoFiles.slice(0, MAX_PHOTO_COUNT);
 }
 
 function renderPhotoPreview() {
@@ -399,24 +438,11 @@ function renderPhotoPreview() {
 }
 
 function removePhotoAt(index) {
-  if (index < cameraPhotoFiles.length) {
-    cameraPhotoFiles.splice(index, 1);
-    renderPhotoPreview();
-    return;
+  if (index >= 0 && index < selectedPhotoFiles.length) {
+    selectedPhotoFiles.splice(index, 1);
   }
-
-  const uploadIndex = index - cameraPhotoFiles.length;
-  const uploadedFiles = Array.from(photosInput.files || []);
-  uploadedFiles.splice(uploadIndex, 1);
-
-  if (typeof DataTransfer === "function") {
-    const transfer = new DataTransfer();
-    uploadedFiles.forEach((file) => transfer.items.add(file));
-    photosInput.files = transfer.files;
-  } else {
-    photosInput.value = "";
-  }
-
+  photosInput.value = "";
+  cameraInput.value = "";
   renderPhotoPreview();
 }
 
@@ -442,8 +468,8 @@ async function handleSubmit(event) {
     return;
   }
 
-  const selectedPhotoFiles = getSelectedPhotoFiles();
-  if (!selectedPhotoFiles.length) {
+  const photoFilesForRequest = getSelectedPhotoFiles();
+  if (!photoFilesForRequest.length) {
     clearWorkflowOutput(config);
     setStatus("Take or upload at least one item photo before continuing.", "error");
     return;
@@ -459,7 +485,7 @@ async function handleSubmit(event) {
   startLoadingProgress(config, request.id, workflow);
 
   try {
-    const photos = await preparePhotos(selectedPhotoFiles);
+    const photos = await preparePhotos(photoFilesForRequest);
     if (!isCurrentRequest(request.id, workflow)) {
       return;
     }
@@ -514,7 +540,7 @@ async function handleSubmit(event) {
       notes,
       report,
       sections,
-      photoCount: selectedPhotoFiles.length,
+      photoCount: photoFilesForRequest.length,
       analysisId: request.analysisId
     });
     setOutputHeading(getDisplayConfig(config, report));
@@ -823,7 +849,7 @@ function startNewItem() {
   abortActiveRequest();
   abortActiveAskRequest();
   form.reset();
-  cameraPhotoFiles = [];
+  selectedPhotoFiles = [];
   photosInput.value = "";
   cameraInput.value = "";
   workflowInputs.forEach((input) => {
