@@ -540,6 +540,57 @@ try {
     { ...georgiaQueryContext, itemType: "complete set collector tray" }
   );
   assert(replacementCompatibility.itemTypeCompatible === false && /set/i.test(replacementCompatibility.status), "Complete set and replacement-piece scope mismatch should not be exact.");
+  const priceRecord = (overrides = {}) => ({
+    title: "Georgia Bulldogs Coca-Cola collector tray active listing",
+    source: "Example Marketplace",
+    url: "https://example.com/compatible-tray-active",
+    canonicalUrl: "https://example.com/compatible-tray-active",
+    displayedPrice: "$6.49",
+    priceType: "Active Asking",
+    classification: "Exact Match",
+    identityMatchStrength: "Exact",
+    evidenceRole: "Comparable evidence - Active Asking",
+    itemTypeCompatible: true,
+    itemTypeCompatibilityStatus: "compatible",
+    submittedItemType: "serving/decorative tray",
+    candidateItemType: "serving/decorative tray",
+    sourceBacked: "URL-cited",
+    ...overrides
+  });
+  const deliveredHigher = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ delivery: "Shipping $8.00" })] }, 10);
+  assert(deliveredHigher.length === 1, "Compatible active listing with visible price should appear in Prices Found.");
+  assert(deliveredHigher[0].itemPrice === "$6.49" && deliveredHigher[0].shipping === "$8.00" && deliveredHigher[0].deliveredCost === "$14.49", "Delivered cost should equal item price plus explicit shipping.");
+  assert(/delivered cost is higher/i.test(deliveredHigher[0].comparisonToYourPrice), "Lower item price with higher delivered cost must not be called a better deal.");
+  const unknownShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/unknown-shipping" })] }, 10);
+  assert(unknownShipping[0].shipping === "Not shown" && unknownShipping[0].deliveredCost === "Cannot be confirmed", "Shipping absent should never default to free.");
+  assert(/cannot be confirmed as a better deal because shipping was not shown/i.test(unknownShipping[0].comparisonToYourPrice), "Lower item price with unknown shipping should not be confirmed as a better deal.");
+  const freeShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/free-shipping", delivery: "Free shipping" })] }, 10);
+  assert(freeShipping[0].shipping === "Free" && freeShipping[0].deliveredCost === "$6.49", "Free shipping should produce delivered cost equal to item price.");
+  assert(/lower delivered cost/i.test(freeShipping[0].comparisonToYourPrice), "Free-shipping compatible active listing can be described as lower delivered cost.");
+  const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
+  assert(auctionBid[0].priceType === "Auction Current Bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
+  const mixedSourceRecords = {
+    strongComparables: [
+      priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
+      priceRecord({ url: "https://example.com/duplicate?utm_source=b", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
+      priceRecord({ url: "https://example.com/bottle", title: "Georgia Bulldogs Coca-Cola bottle", candidateItemType: "bottle", itemTypeCompatible: false, itemTypeCompatibilityStatus: "item_type_mismatch" }),
+      priceRecord({ url: "https://example.com/unknown-type", title: "Georgia Bulldogs Coca-Cola memorabilia", candidateItemType: "", itemTypeCompatible: false, itemTypeCompatibilityStatus: "candidate_type_unknown" })
+    ],
+    partialComparables: [
+      priceRecord({ url: "https://example.com/partial-compatible", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Same tray form but exact year is unclear." })
+    ],
+    referenceResults: [
+      priceRecord({ url: "https://example.com/no-price", displayedPrice: "", price: "", priceType: "Reference Without Price" })
+    ]
+  };
+  const mixedPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(mixedSourceRecords, 10);
+  assert(mixedPrices.filter((item) => /duplicate/.test(item.url)).length === 1, "Duplicate canonical-equivalent listing URLs should count once.");
+  assert(!JSON.stringify(mixedPrices).includes("bottle") && !JSON.stringify(mixedPrices).includes("unknown-type"), "Mismatched and unknown item types must not appear in Prices Found.");
+  assert(JSON.stringify(mixedPrices).includes("partial-compatible"), "Partial but product-type-compatible priced listings may appear in Prices Found.");
+  assert(!JSON.stringify(mixedPrices).includes("no-price"), "Records without usable price evidence must not appear in Prices Found.");
+  const priceEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(mixedSourceRecords);
+  assert(priceEvidence.pricedRecords.length === mixedPrices.length, "Preliminary range should count compatible priced records only.");
+  assert(mixedPrices.every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
   const malformedCandidates = [
@@ -667,7 +718,7 @@ try {
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("Active Asking") || JSON.stringify(georgia.report.strongComparables || []).includes("Shopping Offer"), "Visible exact/strong cards should label asking/shopping evidence accurately.");
   assert(!JSON.stringify(georgia.report.strongComparables || []).includes("georgia-coca-cola-bottle"), "Mismatched bottle result must not remain in exact/strong comparable evidence.");
   assert(JSON.stringify([georgia.report.referenceResults, georgia.report.rejectedMatches]).includes("georgia-coca-cola-bottle"), "Mismatched bottle result may be retained only as reference or rejected transparency evidence.");
-  assert(JSON.stringify([georgia.report.referenceResults, georgia.report.rejectedMatches]).includes("Influenced Range: No"), "Mismatched product-form evidence must not influence the reference range.");
+  assert(JSON.stringify([georgia.report.referenceResults, georgia.report.rejectedMatches]).includes("Influenced Verified Market Range"), "Mismatched product-form evidence should use explicit verified/preliminary range labels.");
 
   const querySet = new Set(attemptedRecords.map((record) => record.query.toLowerCase()));
   assert(querySet.size === attemptedRecords.length, "Duplicate Serper queries should not be sent.");

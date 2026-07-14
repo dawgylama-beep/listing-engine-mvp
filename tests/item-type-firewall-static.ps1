@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.3"; Text = $index; Pattern = "Version 1.10.3" },
-  @{ Name = "Package version is 1.10.3"; Text = $package; Pattern = '"version": "1.10.3"' },
-  @{ Name = "Server version is 1.10.3"; Text = $server; Pattern = '$AppVersion = "1.10.3"' },
-  @{ Name = "Roadmap documents 1.10.3"; Text = $roadmap; Pattern = "Version 1.10.3 (Completed)" },
+  @{ Name = "Visible app version is 1.10.4"; Text = $index; Pattern = "Version 1.10.4" },
+  @{ Name = "Package version is 1.10.4"; Text = $package; Pattern = '"version": "1.10.4"' },
+  @{ Name = "Server version is 1.10.4"; Text = $server; Pattern = '$AppVersion = "1.10.4"' },
+  @{ Name = "Roadmap documents 1.10.4"; Text = $roadmap; Pattern = "Version 1.10.4 (Completed)" },
   @{ Name = "Canonical item type compatibility function exists"; Text = $api; Pattern = "function evaluateComparableItemTypeCompatibility" },
   @{ Name = "Submitted item type text is built deterministically"; Text = $api; Pattern = "function buildSubmittedItemTypeText" },
   @{ Name = "Candidate item type text includes URL slug"; Text = $api; Pattern = "record.canonicalUrl" },
@@ -47,7 +47,7 @@ $checks = @(
   @{ Name = "Mock test covers active asking mismatch exclusion"; Text = $mock; Pattern = "Mismatched active asking listings should be reference-only" },
   @{ Name = "Mock test covers complete-set mismatch"; Text = $mock; Pattern = "Complete set and replacement-piece scope mismatch should not be exact." },
   @{ Name = "Mock scenario excludes mismatched result from strong comparables"; Text = $mock; Pattern = "Mismatched bottle result must not remain in exact/strong comparable evidence." },
-  @{ Name = "Mock scenario requires mismatched influence range no"; Text = $mock; Pattern = "Mismatched product-form evidence must not influence the reference range." }
+  @{ Name = "Mock scenario uses explicit range labels"; Text = $mock; Pattern = "Mismatched product-form evidence should use explicit verified/preliminary range labels." }
 )
 
 $failed = @()

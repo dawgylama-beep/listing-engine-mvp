@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.3"
+$AppVersion = "1.10.4"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -2801,12 +2801,15 @@ function Convert-ToResearchResultRecord {
     displayedPrice = $Price
     currency = $(if ($Price) { "$" } else { "" })
     priceType = $PriceType
+    priceTypeLabel = $(if ($PriceType -match "Confirmed sold") { "Verified Sold" } elseif ($PriceType -match "Active asking") { "Active Asking" } else { "Unknown Price Type" })
     condition = ""
     classification = $Classification
     evidenceRole = $(if ($Classification -match "Strong") { "Can support a value estimate if identity, condition, and price type match." } else { "Rejected or weak context; should not drive price." })
     matchExplanation = $Raw
     itemIdentityDifferences = ""
-    influencedReferenceRange = $(if ($Classification -match "Strong|Partial|Reference") { "Yes, as visible evidence only." } else { "No." })
+    influencedVerifiedMarketRange = $(if ($Classification -match "Strong" -and $PriceType -match "Confirmed sold") { "Yes - verified sold evidence from a compatible exact or strong match." } else { "No - visible price is not verified sold evidence." })
+    includedInPreliminaryAskingPriceRange = $(if ($Classification -match "Strong|Partial|Reference" -and $Price) { "Yes - compatible visible price evidence included in the preliminary asking-price range." } else { "No - no usable visible price was supplied." })
+    influencedReferenceRange = $(if ($Classification -match "Strong|Partial|Reference" -and $Price) { "Influenced verified market range: No. Included in preliminary asking-price range: Yes." } else { "No - no usable visible price was supplied." })
     rejectionReason = $RejectionReason
     sourceBacked = $(if ($Url) { "URL provided by result text" } else { "No usable URL supplied by source." })
     rawText = $Raw

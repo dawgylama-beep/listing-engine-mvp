@@ -194,6 +194,7 @@ const consumerSections = [
   ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
+  ["pricesFound", "Prices Found"],
   ["preliminaryReferenceRange", "Preliminary Reference Range"],
   ["fairValueNotEstablished", "Fair Value Not Established"],
   ["whatThisMeans", "What This Means"],
@@ -1635,7 +1636,11 @@ function renderSectionCard({ key, label, value, report }) {
 
   const body = document.createElement("div");
   body.className = "section-body";
-  body.appendChild(key === "buyer_risk_score" ? renderRiskScore(report) : renderValue(value));
+  body.appendChild(key === "buyer_risk_score"
+    ? renderRiskScore(report)
+    : key === "pricesFound"
+      ? renderPricesFound(value)
+      : renderValue(value));
 
   header.append(title, copyButton);
   card.append(header, body);
@@ -1692,6 +1697,7 @@ function isWhySection(key) {
     "recommendation",
     "purchaserDecision",
     "valueRating",
+    "pricesFound",
     "currentPriceAssessment",
     "buyerDecisionConfidence",
     "priceConfidence",
@@ -2593,6 +2599,94 @@ function renderValue(value) {
   return paragraph;
 }
 
+function renderPricesFound(value) {
+  const records = normalizeArray(value).filter((item) => item && typeof item === "object");
+  const wrapper = document.createElement("div");
+  wrapper.className = "prices-found-list";
+
+  if (!records.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No compatible source-backed visible prices were found.";
+    wrapper.appendChild(empty);
+    return wrapper;
+  }
+
+  for (const item of records) {
+    const card = document.createElement("article");
+    card.className = "price-found-card";
+
+    const header = document.createElement("div");
+    header.className = "price-found-header";
+    const title = document.createElement("h5");
+    title.textContent = item.title || "Source listing";
+    const badge = document.createElement("span");
+    badge.className = "price-type-badge";
+    badge.textContent = item.priceType || "Unknown Price Type";
+    header.append(title, badge);
+
+    const amounts = document.createElement("dl");
+    amounts.className = "price-found-amounts";
+    [
+      ["Item price", item.itemPrice],
+      ["Shipping", item.shipping || "Not shown"],
+      ["Delivered cost", item.deliveredCost || "Cannot be confirmed"]
+    ].forEach(([label, detail]) => appendDefinitionRow(amounts, label, detail));
+
+    const comparison = document.createElement("p");
+    comparison.className = "price-found-comparison";
+    comparison.textContent = item.comparisonToYourPrice || item.conciseLimitation || "";
+
+    const details = document.createElement("details");
+    details.className = "price-found-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Details";
+    const meta = document.createElement("dl");
+    meta.className = "source-result-meta";
+    [
+      ["Source", item.source || item.marketplace],
+      ["Match quality", item.matchQuality],
+      ["Listing status", item.listingStatus],
+      ["Condition", item.condition],
+      ["Limitation", item.conciseLimitation],
+      ["Included in preliminary asking-price range", item.includedInPreliminaryAskingPriceRange],
+      ["Influenced verified market range", item.influencedVerifiedMarketRange],
+      ["Submitted item type", item.submittedItemType],
+      ["Candidate item type", item.candidateItemType],
+      ["Source support", item.sourceBacked]
+    ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
+    details.append(summary, meta);
+
+    if (item.url) {
+      const link = document.createElement("a");
+      link.className = "source-result-link";
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Open source listing";
+      card.append(header, amounts, comparison, details, link);
+    } else {
+      card.append(header, amounts, comparison, details);
+    }
+
+    wrapper.appendChild(card);
+  }
+
+  return wrapper;
+}
+
+function appendDefinitionRow(list, label, detail) {
+  if (!detail) {
+    return;
+  }
+  const row = document.createElement("div");
+  const term = document.createElement("dt");
+  const description = document.createElement("dd");
+  term.textContent = label;
+  description.textContent = detail;
+  row.append(term, description);
+  list.appendChild(row);
+}
+
 function renderResearchResultList(value) {
   const wrapper = document.createElement("div");
   wrapper.className = "source-result-list";
@@ -2621,12 +2715,15 @@ function renderResearchResultList(value) {
       ["Query", item.query],
       ["Price", item.displayedPrice || item.price],
       ["Price Type", item.priceType],
+      ["Price Label", item.priceTypeLabel],
+      ["Shipping/Delivery", item.delivery],
       ["Active/Sold/Reference Status", item.activeSoldReferenceStatus],
       ["Classification", item.classification],
       ["Identity Match", item.identityMatchStrength],
       ["Evidence Role", item.evidenceRole],
       ["Condition", item.condition],
-      ["Influenced Range", item.influencedReferenceRange],
+      ["Influenced Verified Market Range", item.influencedVerifiedMarketRange],
+      ["Included in Preliminary Asking-Price Range", item.includedInPreliminaryAskingPriceRange],
       ["Identity Differences", item.itemIdentityDifferences],
       ["Rejection Reason", item.rejectionReason],
       ["Source Support", item.sourceBacked]
@@ -3080,17 +3177,27 @@ function formatResearchRecordText(item) {
     ["Search Pass", formatSearchPass(item.searchPass)],
     ["Query", item.query],
     ["URL", item.url || "No usable URL supplied by source."],
+    ["Item Price", item.itemPrice],
+    ["Shipping", item.shipping],
+    ["Delivered Cost", item.deliveredCost],
     ["Displayed Price", item.displayedPrice || item.price],
     ["Currency", item.currency],
     ["Price Type", item.priceType],
+    ["Price Label", item.priceTypeLabel],
+    ["Shipping/Delivery", item.delivery],
+    ["Listing Status", item.listingStatus],
+    ["Comparison", item.comparisonToYourPrice],
     ["Active/Sold/Reference Status", item.activeSoldReferenceStatus],
     ["Classification", item.classification],
+    ["Match Quality", item.matchQuality],
     ["Identity Match", item.identityMatchStrength],
     ["Evidence Role", item.evidenceRole],
     ["Condition", item.condition],
     ["Match Explanation", item.matchExplanation],
+    ["Concise Limitation", item.conciseLimitation],
     ["Identity Differences", item.itemIdentityDifferences],
-    ["Influenced Reference Range", item.influencedReferenceRange],
+    ["Influenced Verified Market Range", item.influencedVerifiedMarketRange],
+    ["Included in Preliminary Asking-Price Range", item.includedInPreliminaryAskingPriceRange],
     ["Rejection Reason", item.rejectionReason],
     ["Source Support", item.sourceBacked]
   ]

@@ -277,8 +277,15 @@
 ## Version 1.10.3 (Completed)
 - Comparable matching now enforces a strict submitted-item-type versus source-result-item-type compatibility check
 - Different physical product forms can no longer be promoted to Exact or Strong Similar matches by shared brand, event, year, team, or theme wording alone
-- Mismatched or unknown item types may remain visible only as reference/transparency evidence with `Influenced Range: No`
+- Mismatched or unknown item types may remain visible only as reference/transparency evidence and cannot influence verified or preliminary price ranges
 - Valuation and buyer decision price evidence now excludes mismatched product forms, unknown candidate types, and complete-set versus replacement-piece mismatches
+
+## Version 1.10.4 (Completed)
+- Personal Buy reports now include a prominent `Prices Found` section with compatible source-backed visible prices
+- Price cards show item price, shipping, delivered cost when known, price type, match quality, listing status, limitations, and source links
+- Active asking prices, auction bids, reference prices, and verified sold prices are labeled separately so active listings are not treated as sold comps
+- Shipping is never assumed free; delivered cost is calculated only when item price and shipping evidence are both available
+- Preliminary Reference Range now uses compatible priced records only and distinguishes verified market influence from preliminary asking-price inclusion
 
 ## Version 2.0
 - User accounts

@@ -1535,6 +1535,96 @@ summary:focus-visible {
   font-weight: 600;
 }
 
+.prices-found-list {
+  display: grid;
+  gap: 12px;
+}
+
+.price-found-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(122, 67, 20, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #fffdf8 0%, #f9f3e7 100%);
+  box-shadow: 0 10px 22px rgba(53, 39, 22, 0.08);
+  overflow-wrap: anywhere;
+}
+
+.price-found-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.price-found-header h5 {
+  margin: 0;
+  color: #17211f;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.price-type-badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #174c45;
+  color: #fffdf8;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.price-found-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.price-found-amounts div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(122, 67, 20, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.price-found-amounts dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.price-found-amounts dd {
+  margin: 3px 0 0;
+  color: #17211f;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.price-found-comparison {
+  margin: 0;
+  color: #263a35;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
+.price-found-details {
+  border-top: 1px solid rgba(122, 67, 20, 0.16);
+  padding-top: 8px;
+}
+
+.price-found-details summary {
+  cursor: pointer;
+  color: #0a665c;
+  font-weight: 850;
+}
+
 .ask-panel {
   display: grid;
   gap: 16px;
@@ -2165,6 +2255,19 @@ summary:focus-visible {
   }
 
   .source-result-meta div {
+    grid-template-columns: 1fr;
+  }
+
+  .price-found-header {
+    display: grid;
+  }
+
+  .price-type-badge {
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .price-found-amounts {
     grid-template-columns: 1fr;
   }
 
