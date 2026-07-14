@@ -2039,22 +2039,29 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
   return records
     .filter((record) => record.url && /^https?:\/\//i.test(record.url))
     .map((record) => {
-      const identityMatchStrength = classifySerperIdentityMatch(record, identity, context);
+      const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(record, identity, context);
+      const identityMatchStrength = classifySerperIdentityMatch(record, identity, context, itemTypeCompatibility);
       const priceEvidenceType = classifySerperPriceEvidence(record);
-      const rejectionReason = buildSerperRejectionReason(record, identityMatchStrength, context);
+      const valuationBearing = isValuationBearingComparable(identityMatchStrength, priceEvidenceType, itemTypeCompatibility);
+      const rejectionReason = buildSerperRejectionReason(record, identityMatchStrength, context, itemTypeCompatibility);
       return {
         ...record,
+        itemTypeCompatible: itemTypeCompatibility.itemTypeCompatible,
+        submittedItemType: itemTypeCompatibility.submittedItemType,
+        candidateItemType: itemTypeCompatibility.candidateItemType,
+        itemTypeCompatibilityStatus: itemTypeCompatibility.status,
+        itemTypeCompatibilityExplanation: itemTypeCompatibility.explanation,
         identityMatchStrength,
         priceEvidenceType,
         retained: !/Rejected/i.test(identityMatchStrength),
         rejectionReason,
         sourceBacked: "URL-cited",
-        matchExplanation: buildSerperMatchExplanation(record, identityMatchStrength, priceEvidenceType),
-        evidenceRole: buildSerperEvidenceRole(identityMatchStrength, priceEvidenceType),
-        itemIdentityDifferences: /Rejected|Weak|Partial/i.test(identityMatchStrength) ? rejectionReason : "",
-        influencedReferenceRange: /Exact|Strong|Partial|Reference/.test(identityMatchStrength) && record.displayedPriceText
+        matchExplanation: buildSerperMatchExplanation(record, identityMatchStrength, priceEvidenceType, itemTypeCompatibility),
+        evidenceRole: buildSerperEvidenceRole(identityMatchStrength, priceEvidenceType, itemTypeCompatibility),
+        itemIdentityDifferences: /Rejected|Weak|Partial|Reference/i.test(identityMatchStrength) || !itemTypeCompatibility.itemTypeCompatible ? rejectionReason : "",
+        influencedReferenceRange: valuationBearing && record.displayedPriceText
           ? "Yes, as visible asking/shopping/reference evidence with price-type limitations."
-          : "No price supplied or not reliable for valuation."
+          : buildNonValuationInfluenceReason(priceEvidenceType, itemTypeCompatibility)
       };
     });
 }
@@ -2985,7 +2992,7 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
   };
 }
 
-function classifySerperIdentityMatch(record = {}, identity = {}, context = {}) {
+function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, itemTypeCompatibility = null) {
   const haystack = normalizeComparableText([
     record.title,
     record.snippet,
@@ -2997,9 +3004,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}) {
   }
 
   const itemType = cleanText(context.itemType || inferSearchItemType(identity, context.visualCategory, context.productTitle, context.notesText, context.routeText));
-  if (hasStrongItemTypeMismatch(haystack, itemType)) {
-    return "Rejected";
-  }
+  const compatibility = itemTypeCompatibility || evaluateComparableItemTypeCompatibility(record, identity, context);
 
   const identifiers = [
     context.upc,
@@ -3011,9 +3016,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}) {
     identity.styleNumber,
     identity.modelOrItemNumber
   ].map(cleanText).filter(hasKnownValue);
-  if (identifiers.some((identifier) => containsNormalizedPhrase(haystack, identifier))) {
-    return "Exact";
-  }
+  const identifierHit = identifiers.some((identifier) => containsNormalizedPhrase(haystack, identifier));
 
   const distinctivePhrases = mergeStringArrays(
     context.distinctivePhrases,
@@ -3028,8 +3031,28 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}) {
   const organizationHit = containsAnyKnownPhrase(haystack, [context.visualOrganization, context.schoolName, context.teamName, identity.schoolName, identity.teamName, identity.recognizedOrganization]);
   const personHit = containsAnyKnownPhrase(haystack, context.namedPeople || []);
   const yearHit = containsAnyKnownPhrase(haystack, context.years || []);
-  const itemTypeHit = hasItemTypeSupport(haystack, itemType);
+  const itemTypeHit = isComparableItemTypeValuationSafe(compatibility) || hasItemTypeSupport(haystack, itemType);
   const productHit = containsAnyKnownPhrase(haystack, [context.productTitle, context.subjectIdentity, context.exactProductIdentity, identity.productNameOrBoxTitle]);
+  const hasIdentitySignal = identifierHit
+    || exactPhraseHits.length
+    || brandHit
+    || organizationHit
+    || personHit
+    || yearHit
+    || productHit
+    || record.sourceType === "knowledge_graph_reference";
+
+  if (!isComparableItemTypeValuationSafe(compatibility)) {
+    if (compatibility.itemTypeCompatible === false) {
+      return hasIdentitySignal ? "Reference Only" : "Rejected";
+    }
+    return hasIdentitySignal ? "Reference Only" : "Weak";
+  }
+
+  if (identifierHit) {
+    return "Exact";
+  }
+
   const score = [
     exactPhraseHits.length >= 2 ? 4 : exactPhraseHits.length ? 3 : 0,
     itemTypeHit ? 2 : 0,
@@ -3110,6 +3133,211 @@ function itemTypeTokens(itemType) {
   return [...new Set(tokens)];
 }
 
+const comparableItemTypeDefinitions = [
+  { key: "replacement_piece", label: "replacement part or single piece", priority: 125, patterns: [/\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b/i, /\bparts?\s+only\b/i, /\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i] },
+  { key: "serving_tray", label: "serving/decorative tray", priority: 120, patterns: [/\b(?:serving|decorative|collector|collectible|advertising|display|bar)?\s*trays?\b/i, /\bplatters?\b/i] },
+  { key: "bottle", label: "bottle", priority: 118, patterns: [/\bbottles?\b/i] },
+  { key: "sign", label: "sign or wall plaque", priority: 116, patterns: [/\bsigns?\b/i, /\bwall\s+plaques?\b/i, /\btin\s+signs?\b/i] },
+  { key: "plate", label: "plate", priority: 114, patterns: [/\bplates?\b/i, /\bcollector\s+plates?\b/i] },
+  { key: "cup_glass", label: "cup, mug, glass, or tumbler", priority: 114, patterns: [/\bcups?\b/i, /\bmugs?\b/i, /\bglasses?\b/i, /\btumblers?\b/i] },
+  { key: "poster_print", label: "poster, print, or flat wall art", priority: 114, patterns: [/\bposters?\b/i, /\bprints?\b/i, /\bwall\s+art\b/i] },
+  { key: "can", label: "can or tin", priority: 112, patterns: [/\bcans?\b/i, /\btins?\b/i] },
+  { key: "cooler", label: "cooler or ice chest", priority: 112, patterns: [/\bcoolers?\b/i, /\bice\s+chests?\b/i] },
+  { key: "ornament", label: "ornament", priority: 112, patterns: [/\bornaments?\b/i] },
+  { key: "figurine", label: "figurine, figure, or statue", priority: 112, patterns: [/\bfigurines?\b/i, /\bfigures?\b/i, /\bstatu(?:e|es|ette|ettes)\b/i, /\bsculptures?\b/i] },
+  { key: "sticker_decal", label: "sticker or decal", priority: 110, patterns: [/\bstickers?\b/i, /\bdecals?\b/i, /\bwindow\s+clings?\b/i] },
+  { key: "box", label: "box or container", priority: 108, patterns: [/\bbox(?:es)?\b/i, /\bcrates?\b/i] },
+  { key: "canister", label: "canister, jar, or storage container", priority: 108, patterns: [/\bcanisters?\b/i, /\bcookie\s+jars?\b/i, /\bjars?\b/i, /\bstorage\s+containers?\b/i] },
+  { key: "bowl", label: "bowl", priority: 106, patterns: [/\bbowls?\b/i] },
+  { key: "complete_set", label: "complete set", priority: 105, patterns: [/\bcomplete\s+sets?\b/i, /\bsets?\s+of\s+\d+\b/i, /\b\d+\s*[- ]?\s*piece\s+sets?\b/i] },
+  { key: "book", label: "book or manual", priority: 104, patterns: [/\bbooks?\b/i, /\bmanuals?\b/i, /\bcatalogs?\b/i] },
+  { key: "card", label: "card", priority: 104, patterns: [/\bcards?\b/i, /\btrading\s+cards?\b/i] },
+  { key: "apparel", label: "shirt, jacket, or apparel", priority: 104, patterns: [/\bshirts?\b/i, /\bjackets?\b/i, /\bsweaters?\b/i, /\bjerseys?\b/i, /\bapparel\b/i] },
+  { key: "hat", label: "hat or cap", priority: 104, patterns: [/\bhats?\b/i, /\bcaps?\b/i] },
+  { key: "dress", label: "dress or gown", priority: 104, patterns: [/\bdresses?\b/i, /\bgowns?\b/i] },
+  { key: "shoe", label: "shoe or boot", priority: 104, patterns: [/\bshoes?\b/i, /\bboots?\b/i, /\bsneakers?\b/i] },
+  { key: "bag", label: "bag, purse, or tote", priority: 104, patterns: [/\bbags?\b/i, /\bpurses?\b/i, /\bhandbags?\b/i, /\btotes?\b/i] },
+  { key: "wallet", label: "wallet", priority: 104, patterns: [/\bwallets?\b/i] },
+  { key: "watch", label: "watch", priority: 104, patterns: [/\bwatches?\b/i, /\bwristwatches?\b/i] },
+  { key: "phone", label: "phone", priority: 104, patterns: [/\bphones?\b/i, /\bsmartphones?\b/i, /\biphones?\b/i, /\bandroid\s+phones?\b/i] },
+  { key: "laptop", label: "laptop or computer", priority: 104, patterns: [/\blaptops?\b/i, /\bnotebooks?\b/i, /\bcomputers?\b/i, /\bmacbooks?\b/i, /\bchromebooks?\b/i] },
+  { key: "electronics_accessory", label: "electronics accessory", priority: 106, patterns: [/\bchargers?\b/i, /\bbatter(?:y|ies)\b/i, /\bkeyboards?\b/i, /\bsleeves?\b/i] },
+  { key: "lamp", label: "lamp or light fixture", priority: 104, patterns: [/\blamps?\b/i, /\blight\s+fixtures?\b/i] },
+  { key: "lamp_shade", label: "lamp shade", priority: 106, patterns: [/\blamp\s+shades?\b/i, /\bshades?\s+only\b/i] },
+  { key: "furniture", label: "furniture", priority: 102, patterns: [/\bsofas?\b/i, /\bcouches?\b/i, /\bchairs?\b/i, /\btables?\b/i, /\bdressers?\b/i, /\bcabinets?\b/i, /\bdesks?\b/i] }
+];
+
+function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, context = {}) {
+  const submittedText = buildSubmittedItemTypeText(identity, context);
+  const candidateText = buildCandidateItemTypeText(record);
+  const submitted = detectCanonicalComparableItemType(submittedText);
+  const candidate = detectCanonicalComparableItemType(candidateText);
+  const setScope = detectComparableSetScope(submittedText, candidateText);
+
+  if (setScope.status !== "compatible") {
+    return {
+      itemTypeCompatible: false,
+      status: setScope.status,
+      submittedItemType: submitted.label || setScope.submittedScope || "submitted item",
+      candidateItemType: candidate.label || setScope.candidateScope || "candidate result",
+      explanation: setScope.explanation
+    };
+  }
+
+  if (!submitted.key) {
+    return {
+      itemTypeCompatible: false,
+      status: "submitted_type_unknown",
+      submittedItemType: "",
+      candidateItemType: candidate.label,
+      explanation: "No concrete submitted item type could be established, so source prices cannot be treated as exact or strong comparables."
+    };
+  }
+
+  if (!candidate.key) {
+    return {
+      itemTypeCompatible: false,
+      status: "candidate_type_unknown",
+      submittedItemType: submitted.label,
+      candidateItemType: "",
+      explanation: `Candidate product form is unknown; it is not valuation-compatible with the submitted ${submitted.label}.`
+    };
+  }
+
+  if (candidate.key !== submitted.key) {
+    return {
+      itemTypeCompatible: false,
+      status: "item_type_mismatch",
+      submittedItemType: submitted.label,
+      candidateItemType: candidate.label,
+      explanation: `Product-form mismatch: submitted item appears to be ${articleFor(submitted.label)} ${submitted.label}, but the candidate appears to be ${articleFor(candidate.label)} ${candidate.label}. Shared brand, date, event, or theme wording cannot make different product types comparable.`
+    };
+  }
+
+  return {
+    itemTypeCompatible: true,
+    status: "compatible",
+    submittedItemType: submitted.label,
+    candidateItemType: candidate.label,
+    explanation: `Candidate product form matches the submitted ${submitted.label}.`
+  };
+}
+
+function buildSubmittedItemTypeText(identity = {}, context = {}) {
+  return [
+    context.itemType,
+    context.productTitle,
+    context.subjectIdentity,
+    context.exactProductIdentity,
+    context.visualCategory,
+    context.notesText,
+    identity.itemType,
+    identity.category,
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.likelyItemDescription,
+    identity.productNameOrBoxTitle,
+    identity.exactProductIdentity,
+    identity.subjectIdentity,
+    identity.brandSeries,
+    identity.frontBoxWording,
+    identity.backLabelWording
+  ].filter(Boolean).join(" ");
+}
+
+function buildCandidateItemTypeText(record = {}) {
+  return [
+    record.title,
+    record.snippet,
+    record.description,
+    record.condition,
+    record.category,
+    record.sourceType,
+    record.domain,
+    record.url,
+    record.canonicalUrl,
+    record.rawText
+  ].filter(Boolean).join(" ");
+}
+
+function detectCanonicalComparableItemType(text) {
+  const normalized = normalizeComparableText(text);
+  if (!normalized) {
+    return { key: "", label: "", matches: [] };
+  }
+
+  const matches = [];
+  for (const definition of comparableItemTypeDefinitions) {
+    const hit = definition.patterns.find((pattern) => pattern.test(normalized));
+    if (hit) {
+      matches.push({
+        key: definition.key,
+        label: definition.label,
+        priority: definition.priority,
+        pattern: String(hit)
+      });
+    }
+  }
+
+  if (!matches.length) {
+    return { key: "", label: "", matches: [] };
+  }
+
+  matches.sort((a, b) => b.priority - a.priority || a.label.localeCompare(b.label));
+  return { ...matches[0], matches };
+}
+
+function detectComparableSetScope(submittedText, candidateText) {
+  const submitted = normalizeComparableText(submittedText);
+  const candidate = normalizeComparableText(candidateText);
+  const submittedCompleteSet = /\bcomplete\s+sets?\b|\bsets?\s+of\s+\d+\b|\b\d+\s*[- ]?\s*piece\s+sets?\b/i.test(submitted);
+  const submittedReplacement = /\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b|\bparts?\s+only\b|\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i.test(submitted);
+  const candidateCompleteSet = /\bcomplete\s+sets?\b|\bsets?\s+of\s+\d+\b|\b\d+\s*[- ]?\s*piece\s+sets?\b/i.test(candidate);
+  const candidateReplacement = /\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b|\bparts?\s+only\b|\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i.test(candidate);
+
+  if (submittedCompleteSet && candidateReplacement) {
+    return {
+      status: "set_scope_mismatch",
+      submittedScope: "complete set",
+      candidateScope: "replacement part or single piece",
+      explanation: "Product-scope mismatch: a complete set cannot use a replacement part or single-piece listing as exact or strong valuation evidence."
+    };
+  }
+  if (submittedReplacement && candidateCompleteSet) {
+    return {
+      status: "set_scope_mismatch",
+      submittedScope: "replacement part or single piece",
+      candidateScope: "complete set",
+      explanation: "Product-scope mismatch: a replacement part or single piece cannot use a complete-set listing as exact or strong valuation evidence."
+    };
+  }
+  return { status: "compatible", explanation: "" };
+}
+
+function isComparableItemTypeValuationSafe(itemTypeCompatibility = {}) {
+  return Boolean(itemTypeCompatibility && itemTypeCompatibility.itemTypeCompatible === true && itemTypeCompatibility.status === "compatible");
+}
+
+function isValuationBearingComparable(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
+  return isComparableItemTypeValuationSafe(itemTypeCompatibility)
+    && /Exact|Strong Similar/i.test(identityMatchStrength)
+    && !/No Usable|Reference Without Price/i.test(priceEvidenceType);
+}
+
+function buildNonValuationInfluenceReason(priceEvidenceType = "", itemTypeCompatibility = {}) {
+  if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
+    return `No - ${cleanText(itemTypeCompatibility.explanation) || "product form was not confirmed as compatible with the submitted item."}`;
+  }
+  if (/No Usable|Reference Without Price/i.test(priceEvidenceType)) {
+    return "No price supplied or no usable valuation price evidence.";
+  }
+  return "No - match quality is not exact or strong enough for valuation.";
+}
+
+function articleFor(label = "") {
+  return /^[aeiou]/i.test(cleanText(label)) ? "an" : "a";
+}
+
 function hasStrongItemTypeMismatch(haystack, itemType) {
   const tokens = itemTypeTokens(itemType);
   if (tokens.includes("tray") && /\b(bottle|can|mug|tumbler|glass|cooler|sign|shirt|cap|hat)\b/i.test(haystack) && !/\btray|platter|plate\b/i.test(haystack)) {
@@ -3148,8 +3376,12 @@ function classifySerperPriceEvidence(record = {}) {
   return "No Usable Price Evidence";
 }
 
-function buildSerperRejectionReason(record = {}, identityMatchStrength = "", context = {}) {
+function buildSerperRejectionReason(record = {}, identityMatchStrength = "", context = {}, itemTypeCompatibility = {}) {
   const haystack = normalizeComparableText([record.title, record.snippet, record.url].join(" "));
+  if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
+    return cleanText(itemTypeCompatibility.explanation)
+      || `Rejected as an item-type mismatch for expected ${context.itemType || "item"}.`;
+  }
   if (identityMatchStrength === "Rejected" && hasStrongItemTypeMismatch(haystack, context.itemType)) {
     return `Rejected as an item-type mismatch for expected ${context.itemType || "item"}.`;
   }
@@ -3168,8 +3400,11 @@ function buildSerperRejectionReason(record = {}, identityMatchStrength = "", con
   return "";
 }
 
-function buildSerperMatchExplanation(record = {}, identityMatchStrength = "", priceEvidenceType = "") {
+function buildSerperMatchExplanation(record = {}, identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
   const source = record.domain || "source";
+  if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
+    return `${cleanText(itemTypeCompatibility.explanation) || "Candidate product form is not valuation-compatible with the submitted item."} This result may provide identity context only and must not influence valuation.`;
+  }
   if (identityMatchStrength === "Exact") {
     return `Appears to match specific visible identifiers, wording, brand, or item type from the submitted item. Price evidence: ${priceEvidenceType}.`;
   }
@@ -3188,7 +3423,12 @@ function buildSerperMatchExplanation(record = {}, identityMatchStrength = "", pr
   return `Rejected because it is not comparable to the submitted item.`;
 }
 
-function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "") {
+function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
+  if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
+    return itemTypeCompatibility.itemTypeCompatible === false
+      ? "Identity/reference context only - product type differs; not valuation support"
+      : "Identity/reference context only - candidate product type not established; not valuation support";
+  }
   if (/Exact|Strong Similar/.test(identityMatchStrength) && !/No Usable|Reference Without Price/.test(priceEvidenceType)) {
     return `Comparable evidence - ${priceEvidenceType}`;
   }
@@ -3286,6 +3526,11 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     condition: inferConditionFromSerperRecord(record),
     classification,
     identityMatchStrength: record.identityMatchStrength,
+    itemTypeCompatible: record.itemTypeCompatible,
+    submittedItemType: record.submittedItemType,
+    candidateItemType: record.candidateItemType,
+    itemTypeCompatibilityStatus: record.itemTypeCompatibilityStatus,
+    itemTypeCompatibilityExplanation: record.itemTypeCompatibilityExplanation,
     evidenceRole: record.evidenceRole,
     matchExplanation: record.matchExplanation,
     itemIdentityDifferences: record.itemIdentityDifferences,
@@ -3309,6 +3554,10 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       `Price Type: ${record.priceEvidenceType}`,
       `URL: ${record.url}`,
       `Match quality: ${classification}`,
+      `Submitted Item Type: ${record.submittedItemType || "Unknown"}`,
+      `Candidate Item Type: ${record.candidateItemType || "Unknown"}`,
+      `Item Type Compatible: ${record.itemTypeCompatible === true ? "Yes" : "No"}`,
+      `Influenced Range: ${record.influencedReferenceRange}`,
       `Source Type: ${record.sourceType}`,
       `Search pass: ${record.searchPass}`,
       `Query: ${record.query}`,
@@ -5358,7 +5607,25 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
     }
     diagnostics.normalizedResultCount += 1;
     const identityStrength = classifyIdentityMatchStrength(record, identity);
-    if (!/rejected|weak/i.test(record.classification) && /exact|strong/i.test(identityStrength)) {
+    const itemTypeValuationSafe = isComparableItemTypeValuationSafe({
+      itemTypeCompatible: record.itemTypeCompatible,
+      status: record.itemTypeCompatibilityStatus
+    });
+    if (!itemTypeValuationSafe && !/rejected|weak/i.test(record.classification)) {
+      bucketName = "referenceResults";
+      record.classification = "Reference Only";
+      record.evidenceRole = buildSerperEvidenceRole("Reference Only", record.priceType, {
+        itemTypeCompatible: record.itemTypeCompatible,
+        status: record.itemTypeCompatibilityStatus,
+        explanation: record.itemTypeCompatibilityExplanation
+      });
+      record.influencedReferenceRange = buildNonValuationInfluenceReason(record.priceType, {
+        itemTypeCompatible: record.itemTypeCompatible,
+        status: record.itemTypeCompatibilityStatus,
+        explanation: record.itemTypeCompatibilityExplanation
+      });
+      record.itemIdentityDifferences = cleanText(record.itemIdentityDifferences || record.itemTypeCompatibilityExplanation);
+    } else if (!/rejected|weak/i.test(record.classification) && /exact|strong/i.test(identityStrength)) {
       bucketName = "strongComparables";
       record.classification = identityStrength;
       record.evidenceRole = buildEvidenceRoleForIdentityStrength(record);
@@ -5425,14 +5692,25 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
   const classification = inferResultClassification(rawText, bucketName);
   const priceType = inferPriceType(rawText);
   const rejected = bucketName === "rejectedMatches" || /rejected|not comparable|not a comparable|failed/i.test(rawText);
-  const identityStrength = classifyIdentityMatchStrength({ rawText, title: extractResultTitle(rawText, source, url), classification }, identity);
+  const title = extractResultTitle(rawText, source, url);
+  const identityStrength = classifyIdentityMatchStrength({ rawText, title, classification }, identity);
   const sourceType = extractLabeledResultPart(rawText, /source\s*type\s*[:=-]\s*([^|;.]+)/i);
   const searchPass = extractLabeledResultPart(rawText, /search\s*pass\s*[:=-]\s*([^|;.]+)/i);
   const query = extractLabeledResultPart(rawText, /query\s*[:=-]\s*([^|;.]+)/i);
   const provider = extractLabeledResultPart(rawText, /provider\s*[:=-]\s*([^|;.]+)/i);
+  const evaluatedCompatibility = evaluateComparableItemTypeCompatibility({ title, rawText, url, snippet: rawText, source, sourceType }, identity, {});
+  const itemTypeCompatible = parseCompatibilityBoolean(extractLabeledResultPart(rawText, /item\s+type\s+compatible\s*[:=-]\s*([^|;.]+)/i), evaluatedCompatibility.itemTypeCompatible);
+  const itemTypeCompatibility = {
+    ...evaluatedCompatibility,
+    itemTypeCompatible
+  };
+  const itemTypeValuationSafe = isComparableItemTypeValuationSafe(itemTypeCompatibility);
+  const visibleClassification = itemTypeValuationSafe || rejected || /weak|rejected/i.test(classification)
+    ? (identityStrength || classification)
+    : "Reference Only";
 
   return {
-    title: extractResultTitle(rawText, source, url),
+    title,
     source,
     url: url || "",
     canonicalUrl: canonicalizeComparableUrl(url) || url || "",
@@ -5440,11 +5718,18 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     currency: displayedPrice ? "$" : "",
     priceType,
     condition: extractLabeledResultPart(rawText, /condition\s*[:=-]\s*([^|;.]+)/i),
-    classification: identityStrength || classification,
-    evidenceRole: identityStrength ? buildEvidenceRoleForIdentityStrength({ priceType, displayedPrice }) : inferEvidenceRole(bucketName, classification),
+    classification: visibleClassification,
+    itemTypeCompatible,
+    submittedItemType: cleanText(extractLabeledResultPart(rawText, /submitted\s+item\s+type\s*[:=-]\s*([^|;.]+)/i)) || itemTypeCompatibility.submittedItemType,
+    candidateItemType: cleanText(extractLabeledResultPart(rawText, /candidate\s+item\s+type\s*[:=-]\s*([^|;.]+)/i)) || itemTypeCompatibility.candidateItemType,
+    itemTypeCompatibilityStatus: itemTypeCompatibility.status,
+    itemTypeCompatibilityExplanation: itemTypeCompatibility.explanation,
+    evidenceRole: itemTypeValuationSafe
+      ? (identityStrength ? buildEvidenceRoleForIdentityStrength({ priceType, displayedPrice }) : inferEvidenceRole(bucketName, classification))
+      : buildSerperEvidenceRole("Reference Only", priceType, itemTypeCompatibility),
     matchExplanation: extractMatchExplanation(rawText),
-    itemIdentityDifferences: extractIdentityDifferences(rawText),
-    influencedReferenceRange: ["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No.",
+    itemIdentityDifferences: extractIdentityDifferences(rawText) || (!itemTypeValuationSafe ? itemTypeCompatibility.explanation : ""),
+    influencedReferenceRange: itemTypeValuationSafe && ["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : buildNonValuationInfluenceReason(priceType, itemTypeCompatibility),
     rejectionReason: rejected ? extractRejectionReason(rawText, classification) : "",
     sourceBacked: url && hasCitedUrl(rawText, citations) ? "URL-cited" : url ? "URL provided by result text" : "No usable URL supplied by source.",
     provider,
@@ -5456,9 +5741,16 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
   };
 }
 
+function parseCompatibilityBoolean(value, fallback = false) {
+  const text = cleanText(value).toLowerCase();
+  if (/^(yes|true|compatible)\b/.test(text)) return true;
+  if (/^(no|false|incompatible|unknown)\b/.test(text)) return false;
+  return fallback === true;
+}
+
 function recordsToLegacyComparableStrings(records) {
   return records
-    .filter((record) => record.url && record.sourceBacked === "URL-cited" && !/rejected|weak/i.test(record.classification))
+    .filter((record) => record.url && record.sourceBacked === "URL-cited" && canInfluenceValuationFromVisibleRecord(record) && !/rejected|weak/i.test(record.classification))
     .map(formatResearchRecordForLegacySection)
     .slice(0, 6);
 }
@@ -5473,6 +5765,10 @@ function formatResearchRecordForLegacySection(record) {
     record.condition ? `Condition: ${record.condition}` : "",
     record.url ? `URL: ${record.url}` : "URL: No usable URL supplied by source.",
     `Match quality: ${record.classification}`,
+    record.submittedItemType ? `Submitted Item Type: ${record.submittedItemType}` : "",
+    record.candidateItemType ? `Candidate Item Type: ${record.candidateItemType}` : "",
+    typeof record.itemTypeCompatible === "boolean" ? `Item Type Compatible: ${record.itemTypeCompatible ? "Yes" : "No"}` : "",
+    record.influencedReferenceRange ? `Influenced Range: ${record.influencedReferenceRange}` : "",
     record.sourceType ? `Source Type: ${record.sourceType}` : "",
     record.activeSoldReferenceStatus ? `Active/Sold/Reference Status: ${record.activeSoldReferenceStatus}` : "",
     record.searchPass ? `Search pass: ${record.searchPass}` : "",
@@ -5902,6 +6198,11 @@ function normalizeExistingResearchRecord(item, bucketName) {
     condition: cleanText(item.condition),
     classification: cleanText(item.classification) || inferResultClassification(rawText, bucketName),
     identityMatchStrength: cleanText(item.identityMatchStrength),
+    itemTypeCompatible: item.itemTypeCompatible === true || cleanText(item.itemTypeCompatible).toLowerCase() === "true",
+    submittedItemType: cleanText(item.submittedItemType),
+    candidateItemType: cleanText(item.candidateItemType),
+    itemTypeCompatibilityStatus: cleanText(item.itemTypeCompatibilityStatus),
+    itemTypeCompatibilityExplanation: cleanText(item.itemTypeCompatibilityExplanation),
     evidenceRole: cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
     matchExplanation: cleanText(item.matchExplanation) || extractMatchExplanation(rawText),
     itemIdentityDifferences: cleanText(item.itemIdentityDifferences) || extractIdentityDifferences(rawText),
@@ -5970,6 +6271,26 @@ function isUsableSourceRecord(item) {
     return /https?:\/\//i.test(item) || /\b(source|platform|site|marketplace)\s*[:=-]/i.test(item);
   }
   return Boolean(item.url || (item.source && !/not supplied/i.test(item.source)));
+}
+
+function canInfluenceValuationFromVisibleRecord(record = {}) {
+  if (!record || typeof record === "string") {
+    return false;
+  }
+  const influenceText = cleanText(record.influencedReferenceRange).toLowerCase();
+  if (/^no\b|not valuation|must not influence|product type differs|product form|candidate product type not established/.test(influenceText)) {
+    return false;
+  }
+  if (record.itemTypeCompatible === false || cleanText(record.itemTypeCompatible).toLowerCase() === "false") {
+    return false;
+  }
+  if (/mismatch|unknown|scope/.test(cleanText(record.itemTypeCompatibilityStatus).toLowerCase())) {
+    return false;
+  }
+  if (/not valuation support|identity\/reference context only|weak match|directional context only|rejected/i.test(record.evidenceRole || "")) {
+    return false;
+  }
+  return /exact|strong/i.test(record.classification || record.identityMatchStrength || record.matchExplanation || record.rawText || "");
 }
 
 function buildListingPriceText(value, reliableResearchFound) {
@@ -6902,7 +7223,7 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
     ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
     ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
   ].filter(isUsableSourceRecord);
-  const exactOrStrongRecords = records.filter((record) => /exact|strong/i.test(record.classification || record.matchExplanation || record.rawText || ""));
+  const exactOrStrongRecords = records.filter((record) => canInfluenceValuationFromVisibleRecord(record));
   const pricedRecords = exactOrStrongRecords
     .map((record) => ({
       ...record,
@@ -9555,5 +9876,10 @@ export const __queryIntegrityTestHooks = {
   validateSerperQueryCandidate,
   splitQueryTermsPreservingQuotes,
   shortenSerperQueryWithoutFragments,
-  createSerperRequestRecord
+  createSerperRequestRecord,
+  evaluateComparableItemTypeCompatibility,
+  classifySerperIdentityMatch,
+  classifySerperPriceEvidence,
+  buildSerperEvidenceRole,
+  canInfluenceValuationFromVisibleRecord
 };

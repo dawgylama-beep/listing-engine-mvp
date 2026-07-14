@@ -492,6 +492,54 @@ try {
     namedPeople: ["Vince Dooley"],
     years: ["1980"]
   };
+  const georgiaIdentity = identityFor("georgia");
+  const itemTypeCases = [
+    ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
+    ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],
+    ["bottle incompatible", "Georgia Bulldogs Coca-Cola championship bottle", false],
+    ["sign incompatible", "Georgia Bulldogs Coca-Cola tin sign", false],
+    ["plate incompatible", "Georgia Bulldogs Coca-Cola collector plate", false],
+    ["cup incompatible", "Georgia Bulldogs Coca-Cola mug cup", false],
+    ["poster incompatible", "Georgia Bulldogs Coca-Cola championship poster", false],
+    ["can incompatible", "Georgia Bulldogs Coca-Cola unopened can", false],
+    ["ornament incompatible", "Georgia Bulldogs Coca-Cola Christmas ornament", false],
+    ["figurine incompatible", "Georgia Bulldogs Coca-Cola mascot figurine", false],
+    ["unknown candidate type incompatible", "Georgia Bulldogs Coca-Cola championship memorabilia", false]
+  ];
+  for (const [label, title, expectedCompatible] of itemTypeCases) {
+    const compatibility = __queryIntegrityTestHooks.evaluateComparableItemTypeCompatibility(
+      { title, snippet: "Shared Georgia Bulldogs, championship, and Coca-Cola wording.", url: `https://example.com/${label.replace(/\s+/g, "-")}` },
+      georgiaIdentity,
+      georgiaQueryContext
+    );
+    assert(compatibility.itemTypeCompatible === expectedCompatible, `${label} item-type compatibility should be ${expectedCompatible}.`);
+  }
+  const slugConflict = __queryIntegrityTestHooks.evaluateComparableItemTypeCompatibility(
+    { title: "Georgia Bulldogs Coca-Cola championship collectible", snippet: "Shared event and brand wording.", url: "https://example.com/georgia-coca-cola-bottle" },
+    georgiaIdentity,
+    georgiaQueryContext
+  );
+  assert(slugConflict.itemTypeCompatible === false && /bottle/i.test(slugConflict.candidateItemType), "URL slug product noun should prevent a mismatched item from becoming compatible.");
+  const bottleCompatibility = __queryIntegrityTestHooks.evaluateComparableItemTypeCompatibility(
+    { title: "Georgia Bulldogs Coca-Cola championship bottle", snippet: "Same brand, year, event, and team wording as a tray.", url: "https://www.ebay.com/itm/georgia-coca-cola-bottle" },
+    georgiaIdentity,
+    georgiaQueryContext
+  );
+  const bottleMatch = __queryIntegrityTestHooks.classifySerperIdentityMatch(
+    { title: "Georgia Bulldogs Coca-Cola championship bottle", snippet: "Same brand, year, event, and team wording as a tray. Asking $12.00.", url: "https://www.ebay.com/itm/georgia-coca-cola-bottle" },
+    georgiaIdentity,
+    georgiaQueryContext,
+    bottleCompatibility
+  );
+  assert(!/Exact|Strong Similar/i.test(bottleMatch), "Shared brand/year/event wording must not override a product-form mismatch.");
+  const bottleRole = __queryIntegrityTestHooks.buildSerperEvidenceRole("Reference Only", "Active Asking", bottleCompatibility);
+  assert(/not valuation support/i.test(bottleRole), "Mismatched active asking listings should be reference-only, not valuation evidence.");
+  const replacementCompatibility = __queryIntegrityTestHooks.evaluateComparableItemTypeCompatibility(
+    { title: "Replacement single tray insert piece", snippet: "One replacement piece only.", url: "https://example.com/replacement-piece" },
+    { ...georgiaIdentity, likelyItemDescription: "complete set of Coca-Cola Georgia Bulldogs collector tray pieces" },
+    { ...georgiaQueryContext, itemType: "complete set collector tray" }
+  );
+  assert(replacementCompatibility.itemTypeCompatible === false && /set/i.test(replacementCompatibility.status), "Complete set and replacement-piece scope mismatch should not be exact.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
   const malformedCandidates = [
@@ -617,7 +665,9 @@ try {
   assert(Array.isArray(georgia.report.weFoundThisItem) && georgia.report.weFoundThisItem.length > 0, "Exact active listing should remain visible.");
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("https://www.ebay.com/itm/georgia-coca-cola-tray"), "Exact tray URL should remain visible.");
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("Active Asking") || JSON.stringify(georgia.report.strongComparables || []).includes("Shopping Offer"), "Visible exact/strong cards should label asking/shopping evidence accurately.");
-  assert(JSON.stringify(georgia.report.rejectedMatches || []).includes("bottle"), "Unrelated bottle result should be rejected as an item-type mismatch.");
+  assert(!JSON.stringify(georgia.report.strongComparables || []).includes("georgia-coca-cola-bottle"), "Mismatched bottle result must not remain in exact/strong comparable evidence.");
+  assert(JSON.stringify([georgia.report.referenceResults, georgia.report.rejectedMatches]).includes("georgia-coca-cola-bottle"), "Mismatched bottle result may be retained only as reference or rejected transparency evidence.");
+  assert(JSON.stringify([georgia.report.referenceResults, georgia.report.rejectedMatches]).includes("Influenced Range: No"), "Mismatched product-form evidence must not influence the reference range.");
 
   const querySet = new Set(attemptedRecords.map((record) => record.query.toLowerCase()));
   assert(querySet.size === attemptedRecords.length, "Duplicate Serper queries should not be sent.");

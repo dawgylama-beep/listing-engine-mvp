@@ -274,6 +274,12 @@
 - Photo read and image conversion failures are caught before the API request begins
 - Failed submissions preserve selected photos when safe and do not show a completed report state
 
+## Version 1.10.3 (Completed)
+- Comparable matching now enforces a strict submitted-item-type versus source-result-item-type compatibility check
+- Different physical product forms can no longer be promoted to Exact or Strong Similar matches by shared brand, event, year, team, or theme wording alone
+- Mismatched or unknown item types may remain visible only as reference/transparency evidence with `Influenced Range: No`
+- Valuation and buyer decision price evidence now excludes mismatched product forms, unknown candidate types, and complete-set versus replacement-piece mismatches
+
 ## Version 2.0
 - User accounts
 - Saved listings
