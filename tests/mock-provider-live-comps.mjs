@@ -474,10 +474,75 @@ try {
   delete process.env.OPEN_API_KEY;
   process.env.SERPER_API_KEY = fakeSerperKeyValue;
 
+  const georgiaQueryContext = {
+    brand: "Coca-Cola",
+    visualBrand: "Coca-Cola",
+    manufacturer: "Coca-Cola",
+    visualOrganization: "Georgia Bulldogs",
+    schoolName: "University of Georgia",
+    teamName: "Georgia Bulldogs",
+    subjectIdentity: "Georgia Bulldogs Coca-Cola collector tray",
+    productTitle: "Coca-Cola Georgia Bulldogs collector tray",
+    exactProductIdentity: "Coca-Cola Georgia Bulldogs 1980 National Champions collector tray",
+    itemType: "collector tray",
+    categoryPhrase: "sports advertising collectible tray",
+    visualCategory: "sports advertising collectible",
+    distinctivePhrases: ["GEORGIA", "1980 NATIONAL CHAMPIONS", "Official Bulldogs", "HOW 'BOUT THEM DAWGS"],
+    eventPhrases: ["1980 NATIONAL CHAMPIONS"],
+    namedPeople: ["Vince Dooley"],
+    years: ["1980"]
+  };
+  const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
+  assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
+  const malformedCandidates = [
+    "\"\"GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs\" Coca-Cola collector tray",
+    "\"\"'Official Bulldogs Tray', 'Vince Dooley',\" Coca-Cola collector tray"
+  ];
+  for (const malformed of malformedCandidates) {
+    const cleanedMalformed = __queryIntegrityTestHooks.cleanSerperQuery(malformed);
+    const validation = __queryIntegrityTestHooks.validateSerperQueryCandidate(cleanedMalformed, georgiaQueryContext, { rawCandidate: malformed, searchPass: "open_web_exact" });
+    assert(validation.passed === false, `Malformed serialized-list query should be rejected: ${malformed}`);
+    assert(/serialized_list_artifact|quotation_marks|malformed_exact/i.test(validation.reason), `Malformed query should explain syntax failure, got ${validation.reason}.`);
+    const requestRecord = __queryIntegrityTestHooks.createSerperRequestRecord({
+      query: cleanedMalformed || malformed,
+      priority: 1,
+      searchPass: "open_web_exact",
+      validationPassed: false,
+      validationFailureReason: validation.reason
+    });
+    assert(requestRecord.attempted === false && requestRecord.failureStage === "invalid_query_preflight", "Malformed rejected queries should not be attempted.");
+  }
+  const cleanExact = __queryIntegrityTestHooks.cleanSerperQuery("\"GEORGIA\" \"1980 NATIONAL CHAMPIONS\" \"Official Bulldogs\" Coca-Cola collector tray");
+  assert(((cleanExact.match(/"/g) || []).length % 2) === 0, "Clean reconstructed exact query should have balanced quotation marks.");
+  assert(__queryIntegrityTestHooks.validateSerperQueryCandidate(cleanExact, georgiaQueryContext, { rawCandidate: cleanExact, searchPass: "open_web_exact" }).passed === true, "Clean product-specific exact query should pass preflight.");
+  const rejectedShapes = [
+    ["Coca-Cola", "brand-only query"],
+    ["Vince Dooley", "person-only query"],
+    ["1980", "year-only query"],
+    ["collector tray", "category-only query"],
+    ["Un", "incomplete fragment"],
+    ["1980 Un", "year plus fragment"]
+  ];
+  for (const [query, label] of rejectedShapes) {
+    const validation = __queryIntegrityTestHooks.validateSerperQueryCandidate(query, georgiaQueryContext, { rawCandidate: query, searchPass: "broader_fallback" });
+    assert(validation.passed === false, `${label} should be rejected before provider execution.`);
+    const requestRecord = __queryIntegrityTestHooks.createSerperRequestRecord({
+      query,
+      priority: 1,
+      searchPass: "broader_fallback",
+      validationPassed: false,
+      validationFailureReason: validation.reason
+    });
+    assert(requestRecord.attempted === false && requestRecord.failureStage === "invalid_query_preflight", `${label} should consume no provider call.`);
+  }
+
   const queryPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
     searchQueries: [
       "Vin",
       "1980 Un",
+      "Coca-Cola",
+      "\"\"GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs\" Coca-Cola collector tray",
+      "\"GEORGIA\" \"1980 NATIONAL CHAMPIONS\" \"Official Bulldogs\" Coca-Cola collector tray",
       "1980 University of Georgia Bulldogs Coca-Cola collector tray",
       "\"HOW 'BOUT THEM DAWGS\" Coca-Cola collector tray",
       "1980 University of Georgia Bulldogs Coca-Cola collector tray"
@@ -503,13 +568,18 @@ try {
   const validPlanRecords = queryPlan.filter((record) => record.validationPassed !== false);
   assert(invalidPlanRecords.some((record) => record.rawCandidate === "Vin" && record.validationFailureReason === "incomplete_word_fragment"), "Vin should be rejected before provider execution.");
   assert(invalidPlanRecords.some((record) => record.rawCandidate === "1980 Un" && record.validationFailureReason === "year_plus_short_fragment"), "1980 Un should be rejected before provider execution.");
+  assert(invalidPlanRecords.some((record) => record.rawCandidate === "Coca-Cola" && record.validationFailureReason === "brand_only_query"), "Brand-only fallback should be rejected before provider execution.");
+  assert(invalidPlanRecords.some((record) => /GEORGIA'.*Official Bulldogs/.test(record.rawCandidate) && record.validationFailureReason === "serialized_list_artifact"), "Malformed serialized-list exact query should be rejected before provider execution.");
   assert(invalidPlanRecords.every((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted === false), "Invalid query records should not be attempted.");
+  assert(invalidPlanRecords.every((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).failureStage === "invalid_query_preflight"), "Invalid query records should report the preflight failure stage.");
   assert(validPlanRecords.some((record) => /1980 University of Georgia Bulldogs Coca-Cola collector tray/i.test(record.query)), "Long identity phrase should survive to final provider query.");
+  assert(validPlanRecords.some((record) => /"GEORGIA" "1980 NATIONAL CHAMPIONS" "Official Bulldogs" Coca-Cola collector tray/i.test(record.query)), "Clean reconstructed exact phrase query should survive to final provider query.");
   assert(validPlanRecords.some((record) => /"HOW 'BOUT THEM DAWGS"/i.test(record.query)), "Exact quoted visible wording should be preserved.");
   const marketplacePlanRecord = validPlanRecords.find((record) => record.searchPass === "marketplace_site_google");
   assert(marketplacePlanRecord && /Coca-Cola|Georgia Bulldogs|collector tray|1980/i.test(marketplacePlanRecord.query), "Marketplace site query should append domains to a complete identity query.");
   assert(marketplacePlanRecord && /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(marketplacePlanRecord.query), "Marketplace site query should retain domain routing.");
   assert(new Set(validPlanRecords.map((record) => record.query.toLowerCase())).size === validPlanRecords.length, "Duplicate cleanup should not keep repeated weaker query records.");
+  assert(validPlanRecords.every((record) => /tray/i.test(record.query)), "Broader valid queries should retain the concrete product noun.");
 
   const holiday = await runScenario("holiday");
   assert(holiday.report.analysisId === "analysis-test-holiday", "Holiday analysis id should round-trip.");
@@ -529,13 +599,13 @@ try {
   assert(diagnostics.serperConfigured === true, "Diagnostics should confirm Serper is configured without exposing the key.");
   assert(diagnostics.fallbackProviderUsed === false, "OpenAI web_search fallback should not run when Serper succeeds.");
   assert(Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length > 0, "Provider request records should exist.");
-  assert(diagnostics.providerRequestRecords.length <= 6, "Serper query budget should stay within six ordinary calls.");
-  assert(diagnostics.providerRequestRecords.every((record) => record.attempted === true), "Every sent query record should be attempted.");
-  assert(diagnostics.providerRequestRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
-  assert(diagnostics.providerRequestRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
-  assert(diagnostics.providerRequestRecords.some((record) => /Coca-Cola/i.test(record.query)), "Coca-Cola punctuation should survive attempted queries.");
-  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "open_web_exact"), "Open-web exact pass should be recorded.");
-  assert(diagnostics.providerRequestRecords.some((record) => record.searchPass === "marketplace_site_google"), "Marketplace site pass should be recorded.");
+  const attemptedRecords = diagnostics.providerRequestRecords.filter((record) => record.attempted);
+  assert(attemptedRecords.length <= 6, "Serper query budget should stay within six ordinary attempted calls.");
+  assert(attemptedRecords.length > 0 && attemptedRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
+  assert(attemptedRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
+  assert(attemptedRecords.some((record) => /Coca-Cola/i.test(record.query)), "Coca-Cola punctuation should survive attempted queries.");
+  assert(attemptedRecords.some((record) => record.searchPass === "open_web_exact"), "Open-web exact pass should be recorded.");
+  assert(attemptedRecords.some((record) => record.searchPass === "marketplace_site_google"), "Marketplace site pass should be recorded.");
   assert(Array.isArray(diagnostics.allowedDomainsRequested) && diagnostics.allowedDomainsRequested.includes("ebay.com"), "Marketplace allowed domains should include ebay.com for sports collectible tray routing.");
   assert(diagnostics.providerSourceCount > 0, "Provider source count should be tracked separately from visible comps.");
   assert(diagnostics.organicResultCount > 0, "Organic result count should be tracked.");
@@ -549,8 +619,8 @@ try {
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("Active Asking") || JSON.stringify(georgia.report.strongComparables || []).includes("Shopping Offer"), "Visible exact/strong cards should label asking/shopping evidence accurately.");
   assert(JSON.stringify(georgia.report.rejectedMatches || []).includes("bottle"), "Unrelated bottle result should be rejected as an item-type mismatch.");
 
-  const querySet = new Set(diagnostics.providerRequestRecords.map((record) => record.query.toLowerCase()));
-  assert(querySet.size === diagnostics.providerRequestRecords.length, "Duplicate Serper queries should not be sent.");
+  const querySet = new Set(attemptedRecords.map((record) => record.query.toLowerCase()));
+  assert(querySet.size === attemptedRecords.length, "Duplicate Serper queries should not be sent.");
   assert(georgia.serperPayloads.length === diagnostics.providerRequestRecords.filter((record) => record.attempted).length, "Serper payload count should match attempted provider request records.");
   assert(georgia.serperPayloads.every((item) => item.hasApiKeyHeader), "Serper requests should include the server-side API key header.");
   assert(georgia.serperPayloads.every((item) => item.gl === "us" && item.hl === "en" && item.num === 10), "Serper requests should use expected US English defaults.");
@@ -566,6 +636,9 @@ try {
   assert(zero.report.searchDiagnostics.acquisitionFailureStage === "serper_zero_results", "Zero-result diagnostics should use controlled Serper zero-result stage.");
   assert(zero.report.valuationEvidenceState === "insufficient", "Zero retained results should keep valuation evidence insufficient.");
   assert(/not established/i.test([zero.report.fairValueNotEstablished, zero.report.estimatedFairMarketValue].filter(Boolean).join(" ")), "Zero retained results should not preserve unsupported fair value.");
+  assert(!zero.json.includes("Comparable evidence appears useful enough to support the decision."), "Zero retained valuation evidence should never claim comparable evidence is useful enough.");
+  assert(!/\$20\s*-\s*\$30|\$20-\$30/i.test(JSON.stringify([zero.report.estimatedFairMarketValue, zero.report.estimatedMarketValue, zero.report.fairPriceRange, zero.report.preliminaryReferenceRange])), "Zero retained valuation evidence should not preserve unsupported market-value numbers.");
+  assert(!/supported/i.test(String(zero.report.valuationEvidenceState)), "Visual identification confidence must not override zero market-evidence confidence.");
   assert(!JSON.stringify(zero.report.productOrConditionRisks || []).includes("Older Model"), "Ordinary collectible zero-result risk list should suppress Older Model.");
   assert(!JSON.stringify(zero.report.betterValueConsiderations || []).includes("Wait for a similar item"), "Buy should not automatically recommend waiting without concrete risk support.");
 

@@ -1033,7 +1033,7 @@ function sanitizeFrontendZeroEvidenceText(value, askingPrice, key = "") {
 function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
   const text = String(value || "");
   if (!text) return text;
-  const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market/i.test(text);
+  const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|comparable evidence appears useful enough/i.test(text);
   const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
   const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
   const amounts = extractMoneyAmountsFromText(text);
@@ -1865,6 +1865,21 @@ function getConfidenceDrivers(report) {
   const compText = normalizeDisplayValue(firstNonEmpty(report.comparableQuality, report.liveCompConfidence, report.researchResults)).toLowerCase();
   const exactText = String(report.exactProductIdentity || report.exactProductConfidence || "").toLowerCase();
   const priceText = normalizeDisplayValue(firstNonEmpty(report.priceConfidence, report.pricingConfidence, report.valuationConfidence, report.buyerDecisionConfidence)).toLowerCase();
+  const evidenceState = String(report.valuationEvidenceState || report.valuationEvidenceLabel || "").toLowerCase();
+  const retainedCount = Number(report.retainedVisibleResultCount || report.visibleResearchResultCount || report.searchDiagnostics?.retainedVisibleResultCount || report.searchDiagnostics?.visibleRetainedResultCount || 0);
+  const visibleCompCount = [
+    report.weFoundThisItem,
+    report.weFoundSimilarComparableItems,
+    report.comparableItemsFound,
+    report.strongComparables
+  ].flat().filter(Boolean).length;
+  const zeroValuationEvidence = /insufficient|not established/.test(evidenceState)
+    || (!retainedCount && !visibleCompCount && /no reliable|not established|no source-backed|zero visible|insufficient/i.test([
+      compText,
+      report.valuationEvidenceExplanation,
+      report.fairValueNotEstablished,
+      report.noReliableMatchesReason
+    ].join(" ")));
 
   if (/high|strong|clearly|confirmed/.test(visualConfidence)) {
     drivers.push("Subject appears well supported by the photos.");
@@ -1872,9 +1887,11 @@ function getConfidenceDrivers(report) {
     drivers.push("Visual identification still has limits.");
   }
 
-  if (/exact match|strong comparable|source-backed|reliable/.test(compText)) {
-    drivers.push("Comparable evidence appears useful enough to support the decision.");
+  if (!zeroValuationEvidence && /exact match|strong comparable|source-backed|reliable/.test(compText)) {
+    drivers.push("Source-backed comparable evidence supports this decision.");
   } else if (/no reliable|weak|partial|rejected|ai-only|unavailable/.test(compText)) {
+    drivers.push("Comparable evidence is limited or did not pass match-quality checks.");
+  } else if (zeroValuationEvidence) {
     drivers.push("Comparable evidence is limited or did not pass match-quality checks.");
   }
 

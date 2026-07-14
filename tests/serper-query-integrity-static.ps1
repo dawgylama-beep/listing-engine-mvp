@@ -12,16 +12,22 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.0"; Text = $index; Pattern = "Version 1.10.0" },
-  @{ Name = "Package version is 1.10.0"; Text = $package; Pattern = '"version": "1.10.0"' },
-  @{ Name = "Server version is 1.10.0"; Text = $server; Pattern = '$AppVersion = "1.10.0"' },
-  @{ Name = "Roadmap documents 1.10.0"; Text = $roadmap; Pattern = "Version 1.10.0 (Completed)" },
+  @{ Name = "Visible app version is 1.10.1"; Text = $index; Pattern = "Version 1.10.1" },
+  @{ Name = "Package version is 1.10.1"; Text = $package; Pattern = '"version": "1.10.1"' },
+  @{ Name = "Server version is 1.10.1"; Text = $server; Pattern = '$AppVersion = "1.10.1"' },
+  @{ Name = "Roadmap documents 1.10.1"; Text = $roadmap; Pattern = "Version 1.10.1 (Completed)" },
   @{ Name = "Serper plan validates before execution"; Text = $api; Pattern = "validateSerperQueryCandidate(finalQuery, context" },
   @{ Name = "Invalid candidates are recorded as preflight"; Text = $api; Pattern = "invalid_query_preflight" },
   @{ Name = "Invalid records are not attempted"; Text = $api; Pattern = "attempted: validationPassed" },
   @{ Name = "Provider execution filters attempted requests"; Text = $api; Pattern = ".filter(({ requestRecord }) => requestRecord.attempted)" },
   @{ Name = "Serper request receives prevalidated flag"; Text = $api; Pattern = "prevalidated: queryRecord.validationPassed !== false" },
   @{ Name = "Transport validator keeps defensive guard"; Text = $api; Pattern = "function validateSerperTransportQuery" },
+  @{ Name = "List-like visible phrase parser exists"; Text = $api; Pattern = "function parseListLikeSearchPhrases" },
+  @{ Name = "Serialized list artifacts are rejected"; Text = $api; Pattern = "serialized_list_artifact" },
+  @{ Name = "Brand-only queries are rejected"; Text = $api; Pattern = "brand_only_query" },
+  @{ Name = "Concrete product noun is required"; Text = $api; Pattern = "missing_concrete_item_noun" },
+  @{ Name = "Meaningful query anchor is required"; Text = $api; Pattern = "function hasMeaningfulQueryIdentityAnchor" },
+  @{ Name = "Raw candidate survives validation"; Text = $api; Pattern = "rawCandidate });" },
   @{ Name = "Invalid query count is diagnostic only"; Text = $api; Pattern = "invalidQueryPreflightCount" },
   @{ Name = "Whole-token Serper shortening exists"; Text = $api; Pattern = "function shortenSerperQueryWithoutFragments" },
   @{ Name = "Quoted terms are preserved"; Text = $api; Pattern = "function splitQueryTermsPreservingQuotes" },
@@ -42,6 +48,9 @@ $checks = @(
   @{ Name = "Serper test hook exists"; Text = $api; Pattern = "__queryIntegrityTestHooks" },
   @{ Name = "Mock test rejects Vin"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = 'rawCandidate === "Vin"' },
   @{ Name = "Mock test rejects 1980 Un"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = 'rawCandidate === "1980 Un"' },
+  @{ Name = "Mock test rejects brand-only query"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = 'rawCandidate === "Coca-Cola"' },
+  @{ Name = "Mock test rejects malformed serialized list query"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = "Malformed serialized-list query should be rejected" },
+  @{ Name = "Mock test protects zero-evidence usefulness wording"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = "Zero retained valuation evidence should never claim comparable evidence is useful enough." },
   @{ Name = "Mock test checks bad queries do not reach Serper"; Text = (Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw); Pattern = 'Invalid query fragments should never be sent to Serper.' }
 )
 

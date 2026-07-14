@@ -261,6 +261,13 @@
 - Loading progress content is replaced and progress timers are stopped before final report rendering
 - End of Report marker remains the final element inside the current report root
 
+## Version 1.10.1 (Completed)
+- Search query construction now parses serialized/list-like visible phrases into clean individual phrases before quoting
+- Malformed quote/list artifacts, brand-only, person-only, year-only, category-only, generic-only, and fragment-only queries are rejected before provider execution
+- Broader fallback queries must retain a concrete product noun and meaningful distinguishing item identity
+- Equivalent cleaned queries are deduplicated before provider calls
+- Zero-evidence reports can no longer claim comparable evidence supports a decision or preserve unsupported market-value numbers
+
 ## Version 2.0
 - User accounts
 - Saved listings

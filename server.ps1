@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.0"
+$AppVersion = "1.10.1"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -2205,7 +2205,7 @@ function Sanitize-UnsupportedMarketText {
     return $Source
   }
 
-  $UnsupportedClaim = $Source -match "reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value"
+  $UnsupportedClaim = $Source -match "reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value|comparable evidence appears useful enough"
   $MoneyRange = $Source -match "\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?"
   $AskingAmounts = @(Get-MoneyAmounts $AskingPriceText)
   $AskingAmount = $(if ($AskingAmounts.Count) { [double]$AskingAmounts[0] } else { $null })
