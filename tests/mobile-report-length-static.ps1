@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.1"; Text = $index; Pattern = "Version 1.10.1" },
-  @{ Name = "Package version is 1.10.1"; Text = $package; Pattern = '"version": "1.10.1"' },
-  @{ Name = "Server version is 1.10.1"; Text = $server; Pattern = '$AppVersion = "1.10.1"' },
-  @{ Name = "Roadmap documents 1.10.1"; Text = $roadmap; Pattern = "Version 1.10.1 (Completed)" },
+  @{ Name = "Visible app version is 1.10.2"; Text = $index; Pattern = "Version 1.10.2" },
+  @{ Name = "Package version is 1.10.2"; Text = $package; Pattern = '"version": "1.10.2"' },
+  @{ Name = "Server version is 1.10.2"; Text = $server; Pattern = '$AppVersion = "1.10.2"' },
+  @{ Name = "Roadmap documents 1.10.2"; Text = $roadmap; Pattern = "Version 1.10.2 (Completed)" },
   @{ Name = "Final report stops progress timer"; Text = $app; Pattern = "function renderReport(report, sections) {" },
   @{ Name = "Report rendering replaces children"; Text = $app; Pattern = "results.replaceChildren(reportRoot);" },
   @{ Name = "Loading progress replaces children"; Text = $app; Pattern = "results.replaceChildren(card);" },

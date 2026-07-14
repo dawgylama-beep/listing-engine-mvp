@@ -268,6 +268,12 @@
 - Equivalent cleaned queries are deduplicated before provider calls
 - Zero-evidence reports can no longer claim comparable evidence supports a decision or preserve unsupported market-value numbers
 
+## Version 1.10.2 (Completed)
+- Safari/browser-native `Load failed` errors are normalized into clear user-facing messages
+- Submission stage tracking now distinguishes photo read, image processing, API upload, response parsing, and report rendering failures
+- Photo read and image conversion failures are caught before the API request begins
+- Failed submissions preserve selected photos when safe and do not show a completed report state
+
 ## Version 2.0
 - User accounts
 - Saved listings

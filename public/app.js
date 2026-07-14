@@ -36,6 +36,15 @@ const feedbackText = document.querySelector("#feedback-text");
 const feedbackCopyButton = document.querySelector("#feedback-copy-button");
 const feedbackStatus = document.querySelector("#feedback-status");
 
+const submissionStages = Object.freeze({
+  IDLE: "idle",
+  PHOTO_READ: "photo_read",
+  IMAGE_PROCESS: "image_process",
+  API_REQUEST: "api_request",
+  API_RESPONSE: "api_response",
+  REPORT_RENDER: "report_render"
+});
+
 const listingSections = [
   ["platform", "Platform"],
   ["categorySuggestion", "Category Suggestion"],
@@ -481,11 +490,13 @@ async function handleSubmit(event) {
   resetCopyAllButton();
   setOutputHeading(config);
   const request = startWorkflowRequest(workflow);
+  const submissionState = { stage: submissionStages.IDLE };
   setLoading(true, workflow);
   startLoadingProgress(config, request.id, workflow);
 
   try {
-    const photos = await preparePhotos(photoFilesForRequest);
+    setSubmissionStage(submissionState, submissionStages.PHOTO_READ);
+    const photos = await preparePhotos(photoFilesForRequest, submissionState);
     if (!isCurrentRequest(request.id, workflow)) {
       return;
     }
@@ -505,6 +516,7 @@ async function handleSubmit(event) {
       };
     }
 
+    setSubmissionStage(submissionState, submissionStages.API_REQUEST);
     const response = await fetch("/api/generate-listing", {
       method: "POST",
       headers: {
@@ -518,7 +530,13 @@ async function handleSubmit(event) {
       return;
     }
 
-    const data = await response.json();
+    setSubmissionStage(submissionState, submissionStages.API_RESPONSE);
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      throw createSubmissionError("Could not read the analysis response.", submissionStages.API_RESPONSE, "api_response_parse_failed", error);
+    }
     if (!response.ok) {
       throw new Error(data.error || config.errorMessage);
     }
@@ -544,8 +562,13 @@ async function handleSubmit(event) {
       analysisId: request.analysisId
     });
     setOutputHeading(getDisplayConfig(config, report));
-    renderReport(report, sections);
-    renderAskPanel();
+    setSubmissionStage(submissionState, submissionStages.REPORT_RENDER);
+    try {
+      renderReport(report, sections);
+      renderAskPanel();
+    } catch (error) {
+      throw createSubmissionError("Could not display the analysis report.", submissionStages.REPORT_RENDER, "report_render_failed", error);
+    }
     clearStatus();
     copyAllButton.disabled = false;
   } catch (error) {
@@ -553,8 +576,9 @@ async function handleSubmit(event) {
       return;
     }
 
+    clearItemSession({ abortAsk: true });
     renderEmpty(config);
-    setStatus(getFriendlyErrorMessage(error, config), "error");
+    setStatus(getFriendlyErrorMessage(error, config, submissionState), "error");
   } finally {
     if (isCurrentRequest(request.id, workflow)) {
       activeRequestController = null;
@@ -1227,13 +1251,13 @@ function formatMoney(value) {
   return `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
 }
 
-async function preparePhotos(photoFiles = getSelectedPhotoFiles()) {
+async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionState = null) {
   const photos = [];
 
   for (const file of photoFiles) {
     photos.push({
       name: file.name,
-      dataUrl: await resizeImage(file)
+      dataUrl: await resizeImage(file, submissionState)
     });
   }
 
@@ -2825,8 +2849,70 @@ function clearStatus() {
   statusBox.className = "status";
 }
 
-function getFriendlyErrorMessage(error, config) {
+function setSubmissionStage(state, stage) {
+  if (state) {
+    state.stage = stage || submissionStages.IDLE;
+  }
+}
+
+function createSubmissionError(message, stage, code, cause) {
+  const error = new Error(message);
+  error.submissionStage = stage || submissionStages.IDLE;
+  error.code = code || "";
+  if (cause) {
+    error.cause = cause;
+  }
+  return error;
+}
+
+function submissionStageFromError(error, fallbackState = {}) {
+  return error?.submissionStage || fallbackState?.stage || submissionStages.IDLE;
+}
+
+function isPhotoReadStage(stage) {
+  return stage === submissionStages.PHOTO_READ;
+}
+
+function isImageProcessStage(stage) {
+  return stage === submissionStages.IMAGE_PROCESS;
+}
+
+function isApiTransportStage(stage) {
+  return stage === submissionStages.API_REQUEST || stage === submissionStages.API_RESPONSE;
+}
+
+function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
+  const stage = submissionStageFromError(error, submissionState);
+
+  if (/load failed/i.test(message)) {
+    if (isPhotoReadStage(stage)) {
+      return "We couldn't read that photo. Please select the photo again and retry.";
+    }
+    if (isImageProcessStage(stage)) {
+      return "We couldn't process that photo. Please select a different copy or screenshot of the image.";
+    }
+    if (isApiTransportStage(stage)) {
+      return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
+    }
+    return "The analysis could not finish because the connection stalled. Please check your connection before retrying.";
+  }
+
+  if (/could not read an uploaded photo|photo_read_failed/i.test(message) || error?.code === "photo_read_failed") {
+    return "We couldn't read that photo. Please select the photo again and retry.";
+  }
+
+  if (/could not process an uploaded photo|image_decode_failed|image_resize_failed/i.test(message) || /image_decode_failed|image_resize_failed/.test(error?.code || "")) {
+    return "We couldn't process that photo. Please select a different copy or screenshot of the image.";
+  }
+
+  if (/api_response_parse_failed|could not read the analysis response/i.test(message) || error?.code === "api_response_parse_failed") {
+    return "The analysis response was interrupted before it could be read. Please check your connection before retrying.";
+  }
+
+  if (/report_render_failed|could not display the analysis report/i.test(message) || error?.code === "report_render_failed") {
+    return "The analysis completed, but the report could not be displayed. Please try again.";
+  }
 
   if (/no results/i.test(message)) {
     return "We could not find an exact match. Try one full-item photo plus one close-up of the label, mark, model number, barcode, or damage.";
@@ -2837,7 +2923,7 @@ function getFriendlyErrorMessage(error, config) {
   }
 
   if (/network|failed to fetch|request failed|timeout/i.test(message)) {
-    return "The analysis could not finish because the connection stalled. Try again with the same photos, or start with fewer/lower-resolution photos.";
+    return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
   }
 
   return message || `${config.errorMessage} The most useful next step is one clear full-item photo plus one close-up of any label, mark, model number, barcode, or condition issue.`;
@@ -3063,26 +3149,48 @@ function getRiskModifier(level) {
   return "risk-low";
 }
 
-function resizeImage(file) {
+function resizeImage(file, submissionState = null) {
   return new Promise((resolve, reject) => {
+    setSubmissionStage(submissionState, submissionStages.PHOTO_READ);
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Could not read an uploaded photo."));
+    reader.onerror = () => reject(createSubmissionError("Could not read an uploaded photo.", submissionStages.PHOTO_READ, "photo_read_failed", reader.error));
     reader.onload = () => {
+      setSubmissionStage(submissionState, submissionStages.IMAGE_PROCESS);
+      if (typeof reader.result !== "string") {
+        reject(createSubmissionError("Could not read an uploaded photo.", submissionStages.PHOTO_READ, "photo_read_failed"));
+        return;
+      }
       const image = new Image();
-      image.onerror = () => reject(new Error("Could not process an uploaded photo."));
+      image.onerror = () => reject(createSubmissionError("Could not process an uploaded photo.", submissionStages.IMAGE_PROCESS, "image_decode_failed"));
       image.onload = () => {
-        const maxDimension = 1400;
-        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
+        setSubmissionStage(submissionState, submissionStages.IMAGE_PROCESS);
+        try {
+          const maxDimension = 1400;
+          const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
 
-        const context = canvas.getContext("2d");
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+          const context = canvas.getContext("2d");
+          if (!context) {
+            throw new Error("Canvas unavailable.");
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch (error) {
+          reject(createSubmissionError("Could not process an uploaded photo.", submissionStages.IMAGE_PROCESS, "image_resize_failed", error));
+        }
       };
-      image.src = reader.result;
+      try {
+        image.src = reader.result;
+      } catch (error) {
+        reject(createSubmissionError("Could not process an uploaded photo.", submissionStages.IMAGE_PROCESS, "image_decode_failed", error));
+      }
     };
-    reader.readAsDataURL(file);
+    try {
+      reader.readAsDataURL(file);
+    } catch (error) {
+      reject(createSubmissionError("Could not read an uploaded photo.", submissionStages.PHOTO_READ, "photo_read_failed", error));
+    }
   });
 }

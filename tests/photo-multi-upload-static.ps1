@@ -11,10 +11,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.1"; Text = $index; Pattern = "Version 1.10.1" },
-  @{ Name = "Package version is 1.10.1"; Text = $package; Pattern = '"version": "1.10.1"' },
-  @{ Name = "Server version is 1.10.1"; Text = $server; Pattern = '$AppVersion = "1.10.1"' },
-  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.10.1 (Completed)" },
+  @{ Name = "Visible app version is 1.10.2"; Text = $index; Pattern = "Version 1.10.2" },
+  @{ Name = "Package version is 1.10.2"; Text = $package; Pattern = '"version": "1.10.2"' },
+  @{ Name = "Server version is 1.10.2"; Text = $server; Pattern = '$AppVersion = "1.10.2"' },
+  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.10.2 (Completed)" },
   @{ Name = "Photo library input keeps multiple attribute"; Text = $index; Pattern = 'id="photos" name="photos" type="file" accept="image/*" multiple' },
   @{ Name = "Camera input remains camera capture"; Text = $index; Pattern = 'id="camera-photo" type="file" accept="image/*" capture="environment"' },
   @{ Name = "Shared selected photo state exists"; Text = $app; Pattern = "let selectedPhotoFiles = [];" },
@@ -32,7 +32,7 @@ $checks = @(
   @{ Name = "Preview renders selected photo state"; Text = $app; Pattern = "const files = getSelectedPhotoFiles();" },
   @{ Name = "Remove deletes one selected-photo index"; Text = $app; Pattern = "selectedPhotoFiles.splice(index, 1);" },
   @{ Name = "Request uses retained photo order"; Text = $app; Pattern = "const photoFilesForRequest = getSelectedPhotoFiles();" },
-  @{ Name = "Prepared photos use retained photo order"; Text = $app; Pattern = "const photos = await preparePhotos(photoFilesForRequest);" },
+  @{ Name = "Prepared photos use retained photo order"; Text = $app; Pattern = "const photos = await preparePhotos(photoFilesForRequest, submissionState);" },
   @{ Name = "New item clears photo state"; Text = $app; Pattern = "selectedPhotoFiles = [];" }
 )
 
