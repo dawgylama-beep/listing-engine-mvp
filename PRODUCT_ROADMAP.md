@@ -306,6 +306,13 @@
 - `Verified Market Range` now requires qualified sold exact/strong source-backed evidence; active asking and reference prices stay in their own buckets
 - Buy recommendations become conditional when the maximum recommended price is below the current asking price
 
+## Version 1.10.8 (Completed)
+- Maximum Recommended Price now requires verified sold, active exact/strong, or otherwise qualified exact/strong market support before it can materially exceed the target or asking price
+- Weak, partial, guide, auction, estimated, reference, and excluded outlier evidence can provide context but cannot independently establish a high buyer ceiling
+- Low-dollar Personal Buy recommendations cap the maximum near the target when pricing evidence is weak
+- Reports now include a `Maximum Price Guard` explanation when the maximum is capped or not established
+- Regression tests cover the `$10 asking / $135 maximum` failure mode and preserve Version 1.10.7 delivered-cost behavior
+
 ## Version 2.0
 - User accounts
 - Saved listings

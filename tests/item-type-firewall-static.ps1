@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.7"; Text = $index; Pattern = "Version 1.10.7" },
-  @{ Name = "Package version is 1.10.7"; Text = $package; Pattern = '"version": "1.10.7"' },
-  @{ Name = "Server version is 1.10.7"; Text = $server; Pattern = '$AppVersion = "1.10.7"' },
-  @{ Name = "Roadmap documents 1.10.7"; Text = $roadmap; Pattern = "Version 1.10.7 (Completed)" },
+  @{ Name = "Visible app version is 1.10.8"; Text = $index; Pattern = "Version 1.10.8" },
+  @{ Name = "Package version is 1.10.8"; Text = $package; Pattern = '"version": "1.10.8"' },
+  @{ Name = "Server version is 1.10.8"; Text = $server; Pattern = '$AppVersion = "1.10.8"' },
+  @{ Name = "Roadmap documents 1.10.8"; Text = $roadmap; Pattern = "Version 1.10.8 (Completed)" },
   @{ Name = "Canonical item type compatibility function exists"; Text = $api; Pattern = "function evaluateComparableItemTypeCompatibility" },
   @{ Name = "Submitted item type text is built deterministically"; Text = $api; Pattern = "function buildSubmittedItemTypeText" },
   @{ Name = "Candidate item type text includes URL slug"; Text = $api; Pattern = "record.canonicalUrl" },

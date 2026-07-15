@@ -215,6 +215,7 @@ const consumerSections = [
   ["consumerDownsideRisk", "Consumer Downside Risk"],
   ["cautiousBuyExplanation", "Cautious Buy Explanation"],
   ["recommendedOffer", "Recommended Offer"],
+  ["maximumRecommendedPriceExplanation", "Maximum Price Guard"],
   ["walkAwayPrice", "Walk-Away Price"],
   ["negotiationGuidance", "Negotiation Guidance"],
   ["reasonsToBuy", "Reasons to Buy"],
@@ -2656,6 +2657,8 @@ function renderConsumerCompactSummary(report, workflow) {
     report.noReliableComparableItemsFound,
     "Evidence is limited to the submitted photos, notes, and any source-backed records shown below."
   ));
+
+  appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation);
 
   if (report.bestCompatiblePriceFound && typeof report.bestCompatiblePriceFound === "object") {
     const bestSection = document.createElement("section");

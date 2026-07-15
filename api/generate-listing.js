@@ -7726,7 +7726,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     askingPriceNumber,
     fairValueNumber,
     decision,
-    conditionProfile
+    conditionProfile,
+    priceEvidence
   });
   const basis = reliableCompsFound
     ? "Pricing uses source-backed comparable or reference results that passed filtering."
@@ -7806,6 +7807,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     openingOffer: offer.openingOffer,
     targetPurchasePrice: offer.targetPurchasePrice,
     maximumRecommendedPrice: offer.maximumRecommendedPrice,
+    maximumRecommendedPriceExplanation: offer.maximumRecommendedPriceExplanation,
     walkAwayPrice: offer.walkAwayPrice,
     negotiationGuidance: buildConsumerNegotiationGuidance(report.negotiationGuidance, {
       decision,
@@ -8763,7 +8765,125 @@ function buildConsumerLowConfidenceReason({ hasAskingPrice, hasFairValue, hasRel
   return `Consumer value rating is insufficient because ${reasons.join(", ")}.`;
 }
 
-function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, conditionProfile }) {
+function buildMaximumPriceEvidenceProfile(priceEvidence = {}) {
+  const verifiedSoldCount = Number(priceEvidence.soldExactStrongCount || priceEvidence.primaryVerifiedSoldCount || 0);
+  const activeExactStrongCount = Number(priceEvidence.activeExactStrongCount || priceEvidence.primaryActiveAskingCount || 0);
+  const primaryRangeType = cleanText(priceEvidence.primaryRangeType);
+  const primaryRangeRecordCount = Number(priceEvidence.primaryRangeRecordCount || 0);
+  const primaryPreliminaryReferenceCount = Number(priceEvidence.primaryPreliminaryReferenceCount || 0);
+  const weakerRecordCount = Math.max(0, Number(priceEvidence.pricedRecordCount || 0) - verifiedSoldCount - activeExactStrongCount);
+  const hasVerifiedSoldSupport = verifiedSoldCount > 0;
+  const hasActiveExactStrongSupport = activeExactStrongCount > 0;
+  const hasQualifiedExactStrongEvidence = hasVerifiedSoldSupport || hasActiveExactStrongSupport;
+  const hasConsistentStrongCluster = hasQualifiedExactStrongEvidence
+    && primaryRangeRecordCount >= 2
+    && primaryRangeType !== "preliminary_reference";
+  const hasMarketMaximumSupport = hasQualifiedExactStrongEvidence || hasConsistentStrongCluster;
+
+  return {
+    verifiedSoldCount,
+    activeExactStrongCount,
+    primaryRangeType,
+    primaryRangeRecordCount,
+    primaryPreliminaryReferenceCount,
+    weakerRecordCount,
+    hasVerifiedSoldSupport,
+    hasActiveExactStrongSupport,
+    hasQualifiedExactStrongEvidence,
+    hasMarketMaximumSupport,
+    weakReferenceOnly: !hasMarketMaximumSupport && (primaryRangeType === "preliminary_reference" || weakerRecordCount > 0)
+  };
+}
+
+function isLowConfidenceDecision(decision = {}, priceEvidence = {}) {
+  const text = cleanText([
+    decision.pricingConfidence,
+    decision.buyerDecisionConfidence,
+    decision.valueRating,
+    decision.badgeReason,
+    decision.evidenceWarning,
+    priceEvidence.primaryRangeLabel,
+    priceEvidence.priceBasis
+  ].join(" "));
+  return /\b(low|limited|weak|preliminary|insufficient|reference|partial|guide|auction)\b/i.test(text);
+}
+
+function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, proposedMaxPrice, decision = {}, priceEvidence = {} } = {}) {
+  const profile = buildMaximumPriceEvidenceProfile(priceEvidence);
+  const lowConfidence = isLowConfidenceDecision(decision, priceEvidence);
+  const lowDollarAsking = Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 && askingPriceNumber <= 50;
+  const fallbackCap = Number.isFinite(targetPrice)
+    ? targetPrice
+    : Number.isFinite(askingPriceNumber)
+      ? askingPriceNumber
+      : null;
+
+  if (!Number.isFinite(proposedMaxPrice) || proposedMaxPrice <= 0) {
+    return {
+      established: false,
+      maxPrice: null,
+      explanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found."
+    };
+  }
+
+  if (!profile.hasMarketMaximumSupport) {
+    if (lowDollarAsking && Number.isFinite(fallbackCap) && fallbackCap > 0) {
+      return {
+        established: true,
+        maxPrice: roundMoney(fallbackCap),
+        explanation: "The maximum is capped near the target because available pricing evidence is weak. No reliable higher market ceiling could be established without verified sold or active exact/strong comparable prices. Personal enjoyment may justify paying more, but the market-supported maximum is not established beyond this cautious ceiling."
+      };
+    }
+    return {
+      established: false,
+      maxPrice: null,
+      explanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found. Weak, partial, guide, auction, estimated, or reference prices may provide context only."
+    };
+  }
+
+  let maxPrice = proposedMaxPrice;
+  const explanations = [];
+  if (Number.isFinite(targetPrice) && targetPrice > 0 && maxPrice > targetPrice * 2) {
+    if (!profile.hasQualifiedExactStrongEvidence) {
+      maxPrice = targetPrice * 2;
+      explanations.push("The maximum was capped because a price above 2x the target requires qualified exact/strong evidence.");
+    } else {
+      explanations.push("A maximum above 2x the target is allowed only because qualified exact/strong price evidence is available.");
+    }
+  }
+  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 && maxPrice > askingPriceNumber * 3) {
+    if (!profile.hasVerifiedSoldSupport && !profile.hasActiveExactStrongSupport) {
+      maxPrice = askingPriceNumber * 3;
+      explanations.push("The maximum was capped because a price above 3x the current asking price requires verified sold or active exact/strong support.");
+    } else {
+      explanations.push("A maximum above 3x the current asking price is supported by verified sold or active exact/strong evidence.");
+    }
+  }
+  if (lowConfidence && !profile.hasVerifiedSoldSupport && profile.activeExactStrongCount < 2) {
+    const lowConfidenceCap = Math.max(
+      Number.isFinite(targetPrice) && targetPrice > 0 ? targetPrice * 2 : 0,
+      Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 ? askingPriceNumber * 3 : 0
+    );
+    if (lowConfidenceCap > 0 && maxPrice > lowConfidenceCap) {
+      maxPrice = lowConfidenceCap;
+      explanations.push("Low pricing confidence capped the maximum so it cannot run far above the asking or target price.");
+    }
+  }
+  if (Number.isFinite(targetPrice) && targetPrice > 0 && maxPrice < targetPrice) {
+    maxPrice = targetPrice;
+    explanations.push("The maximum was raised only enough to stay consistent with the target purchase price.");
+  }
+
+  return {
+    established: true,
+    maxPrice: roundMoney(maxPrice),
+    explanation: explanations.length
+      ? explanations.join(" ")
+      : "Maximum Recommended Price is tied to verified sold or active exact/strong comparable support, not weak reference prices."
+  };
+}
+
+function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, conditionProfile, priceEvidence = {} }) {
   const unsupported = decision.valueRating === "Insufficient Evidence"
     || !Number.isFinite(askingPriceNumber)
     || !Number.isFinite(fairValueNumber)
@@ -8774,6 +8894,7 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
       openingOffer: "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
       targetPurchasePrice: "Not supported yet - evidence is too weak for a responsible target price.",
       maximumRecommendedPrice: "Not supported yet - do not set a maximum from weak evidence.",
+      maximumRecommendedPriceExplanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found.",
       openingOfferAmount: null,
       targetPurchasePriceAmount: null,
       maximumRecommendedPriceAmount: null,
@@ -8809,6 +8930,48 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   if (targetPrice > maxPrice) {
     targetPrice = maxPrice;
   }
+
+  const maximumPolicy = buildMaximumRecommendedPricePolicy({
+    askingPriceNumber,
+    targetPrice,
+    proposedMaxPrice: maxPrice,
+    decision,
+    priceEvidence
+  });
+
+  if (!maximumPolicy.established) {
+    if (openingOffer > targetPrice) {
+      openingOffer = targetPrice;
+    }
+    if (openingOffer >= targetPrice && targetPrice > 1) {
+      openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
+    }
+    const openingOfferText = `Opening Offer: ${formatMoney(openingOffer)}`;
+    const targetPurchasePrice = `Target Purchase Price: ${formatMoney(targetPrice)}`;
+    const maximumRecommendedPrice = "Maximum Recommended Price: Not established";
+    const maximumRecommendedPriceExplanation = maximumPolicy.explanation;
+    return {
+      openingOffer: openingOfferText,
+      targetPurchasePrice,
+      maximumRecommendedPrice,
+      maximumRecommendedPriceExplanation,
+      openingOfferAmount: openingOffer,
+      targetPurchasePriceAmount: targetPrice,
+      maximumRecommendedPriceAmount: null,
+      walkAwayPrice: `Walk-Away Price: Not established. ${maximumRecommendedPriceExplanation}`,
+      recommendedOffer: [
+        openingOfferText,
+        targetPurchasePrice,
+        maximumRecommendedPrice,
+        `Maximum Price Note: ${maximumRecommendedPriceExplanation}`
+      ]
+    };
+  }
+
+  maxPrice = maximumPolicy.maxPrice;
+  if (targetPrice > maxPrice) {
+    targetPrice = maxPrice;
+  }
   if (openingOffer >= targetPrice && targetPrice > 1) {
     openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
   }
@@ -8822,16 +8985,18 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   const openingOfferText = `Opening Offer: ${formatMoney(openingOffer)}`;
   const targetPurchasePrice = `Target Purchase Price: ${formatMoney(targetPrice)}`;
   const maximumRecommendedPrice = `Maximum Recommended Price: ${formatMoney(maxPrice)}`;
+  const maximumRecommendedPriceExplanation = maximumPolicy.explanation;
 
   return {
     openingOffer: openingOfferText,
     targetPurchasePrice,
     maximumRecommendedPrice,
+    maximumRecommendedPriceExplanation,
     openingOfferAmount: openingOffer,
     targetPurchasePriceAmount: targetPrice,
     maximumRecommendedPriceAmount: maxPrice,
     walkAwayPrice: `Walk-Away Price: ${formatMoney(maxPrice)} for personal use unless condition, accessories, warranty, return protection, or exact model evidence improves.`,
-    recommendedOffer: [openingOfferText, targetPurchasePrice, maximumRecommendedPrice]
+    recommendedOffer: [openingOfferText, targetPurchasePrice, maximumRecommendedPrice, `Maximum Price Note: ${maximumRecommendedPriceExplanation}`]
   };
 }
 
@@ -11160,6 +11325,8 @@ export const __queryIntegrityTestHooks = {
   summarizeConsumerVisiblePriceEvidence,
   buildConsumerOffer,
   buildConsumerRecommendationText,
+  buildMaximumRecommendedPricePolicy,
+  buildMaximumPriceEvidenceProfile,
   classifyConsumerPurchaseDecision,
   buildWeightedPriceEvidenceRecord,
   analyzePriceEvidenceCluster,

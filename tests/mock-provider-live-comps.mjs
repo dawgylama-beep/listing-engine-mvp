@@ -690,17 +690,62 @@ try {
     askingPriceNumber: 10,
     fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
     decision: weakDecision,
-    conditionProfile
+    conditionProfile,
+    priceEvidence: preliminaryOutlierEvidence
   });
   assert(weakOffer.openingOffer !== weakOffer.targetPurchasePrice, "Opening offer should not equal the target purchase price for a negotiable low-dollar buy.");
   assert(/\$[1-9]/.test(weakOffer.openingOffer) && /\$10/.test(weakOffer.targetPurchasePrice), "Opening offer should be below the $10 target asking price when negotiation is reasonable.");
   assert(weakOffer.openingOfferAmount < weakOffer.targetPurchasePriceAmount, "Opening offer amount should stay below target amount when negotiation is reasonable.");
   assert(weakOffer.targetPurchasePriceAmount <= weakOffer.maximumRecommendedPriceAmount, "Target purchase amount should not exceed the maximum recommended amount.");
+  assert(weakOffer.maximumRecommendedPriceAmount === 10, "Asking $10, target $10, low confidence, no sold evidence, and no active exact/strong evidence cannot produce a $135 maximum.");
+  assert(/capped near the target because available pricing evidence is weak/i.test(weakOffer.maximumRecommendedPriceExplanation), "Customer-facing explanation should state why the weak-evidence maximum was capped.");
+  const weakWideReferenceEvidence = {
+    primaryRangeType: "preliminary_reference",
+    primaryRangeLabel: "Preliminary Reference Range",
+    referenceCenter: 135,
+    primaryRangeRecordCount: 4,
+    pricedRecordCount: 6,
+    primaryPreliminaryReferenceCount: 4,
+    soldExactStrongCount: 0,
+    activeExactStrongCount: 0,
+    excludedOutlierCount: 2,
+    outlierRecords: [
+      { displayedPrice: "$5.00", rangeExclusionReason: "low weak reference outlier" },
+      { displayedPrice: "$600.00", rangeExclusionReason: "high weak reference outlier" }
+    ],
+    priceBasis: "Weak, partial, guide, auction, and reference price context only."
+  };
+  const weakWideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 10,
+    fairValueNumber: 135,
+    decision: { valueRating: "Promising Price - Limited Evidence", recommendation: "Buy", pricingConfidence: "Low" },
+    conditionProfile,
+    priceEvidence: weakWideReferenceEvidence
+  });
+  assert(weakWideOffer.maximumRecommendedPriceAmount === 10, "Weak/reference prices ranging from $5-$600 cannot establish or inflate the maximum price.");
+  assert(!/\$135|\$600/.test(weakWideOffer.maximumRecommendedPrice), "Excluded outliers and weak reference centers must not appear as the maximum recommended price.");
+  const noMaximumOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 85,
+    fairValueNumber: 220,
+    decision: { valueRating: "Proceed with Caution", recommendation: "Negotiate", pricingConfidence: "Low" },
+    conditionProfile,
+    priceEvidence: weakWideReferenceEvidence
+  });
+  assert(noMaximumOffer.maximumRecommendedPriceAmount === null && /Not established/i.test(noMaximumOffer.maximumRecommendedPrice), "Weak/reference evidence alone should use Maximum Recommended Price: Not established when a low-dollar cautious cap is not defensible.");
   const conditionalBuyOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: 8.6,
     decision: { valueRating: "Good Value", recommendation: "Buy" },
-    conditionProfile
+    conditionProfile,
+    priceEvidence: {
+      primaryRangeType: "verified_market",
+      primaryRangeLabel: "Verified Market Range",
+      soldExactStrongCount: 1,
+      activeExactStrongCount: 0,
+      primaryRangeRecordCount: 1,
+      pricedRecordCount: 1,
+      hasVerifiedSoldEvidence: true
+    }
   });
   const conditionalRecommendation = __queryIntegrityTestHooks.buildConsumerRecommendationText({ recommendation: "Buy" }, conditionalBuyOffer, 10);
   assert(/Buy only if negotiated to \$9 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
@@ -713,6 +758,15 @@ try {
   });
   assert(soldOutranksActive.primaryRangeType === "verified_market", "Verified sold exact/strong evidence should outrank active asking evidence.");
   assert(/\$40-\$44/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
+  const supportedHighOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 10,
+    fairValueNumber: 44,
+    decision: { valueRating: "Exceptional Value", recommendation: "Buy", pricingConfidence: "Medium" },
+    conditionProfile,
+    priceEvidence: soldOutranksActive
+  });
+  assert(supportedHighOffer.maximumRecommendedPriceAmount > 20, "Strong verified sold evidence can still support a maximum materially above asking when justified.");
+  assert(/qualified exact\/strong|verified sold|active exact\/strong/i.test(supportedHighOffer.maximumRecommendedPriceExplanation), "A maximum materially above target should explain the qualified exact/strong evidence basis.");
   const activeSoldWording = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-word-active", canonicalUrl: "https://example.com/sold-word-active", title: "Sold-style Georgia Bulldogs Coca-Cola tray listing", displayedPrice: "$18.00", priceType: "Active Asking", rawText: "For sale current listing asking price $18.00", classification: "Exact Match", identityMatchStrength: "Exact" })
