@@ -3438,10 +3438,10 @@ function isValuationBearingComparable(identityMatchStrength = "", priceEvidenceT
     && !/No Usable|Reference Without Price/i.test(priceEvidenceType);
 }
 
-function isVerifiedMarketRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
+function isVerifiedMarketRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}, record = {}) {
   return isComparableItemTypeValuationSafe(itemTypeCompatibility)
     && /Exact|Strong Similar/i.test(identityMatchStrength)
-    && /Confirmed Sold|Verified Sold/i.test(priceEvidenceType);
+    && isQualifiedVerifiedSoldPriceEvidence(record, normalizePriceTypeLabel(priceEvidenceType, record), identityMatchStrength);
 }
 
 function isPreliminaryAskingPriceRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}, record = {}) {
@@ -5934,7 +5934,10 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     && displayedPrice
     && /exact|strong|partial/i.test(visibleClassification)
     && !/No Usable|Reference Without Price|Unknown Price Type/i.test(priceTypeLabel);
-  const verifiedMarketInfluence = itemTypeValuationSafe && displayedPrice && /exact|strong/i.test(visibleClassification) && /Verified Sold/i.test(priceTypeLabel);
+  const verifiedMarketInfluence = itemTypeValuationSafe
+    && displayedPrice
+    && /exact|strong/i.test(visibleClassification)
+    && isQualifiedVerifiedSoldPriceEvidence({ priceType, priceTypeLabel, rawText, url, source, sourceBacked: url ? "URL provided by result text" : "" }, priceTypeLabel, visibleClassification);
 
   return {
     title,
@@ -6642,13 +6645,13 @@ function isPriceFoundEligible(record = {}) {
 function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
   const itemAmount = getVisibleItemPriceAmount(record);
   const shipping = extractShippingEvidence(record);
-  const deliveredAmount = Number.isFinite(itemAmount) && Number.isFinite(shipping.amount)
+  const deliveredAmount = Number.isFinite(itemAmount) && shipping.deliveredCostSupported && Number.isFinite(shipping.amount)
     ? roundMoney(itemAmount + shipping.amount)
     : null;
   const priceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
   const listingStatus = inferPriceFoundListingStatus(record, priceType);
   const includedInPreliminaryRange = canSupportPreliminaryAskingRangeFromVisibleRecord(record);
-  const influencedVerified = /Verified Sold/i.test(priceType) && canInfluenceValuationFromVisibleRecord(record);
+  const influencedVerified = isQualifiedVerifiedSoldPriceEvidence(record, priceType, cleanText(record.classification || record.identityMatchStrength)) && canInfluenceValuationFromVisibleRecord(record);
 
   return {
     title: cleanText(record.title) || "Source result",
@@ -6656,13 +6659,15 @@ function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
     marketplace: cleanText(record.source) || inferSourceFromResult(record.rawText, record.url),
     url: cleanText(record.url),
     canonicalUrl: cleanText(record.canonicalUrl) || canonicalizeComparableUrl(record.url) || cleanText(record.url),
-    itemPrice: Number.isFinite(itemAmount) ? formatMoney(itemAmount) : cleanText(record.displayedPrice || record.price),
+    itemPrice: Number.isFinite(itemAmount) ? formatSourceMoney(itemAmount) : cleanText(record.displayedPrice || record.price),
     itemPriceAmount: Number.isFinite(itemAmount) ? itemAmount : null,
     shipping: shipping.label,
     shippingAmount: Number.isFinite(shipping.amount) ? shipping.amount : null,
     shippingStatus: shipping.status,
-    deliveredCost: Number.isFinite(deliveredAmount) ? formatMoney(deliveredAmount) : "Cannot be confirmed",
+    shippingDisclosure: shipping.disclosure,
+    deliveredCost: Number.isFinite(deliveredAmount) ? formatSourceMoney(deliveredAmount) : "Not established",
     deliveredCostAmount: Number.isFinite(deliveredAmount) ? deliveredAmount : null,
+    deliveredCostStatus: Number.isFinite(deliveredAmount) ? "established" : "not_established",
     priceType,
     matchQuality: cleanText(record.classification || record.identityMatchStrength) || "Comparable Match",
     listingStatus,
@@ -6726,18 +6731,63 @@ function extractShippingEvidence(record = {}) {
     record.snippet,
     record.title
   ].map(cleanText).join(" ");
+  if (/\b(?:pickup\s+only|local\s+pickup|local\s+collection|pick\s*up\s+only)\b/i.test(text)) {
+    return {
+      status: "pickup",
+      label: "Pickup only",
+      amount: null,
+      deliveredCostSupported: false,
+      disclosure: "Pickup only; no shipped delivered cost was shown."
+    };
+  }
+  if (/\b(?:calculated\s+(?:at\s+checkout|shipping)|shipping\s+calculated|calculated\s+delivery)\b/i.test(text)) {
+    return {
+      status: "calculated",
+      label: "Calculated at checkout",
+      amount: null,
+      deliveredCostSupported: false,
+      disclosure: "Shipping was calculated at checkout and no supported amount was visible."
+    };
+  }
+  if (/\b(?:shipping|delivery)\s+(?:included|is\s+included|included\s+in\s+(?:price|total))\b|\b(?:price|total)\s+includes\s+(?:shipping|delivery)\b/i.test(text)) {
+    return {
+      status: "included",
+      label: "Included",
+      amount: 0,
+      deliveredCostSupported: true,
+      disclosure: "Shipping was explicitly shown as included."
+    };
+  }
   if (/\b(?:free\s+(?:shipping|delivery)|(?:shipping|delivery)\s*[:=-]?\s*free)\b/i.test(text)) {
-    return { status: "free", label: "Free", amount: 0 };
+    return {
+      status: "free",
+      label: "Free",
+      amount: 0,
+      deliveredCostSupported: true,
+      disclosure: "Shipping was explicitly shown as free."
+    };
   }
   const amountMatch = text.match(/\b(?:shipping|delivery)(?:\s+(?:charge|cost|fee))?\s*(?:is|:|=|-)?\s*(\$?\s*\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/i)
     || text.match(/(\$\s*\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:shipping|delivery)\b/i);
   if (amountMatch) {
     const amount = extractFirstMoneyAmount(amountMatch[1]);
     if (Number.isFinite(amount)) {
-      return { status: "known", label: formatMoney(amount), amount };
+      return {
+        status: "known",
+        label: formatSourceMoney(amount),
+        amount,
+        deliveredCostSupported: true,
+        disclosure: `Shipping was shown as ${formatSourceMoney(amount)}.`
+      };
     }
   }
-  return { status: "unknown", label: "Not shown", amount: null };
+  return {
+    status: "unknown",
+    label: "Not shown",
+    amount: null,
+    deliveredCostSupported: false,
+    disclosure: "Shipping was not shown."
+  };
 }
 
 function inferPriceFoundListingStatus(record = {}, priceType = "") {
@@ -6770,6 +6820,10 @@ function buildPriceFoundLimitation(record = {}, priceType = "", shipping = {}, l
   }
   if (shipping.status === "unknown") {
     limits.push("Shipping was not shown, so delivered cost cannot be confirmed.");
+  } else if (shipping.status === "calculated") {
+    limits.push("Shipping is calculated at checkout, so delivered cost is not established.");
+  } else if (shipping.status === "pickup") {
+    limits.push("Pickup-only result; compare against local pickup cost, not shipped delivery.");
   }
   if (/partial/i.test(record.classification || "")) {
     limits.push(cleanText(record.itemIdentityDifferences) || "Partial compatible match; exact details differ or remain unknown.");
@@ -6801,12 +6855,12 @@ function buildPriceFoundComparison({ askingPriceNumber, itemAmount, shipping, de
     return `Your ${formatMoney(askingPriceNumber)} purchase price appears competitive with this compatible active asking price once delivered cost is considered.`;
   }
   if (shipping.status === "unknown" && itemAmount < askingPriceNumber) {
-    return "A lower item price was found, but it cannot be confirmed as a better deal because shipping was not shown.";
+    return "A lower item price was found, but this listing may not be the lowest total cost because shipping was not shown.";
   }
   if (shipping.status === "unknown") {
     return `Your ${formatMoney(askingPriceNumber)} purchase price appears competitive with this compatible item price, but shipping was not shown.`;
   }
-  return "Delivered cost could not be confirmed.";
+  return "Delivered cost was not established from the visible source details.";
 }
 
 function priceFoundSortRank(record = {}) {
@@ -6826,6 +6880,116 @@ function comparePriceFoundRecords(a, b) {
   const aPrice = Number.isFinite(a.itemPriceAmount) ? a.itemPriceAmount : Number.POSITIVE_INFINITY;
   const bPrice = Number.isFinite(b.itemPriceAmount) ? b.itemPriceAmount : Number.POSITIVE_INFINITY;
   return aPrice - bPrice;
+}
+
+function compareCompatiblePriceContext(a, b) {
+  const aHasDelivered = Number.isFinite(a.deliveredCostAmount);
+  const bHasDelivered = Number.isFinite(b.deliveredCostAmount);
+  if (aHasDelivered && bHasDelivered && a.deliveredCostAmount !== b.deliveredCostAmount) {
+    return a.deliveredCostAmount - b.deliveredCostAmount;
+  }
+  if (aHasDelivered !== bHasDelivered) {
+    return aHasDelivered ? -1 : 1;
+  }
+  const aPrice = Number.isFinite(a.itemPriceAmount) ? a.itemPriceAmount : Number.POSITIVE_INFINITY;
+  const bPrice = Number.isFinite(b.itemPriceAmount) ? b.itemPriceAmount : Number.POSITIVE_INFINITY;
+  if (aPrice !== bPrice) return aPrice - bPrice;
+  return priceFoundSortRank(a) - priceFoundSortRank(b);
+}
+
+function priceContextKey(record = {}) {
+  return canonicalizeComparableUrl(record.canonicalUrl || record.url)
+    || `${cleanText(record.title)}|${cleanText(record.source)}|${cleanText(record.itemPrice)}`.toLowerCase();
+}
+
+function annotatePriceContextRecord(record = {}, label = "", summary = "") {
+  return {
+    ...record,
+    priceContextLabel: label,
+    priceContextSummary: summary
+  };
+}
+
+function buildBestCompatiblePriceFound(pricesFound = []) {
+  const records = pricesFound.filter((item) => Number.isFinite(item.itemPriceAmount));
+  if (!records.length) {
+    return null;
+  }
+  const knownDelivered = records
+    .filter((item) => Number.isFinite(item.deliveredCostAmount))
+    .sort(compareCompatiblePriceContext);
+  if (knownDelivered.length) {
+    const best = knownDelivered[0];
+    return annotatePriceContextRecord(
+      best,
+      "Best Compatible Price Found",
+      `Lowest supported delivered cost found: ${best.deliveredCost}. Taxes may apply.`
+    );
+  }
+  const lowestItem = records.slice().sort((a, b) => (a.itemPriceAmount || 0) - (b.itemPriceAmount || 0))[0];
+  return annotatePriceContextRecord(
+    lowestItem,
+    "Lowest visible item price found",
+    "Shipping was not shown for the lowest visible item price, so it is not established as the lowest delivered cost."
+  );
+}
+
+function buildOtherCompatiblePricesFound(pricesFound = [], best = null) {
+  const bestKey = best ? priceContextKey(best) : "";
+  const candidates = pricesFound
+    .filter((item) => Number.isFinite(item.itemPriceAmount) && priceContextKey(item) !== bestKey)
+    .slice()
+    .sort(compareCompatiblePriceContext);
+  if (!candidates.length) {
+    return [];
+  }
+  const selected = [];
+  const add = (record) => {
+    if (!record) return;
+    const key = priceContextKey(record);
+    if (!key || selected.some((item) => priceContextKey(item) === key)) return;
+    selected.push(annotatePriceContextRecord(record, "Other compatible price found", "Useful compatible price context shown for comparison."));
+  };
+  add(candidates[0]);
+  add(candidates[Math.floor(candidates.length / 2)]);
+  add(candidates[candidates.length - 1]);
+  add(candidates.find((item) => /Verified Sold/i.test(item.priceType)));
+  add(candidates.find((item) => /Active Asking/i.test(item.priceType) && Number.isFinite(item.deliveredCostAmount)));
+  add(candidates.find((item) => item.shippingStatus === "unknown"));
+  return selected.slice(0, 4);
+}
+
+function buildPriceSpectrumSummary(pricesFound = []) {
+  const records = pricesFound.filter((item) => Number.isFinite(item.itemPriceAmount));
+  if (!records.length) {
+    return "No compatible source-backed prices were found.";
+  }
+  const itemAmounts = records.map((item) => item.itemPriceAmount).filter(Number.isFinite).sort((a, b) => a - b);
+  const deliveredAmounts = records.map((item) => item.deliveredCostAmount).filter(Number.isFinite).sort((a, b) => a - b);
+  const unknownShippingCount = records.filter((item) => item.shippingStatus === "unknown").length;
+  const calculatedShippingCount = records.filter((item) => item.shippingStatus === "calculated").length;
+  const itemRange = itemAmounts.length
+    ? formatMoneyRangeFromAmounts(itemAmounts[0], itemAmounts[itemAmounts.length - 1])
+    : "";
+  const deliveredRange = deliveredAmounts.length
+    ? formatMoneyRangeFromAmounts(deliveredAmounts[0], deliveredAmounts[deliveredAmounts.length - 1])
+    : "";
+  const parts = [];
+  if (itemRange) {
+    parts.push(`Compatible visible item prices ranged from ${itemRange}.`);
+  }
+  if (deliveredRange) {
+    parts.push(`Known delivered costs ranged from ${deliveredRange}.`);
+  } else {
+    parts.push("No delivered-cost range was established because shipping was not fully visible.");
+  }
+  if (unknownShippingCount) {
+    parts.push(`${unknownShippingCount} result${unknownShippingCount === 1 ? "" : "s"} had shipping not shown; those item prices are not delivered totals.`);
+  }
+  if (calculatedShippingCount) {
+    parts.push(`${calculatedShippingCount} result${calculatedShippingCount === 1 ? "" : "s"} had shipping calculated at checkout.`);
+  }
+  return parts.join(" ");
 }
 
 function buildPricesFoundSummary(pricesFound = [], askingPriceNumber = null) {
@@ -7570,6 +7734,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       ? "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence."
       : "Live research did not complete. Consumer decision is AI-reasoning-only and low confidence.";
   const pricesFoundSummary = buildPricesFoundSummary(pricesFound, askingPriceNumber);
+  const bestCompatiblePriceFound = buildBestCompatiblePriceFound(pricesFound);
+  const otherCompatiblePricesFound = buildOtherCompatiblePricesFound(pricesFound, bestCompatiblePriceFound);
+  const priceSpectrumSummary = buildPriceSpectrumSummary(pricesFound);
   const researchResults = buildListingResearchResults({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const comparableQuality = buildListingComparableQuality({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const cautionItems = mergeStringArrays(
@@ -7605,6 +7772,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
+    bestCompatiblePriceFound,
+    otherCompatiblePricesFound,
+    priceSpectrumSummary,
     pricesFound,
     noCompatiblePricesFound: pricesFound.length ? "" : "No compatible source-backed prices were found.",
     verifiedMarketRange: priceEvidence.verifiedMarketRange,
@@ -7618,7 +7788,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     valuationEvidenceExplanation: buildConsumerValuationEvidenceExplanation(priceEvidence),
     priceRangeAnalysis: buildConsumerPriceRangeAnalysis(priceEvidence),
     pricingOutliersExcluded: priceEvidence.outlierRecords,
-    customerPricingSummary: buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted }),
+    customerPricingSummary: buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted, pricesFound }),
     priceBasis: ensurePrefix(report.priceBasis, priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
     estimatedFairMarketValue: priceEvidence.primaryRangeType === "verified_market" ? priceEvidence.verifiedMarketRange : buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
       fairValueNumber,
@@ -7629,7 +7799,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       reliableCompsFound
     }),
     valueRating: decision.valueRating,
-    recommendation: decision.recommendation,
+    recommendation: buildConsumerRecommendationText(decision, offer, askingPriceNumber),
     consumerDownsideRisk: decision.downsideRisk.summary,
     cautiousBuyExplanation: decision.cautiousBuyExplanation,
     recommendedOffer: offer.recommendedOffer,
@@ -7881,10 +8051,10 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
   const pricedRecords = preliminaryRangeRecords
     .map(buildWeightedPriceEvidenceRecord)
     .filter((record) => Number.isFinite(record.amount) && record.amount > 0);
-  const soldRecords = pricedRecords.filter((record) => /Verified Sold/i.test(record.normalizedPriceType));
-  const activeRecords = pricedRecords.filter((record) => /Active Asking/i.test(record.normalizedPriceType));
   const activeExactStrongRecords = pricedRecords.filter((record) => record.evidenceBucket === "current_asking");
   const soldExactStrongRecords = pricedRecords.filter((record) => record.evidenceBucket === "verified_market");
+  const soldRecords = soldExactStrongRecords;
+  const activeRecords = activeExactStrongRecords;
   const buckets = buildPriceEvidenceBuckets(pricedRecords);
   const primaryBucket = selectPrimaryPriceEvidenceBucket(buckets);
   const primaryAnalysis = analyzePriceEvidenceCluster(primaryBucket.records, primaryBucket);
@@ -7908,6 +8078,13 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
     ? formatMoneyRange(roundMoney(primaryAnalysis.low), roundMoney(primaryAnalysis.high))
     : "";
   const outlierNote = buildOutlierRangeNote(outlierRecords);
+  const primaryIncludedRecords = primaryAnalysis.includedRecords || [];
+  const primaryUnknownShippingCount = primaryIncludedRecords
+    .map(extractShippingEvidence)
+    .filter((shipping) => shipping.status === "unknown").length;
+  const primaryVerifiedSoldCount = primaryIncludedRecords.filter((record) => record.evidenceBucket === "verified_market").length;
+  const primaryActiveAskingCount = primaryIncludedRecords.filter((record) => record.evidenceBucket === "current_asking").length;
+  const primaryPreliminaryReferenceCount = primaryIncludedRecords.filter((record) => record.evidenceBucket === "preliminary_reference").length;
 
   return {
     records,
@@ -7937,6 +8114,10 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
     primaryRangeText,
     primaryRangeRecordCount: primaryAnalysis.includedRecords.length,
     primaryRawRecordCount: primaryBucket.records.length,
+    primaryVerifiedSoldCount,
+    primaryActiveAskingCount,
+    primaryPreliminaryReferenceCount,
+    primaryUnknownShippingCount,
     primaryEvidenceSummary: primaryAnalysis.hasRange && primaryBucket.records.length
       ? `${primaryBucket.label} driven by ${primaryAnalysis.includedRecords.length} of ${primaryBucket.records.length} compatible priced record${primaryBucket.records.length === 1 ? "" : "s"}.`
       : "",
@@ -7959,7 +8140,7 @@ function buildWeightedPriceEvidenceRecord(record = {}) {
   const amount = getVisibleItemPriceAmount(record);
   const normalizedPriceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
   const matchLevel = classifyPriceEvidenceMatchLevel(record);
-  const evidenceBucket = classifyPriceEvidenceBucket({ normalizedPriceType, matchLevel });
+  const evidenceBucket = classifyPriceEvidenceBucket({ normalizedPriceType, matchLevel, record });
   const evidenceWeight = priceEvidenceWeight({ normalizedPriceType, matchLevel, evidenceBucket });
   return {
     ...record,
@@ -7980,15 +8161,38 @@ function classifyPriceEvidenceMatchLevel(record = {}) {
   return "reference";
 }
 
-function classifyPriceEvidenceBucket({ normalizedPriceType = "", matchLevel = "" } = {}) {
+function classifyPriceEvidenceBucket({ normalizedPriceType = "", matchLevel = "", record = {} } = {}) {
   const exactOrStrong = matchLevel === "exact" || matchLevel === "strong";
-  if (/Verified Sold/i.test(normalizedPriceType) && exactOrStrong) {
+  if (isQualifiedVerifiedSoldPriceEvidence(record, normalizedPriceType, matchLevel) && exactOrStrong) {
     return "verified_market";
   }
   if (/Active Asking/i.test(normalizedPriceType) && exactOrStrong) {
     return "current_asking";
   }
   return "preliminary_reference";
+}
+
+function isQualifiedVerifiedSoldPriceEvidence(record = {}, normalizedPriceType = "", matchLevel = "") {
+  const exactOrStrong = /exact|strong/i.test(matchLevel);
+  if (!exactOrStrong || !/Verified Sold/i.test(normalizedPriceType)) {
+    return false;
+  }
+  if (!isUsableSourceRecord(record)) {
+    return false;
+  }
+  const statusText = cleanText([
+    record.priceType,
+    record.priceEvidenceType,
+    record.priceTypeLabel,
+    record.activeSoldReferenceStatus,
+    record.evidenceRole,
+    record.influencedVerifiedMarketRange,
+    extractLabeledResultPart(record.rawText, /(?:price\s*type|price\s*evidence\s*type|listing\s*status|sold\s*status|status)\s*[:=-]\s*([^|;.]+)/i)
+  ].join(" "));
+  if (!/\b(confirmed sold|verified sold|sold for|sold price|final sale price|price realized|hammer price|completed sale)\b/i.test(statusText)) {
+    return false;
+  }
+  return !/\b(active asking|shopping offer|for sale|current listing|current bid|opening bid|asking price|estimated|guide price|reference price|reference without price|ended listing without confirmed sale)\b/i.test(statusText);
 }
 
 function priceEvidenceBucketLabel(bucket) {
@@ -8277,17 +8481,23 @@ function buildConsumerPriceRangeAnalysis(priceEvidence = {}) {
   return parts.filter(Boolean).join(" ");
 }
 
-function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, searchCompleted = false } = {}) {
+function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, searchCompleted = false, pricesFound = [] } = {}) {
   if (!priceEvidence.pricedRecords?.length) {
     return searchCompleted
       ? "No compatible visible prices were strong enough to create a buyer-facing range. The recommendation is based on limited evidence."
       : "Live search did not complete, so no source-backed price range was established.";
   }
+  const activeShownSeparately = Math.max(0, priceEvidence.activeExactStrongCount - priceEvidence.primaryActiveAskingCount);
+  const primaryUnknownShippingCount = Number(priceEvidence.primaryUnknownShippingCount || 0);
+  const visibleUnknownShippingCount = pricesFound.filter((item) => item.shippingStatus === "unknown").length;
+  const unknownShippingCount = primaryUnknownShippingCount || visibleUnknownShippingCount;
   return [
-    `${priceEvidence.primaryRangeLabel || "Primary range"} drove the displayed range.`,
-    `${priceEvidence.primaryRangeRecordCount || 0} central record${(priceEvidence.primaryRangeRecordCount || 0) === 1 ? "" : "s"} were used.`,
-    priceEvidence.hasVerifiedSoldEvidence ? "Qualified sold evidence was available." : "No qualified sold evidence was available.",
-    priceEvidence.outlierNote || "No range-setting outliers were excluded.",
+    `${priceEvidence.primaryRangeLabel || "Primary range"} drove the displayed range using ${priceEvidence.primaryRangeRecordCount || 0} central record${(priceEvidence.primaryRangeRecordCount || 0) === 1 ? "" : "s"}.`,
+    `${priceEvidence.primaryVerifiedSoldCount || 0} verified sold exact/strong record${(priceEvidence.primaryVerifiedSoldCount || 0) === 1 ? "" : "s"} were used.`,
+    `${priceEvidence.primaryActiveAskingCount || 0} active asking record${(priceEvidence.primaryActiveAskingCount || 0) === 1 ? "" : "s"} were used in the displayed range.`,
+    activeShownSeparately ? `${activeShownSeparately} active listing${activeShownSeparately === 1 ? " was" : "s were"} shown separately.` : "",
+    unknownShippingCount ? `${unknownShippingCount} compatible price result${unknownShippingCount === 1 ? " had" : "s had"} unknown shipping.` : "No range-driving result had unknown shipping.",
+    priceEvidence.excludedOutlierCount ? `${priceEvidence.excludedOutlierCount} outlier/reference price${priceEvidence.excludedOutlierCount === 1 ? " was" : "s were"} excluded from the primary range.` : "No range-setting outliers were excluded.",
     `Badge selected: ${decision.valueRating || "not rated"} because ${decision.badgeReason || "the asking price was compared to the strongest available evidence bucket."}`
   ].filter(Boolean).join(" ");
 }
@@ -8564,6 +8774,9 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
       openingOffer: "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
       targetPurchasePrice: "Not supported yet - evidence is too weak for a responsible target price.",
       maximumRecommendedPrice: "Not supported yet - do not set a maximum from weak evidence.",
+      openingOfferAmount: null,
+      targetPurchasePriceAmount: null,
+      maximumRecommendedPriceAmount: null,
       walkAwayPrice: "Not enough evidence for a precise walk-away price.",
       recommendedOffer: [
         "Opening Offer: Not supported yet.",
@@ -8593,11 +8806,17 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 1 && openingOffer >= askingPriceNumber && /Negotiate|Buy|Promising|Cautious|Reasonable/i.test([decision.recommendation, decision.valueRating].join(" "))) {
     openingOffer = Math.max(1, askingPriceNumber <= 25 ? Math.floor(askingPriceNumber - 1) : roundMoney(askingPriceNumber * 0.9));
   }
+  if (targetPrice > maxPrice) {
+    targetPrice = maxPrice;
+  }
   if (openingOffer >= targetPrice && targetPrice > 1) {
     openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
   }
   if (targetPrice > maxPrice) {
     targetPrice = maxPrice;
+  }
+  if (openingOffer > targetPrice) {
+    openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
   }
 
   const openingOfferText = `Opening Offer: ${formatMoney(openingOffer)}`;
@@ -8608,9 +8827,22 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
     openingOffer: openingOfferText,
     targetPurchasePrice,
     maximumRecommendedPrice,
+    openingOfferAmount: openingOffer,
+    targetPurchasePriceAmount: targetPrice,
+    maximumRecommendedPriceAmount: maxPrice,
     walkAwayPrice: `Walk-Away Price: ${formatMoney(maxPrice)} for personal use unless condition, accessories, warranty, return protection, or exact model evidence improves.`,
     recommendedOffer: [openingOfferText, targetPurchasePrice, maximumRecommendedPrice]
   };
+}
+
+function buildConsumerRecommendationText(decision = {}, offer = {}, askingPriceNumber = null) {
+  const maxPrice = Number.isFinite(offer.maximumRecommendedPriceAmount)
+    ? offer.maximumRecommendedPriceAmount
+    : extractFirstMoneyAmount(offer.maximumRecommendedPrice);
+  if (Number.isFinite(askingPriceNumber) && Number.isFinite(maxPrice) && maxPrice < askingPriceNumber && /buy/i.test(decision.recommendation || "")) {
+    return `Buy only if negotiated to ${formatMoney(maxPrice)} or below.`;
+  }
+  return decision.recommendation;
 }
 
 function roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor = 0.88 } = {}) {
@@ -8631,6 +8863,13 @@ function roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor =
 
 function buildConsumerNegotiationGuidance(value, { decision, offer, reliableCompsFound, askingPriceNumber, fairValueNumber }) {
   const text = cleanText(value);
+  const maxPrice = Number.isFinite(offer.maximumRecommendedPriceAmount)
+    ? offer.maximumRecommendedPriceAmount
+    : extractFirstMoneyAmount(offer.maximumRecommendedPrice);
+  if (Number.isFinite(askingPriceNumber) && Number.isFinite(maxPrice) && maxPrice < askingPriceNumber && /buy/i.test(decision.recommendation || "")) {
+    const conditionalText = `Buy only if negotiated to ${formatMoney(maxPrice)} or below. The current asking price is ${formatMoney(askingPriceNumber)}, so the deal is conditional rather than an unconditional Buy.`;
+    return [conditionalText, text].filter(Boolean).join(" ");
+  }
   if (!reliableCompsFound || decision.valueRating === "Insufficient Evidence") {
     if (decision.valueRating !== "Insufficient Evidence" && Array.isArray(offer.recommendedOffer) && offer.recommendedOffer.length) {
       return text || `Use this as cautious personal-use negotiation, not a verified market claim. ${offer.openingOffer}; ${offer.targetPurchasePrice}; keep the maximum tied to the central supported range and condition.`;
@@ -9757,8 +9996,29 @@ function formatMoneyRange(low, high) {
   return `${formatMoney(roundedLow)}-${formatMoney(roundedHigh)}`;
 }
 
+function formatMoneyRangeFromAmounts(low, high) {
+  if (Math.abs(low - high) < 0.01) {
+    return formatSourceMoney(low);
+  }
+  return `${formatSourceMoney(low)}-${formatSourceMoney(high)}`;
+}
+
 function formatMoney(value) {
   return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+function formatSourceMoney(value) {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  const roundedCents = Math.round(value * 100) / 100;
+  const hasCents = Math.abs(roundedCents - Math.round(roundedCents)) > 0.001;
+  return roundedCents.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: hasCents ? 2 : 0
+  });
 }
 
 function splitComparableItems(items) {
@@ -10894,11 +11154,16 @@ export const __queryIntegrityTestHooks = {
   canInfluenceValuationFromVisibleRecord,
   canSupportPreliminaryAskingRangeFromVisibleRecord,
   buildConsumerPricesFound,
+  buildBestCompatiblePriceFound,
+  buildOtherCompatiblePricesFound,
+  buildPriceSpectrumSummary,
   summarizeConsumerVisiblePriceEvidence,
   buildConsumerOffer,
+  buildConsumerRecommendationText,
   classifyConsumerPurchaseDecision,
   buildWeightedPriceEvidenceRecord,
   analyzePriceEvidenceCluster,
   extractShippingEvidence,
-  normalizePriceTypeLabel
+  normalizePriceTypeLabel,
+  isQualifiedVerifiedSoldPriceEvidence
 };

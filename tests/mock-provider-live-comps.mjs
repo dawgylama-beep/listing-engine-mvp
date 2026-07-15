@@ -561,12 +561,28 @@ try {
   assert(deliveredHigher.length === 1, "Compatible active listing with visible price should appear in Prices Found.");
   assert(deliveredHigher[0].itemPrice === "$6.49" && deliveredHigher[0].shipping === "$8.00" && deliveredHigher[0].deliveredCost === "$14.49", "Delivered cost should equal item price plus explicit shipping.");
   assert(/delivered cost is higher/i.test(deliveredHigher[0].comparisonToYourPrice), "Lower item price with higher delivered cost must not be called a better deal.");
-  const unknownShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/unknown-shipping" })] }, 10);
-  assert(unknownShipping[0].shipping === "Not shown" && unknownShipping[0].deliveredCost === "Cannot be confirmed", "Shipping absent should never default to free.");
-  assert(/cannot be confirmed as a better deal because shipping was not shown/i.test(unknownShipping[0].comparisonToYourPrice), "Lower item price with unknown shipping should not be confirmed as a better deal.");
+  const unknownShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/unknown-shipping", displayedPrice: "$6.00" })] }, 10);
+  assert(unknownShipping[0].itemPrice === "$6" && unknownShipping[0].shipping === "Not shown" && unknownShipping[0].deliveredCost === "Not established", "A $6 listing with no shipping evidence should show item price, Shipping: Not shown, and Delivered cost: Not established.");
+  assert(unknownShipping[0].shippingAmount === null && unknownShipping[0].deliveredCostAmount === null, "Unknown shipping should never be treated as free or as a delivered total.");
+  assert(/may not be the lowest total cost because shipping was not shown/i.test(unknownShipping[0].comparisonToYourPrice), "Lower item price with unknown shipping should not be confirmed as a better delivered deal.");
   const freeShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/free-shipping", delivery: "Free shipping" })] }, 10);
   assert(freeShipping[0].shipping === "Free" && freeShipping[0].deliveredCost === "$6.49", "Free shipping should produce delivered cost equal to item price.");
   assert(/lower delivered cost/i.test(freeShipping[0].comparisonToYourPrice), "Free-shipping compatible active listing can be described as lower delivered cost.");
+  const deliveredRanking = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    strongComparables: [
+      priceRecord({ url: "https://example.com/six-plus-fifteen", canonicalUrl: "https://example.com/six-plus-fifteen", displayedPrice: "$6.00", delivery: "Shipping $15.00" }),
+      priceRecord({ url: "https://example.com/fifteen-free", canonicalUrl: "https://example.com/fifteen-free", displayedPrice: "$15.00", delivery: "Free shipping" }),
+      priceRecord({ url: "https://example.com/six-unknown", canonicalUrl: "https://example.com/six-unknown", displayedPrice: "$6.00" }),
+      priceRecord({ url: "https://example.com/twenty-five-included", canonicalUrl: "https://example.com/twenty-five-included", displayedPrice: "$25.00", delivery: "Shipping included" })
+    ]
+  }, 10);
+  const bestDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound(deliveredRanking);
+  assert(/fifteen-free/.test(bestDelivered.url) && bestDelivered.deliveredCost === "$15", "A $6 item with $15 shipping should rank behind a $15 item with free shipping.");
+  assert(!/six-unknown/.test(bestDelivered.url), "A $6 item with unknown shipping must not automatically be labeled the best delivered deal.");
+  const otherDelivered = __queryIntegrityTestHooks.buildOtherCompatiblePricesFound(deliveredRanking, bestDelivered);
+  assert(JSON.stringify(otherDelivered).includes("twenty-five-included"), "Higher compatible prices should remain visible in Other Compatible Prices Found.");
+  const spectrumSummary = __queryIntegrityTestHooks.buildPriceSpectrumSummary(deliveredRanking);
+  assert(/unknown shipping|not shown/i.test(spectrumSummary) && /Known delivered costs ranged/i.test(spectrumSummary), "Price spectrum summary should separate item prices from known delivered costs and unknown shipping.");
   const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
   assert(auctionBid[0].priceType === "Auction Current Bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
   const noPriceExactBuckets = __queryIntegrityTestHooks.bucketSerperRecords([{
@@ -617,6 +633,7 @@ try {
   const priceEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(mixedSourceRecords);
   assert(priceEvidence.pricedRecords.length === mixedPrices.length, "Preliminary range should count compatible priced records only.");
   assert(mixedPrices.every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
+  assert(priceEvidence.primaryRangeType === "current_asking", "Active compatible listings should appear separately under Current Asking-Price Range when no verified sold evidence exists.");
   const preliminaryOutlierSourceRecords = {
     partialComparables: [
       priceRecord({ url: "https://example.com/prelim-6", canonicalUrl: "https://example.com/prelim-6", displayedPrice: "$6.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
@@ -677,6 +694,16 @@ try {
   });
   assert(weakOffer.openingOffer !== weakOffer.targetPurchasePrice, "Opening offer should not equal the target purchase price for a negotiable low-dollar buy.");
   assert(/\$[1-9]/.test(weakOffer.openingOffer) && /\$10/.test(weakOffer.targetPurchasePrice), "Opening offer should be below the $10 target asking price when negotiation is reasonable.");
+  assert(weakOffer.openingOfferAmount < weakOffer.targetPurchasePriceAmount, "Opening offer amount should stay below target amount when negotiation is reasonable.");
+  assert(weakOffer.targetPurchasePriceAmount <= weakOffer.maximumRecommendedPriceAmount, "Target purchase amount should not exceed the maximum recommended amount.");
+  const conditionalBuyOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 10,
+    fairValueNumber: 8.6,
+    decision: { valueRating: "Good Value", recommendation: "Buy" },
+    conditionProfile
+  });
+  const conditionalRecommendation = __queryIntegrityTestHooks.buildConsumerRecommendationText({ recommendation: "Buy" }, conditionalBuyOffer, 10);
+  assert(/Buy only if negotiated to \$9 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
   const soldOutranksActive = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
@@ -686,6 +713,12 @@ try {
   });
   assert(soldOutranksActive.primaryRangeType === "verified_market", "Verified sold exact/strong evidence should outrank active asking evidence.");
   assert(/\$40-\$44/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
+  const activeSoldWording = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+    strongComparables: [
+      priceRecord({ url: "https://example.com/sold-word-active", canonicalUrl: "https://example.com/sold-word-active", title: "Sold-style Georgia Bulldogs Coca-Cola tray listing", displayedPrice: "$18.00", priceType: "Active Asking", rawText: "For sale current listing asking price $18.00", classification: "Exact Match", identityMatchStrength: "Exact" })
+    ]
+  });
+  assert(activeSoldWording.primaryRangeType === "current_asking", "Active listings cannot drive Verified Market Range merely because their title resembles sold wording.");
   const activeOutranksPartial = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/active-24", canonicalUrl: "https://example.com/active-24", displayedPrice: "$24.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })

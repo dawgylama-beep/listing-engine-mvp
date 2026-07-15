@@ -1,6 +1,6 @@
 {
   "name": "listing-engine-mvp",
-  "version": "1.10.6",
+  "version": "1.10.7",
   "private": true,
   "type": "module",
   "description": "OpenAI-powered marketplace listing generator MVP.",

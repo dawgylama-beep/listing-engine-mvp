@@ -299,6 +299,13 @@
 - Buyer badges are calibrated so weak, partial, guide, or reference evidence cannot produce `Exceptional Value`
 - Opening offers now stay below the target/asking price when cautious negotiation is appropriate
 
+## Version 1.10.7 (Completed)
+- Personal Buy price cards now show explicit shipping states and delivered cost only when supported by visible source evidence
+- `Best Compatible Price Found`, `Other Compatible Prices Found`, and `Price Spectrum Summary` now give buyers clearer price context before Copy Summary
+- Unknown shipping is never treated as free, and known delivered cost can outrank a lower item price with unknown shipping
+- `Verified Market Range` now requires qualified sold exact/strong source-backed evidence; active asking and reference prices stay in their own buckets
+- Buy recommendations become conditional when the maximum recommended price is below the current asking price
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -196,6 +196,9 @@ const consumerSections = [
   ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
+  ["bestCompatiblePriceFound", "Best Compatible Price Found"],
+  ["priceSpectrumSummary", "Price Spectrum Summary"],
+  ["otherCompatiblePricesFound", "Other Compatible Prices Found"],
   ["pricesFound", "Prices Found"],
   ["verifiedMarketRange", "Verified Market Range"],
   ["currentAskingPriceRange", "Current Asking-Price Range"],
@@ -2654,6 +2657,33 @@ function renderConsumerCompactSummary(report, workflow) {
     "Evidence is limited to the submitted photos, notes, and any source-backed records shown below."
   ));
 
+  if (report.bestCompatiblePriceFound && typeof report.bestCompatiblePriceFound === "object") {
+    const bestSection = document.createElement("section");
+    bestSection.className = "consumer-compact-section price-context-section";
+    const bestTitle = document.createElement("h4");
+    bestTitle.textContent = report.bestCompatiblePriceFound.priceContextLabel || "Best Compatible Price Found";
+    bestSection.appendChild(bestTitle);
+    if (report.bestCompatiblePriceFound.priceContextSummary) {
+      const summary = document.createElement("p");
+      summary.textContent = report.bestCompatiblePriceFound.priceContextSummary;
+      bestSection.appendChild(summary);
+    }
+    bestSection.appendChild(renderPriceFoundCard(report.bestCompatiblePriceFound));
+    details.appendChild(bestSection);
+  }
+
+  appendConsumerCompactSection(details, "Price Spectrum Summary", report.priceSpectrumSummary);
+
+  if (normalizeArray(report.otherCompatiblePricesFound).length) {
+    const otherSection = document.createElement("section");
+    otherSection.className = "consumer-compact-section price-context-section";
+    const otherTitle = document.createElement("h4");
+    otherTitle.textContent = "Other Compatible Prices Found";
+    otherSection.appendChild(otherTitle);
+    otherSection.appendChild(renderPricesFound(report.otherCompatiblePricesFound));
+    details.appendChild(otherSection);
+  }
+
   const pricesSection = document.createElement("section");
   pricesSection.className = "consumer-compact-section";
   const pricesTitle = document.createElement("h4");
@@ -2773,66 +2803,64 @@ function renderPricesFound(value) {
   }
 
   for (const item of records) {
-    const card = document.createElement("article");
-    card.className = "price-found-card";
-
-    const header = document.createElement("div");
-    header.className = "price-found-header";
-    const title = document.createElement("h5");
-    title.textContent = item.title || "Source listing";
-    const badge = document.createElement("span");
-    badge.className = "price-type-badge";
-    badge.textContent = item.priceType || "Unknown Price Type";
-    header.append(title, badge);
-
-    const amounts = document.createElement("dl");
-    amounts.className = "price-found-amounts";
-    [
-      ["Item price", item.itemPrice],
-      ["Shipping", item.shipping || "Not shown"],
-      ["Delivered cost", item.deliveredCost || "Cannot be confirmed"]
-    ].forEach(([label, detail]) => appendDefinitionRow(amounts, label, detail));
-
-    const comparison = document.createElement("p");
-    comparison.className = "price-found-comparison";
-    comparison.textContent = item.comparisonToYourPrice || item.conciseLimitation || "";
-
-    const details = document.createElement("details");
-    details.className = "price-found-details";
-    const summary = document.createElement("summary");
-    summary.textContent = "Details";
-    const meta = document.createElement("dl");
-    meta.className = "source-result-meta";
-    [
-      ["Source", item.source || item.marketplace],
-      ["Match quality", item.matchQuality],
-      ["Listing status", item.listingStatus],
-      ["Condition", item.condition],
-      ["Limitation", item.conciseLimitation],
-      ["Included in preliminary asking-price range", item.includedInPreliminaryAskingPriceRange],
-      ["Influenced verified market range", item.influencedVerifiedMarketRange],
-      ["Submitted item type", item.submittedItemType],
-      ["Candidate item type", item.candidateItemType],
-      ["Source support", item.sourceBacked]
-    ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
-    details.append(summary, meta);
-
-    if (item.url) {
-      const link = document.createElement("a");
-      link.className = "source-result-link";
-      link.href = item.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "Open source";
-      card.append(header, amounts, comparison, details, link);
-    } else {
-      card.append(header, amounts, comparison, details);
-    }
-
-    wrapper.appendChild(card);
+    wrapper.appendChild(renderPriceFoundCard(item));
   }
 
   return wrapper;
+}
+
+function renderPriceFoundCard(item) {
+  const card = document.createElement("article");
+  card.className = "price-found-card";
+
+  const header = document.createElement("div");
+  header.className = "price-found-header";
+  const titleGroup = document.createElement("div");
+  titleGroup.className = "price-found-title-group";
+  const title = document.createElement("h5");
+  title.textContent = item.title || "Source listing";
+  const source = document.createElement("p");
+  source.className = "price-found-source";
+  source.textContent = item.source || item.marketplace || "Source";
+  titleGroup.append(title, source);
+  const badge = document.createElement("span");
+  badge.className = "price-type-badge";
+  badge.textContent = item.priceType || "Unknown Price Type";
+  header.append(titleGroup, badge);
+
+  const amounts = document.createElement("dl");
+  amounts.className = "price-found-amounts";
+  [
+    ["Item price", item.itemPrice],
+    ["Shipping", item.shipping || "Not shown"],
+    ["Delivered cost", item.deliveredCost || "Not established"]
+  ].forEach(([label, detail]) => appendDefinitionRow(amounts, label, detail));
+
+  const meta = document.createElement("dl");
+  meta.className = "price-found-visible-meta";
+  [
+    ["Status", item.listingStatus],
+    ["Match", item.matchQuality],
+    ["Limitation", item.conciseLimitation]
+  ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
+
+  const comparison = document.createElement("p");
+  comparison.className = "price-found-comparison";
+  comparison.textContent = item.comparisonToYourPrice || item.priceContextSummary || item.conciseLimitation || "";
+
+  if (item.url) {
+    const link = document.createElement("a");
+    link.className = "source-result-link";
+    link.href = item.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open source";
+    card.append(header, amounts, meta, comparison, link);
+  } else {
+    card.append(header, amounts, meta, comparison);
+  }
+
+  return card;
 }
 
 function appendDefinitionRow(list, label, detail) {
@@ -3330,12 +3358,44 @@ function formatSearchDiagnosticsText(diagnostics) {
 }
 
 function formatSection(label, value) {
+  if (isPriceFoundSectionLabel(label)) {
+    const body = Array.isArray(value)
+      ? value.map(formatPriceFoundRecordText).join("\n")
+      : value && typeof value === "object"
+        ? formatPriceFoundRecordText(value)
+        : value;
+    return `${label}\n${body || ""}`;
+  }
+
   const body = Array.isArray(value)
     ? value.map((item) => item && typeof item === "object" ? formatResearchRecordText(item) : `- ${item}`).join("\n")
     : value && typeof value === "object"
       ? formatResearchRecordText(value)
       : value;
   return `${label}\n${body || ""}`;
+}
+
+function isPriceFoundSectionLabel(label = "") {
+  return /^(Best Compatible Price Found|Other Compatible Prices Found|Prices Found)$/i.test(label);
+}
+
+function formatPriceFoundRecordText(item = {}) {
+  const fields = [
+    ["Source", item.source || item.marketplace],
+    ["Item price", item.itemPrice],
+    ["Shipping", item.shipping || "Not shown"],
+    ["Delivered cost", item.deliveredCost || "Not established"],
+    ["Price type", item.priceType],
+    ["Listing status", item.listingStatus],
+    ["Match quality", item.matchQuality],
+    ["Limitation", item.conciseLimitation],
+    ["Open source", item.url]
+  ]
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}: ${value}`);
+  const title = item.priceContextLabel || item.title || "Compatible price";
+  const context = item.priceContextSummary ? ` | ${item.priceContextSummary}` : "";
+  return `- ${title}${context}${fields.length ? ` | ${fields.join(" | ")}` : ""}`;
 }
 
 function formatResearchRecordText(item) {

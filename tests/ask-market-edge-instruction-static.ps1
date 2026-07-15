@@ -48,7 +48,7 @@ $checks = @(
   @{ Name = "Frontend clears item session on New Item"; Text = $app; Pattern = "clearItemSession" },
   @{ Name = "Frontend blocks stale Ask responses"; Text = $app; Pattern = "isCurrentAskRequest" },
   @{ Name = "Frontend Ask helper references evidence and price"; Text = $index; Pattern = "Ask about this item, the evidence, the recommendation, a different price, or the listing" },
-  @{ Name = "Frontend visible version is current"; Text = $index; Pattern = "Version 1.10.6" }
+  @{ Name = "Frontend visible version is current"; Text = $index; Pattern = "Version 1.10.7" }
 )
 
 $failed = @()

@@ -1583,11 +1583,24 @@ summary:focus-visible {
   gap: 10px;
 }
 
+.price-found-title-group {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .price-found-header h5 {
   margin: 0;
   color: #17211f;
   font-size: 1rem;
   line-height: 1.35;
+}
+
+.price-found-source {
+  margin: 0;
+  color: #54615d;
+  font-size: 0.82rem;
+  font-weight: 750;
 }
 
 .price-type-badge {
@@ -1629,6 +1642,37 @@ summary:focus-visible {
   color: #17211f;
   font-size: 1rem;
   font-weight: 850;
+}
+
+.price-found-visible-meta {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(122, 67, 20, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.price-found-visible-meta div {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.34fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.price-found-visible-meta dt {
+  color: #61716c;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.price-found-visible-meta dd {
+  margin: 0;
+  color: #263a35;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .price-found-comparison {
@@ -2008,6 +2052,11 @@ summary:focus-visible {
   color: var(--text);
 }
 
+.price-context-section {
+  border-color: rgba(236, 176, 84, 0.26);
+  background: rgba(255, 255, 255, 0.11);
+}
+
 .risk-score-card::before {
   background: linear-gradient(180deg, var(--teal), var(--gold));
 }
@@ -2333,6 +2382,11 @@ summary:focus-visible {
 
   .price-found-amounts {
     grid-template-columns: 1fr;
+  }
+
+  .price-found-visible-meta div {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
   .risk-score-number {
