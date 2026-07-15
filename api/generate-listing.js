@@ -694,6 +694,7 @@ const liveCompsSearchSchema = {
     "comparableItemsFound",
     "strongComparables",
     "partialComparables",
+    "itemIdentificationEvidence",
     "referenceResults",
     "weakMatches",
     "rejectedMatches",
@@ -715,6 +716,12 @@ const liveCompsSearchSchema = {
       items: { type: "string" }
     },
     partialComparables: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    itemIdentificationEvidence: {
       type: "array",
       minItems: 0,
       maxItems: 8,
@@ -2132,10 +2139,10 @@ function applySerperRecordAccountingToRequests(providerRequestRecords = [], prov
 
 function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchStartedAt, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, elapsedMs }) {
   const buckets = bucketSerperRecords(records);
-  const strongVisible = [...buckets.strongComparables, ...buckets.partialComparables.filter((item) => /Strong Similar/i.test(item.classification))];
+  const strongVisible = buckets.strongComparables;
   const comparableItemsFound = recordsToLegacyComparableStrings(strongVisible);
   const providerSourceCount = rawProviderRecords.length;
-  const retainedVisibleResultCount = [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.referenceResults].length;
+  const retainedVisibleResultCount = [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.itemIdentificationEvidence, ...buckets.referenceResults].length;
   const rejectedCandidateCount = records.filter((record) => !record.retained || /Rejected/i.test(record.identityMatchStrength)).length;
   const domainsActuallyReturned = summarizeSourceLabels(records.map((record) => record.domain));
   const liveSearchStatus = comparableItemsFound.length
@@ -2168,15 +2175,16 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
   return {
     liveSearchStatus,
     comparableItemsFound,
-    resultsFound: [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.referenceResults, ...buckets.weakMatches, ...buckets.rejectedMatches].slice(0, 24),
+    resultsFound: [...buckets.strongComparables, ...buckets.partialComparables, ...buckets.itemIdentificationEvidence, ...buckets.referenceResults, ...buckets.weakMatches, ...buckets.rejectedMatches].slice(0, 24),
     strongComparables: buckets.strongComparables,
     partialComparables: buckets.partialComparables,
+    itemIdentificationEvidence: buckets.itemIdentificationEvidence,
     referenceResults: buckets.referenceResults,
     weakMatches: buckets.weakMatches,
     rejectedMatches: buckets.rejectedMatches,
     visibleResearchResultCount: retainedVisibleResultCount,
-    noReliableMatchesReason: comparableItemsFound.length ? "" : "Serper Google Search completed, but no source-backed exact or strong similar matches passed match-quality checks.",
-    searchEvidenceSummary: comparableItemsFound.length ? "Serper Google Search returned source-backed exact or strong similar evidence." : "Serper Google Search returned no retained exact or strong similar comparable evidence.",
+    noReliableMatchesReason: comparableItemsFound.length ? "" : "Serper Google Search completed, but no compatible source-backed exact or strong similar priced matches passed match-quality checks.",
+    searchEvidenceSummary: comparableItemsFound.length ? "Serper Google Search returned source-backed exact or strong similar priced comparable evidence." : "Serper Google Search returned no compatible source-backed prices; retained exact no-price records are identity evidence only.",
     sourceRoute,
     searchQueries,
     queriesPrioritized,
@@ -2246,6 +2254,7 @@ function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQuer
     resultsFound: [],
     strongComparables: [],
     partialComparables: [],
+    itemIdentificationEvidence: [],
     referenceResults: [],
     weakMatches: [],
     rejectedMatches: [],
@@ -2324,7 +2333,7 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake).slice(0, 5);
   const domainRecords = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const buildCandidate = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [] }) => ({
-    query: cleanSerperQuery(cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12)),
+    query: cleanSerperQuery(cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), requestedDomains.length ? 18 : 12)),
     rawCandidate: cleanText(rawCandidate || query),
     candidateOrigin,
     searchPass,
@@ -2370,10 +2379,13 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
       searchPass: "broader_fallback"
     }))
   ].filter((record) => record.query || record.rawCandidate);
+  const recoveryCandidates = buildSerperRecoverySearchQueries(context, marketplaceDomains)
+    .map((record) => buildCandidate(record))
+    .filter((record) => record.query || record.rawCandidate);
   const validRecords = [];
   const rejectedRecords = [];
   const signatureIndexes = new Map();
-  const addRecord = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [], maxValidRecords = 6 }) => {
+  const addRecord = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [], maxValidRecords = 12 }) => {
     const normalizedCandidate = cleanSerperQuery(query);
     const finalQuery = normalizedCandidate;
     const validation = validateSerperQueryCandidate(finalQuery, context, { searchPass, marketplaceDomains: requestedDomains, rawCandidate });
@@ -2437,9 +2449,14 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     addRecord({ query: siteQuery, rawCandidate: seedRecord?.rawCandidate || seedQuery, candidateOrigin: "marketplace_domain_composition", searchPass: "marketplace_site_google", marketplaceDomains });
   }
 
+  for (const record of recoveryCandidates) {
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
+  }
+
   for (const record of fallbackCandidates) {
-    if (validRecords.length >= 6) break;
-    addRecord(record);
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
   }
 
   if (!validRecords.length) {
@@ -2451,12 +2468,98 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   }
 
   return [
-    ...validRecords.slice(0, 6),
+    ...validRecords.slice(0, 12),
     ...rejectedRecords.slice(0, 24)
   ].map((record, index) => ({
     ...record,
     priority: index + 1
   }));
+}
+
+function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = []) {
+  const records = [];
+  const organization = firstKnown(context.visualOrganization, context.schoolName, context.teamName, context.subjectIdentity);
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const itemType = context.itemType;
+  const exactPhrase = selectExactVisiblePhrase(context);
+  const eventPhrase = selectEventSearchPhrase(context);
+  const productTitle = cleanSearchQuery(context.exactProductIdentity || context.productTitle || context.subjectIdentity, 8);
+  const identifier = firstKnown(context.upc, context.model, context.itemCode);
+  const exactBases = mergeStringArrays(
+    identifier ? [compactWords([identifier, brand || productTitle, itemType])] : [],
+    exactPhrase ? [compactWords([quoteSearchPhrase(exactPhrase), brand, organization, itemType])] : [],
+    eventPhrase ? [compactWords([quoteSearchPhrase(eventPhrase), organization, brand, itemType])] : [],
+    productTitle ? [compactWords([productTitle, brand, itemType])] : [],
+    context.labelText ? [compactWords([context.labelText, identifier, itemType])] : [],
+    8
+  ).filter(Boolean);
+  const reducedBases = mergeStringArrays(
+    compactWords([brand, organization, itemType]),
+    compactWords([organization, eventPhrase, itemType]),
+    compactWords([brand, eventPhrase, itemType]),
+    compactWords([context.namedPeople?.[0], organization, itemType]),
+    compactWords([mostDistinctiveProductWord(productTitle), organization, brand, itemType]),
+    8
+  ).filter(Boolean);
+  const priceTerms = ["price", "sold", "for sale", "auction", "value"];
+
+  const add = ({ query, searchPass, candidateOrigin, marketplaceDomains: domains = [] }) => {
+    if (!query) return;
+    records.push({
+      query,
+      rawCandidate: query,
+      candidateOrigin,
+      searchPass,
+      marketplaceDomains: domains
+    });
+  };
+
+  for (const query of exactBases.slice(0, 4)) {
+    add({ query, candidateOrigin: "recovery_exact_identity", searchPass: "priced_recovery_exact" });
+  }
+
+  for (const query of reducedBases.slice(0, 4)) {
+    add({ query, candidateOrigin: "recovery_reduced_identity", searchPass: "priced_recovery_reduced" });
+  }
+
+  for (const base of mergeStringArrays(exactBases, reducedBases, 4)) {
+    for (const term of priceTerms.slice(0, 3)) {
+      add({
+        query: compactWords([base, term]),
+        candidateOrigin: "recovery_price_oriented",
+        searchPass: "price_oriented_recovery"
+      });
+    }
+  }
+
+  for (const domain of marketplaceDomains.slice(0, 5)) {
+    const base = mergeStringArrays(exactBases, reducedBases, 2)[0] || productTitle || compactWords([brand, organization, itemType]);
+    add({
+      query: buildSerperSingleMarketplaceQuery(base, domain),
+      candidateOrigin: "recovery_separate_marketplace_domain",
+      searchPass: "marketplace_domain_recovery",
+      marketplaceDomains: [domain]
+    });
+  }
+
+  for (const base of mergeStringArrays(exactBases, reducedBases, 3)) {
+    add({
+      query: compactWords([base, "shopping"]),
+      candidateOrigin: "recovery_shopping_general",
+      searchPass: "shopping_general_recovery"
+    });
+  }
+
+  return records;
+}
+
+function buildSerperSingleMarketplaceQuery(seedQuery, domain) {
+  const baseQuery = cleanSerperQuery(seedQuery);
+  const cleanDomain = cleanText(domain).replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0];
+  if (!baseQuery || !cleanDomain) {
+    return baseQuery;
+  }
+  return cleanSerperQuery(`${baseQuery} site:${cleanDomain}`, 260);
 }
 
 function buildSerperMarketplaceQuery(seedQuery, marketplaceDomains = []) {
@@ -3513,14 +3616,24 @@ function bucketSerperRecords(records = []) {
   const buckets = {
     strongComparables: [],
     partialComparables: [],
+    itemIdentificationEvidence: [],
     referenceResults: [],
     weakMatches: [],
     rejectedMatches: []
   };
   for (const record of records) {
     const visible = serperRecordToVisibleResearchRecord(record);
-    if (record.identityMatchStrength === "Exact" || record.identityMatchStrength === "Strong Similar") {
+    if (isStrongComparableEvidenceRecord(record, visible)) {
       buckets.strongComparables.push(visible);
+    } else if (isNoPriceIdentityReference(record, visible)) {
+      buckets.itemIdentificationEvidence.push({
+        ...visible,
+        classification: "Exact identity reference - no usable price",
+        evidenceRole: "Identity/reference context only - not valuation support",
+        influencedReferenceRange: "No - exact identity reference only because no usable visible price was found.",
+        influencedVerifiedMarketRange: "No - no usable sold price evidence.",
+        includedInPreliminaryAskingPriceRange: "No - no usable visible price evidence."
+      });
     } else if (record.identityMatchStrength === "Partial") {
       buckets.partialComparables.push(visible);
     } else if (record.identityMatchStrength === "Reference Only") {
@@ -3534,10 +3647,32 @@ function bucketSerperRecords(records = []) {
   return {
     strongComparables: buckets.strongComparables.slice(0, 8),
     partialComparables: buckets.partialComparables.slice(0, 8),
+    itemIdentificationEvidence: buckets.itemIdentificationEvidence.slice(0, 8),
     referenceResults: buckets.referenceResults.slice(0, 8),
     weakMatches: buckets.weakMatches.slice(0, 8),
     rejectedMatches: buckets.rejectedMatches.slice(0, 8)
   };
+}
+
+function isStrongComparableEvidenceRecord(record = {}, visible = serperRecordToVisibleResearchRecord(record)) {
+  if (!(record.identityMatchStrength === "Exact" || record.identityMatchStrength === "Strong Similar")) {
+    return false;
+  }
+  if (!visible.url || visible.sourceBacked !== "URL-cited") {
+    return false;
+  }
+  if (!canSupportPreliminaryAskingRangeFromVisibleRecord(visible)) {
+    return false;
+  }
+  return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Identity\/Reference/i.test(normalizePriceTypeLabel(visible.priceType || visible.priceEvidenceType, visible));
+}
+
+function isNoPriceIdentityReference(record = {}, visible = serperRecordToVisibleResearchRecord(record)) {
+  if (!(record.identityMatchStrength === "Exact" || record.identityMatchStrength === "Strong Similar")) {
+    return false;
+  }
+  const amount = getVisibleItemPriceAmount(visible);
+  return !Number.isFinite(amount) || amount <= 0 || /No Usable Price Evidence|Reference Without Price|Unknown Price Type/i.test(normalizePriceTypeLabel(visible.priceType || visible.priceEvidenceType, visible));
 }
 
 function serperRecordToVisibleResearchRecord(record = {}) {
@@ -3568,6 +3703,7 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     currency: record.currency,
     priceType: record.priceEvidenceType,
     priceTypeLabel: record.priceTypeLabel,
+    evidenceType: record.evidenceType || record.evidenceRole || classification,
     delivery: record.delivery,
     condition: inferConditionFromSerperRecord(record),
     classification,
@@ -3602,6 +3738,7 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       record.delivery ? `Shipping/Delivery: ${record.delivery}` : "",
       `Price Type: ${record.priceEvidenceType}`,
       `Price Label: ${record.priceTypeLabel}`,
+      `Evidence Type: ${record.evidenceType || record.evidenceRole || classification}`,
       `URL: ${record.url}`,
       `Match quality: ${classification}`,
       `Submitted Item Type: ${record.submittedItemType || "Unknown"}`,
@@ -3642,6 +3779,13 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
   const invalidQueryPreflightCount = providerRequestRecords.filter((record) => record.validationPassed === false || record.failureStage === "invalid_query_preflight").length;
   const organicResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.organicResultCount || 0), 0);
   const shoppingResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0);
+  const pricedCandidateCount = records.filter((record) => Number.isFinite(getVisibleItemPriceAmount(serperRecordToVisibleResearchRecord(record)))).length;
+  const compatiblePricedCandidateCount = records.filter((record) => isStrongComparableEvidenceRecord(record)).length;
+  const noPriceIdentityReferenceCount = records.filter((record) => isNoPriceIdentityReference(record)).length;
+  const rejectedMismatchCount = records.filter((record) => /Rejected|Weak/i.test(record.identityMatchStrength) || /mismatch|incompatible/i.test(record.rejectionReason || record.itemTypeCompatibilityStatus || "")).length;
+  const recoverySearchPassesAttempted = providerRequestRecords
+    .filter((record) => record.attempted && /recovery/i.test(record.searchPass || ""))
+    .map((record) => record.searchPass);
   const droppedResultReasons = normalizeDropReasons(records
     .filter((record) => record.rejectionReason)
     .map((record) => record.rejectionReason));
@@ -3681,6 +3825,12 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     deduplicatedCandidateCount: records.length,
     exactCandidateCount: records.filter((record) => record.identityMatchStrength === "Exact").length,
     strongSimilarCandidateCount: records.filter((record) => record.identityMatchStrength === "Strong Similar").length,
+    pricedCandidateCount,
+    compatiblePricedCandidateCount,
+    noPriceIdentityReferenceCount,
+    rejectedMismatchCount,
+    compatiblePricedRecoveryThreshold: 3,
+    recoverySearchPassesAttempted: [...new Set(recoverySearchPassesAttempted)],
     visibleRetainedResultCount: retainedVisibleResultCount,
     retainedVisibleResultCount,
     rejectedCandidateCount,
@@ -3770,7 +3920,8 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
               "Guided Buyer Intake:",
               buyerIntakeText,
               `Extracted identity: ${JSON.stringify(identity)}`,
-              "Return every source-backed result reviewed in the correct visibility bucket: strongComparables, partialComparables, referenceResults, weakMatches, or rejectedMatches.",
+              "Return every source-backed result reviewed in the correct visibility bucket: strongComparables, partialComparables, itemIdentificationEvidence, referenceResults, weakMatches, or rejectedMatches.",
+              "Exact identity matches without a usable visible price belong in itemIdentificationEvidence, not strongComparables.",
               "Each result string must include source/platform/site, title, visible price if any, URL, match quality, price evidence type, and why it matches or was rejected."
             ].join("\n")
           }
@@ -3931,6 +4082,7 @@ function mergeLiveSearchResults(results = []) {
     comparableItemsFound: [],
     strongComparables: [],
     partialComparables: [],
+    itemIdentificationEvidence: [],
     referenceResults: [],
     weakMatches: [],
     rejectedMatches: [],
@@ -3942,14 +4094,14 @@ function mergeLiveSearchResults(results = []) {
   };
 
   for (const result of results) {
-    for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
+    for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "itemIdentificationEvidence", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
       merged[key].push(...normalizeStringArray(result?.[key], 24));
     }
     merged.noReliableMatchesReason = firstKnown(merged.noReliableMatchesReason, result?.noReliableMatchesReason);
     merged.searchEvidenceSummary = firstKnown(merged.searchEvidenceSummary, result?.searchEvidenceSummary);
   }
 
-  for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
+  for (const key of ["comparableItemsFound", "strongComparables", "partialComparables", "itemIdentificationEvidence", "referenceResults", "weakMatches", "rejectedMatches", "sourcesSearched", "searchCoverage", "searchQueriesUsed"]) {
     merged[key] = [...new Set(merged[key])].slice(0, 24);
   }
 
@@ -5118,6 +5270,7 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
     resultsFound: bucketedResearch.resultsFound,
     strongComparables: bucketedResearch.strongComparables,
     partialComparables: bucketedResearch.partialComparables,
+    itemIdentificationEvidence: bucketedResearch.itemIdentificationEvidence,
     referenceResults: bucketedResearch.referenceResults,
     weakMatches: bucketedResearch.weakMatches,
     rejectedMatches: bucketedResearch.rejectedMatches,
@@ -5196,6 +5349,7 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
     resultsFound: [],
     strongComparables: [],
     partialComparables: [],
+    itemIdentificationEvidence: [],
     referenceResults: [],
     weakMatches: [],
     rejectedMatches: [],
@@ -5292,6 +5446,7 @@ function buildEmptyResearchBuckets() {
   return {
     strongComparables: [],
     partialComparables: [],
+    itemIdentificationEvidence: [],
     referenceResults: [],
     weakMatches: [],
     rejectedMatches: [],
@@ -5572,6 +5727,7 @@ function collectSafeRawResultSummaries({ result = {}, citations = [], searchQuer
   normalizeStringArray(result.comparableItemsFound, 12).forEach((item) => addSummary(item, "comparableItemsFound"));
   normalizeStringArray(result.strongComparables, 12).forEach((item) => addSummary(item, "strongComparables"));
   normalizeStringArray(result.partialComparables, 12).forEach((item) => addSummary(item, "partialComparables"));
+  normalizeStringArray(result.itemIdentificationEvidence, 12).forEach((item) => addSummary(item, "itemIdentificationEvidence"));
   normalizeStringArray(result.referenceResults, 12).forEach((item) => addSummary(item, "referenceResults"));
   normalizeStringArray(result.weakMatches, 12).forEach((item) => addSummary(item, "weakMatches"));
   normalizeStringArray(result.rejectedMatches, 12).forEach((item) => addSummary(item, "rejectedMatches"));
@@ -5677,10 +5833,19 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
       });
       record.itemIdentityDifferences = cleanText(record.itemIdentityDifferences || record.itemTypeCompatibilityExplanation);
     } else if (!/rejected|weak/i.test(record.classification) && /exact|strong/i.test(identityStrength)) {
-      bucketName = "strongComparables";
       record.classification = identityStrength;
-      record.evidenceRole = buildEvidenceRoleForIdentityStrength(record);
-      record.influencedReferenceRange = record.displayedPrice ? "Yes, as visible asking/sold evidence with price-type limitations." : "No price supplied; identity support only.";
+      if (canSupportPreliminaryAskingRangeFromVisibleRecord(record)) {
+        bucketName = "strongComparables";
+        record.evidenceRole = buildEvidenceRoleForIdentityStrength(record);
+        record.influencedReferenceRange = "Yes, as compatible visible asking/sold evidence with price-type limitations.";
+      } else {
+        bucketName = "itemIdentificationEvidence";
+        record.classification = "Exact identity reference - no usable price";
+        record.evidenceRole = "Identity/reference context only - not valuation support";
+        record.influencedReferenceRange = "No - exact identity reference only because no usable visible price was found.";
+        record.influencedVerifiedMarketRange = "No - no usable sold price evidence.";
+        record.includedInPreliminaryAskingPriceRange = "No - no usable visible price evidence.";
+      }
     }
     const key = `${record.url || ""}|${record.title}|${record.classification}|${record.rejectionReason}`.toLowerCase();
     if (seen.has(key)) {
@@ -5695,6 +5860,7 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
 
   normalizeStringArray(result.strongComparables, 6).forEach((item) => addRecord("strongComparables", item));
   normalizeStringArray(result.partialComparables, 8).forEach((item) => addRecord("partialComparables", item));
+  normalizeStringArray(result.itemIdentificationEvidence, 8).forEach((item) => addRecord("itemIdentificationEvidence", item));
   normalizeStringArray(result.referenceResults, 8).forEach((item) => addRecord("referenceResults", item));
   normalizeStringArray(result.weakMatches, 8).forEach((item) => addRecord("weakMatches", item));
   normalizeStringArray(result.rejectedMatches, 8).forEach((item) => addRecord("rejectedMatches", item));
@@ -5705,7 +5871,7 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
     } else if (/\bweak\b/i.test(item)) {
       addRecord("weakMatches", item);
     } else if (/\breference|identity\b/i.test(item)) {
-      addRecord("referenceResults", item);
+      addRecord("itemIdentificationEvidence", item);
     } else if (/\bpartial|similar\b/i.test(item) && !/\bexact match\b|\blikely exact\b|\bstrong similar match\b/i.test(item)) {
       addRecord("partialComparables", item);
     } else {
@@ -5715,12 +5881,14 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
 
   trimBucketWithReason(buckets.strongComparables, 6, diagnostics, "strong comparable display cap");
   trimBucketWithReason(buckets.partialComparables, 8, diagnostics, "partial comparable display cap");
+  trimBucketWithReason(buckets.itemIdentificationEvidence, 8, diagnostics, "item identification evidence display cap");
   trimBucketWithReason(buckets.referenceResults, 8, diagnostics, "reference result display cap");
   trimBucketWithReason(buckets.weakMatches, 8, diagnostics, "weak match display cap");
   trimBucketWithReason(buckets.rejectedMatches, 8, diagnostics, "rejected match display cap");
   buckets.resultsFound = [
     ...buckets.strongComparables,
     ...buckets.partialComparables,
+    ...buckets.itemIdentificationEvidence,
     ...buckets.referenceResults,
     ...buckets.weakMatches,
     ...buckets.rejectedMatches
@@ -5728,6 +5896,7 @@ function buildResearchResultBuckets(result, legacyItems, citations, identity = {
   diagnostics.retainedVisibleResultCount = [
     ...buckets.strongComparables,
     ...buckets.partialComparables,
+    ...buckets.itemIdentificationEvidence,
     ...buckets.referenceResults
   ].filter(isUsableSourceRecord).length;
   buckets.normalizationDiagnostics = diagnostics;
@@ -6210,12 +6379,14 @@ function buildListingComparableQuality(liveSearch, comparableItemsFound) {
 function buildResearchVisibilityFields(liveSearch = {}) {
   const strongComparables = normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables");
   const partialComparables = normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables");
+  const itemIdentificationEvidence = normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence");
   const referenceResults = normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults");
   const weakMatches = normalizeResearchRecordArray(liveSearch.weakMatches, "weakMatches");
   const rejectedMatches = normalizeResearchRecordArray(liveSearch.rejectedMatches, "rejectedMatches");
   const resultsFound = [
     ...strongComparables,
     ...partialComparables,
+    ...itemIdentificationEvidence,
     ...referenceResults,
     ...weakMatches,
     ...rejectedMatches
@@ -6227,6 +6398,7 @@ function buildResearchVisibilityFields(liveSearch = {}) {
     resultsFound,
     strongComparables,
     partialComparables,
+    itemIdentificationEvidence,
     referenceResults,
     weakMatches,
     rejectedMatches,
@@ -6268,6 +6440,7 @@ function normalizeExistingResearchRecord(item, bucketName) {
     condition: cleanText(item.condition),
     classification: cleanText(item.classification) || inferResultClassification(rawText, bucketName),
     identityMatchStrength: cleanText(item.identityMatchStrength),
+    evidenceType: cleanText(item.evidenceType) || extractLabeledResultPart(rawText, /evidence\s*type\s*[:=-]\s*([^|;.]+)/i),
     itemTypeCompatible: item.itemTypeCompatible === true || cleanText(item.itemTypeCompatible).toLowerCase() === "true",
     submittedItemType: cleanText(item.submittedItemType),
     candidateItemType: cleanText(item.candidateItemType),
@@ -6304,7 +6477,10 @@ function buildSearchLimitations(liveSearch, resultsFound) {
     limitations.push(liveSearch.noReliableMatchesReason);
   }
   if (!normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables").length) {
-    limitations.push("No exact or strong comparable records are visible in this report.");
+    limitations.push("No compatible exact or strong comparable records with usable visible prices are visible in this report.");
+  }
+  if (normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence").length) {
+    limitations.push("Exact no-price source records are item identification evidence only and do not establish market value.");
   }
   if (normalizeResearchRecordArray(liveSearch.weakMatches, "weakMatches").length || normalizeResearchRecordArray(liveSearch.rejectedMatches, "rejectedMatches").length) {
     limitations.push("Weak and rejected matches are shown for transparency but do not establish fair market value.");
@@ -6321,6 +6497,7 @@ function countVisibleResearchResults(report = {}) {
     report.resultsFound,
     report.strongComparables,
     report.partialComparables,
+    report.itemIdentificationEvidence,
     report.referenceResults,
     report.weakMatches,
     report.rejectedMatches
@@ -6332,7 +6509,7 @@ function countReferenceSupportingResearchResults(report = {}) {
     report.strongComparables,
     report.partialComparables,
     report.referenceResults
-  ].flat().filter(isUsableSourceRecord).length;
+  ].flat().filter((item) => isUsableSourceRecord(item) && canSupportPreliminaryAskingRangeFromVisibleRecord(item)).length;
 }
 
 function isUsableSourceRecord(item) {
@@ -6347,6 +6524,9 @@ function isUsableSourceRecord(item) {
 
 function canInfluenceValuationFromVisibleRecord(record = {}) {
   if (!record || typeof record === "string") {
+    return false;
+  }
+  if (!canSupportPreliminaryAskingRangeFromVisibleRecord(record)) {
     return false;
   }
   const influenceText = cleanText(record.influencedReferenceRange).toLowerCase();
@@ -7379,6 +7559,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     pricesFound,
+    noCompatiblePricesFound: pricesFound.length ? "" : "No compatible source-backed prices were found.",
     preliminaryReferenceRange: cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile),
     referenceRangeBasis: cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
     priceBasis: ensurePrefix(report.priceBasis, priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
@@ -10248,6 +10429,10 @@ function parseBody(body) {
 export const __queryIntegrityTestHooks = {
   buildSerperSearchPlan,
   buildSerperMarketplaceQuery,
+  buildSerperSingleMarketplaceQuery,
+  bucketSerperRecords,
+  isStrongComparableEvidenceRecord,
+  isNoPriceIdentityReference,
   cleanSerperQuery,
   parseListLikeSearchPhrases,
   validateSerperQueryCandidate,

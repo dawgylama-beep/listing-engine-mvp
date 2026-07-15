@@ -12,15 +12,17 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.4"; Text = $index; Pattern = "Version 1.10.4" },
-  @{ Name = "Package version is 1.10.4"; Text = $package; Pattern = '"version": "1.10.4"' },
-  @{ Name = "Server version is 1.10.4"; Text = $server; Pattern = '$AppVersion = "1.10.4"' },
-  @{ Name = "Roadmap documents 1.10.4"; Text = $roadmap; Pattern = "Version 1.10.4 (Completed)" },
+  @{ Name = "Visible app version is 1.10.5"; Text = $index; Pattern = "Version 1.10.5" },
+  @{ Name = "Package version is 1.10.5"; Text = $package; Pattern = '"version": "1.10.5"' },
+  @{ Name = "Server version is 1.10.5"; Text = $server; Pattern = '$AppVersion = "1.10.5"' },
+  @{ Name = "Roadmap documents 1.10.5"; Text = $roadmap; Pattern = "Version 1.10.5 (Completed)" },
   @{ Name = "Final report stops progress timer"; Text = $app; Pattern = "function renderReport(report, sections) {" },
   @{ Name = "Report rendering replaces children"; Text = $app; Pattern = "results.replaceChildren(reportRoot);" },
   @{ Name = "Loading progress replaces children"; Text = $app; Pattern = "results.replaceChildren(card);" },
   @{ Name = "Empty state replaces children"; Text = $app; Pattern = "results.replaceChildren(intro);" },
   @{ Name = "Technical details disclosure exists"; Text = $app; Pattern = "function renderTechnicalSearchDetails" },
+  @{ Name = "Consumer compact report path exists"; Text = $app; Pattern = "function renderConsumerCompactSummary" },
+  @{ Name = "Consumer technical disclosure exists"; Text = $app; Pattern = "function renderCustomerTechnicalSearchDetails" },
   @{ Name = "Technical details summary exists"; Text = $app; Pattern = "Show Technical Search Details" },
   @{ Name = "Query diagnostics use compact details rows"; Text = $app; Pattern = 'document.createElement("details")' },
   @{ Name = "Query diagnostic summary exists"; Text = $app; Pattern = "query-diagnostic-summary" },
@@ -29,6 +31,10 @@ $checks = @(
   @{ Name = "Rejected records require expansion"; Text = $app; Pattern = "Show rejected queries" },
   @{ Name = "Show all details control exists"; Text = $app; Pattern = "Show all details" },
   @{ Name = "End marker is appended inside report root"; Text = $app; Pattern = "reportRoot.appendChild(renderEndOfReportMarker());" },
+  @{ Name = "Consumer path appends technical details after compact summary"; Text = $app; Pattern = "reportRoot.appendChild(renderCustomerTechnicalSearchDetails(report));" },
+  @{ Name = "Consumer compact summary includes Copy Summary"; Text = $app; Pattern = 'copyButton.textContent = "Copy Summary";' },
+  @{ Name = "Source links hide raw URL text"; Text = $app; Pattern = 'link.textContent = "Open source";' },
+  @{ Name = "Technical report section styles exist"; Text = $styles; Pattern = ".technical-report-section" },
   @{ Name = "Technical details styles exist"; Text = $styles; Pattern = ".technical-details-disclosure" },
   @{ Name = "Query summary styles exist"; Text = $styles; Pattern = ".query-diagnostic-summary" },
   @{ Name = "Rejected query summary styles exist"; Text = $styles; Pattern = ".rejected-query-summary" },
@@ -56,6 +62,15 @@ if ($app -notmatch "function renderReport\(report, sections\) \{[\s\S]*?results\
 $endMarkerCount = ([regex]::Matches($app, "reportRoot\.appendChild\(renderEndOfReportMarker\(\)\);")).Count
 if ($endMarkerCount -ne 1) {
   $failed += "There should be exactly one End of Report marker insertion path"
+}
+
+if ($app -notmatch "if \(isConsumerReport\(report\)\) \{[\s\S]*?reportRoot\.appendChild\(renderConsumerCompactSummary\(report, currentWorkflow\)\);[\s\S]*?reportRoot\.appendChild\(renderCustomerTechnicalSearchDetails\(report\)\);[\s\S]*?appendEndOfReport\(reportRoot\);[\s\S]*?results\.replaceChildren\(reportRoot\);[\s\S]*?return;") {
+  $failed += "Consumer report path should render compact summary, then collapsed technical details, then finish"
+}
+
+$consumerPathMatch = [regex]::Match($app, "if \(isConsumerReport\(report\)\) \{(?<body>[\s\S]*?)\n  \}")
+if ($consumerPathMatch.Success -and $consumerPathMatch.Groups["body"].Value -match "renderResearchEvidencePanel|renderAppraiserSummary|renderReportGroup") {
+  $failed += "Consumer report path must not render expanded research/appraiser groups"
 }
 
 $autoScrollPatterns = @(

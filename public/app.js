@@ -75,6 +75,7 @@ const listingSections = [
   ["resultsFound", "Results Found"],
   ["strongComparables", "Strong Comparables"],
   ["partialComparables", "Partial Comparables"],
+  ["itemIdentificationEvidence", "Item Identification Evidence"],
   ["referenceResults", "Reference Results"],
   ["weakMatches", "Weak Matches"],
   ["rejectedMatches", "Rejected Matches"],
@@ -149,6 +150,7 @@ const valuationSections = [
   ["resultsFound", "Results Found"],
   ["strongComparables", "Strong Comparables"],
   ["partialComparables", "Partial Comparables"],
+  ["itemIdentificationEvidence", "Item Identification Evidence"],
   ["referenceResults", "Reference Results"],
   ["weakMatches", "Weak Matches"],
   ["rejectedMatches", "Rejected Matches"],
@@ -216,6 +218,7 @@ const consumerSections = [
   ["resultsFound", "Results Found"],
   ["strongComparables", "Strong Comparables"],
   ["partialComparables", "Partial Comparables"],
+  ["itemIdentificationEvidence", "Item Identification Evidence"],
   ["referenceResults", "Reference Results"],
   ["weakMatches", "Weak Matches"],
   ["rejectedMatches", "Rejected Matches"],
@@ -760,6 +763,7 @@ function extractReportContext(report, sections = []) {
     "resultsFound",
     "strongComparables",
     "partialComparables",
+    "itemIdentificationEvidence",
     "referenceResults",
     "weakMatches",
     "rejectedMatches",
@@ -1172,6 +1176,7 @@ function countVisibleResearchResults(report = {}) {
     report.resultsFound,
     report.strongComparables,
     report.partialComparables,
+    report.itemIdentificationEvidence,
     report.referenceResults,
     report.weakMatches,
     report.rejectedMatches
@@ -1183,7 +1188,7 @@ function countReferenceSupportingResearchResults(report = {}) {
     report.strongComparables,
     report.partialComparables,
     report.referenceResults
-  ].flat().filter(isUsableSourceRecord).length;
+  ].flat().filter((item) => isUsableSourceRecord(item) && !/no usable price|identity\/reference|reference without price/i.test(normalizeDisplayValue(item))).length;
 }
 
 function isUsableSourceRecord(item) {
@@ -1275,6 +1280,14 @@ function renderReport(report, sections) {
   reportRoot.className = "report-root";
   reportRoot.dataset.reportId = renderId;
 
+  if (isConsumerReport(report)) {
+    reportRoot.appendChild(renderConsumerCompactSummary(report, currentWorkflow));
+    reportRoot.appendChild(renderCustomerTechnicalSearchDetails(report));
+    appendEndOfReport(reportRoot);
+    results.replaceChildren(reportRoot);
+    return;
+  }
+
   reportRoot.appendChild(renderExecutiveSummary(report, currentWorkflow));
 
   const whyCards = buildSectionCards(report, sections, isWhySection);
@@ -1315,7 +1328,7 @@ function renderReport(report, sections) {
   }));
 
   reportRoot.appendChild(renderAppraiserSummary(report, currentWorkflow));
-  reportRoot.appendChild(renderEndOfReportMarker());
+  appendEndOfReport(reportRoot);
   results.replaceChildren(reportRoot);
 }
 
@@ -1354,6 +1367,7 @@ function isResearchVisibilityKey(key) {
     "resultsFound",
     "strongComparables",
     "partialComparables",
+    "itemIdentificationEvidence",
     "referenceResults",
     "weakMatches",
     "rejectedMatches",
@@ -1382,6 +1396,7 @@ function renderResearchEvidencePanel(report) {
   [
     ["Search Queries", report.searchQueriesUsed],
     ["Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
+    ["Item Identification Evidence", report.itemIdentificationEvidence],
     ["Strong Comparables", report.strongComparables],
     ["Partial Comparables", report.partialComparables],
     ["Reference Results", report.referenceResults],
@@ -1408,6 +1423,44 @@ function renderResearchEvidencePanel(report) {
 
   card.append(header, body);
   return card;
+}
+
+function renderCustomerTechnicalSearchDetails(report) {
+  const details = document.createElement("details");
+  details.className = "technical-details-disclosure technical-report-disclosure";
+
+  const summary = document.createElement("summary");
+  summary.className = "technical-details-summary";
+  summary.textContent = "Technical Search Details";
+
+  const body = document.createElement("div");
+  body.className = "search-diagnostics customer-technical-body";
+
+  [
+    ["Search Queries Used", report.searchQueriesUsed],
+    ["Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
+    ["Item Identification Evidence", report.itemIdentificationEvidence],
+    ["Strong Comparables", report.strongComparables],
+    ["Partial Comparables", report.partialComparables],
+    ["Reference Results", report.referenceResults],
+    ["Weak or Rejected Matches", [...normalizeArray(report.weakMatches), ...normalizeArray(report.rejectedMatches)]],
+    ["Search Limitations", report.searchLimitations],
+    ["Reference Range Basis", report.referenceRangeBasis],
+    ["Full Search Diagnostics", report.searchDiagnostics]
+  ].forEach(([label, value]) => {
+    if (!shouldRenderSection(label, value)) {
+      return;
+    }
+    const section = document.createElement("section");
+    section.className = "technical-report-section";
+    const heading = document.createElement("h4");
+    heading.textContent = label;
+    section.append(heading, label === "Full Search Diagnostics" ? renderSearchDiagnostics(value) : renderValue(value));
+    body.appendChild(section);
+  });
+
+  details.append(summary, body);
+  return details;
 }
 
 function renderTechnicalSearchDetails(value) {
@@ -1446,6 +1499,12 @@ function renderSearchDiagnostics(diagnostics) {
     ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
     ["Unique Candidates", diagnostics.deduplicatedCandidateCount ?? diagnostics.deduplicatedResultCount],
     ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
+    ["Priced Candidates Returned", diagnostics.pricedCandidateCount],
+    ["Compatible Priced Candidates", diagnostics.compatiblePricedCandidateCount],
+    ["No-Price Identity References", diagnostics.noPriceIdentityReferenceCount],
+    ["Rejected Mismatches", diagnostics.rejectedMismatchCount],
+    ["Compatible Priced Recovery Threshold", diagnostics.compatiblePricedRecoveryThreshold],
+    ["Recovery Search Passes Attempted", diagnostics.recoverySearchPassesAttempted],
     ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
     ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
   ];
@@ -1981,6 +2040,10 @@ function renderEndOfReportMarker() {
   marker.setAttribute("role", "note");
   marker.textContent = "End of Report";
   return marker;
+}
+
+function appendEndOfReport(reportRoot) {
+  reportRoot.appendChild(renderEndOfReportMarker());
 }
 
 function getWhatIKnow(report) {
@@ -2538,6 +2601,64 @@ function renderConsumerSummary(report) {
   return card;
 }
 
+function renderConsumerCompactSummary(report, workflow) {
+  const card = renderConsumerSummary(report);
+  const details = document.createElement("div");
+  details.className = "consumer-compact-sections";
+
+  appendConsumerCompactSection(details, "Evidence Summary", firstNonEmpty(
+    report.searchEvidenceSummary,
+    report.comparableQuality,
+    report.noCompatiblePricesFound,
+    report.noReliableComparableItemsFound,
+    "Evidence is limited to the submitted photos, notes, and any source-backed records shown below."
+  ));
+
+  const pricesSection = document.createElement("section");
+  pricesSection.className = "consumer-compact-section";
+  const pricesTitle = document.createElement("h4");
+  pricesTitle.textContent = "Prices Found";
+  pricesSection.appendChild(pricesTitle);
+  if (normalizeArray(report.pricesFound).length) {
+    pricesSection.appendChild(renderPricesFound(report.pricesFound));
+  } else {
+    const empty = document.createElement("p");
+    empty.textContent = report.noCompatiblePricesFound || "No compatible source-backed prices were found.";
+    pricesSection.appendChild(empty);
+  }
+  details.appendChild(pricesSection);
+
+  appendConsumerCompactSection(details, "Next Best Action", firstNonEmpty(
+    report.bestNextStep,
+    report.recommendedOffer,
+    report.negotiationGuidance,
+    report.whatToVerifyBeforeBuying,
+    report.additionalInformationNeeded,
+    "Verify item identity, condition, and price evidence before acting."
+  ));
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button summary-copy";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Summary";
+  copyButton.addEventListener("click", () => copyText(formatExecutiveSummary(report, workflow), copyButton));
+
+  card.append(details, copyButton);
+  return card;
+}
+
+function appendConsumerCompactSection(wrapper, title, value) {
+  if (!shouldRenderSection(title, value)) {
+    return;
+  }
+  const section = document.createElement("section");
+  section.className = "consumer-compact-section";
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  section.append(heading, renderValue(value));
+  wrapper.appendChild(section);
+}
+
 function getValueRatingModifier(value) {
   const text = String(value || "").toLowerCase();
   if (text.includes("exceptional") || text.includes("good")) {
@@ -2662,7 +2783,7 @@ function renderPricesFound(value) {
       link.href = item.url;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = "Open source listing";
+      link.textContent = "Open source";
       card.append(header, amounts, comparison, details, link);
     } else {
       card.append(header, amounts, comparison, details);
@@ -2754,7 +2875,7 @@ function renderResearchResultList(value) {
       link.href = item.url;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = item.url;
+      link.textContent = "Open source";
       card.appendChild(link);
     } else {
       const noLink = document.createElement("p");
@@ -3096,6 +3217,7 @@ function formatResearchEvidence(report) {
   return [
     formatSection("Search Queries", report.searchQueriesUsed),
     formatSection("Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage),
+    formatSection("Item Identification Evidence", report.itemIdentificationEvidence),
     formatSection("Strong Comparables", report.strongComparables),
     formatSection("Partial Comparables", report.partialComparables),
     formatSection("Reference Results", report.referenceResults),
@@ -3133,6 +3255,12 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Normalized Candidates", diagnostics.normalizedCandidateCount ?? diagnostics.normalizedResultCount],
     ["Unique Candidates", diagnostics.deduplicatedCandidateCount ?? diagnostics.deduplicatedResultCount],
     ["Visible Comparable Records Retained", diagnostics.retainedVisibleResultCount],
+    ["Priced Candidates Returned", diagnostics.pricedCandidateCount],
+    ["Compatible Priced Candidates", diagnostics.compatiblePricedCandidateCount],
+    ["No-Price Identity References", diagnostics.noPriceIdentityReferenceCount],
+    ["Rejected Mismatches", diagnostics.rejectedMismatchCount],
+    ["Compatible Priced Recovery Threshold", diagnostics.compatiblePricedRecoveryThreshold],
+    ["Recovery Search Passes Attempted", diagnostics.recoverySearchPassesAttempted],
     ["Rejected Candidates", diagnostics.rejectedCandidateCount ?? diagnostics.rejectedResultCount],
     ["Acquisition Failure Stage", diagnostics.acquisitionFailureStage]
   ]

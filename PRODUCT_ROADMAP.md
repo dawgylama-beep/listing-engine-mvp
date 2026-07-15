@@ -287,6 +287,12 @@
 - Shipping is never assumed free; delivered cost is calculated only when item price and shipping evidence are both available
 - Preliminary Reference Range now uses compatible priced records only and distinguishes verified market influence from preliminary asking-price inclusion
 
+## Version 1.10.5 (Completed)
+- Personal Buy reports now end with a concise customer summary, Prices Found/no-compatible-prices status, next best action, Copy Summary, and a collapsed Technical Search Details disclosure
+- Full query diagnostics, provider metadata, raw fields, rejected queries, source coverage, and raw source records now stay inside collapsed technical details by default
+- Exact no-price WorthPoint/reference matches are treated as `Item Identification Evidence`, not Strong Comparables or price/range evidence
+- Recovery search planning now includes exact, reduced, price-oriented, shopping/general, and separate marketplace-domain searches when compatible priced evidence is scarce
+
 ## Version 2.0
 - User accounts
 - Saved listings

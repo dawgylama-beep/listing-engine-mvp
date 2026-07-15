@@ -1293,6 +1293,30 @@ summary:focus-visible {
   padding: 12px;
 }
 
+.technical-report-disclosure {
+  box-shadow: var(--shadow-soft);
+}
+
+.technical-report-disclosure > .customer-technical-body {
+  padding: 14px;
+}
+
+.technical-report-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(15, 106, 98, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.technical-report-section h4 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 0.92rem;
+}
+
 .diagnostic-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1942,6 +1966,46 @@ summary:focus-visible {
   color: #ffffff;
   font-weight: 750;
   line-height: 1.35;
+}
+
+.consumer-compact-sections {
+  display: grid;
+  gap: 12px;
+}
+
+.consumer-compact-section {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.consumer-compact-section h4 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.consumer-compact-section p,
+.consumer-compact-section li {
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
+}
+
+.consumer-compact-section p {
+  margin: 0;
+}
+
+.consumer-compact-section .prices-found-list {
+  gap: 10px;
+}
+
+.consumer-compact-section .price-found-card {
+  background: #fffdf8;
+  color: var(--text);
 }
 
 .risk-score-card::before {

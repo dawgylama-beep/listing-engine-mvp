@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.4"; Text = $index; Pattern = "Version 1.10.4" },
-  @{ Name = "Package version is 1.10.4"; Text = $package; Pattern = '"version": "1.10.4"' },
-  @{ Name = "Server version is 1.10.4"; Text = $server; Pattern = '$AppVersion = "1.10.4"' },
-  @{ Name = "Roadmap documents 1.10.4"; Text = $roadmap; Pattern = "Version 1.10.4 (Completed)" },
+  @{ Name = "Visible app version is 1.10.5"; Text = $index; Pattern = "Version 1.10.5" },
+  @{ Name = "Package version is 1.10.5"; Text = $package; Pattern = '"version": "1.10.5"' },
+  @{ Name = "Server version is 1.10.5"; Text = $server; Pattern = '$AppVersion = "1.10.5"' },
+  @{ Name = "Roadmap documents 1.10.5"; Text = $roadmap; Pattern = "Version 1.10.5 (Completed)" },
   @{ Name = "API reads SERPER_API_KEY server-side"; Text = $api; Pattern = "process.env.SERPER_API_KEY" },
   @{ Name = "API uses Serper endpoint"; Text = $api; Pattern = "https://google.serper.dev/search" },
   @{ Name = "API uses Serper auth header server-side"; Text = $api; Pattern = '"X-API-KEY": apiKey' },
@@ -24,7 +24,7 @@ $checks = @(
   @{ Name = "API requests ten Serper results"; Text = $api; Pattern = "num: 10" },
   @{ Name = "Serper is selected before OpenAI fallback"; Text = $api; Pattern = "executeSerperComparableSearch" },
   @{ Name = "OpenAI web_search fallback remains available"; Text = $api; Pattern = "executeOpenAIWebComparableSearch" },
-  @{ Name = "Serper query plan is bounded"; Text = $api; Pattern = "validRecords.slice(0, 6)" },
+  @{ Name = "Serper query plan is bounded"; Text = $api; Pattern = "validRecords.slice(0, 12)" },
   @{ Name = "Serper organic results parsed"; Text = $api; Pattern = "data.organic" },
   @{ Name = "Serper shopping results parsed"; Text = $api; Pattern = "data.shopping" },
   @{ Name = "Serper knowledge graph reference parsed"; Text = $api; Pattern = "knowledgeGraph" },

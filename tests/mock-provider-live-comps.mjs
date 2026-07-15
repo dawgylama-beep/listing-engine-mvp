@@ -569,6 +569,32 @@ try {
   assert(/lower delivered cost/i.test(freeShipping[0].comparisonToYourPrice), "Free-shipping compatible active listing can be described as lower delivered cost.");
   const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
   assert(auctionBid[0].priceType === "Auction Current Bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
+  const noPriceExactBuckets = __queryIntegrityTestHooks.bucketSerperRecords([{
+    title: "WorthPoint Georgia Bulldogs Coca-Cola collector tray reference",
+    domain: "worthpoint.com",
+    source: "worthpoint.com",
+    url: "https://www.worthpoint.com/worthopedia/georgia-bulldogs-coca-cola-tray",
+    displayedPriceText: "",
+    parsedPrice: null,
+    priceEvidenceType: "Reference Without Price",
+    priceTypeLabel: "Reference Without Price",
+    identityMatchStrength: "Exact",
+    itemTypeCompatible: true,
+    itemTypeCompatibilityStatus: "compatible",
+    submittedItemType: "serving/decorative tray",
+    candidateItemType: "serving/decorative tray",
+    evidenceRole: "Identity/reference context only",
+    matchExplanation: "The title appears to identify the same tray, but the visible source result does not expose a usable price.",
+    sourceBacked: "URL-cited",
+    sourceType: "organic",
+    searchPass: "open_web_exact",
+    query: "Georgia Bulldogs Coca-Cola collector tray"
+  }]);
+  assert(noPriceExactBuckets.strongComparables.length === 0, "No-price WorthPoint exact matches must not be Strong Comparables.");
+  assert(noPriceExactBuckets.itemIdentificationEvidence.length === 1, "No-price exact matches should be Item Identification Evidence.");
+  assert(/no usable price/i.test(noPriceExactBuckets.itemIdentificationEvidence[0].classification), "No-price exact identity evidence should label the missing price limitation.");
+  assert(__queryIntegrityTestHooks.buildConsumerPricesFound(noPriceExactBuckets, 10).length === 0, "No-price identity evidence must not appear in Prices Found.");
+  assert(__queryIntegrityTestHooks.canSupportPreliminaryAskingRangeFromVisibleRecord(noPriceExactBuckets.itemIdentificationEvidence[0]) === false, "No-price identity evidence must not support Preliminary Asking-Price Range.");
   const mixedSourceRecords = {
     strongComparables: [
       priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
@@ -679,6 +705,11 @@ try {
   assert(marketplacePlanRecord && /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(marketplacePlanRecord.query), "Marketplace site query should retain domain routing.");
   assert(new Set(validPlanRecords.map((record) => record.query.toLowerCase())).size === validPlanRecords.length, "Duplicate cleanup should not keep repeated weaker query records.");
   assert(validPlanRecords.every((record) => /tray/i.test(record.query)), "Broader valid queries should retain the concrete product noun.");
+  const recoveryQueries = validPlanRecords.filter((record) => /recovery/i.test(record.searchPass || ""));
+  assert(recoveryQueries.length > 0, "Recovery query passes should be available when compatible priced evidence is scarce.");
+  assert(recoveryQueries.some((record) => record.searchPass === "marketplace_domain_recovery" && /site:ebay\.com/i.test(record.query) && !/\bOR\b/.test(record.query)), "Recovery should include separate marketplace-domain site searches, not only one OR query.");
+  assert(recoveryQueries.some((record) => record.searchPass === "price_oriented_recovery"), "Recovery should include price-oriented searches.");
+  assert(recoveryQueries.some((record) => record.searchPass === "shopping_general_recovery"), "Recovery should include shopping/general web searches.");
 
   const holiday = await runScenario("holiday");
   assert(holiday.report.analysisId === "analysis-test-holiday", "Holiday analysis id should round-trip.");
@@ -699,7 +730,7 @@ try {
   assert(diagnostics.fallbackProviderUsed === false, "OpenAI web_search fallback should not run when Serper succeeds.");
   assert(Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length > 0, "Provider request records should exist.");
   const attemptedRecords = diagnostics.providerRequestRecords.filter((record) => record.attempted);
-  assert(attemptedRecords.length <= 6, "Serper query budget should stay within six ordinary attempted calls.");
+  assert(attemptedRecords.length <= 12, "Serper query budget should stay within the bounded recovery call budget.");
   assert(attemptedRecords.length > 0 && attemptedRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
   assert(attemptedRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
   assert(attemptedRecords.some((record) => /Coca-Cola/i.test(record.query)), "Coca-Cola punctuation should survive attempted queries.");
@@ -713,6 +744,11 @@ try {
   assert(diagnostics.deduplicatedCandidateCount < diagnostics.providerSourceCount, "Duplicate listings should merge after URL canonicalization.");
   assert(diagnostics.exactCandidateCount > 0, "Exact candidates should be counted.");
   assert(diagnostics.strongSimilarCandidateCount > 0, "Strong-similar candidates should be counted.");
+  assert(Number.isFinite(diagnostics.pricedCandidateCount) && diagnostics.pricedCandidateCount >= diagnostics.compatiblePricedCandidateCount, "Diagnostics should track priced and compatible priced candidates.");
+  assert(Number.isFinite(diagnostics.noPriceIdentityReferenceCount), "Diagnostics should track no-price identity references.");
+  assert(Number.isFinite(diagnostics.rejectedMismatchCount), "Diagnostics should track rejected mismatches.");
+  assert(diagnostics.compatiblePricedRecoveryThreshold === 3, "Diagnostics should expose the compatible priced recovery threshold.");
+  assert(Array.isArray(diagnostics.recoverySearchPassesAttempted), "Diagnostics should list recovery search passes attempted.");
   assert(Array.isArray(georgia.report.weFoundThisItem) && georgia.report.weFoundThisItem.length > 0, "Exact active listing should remain visible.");
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("https://www.ebay.com/itm/georgia-coca-cola-tray"), "Exact tray URL should remain visible.");
   assert(JSON.stringify(georgia.report.strongComparables || []).includes("Active Asking") || JSON.stringify(georgia.report.strongComparables || []).includes("Shopping Offer"), "Visible exact/strong cards should label asking/shopping evidence accurately.");
