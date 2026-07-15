@@ -346,6 +346,11 @@ function consumerDecisionJson(zeroResults) {
     identifiedItem: activeFixture === "holiday" ? "Santa's Workshop Santa Claus holiday figure" : "Georgia Bulldogs Coca-Cola 1980 National Champions collector tray",
     identificationConfidence: "Medium - visible wording and typed notes agree.",
     evidenceFoundInPhotos: ["Visible brand and item text were used."],
+    purchaseContextSummary: "Purchase context supplied by buyer intake.",
+    barcodeSearchStatus: "No readable barcode/UPC digits were supplied in this mock scenario.",
+    localStoreContext: "Not applicable unless Retail store is selected.",
+    retailPriceContext: "Not applicable unless Retail store or Online retailer is selected.",
+    packageUnitPriceContext: "Package size/count was not established in this mock scenario.",
     askingPrice: activeFixture === "holiday" ? "$65" : "$10",
     estimatedFairMarketValue: zeroResults ? "$20-$30" : "$20-$35",
     fairPriceRange: zeroResults ? ["$20-$30"] : ["$20-$35"],
@@ -493,6 +498,87 @@ try {
     years: ["1980"]
   };
   const georgiaIdentity = identityFor("georgia");
+  const retailBuyerIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    asking_price: "$6",
+    purchase_intent: "personal_use",
+    store_name: "Staples",
+    location_zip: "44484",
+    item_name: "security envelopes",
+    known_brand: "Example Office",
+    known_upc: "661565005611",
+    buyer_notes: "100 count security envelopes peel and seal"
+  });
+  const retailIdentity = {
+    brand: "Example Office",
+    manufacturer: "Example Office",
+    model: "",
+    sku: "ENV100",
+    upcBarcode: "661565005611",
+    styleNumber: "",
+    category: "boxed envelopes",
+    productNameOrBoxTitle: "Example Office Security Envelopes",
+    exactProductIdentity: "Example Office security envelopes 100 count",
+    subjectIdentity: "boxed security envelopes",
+    likelyItemDescription: "100-count peel-and-seal security envelopes",
+    frontBoxWording: "Security Envelopes 100 Count Peel & Seal",
+    backLabelWording: "UPC 661565005611",
+    packageQuantity: "100-count",
+    packageSize: "#10 envelopes",
+    unitCount: "100",
+    visibleText: ["Security Envelopes", "100 Count", "661565005611"],
+    identityConflictNotes: [],
+    strongestSearchableIdentifiers: ["661565005611", "Example Office security envelopes 100 count"],
+    visualRecognition: {
+      visualSubject: "box of security envelopes",
+      visualSubjectCategory: "office supplies",
+      recognizedBrand: "Example Office"
+    }
+  };
+  const retailRoute = __queryIntegrityTestHooks.routeMarketSources(retailIdentity, retailBuyerIntake, "");
+  assert(/retail-store current replacement-cost sources/i.test(retailRoute.join(" ")), "Retail store purchases should route to current retail replacement-cost sources first.");
+  assert(!/eBay-style resale results/i.test(retailRoute.join(" ")), "Ordinary retail-store consumables should not prioritize eBay-style resale results.");
+  const retailQueries = __queryIntegrityTestHooks.buildLiveSearchQueries(retailIdentity, retailRoute, "100 count security envelopes asking $6", retailBuyerIntake);
+  assert(retailQueries[0] === "661565005611", "Readable UPC should be the first-priority retail search identifier.");
+  assert(retailQueries.some((query) => /661565005611/i.test(query) && /Staples/i.test(query)), "Store name plus UPC should be generated as a separate retail query.");
+  assert(retailQueries.some((query) => /current retail price|shopping replacement cost/i.test(query)), "Retail route should generate current retail/replacement-cost queries.");
+  const retailPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: retailQueries,
+    sourceRoute: retailRoute,
+    identity: retailIdentity,
+    buyerIntake: retailBuyerIntake,
+    notes: "100 count security envelopes asking $6"
+  });
+  assert(retailPlan.some((record) => record.query === "661565005611" && record.validationPassed !== false), "Exact UPC-alone Serper query should pass validation.");
+  assert(retailPlan.some((record) => /Staples/i.test(record.query) && /661565005611/.test(record.query)), "Serper plan should include store plus UPC query.");
+  const packMismatch = __queryIntegrityTestHooks.evaluateComparableItemTypeCompatibility(
+    { title: "Example Office Security Envelopes 25 Count", snippet: "25-count peel-and-seal #10 envelopes.", url: "https://example.com/25-count-envelopes" },
+    retailIdentity,
+    __queryIntegrityTestHooks.buildSearchQueryContext(retailIdentity, retailRoute, "100 count security envelopes", retailBuyerIntake)
+  );
+  assert(packMismatch.itemTypeCompatible === false && packMismatch.status === "pack_quantity_mismatch", "100-count envelope box must not be treated as an exact match to a 25-count box.");
+  const compatibleQuantity = __queryIntegrityTestHooks.extractPackQuantityNumber("100-count security envelopes");
+  assert(compatibleQuantity === 100, "Pack quantity parser should extract 100-count retail quantities.");
+  const retailDecision = {
+    valueRating: "Insufficient Evidence",
+    recommendation: "Buy",
+    pricingConfidence: "Low - no source-backed prices.",
+    riskFlags: [],
+    downsideRisk: { summary: "Low dollar exposure." },
+    cautiousBuyExplanation: ""
+  };
+  const retailCalibration = __queryIntegrityTestHooks.buildRetailDecisionCalibration({
+    decision: retailDecision,
+    buyerIntake: retailBuyerIntake,
+    identity: retailIdentity,
+    liveSearch: { liveSearchStatus: "Live Search Completed - No Reliable Comps Found", webSearchExecuted: true },
+    priceEvidence: { activeExactStrongCount: 0 },
+    pricesFound: [],
+    askingPriceNumber: 6,
+    searchCompleted: true
+  });
+  assert(/Price Not Verified/i.test(retailCalibration.decisionOverrides.valueRating), "Retail no-comps calibration should label price as not verified.");
+  assert(!/^Buy$/i.test(retailCalibration.recommendation), "Retail no-comps calibration must not leave an unconditional Buy recommendation.");
   const itemTypeCases = [
     ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
     ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],

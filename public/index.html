@@ -13,7 +13,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.10.9</p>
+            <p class="version-badge">Version 1.10.10</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -260,18 +260,17 @@
                   <select id="purchase_context" name="purchase_context">
                     <option value="">Select one</option>
                     <option value="retail_store">Retail store</option>
-                    <option value="mall">Mall</option>
-                    <option value="consignment_store">Consignment store</option>
-                    <option value="thrift_store">Thrift store</option>
-                    <option value="flea_market">Flea market</option>
+                    <option value="online_retailer">Online retailer</option>
+                    <option value="facebook_marketplace">Facebook Marketplace</option>
+                    <option value="ebay_etsy_mercari">eBay / Etsy / Mercari</option>
+                    <option value="flea_market_yard_sale">Flea market / yard sale</option>
                     <option value="estate_sale">Estate sale</option>
                     <option value="antique_mall">Antique mall</option>
-                    <option value="facebook_marketplace">Facebook Marketplace</option>
-                    <option value="online_marketplace">Online marketplace</option>
+                    <option value="thrift_store">Thrift store</option>
                     <option value="private_seller">Private seller</option>
                     <option value="other">Other</option>
-                    <option value="unknown">Unknown</option>
                   </select>
+                  <p class="field-note">This changes how Katherine's Eye researches the item.</p>
                 </div>
 
                 <div class="field-control">
@@ -310,6 +309,39 @@
                 </div>
               </div>
 
+              <div id="retail-context-fields" class="intake-grid conditional-fields" hidden>
+                <div class="field-control">
+                  <label for="store_name">Store name</label>
+                  <input id="store_name" name="store_name" type="text" autocomplete="organization" placeholder="Walmart, Target, Staples, local store">
+                  <p class="field-note">Examples: Walmart, Target, Home Depot, Dollar General, Staples, local store.</p>
+                </div>
+
+                <div class="field-control">
+                  <label for="location_zip">ZIP code</label>
+                  <input id="location_zip" name="location_zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="ZIP code">
+                  <p class="field-note">Used only for nearby price context when relevant.</p>
+                </div>
+
+                <div class="field-control full-span location-control">
+                  <button id="use-location-button" class="secondary-button" type="button">Use My Location</button>
+                  <p id="location-status" class="field-note" role="status" aria-live="polite"></p>
+                  <input id="location_mode" name="location_mode" type="hidden" value="">
+                  <input id="location_permission" name="location_permission" type="hidden" value="">
+                </div>
+              </div>
+
+              <div id="context-name-fields" class="intake-grid conditional-fields" hidden>
+                <div class="field-control">
+                  <label for="retailer_or_marketplace_name">Retailer or marketplace name</label>
+                  <input id="retailer_or_marketplace_name" name="retailer_or_marketplace_name" type="text" autocomplete="organization" placeholder="Amazon, eBay, local seller, store site">
+                </div>
+
+                <div class="field-control">
+                  <label for="known_shipping_amount">Shipping amount, if known</label>
+                  <input id="known_shipping_amount" name="known_shipping_amount" type="text" inputmode="decimal" placeholder="$8.99, free, pickup only">
+                </div>
+              </div>
+
               <details class="details-panel">
                 <summary>
                   <span class="details-summary-text">
@@ -340,8 +372,9 @@
                     <input id="known_sku" name="known_sku" type="text" autocomplete="off">
                   </div>
                   <div class="field-control">
-                    <label for="known_upc">UPC</label>
-                    <input id="known_upc" name="known_upc" type="text" inputmode="numeric" autocomplete="off">
+                    <label for="known_upc">Barcode or UPC number</label>
+                    <input id="known_upc" name="known_upc" type="text" inputmode="numeric" autocomplete="off" aria-describedby="barcode-guidance">
+                    <p id="barcode-guidance" class="field-note">If the barcode is visible but not read clearly, type the numbers here.</p>
                   </div>
                   <div class="field-control full-span">
                     <label for="approximate_age_era">Approximate age or era</label>

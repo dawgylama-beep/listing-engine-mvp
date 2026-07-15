@@ -254,6 +254,11 @@ const consumerDecisionSchema = {
     "identifiedItem",
     "identificationConfidence",
     "evidenceFoundInPhotos",
+    "purchaseContextSummary",
+    "barcodeSearchStatus",
+    "localStoreContext",
+    "retailPriceContext",
+    "packageUnitPriceContext",
     "askingPrice",
     "estimatedFairMarketValue",
     "fairPriceRange",
@@ -288,6 +293,11 @@ const consumerDecisionSchema = {
       maxItems: 12,
       items: { type: "string" }
     },
+    purchaseContextSummary: { type: "string" },
+    barcodeSearchStatus: { type: "string" },
+    localStoreContext: { type: "string" },
+    retailPriceContext: { type: "string" },
+    packageUnitPriceContext: { type: "string" },
     askingPrice: { type: "string" },
     estimatedFairMarketValue: { type: "string" },
     fairPriceRange: {
@@ -587,6 +597,11 @@ const itemIdentitySchema = {
     "manufacturerLocationText",
     "visiblePrice",
     "brandSeries",
+    "barcodeReadStatus",
+    "barcodeFailureMessage",
+    "packageQuantity",
+    "packageSize",
+    "unitCount",
     "visibleText",
     "guidedBuyerIntakeSummary",
     "identityConflictNotes",
@@ -649,6 +664,11 @@ const itemIdentitySchema = {
     manufacturerLocationText: { type: "string" },
     visiblePrice: { type: "string" },
     brandSeries: { type: "string" },
+    barcodeReadStatus: { type: "string" },
+    barcodeFailureMessage: { type: "string" },
+    packageQuantity: { type: "string" },
+    packageSize: { type: "string" },
+    unitCount: { type: "string" },
     visibleText: {
       type: "array",
       minItems: 0,
@@ -754,6 +774,12 @@ const buyerIntakeStringFields = [
   "purchase_context",
   "asking_price",
   "purchase_intent",
+  "store_name",
+  "location_zip",
+  "location_mode",
+  "location_permission",
+  "retailer_or_marketplace_name",
+  "known_shipping_amount",
   "item_condition",
   "item_name",
   "known_brand",
@@ -1438,6 +1464,9 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
         "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, item code, slogan, event name, organization/team, named person, year, dimension, or reverse-side description appears.",
+        "For ordinary current retail products, barcode/UPC digits are the highest-priority identity clue. Extract and preserve the exact digit sequence when readable.",
+        "If barcode lines are visible but the digits cannot be read confidently, set barcodeReadStatus to unreadable and set barcodeFailureMessage to: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
+        "Capture pack size, package quantity, unit count, dimensions, closure type, variation, and quantity wording when visible or provided, such as 100-count envelopes, peel-and-seal, #10, legal size, multipack, bottle count, ounce count, or sheet count.",
         "For branded collectibles, advertising/promotional items, sports memorabilia, commemorative items, collector plates/trays, toys, books, art, tools, and appliances, preserve exact visible phrase combinations because they are usually stronger search keys than generic category descriptions.",
         "For multi-photo items, merge front wording, reverse wording, side labels, tags, stamps, and visual form into one identity record. Do not treat one photo independently if another photo supplies stronger exact text.",
         "For institution, organization, school, team, mascot, logo, or character items, preserve names, visual symbols, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status when visible or provided.",
@@ -1690,7 +1719,10 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
       includeSourcesRequested,
       includeFallbackReason,
       searchControlsFallbackReason,
-      providerErrors
+      providerErrors,
+      identity,
+      buyerIntake,
+      notes
     });
   }
 
@@ -1712,7 +1744,9 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
     statusCode: providerResponseSummaries.find((item) => item.statusCode)?.statusCode || null,
     includeSourcesRequested,
     includeFallbackReason,
-    searchControlsFallbackReason
+    searchControlsFallbackReason,
+    buyerIntake,
+    notes
   });
 }
 
@@ -1811,7 +1845,10 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
       providerResponseSummaries,
       providerErrors,
       searchStartedAt,
-      elapsedMs
+      elapsedMs,
+      identity,
+      buyerIntake,
+      notes
     });
   }
 
@@ -1830,7 +1867,10 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
     providerResponseSummaries,
     providerErrors,
     elapsedMs,
-    researchPurpose
+    researchPurpose,
+    identity,
+    buyerIntake,
+    notes
   });
 }
 
@@ -2060,6 +2100,8 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
         candidateItemType: itemTypeCompatibility.candidateItemType,
         itemTypeCompatibilityStatus: itemTypeCompatibility.status,
         itemTypeCompatibilityExplanation: itemTypeCompatibility.explanation,
+        submittedPackQuantity: itemTypeCompatibility.submittedPackQuantity || "",
+        candidatePackQuantity: itemTypeCompatibility.candidatePackQuantity || "",
         identityMatchStrength,
         priceEvidenceType,
         priceTypeLabel: normalizePriceTypeLabel(priceEvidenceType, record),
@@ -2137,7 +2179,7 @@ function applySerperRecordAccountingToRequests(providerRequestRecords = [], prov
   }
 }
 
-function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchStartedAt, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, elapsedMs }) {
+function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchStartedAt, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, elapsedMs, identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" }) {
   const buckets = bucketSerperRecords(records);
   const strongVisible = buckets.strongComparables;
   const comparableItemsFound = recordsToLegacyComparableStrings(strongVisible);
@@ -2169,7 +2211,10 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     rejectedCandidateCount,
     acquisitionFailureStage,
     elapsedMs,
-    liveSearchStatus
+    liveSearchStatus,
+    identity,
+    buyerIntake,
+    notes
   });
 
   return {
@@ -2230,7 +2275,7 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
   };
 }
 
-function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, searchStartedAt, elapsedMs }) {
+function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized, providerRequestRecords, providerResponseSummaries, providerErrors, searchStartedAt, elapsedMs, identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" }) {
   const diagnostic = classifySerperError(error);
   const diagnostics = buildSerperSearchDiagnostics({
     sourceRoute,
@@ -2245,7 +2290,10 @@ function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQuer
     rejectedCandidateCount: 0,
     acquisitionFailureStage: diagnostic.category,
     elapsedMs,
-    liveSearchStatus: "Live Search Unavailable - Serper Provider Error"
+    liveSearchStatus: "Live Search Unavailable - Serper Provider Error",
+    identity,
+    buyerIntake,
+    notes
   });
 
   return {
@@ -2784,10 +2832,10 @@ function validateSerperQueryCandidate(query, context = {}, options = {}) {
   if (isGenericCategoryOnlyQuery(core, context)) {
     return { passed: false, reason: "generic_category_only" };
   }
-  if (!hasItemNoun) {
+  if (!hasItemNoun && !hasLongIdentifier) {
     return { passed: false, reason: "missing_concrete_item_noun" };
   }
-  if (!hasAnchor) {
+  if (!hasAnchor && !hasLongIdentifier) {
     return { passed: false, reason: "missing_identity_anchor" };
   }
   if (usesPersonNameWithoutItemAnchor(core, context)) {
@@ -2888,7 +2936,7 @@ function hasQueryItemNoun(query, context = {}) {
   if (itemTokens.some((token) => text.includes(token))) {
     return true;
   }
-  return /\b(?:tray|plate|plaque|sign|poster|print|sticker|decal|figurine|figure|statue|box|jar|canister|set|dress|shirt|jacket|shoe|laptop|computer|phone|tablet|chair|table|sofa|dresser|cabinet|lamp|vase|book|toy|tool|watch|coin|bag|purse)\b/i.test(text);
+  return /\b(?:tray|plate|plaque|sign|poster|print|sticker|decal|figurine|figure|statue|box|jar|canister|set|dress|shirt|jacket|shoe|laptop|computer|phone|tablet|chair|table|sofa|dresser|cabinet|lamp|vase|book|toy|tool|watch|coin|bag|purse|envelope|envelopes|stationery|paper|pack|count)\b/i.test(text);
 }
 
 function hasQueryIdentityAnchor(query, context = {}) {
@@ -3236,7 +3284,8 @@ function itemTypeTokens(itemType) {
     ["furniture", /furniture|sofa|chair|table|dresser|cabinet|desk|couch/],
     ["bag", /bag|purse|handbag|tote|wallet/],
     ["watch", /watch|wristwatch/],
-    ["phone", /phone|smartphone|iphone|android/]
+    ["phone", /phone|smartphone|iphone|android/],
+    ["envelope", /envelope|stationery|security envelope|peel[- ]?and[- ]?seal|gummed/]
   ];
   for (const [token, pattern] of groups) {
     if (pattern.test(text)) tokens.push(token);
@@ -3270,6 +3319,7 @@ const comparableItemTypeDefinitions = [
   { key: "hat", label: "hat or cap", priority: 104, patterns: [/\bhats?\b/i, /\bcaps?\b/i] },
   { key: "dress", label: "dress or gown", priority: 104, patterns: [/\bdresses?\b/i, /\bgowns?\b/i] },
   { key: "shoe", label: "shoe or boot", priority: 104, patterns: [/\bshoes?\b/i, /\bboots?\b/i, /\bsneakers?\b/i] },
+  { key: "envelope_box", label: "boxed envelopes or stationery", priority: 110, patterns: [/\benvelopes?\b/i, /\bstationery\b/i, /\bsecurity\s+envelopes?\b/i, /\bpeel[- ]?and[- ]?seal\b/i, /\bgummed\s+envelopes?\b/i] },
   { key: "bag", label: "bag, purse, or tote", priority: 104, patterns: [/\bbags?\b/i, /\bpurses?\b/i, /\bhandbags?\b/i, /\btotes?\b/i] },
   { key: "wallet", label: "wallet", priority: 104, patterns: [/\bwallets?\b/i] },
   { key: "watch", label: "watch", priority: 104, patterns: [/\bwatches?\b/i, /\bwristwatches?\b/i] },
@@ -3287,6 +3337,7 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
   const submitted = detectCanonicalComparableItemType(submittedText);
   const candidate = detectCanonicalComparableItemType(candidateText);
   const setScope = detectComparableSetScope(submittedText, candidateText);
+  const packScope = detectComparablePackScope(submittedText, candidateText);
 
   if (setScope.status !== "compatible") {
     return {
@@ -3295,6 +3346,18 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
       submittedItemType: submitted.label || setScope.submittedScope || "submitted item",
       candidateItemType: candidate.label || setScope.candidateScope || "candidate result",
       explanation: setScope.explanation
+    };
+  }
+
+  if (packScope.status !== "compatible") {
+    return {
+      itemTypeCompatible: false,
+      status: packScope.status,
+      submittedItemType: submitted.label || "submitted item",
+      candidateItemType: candidate.label || "candidate result",
+      submittedPackQuantity: packScope.submittedQuantity,
+      candidatePackQuantity: packScope.candidateQuantity,
+      explanation: packScope.explanation
     };
   }
 
@@ -3355,7 +3418,10 @@ function buildSubmittedItemTypeText(identity = {}, context = {}) {
     identity.subjectIdentity,
     identity.brandSeries,
     identity.frontBoxWording,
-    identity.backLabelWording
+    identity.backLabelWording,
+    identity.packageQuantity,
+    identity.packageSize,
+    identity.unitCount
   ].filter(Boolean).join(" ");
 }
 
@@ -3426,6 +3492,62 @@ function detectComparableSetScope(submittedText, candidateText) {
     };
   }
   return { status: "compatible", explanation: "" };
+}
+
+function detectComparablePackScope(submittedText, candidateText) {
+  const submittedQuantity = extractPackQuantityNumber(submittedText);
+  const candidateQuantity = extractPackQuantityNumber(candidateText);
+  const submittedTextNormalized = normalizeComparableText(submittedText);
+  const candidateTextNormalized = normalizeComparableText(candidateText);
+  const sameProductFamily = /\benvelopes?\b/.test(submittedTextNormalized) && /\benvelopes?\b/.test(candidateTextNormalized);
+
+  if (!Number.isFinite(submittedQuantity) || !Number.isFinite(candidateQuantity)) {
+    return {
+      status: "compatible",
+      submittedQuantity: Number.isFinite(submittedQuantity) ? submittedQuantity : null,
+      candidateQuantity: Number.isFinite(candidateQuantity) ? candidateQuantity : null,
+      explanation: ""
+    };
+  }
+
+  if (submittedQuantity === candidateQuantity) {
+    return { status: "compatible", submittedQuantity, candidateQuantity, explanation: "" };
+  }
+
+  if (sameProductFamily) {
+    return {
+      status: "pack_quantity_mismatch",
+      submittedQuantity,
+      candidateQuantity,
+      explanation: `Pack-size mismatch: submitted item appears to be ${submittedQuantity}-count, but the candidate appears to be ${candidateQuantity}-count. Use only unit-price context when product type and specifications are compatible; do not treat the package prices as exact matches.`
+    };
+  }
+
+  return { status: "compatible", submittedQuantity, candidateQuantity, explanation: "" };
+}
+
+function extractPackQuantityNumber(value) {
+  const text = normalizeComparableText(value);
+  const patterns = [
+    /\b(\d{1,5})\s*(?:count|ct|cnt|pk|pack|piece|pc|pcs|sheets?|envelopes?|units?)\b/i,
+    /\b(?:count|ct|pack|quantity|qty)\s*[:#-]?\s*(\d{1,5})\b/i,
+    /\b(\d{1,5})\s*[- ]?(?:count|ct)\b/i
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const amount = Number(match[1]);
+      if (Number.isFinite(amount) && amount > 1) {
+        return amount;
+      }
+    }
+  }
+  return null;
+}
+
+function extractPackQuantityText(value) {
+  const quantity = extractPackQuantityNumber(value);
+  return Number.isFinite(quantity) ? `${quantity}-count` : "";
 }
 
 function isComparableItemTypeValuationSafe(itemTypeCompatibility = {}) {
@@ -3738,6 +3860,8 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     candidateItemType: record.candidateItemType,
     itemTypeCompatibilityStatus: record.itemTypeCompatibilityStatus,
     itemTypeCompatibilityExplanation: record.itemTypeCompatibilityExplanation,
+    submittedPackQuantity: record.submittedPackQuantity,
+    candidatePackQuantity: record.candidatePackQuantity,
     evidenceRole: record.evidenceRole,
     matchExplanation: record.matchExplanation,
     itemIdentityDifferences: record.itemIdentityDifferences,
@@ -3769,6 +3893,8 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       `Submitted Item Type: ${record.submittedItemType || "Unknown"}`,
       `Candidate Item Type: ${record.candidateItemType || "Unknown"}`,
       `Item Type Compatible: ${record.itemTypeCompatible === true ? "Yes" : "No"}`,
+      record.submittedPackQuantity ? `Submitted Pack Quantity: ${record.submittedPackQuantity}` : "",
+      record.candidatePackQuantity ? `Candidate Pack Quantity: ${record.candidatePackQuantity}` : "",
       `Influenced Verified Market Range: ${record.influencedVerifiedMarketRange}`,
       `Included in Preliminary Asking-Price Range: ${record.includedInPreliminaryAskingPriceRange}`,
       `Source Type: ${record.sourceType}`,
@@ -3798,7 +3924,14 @@ function classifySerperAcquisitionStage({ providerCallsSucceeded = 0, providerSo
   return "unknown";
 }
 
-function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], records = [], providerSourceCount = 0, retainedVisibleResultCount = 0, rejectedCandidateCount = 0, acquisitionFailureStage = "unknown", elapsedMs = 0, liveSearchStatus = "" } = {}) {
+function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], records = [], providerSourceCount = 0, retainedVisibleResultCount = 0, rejectedCandidateCount = 0, acquisitionFailureStage = "unknown", elapsedMs = 0, liveSearchStatus = "", identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" } = {}) {
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const retailDiagnostics = buildRetailSearchDiagnostics({
+    context,
+    providerRequestRecords,
+    records,
+    searchQueries
+  });
   const providerCallsAttempted = providerRequestRecords.filter((record) => record.attempted).length;
   const providerCallsSucceeded = providerRequestRecords.filter((record) => record.succeeded).length;
   const invalidQueryPreflightCount = providerRequestRecords.filter((record) => record.validationPassed === false || record.failureStage === "invalid_query_preflight").length;
@@ -3822,6 +3955,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     executionLimitation: "Each prioritized query was sent server-side to Serper Google Search. Provider results are source-backed Google result records; only retained exact, strong, partial, or reference records are shown as visible evidence.",
     queryCount: searchQueries.length,
     sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    ...retailDiagnostics,
     allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
     searchProviderUsed: "Serper Google Search",
     providerKey: "serper_google",
@@ -3877,6 +4011,67 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     elapsedMilliseconds: elapsedMs,
     liveSearchStatus
   };
+}
+
+function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [], records = [], searchQueries = [] } = {}) {
+  const retailSpecificQueries = normalizeStringArray(searchQueries, 24)
+    .filter((query) => isRetailSpecificQuery(query, context))
+    .slice(0, 12);
+  const storeName = context.storeName || context.retailerOrMarketplaceName;
+  const namedStoreRequests = providerRequestRecords.filter((record) => storeName && cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()));
+  const upcRequests = providerRequestRecords.filter((record) => context.barcodeDigits && cleanText(record.query).includes(context.barcodeDigits));
+  const storeReturned = records.some((record) => storeName && [
+    record.domain,
+    record.title,
+    record.snippet,
+    record.url
+  ].join(" ").toLowerCase().includes(storeName.toLowerCase()));
+  const exactUpcFound = records.some((record) => context.barcodeDigits && [
+    record.title,
+    record.snippet,
+    record.url,
+    record.query
+  ].join(" ").includes(context.barcodeDigits));
+  const packMismatchRecords = records.filter((record) => /pack_quantity_mismatch/i.test(record.itemTypeCompatibilityStatus || record.rejectionReason || ""));
+
+  return {
+    purchaseContext: context.purchaseContext || "",
+    storeName: storeName || "",
+    locationModeUsed: context.locationMode || "",
+    zipPresence: context.locationZip ? "ZIP provided" : "ZIP not provided",
+    barcodeExtractionStatus: context.barcodeDigits
+      ? "Barcode/UPC digits available"
+      : context.barcodeReadStatus === "unreadable"
+        ? "Barcode visible but unreadable"
+        : context.barcodeReadStatus || "unknown",
+    exactBarcodeDigitsUsed: context.barcodeDigits || "",
+    retailSpecificQueries,
+    namedStoreQueryResults: storeName
+      ? `${namedStoreRequests.filter((record) => record.attempted).length} named-store quer${namedStoreRequests.length === 1 ? "y" : "ies"} attempted; named-store result ${storeReturned ? "returned" : "not returned"}.`
+      : "No named store supplied.",
+    exactUpcQueryResults: context.barcodeDigits
+      ? `${upcRequests.filter((record) => record.attempted).length} UPC quer${upcRequests.length === 1 ? "y" : "ies"} attempted; exact UPC result ${exactUpcFound ? "found" : "not found"}.`
+      : "No exact barcode/UPC digits available.",
+    packSizeMatchDetails: context.packageQuantity || context.packageSize
+      ? `Submitted package clues: ${compactWords([context.packageQuantity, context.packageSize]) || "not established"}.`
+      : "Submitted package size/count not established.",
+    rejectedPackSizeMismatches: packMismatchRecords.map((record) => cleanText(record.rejectionReason || record.itemTypeCompatibilityExplanation)).filter(Boolean).slice(0, 8),
+    localSourceCoverage: context.locationZip
+      ? "ZIP was supplied for nearby/local price context. Inventory availability must still be source-backed."
+      : context.locationMode === "browser_location_approved"
+        ? "Browser location permission was granted for general local context; precise coordinates are not stored or displayed."
+        : "No ZIP or approved location supplied; nearby price and availability coverage is limited."
+  };
+}
+
+function isRetailSpecificQuery(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  return Boolean(
+    (context.barcodeDigits && text.includes(context.barcodeDigits))
+    || (context.storeName && text.includes(context.storeName.toLowerCase()))
+    || (context.retailerDomain && text.includes(context.retailerDomain.toLowerCase()))
+    || /\bcurrent retail|shopping|replacement cost|manufacturer price|nearby price|pickup\b/.test(text)
+  );
 }
 
 function collectMarketplaceDomainsRequested(providerRequestRecords = []) {
@@ -4008,6 +4203,18 @@ function buildDomainDirectedSearchPlan({ searchQueries = [], sourceRoute = [], i
     });
   };
 
+  if (context.retailStoreContext || context.onlineRetailerContext) {
+    const retailQueries = buildRetailContextSearchQueries(context).slice(0, 6);
+    retailQueries.slice(0, 3).forEach((query) => {
+      addRecord({ query, searchPass: "open_web_exact" });
+    });
+    if (marketplaceDomains.length) {
+      retailQueries.slice(0, 3).forEach((query) => {
+        addRecord({ query, searchPass: "retail_store_domain", allowedDomains: marketplaceDomains });
+      });
+    }
+  }
+
   mergeStringArrays(exactQueries, cleanedQueries, 6).slice(0, 4).forEach((query) => {
     addRecord({ query, searchPass: "open_web_exact" });
   });
@@ -4042,6 +4249,23 @@ function selectMarketplaceAllowedDomains(context = {}, sourceRoute = [], buyerIn
     context.subjectIdentity
   ].join(" ").toLowerCase();
 
+  if (isRetailStorePurchaseContext(buyerIntake.purchase_context) || context.retailStoreContext) {
+    return mergeStringArrays(
+      getRetailerDomainForStore(getRetailStoreName(buyerIntake)),
+      ["walmart.com", "target.com", "staples.com", "officedepot.com", "amazon.com", "homedepot.com", "lowes.com", "dollargeneral.com"],
+      8
+    );
+  }
+  if (isOnlineRetailerPurchaseContext(buyerIntake.purchase_context) || context.onlineRetailerContext) {
+    return mergeStringArrays(
+      getRetailerDomainForStore(firstKnown(buyerIntake.retailer_or_marketplace_name, buyerIntake.store_name)),
+      ["amazon.com", "walmart.com", "target.com", "bestbuy.com"],
+      6
+    );
+  }
+  if (isResaleMarketplacePurchaseContext(buyerIntake.purchase_context) || context.resaleMarketplaceContext) {
+    return ["ebay.com", "etsy.com", "mercari.com"];
+  }
   if (/apparel|fashion|dress|shirt|jacket|shoe|poshmark|depop/.test(haystack)) {
     return ["poshmark.com", "ebay.com", "mercari.com", "depop.com"];
   }
@@ -4155,6 +4379,14 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.",
     "Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.",
     "Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.",
+    "For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.",
+    "For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.",
+    "If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
+    "When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.",
+    "For retail products, compare package price and unit price separately when quantity is explicit and compatible. Do not compare a 100-count box directly with a 25-count box as an exact match; use unit-price context only when product type, size, and specs are compatible.",
+    "Local Store Context must include named store and ZIP/general area when supplied, current store price if found, pickup/availability only when source-backed, and 'Availability not confirmed' when inventory support is missing.",
+    "Fill purchaseContextSummary, barcodeSearchStatus, localStoreContext, retailPriceContext, and packageUnitPriceContext. If a field does not apply, briefly say it is not applicable rather than inventing evidence.",
+    "Next Best Action must ask for the specific missing retail identifier: closer barcode photo, manual UPC, store name, ZIP code, box size, pack count, quantity, model, or SKU.",
     "Use valueRating exactly as one of: Exceptional Value, Good Value, Fair Price, Slightly Overpriced, Overpriced, Poor Value, Insufficient Evidence.",
     "Use recommendation exactly as one of: Buy, Buy If It Fits Your Needs, Negotiate, Wait for a Better Price, Pass, Need More Information.",
     "The valueRating and recommendation must be distinct. Example: Fair Price / Buy If It Fits Your Needs or Slightly Overpriced / Negotiate.",
@@ -4478,6 +4710,11 @@ function normalizeIdentity(identity) {
     manufacturerLocationText: cleanText(identity.manufacturerLocationText || "Unknown") || "Unknown",
     visiblePrice: cleanText(identity.visiblePrice || "Unknown") || "Unknown",
     brandSeries: cleanText(identity.brandSeries || "Unknown") || "Unknown",
+    barcodeReadStatus: normalizeBarcodeReadStatus(identity.barcodeReadStatus, identity.upcBarcode),
+    barcodeFailureMessage: cleanText(identity.barcodeFailureMessage || ""),
+    packageQuantity: cleanText(identity.packageQuantity || "Unknown") || "Unknown",
+    packageSize: cleanText(identity.packageSize || "Unknown") || "Unknown",
+    unitCount: cleanText(identity.unitCount || "Unknown") || "Unknown",
     visibleText: normalizeStringArray(identity.visibleText, 24),
     guidedBuyerIntakeSummary: cleanText(identity.guidedBuyerIntakeSummary || "Unknown") || "Unknown",
     identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 6),
@@ -4676,6 +4913,96 @@ function buildIdentitySummaryText({ subjectIdentity, subjectConfidence, exactPro
   ].join(" | ");
 }
 
+function normalizeBarcodeReadStatus(value, upcBarcode = "") {
+  const text = cleanText(value).toLowerCase();
+  if (normalizeBarcodeDigits(upcBarcode)) {
+    return "readable";
+  }
+  if (/unreadable|unclear|blur|not clear|cannot|could not|failed/.test(text)) {
+    return "unreadable";
+  }
+  if (/not visible|none|absent|no barcode/.test(text)) {
+    return "not_visible";
+  }
+  return text || "unknown";
+}
+
+function normalizeBarcodeDigits(value) {
+  const digits = cleanText(value).replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 14 ? digits : "";
+}
+
+function normalizeZipCode(value) {
+  const text = cleanText(value);
+  const match = text.match(/\b\d{5}(?:-\d{4})?\b/);
+  return match ? match[0] : "";
+}
+
+function normalizePurchaseContext(value) {
+  const context = cleanText(value).toLowerCase();
+  const aliases = {
+    mall: "retail_store",
+    online_marketplace: "ebay_etsy_mercari",
+    consignment_store: "thrift_store",
+    flea_market: "flea_market_yard_sale",
+    yard_sale: "flea_market_yard_sale"
+  };
+  return aliases[context] || context;
+}
+
+function isRetailStorePurchaseContext(value) {
+  return normalizePurchaseContext(value) === "retail_store";
+}
+
+function isOnlineRetailerPurchaseContext(value) {
+  return normalizePurchaseContext(value) === "online_retailer";
+}
+
+function isResaleMarketplacePurchaseContext(value) {
+  return normalizePurchaseContext(value) === "ebay_etsy_mercari";
+}
+
+function isSecondhandPurchaseContext(value) {
+  return /^(flea_market_yard_sale|thrift_store|estate_sale|antique_mall)$/.test(normalizePurchaseContext(value));
+}
+
+function isLocalPrivatePurchaseContext(value) {
+  return /^(facebook_marketplace|private_seller)$/.test(normalizePurchaseContext(value));
+}
+
+function getRetailStoreName(buyerIntake = {}) {
+  return cleanText(buyerIntake.store_name || buyerIntake.retailer_or_marketplace_name);
+}
+
+function getRetailerDomainForStore(storeName = "") {
+  const text = cleanText(storeName).toLowerCase();
+  const domains = [
+    [/walmart/, "walmart.com"],
+    [/target/, "target.com"],
+    [/home\s*depot/, "homedepot.com"],
+    [/lowe'?s/, "lowes.com"],
+    [/dollar\s*general/, "dollargeneral.com"],
+    [/staples/, "staples.com"],
+    [/office\s*depot|officemax/, "officedepot.com"],
+    [/best\s*buy/, "bestbuy.com"],
+    [/amazon/, "amazon.com"],
+    [/costco/, "costco.com"],
+    [/sam'?s\s*club/, "samsclub.com"],
+    [/walgreens/, "walgreens.com"],
+    [/cvs/, "cvs.com"]
+  ];
+  return domains.find(([pattern]) => pattern.test(text))?.[1] || "";
+}
+
+function getSearchBarcodeDigits(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  return firstKnown(
+    normalizeBarcodeDigits(buyerIntake.known_upc_digits),
+    normalizeBarcodeDigits(buyerIntake.known_upc),
+    normalizeBarcodeDigits(identity.upcBarcode),
+    normalizeBarcodeDigits(identity.modelOrItemNumber)
+  );
+}
+
 function inferSubjectObjectWord(identity) {
   const text = [
     identity.category,
@@ -4712,6 +5039,13 @@ function normalizeBuyerIntake(value) {
     intake[field] = cleanText(source[field]);
   }
 
+  intake.purchase_context = normalizePurchaseContext(intake.purchase_context);
+  intake.location_zip = normalizeZipCode(intake.location_zip);
+  intake.known_upc_digits = normalizeBarcodeDigits(intake.known_upc);
+  intake.store_name = cleanText(intake.store_name);
+  intake.retailer_or_marketplace_name = cleanText(intake.retailer_or_marketplace_name);
+  intake.location_mode = cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : ""));
+  intake.location_permission = cleanText(intake.location_permission);
   intake.condition_concerns = normalizeConditionConcerns(source.condition_concerns);
   intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
 
@@ -4752,6 +5086,12 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
     `asking_price_raw: ${intake.asking_price || "not provided"}`,
     `asking_price_number: ${parsedPrice}`,
     `purchase_intent: ${intake.purchase_intent || "not provided"}`,
+    `store_name: ${intake.store_name || "not provided"}`,
+    `location_zip: ${intake.location_zip || "not provided"}`,
+    `location_mode: ${intake.location_mode || "not provided"}`,
+    `location_permission: ${intake.location_permission || "not provided"}`,
+    `retailer_or_marketplace_name: ${intake.retailer_or_marketplace_name || "not provided"}`,
+    `known_shipping_amount: ${intake.known_shipping_amount || "not provided"}`,
     `item_condition: ${intake.item_condition || "not provided"}`,
     `condition_concerns: ${intake.condition_concerns.length ? intake.condition_concerns.join(", ") : "none provided"}`,
     `item_name: ${intake.item_name || "not provided"}`,
@@ -4760,6 +5100,7 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
     `known_model: ${intake.known_model || "not provided"}`,
     `known_sku: ${intake.known_sku || "not provided"}`,
     `known_upc: ${intake.known_upc || "not provided"}`,
+    `known_upc_digits: ${intake.known_upc_digits || "not provided"}`,
     `approximate_age_era: ${intake.approximate_age_era || "not provided"}`,
     `buyer_notes: ${intake.buyer_notes || "not provided"}`
   ].join("\n");
@@ -4767,7 +5108,7 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
 
 function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), platform = "") {
   const route = [];
-  const purchaseContext = cleanText(buyerIntake.purchase_context);
+  const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
   const purchaseIntent = cleanText(buyerIntake.purchase_intent);
   const selectedPlatform = cleanText(platform);
   const itemCondition = cleanText(buyerIntake.item_condition);
@@ -4784,6 +5125,11 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     buyerIntake.known_model,
     buyerIntake.known_sku,
     buyerIntake.known_upc,
+    buyerIntake.known_upc_digits,
+    buyerIntake.store_name,
+    buyerIntake.location_zip,
+    buyerIntake.retailer_or_marketplace_name,
+    buyerIntake.known_shipping_amount,
     buyerIntake.approximate_age_era,
     buyerIntake.asking_price,
     identity.visualSubject,
@@ -4838,7 +5184,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
   ].join(" ").toLowerCase();
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
-  const hasKnownIntakeIdentifier = hasKnownValue(buyerIntake.known_upc) || hasKnownValue(buyerIntake.known_model) || hasKnownValue(buyerIntake.known_sku);
+  const hasKnownIntakeIdentifier = Boolean(getSearchBarcodeDigits(identity, buyerIntake)) || hasKnownValue(buyerIntake.known_model) || hasKnownValue(buyerIntake.known_sku);
   const hasResaleIntent = isResaleIntent(purchaseIntent);
   const isSeasonalDecor = /santa|christmas|holiday|seasonal|workshop|hubbard|figurine|boxed|box|resin|ceramic.*figure|decor/.test(haystack);
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
@@ -4850,12 +5196,55 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
   const isPromotionalCollectible = /advertising|promotional|promo|brand|soda|beverage|beer|tobacco|gas|oil|automotive|commemorative|souvenir|licensed|collector|collectible|tray|plate|plaque|tin|sign/.test(haystack);
   const isCookieJarOrContainer = /cookie jar|container|canister|lid|lidded|ceramic jar|collectible jar/.test(haystack);
   const isVintageCollectible = /vintage|collectible|ceramic|canister|cookie jar|container|holiday|santa|christmas|discontinued|antique|decor|resale|secondhand|mercari|etsy|collegiate|mascot|licensed|memorabilia|commemorative|champion|championship|advertising|promotional|tray|serving tray|plate|plaque|tin|sign/.test(haystack);
-  const isRetailContext = /^(retail_store|mall)$/.test(purchaseContext);
-  const isSecondhandContext = /^(consignment_store|thrift_store|flea_market|estate_sale|antique_mall)$/.test(purchaseContext);
-  const isLocalPrivateContext = /^(facebook_marketplace|private_seller)$/.test(purchaseContext);
-  const isOnlineContext = purchaseContext === "online_marketplace";
+  const isRetailContext = isRetailStorePurchaseContext(purchaseContext);
+  const isSecondhandContext = isSecondhandPurchaseContext(purchaseContext);
+  const isLocalPrivateContext = isLocalPrivatePurchaseContext(purchaseContext);
+  const isOnlineRetailerContext = isOnlineRetailerPurchaseContext(purchaseContext);
+  const isResaleMarketplaceContext = isResaleMarketplacePurchaseContext(purchaseContext);
   const isLocalResalePlatform = hasResaleIntent && /facebook marketplace|craigslist|offerup|local/.test(selectedPlatform.toLowerCase());
-  const isRetailCurrent = isRetailContext || hasIdentifier || hasKnownIntakeIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
+  const isRetailCurrent = isRetailContext || isOnlineRetailerContext || hasIdentifier || hasKnownIntakeIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
+
+  if (isRetailContext) {
+    route.push(
+      "retail-store current replacement-cost sources",
+      "exact UPC/barcode retail lookup",
+      "named store current price search",
+      "store name plus UPC search",
+      "store name plus brand/model/SKU search",
+      "current retailer price",
+      "manufacturer/current retail product page",
+      "nearby competing retailer search",
+      "current shopping results",
+      "pack-size and quantity matching",
+      "local pickup/availability only when source-backed"
+    );
+    return route;
+  }
+
+  if (isOnlineRetailerContext) {
+    route.push(
+      "online retailer current listing",
+      "exact product identifier lookup",
+      "current active retail prices",
+      "delivered cost with shipping",
+      "seller or retailer credibility",
+      "return policy when source-backed",
+      "competing online retailers",
+      "pack-size and quantity matching"
+    );
+    return route;
+  }
+
+  if (isResaleMarketplaceContext) {
+    route.push(
+      "exact active marketplace listing",
+      "eBay/Etsy/Mercari active and sold resale results",
+      "shipping and delivered-cost comparisons",
+      "seller/listing status when source-backed",
+      "match-quality filtered resale comps"
+    );
+    return route;
+  }
 
   if (isLocalPrivateContext || isLocalResalePlatform || isFurniture) {
     route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
@@ -4933,7 +5322,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 
   if (isRetailCurrent) {
     route.push("brand/manufacturer site", "retailer sites", "Google Shopping-style web results", "Amazon/major retail when relevant");
-    if (/used|refurbished|resale|secondhand/.test(haystack) || isOnlineContext) {
+    if (/used|refurbished|resale|secondhand/.test(haystack) || isResaleMarketplaceContext) {
       route.push("eBay used/refurbished secondary signal");
     }
     return route;
@@ -4946,6 +5335,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const queries = [
+    ...buildRetailContextSearchQueries(context),
     ...buildHighPriorityExactQueries(context),
     ...buildFallbackSearchQueries(context)
   ];
@@ -4995,7 +5385,19 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const mascot = firstKnown(identity.mascot);
   const model = firstKnown(buyerIntake.known_model, identity.model);
   const itemCode = firstKnown(buyerIntake.known_sku, identity.sku, identity.styleNumber);
-  const upc = firstKnown(buyerIntake.known_upc, identity.upcBarcode);
+  const upc = getSearchBarcodeDigits(identity, buyerIntake) || firstKnown(buyerIntake.known_upc, identity.upcBarcode);
+  const barcodeDigits = normalizeBarcodeDigits(upc);
+  const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
+  const storeName = getRetailStoreName(buyerIntake);
+  const retailerOrMarketplaceName = cleanText(buyerIntake.retailer_or_marketplace_name);
+  const locationZip = normalizeZipCode(buyerIntake.location_zip);
+  const locationMode = cleanText(buyerIntake.location_mode || (locationZip ? "manual_zip" : ""));
+  const retailerDomain = getRetailerDomainForStore(firstKnown(storeName, retailerOrMarketplaceName));
+  const retailStoreContext = isRetailStorePurchaseContext(purchaseContext);
+  const onlineRetailerContext = isOnlineRetailerPurchaseContext(purchaseContext);
+  const resaleMarketplaceContext = isResaleMarketplacePurchaseContext(purchaseContext);
+  const secondhandPurchaseContext = isSecondhandPurchaseContext(purchaseContext);
+  const localPrivatePurchaseContext = isLocalPrivatePurchaseContext(purchaseContext);
   const ageEra = firstKnown(buyerIntake.approximate_age_era);
   const conditionText = firstKnown(buyerIntake.item_condition, identity.condition);
   const concernText = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
@@ -5017,7 +5419,9 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const namedPeople = extractLikelyNamedPeople(visibleEvidence.join(" "));
   const itemType = inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText);
   const eventPhrases = distinctivePhrases.filter((phrase) => /champion|anniversary|tournament|bowl|series|festival|event|official|collector|edition|commemorative|national|world|regional|conference|\b\d{4}\b/i.test(phrase));
-  const hasHighSpecificityText = distinctivePhrases.length > 0 || upc || model || itemCode;
+  const packageQuantity = firstKnown(identity.packageQuantity, identity.unitCount, extractPackQuantityText([productTitle, notesText, identity.size, identity.dimensions, identity.frontBoxWording, identity.backLabelWording].join(" ")));
+  const packageSize = firstKnown(identity.packageSize, identity.size, identity.dimensions);
+  const hasHighSpecificityText = distinctivePhrases.length > 0 || barcodeDigits || upc || model || itemCode;
 
   return {
     routeText,
@@ -5043,6 +5447,22 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     model,
     itemCode,
     upc,
+    barcodeDigits,
+    barcodeReadStatus: normalizeBarcodeReadStatus(identity.barcodeReadStatus, identity.upcBarcode),
+    barcodeFailureMessage: cleanText(identity.barcodeFailureMessage),
+    purchaseContext,
+    storeName,
+    retailerOrMarketplaceName,
+    locationZip,
+    locationMode,
+    locationPermission: cleanText(buyerIntake.location_permission),
+    retailerDomain,
+    knownShippingAmount: cleanText(buyerIntake.known_shipping_amount),
+    retailStoreContext,
+    onlineRetailerContext,
+    resaleMarketplaceContext,
+    secondhandPurchaseContext,
+    localPrivatePurchaseContext,
     ageEra,
     conditionText,
     concernText,
@@ -5063,9 +5483,56 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     years,
     namedPeople,
     itemType,
+    packageQuantity,
+    packageSize,
     eventPhrases,
     hasHighSpecificityText
   };
+}
+
+function buildRetailContextSearchQueries(context) {
+  if (!context.retailStoreContext && !context.onlineRetailerContext) {
+    return [];
+  }
+  const queries = [];
+  const barcode = context.barcodeDigits || normalizeBarcodeDigits(context.upc);
+  const storeName = context.storeName || context.retailerOrMarketplaceName;
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const identifier = firstKnown(context.model, context.itemCode);
+  const productTitle = firstKnown(context.productTitle, context.exactProductIdentity, context.subjectIdentity, context.itemType);
+  const pack = compactWords([context.packageQuantity, context.packageSize]);
+
+  if (barcode) {
+    queries.push(barcode);
+    queries.push(compactWords([barcode, storeName]));
+    queries.push(compactWords([barcode, brand || productTitle]));
+    queries.push(compactWords([barcode, productTitle, pack]));
+    queries.push(compactWords([barcode, "shopping"]));
+  }
+
+  if (storeName && identifier) {
+    queries.push(compactWords([storeName, brand, identifier, context.itemType]));
+  }
+  if (storeName && productTitle) {
+    queries.push(compactWords([storeName, productTitle, pack]));
+  }
+  if (identifier) {
+    queries.push(compactWords([brand, identifier, "current retail price"]));
+  }
+  if (productTitle) {
+    queries.push(compactWords([productTitle, pack, "current retail price"]));
+    queries.push(compactWords([brand, productTitle, "manufacturer price"]));
+    queries.push(compactWords([productTitle, "shopping replacement cost"]));
+  }
+  if (context.retailerDomain && (barcode || productTitle)) {
+    queries.push(buildSerperSingleMarketplaceQuery(compactWords([barcode || productTitle, pack]), context.retailerDomain));
+  }
+  if (context.locationZip && productTitle) {
+    queries.push(compactWords([productTitle, storeName, context.locationZip]));
+    queries.push(compactWords([productTitle, context.locationZip, "nearby price"]));
+  }
+
+  return mergeStringArrays(queries, 14);
 }
 
 function buildHighPriorityExactQueries(context) {
@@ -5081,6 +5548,10 @@ function buildHighPriorityExactQueries(context) {
   const primaryPhrases = mergeStringArrays(exactVisibleEntries, context.distinctivePhrases.slice(0, 7), sloganLikePhrases, 14);
 
   queries.push(...buildDiverseSearchIntentQueries(context));
+
+  if (context.retailStoreContext || context.onlineRetailerContext) {
+    queries.push(...buildRetailContextSearchQueries(context));
+  }
 
   if (context.upc) {
     queries.push(context.upc);
@@ -5256,7 +5727,7 @@ function buildFallbackSearchQueries(context) {
   return queries;
 }
 
-function normalizeLiveSearchResult({ result, responseData, identity = {}, searchStartedAt, sourceRoute, searchQueries, queriesActuallySent = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], providerSourceRecords = [], safeRawResultSummaries = [], elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason }) {
+function normalizeLiveSearchResult({ result, responseData, identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "", searchStartedAt, sourceRoute, searchQueries, queriesActuallySent = [], queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], providerSourceRecords = [], safeRawResultSummaries = [], elapsedMs, statusCode, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason }) {
   const citations = collectUrlCitations(responseData);
   const webSearchCalls = collectWebSearchCalls(responseData);
   const sourcesSearched = collectWebSearchSources(responseData);
@@ -5358,12 +5829,15 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, search
       providerResponseSummaries,
       liveSearchStatus,
       elapsedMs,
+      identity,
+      buyerIntake,
+      notes,
       searchControlsFallbackReason
     })
   };
 }
 
-function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason }) {
+function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, queriesPrioritized = [], providerRequestRecords = [], providerResponseSummaries = [], providerErrors = [], searchStartedAt, elapsedMs, includeSourcesRequested, includeFallbackReason, searchControlsFallbackReason, identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" }) {
   const diagnostic = classifyLiveSearchError(error);
   const liveSearchStatus = statusForLiveSearchError(diagnostic.category);
   const errors = providerErrors.length ? providerErrors : [diagnostic];
@@ -5437,6 +5911,9 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
       providerResponseSummaries,
       liveSearchStatus,
       elapsedMs,
+      identity,
+      buyerIntake,
+      notes,
       searchControlsFallbackReason
     })
   };
@@ -5492,8 +5969,15 @@ function buildEmptyResearchBuckets() {
   };
 }
 
-function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], providerSourceRecords = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0, searchControlsFallbackReason = "" }) {
+function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], providerSourceRecords = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0, searchControlsFallbackReason = "", identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" }) {
   const normalization = bucketedResearch.normalizationDiagnostics || {};
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const retailDiagnostics = buildRetailSearchDiagnostics({
+    context,
+    providerRequestRecords,
+    records: providerSourceRecords,
+    searchQueries
+  });
   const safeQueriesActuallySent = queriesActuallySent.map(cleanText).filter((query) => query && !isInternalPromptFragment(query)).slice(0, 20);
   const queryTransmissionMode = providerRequestRecords.length ? "query_bound_provider_requests" : "no_query_bound_provider_records";
   const sourceRecords = dedupeProviderSourceRecords(providerSourceRecords);
@@ -5524,6 +6008,7 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
       : "No query-bound provider request records were available, so the app does not claim individual queries were sent.",
     queryCount: searchQueries.length,
     sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
+    ...retailDiagnostics,
     allowedDomainsRequested: collectAllowedDomainsRequested(providerRequestRecords),
     searchProviderUsed: "OpenAI web_search",
     sourcesRequested: buildSourcesTargeted(sourceRoute),
@@ -7522,7 +8007,18 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
 
 function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
   const askingPriceText = firstKnown(report.askingPrice, report.currentAskingPrice, report.visiblePrice);
+  const isRetailReport = /retail store|current retail|local store context|barcode\/upc|price not verified/i.test([
+    report.purchaseContextSummary,
+    report.localStoreContext,
+    report.retailPriceContext,
+    report.barcodeSearchStatus,
+    report.currentPriceAssessment,
+    report.valueRating
+  ].flat().map(cleanText).join(" "));
   const safeLowDownsideText = buildZeroEvidenceLowDownsideText(askingPriceText);
+  const retailLowDownsideText = askingPriceText
+    ? `At ${askingPriceText}, the current retail price was not verified against compatible source-backed retail prices. Financial exposure may be limited, but this is not a confirmed good retail price.`
+    : "The current retail price was not verified against compatible source-backed retail prices.";
   const sanitized = sanitizeZeroEvidenceMarketText(report, askingPriceText);
 
   const guarded = {
@@ -7550,12 +8046,16 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     recommendedListingPrice: null,
     suggestedOfferRange: null,
     fairValueNotEstablished: "Fair Value: Not established",
-    valueRating: "Insufficient Evidence",
-    whatThisMeans: "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
-    priceBasis: "Fair value not established - the current search did not return visible source-backed comparable evidence.",
-    currentPriceAssessment: "Insufficient evidence - no source-backed market comparison is supported.",
-    pricingRationale: safeLowDownsideText,
-    cautiousBuyExplanation: shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)
+    valueRating: isRetailReport ? "Price Not Verified - Low Financial Risk" : "Insufficient Evidence",
+    whatThisMeans: isRetailReport ? retailLowDownsideText : "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
+    priceBasis: isRetailReport
+      ? "Price not verified - the current search did not return compatible source-backed current retail prices."
+      : "Fair value not established - the current search did not return visible source-backed comparable evidence.",
+    currentPriceAssessment: isRetailReport
+      ? `Price Not Verified - ${retailLowDownsideText}`
+      : "Insufficient evidence - no source-backed market comparison is supported.",
+    pricingRationale: isRetailReport ? retailLowDownsideText : safeLowDownsideText,
+    cautiousBuyExplanation: shouldAllowZeroEvidencePersonalBuy(report, askingPriceText) && !isRetailReport
       ? safeLowDownsideText
       : "",
     consumerDownsideRisk: askingPriceText
@@ -7582,7 +8082,13 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     )
   };
 
-  if (shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)) {
+  if (isRetailReport) {
+    guarded.recommendation = cleanText(report.recommendation) && !/^buy$/i.test(cleanText(report.recommendation))
+      ? report.recommendation
+      : "Low-Risk Purchase - Limited Evidence";
+    guarded.reasonsToBuy = [];
+    guarded.bestNextStep = cleanText(report.bestNextStep) || "Upload a closer barcode photo, enter the UPC manually, and confirm the store, ZIP code, and package count.";
+  } else if (shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)) {
     guarded.recommendation = cleanText(report.recommendation) && !/need more information/i.test(report.recommendation)
       ? report.recommendation
       : "Buy";
@@ -7926,6 +8432,17 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identity,
     priceEvidence
   });
+  const retailCalibration = buildRetailDecisionCalibration({
+    decision,
+    buyerIntake,
+    identity,
+    liveSearch,
+    priceEvidence,
+    pricesFound,
+    askingPriceNumber,
+    searchCompleted
+  });
+  Object.assign(decision, retailCalibration.decisionOverrides);
   const offer = buildConsumerOffer({
     askingPriceNumber,
     fairValueNumber,
@@ -7977,6 +8494,11 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ...identityFields,
     ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
+    purchaseContextSummary: buildPurchaseContextSummary(buyerIntake),
+    barcodeSearchStatus: buildBarcodeSearchStatus(identity, buyerIntake, liveSearch),
+    localStoreContext: buildLocalStoreContext(buyerIntake, liveSearch),
+    retailPriceContext: buildRetailPriceContext(buyerIntake, priceEvidence, pricesFound, liveSearch),
+    packageUnitPriceContext: buildPackageUnitPriceContext(identity, pricesFound, liveSearch),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     bestCompatiblePriceFound,
     currentPurchaseOptionSummary,
@@ -8006,7 +8528,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       reliableCompsFound
     }),
     valueRating: decision.valueRating,
-    recommendation: buildConsumerRecommendationText(decision, offer, askingPriceNumber),
+    recommendation: retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
+    buyerDecisionConfidence: retailCalibration.buyerDecisionConfidence || report.buyerDecisionConfidence,
+    bestNextStep: retailCalibration.bestNextStep || report.bestNextStep,
     consumerDownsideRisk: decision.downsideRisk.summary,
     cautiousBuyExplanation: decision.cautiousBuyExplanation,
     recommendedOffer: offer.recommendedOffer,
@@ -8031,8 +8555,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     betterValueConsiderations,
     researchResults,
     comparableQuality,
-    pricingConfidence: decision.pricingConfidence,
-    pricingRationale: ensurePrefix(report.pricingRationale, `${basis} ${priceEvidence.primaryEvidenceSummary || ""} ${priceEvidence.outlierNote || ""} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
+    currentPriceAssessment: retailCalibration.currentPriceAssessment || report.currentPriceAssessment,
+    pricingConfidence: retailCalibration.pricingConfidence || decision.pricingConfidence,
+    pricingRationale: ensurePrefix(report.pricingRationale, `${retailCalibration.pricingRationalePrefix || basis} ${priceEvidence.primaryEvidenceSummary || ""} ${priceEvidence.outlierNote || ""} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
     additionalInformationNeeded: buildConsumerAdditionalInfoNeeded(report.additionalInformationNeeded, {
       reliableCompsFound,
       buyerIntake,
@@ -8051,6 +8576,205 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     searchCompleted,
     workflow: "personal_use"
   });
+}
+
+function buildPurchaseContextSummary(buyerIntake = normalizeBuyerIntake({})) {
+  const context = normalizePurchaseContext(buyerIntake.purchase_context);
+  const label = purchaseContextLabel(context);
+  if (!context) {
+    return "Purchase context was not provided. Research used cautious general buyer logic.";
+  }
+  const store = getRetailStoreName(buyerIntake);
+  const zip = normalizeZipCode(buyerIntake.location_zip);
+  const location = zip
+    ? `ZIP ${zip}`
+    : buyerIntake.location_mode === "browser_location_approved"
+      ? "general browser location approved"
+      : "no local ZIP/location supplied";
+  const details = [
+    `Purchase context: ${label}.`,
+    store ? `Store/marketplace: ${store}.` : "",
+    isRetailStorePurchaseContext(context) ? `Local context: ${location}.` : "",
+    buyerIntake.known_shipping_amount ? `Shipping/delivery entered: ${buyerIntake.known_shipping_amount}.` : ""
+  ].filter(Boolean);
+  return details.join(" ");
+}
+
+function purchaseContextLabel(context) {
+  const labels = {
+    retail_store: "Retail store",
+    online_retailer: "Online retailer",
+    facebook_marketplace: "Facebook Marketplace",
+    ebay_etsy_mercari: "eBay / Etsy / Mercari",
+    flea_market_yard_sale: "Flea market / yard sale",
+    estate_sale: "Estate sale",
+    antique_mall: "Antique mall",
+    thrift_store: "Thrift store",
+    private_seller: "Private seller",
+    other: "Other"
+  };
+  return labels[normalizePurchaseContext(context)] || cleanText(context) || "Not provided";
+}
+
+function buildBarcodeSearchStatus(identity = {}, buyerIntake = normalizeBuyerIntake({}), liveSearch = {}) {
+  const digits = getSearchBarcodeDigits(identity, buyerIntake);
+  if (digits) {
+    const attempted = normalizeStringArray(liveSearch.queriesActuallySent || liveSearch.searchQueries, 24)
+      .some((query) => cleanText(query).includes(digits));
+    return `Barcode/UPC digits used: ${digits}. Exact UPC/barcode search ${attempted ? "was attempted" : "was prepared but not confirmed as attempted in diagnostics"}.`;
+  }
+  if (normalizeBarcodeReadStatus(identity.barcodeReadStatus, identity.upcBarcode) === "unreadable" || cleanText(identity.barcodeFailureMessage)) {
+    return "The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.";
+  }
+  return "No readable barcode/UPC digits were available. Enter the barcode or UPC number if it is visible on the package.";
+}
+
+function buildLocalStoreContext(buyerIntake = normalizeBuyerIntake({}), liveSearch = {}) {
+  if (!isRetailStorePurchaseContext(buyerIntake.purchase_context)) {
+    return "";
+  }
+  const store = getRetailStoreName(buyerIntake) || "Store not provided";
+  const zip = normalizeZipCode(buyerIntake.location_zip);
+  const returned = normalizeStringArray(liveSearch.sourcesReturned || liveSearch.domainsActuallyReturned, 12);
+  const namedStoreReturned = store !== "Store not provided" && returned.some((source) => source.toLowerCase().includes(store.toLowerCase().split(/\s+/)[0]));
+  const locationText = zip
+    ? `ZIP/general area: ${zip}.`
+    : buyerIntake.location_mode === "browser_location_approved"
+      ? "General location permission was approved; precise coordinates are not stored or displayed."
+      : "No ZIP/location supplied, so nearby price and availability were limited.";
+  return [
+    `Named store: ${store}.`,
+    locationText,
+    namedStoreReturned ? "Store-specific source results returned; review source-backed price cards for exact price support." : "No store-specific price found.",
+    "Availability not confirmed unless a source card explicitly states pickup or availability."
+  ].join(" ");
+}
+
+function buildRetailPriceContext(buyerIntake = normalizeBuyerIntake({}), priceEvidence = {}, pricesFound = [], liveSearch = {}) {
+  if (!isRetailStorePurchaseContext(buyerIntake.purchase_context) && !isOnlineRetailerPurchaseContext(buyerIntake.purchase_context)) {
+    return "";
+  }
+  const currentRetailPrices = normalizeArray(pricesFound).filter(isCurrentPurchasablePriceFoundRecord);
+  if (currentRetailPrices.length) {
+    return `Current retail comparison found: ${currentRetailPrices.length} compatible current purchasable price${currentRetailPrices.length === 1 ? "" : "s"} passed filtering. Package price remains separate from shipping/delivery and unit price.`;
+  }
+  const status = cleanText(liveSearch.liveSearchStatus || "");
+  if (/No Reliable Comps/i.test(status) || liveSearch.webSearchExecuted) {
+    return "Current retail price not verified. Search ran, but no compatible source-backed current retail price passed match-quality, package-size, and identifier checks.";
+  }
+  return "Current retail price not verified because live search did not complete.";
+}
+
+function buildPackageUnitPriceContext(identity = {}, pricesFound = [], liveSearch = {}) {
+  const packageText = compactWords([identity.packageQuantity, identity.packageSize, identity.unitCount]);
+  const records = normalizeArray(pricesFound).filter((record) => record && typeof record === "object");
+  const unitContext = records
+    .map((record) => buildUnitPriceContextForRecord(record, packageText))
+    .filter(Boolean)
+    .slice(0, 4);
+  const mismatchCount = normalizeArray(liveSearch.searchDiagnostics?.rejectedPackSizeMismatches).length;
+  if (unitContext.length) {
+    return unitContext.join(" ");
+  }
+  if (mismatchCount) {
+    return `${mismatchCount} result${mismatchCount === 1 ? "" : "s"} rejected or limited because package count/size did not match. Unit pricing was not used as package price.`;
+  }
+  return packageText
+    ? `Submitted package clues: ${packageText}. Unit-price normalization only applies when quantity, product type, and size are explicit and compatible.`
+    : "Package size/count was not established, so package-price and unit-price normalization are limited.";
+}
+
+function buildUnitPriceContextForRecord(record = {}, packageText = "") {
+  const amount = getVisibleItemPriceAmount(record);
+  const quantity = extractPackQuantityNumber([record.title, record.rawText, record.conciseLimitation, packageText].join(" "));
+  if (!Number.isFinite(amount) || !Number.isFinite(quantity) || quantity <= 0) {
+    return "";
+  }
+  return `${record.title || "Source price"}: ${formatMoney(amount)} for ${quantity} units - about ${formatUnitMoney(amount / quantity)} each. Package price remains ${formatMoney(amount)}.`;
+}
+
+function formatUnitMoney(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) {
+    return "";
+  }
+  return `$${amount.toFixed(amount < 1 ? 2 : 2)}`;
+}
+
+function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveSearch, priceEvidence, pricesFound, askingPriceNumber, searchCompleted } = {}) {
+  if (!isRetailStorePurchaseContext(buyerIntake.purchase_context)) {
+    return {
+      decisionOverrides: {},
+      recommendation: "",
+      currentPriceAssessment: "",
+      buyerDecisionConfidence: "",
+      bestNextStep: "",
+      pricingConfidence: "",
+      pricingRationalePrefix: ""
+    };
+  }
+
+  const currentRetailPrices = normalizeArray(pricesFound).filter(isCurrentPurchasablePriceFoundRecord);
+  const hasCurrentRetailComparison = currentRetailPrices.length > 0 || Number(priceEvidence.activeExactStrongCount || 0) > 0;
+  const lowFinancialRisk = Number.isFinite(askingPriceNumber) && askingPriceNumber <= consumerDecisionThresholds.lowDollarCautiousBuyMax;
+  if (hasCurrentRetailComparison) {
+    const label = lowFinancialRisk ? "Good Retail Price" : "Reasonable Retail Price";
+    return {
+      decisionOverrides: {
+        valueRating: label,
+        recommendation: decision.recommendation === "Buy" ? "Buy If It Fits Your Needs" : decision.recommendation,
+        pricingConfidence: ensureConfidenceLayer(decision.pricingConfidence, "Medium", "Current retail source-backed price evidence was retained; verify package size, quantity, and store terms.")
+      },
+      recommendation: decision.recommendation === "Buy" ? "Buy If It Fits Your Needs" : "",
+      currentPriceAssessment: `${label} - current retail comparison evidence was retained. Check package size, quantity, shipping/delivery, and return policy before relying on the comparison.`,
+      buyerDecisionConfidence: "Medium - retail price comparison evidence was retained, but package size, availability, and local pickup must remain source-backed.",
+      bestNextStep: "",
+      pricingConfidence: "",
+      pricingRationalePrefix: "Retail purchase basis - current retail price evidence was retained and package compatibility still matters.",
+      searchCompleted
+    };
+  }
+
+  const barcodeDigits = getSearchBarcodeDigits(identity, buyerIntake);
+  const missingActions = [];
+  if (!barcodeDigits) {
+    missingActions.push("Upload a closer barcode photo or enter the UPC manually.");
+  }
+  if (!getRetailStoreName(buyerIntake)) {
+    missingActions.push("Add the store name.");
+  }
+  if (!normalizeZipCode(buyerIntake.location_zip) && buyerIntake.location_mode !== "browser_location_approved") {
+    missingActions.push("Enter your ZIP code.");
+  }
+  if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount)) {
+    missingActions.push("Confirm the package size and count.");
+  }
+  const bestNextStep = missingActions[0] || "Confirm the exact UPC, package count, and current store shelf price.";
+  const valueRating = lowFinancialRisk
+    ? "Price Not Verified - Low Financial Risk"
+    : "Price Not Verified";
+  const recommendation = lowFinancialRisk
+    ? "Low-Risk Purchase - Limited Evidence"
+    : "Need More Information";
+  const explanation = Number.isFinite(askingPriceNumber)
+    ? `${formatMoney(askingPriceNumber)} was not verified against compatible source-backed current retail prices. Financial exposure may be limited, but Katherine's Eye did not confirm this is a good deal.`
+    : "The current retail price was not verified because no compatible source-backed current retail price passed filtering.";
+
+  return {
+    decisionOverrides: {
+      valueRating,
+      recommendation,
+      pricingConfidence: forceLowConfidence("", explanation),
+      cautiousBuyExplanation: explanation,
+      evidenceWarning: "Retail price was not verified; decision is conditional and low-certainty."
+    },
+    recommendation,
+    currentPriceAssessment: `${valueRating} - ${explanation}`,
+    buyerDecisionConfidence: "Low - current retail price was not verified with source-backed compatible prices.",
+    bestNextStep,
+    pricingConfidence: forceLowConfidence("", explanation),
+    pricingRationalePrefix: `Retail purchase basis - ${explanation}`
+  };
 }
 
 function isLowDollarAskingInsideWeakPreliminaryRange({ askingPriceNumber, priceEvidence = {}, conditionProfile = {}, downsideRisk = {} } = {}) {
@@ -9350,6 +10074,20 @@ function buildConsumerBetterValueConsiderations(decision, conditionProfile) {
 
 function buildConsumerAdditionalInfoNeeded(value, { reliableCompsFound, buyerIntake, identity, conditionProfile }) {
   const needed = normalizeFlexibleArray(value, 8, []);
+  if (isRetailStorePurchaseContext(buyerIntake.purchase_context)) {
+    if (!getSearchBarcodeDigits(identity, buyerIntake)) {
+      addUnique(needed, "Upload a closer barcode photo or enter the UPC manually.");
+    }
+    if (!getRetailStoreName(buyerIntake)) {
+      addUnique(needed, "Add the store name.");
+    }
+    if (!normalizeZipCode(buyerIntake.location_zip) && buyerIntake.location_mode !== "browser_location_approved") {
+      addUnique(needed, "Enter your ZIP code for nearby retail price context.");
+    }
+    if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount)) {
+      addUnique(needed, "Confirm the box size, count, quantity, and any variation such as security, peel-and-seal, or plain.");
+    }
+  }
   if (!reliableCompsFound) {
     addUnique(needed, "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.");
   }
@@ -11024,7 +11762,8 @@ function inferSearchItemType(identity, visualCategory, productTitle, notesText, 
     ["ceramic canister", /canister|cookie jar|ceramic jar|lidded/],
     ["apparel", /dress|shirt|jacket|shoe|pants|apparel|fashion/],
     ["electronics", /laptop|computer|phone|tablet|electronics/],
-    ["furniture", /sofa|chair|table|dresser|cabinet|furniture/]
+    ["furniture", /sofa|chair|table|dresser|cabinet|furniture/],
+    ["boxed envelopes", /envelope|envelopes|stationery|security envelope|peel[- ]?and[- ]?seal|gummed/]
   ];
   for (const [label, pattern] of knownTypes) {
     if (pattern.test(haystack)) {
@@ -11052,6 +11791,10 @@ function scoreSearchQuerySpecificity(query, context) {
   if (quoted && /['&]|slogan|motto|catchphrase/i.test(quoted)) score += 8;
   if (quotedWordCount > 8) score -= 3;
   if (context.upc && text.includes(context.upc.toLowerCase())) score += 12;
+  if (context.barcodeDigits && text.includes(context.barcodeDigits.toLowerCase())) score += 14;
+  if ((context.retailStoreContext || context.onlineRetailerContext) && /\b(?:retail|shopping|current price|manufacturer price|replacement cost|pickup|nearby)\b/.test(text)) score += 5;
+  if (context.storeName && text.includes(context.storeName.toLowerCase())) score += 7;
+  if (context.retailerDomain && text.includes(context.retailerDomain.toLowerCase())) score += 6;
   if (context.model && text.includes(context.model.toLowerCase())) score += 9;
   if (context.itemCode && text.includes(context.itemCode.toLowerCase())) score += 9;
   if (context.brand && text.includes(context.brand.toLowerCase())) score += 7;
@@ -11531,6 +12274,13 @@ function normalizeStringArray(value, maxItems, fallback = []) {
   return items.map(cleanText).filter(Boolean).slice(0, maxItems);
 }
 
+function normalizeArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return value ? [value] : [];
+}
+
 function hasKnownValue(value) {
   const text = cleanText(value);
   return Boolean(text && !/^unknown|n\/a|none|not visible$/i.test(text));
@@ -11573,6 +12323,11 @@ function parseBody(body) {
 }
 
 export const __queryIntegrityTestHooks = {
+  normalizeBuyerIntake,
+  routeMarketSources,
+  buildLiveSearchQueries,
+  buildSearchQueryContext,
+  buildRetailContextSearchQueries,
   buildSerperSearchPlan,
   buildSerperMarketplaceQuery,
   buildSerperSingleMarketplaceQuery,
@@ -11610,5 +12365,8 @@ export const __queryIntegrityTestHooks = {
   isNonTransactionalContentRecord,
   isBulkLotReferenceWithoutUnitPrice,
   hasExplicitSoldTransactionProof,
-  isCurrentPurchasablePriceFoundRecord
+  isCurrentPurchasablePriceFoundRecord,
+  buildRetailDecisionCalibration,
+  extractPackQuantityNumber,
+  normalizeBarcodeDigits
 };

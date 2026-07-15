@@ -335,6 +335,14 @@ h3 {
   gap: 12px;
 }
 
+.conditional-fields {
+  padding: 12px;
+  border: 1px solid rgba(15, 106, 98, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(237, 248, 244, 0.72) 100%);
+}
+
 .field-control {
   display: grid;
   gap: 7px;
@@ -347,6 +355,14 @@ h3 {
 
 .full-span {
   grid-column: 1 / -1;
+}
+
+.location-control {
+  align-items: start;
+}
+
+.location-control .secondary-button {
+  justify-self: start;
 }
 
 .details-panel {

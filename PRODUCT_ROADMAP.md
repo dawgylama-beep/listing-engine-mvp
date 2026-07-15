@@ -320,6 +320,14 @@
 - Low-dollar Personal Buy decisions stay calibrated when the asking price falls inside a weak preliminary range but no verified sold or active exact-match prices were found
 - Regression tests cover the Facebook/thrift-haul bulk-tray failure, current-purchase labeling, and weak-evidence $10 personal-use decision behavior
 
+## Version 1.10.10 (Completed)
+- Personal Buy now requires purchase context before research, with Retail store follow-up fields for store name and ZIP/location flow
+- Retail-store and online-retailer purchases now route through barcode-first current-retail replacement-cost searches before resale/collectible logic
+- Barcode failure is shown directly to the customer, and manual Barcode or UPC entry is supported
+- Local Store Context, Retail Price Context, and Package / Unit Price Context explain store, ZIP, current-price, availability, and pack/unit limitations without claiming unsupported inventory
+- Retail Personal Buy decisions now avoid unconditional Buy when price is not verified, using conditional labels such as Price Not Verified and Low-Risk Purchase - Limited Evidence
+- Regression tests cover purchase-context UI, privacy-safe location behavior, UPC/store queries, pack-count mismatch, retail decision calibration, and preserved 1.10.7-1.10.9 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings

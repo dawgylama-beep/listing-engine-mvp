@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.9"
+$AppVersion = "1.10.10"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1263,6 +1263,13 @@ Use Guided Buyer Intake as the current purchase opportunity. The asking price is
 Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.
 Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.
 Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.
+For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.
+For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.
+If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.
+When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.
+For retail products, compare package price and unit price separately when quantity is explicit and compatible. Do not compare a 100-count box directly with a 25-count box as an exact match; use unit-price context only when product type, size, and specs are compatible.
+Local Store Context must include named store and ZIP/general area when supplied, current store price if found, pickup/availability only when source-backed, and 'Availability not confirmed' when inventory support is missing.
+Next Best Action must ask for the specific missing retail identifier: closer barcode photo, manual UPC, store name, ZIP code, box size, pack count, quantity, model, or SKU.
 Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.
 For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.
 For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.
@@ -3400,6 +3407,12 @@ function Normalize-BuyerIntake {
     purchase_context = ""
     asking_price = ""
     purchase_intent = ""
+    store_name = ""
+    location_zip = ""
+    location_mode = ""
+    location_permission = ""
+    retailer_or_marketplace_name = ""
+    known_shipping_amount = ""
     item_condition = ""
     condition_concerns = @()
     item_name = ""
@@ -3421,6 +3434,12 @@ function Normalize-BuyerIntake {
     "purchase_context",
     "asking_price",
     "purchase_intent",
+    "store_name",
+    "location_zip",
+    "location_mode",
+    "location_permission",
+    "retailer_or_marketplace_name",
+    "known_shipping_amount",
     "item_condition",
     "item_name",
     "known_brand",
@@ -3453,6 +3472,10 @@ function Normalize-BuyerIntake {
       Where-Object { $AllowedConcerns -contains $_ } |
       Select-Object -Unique
   )
+  $Intake.known_upc_digits = ((Clean-Text $Intake.known_upc) -replace "\D", "")
+  if ($Intake.known_upc_digits.Length -lt 8 -or $Intake.known_upc_digits.Length -gt 14) {
+    $Intake.known_upc_digits = ""
+  }
   $Intake.parsed_asking_price = ConvertTo-ParsedAskingPrice $Intake.asking_price
 
   return $Intake
@@ -3498,6 +3521,12 @@ function Format-BuyerIntakeForPrompt {
     "asking_price_raw: $(Get-BuyerIntakeValue $BuyerIntake 'asking_price')",
     "asking_price_number: $ParsedPrice",
     "purchase_intent: $(Get-BuyerIntakeValue $BuyerIntake 'purchase_intent')",
+    "store_name: $(Get-BuyerIntakeValue $BuyerIntake 'store_name')",
+    "location_zip: $(Get-BuyerIntakeValue $BuyerIntake 'location_zip')",
+    "location_mode: $(Get-BuyerIntakeValue $BuyerIntake 'location_mode')",
+    "location_permission: $(Get-BuyerIntakeValue $BuyerIntake 'location_permission')",
+    "retailer_or_marketplace_name: $(Get-BuyerIntakeValue $BuyerIntake 'retailer_or_marketplace_name')",
+    "known_shipping_amount: $(Get-BuyerIntakeValue $BuyerIntake 'known_shipping_amount')",
     "item_condition: $(Get-BuyerIntakeValue $BuyerIntake 'item_condition')",
     "condition_concerns: $Concerns",
     "item_name: $(Get-BuyerIntakeValue $BuyerIntake 'item_name')",
@@ -3506,6 +3535,7 @@ function Format-BuyerIntakeForPrompt {
     "known_model: $(Get-BuyerIntakeValue $BuyerIntake 'known_model')",
     "known_sku: $(Get-BuyerIntakeValue $BuyerIntake 'known_sku')",
     "known_upc: $(Get-BuyerIntakeValue $BuyerIntake 'known_upc')",
+    "known_upc_digits: $(Get-BuyerIntakeValue $BuyerIntake 'known_upc_digits')",
     "approximate_age_era: $(Get-BuyerIntakeValue $BuyerIntake 'approximate_age_era')",
     "buyer_notes: $(Get-BuyerIntakeValue $BuyerIntake 'buyer_notes')"
   ) -join "`n"
@@ -4265,6 +4295,18 @@ function Get-GuardedBuyerDecision {
 
   if (-not (Test-HasAskingPrice $BuyerIntake)) {
     return "Need More Info - Current asking price is missing, and reliable source-backed comps are not available. $(Remove-DecisionLabel $Text)"
+  }
+
+  $Context = (Get-BuyerIntakeValue $BuyerIntake "purchase_context").ToLowerInvariant()
+  if ($Context -eq "retail_store") {
+    $AskingPrice = $null
+    if ($BuyerIntake.ContainsKey("parsed_asking_price") -and $null -ne $BuyerIntake["parsed_asking_price"]) {
+      $AskingPrice = [double]$BuyerIntake["parsed_asking_price"]
+    }
+    if ($null -ne $AskingPrice -and $AskingPrice -le 25) {
+      return "Need More Info - Price Not Verified - Low Financial Risk. Current retail price was not verified against compatible source-backed retail prices, so this is a conditional low-dollar personal-use decision rather than an unconditional Buy. $(Remove-DecisionLabel $Text)"
+    }
+    return "Need More Info - Price Not Verified. Current retail price was not verified against compatible source-backed retail prices. Add the UPC/barcode, store name, ZIP code, package size, and count before relying on the decision. $(Remove-DecisionLabel $Text)"
   }
 
   if (Test-ResaleIntent (Get-BuyerIntakeValue $BuyerIntake "purchase_intent")) {

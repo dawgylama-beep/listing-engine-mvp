@@ -13,9 +13,20 @@ const platformInput = document.querySelector("#platform");
 const platformNote = document.querySelector("#platform-note");
 const buyerIntakeSection = document.querySelector("#buyer-intake-section");
 const buyerIntakeTitle = document.querySelector("#buyer-intake-title");
+const purchaseContextInput = document.querySelector("#purchase_context");
+const retailContextFields = document.querySelector("#retail-context-fields");
+const contextNameFields = document.querySelector("#context-name-fields");
 const purchaseIntentControl = document.querySelector("#purchase-intent-control");
 const purchaseIntentInput = document.querySelector("#purchase_intent");
 const askingPriceInput = document.querySelector("#asking_price");
+const storeNameInput = document.querySelector("#store_name");
+const locationZipInput = document.querySelector("#location_zip");
+const useLocationButton = document.querySelector("#use-location-button");
+const locationStatus = document.querySelector("#location-status");
+const locationModeInput = document.querySelector("#location_mode");
+const locationPermissionInput = document.querySelector("#location_permission");
+const retailerOrMarketplaceInput = document.querySelector("#retailer_or_marketplace_name");
+const knownShippingAmountInput = document.querySelector("#known_shipping_amount");
 const notesInput = document.querySelector("#notes");
 const notesNote = document.querySelector("#notes-note");
 const copyAllButton = document.querySelector("#copy-all");
@@ -195,6 +206,11 @@ const consumerSections = [
   ["identityConflicts", "Identity Conflicts"],
   ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
+  ["purchaseContextSummary", "Purchase Context"],
+  ["barcodeSearchStatus", "Barcode Search Status"],
+  ["localStoreContext", "Local Store Context"],
+  ["retailPriceContext", "Retail Price Context"],
+  ["packageUnitPriceContext", "Package / Unit Price Context"],
   ["askingPrice", "Asking Price"],
   ["bestCompatiblePriceFound", "Best Compatible Price Found"],
   ["currentPurchaseOptionSummary", "Current Purchase Option Summary"],
@@ -287,7 +303,8 @@ const workflowConfigs = {
     showBuyerIntake: true,
     platformRequired: false,
     notesRequired: false,
-    askingPriceRequired: false
+    askingPriceRequired: false,
+    purchaseContextRequired: true
   },
   resale: {
     ...reportTypes.marketValue,
@@ -307,7 +324,8 @@ const workflowConfigs = {
     showBuyerIntake: true,
     platformRequired: false,
     notesRequired: false,
-    askingPriceRequired: false
+    askingPriceRequired: false,
+    purchaseContextRequired: false
   },
   market_value: {
     ...reportTypes.marketValue,
@@ -327,7 +345,8 @@ const workflowConfigs = {
     showBuyerIntake: true,
     platformRequired: false,
     notesRequired: false,
-    askingPriceRequired: false
+    askingPriceRequired: false,
+    purchaseContextRequired: false
   },
   listing: {
     ...reportTypes.listing,
@@ -365,6 +384,11 @@ photosInput.addEventListener("change", handleLibraryPhotoChange);
 workflowInputs.forEach((input) => input.addEventListener("change", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
 }));
+purchaseContextInput.addEventListener("change", () => {
+  const config = workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow];
+  syncPurchaseContextFields(config);
+});
+useLocationButton.addEventListener("click", handleUseLocationClick);
 form.addEventListener("submit", handleSubmit);
 copyAllButton.addEventListener("click", () => {
   if (!latestReport) {
@@ -487,6 +511,13 @@ async function handleSubmit(event) {
   if (config.notesRequired && !notes) {
     clearWorkflowOutput(config);
     setStatus("Add item notes before generating a listing.", "error");
+    return;
+  }
+
+  const buyerContextError = validateBuyerPurchaseContext(config, formData);
+  if (buyerContextError) {
+    clearWorkflowOutput(config);
+    setStatus(buyerContextError, "error");
     return;
   }
 
@@ -631,6 +662,7 @@ function syncWorkflowFormState(config) {
   platformInput.required = Boolean(config.platformRequired);
   notesInput.required = Boolean(config.notesRequired);
   askingPriceInput.required = Boolean(config.askingPriceRequired);
+  purchaseContextInput.required = Boolean(config.showBuyerIntake && config.purchaseContextRequired);
   purchaseIntentInput.value = config.purchaseIntent;
 
   setWorkflowSectionState(platformField, {
@@ -649,6 +681,8 @@ function syncWorkflowFormState(config) {
   if (config.showBuyerIntake) {
     buyerIntakeTitle.textContent = config.buyerTitle;
   }
+
+  syncPurchaseContextFields(config);
 }
 
 function setWorkflowSectionState(element, { visible, disabled }) {
@@ -662,6 +696,105 @@ function setWorkflowSectionState(element, { visible, disabled }) {
       control.required = false;
     }
   }
+}
+
+function syncPurchaseContextFields(config) {
+  const showBuyerIntake = Boolean(config.showBuyerIntake);
+  const context = String(purchaseContextInput.value || "").trim();
+  const retailSelected = showBuyerIntake && context === "retail_store";
+  const namedContextSelected = showBuyerIntake && [
+    "online_retailer",
+    "facebook_marketplace",
+    "ebay_etsy_mercari",
+    "private_seller",
+    "other"
+  ].includes(context);
+
+  setWorkflowSectionState(retailContextFields, {
+    visible: retailSelected,
+    disabled: !retailSelected
+  });
+  setWorkflowSectionState(contextNameFields, {
+    visible: namedContextSelected,
+    disabled: !namedContextSelected
+  });
+
+  storeNameInput.required = retailSelected;
+  locationZipInput.required = retailSelected && locationModeInput.value !== "browser_location_approved";
+  purchaseContextInput.required = Boolean(showBuyerIntake && config.purchaseContextRequired);
+
+  if (!retailSelected) {
+    storeNameInput.required = false;
+    locationZipInput.required = false;
+    locationStatus.textContent = "";
+    locationModeInput.value = "";
+    locationPermissionInput.value = "";
+  }
+
+  if (!namedContextSelected) {
+    retailerOrMarketplaceInput.required = false;
+    knownShippingAmountInput.required = false;
+  }
+}
+
+function validateBuyerPurchaseContext(config, formData) {
+  if (!config.showBuyerIntake) {
+    return "";
+  }
+
+  const context = String(formData.get("purchase_context") || "").trim();
+  if (config.purchaseContextRequired && !context) {
+    return "Choose where you are buying this before continuing.";
+  }
+
+  if (context !== "retail_store") {
+    return "";
+  }
+
+  const storeName = String(formData.get("store_name") || "").trim();
+  const zip = String(formData.get("location_zip") || "").trim();
+  const locationMode = String(formData.get("location_mode") || "").trim();
+
+  if (!storeName) {
+    return "Enter the store name before checking a retail-store purchase.";
+  }
+
+  if (!zip && locationMode !== "browser_location_approved") {
+    return "Enter a ZIP code or tap Use My Location before checking nearby retail prices.";
+  }
+
+  return "";
+}
+
+function handleUseLocationClick() {
+  if (!navigator.geolocation) {
+    locationModeInput.value = "manual_zip";
+    locationPermissionInput.value = "unsupported";
+    locationStatus.textContent = "Location is not available in this browser. Enter a ZIP code to check nearby prices.";
+    syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+    return;
+  }
+
+  locationStatus.textContent = "Asking for location permission...";
+  navigator.geolocation.getCurrentPosition(
+    () => {
+      locationModeInput.value = "browser_location_approved";
+      locationPermissionInput.value = "granted";
+      locationStatus.textContent = "Location permission granted. Nearby research can use your general area; precise coordinates will not appear in the report.";
+      syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+    },
+    () => {
+      locationModeInput.value = "permission_denied";
+      locationPermissionInput.value = "denied";
+      locationStatus.textContent = "Location access was not granted. Enter a ZIP code to check nearby prices.";
+      syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 8000,
+      maximumAge: 15 * 60 * 1000
+    }
+  );
 }
 
 function clearWorkflowOutput(config) {
@@ -781,6 +914,11 @@ function extractReportContext(report, sections = []) {
     "searchDiagnostics",
     "researchResults",
     "comparableQuality",
+    "purchaseContextSummary",
+    "barcodeSearchStatus",
+    "localStoreContext",
+    "retailPriceContext",
+    "packageUnitPriceContext",
     "weFoundThisItem",
     "weFoundSimilarComparableItems",
     "currentAskingPrice",
@@ -906,6 +1044,12 @@ function getBuyerIntake(formData, notes) {
     purchase_context: getValue("purchase_context"),
     asking_price: getValue("asking_price"),
     purchase_intent: getValue("purchase_intent"),
+    store_name: getValue("store_name"),
+    location_zip: getValue("location_zip"),
+    location_mode: getValue("location_mode"),
+    location_permission: getValue("location_permission"),
+    retailer_or_marketplace_name: getValue("retailer_or_marketplace_name"),
+    known_shipping_amount: getValue("known_shipping_amount"),
     item_condition: getValue("item_condition"),
     condition_concerns: formData.getAll("condition_concerns").map((value) => String(value || "").trim()).filter(Boolean),
     item_name: getValue("item_name"),
@@ -1029,9 +1173,13 @@ function normalizeReportForEvidenceDisplay(report, workflow) {
 
 function applyFrontendZeroEvidenceGuard(report, workflow) {
   const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, report.visiblePrice);
+  const retailContext = isRetailStoreReport(report);
   const safeExplanation = askingPrice
     ? `At ${askingPrice}, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established.`
     : "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
+  const retailExplanation = askingPrice
+    ? `At ${askingPrice}, the current retail price was not verified against source-backed current-retail comparisons. The financial exposure may be limited, but Katherine's Eye did not confirm this is a good deal.`
+    : "The current retail price was not verified against source-backed current-retail comparisons.";
   const guarded = {
     ...report,
     valuationEvidenceState: "insufficient",
@@ -1056,16 +1204,33 @@ function applyFrontendZeroEvidenceGuard(report, workflow) {
     minimumAcceptablePrice: "",
     recommendedListingPrice: "",
     suggestedOfferRange: "",
-    valueRating: "Insufficient Evidence",
-    whatThisMeans: "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
-    priceBasis: "Fair value not established - the current search did not return visible source-backed comparable evidence.",
-    currentPriceAssessment: "Insufficient evidence - no source-backed market comparison is supported.",
-    pricingRationale: safeExplanation,
-    cautiousBuyExplanation: /personal/i.test(firstNonEmpty(report.buyerIntent, workflow)) ? safeExplanation : "",
+    valueRating: retailContext ? "Price Not Verified - Low Financial Risk" : "Insufficient Evidence",
+    recommendation: retailContext ? firstNonEmpty(report.recommendation, "Low-Risk Purchase - Limited Evidence") : report.recommendation,
+    whatThisMeans: retailContext ? retailExplanation : "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
+    priceBasis: retailContext
+      ? "Price not verified - the current search did not return source-backed current-retail comparisons."
+      : "Fair value not established - the current search did not return visible source-backed comparable evidence.",
+    currentPriceAssessment: retailContext
+      ? "Price Not Verified - no source-backed current-retail comparison is supported."
+      : "Insufficient evidence - no source-backed market comparison is supported.",
+    pricingRationale: retailContext ? retailExplanation : safeExplanation,
+    cautiousBuyExplanation: /personal/i.test(firstNonEmpty(report.buyerIntent, workflow)) ? (retailContext ? retailExplanation : safeExplanation) : "",
     consumerDownsideRisk: askingPrice ? `Only the asking price (${askingPrice}) is available for a limited-downside personal-use assessment.` : report.consumerDownsideRisk
   };
 
   return sanitizeFrontendZeroEvidenceText(guarded, askingPrice);
+}
+
+function isRetailStoreReport(report = {}) {
+  const text = [
+    report.purchaseContextSummary,
+    report.localStoreContext,
+    report.retailPriceContext,
+    report.searchCoverage,
+    report.priceBasis,
+    report.currentPriceAssessment
+  ].flat().map((item) => normalizeDisplayValue(item)).join(" ").toLowerCase();
+  return /\bretail store\b|store name|local store context|current retail|nearby retail|barcode\/upc/i.test(text);
 }
 
 function sanitizeFrontendZeroEvidenceText(value, askingPrice, key = "") {
@@ -1524,6 +1689,17 @@ function renderSearchDiagnostics(diagnostics) {
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
     ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
+    ["Purchase Context", diagnostics.purchaseContext],
+    ["Store Name", diagnostics.storeName],
+    ["Location Mode Used", diagnostics.locationModeUsed],
+    ["ZIP Present", diagnostics.zipPresence],
+    ["Barcode Extraction Status", diagnostics.barcodeExtractionStatus],
+    ["Exact Barcode Digits Used", diagnostics.exactBarcodeDigitsUsed],
+    ["Retail-Specific Queries", diagnostics.retailSpecificQueries],
+    ["Named Store Query Results", diagnostics.namedStoreQueryResults],
+    ["Pack-Size Match Details", diagnostics.packSizeMatchDetails],
+    ["Rejected Pack-Size Mismatches", diagnostics.rejectedPackSizeMismatches],
+    ["Local Source Coverage", diagnostics.localSourceCoverage],
     ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
     ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
@@ -2658,6 +2834,12 @@ function renderConsumerCompactSummary(report, workflow) {
     report.noReliableComparableItemsFound,
     "Evidence is limited to the submitted photos, notes, and any source-backed records shown below."
   ));
+
+  appendConsumerCompactSection(details, "Purchase Context", report.purchaseContextSummary);
+  appendConsumerCompactSection(details, "Barcode Search Status", report.barcodeSearchStatus);
+  appendConsumerCompactSection(details, "Local Store Context", report.localStoreContext);
+  appendConsumerCompactSection(details, "Retail Price Context", report.retailPriceContext);
+  appendConsumerCompactSection(details, "Package / Unit Price Context", report.packageUnitPriceContext);
 
   appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation);
 
