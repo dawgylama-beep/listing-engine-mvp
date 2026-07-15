@@ -784,6 +784,95 @@ try {
   });
   assert(activeOutranksPartial.primaryRangeType === "current_asking", "Active exact/strong asking evidence should outrank partial/reference prices when sold evidence is absent.");
   assert(/Current Asking-Price Range/i.test(activeOutranksPartial.currentAskingPriceRange), "Current asking bucket should expose its own customer-facing range label.");
+  const socialThriftHaulBulkRecord = priceRecord({
+    title: "I FOUND 14 vintage Coca-Cola trays at the thrift for $4.99",
+    source: "Facebook group post",
+    url: "https://www.facebook.com/groups/thriftfinds/posts/14-coke-trays",
+    canonicalUrl: "https://www.facebook.com/groups/thriftfinds/posts/14-coke-trays",
+    displayedPrice: "$4.99",
+    priceType: "Verified Sold",
+    rawText: "Facebook social post: I FOUND 14 vintage Coca-Cola trays at the thrift for $4.99",
+    classification: "Strong Similar Match",
+    identityMatchStrength: "Strong",
+    evidenceRole: "Comparable evidence - Verified Sold"
+  });
+  assert(__queryIntegrityTestHooks.isBulkLotReferenceWithoutUnitPrice(socialThriftHaulBulkRecord), "A 14-tray thrift-haul post should be recognized as a bulk/lot reference without unit pricing.");
+  assert(__queryIntegrityTestHooks.isNonTransactionalContentRecord(socialThriftHaulBulkRecord), "Facebook thrift-haul content should be treated as non-transactional.");
+  assert(__queryIntegrityTestHooks.normalizePriceTypeLabel("Verified Sold", socialThriftHaulBulkRecord) === "Bulk/Lot Reference", "Bulk/social thrift-haul content must not keep a Verified Sold badge.");
+  assert(__queryIntegrityTestHooks.hasExplicitSoldTransactionProof(socialThriftHaulBulkRecord) === false, "A thrift-haul/social post must not be treated as explicit completed transaction proof.");
+  assert(__queryIntegrityTestHooks.isQualifiedVerifiedSoldPriceEvidence(socialThriftHaulBulkRecord, "Verified Sold", "Strong") === false, "Non-transactional bulk/social content must not count as qualified verified sold evidence.");
+  const socialThriftHaulPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [socialThriftHaulBulkRecord] }, 10);
+  assert(socialThriftHaulPrices.length === 0, "Non-transactional bulk/social content must not appear in customer-facing Prices Found cards.");
+  const socialThriftHaulEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({ strongComparables: [socialThriftHaulBulkRecord] });
+  assert(socialThriftHaulEvidence.pricedRecordCount === 0 && socialThriftHaulEvidence.soldExactStrongCount === 0, "Non-transactional bulk/social content must not drive any price range or verified sold counts.");
+  const facebookMarketplaceSold = priceRecord({
+    title: "Facebook Marketplace Coca-Cola tray marked sold",
+    source: "Facebook Marketplace",
+    url: "https://www.facebook.com/marketplace/item/123456789",
+    canonicalUrl: "https://www.facebook.com/marketplace/item/123456789",
+    displayedPrice: "$18.00",
+    priceType: "Verified Sold",
+    rawText: "Facebook Marketplace completed sale: marked sold for $18.00.",
+    classification: "Exact Match",
+    identityMatchStrength: "Exact",
+    evidenceRole: "Comparable evidence - Verified Sold"
+  });
+  assert(__queryIntegrityTestHooks.hasExplicitSoldTransactionProof(facebookMarketplaceSold), "Facebook Marketplace can qualify only when marketplace context and explicit sold/completed status are present.");
+  assert(__queryIntegrityTestHooks.isQualifiedVerifiedSoldPriceEvidence(facebookMarketplaceSold, "Verified Sold", "Exact"), "Explicit Facebook Marketplace completed-sale evidence can qualify when item identity and price are compatible.");
+  const soldOnlyPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    strongComparables: [
+      priceRecord({
+        url: "https://www.ebay.com/itm/sold-compatible-tray",
+        canonicalUrl: "https://www.ebay.com/itm/sold-compatible-tray",
+        displayedPrice: "$18.00",
+        priceType: "Verified Sold",
+        rawText: "Completed sale sold for $18.00.",
+        classification: "Exact Match",
+        identityMatchStrength: "Exact"
+      })
+    ]
+  }, 10);
+  assert(soldOnlyPrices.length === 1 && soldOnlyPrices[0].priceType === "Verified Sold", "Qualified historical sold evidence may remain visible as historical context.");
+  assert(__queryIntegrityTestHooks.buildBestCompatiblePriceFound(soldOnlyPrices) === null, "Historical sold evidence alone must not become Best Compatible Price Found.");
+  assert(/No compatible current purchasing option with a confirmed delivered cost/i.test(__queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary(soldOnlyPrices)), "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found.");
+  const weakInsideRangeEvidence = {
+    primaryRangeType: "preliminary_reference",
+    primaryRangeLabel: "Preliminary Reference Range",
+    low: 5,
+    high: 20,
+    referenceCenter: 6,
+    primaryRangeRecordCount: 3,
+    pricedRecordCount: 3,
+    primaryPreliminaryReferenceCount: 3,
+    soldExactStrongCount: 0,
+    activeExactStrongCount: 0,
+    hasVerifiedSoldEvidence: false,
+    hasStrongPriceEvidence: false,
+    priceBasis: "Weak, partial, guide, auction, and reference price context only."
+  };
+  const weakInsideDecision = __queryIntegrityTestHooks.classifyConsumerPurchaseDecision({
+    askingPriceNumber: 10,
+    fairValueNumber: 6,
+    reliableCompsFound: false,
+    exactItems: [],
+    similarItems: [],
+    conditionProfile,
+    buyerIntake,
+    identity: georgiaIdentity,
+    priceEvidence: weakInsideRangeEvidence
+  });
+  assert(weakInsideDecision.valueRating === "Reasonable Personal-Use Buy - Limited Evidence", "A low-dollar asking price inside a weak preliminary range should use a cautious personal-use buy label.");
+  assert(!/Wait for a Better Price|Pass/i.test(weakInsideDecision.recommendation), "Weak/reference evidence inside the preliminary range must not independently force Wait or Pass.");
+  assert(/does not prove that \$10 is overpriced/i.test(weakInsideDecision.cautiousBuyExplanation), "Customer explanation should say weak evidence does not prove the $10 ask is overpriced.");
+  const weakInsideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 10,
+    fairValueNumber: 6,
+    decision: weakInsideDecision,
+    conditionProfile,
+    priceEvidence: weakInsideRangeEvidence
+  });
+  assert(/\$10/.test(weakInsideOffer.targetPurchasePrice) && weakInsideOffer.maximumRecommendedPriceAmount === 10, "Weak in-range personal buy should keep target and maximum at the low-dollar asking price, not the weak $6 center.");
+  assert(weakInsideOffer.openingOfferAmount < weakInsideOffer.targetPurchasePriceAmount, "Weak in-range personal buy should still support negotiation below asking.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
   const malformedCandidates = [

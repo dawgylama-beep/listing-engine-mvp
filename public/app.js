@@ -197,6 +197,7 @@ const consumerSections = [
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
   ["bestCompatiblePriceFound", "Best Compatible Price Found"],
+  ["currentPurchaseOptionSummary", "Current Purchase Option Summary"],
   ["priceSpectrumSummary", "Price Spectrum Summary"],
   ["otherCompatiblePricesFound", "Other Compatible Prices Found"],
   ["pricesFound", "Prices Found"],
@@ -2674,6 +2675,8 @@ function renderConsumerCompactSummary(report, workflow) {
     bestSection.appendChild(renderPriceFoundCard(report.bestCompatiblePriceFound));
     details.appendChild(bestSection);
   }
+
+  appendConsumerCompactSection(details, "Current Purchase Option Summary", report.currentPurchaseOptionSummary);
 
   appendConsumerCompactSection(details, "Price Spectrum Summary", report.priceSpectrumSummary);
 

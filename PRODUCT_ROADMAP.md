@@ -313,6 +313,13 @@
 - Reports now include a `Maximum Price Guard` explanation when the maximum is capped or not established
 - Regression tests cover the `$10 asking / $135 maximum` failure mode and preserve Version 1.10.7 delivered-cost behavior
 
+## Version 1.10.9 (Completed)
+- Verified Sold now requires explicit completed-transaction proof, visible transaction price, compatible item identity, and compatible quantity/format
+- Social posts, thrift-haul content, blogs, collector discussions, price guides, and bulk/lot references without unit pricing are blocked from customer pricing ranges and buyer targets
+- `Best Compatible Price Found` now prioritizes current purchasable active listings with confirmed delivered cost, not historical sold/reference evidence
+- Low-dollar Personal Buy decisions stay calibrated when the asking price falls inside a weak preliminary range but no verified sold or active exact-match prices were found
+- Regression tests cover the Facebook/thrift-haul bulk-tray failure, current-purchase labeling, and weak-evidence $10 personal-use decision behavior
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -3435,7 +3435,7 @@ function isComparableItemTypeValuationSafe(itemTypeCompatibility = {}) {
 function isValuationBearingComparable(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
   return isComparableItemTypeValuationSafe(itemTypeCompatibility)
     && /Exact|Strong Similar/i.test(identityMatchStrength)
-    && !/No Usable|Reference Without Price/i.test(priceEvidenceType);
+    && !/No Usable|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceEvidenceType);
 }
 
 function isVerifiedMarketRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}, record = {}) {
@@ -3445,15 +3445,22 @@ function isVerifiedMarketRangeEvidence(identityMatchStrength = "", priceEvidence
 }
 
 function isPreliminaryAskingPriceRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}, record = {}) {
+  const normalizedPriceType = normalizePriceTypeLabel(priceEvidenceType, record);
   return isComparableItemTypeValuationSafe(itemTypeCompatibility)
     && /Exact|Strong Similar|Partial/i.test(identityMatchStrength)
     && Boolean(record.displayedPriceText || record.displayedPrice || record.price || Number.isFinite(record.parsedPrice))
-    && !/No Usable|Reference Without Price|Unknown Price Type/i.test(priceEvidenceType);
+    && !/No Usable|Reference Without Price|Unknown Price Type|Non-Transactional Reference|Bulk\/Lot Reference/i.test(normalizedPriceType);
 }
 
 function buildNonValuationInfluenceReason(priceEvidenceType = "", itemTypeCompatibility = {}) {
   if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
     return `No - ${cleanText(itemTypeCompatibility.explanation) || "product form was not confirmed as compatible with the submitted item."}`;
+  }
+  if (/Bulk\/Lot Reference/i.test(priceEvidenceType)) {
+    return "No - bulk/lot reference; unit price was not established.";
+  }
+  if (/Non-Transactional Reference/i.test(priceEvidenceType)) {
+    return "No - non-transactional content is not completed sale or current purchase evidence.";
   }
   if (/No Usable|Reference Without Price/i.test(priceEvidenceType)) {
     return "No price supplied or no usable valuation price evidence.";
@@ -3474,6 +3481,12 @@ function buildVerifiedMarketRangeNonInfluenceReason(priceEvidenceType = "", item
 function buildPreliminaryRangeNonInclusionReason(priceEvidenceType = "", itemTypeCompatibility = {}) {
   if (!isComparableItemTypeValuationSafe(itemTypeCompatibility)) {
     return `No - ${cleanText(itemTypeCompatibility.explanation) || "product form was not confirmed as compatible with the submitted item."}`;
+  }
+  if (/Bulk\/Lot Reference/i.test(priceEvidenceType)) {
+    return "No - bulk/lot reference; unit price was not established.";
+  }
+  if (/Non-Transactional Reference/i.test(priceEvidenceType)) {
+    return "No - non-transactional content is not market price evidence.";
   }
   if (/No Usable|Reference Without Price/i.test(priceEvidenceType)) {
     return "No - no usable visible price was supplied.";
@@ -3505,10 +3518,16 @@ function hasStrongItemTypeMismatch(haystack, itemType) {
 function classifySerperPriceEvidence(record = {}) {
   const text = normalizeComparableText([record.title, record.snippet, record.domain, record.displayedPriceText].join(" "));
   const hasPrice = Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice));
+  if (isBulkLotReferenceWithoutUnitPrice(record)) {
+    return "Bulk/Lot Reference";
+  }
+  if (isNonTransactionalContentRecord(record)) {
+    return "Non-Transactional Reference";
+  }
   if (record.sourceType === "shopping" && hasPrice) {
     return "Shopping Offer";
   }
-  if (hasPrice && /\b(sold for|sold price|price realized|hammer price|final sale price)\b/i.test(text)) {
+  if (hasPrice && /\b(sold for|sold price|price realized|hammer price|final sale price)\b/i.test(text) && hasExplicitSoldTransactionProof(record)) {
     return "Confirmed Sold";
   }
   if (hasPrice && /\b(sold|ended|completed)\b/i.test(text)) {
@@ -3575,6 +3594,12 @@ function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType =
     return itemTypeCompatibility.itemTypeCompatible === false
       ? "Identity/reference context only - product type differs; not valuation support"
       : "Identity/reference context only - candidate product type not established; not valuation support";
+  }
+  if (/Bulk\/Lot Reference/i.test(priceEvidenceType)) {
+    return "Rejected - bulk/lot reference without established unit price";
+  }
+  if (/Non-Transactional Reference/i.test(priceEvidenceType)) {
+    return "Rejected - not a market transaction";
   }
   if (/Exact|Strong Similar/.test(identityMatchStrength) && !/No Usable|Reference Without Price/.test(priceEvidenceType)) {
     return `Comparable evidence - ${priceEvidenceType}`;
@@ -6428,8 +6453,19 @@ function normalizeExistingResearchRecord(item, bucketName) {
   const rawText = cleanText(item.rawText || Object.entries(item).map(([key, value]) => `${key}: ${value}`).join(" | "));
   const url = cleanText(item.url || extractFirstUrl(rawText));
   const displayedPrice = normalizeMoneyLabelText(cleanText(item.displayedPrice || item.displayedPriceText || item.price));
-  const priceType = cleanText(item.priceType || item.priceEvidenceType) || inferPriceType(rawText);
-  const priceTypeLabel = cleanText(item.priceTypeLabel) || normalizePriceTypeLabel(priceType, item);
+  const sourcePriceType = cleanText(item.priceType || item.priceEvidenceType) || inferPriceType(rawText);
+  const priceTypeLabel = normalizePriceTypeLabel(sourcePriceType, {
+    ...item,
+    rawText,
+    url,
+    displayedPrice,
+    price: displayedPrice
+  });
+  const priceType = /Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceTypeLabel) ? priceTypeLabel : sourcePriceType;
+  const nonMarketTransaction = /Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceTypeLabel);
+  const nonMarketReason = /Bulk\/Lot Reference/i.test(priceTypeLabel)
+    ? "Bulk/lot reference - unit price not established."
+    : "Non-transactional reference - not a market transaction.";
   return {
     title: cleanText(item.title) || extractResultTitle(rawText, cleanText(item.source), url),
     source: cleanText(item.source) || inferSourceFromResult(rawText, url),
@@ -6441,7 +6477,7 @@ function normalizeExistingResearchRecord(item, bucketName) {
     priceTypeLabel,
     delivery: cleanText(item.delivery || item.shipping),
     condition: cleanText(item.condition),
-    classification: cleanText(item.classification) || inferResultClassification(rawText, bucketName),
+    classification: nonMarketTransaction ? (priceTypeLabel === "Bulk/Lot Reference" ? "Rejected - Bulk/Lot Reference" : "Rejected - Not a Market Transaction") : cleanText(item.classification) || inferResultClassification(rawText, bucketName),
     identityMatchStrength: cleanText(item.identityMatchStrength),
     evidenceType: cleanText(item.evidenceType) || extractLabeledResultPart(rawText, /evidence\s*type\s*[:=-]\s*([^|;.]+)/i),
     itemTypeCompatible: item.itemTypeCompatible === true || cleanText(item.itemTypeCompatible).toLowerCase() === "true",
@@ -6449,13 +6485,13 @@ function normalizeExistingResearchRecord(item, bucketName) {
     candidateItemType: cleanText(item.candidateItemType),
     itemTypeCompatibilityStatus: cleanText(item.itemTypeCompatibilityStatus),
     itemTypeCompatibilityExplanation: cleanText(item.itemTypeCompatibilityExplanation),
-    evidenceRole: cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
+    evidenceRole: nonMarketTransaction ? `Rejected - ${nonMarketReason}` : cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
     matchExplanation: cleanText(item.matchExplanation) || extractMatchExplanation(rawText),
     itemIdentityDifferences: cleanText(item.itemIdentityDifferences) || extractIdentityDifferences(rawText),
-    influencedReferenceRange: cleanText(item.influencedReferenceRange) || (["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No."),
-    influencedVerifiedMarketRange: cleanText(item.influencedVerifiedMarketRange),
-    includedInPreliminaryAskingPriceRange: cleanText(item.includedInPreliminaryAskingPriceRange),
-    rejectionReason: cleanText(item.rejectionReason) || (bucketName === "rejectedMatches" ? extractRejectionReason(rawText, cleanText(item.classification)) : ""),
+    influencedReferenceRange: nonMarketTransaction ? `No - ${nonMarketReason}` : cleanText(item.influencedReferenceRange) || (["strongComparables", "partialComparables", "referenceResults"].includes(bucketName) ? "Yes, as visible evidence only." : "No."),
+    influencedVerifiedMarketRange: nonMarketTransaction ? `No - ${nonMarketReason}` : cleanText(item.influencedVerifiedMarketRange),
+    includedInPreliminaryAskingPriceRange: nonMarketTransaction ? `No - ${nonMarketReason}` : cleanText(item.includedInPreliminaryAskingPriceRange),
+    rejectionReason: nonMarketTransaction ? nonMarketReason : cleanText(item.rejectionReason) || (bucketName === "rejectedMatches" ? extractRejectionReason(rawText, cleanText(item.classification)) : ""),
     sourceBacked: cleanText(item.sourceBacked) || (url ? "URL provided by result text" : "No usable URL supplied by source."),
     provider: cleanText(item.provider || item.providerKey || extractLabeledResultPart(rawText, /provider\s*[:=-]\s*([^|;.]+)/i)),
     providerLabel: cleanText(item.providerLabel),
@@ -6525,6 +6561,123 @@ function isUsableSourceRecord(item) {
   return Boolean(item.url || (item.source && !/not supplied/i.test(item.source)));
 }
 
+function buildComparableEvidenceText(record = {}, { includeSystemLabels = true } = {}) {
+  const parts = [
+    record.title,
+    record.snippet,
+    record.description,
+    record.condition,
+    record.delivery,
+    record.shipping,
+    record.source,
+    record.domain,
+    record.url,
+    record.sourceType,
+    record.activeSoldReferenceStatus,
+    includeSystemLabels ? record.priceType : "",
+    includeSystemLabels ? record.priceEvidenceType : "",
+    includeSystemLabels ? record.priceTypeLabel : "",
+    includeSystemLabels ? record.evidenceRole : "",
+    record.rawText
+  ];
+  return cleanText(parts.filter(Boolean).join(" "));
+}
+
+function stripSystemPriceEvidenceLabels(text = "") {
+  return cleanText(text)
+    .replace(/\b(?:price\s*(?:type|label|evidence\s*type)|evidence\s*role|influenced\s*verified\s*market\s*range|included\s*in\s*preliminary\s*asking[- ]price\s*range)\s*[:=-]\s*(?:confirmed\s*sold|verified\s*sold|sold\/ended|yes[^|;.]*|comparable\s*evidence[^|;.]*)(?=$|[|;.])/gi, " ")
+    .replace(/\bactive\/sold\/reference\s*status\s*[:=-]\s*sold\/ended\s*evidence\s*status\s*requires\s*source\s*context\b/gi, " ");
+}
+
+function isFacebookMarketplaceRecord(record = {}) {
+  const text = normalizeComparableText(buildComparableEvidenceText(record));
+  return /\bfacebook\s+marketplace\b|facebook\.com\/marketplace|fb\.com\/marketplace/i.test(text);
+}
+
+function isSocialOrEditorialSourceRecord(record = {}) {
+  const text = normalizeComparableText(buildComparableEvidenceText(record));
+  if (isFacebookMarketplaceRecord(record)) {
+    return false;
+  }
+  return /\b(?:facebook|instagram|reddit|pinterest|tiktok|youtube|blogspot|wordpress|blog|forum|message\s*board|collector\s+discussion|discussion\s+thread|social\s+post)\b/i.test(text)
+    || /(?:facebook|instagram|reddit|pinterest|tiktok|youtube|blogspot|wordpress)\.com/i.test(text);
+}
+
+function hasNonTransactionalContentSignals(record = {}) {
+  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  return /\b(?:i\s+found|look\s+what\s+i\s+found|thrift\s+haul|at\s+the\s+thrift|thrifted|haul|my\s+finds?|picked\s+(?:this|these|it|them)\s+up|estate\s+sale\s+find|flea\s+market\s+find|collector\s+discussion|discussion\s+thread|blog\s+post|forum\s+post|photo\s+post|social\s+post|shared\s+post|price\s+guide|guide\s+only|reference\s+only)\b/i.test(text);
+}
+
+function detectBulkLotQuantity(record = {}) {
+  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  const patterns = [
+    /\b(?:lot|bundle|collection|group|case)\s+of\s+(\d{1,3})\b/i,
+    /\b(\d{1,3})\s*[- ]?(?:piece|pc)\s+(?:lot|bundle|set|collection|group)\b/i,
+    /\b(?:lot|bundle|collection|group)\s+(?:with|containing)\s+(\d{1,3})\b/i,
+    /\b(\d{1,3})\s+(?:vintage\s+|antique\s+|used\s+|collectible\s+|coca[-\s]?cola\s+)?(?:trays|plates|items|pieces|figurines|figures|decorations|ornaments|mugs|cups|bottles|signs|stickers|books)\b/i
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const quantity = match ? Number.parseInt(match[1], 10) : null;
+    if (Number.isFinite(quantity) && quantity > 1) {
+      return { quantity, text };
+    }
+  }
+  if (/\b(?:pair|lot|bundle|collection|group)\b/i.test(text)) {
+    return { quantity: 2, text };
+  }
+  return { quantity: 1, text };
+}
+
+function hasSupportedUnitNormalization(record = {}, quantityContext = detectBulkLotQuantity(record)) {
+  const text = quantityContext.text || normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  return /\b(?:unit\s*price|per\s+(?:item|piece|tray|unit)|each|ea\.?)\b/i.test(text)
+    && /\b(?:single|one)\s+(?:item|piece|tray|unit)\b|\$?\s*\d/i.test(text);
+}
+
+function isBulkLotReferenceWithoutUnitPrice(record = {}) {
+  const quantityContext = detectBulkLotQuantity(record);
+  return quantityContext.quantity > 1 && !hasSupportedUnitNormalization(record, quantityContext);
+}
+
+function isNonTransactionalContentRecord(record = {}) {
+  if (isBulkLotReferenceWithoutUnitPrice(record)) {
+    return true;
+  }
+  if (isSocialOrEditorialSourceRecord(record)) {
+    return true;
+  }
+  return hasNonTransactionalContentSignals(record) && !hasExplicitSoldTransactionProof(record);
+}
+
+function hasExplicitSoldTransactionProof(record = {}) {
+  const amount = getVisibleItemPriceAmount(record);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return false;
+  }
+  const text = normalizeComparableText(stripSystemPriceEvidenceLabels(buildComparableEvidenceText(record, { includeSystemLabels: false })));
+  if (/\b(?:not\s+sold|no\s+sold|without\s+confirmed\s+sale|not\s+a\s+sold\s+listing|ended\s+listing\s+without\s+confirmed\s+sale)\b/i.test(text)) {
+    return false;
+  }
+  const hasTransactionLanguage = /\b(?:sold\s+for|sold\s+at|verified\s+sold\s+price|confirmed\s+sold\s+price|sold\s+price|final\s+sale\s+price|price\s+realized|hammer\s+price|completed\s+sale|completed\s+transaction|closed\s+transaction|auction\s+result|winning\s+bid|won\s+for)\b/i.test(text)
+    || (isFacebookMarketplaceRecord(record) && /\b(?:marked\s+sold|sold\s+on\s+facebook\s+marketplace|facebook\s+marketplace\s+sold|completed\s+sale)\b/i.test(text));
+  if (!hasTransactionLanguage) {
+    return false;
+  }
+  if (isSocialOrEditorialSourceRecord(record) && !isFacebookMarketplaceRecord(record)) {
+    return false;
+  }
+  return !isBulkLotReferenceWithoutUnitPrice(record);
+}
+
+function isCurrentPurchasableSourceRecord(record = {}) {
+  const priceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
+  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  return /Active Asking/i.test(priceType)
+    && !isNonTransactionalContentRecord(record)
+    && !/\b(?:sold|completed|ended|unavailable|removed|out\s+of\s+stock|price\s+guide|reference\s+only)\b/i.test(text);
+}
+
 function canInfluenceValuationFromVisibleRecord(record = {}) {
   if (!record || typeof record === "string") {
     return false;
@@ -6552,6 +6705,9 @@ function canSupportPreliminaryAskingRangeFromVisibleRecord(record = {}) {
   if (!record || typeof record === "string" || !isUsableSourceRecord(record)) {
     return false;
   }
+  if (isBulkLotReferenceWithoutUnitPrice(record) || isNonTransactionalContentRecord(record)) {
+    return false;
+  }
   if (record.itemTypeCompatible === false || cleanText(record.itemTypeCompatible).toLowerCase() === "false") {
     return false;
   }
@@ -6568,7 +6724,7 @@ function canSupportPreliminaryAskingRangeFromVisibleRecord(record = {}) {
   if (!Number.isFinite(amount) || amount <= 0) {
     return false;
   }
-  return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
+  return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
 }
 
 function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { excludeRangeOutlierUrls = [] } = {}) {
@@ -6626,6 +6782,9 @@ function isPriceFoundEligible(record = {}) {
   if (!record || typeof record === "string" || !record.url || !isUsableSourceRecord(record)) {
     return false;
   }
+  if (isBulkLotReferenceWithoutUnitPrice(record) || isNonTransactionalContentRecord(record)) {
+    return false;
+  }
   if (record.itemTypeCompatible === false || cleanText(record.itemTypeCompatible).toLowerCase() === "false") {
     return false;
   }
@@ -6636,6 +6795,9 @@ function isPriceFoundEligible(record = {}) {
     return false;
   }
   if (/weak|rejected/i.test(record.classification || record.evidenceRole || "")) {
+    return false;
+  }
+  if (/Non-Transactional Reference|Bulk\/Lot Reference|No Usable Price Evidence|Reference Without Price/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record))) {
     return false;
   }
   const amount = getVisibleItemPriceAmount(record);
@@ -6685,6 +6847,12 @@ function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
 }
 
 function normalizePriceTypeLabel(priceType = "", record = {}) {
+  if (isBulkLotReferenceWithoutUnitPrice(record)) {
+    return "Bulk/Lot Reference";
+  }
+  if (isNonTransactionalContentRecord(record)) {
+    return "Non-Transactional Reference";
+  }
   const text = normalizeComparableText([
     priceType,
     record.priceType,
@@ -6695,7 +6863,7 @@ function normalizePriceTypeLabel(priceType = "", record = {}) {
     record.rawText
   ].join(" "));
   if (/\b(sold for|sold price|price realized|hammer price|final sale price|confirmed sold|verified sold)\b/i.test(text)) {
-    return "Verified Sold";
+    return hasExplicitSoldTransactionProof(record) ? "Verified Sold" : "Reference Price";
   }
   if (/\b(current bid|current auction bid|bid currently|latest bid)\b/i.test(text)) {
     return "Auction Current Bid";
@@ -6792,6 +6960,12 @@ function extractShippingEvidence(record = {}) {
 
 function inferPriceFoundListingStatus(record = {}, priceType = "") {
   const text = normalizeComparableText([record.title, record.snippet, record.rawText, record.activeSoldReferenceStatus].join(" "));
+  if (/Bulk\/Lot Reference/i.test(priceType)) {
+    return "Bulk/lot reference - unit price not established";
+  }
+  if (/Non-Transactional Reference/i.test(priceType)) {
+    return "Non-transactional reference - not a market transaction";
+  }
   if (/\b(unavailable|removed|out of stock|no longer available|cached|stale)\b/i.test(text)) {
     return "Unavailable/stale reference - not confirmed as currently purchasable";
   }
@@ -6815,6 +6989,12 @@ function inferPriceFoundListingStatus(record = {}, priceType = "") {
 
 function buildPriceFoundLimitation(record = {}, priceType = "", shipping = {}, listingStatus = "") {
   const limits = [];
+  if (/Bulk\/Lot Reference/i.test(priceType)) {
+    limits.push("Bulk/lot reference - unit price not established.");
+  }
+  if (/Non-Transactional Reference/i.test(priceType)) {
+    limits.push("Non-transactional content; do not use it as completed sale or current purchase evidence.");
+  }
   if (!/Verified Sold/i.test(priceType)) {
     limits.push(`${priceType} is not verified sold value.`);
   }
@@ -6864,9 +7044,9 @@ function buildPriceFoundComparison({ askingPriceNumber, itemAmount, shipping, de
 }
 
 function priceFoundSortRank(record = {}) {
-  if (/Verified Sold/i.test(record.priceType)) return 1;
-  if (/Active Asking/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 2;
-  if (/Active Asking/i.test(record.priceType)) return 3;
+  if (/Active Asking/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 1;
+  if (/Active Asking/i.test(record.priceType)) return 2;
+  if (/Verified Sold/i.test(record.priceType)) return 3;
   if (/Auction Current Bid|Auction Opening Bid/i.test(record.priceType)) return 4;
   return 5;
 }
@@ -6910,8 +7090,16 @@ function annotatePriceContextRecord(record = {}, label = "", summary = "") {
   };
 }
 
+function isCurrentPurchasablePriceFoundRecord(record = {}) {
+  return /Active Asking/i.test(record.priceType)
+    && !/historical|sold|reference|auction|not a current purchasing option|not confirmed as currently purchasable|unavailable|stale/i.test(record.listingStatus || "")
+    && !/Non-Transactional Reference|Bulk\/Lot Reference|Verified Sold|Estimated|Guide|Reference|Auction/i.test(record.priceType || "");
+}
+
 function buildBestCompatiblePriceFound(pricesFound = []) {
-  const records = pricesFound.filter((item) => Number.isFinite(item.itemPriceAmount));
+  const records = pricesFound
+    .filter((item) => Number.isFinite(item.itemPriceAmount))
+    .filter(isCurrentPurchasablePriceFoundRecord);
   if (!records.length) {
     return null;
   }
@@ -6922,16 +7110,32 @@ function buildBestCompatiblePriceFound(pricesFound = []) {
     const best = knownDelivered[0];
     return annotatePriceContextRecord(
       best,
-      "Best Compatible Price Found",
+      "Lowest Known Delivered Cost Found",
       `Lowest supported delivered cost found: ${best.deliveredCost}. Taxes may apply.`
     );
   }
   const lowestItem = records.slice().sort((a, b) => (a.itemPriceAmount || 0) - (b.itemPriceAmount || 0))[0];
   return annotatePriceContextRecord(
     lowestItem,
-    "Lowest visible item price found",
-    "Shipping was not shown for the lowest visible item price, so it is not established as the lowest delivered cost."
+    "Lowest Current Visible Item Price Found",
+    "Shipping was not shown for this current active item price, so it is not established as the lowest delivered cost."
   );
+}
+
+function buildCurrentPurchaseOptionSummary(pricesFound = []) {
+  const currentOptions = pricesFound.filter(isCurrentPurchasablePriceFoundRecord);
+  const knownDelivered = currentOptions.filter((item) => Number.isFinite(item.deliveredCostAmount));
+  if (knownDelivered.length) {
+    const lowest = knownDelivered.slice().sort(compareCompatiblePriceContext)[0];
+    return `A compatible current purchasing option with confirmed delivered cost was found: ${lowest.deliveredCost}. Historical sold and reference prices are not treated as current best deals.`;
+  }
+  if (currentOptions.length) {
+    return "Compatible current asking-price results were found, but no compatible current purchasing option had a confirmed delivered cost. Shipping, pickup, taxes, or checkout costs still need verification.";
+  }
+  if (pricesFound.some((item) => /Verified Sold|Reference|Auction|Guide|Estimated/i.test(item.priceType || ""))) {
+    return "No compatible current purchasing option with a confirmed delivered cost was found. Historical sold, auction, guide, or reference prices are context only and are not a current best deal.";
+  }
+  return "No compatible current purchasing option with a confirmed delivered cost was found.";
 }
 
 function buildOtherCompatiblePricesFound(pricesFound = [], best = null) {
@@ -7738,6 +7942,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const bestCompatiblePriceFound = buildBestCompatiblePriceFound(pricesFound);
   const otherCompatiblePricesFound = buildOtherCompatiblePricesFound(pricesFound, bestCompatiblePriceFound);
   const priceSpectrumSummary = buildPriceSpectrumSummary(pricesFound);
+  const currentPurchaseOptionSummary = buildCurrentPurchaseOptionSummary(pricesFound);
   const researchResults = buildListingResearchResults({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const comparableQuality = buildListingComparableQuality({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const cautionItems = mergeStringArrays(
@@ -7774,6 +7979,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     bestCompatiblePriceFound,
+    currentPurchaseOptionSummary,
     otherCompatiblePricesFound,
     priceSpectrumSummary,
     pricesFound,
@@ -7847,6 +8053,35 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   });
 }
 
+function isLowDollarAskingInsideWeakPreliminaryRange({ askingPriceNumber, priceEvidence = {}, conditionProfile = {}, downsideRisk = {} } = {}) {
+  if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0 || askingPriceNumber > 50) {
+    return false;
+  }
+  if (cleanText(priceEvidence.primaryRangeType) !== "preliminary_reference") {
+    return false;
+  }
+  if (Number(priceEvidence.soldExactStrongCount || 0) > 0 || Number(priceEvidence.activeExactStrongCount || 0) > 0) {
+    return false;
+  }
+  const low = Number(priceEvidence.low);
+  const high = Number(priceEvidence.high);
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high < low) {
+    return false;
+  }
+  if (askingPriceNumber < low || askingPriceNumber > high) {
+    return false;
+  }
+  if (conditionProfile.hasHardRisk || Array.isArray(downsideRisk.hardFactors) && downsideRisk.hardFactors.length) {
+    return false;
+  }
+  return true;
+}
+
+function buildWeakRangePersonalBuyExplanation(askingPriceNumber) {
+  const asking = Number.isFinite(askingPriceNumber) ? formatMoney(askingPriceNumber) : "the asking price";
+  return `Reliable sold or active exact-match prices were not found. The asking price falls within the preliminary reference range, so the item may still be reasonable for personal use. Negotiating is worthwhile, but the available evidence does not prove that ${asking} is overpriced.`;
+}
+
 function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, reliableCompsFound, exactItems, similarItems, conditionProfile, buyerIntake, identity, priceEvidence = {} }) {
   const riskFlags = buildConsumerRiskFlags({
     askingPriceNumber,
@@ -7876,6 +8111,12 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
     conditionProfile,
     downsideRisk
   });
+  const weakRangePersonalBuy = isLowDollarAskingInsideWeakPreliminaryRange({
+    askingPriceNumber,
+    priceEvidence,
+    conditionProfile,
+    downsideRisk
+  });
   const clearIdentity = hasClearConsumerIdentity(identity);
   const zeroEvidenceLowDownsideBuy = hasAskingPrice
     && !hasFairValue
@@ -7899,6 +8140,20 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
       downsideRisk,
       cautiousBuyExplanation: buildZeroEvidenceLowDownsideText(formatMoney(askingPriceNumber)),
       evidenceWarning: "Valuation evidence is insufficient; this is a low-dollar personal-use decision, not a market-value conclusion."
+    };
+  }
+
+  if (weakRangePersonalBuy) {
+    const explanation = buildWeakRangePersonalBuyExplanation(askingPriceNumber);
+    return {
+      valueRating: "Reasonable Personal-Use Buy - Limited Evidence",
+      recommendation: "Buy If It Fits Your Needs",
+      badgeReason: "The asking price is inside the preliminary reference range, but no qualified sold or active exact/strong prices established fair market value.",
+      pricingConfidence: forceLowConfidence("", explanation),
+      riskFlags,
+      downsideRisk,
+      cautiousBuyExplanation: explanation,
+      evidenceWarning: "Weak/reference evidence should support cautious personal-use judgment only; it does not prove a precise market value or that the current asking price is overpriced."
     };
   }
 
@@ -8180,6 +8435,12 @@ function isQualifiedVerifiedSoldPriceEvidence(record = {}, normalizedPriceType =
     return false;
   }
   if (!isUsableSourceRecord(record)) {
+    return false;
+  }
+  if (isBulkLotReferenceWithoutUnitPrice(record) || isNonTransactionalContentRecord(record)) {
+    return false;
+  }
+  if (!hasExplicitSoldTransactionProof(record)) {
     return false;
   }
   const statusText = cleanText([
@@ -8911,6 +9172,12 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   let maxPrice = roundMoney(fairValueNumber * conditionMultiplier);
   let targetPrice = roundMoney(Math.min(askingPriceNumber, maxPrice));
   let openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.88 });
+  const weakRangePersonalBuy = isLowDollarAskingInsideWeakPreliminaryRange({
+    askingPriceNumber,
+    priceEvidence,
+    conditionProfile,
+    downsideRisk: decision.downsideRisk || {}
+  });
 
   if (askingPriceNumber <= fairValueNumber * consumerDecisionThresholds.goodMaxRatio) {
     targetPrice = roundMoney(askingPriceNumber);
@@ -8919,6 +9186,12 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   } else if (askingPriceNumber > fairValueNumber * consumerDecisionThresholds.fairMaxRatio) {
     targetPrice = roundMoney(Math.min(maxPrice, fairValueNumber * 0.96));
     openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.86 });
+  }
+
+  if (weakRangePersonalBuy) {
+    targetPrice = roundMoney(askingPriceNumber);
+    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.82 });
+    maxPrice = roundMoney(Math.max(maxPrice, targetPrice));
   }
 
   if (openingOffer > targetPrice) {
@@ -11322,6 +11595,7 @@ export const __queryIntegrityTestHooks = {
   buildBestCompatiblePriceFound,
   buildOtherCompatiblePricesFound,
   buildPriceSpectrumSummary,
+  buildCurrentPurchaseOptionSummary,
   summarizeConsumerVisiblePriceEvidence,
   buildConsumerOffer,
   buildConsumerRecommendationText,
@@ -11332,5 +11606,9 @@ export const __queryIntegrityTestHooks = {
   analyzePriceEvidenceCluster,
   extractShippingEvidence,
   normalizePriceTypeLabel,
-  isQualifiedVerifiedSoldPriceEvidence
+  isQualifiedVerifiedSoldPriceEvidence,
+  isNonTransactionalContentRecord,
+  isBulkLotReferenceWithoutUnitPrice,
+  hasExplicitSoldTransactionProof,
+  isCurrentPurchasablePriceFoundRecord
 };
