@@ -9,10 +9,10 @@ $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.5"; Text = $index; Pattern = "Version 1.10.5" },
-  @{ Name = "Package version is 1.10.5"; Text = $package; Pattern = '"version": "1.10.5"' },
-  @{ Name = "Server version is 1.10.5"; Text = $server; Pattern = '$AppVersion = "1.10.5"' },
-  @{ Name = "Roadmap documents 1.10.5"; Text = $roadmap; Pattern = "Version 1.10.5 (Completed)" },
+  @{ Name = "Visible app version is 1.10.6"; Text = $index; Pattern = "Version 1.10.6" },
+  @{ Name = "Package version is 1.10.6"; Text = $package; Pattern = '"version": "1.10.6"' },
+  @{ Name = "Server version is 1.10.6"; Text = $server; Pattern = '$AppVersion = "1.10.6"' },
+  @{ Name = "Roadmap documents 1.10.6"; Text = $roadmap; Pattern = "Version 1.10.6 (Completed)" },
   @{ Name = "API has high priority exact query builder"; Text = $api; Pattern = "function buildHighPriorityExactQueries" },
   @{ Name = "API scores query specificity"; Text = $api; Pattern = "function scoreSearchQuerySpecificity" },
   @{ Name = "API preserves visible search evidence"; Text = $api; Pattern = "function collectVisibleSearchEvidence" },
@@ -29,7 +29,8 @@ $checks = @(
   @{ Name = "API has cautious buy explanation"; Text = $api; Pattern = "function buildCautiousBuyExplanation" },
   @{ Name = "API centralizes consumer purchase decision"; Text = $api; Pattern = "function classifyConsumerPurchaseDecision" },
   @{ Name = "API uses low-dollar threshold"; Text = $api; Pattern = "lowDollarCautiousBuyMax" },
-  @{ Name = "API supports Potentially Good Value"; Text = $api; Pattern = "Potentially Good Value" },
+  @{ Name = "API supports low-cost cautious value label"; Text = $api; Pattern = "Low-Cost Cautious Buy" },
+  @{ Name = "API supports limited-evidence value label"; Text = $api; Pattern = "Promising Price - Limited Evidence" },
   @{ Name = "Frontend shows consumer downside risk"; Text = $app; Pattern = "Consumer Downside Risk" },
   @{ Name = "Frontend shows cautious buy explanation"; Text = $app; Pattern = "Cautious Buy Explanation" },
   @{ Name = "Ask context carries downside risk"; Text = $app; Pattern = '"consumerDownsideRisk"' },

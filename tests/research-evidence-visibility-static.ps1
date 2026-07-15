@@ -41,8 +41,8 @@ $checks = @(
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
   @{ Name = "Server has research visibility fields"; Text = $server; Pattern = "function Set-ResearchVisibilityFields" },
   @{ Name = "Server blocks preliminary range without supporting records"; Text = $server; Pattern = "Get-ReferenceSupportingResearchResultCount" },
-  @{ Name = "Visible app version is 1.10.5"; Text = $index; Pattern = "Version 1.10.5" },
-  @{ Name = "Package version is 1.10.5"; Text = $package; Pattern = '"version": "1.10.5"' },
+  @{ Name = "Visible app version is 1.10.6"; Text = $index; Pattern = "Version 1.10.6" },
+  @{ Name = "Package version is 1.10.6"; Text = $package; Pattern = '"version": "1.10.6"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }
 )
 

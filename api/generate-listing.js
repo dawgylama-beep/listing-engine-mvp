@@ -6568,7 +6568,8 @@ function canSupportPreliminaryAskingRangeFromVisibleRecord(record = {}) {
   return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
 }
 
-function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null) {
+function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { excludeRangeOutlierUrls = [] } = {}) {
+  const excluded = new Set(excludeRangeOutlierUrls.map((url) => canonicalizeComparableUrl(url) || cleanText(url)).filter(Boolean));
   const candidateRecords = [
     ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
     ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
@@ -6582,6 +6583,9 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null) {
     }
     const enriched = buildPriceFoundRecord(record, askingPriceNumber);
     const key = canonicalizeComparableUrl(enriched.url) || `${enriched.title}|${enriched.source}|${enriched.itemPrice}`.toLowerCase();
+    if (excluded.has(canonicalizeComparableUrl(enriched.url) || cleanText(enriched.url))) {
+      continue;
+    }
     const existing = byListing.get(key);
     if (!existing || priceFoundSortRank(enriched) < priceFoundSortRank(existing)) {
       byListing.set(key, enriched);
@@ -6985,6 +6989,36 @@ function normalizeFlexibleArray(value, maxItems, fallback = []) {
 }
 
 function classifyValuationEvidence({ report = {}, reliableCompsFound = false, searchCompleted = false } = {}) {
+  const explicitLabel = cleanText(report.valuationEvidenceLabel);
+  const explicitState = cleanText(report.valuationEvidenceState).toLowerCase();
+  const explicitRange = firstKnown(report.verifiedMarketRange, report.currentAskingPriceRange, report.preliminaryReferenceRange);
+  if (explicitRange && /verified market range/i.test(explicitLabel)) {
+    return {
+      state: "supported",
+      label: explicitLabel,
+      range: explicitRange,
+      confidence: "Supported",
+      explanation: cleanText(report.valuationEvidenceExplanation) || "Qualified verified sold exact/strong evidence supports the displayed market range."
+    };
+  }
+  if (explicitRange && (/current asking-price range/i.test(explicitLabel) || explicitState === "current_asking")) {
+    return {
+      state: "current_asking",
+      label: explicitLabel || "Current Asking-Price Range",
+      range: explicitRange,
+      confidence: "Medium",
+      explanation: cleanText(report.valuationEvidenceExplanation) || "Active exact/strong asking-price evidence supports a current asking-price range, not verified fair market value."
+    };
+  }
+  if (explicitRange && /preliminary reference range/i.test(explicitLabel)) {
+    return {
+      state: "preliminary",
+      label: explicitLabel,
+      range: explicitRange,
+      confidence: "Low",
+      explanation: cleanText(report.valuationEvidenceExplanation) || "Weak, partial, guide, auction, or reference evidence supports only a preliminary reference range."
+    };
+  }
   const evidenceText = [
     report.valueRating,
     report.priceConfidence,
@@ -7077,11 +7111,19 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
     return normalized;
   }
 
-  if (classified.state === "preliminary") {
+  if (classified.state === "preliminary" || classified.state === "current_asking") {
     const reference = buildPreliminaryReferenceRangeText(classified, { searchCompleted, visibleResultCount: supportingResultCount });
-    normalized.preliminaryReferenceRange = reference;
+    const basisLabel = classified.state === "current_asking" ? "current asking-price range" : "preliminary reference range";
+    if (classified.state === "current_asking") {
+      normalized.currentAskingPriceRange = cleanText(normalized.currentAskingPriceRange) || reference;
+      normalized.preliminaryReferenceRange = /^current asking-price range/i.test(cleanText(normalized.preliminaryReferenceRange))
+        ? ""
+        : cleanText(normalized.preliminaryReferenceRange);
+    } else {
+      normalized.preliminaryReferenceRange = reference;
+    }
     normalized.referenceRangeBasis = cleanText(normalized.referenceRangeBasis)
-      || `${supportingResultCount} visible strong, partial, or reference result${supportingResultCount === 1 ? "" : "s"} support this preliminary reference range. ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`;
+      || `${supportingResultCount} visible strong, partial, or reference result${supportingResultCount === 1 ? "" : "s"} support this ${basisLabel}. ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`;
     normalized.fairValueNotEstablished = "";
     normalized.estimatedFairMarketValue = "";
     normalized.estimatedMarketValue = "";
@@ -7091,7 +7133,7 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
       : normalized.valueRating;
     normalized.whatThisMeans = buildWeakEvidenceMeaningText({ report: normalized, classified });
     normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
-    normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Preliminary reference only - active asking prices, weak partial results, or AI reasoning are not confirmed fair market value. ");
+    normalized.priceBasis = ensurePrefix(normalized.priceBasis, `${classified.label} only - active asking prices, weak partial results, guide prices, or AI reasoning are not confirmed fair market value. `);
     normalized.currentPriceAssessment = buildCautiousCurrentPriceAssessment(normalized.currentPriceAssessment, { report: normalized, classified });
     return normalized;
   }
@@ -7289,6 +7331,9 @@ function extractLooseMoneyAmounts(text) {
 }
 
 function buildPreliminaryReferenceRangeText(classified, { searchCompleted, visibleResultCount = 0 }) {
+  if (classified.label === "Current Asking-Price Range") {
+    return `${classified.range} based on ${visibleResultCount} active exact/strong asking-price result${visibleResultCount === 1 ? "" : "s"} found during the current search. This is not verified fair market value because no qualified sold evidence was available.`;
+  }
   const evidence = searchCompleted
     ? `based on ${visibleResultCount} visible similar active listing or partial/reference result${visibleResultCount === 1 ? "" : "s"} found during the current search`
     : "based on item evidence and AI market reasoning because live source-backed comps were unavailable";
@@ -7496,7 +7541,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       : liveSearch.liveSearchStatus;
   const askingPriceNumber = getConsumerAskingPriceNumber(buyerIntake, identity);
   const priceEvidence = summarizeConsumerVisiblePriceEvidence(liveSearch);
-  const pricesFound = buildConsumerPricesFound(liveSearch, askingPriceNumber);
+  const pricesFound = buildConsumerPricesFound(liveSearch, askingPriceNumber, {
+    excludeRangeOutlierUrls: priceEvidence.outlierRecords.map((record) => record.url)
+  });
   const retainedVisibleResultCount = Number(liveSearch.searchDiagnostics?.retainedVisibleResultCount || liveSearch.visibleResearchResultCount || 0);
   const fairValueNumber = priceEvidence.referenceCenter || (retainedVisibleResultCount ? extractConsumerFairValueNumber(report) : null);
   const conditionProfile = getConsumerConditionProfile(buyerIntake, identity);
@@ -7560,10 +7607,20 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     pricesFound,
     noCompatiblePricesFound: pricesFound.length ? "" : "No compatible source-backed prices were found.",
-    preliminaryReferenceRange: cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile),
+    verifiedMarketRange: priceEvidence.verifiedMarketRange,
+    currentAskingPriceRange: priceEvidence.currentAskingPriceRange,
+    preliminaryReferenceRange: priceEvidence.primaryRangeType === "preliminary_reference"
+      ? cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile)
+      : priceEvidence.preliminaryReferenceRange,
     referenceRangeBasis: cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
+    valuationEvidenceState: priceEvidence.primaryRangeType === "verified_market" ? "supported" : priceEvidence.primaryRangeType === "current_asking" ? "current_asking" : priceEvidence.primaryRangeType ? "preliminary" : "insufficient",
+    valuationEvidenceLabel: priceEvidence.primaryRangeLabel || "Fair Value Not Established",
+    valuationEvidenceExplanation: buildConsumerValuationEvidenceExplanation(priceEvidence),
+    priceRangeAnalysis: buildConsumerPriceRangeAnalysis(priceEvidence),
+    pricingOutliersExcluded: priceEvidence.outlierRecords,
+    customerPricingSummary: buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted }),
     priceBasis: ensurePrefix(report.priceBasis, priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
-    estimatedFairMarketValue: buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
+    estimatedFairMarketValue: priceEvidence.primaryRangeType === "verified_market" ? priceEvidence.verifiedMarketRange : buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
       fairValueNumber,
       reliableCompsFound
     }),
@@ -7597,7 +7654,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     researchResults,
     comparableQuality,
     pricingConfidence: decision.pricingConfidence,
-    pricingRationale: ensurePrefix(report.pricingRationale, `${basis} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
+    pricingRationale: ensurePrefix(report.pricingRationale, `${basis} ${priceEvidence.primaryEvidenceSummary || ""} ${priceEvidence.outlierNote || ""} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
     additionalInformationNeeded: buildConsumerAdditionalInfoNeeded(report.additionalInformationNeeded, {
       reliableCompsFound,
       buyerIntake,
@@ -7631,6 +7688,8 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
   const hasFairValue = Number.isFinite(fairValueNumber) && fairValueNumber > 0;
   const hasExactIdentityEvidence = priceEvidence.exactOrStrongCount > 0 || exactItems.length > 0;
   const hasReliableEvidence = reliableCompsFound && (hasExactIdentityEvidence || similarItems.length > 0);
+  const hasStrongPriceEvidence = priceEvidence.hasStrongPriceEvidence === true;
+  const hasVerifiedSoldEvidence = priceEvidence.hasVerifiedSoldEvidence === true;
   const downsideRisk = calculateConsumerDownsideRisk({
     askingPriceNumber,
     fairValueNumber,
@@ -7652,6 +7711,12 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
     && clearIdentity
     && !conditionProfile.hasHardRisk
     && !downsideRisk.hardFactors.length;
+  const limitedEvidencePersonalBuy = hasAskingPrice
+    && hasFairValue
+    && priceEvidence.pricedRecordCount > 0
+    && (downsideRisk.lowDollarExposure || downsideRisk.modestDollarExposure)
+    && !conditionProfile.hasHardRisk
+    && !downsideRisk.hardFactors.length;
 
   if (zeroEvidenceLowDownsideBuy) {
     return {
@@ -7665,7 +7730,7 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
     };
   }
 
-  if (!hasAskingPrice || !hasFairValue || (!hasReliableEvidence && !cautiousBuy)) {
+  if (!hasAskingPrice || !hasFairValue || (!hasReliableEvidence && !cautiousBuy && !limitedEvidencePersonalBuy)) {
     return {
       valueRating: "Insufficient Evidence",
       recommendation: "Need More Information",
@@ -7680,27 +7745,58 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
   const ratio = askingPriceNumber / fairValueNumber;
   let valueRating = "Poor Value";
   let recommendation = "Pass";
+  let badgeReason = "The asking price was compared to the strongest available source-backed price bucket.";
 
-  if (ratio <= consumerDecisionThresholds.exceptionalMaxRatio) {
+  if (!hasStrongPriceEvidence) {
+    if (ratio <= consumerDecisionThresholds.goodMaxRatio && downsideRisk.lowDollarExposure) {
+      valueRating = "Low-Cost Cautious Buy";
+      recommendation = "Buy If It Fits Your Needs";
+      badgeReason = "No verified sold or active exact/strong price evidence was available, but the asking price is low and favorable to the central preliminary cluster.";
+    } else if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
+      valueRating = "Promising Price - Limited Evidence";
+      recommendation = "Buy If It Fits Your Needs";
+      badgeReason = "The price appears favorable to preliminary evidence, but the range is driven by weak, partial, guide, auction, or reference prices.";
+    } else if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
+      valueRating = "Reasonable Personal-Use Buy";
+      recommendation = "Buy If It Fits Your Needs";
+      badgeReason = "The price is near the central preliminary range, but evidence quality is limited.";
+    } else {
+      valueRating = "Proceed with Caution";
+      recommendation = ratio <= consumerDecisionThresholds.slightlyOverpricedMaxRatio ? "Negotiate" : "Wait for a Better Price";
+      badgeReason = "The price is not clearly favorable once weak evidence and outlier filtering are considered.";
+    }
+  } else if (ratio <= consumerDecisionThresholds.exceptionalMaxRatio && (hasVerifiedSoldEvidence || priceEvidence.activeExactStrongCount >= 2)) {
     valueRating = "Exceptional Value";
     recommendation = "Buy";
+    badgeReason = hasVerifiedSoldEvidence
+      ? "The asking price is materially below qualified verified sold evidence."
+      : "The asking price is materially below multiple active exact/strong asking-price records.";
   } else if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
-    valueRating = "Good Value";
+    valueRating = hasVerifiedSoldEvidence ? "Good Value" : "Promising Price - Limited Evidence";
     recommendation = "Buy";
+    badgeReason = hasVerifiedSoldEvidence
+      ? "The asking price is below qualified sold evidence."
+      : "The asking price is below active exact/strong evidence, but no qualified sold range was available.";
   } else if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
     valueRating = "Fair Price";
     recommendation = "Buy If It Fits Your Needs";
+    badgeReason = "The asking price is near the strongest available central range.";
   } else if (ratio <= consumerDecisionThresholds.slightlyOverpricedMaxRatio) {
     valueRating = "Slightly Overpriced";
     recommendation = "Negotiate";
+    badgeReason = "The asking price is above the strongest available central range.";
   } else if (ratio <= consumerDecisionThresholds.overpricedMaxRatio) {
     valueRating = "Overpriced";
     recommendation = "Wait for a Better Price";
+    badgeReason = "The asking price is materially above the strongest available central range.";
   }
 
   if (cautiousBuy && (recommendation === "Pass" || recommendation === "Need More Information" || recommendation === "Wait for a Better Price" || recommendation === "Negotiate")) {
-    valueRating = priceEvidence.soldCount > 0 ? "Good Value" : "Potentially Good Value";
-    recommendation = "Buy";
+    valueRating = priceEvidence.hasVerifiedSoldEvidence ? "Good Value" : "Low-Cost Cautious Buy";
+    recommendation = "Buy If It Fits Your Needs";
+    badgeReason = priceEvidence.hasVerifiedSoldEvidence
+      ? "Low downside and sold evidence support a cautious buy."
+      : "Low downside supports a cautious personal-use buy, but sold evidence is not available.";
   }
 
   if (conditionProfile.hasHardRisk) {
@@ -7728,8 +7824,13 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
   return {
     valueRating,
     recommendation,
-    pricingConfidence: cautiousBuy
+    badgeReason,
+    pricingConfidence: !hasStrongPriceEvidence
+      ? forceLowConfidence("", "Pricing uses a central preliminary cluster from weak, partial, guide, auction, or reference evidence; no verified sold or active exact/strong range was available.")
+      : cautiousBuy
       ? ensureConfidenceLayer("", "Medium", "Exact or strong visible source-backed identity evidence and limited dollar downside support a cautious personal-use Buy; active asking prices are not confirmed sold prices.")
+      : hasVerifiedSoldEvidence
+        ? ensureConfidenceLayer("", "Medium", "Qualified verified sold exact/strong evidence supports the price direction, but condition and buyer fit still matter.")
       : exactItems.length || priceEvidence.exactOrStrongCount
         ? ensureConfidenceLayer("", "Medium", "Exact or likely exact source-backed evidence supports the price direction, but condition and buyer fit still matter.")
         : ensureConfidenceLayer("", "Medium", "Strong similar source-backed evidence supports the price direction, but exact model, condition, and accessories can shift value."),
@@ -7778,53 +7879,316 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
   const exactOrStrongRecords = records.filter((record) => canInfluenceValuationFromVisibleRecord(record));
   const preliminaryRangeRecords = dedupeResearchRecordsByListing(records.filter((record) => canSupportPreliminaryAskingRangeFromVisibleRecord(record)));
   const pricedRecords = preliminaryRangeRecords
-    .map((record) => ({
-      ...record,
-      amount: getVisibleItemPriceAmount(record),
-      normalizedPriceType: normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record)
-    }))
+    .map(buildWeightedPriceEvidenceRecord)
     .filter((record) => Number.isFinite(record.amount) && record.amount > 0);
   const soldRecords = pricedRecords.filter((record) => /Verified Sold/i.test(record.normalizedPriceType));
   const activeRecords = pricedRecords.filter((record) => /Active Asking/i.test(record.normalizedPriceType));
-  const amounts = pricedRecords.map((record) => record.amount).sort((a, b) => a - b);
-  const activeAmounts = activeRecords.map((record) => record.amount).sort((a, b) => a - b);
-  const soldAmounts = soldRecords.map((record) => record.amount).sort((a, b) => a - b);
+  const activeExactStrongRecords = pricedRecords.filter((record) => record.evidenceBucket === "current_asking");
+  const soldExactStrongRecords = pricedRecords.filter((record) => record.evidenceBucket === "verified_market");
+  const buckets = buildPriceEvidenceBuckets(pricedRecords);
+  const primaryBucket = selectPrimaryPriceEvidenceBucket(buckets);
+  const primaryAnalysis = analyzePriceEvidenceCluster(primaryBucket.records, primaryBucket);
   const includedPriceTypes = [...new Set(pricedRecords.map((record) => record.normalizedPriceType).filter(Boolean))];
   const basisParts = [];
 
-  if (soldAmounts.length) {
-    basisParts.push(`${soldAmounts.length} compatible verified sold result${soldAmounts.length === 1 ? "" : "s"}`);
+  if (soldExactStrongRecords.length) {
+    basisParts.push(`${soldExactStrongRecords.length} qualified verified sold exact/strong result${soldExactStrongRecords.length === 1 ? "" : "s"}`);
   }
-  if (activeAmounts.length) {
-    basisParts.push(`${activeAmounts.length} compatible active asking-price result${activeAmounts.length === 1 ? "" : "s"}`);
+  if (activeExactStrongRecords.length) {
+    basisParts.push(`${activeExactStrongRecords.length} active exact/strong asking-price result${activeExactStrongRecords.length === 1 ? "" : "s"}`);
+  }
+  const weakerCount = pricedRecords.length - soldExactStrongRecords.length - activeExactStrongRecords.length;
+  if (weakerCount > 0) {
+    basisParts.push(`${weakerCount} weaker partial, guide, auction, or reference price${weakerCount === 1 ? "" : "s"}`);
   }
 
-  const referenceCenter = amounts.length ? medianAmount(amounts) : null;
-  const low = amounts.length ? Math.min(...amounts) : null;
-  const high = amounts.length ? Math.max(...amounts) : null;
+  const outlierRecords = primaryAnalysis.excludedRecords.map((record) => formatPriceEvidenceDiagnosticRecord(record));
+  const rawAmounts = pricedRecords.map((record) => record.amount).sort((a, b) => a - b);
+  const primaryRangeText = primaryAnalysis.hasRange
+    ? formatMoneyRange(roundMoney(primaryAnalysis.low), roundMoney(primaryAnalysis.high))
+    : "";
+  const outlierNote = buildOutlierRangeNote(outlierRecords);
 
   return {
     records,
     exactOrStrongRecords,
     pricedRecords,
     preliminaryRangeRecords,
-    soldCount: soldAmounts.length,
-    activeCount: activeAmounts.length,
+    soldCount: soldRecords.length,
+    activeCount: activeRecords.length,
     exactOrStrongCount: exactOrStrongRecords.length,
+    soldExactStrongCount: soldExactStrongRecords.length,
+    activeExactStrongCount: activeExactStrongRecords.length,
+    strongPricedCount: soldExactStrongRecords.length + activeExactStrongRecords.length,
     pricedRecordCount: pricedRecords.length,
     includedPriceTypes,
-    low,
-    high,
-    referenceCenter,
-    activeLow: activeAmounts.length ? Math.min(...activeAmounts) : null,
-    activeHigh: activeAmounts.length ? Math.max(...activeAmounts) : null,
-    priceBasis: basisParts.length
-      ? `Visible price basis - ${basisParts.join("; ")}. Active asking prices and auction/reference prices support practical buyer comparison only; they are not confirmed sold values.`
+    low: primaryAnalysis.low,
+    high: primaryAnalysis.high,
+    referenceCenter: primaryAnalysis.center,
+    rawLow: rawAmounts.length ? Math.min(...rawAmounts) : null,
+    rawHigh: rawAmounts.length ? Math.max(...rawAmounts) : null,
+    activeLow: activeExactStrongRecords.length ? Math.min(...activeExactStrongRecords.map((record) => record.amount)) : null,
+    activeHigh: activeExactStrongRecords.length ? Math.max(...activeExactStrongRecords.map((record) => record.amount)) : null,
+    verifiedMarketRange: buckets.verified_market.analysis.hasRange ? formatPriceEvidenceRangeText("Verified Market Range", buckets.verified_market.analysis) : "",
+    currentAskingPriceRange: buckets.current_asking.analysis.hasRange ? formatPriceEvidenceRangeText("Current Asking-Price Range", buckets.current_asking.analysis) : "",
+    preliminaryReferenceRange: buckets.preliminary_reference.analysis.hasRange ? formatPriceEvidenceRangeText("Preliminary Reference Range", buckets.preliminary_reference.analysis) : "",
+    primaryRangeLabel: primaryAnalysis.hasRange ? primaryBucket.label : "",
+    primaryRangeType: primaryAnalysis.hasRange ? primaryBucket.key : "",
+    primaryRangeText,
+    primaryRangeRecordCount: primaryAnalysis.includedRecords.length,
+    primaryRawRecordCount: primaryBucket.records.length,
+    primaryEvidenceSummary: primaryAnalysis.hasRange && primaryBucket.records.length
+      ? `${primaryBucket.label} driven by ${primaryAnalysis.includedRecords.length} of ${primaryBucket.records.length} compatible priced record${primaryBucket.records.length === 1 ? "" : "s"}.`
       : "",
-    referenceRangeBasis: amounts.length
-      ? `${amounts.length} compatible priced source record${amounts.length === 1 ? "" : "s"} support a Preliminary Reference Range using item prices only. Included price types: ${includedPriceTypes.join(", ") || "visible prices"}. Shipping is shown separately in Prices Found and is not included unless explicitly stated there.`
+    outlierRecords,
+    excludedOutlierCount: outlierRecords.length,
+    outlierNote,
+    rangeUsefulnessGuardApplied: primaryAnalysis.rangeUsefulnessGuardApplied,
+    hasVerifiedSoldEvidence: soldExactStrongRecords.length > 0,
+    hasStrongPriceEvidence: soldExactStrongRecords.length > 0 || activeExactStrongRecords.length > 0,
+    priceBasis: basisParts.length
+      ? `Visible price basis - ${basisParts.join("; ")}. The primary customer range uses the strongest available bucket: ${primaryBucket.label}. Active asking prices, auction bids, and guide/reference prices are not confirmed sold values.`
+      : "",
+    referenceRangeBasis: primaryAnalysis.hasRange
+      ? `${primaryBucket.label} uses ${primaryAnalysis.includedRecords.length} central compatible priced source record${primaryAnalysis.includedRecords.length === 1 ? "" : "s"} from the strongest available evidence bucket. Included price types: ${includedPriceTypes.join(", ") || "visible prices"}. ${outlierNote || "No range-setting outliers were excluded."} Shipping is shown separately in Prices Found and is not included unless explicitly stated there.`
       : ""
   };
+}
+
+function buildWeightedPriceEvidenceRecord(record = {}) {
+  const amount = getVisibleItemPriceAmount(record);
+  const normalizedPriceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
+  const matchLevel = classifyPriceEvidenceMatchLevel(record);
+  const evidenceBucket = classifyPriceEvidenceBucket({ normalizedPriceType, matchLevel });
+  const evidenceWeight = priceEvidenceWeight({ normalizedPriceType, matchLevel, evidenceBucket });
+  return {
+    ...record,
+    amount,
+    normalizedPriceType,
+    priceEvidenceMatchLevel: matchLevel,
+    evidenceBucket,
+    evidenceBucketLabel: priceEvidenceBucketLabel(evidenceBucket),
+    evidenceWeight
+  };
+}
+
+function classifyPriceEvidenceMatchLevel(record = {}) {
+  const text = cleanText([record.classification, record.identityMatchStrength, record.evidenceRole, record.rawText].join(" ")).toLowerCase();
+  if (/exact/.test(text)) return "exact";
+  if (/strong/.test(text)) return "strong";
+  if (/partial/.test(text)) return "partial";
+  return "reference";
+}
+
+function classifyPriceEvidenceBucket({ normalizedPriceType = "", matchLevel = "" } = {}) {
+  const exactOrStrong = matchLevel === "exact" || matchLevel === "strong";
+  if (/Verified Sold/i.test(normalizedPriceType) && exactOrStrong) {
+    return "verified_market";
+  }
+  if (/Active Asking/i.test(normalizedPriceType) && exactOrStrong) {
+    return "current_asking";
+  }
+  return "preliminary_reference";
+}
+
+function priceEvidenceBucketLabel(bucket) {
+  if (bucket === "verified_market") return "Verified Market Range";
+  if (bucket === "current_asking") return "Current Asking-Price Range";
+  return "Preliminary Reference Range";
+}
+
+function priceEvidenceWeight({ normalizedPriceType = "", matchLevel = "", evidenceBucket = "" } = {}) {
+  if (evidenceBucket === "verified_market" && matchLevel === "exact") return 1;
+  if (evidenceBucket === "verified_market" && matchLevel === "strong") return 2;
+  if (evidenceBucket === "current_asking" && matchLevel === "exact") return 3;
+  if (evidenceBucket === "current_asking" && matchLevel === "strong") return 4;
+  if (matchLevel === "partial") return 5;
+  if (/Estimated|Guide|Reference|Auction|Unknown/i.test(normalizedPriceType)) return 6;
+  return 6;
+}
+
+function buildPriceEvidenceBuckets(pricedRecords = []) {
+  const buckets = {
+    verified_market: { key: "verified_market", label: "Verified Market Range", records: [] },
+    current_asking: { key: "current_asking", label: "Current Asking-Price Range", records: [] },
+    preliminary_reference: { key: "preliminary_reference", label: "Preliminary Reference Range", records: [] }
+  };
+  for (const record of pricedRecords) {
+    const bucket = buckets[record.evidenceBucket] || buckets.preliminary_reference;
+    bucket.records.push(record);
+  }
+  for (const bucket of Object.values(buckets)) {
+    bucket.records.sort((a, b) => a.evidenceWeight - b.evidenceWeight || a.amount - b.amount);
+    bucket.analysis = analyzePriceEvidenceCluster(bucket.records, bucket);
+  }
+  return buckets;
+}
+
+function selectPrimaryPriceEvidenceBucket(buckets) {
+  return buckets.verified_market.records.length
+    ? buckets.verified_market
+    : buckets.current_asking.records.length
+      ? buckets.current_asking
+      : buckets.preliminary_reference;
+}
+
+function analyzePriceEvidenceCluster(records = [], bucket = { key: "preliminary_reference", label: "Preliminary Reference Range" }) {
+  const sorted = records
+    .filter((record) => Number.isFinite(record.amount) && record.amount > 0)
+    .slice()
+    .sort((a, b) => a.amount - b.amount);
+  if (!sorted.length) {
+    return {
+      hasRange: false,
+      low: null,
+      high: null,
+      center: null,
+      median: null,
+      q1: null,
+      q3: null,
+      iqr: null,
+      includedRecords: [],
+      excludedRecords: [],
+      rangeUsefulnessGuardApplied: false
+    };
+  }
+
+  const amounts = sorted.map((record) => record.amount);
+  const median = medianAmount(amounts);
+  const q1 = quartileAmount(amounts, 0.25);
+  const q3 = quartileAmount(amounts, 0.75);
+  const iqr = Number.isFinite(q1) && Number.isFinite(q3) ? q3 - q1 : 0;
+  const lowerFence = Number.isFinite(iqr) && iqr > 0 ? q1 - (1.5 * iqr) : null;
+  const upperFence = Number.isFinite(iqr) && iqr > 0 ? q3 + (1.5 * iqr) : null;
+  const strongestWeight = sorted.reduce((min, record) => Math.min(min, record.evidenceWeight || 9), 9);
+  const excluded = [];
+  let included = sorted.filter((record) => {
+    const reason = priceRangeExclusionReason(record, { median, lowerFence, upperFence, strongestWeight, bucket });
+    if (reason) {
+      excluded.push({ ...record, rangeExclusionReason: reason });
+      return false;
+    }
+    return true;
+  });
+
+  const rawLow = Math.min(...amounts);
+  const rawHigh = Math.max(...amounts);
+  const rawRatio = rawLow > 0 ? rawHigh / rawLow : Number.POSITIVE_INFINITY;
+  let rangeUsefulnessGuardApplied = excluded.length > 0;
+  if (included.length >= 4) {
+    const includedLow = Math.min(...included.map((record) => record.amount));
+    const includedHigh = Math.max(...included.map((record) => record.amount));
+    const includedRatio = includedLow > 0 ? includedHigh / includedLow : Number.POSITIVE_INFINITY;
+    if (includedRatio > 6 && Number.isFinite(q1) && Number.isFinite(q3)) {
+      const central = included.filter((record) => record.amount >= q1 && record.amount <= q3);
+      if (central.length >= 2) {
+        const centralKeys = new Set(central.map(priceEvidenceRecordKey));
+        excluded.push(...included
+          .filter((record) => !centralKeys.has(priceEvidenceRecordKey(record)))
+          .map((record) => ({
+            ...record,
+            rangeExclusionReason: "Excluded from primary range because the strongest available range remained excessively wide; kept in technical details as outer reference evidence."
+          })));
+        included = central;
+        rangeUsefulnessGuardApplied = true;
+      }
+    }
+  }
+
+  if (!included.length) {
+    included = sorted.slice(0, Math.min(sorted.length, 3));
+  }
+  const includedAmounts = included.map((record) => record.amount).sort((a, b) => a - b);
+  return {
+    hasRange: includedAmounts.length > 0,
+    low: includedAmounts.length ? Math.min(...includedAmounts) : null,
+    high: includedAmounts.length ? Math.max(...includedAmounts) : null,
+    center: includedAmounts.length ? medianAmount(includedAmounts) : null,
+    rawLow,
+    rawHigh,
+    rawRatio,
+    median,
+    q1,
+    q3,
+    iqr,
+    includedRecords: included,
+    excludedRecords: excluded,
+    rangeUsefulnessGuardApplied
+  };
+}
+
+function priceRangeExclusionReason(record = {}, { median = null, lowerFence = null, upperFence = null, strongestWeight = 9, bucket = {} } = {}) {
+  if (!Number.isFinite(record.amount) || !Number.isFinite(median) || median <= 0) {
+    return "";
+  }
+  const outsideIqrFence = (Number.isFinite(lowerFence) && record.amount < lowerFence)
+    || (Number.isFinite(upperFence) && record.amount > upperFence);
+  const smallSampleExtreme = record.amount > median * 4
+    || record.amount < median / 4;
+  if (!outsideIqrFence && !smallSampleExtreme) {
+    return "";
+  }
+  const weakerThanBest = (record.evidenceWeight || 9) > strongestWeight;
+  const weakEvidence = /partial|reference/i.test(record.priceEvidenceMatchLevel || "")
+    || /Estimated|Guide|Reference|Auction|Unknown/i.test(record.normalizedPriceType || "");
+  const variantRisk = hasOutlierVariantSignals(record);
+  const hugeDeviation = record.amount > median * 6 || record.amount < median / 6;
+  const preliminaryBucket = bucket.key === "preliminary_reference";
+  if (preliminaryBucket || weakerThanBest || weakEvidence || variantRisk || hugeDeviation) {
+    const direction = record.amount > median ? "high" : "low";
+    return `Excluded from primary range as an isolated ${direction} price relative to the central cluster; evidence bucket ${priceEvidenceBucketLabel(record.evidenceBucket)} with ${record.normalizedPriceType || "unknown price type"}.`;
+  }
+  return "";
+}
+
+function hasOutlierVariantSignals(record = {}) {
+  const text = cleanText([
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.itemIdentityDifferences,
+    record.matchExplanation,
+    record.condition
+  ].join(" ")).toLowerCase();
+  return /\b(signed|autograph|authenticated|graded|mint|sealed|new old stock|rare variant|limited numbered|prototype|lot of|set of|case of|bundle|pair|quantity|oversized|large format|different size|different variant|premium condition|complete set)\b/.test(text);
+}
+
+function priceEvidenceRecordKey(record = {}) {
+  return canonicalizeComparableUrl(record.canonicalUrl || record.url)
+    || `${cleanText(record.title)}|${cleanText(record.source)}|${record.amount}`.toLowerCase();
+}
+
+function formatPriceEvidenceDiagnosticRecord(record = {}) {
+  return {
+    title: cleanText(record.title) || "Source result",
+    source: cleanText(record.source) || inferSourceFromResult(record.rawText, record.url),
+    url: cleanText(record.url),
+    displayedPrice: Number.isFinite(record.amount) ? formatMoney(record.amount) : cleanText(record.displayedPrice || record.price),
+    priceType: cleanText(record.normalizedPriceType || record.priceType),
+    matchQuality: cleanText(record.classification || record.identityMatchStrength),
+    evidenceBucket: priceEvidenceBucketLabel(record.evidenceBucket),
+    evidenceWeight: record.evidenceWeight,
+    rangeExclusionReason: cleanText(record.rangeExclusionReason),
+    sourceBacked: cleanText(record.sourceBacked)
+  };
+}
+
+function formatPriceEvidenceRangeText(label, analysis = {}) {
+  if (!analysis.hasRange) {
+    return "";
+  }
+  return `${label} - approximately ${formatMoneyRange(roundMoney(analysis.low), roundMoney(analysis.high))}`;
+}
+
+function buildOutlierRangeNote(outlierRecords = []) {
+  const amounts = outlierRecords
+    .map((record) => extractFirstMoneyAmount(record.displayedPrice))
+    .filter((amount) => Number.isFinite(amount) && amount > 0)
+    .sort((a, b) => a - b);
+  if (!amounts.length) {
+    return "";
+  }
+  return `Additional outlier/reference prices ranged from ${formatMoneyRange(Math.min(...amounts), Math.max(...amounts))} and were not used to set the primary range.`;
 }
 
 function calculateConsumerDownsideRisk({ askingPriceNumber, fairValueNumber, conditionProfile, buyerIntake }) {
@@ -7887,16 +8251,58 @@ function buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile)
   if (!priceEvidence.pricedRecords?.length || !Number.isFinite(priceEvidence.low) || !Number.isFinite(priceEvidence.high)) {
     return "";
   }
-  let low = priceEvidence.low;
-  let high = priceEvidence.high;
-  if (conditionProfile.hasHardRisk) {
-    low *= 0.55;
-    high *= 0.7;
-  } else if (conditionProfile.hasModerateRisk) {
-    low *= 0.8;
-    high *= 0.85;
+  const label = priceEvidence.primaryRangeLabel || "Preliminary Reference Range";
+  const conditionNote = conditionProfile.hasHardRisk
+    ? " Condition/completeness concerns may justify paying materially below this range."
+    : conditionProfile.hasModerateRisk
+      ? " Used or uncertain condition may justify paying below clean examples."
+      : "";
+  const soldNote = priceEvidence.hasVerifiedSoldEvidence
+    ? " Verified sold evidence is present in the strongest bucket."
+    : " No qualified verified sold evidence was available for the primary range.";
+  return `${label} - approximately ${formatMoneyRange(roundMoney(priceEvidence.low), roundMoney(priceEvidence.high))} based on ${priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount} central compatible visible item price${(priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount) === 1 ? "" : "s"}. ${soldNote} Active asking prices, auction bids, and reference prices are not confirmed sold values; shipping is shown separately in Prices Found when available. ${priceEvidence.outlierNote || ""}${conditionNote}`.replace(/\s+/g, " ").trim();
+}
+
+function buildConsumerPriceRangeAnalysis(priceEvidence = {}) {
+  if (!priceEvidence.pricedRecords?.length) {
+    return "No compatible visible price records were available for range analysis.";
   }
-  return `Preliminary Reference Range - approximately ${formatMoneyRange(roundMoney(low), roundMoney(high))} based on compatible visible item prices only. Active asking prices, auction bids, and reference prices are not confirmed sold values; shipping is shown separately in Prices Found when available.`;
+  const parts = [
+    `Strongest bucket: ${priceEvidence.primaryRangeLabel || "none"}.`,
+    `Records used in primary range: ${priceEvidence.primaryRangeRecordCount || 0} of ${priceEvidence.primaryRawRecordCount || 0}.`,
+    Number.isFinite(priceEvidence.referenceCenter) ? `Median/center used: ${formatMoney(priceEvidence.referenceCenter)}.` : "",
+    priceEvidence.hasVerifiedSoldEvidence ? "Qualified sold evidence was available." : "No qualified sold evidence was available.",
+    priceEvidence.outlierNote || "No outlier/reference prices were excluded from the primary range."
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
+function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, searchCompleted = false } = {}) {
+  if (!priceEvidence.pricedRecords?.length) {
+    return searchCompleted
+      ? "No compatible visible prices were strong enough to create a buyer-facing range. The recommendation is based on limited evidence."
+      : "Live search did not complete, so no source-backed price range was established.";
+  }
+  return [
+    `${priceEvidence.primaryRangeLabel || "Primary range"} drove the displayed range.`,
+    `${priceEvidence.primaryRangeRecordCount || 0} central record${(priceEvidence.primaryRangeRecordCount || 0) === 1 ? "" : "s"} were used.`,
+    priceEvidence.hasVerifiedSoldEvidence ? "Qualified sold evidence was available." : "No qualified sold evidence was available.",
+    priceEvidence.outlierNote || "No range-setting outliers were excluded.",
+    `Badge selected: ${decision.valueRating || "not rated"} because ${decision.badgeReason || "the asking price was compared to the strongest available evidence bucket."}`
+  ].filter(Boolean).join(" ");
+}
+
+function buildConsumerValuationEvidenceExplanation(priceEvidence = {}) {
+  if (!priceEvidence.pricedRecords?.length) {
+    return "No compatible visible priced evidence was available.";
+  }
+  if (priceEvidence.primaryRangeType === "verified_market") {
+    return "Qualified verified sold exact/strong evidence supports the displayed market range.";
+  }
+  if (priceEvidence.primaryRangeType === "current_asking") {
+    return "No qualified sold range was available, so the displayed range uses active exact/strong asking-price evidence only.";
+  }
+  return "The displayed range is preliminary because the strongest available price evidence is weak, partial, guide, auction, or reference evidence.";
 }
 
 function extractFirstMoneyAmount(text) {
@@ -7914,6 +8320,23 @@ function medianAmount(amounts) {
     return sorted[middle];
   }
   return (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function quartileAmount(amounts, percentile) {
+  const sorted = amounts.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) {
+    return null;
+  }
+  if (sorted.length === 1) {
+    return sorted[0];
+  }
+  const position = (sorted.length - 1) * percentile;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) {
+    return sorted[lower];
+  }
+  return sorted[lower] + ((sorted[upper] - sorted[lower]) * (position - lower));
 }
 
 function buildConsumerRiskFlags({ askingPriceNumber, fairValueNumber, reliableCompsFound, conditionProfile, buyerIntake, identity }) {
@@ -8153,19 +8576,25 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   const conditionMultiplier = conditionProfile.hasHardRisk ? 0.84 : conditionProfile.hasModerateRisk ? 0.94 : 1.04;
   let maxPrice = roundMoney(fairValueNumber * conditionMultiplier);
   let targetPrice = roundMoney(Math.min(askingPriceNumber, maxPrice));
-  let openingOffer = roundMoney(Math.max(1, targetPrice * 0.9));
+  let openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.88 });
 
   if (askingPriceNumber <= fairValueNumber * consumerDecisionThresholds.goodMaxRatio) {
     targetPrice = roundMoney(askingPriceNumber);
-    openingOffer = roundMoney(Math.max(1, askingPriceNumber * 0.95));
+    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: decision.valueRating === "Exceptional Value" ? 0.92 : 0.82 });
     maxPrice = roundMoney(Math.max(targetPrice, Math.min(fairValueNumber * 1.03, maxPrice)));
   } else if (askingPriceNumber > fairValueNumber * consumerDecisionThresholds.fairMaxRatio) {
     targetPrice = roundMoney(Math.min(maxPrice, fairValueNumber * 0.96));
-    openingOffer = roundMoney(Math.max(1, targetPrice * 0.88));
+    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.86 });
   }
 
   if (openingOffer > targetPrice) {
     openingOffer = targetPrice;
+  }
+  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 1 && openingOffer >= askingPriceNumber && /Negotiate|Buy|Promising|Cautious|Reasonable/i.test([decision.recommendation, decision.valueRating].join(" "))) {
+    openingOffer = Math.max(1, askingPriceNumber <= 25 ? Math.floor(askingPriceNumber - 1) : roundMoney(askingPriceNumber * 0.9));
+  }
+  if (openingOffer >= targetPrice && targetPrice > 1) {
+    openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
   }
   if (targetPrice > maxPrice) {
     targetPrice = maxPrice;
@@ -8184,9 +8613,28 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   };
 }
 
+function roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor = 0.88 } = {}) {
+  const base = Number.isFinite(targetPrice) ? targetPrice : askingPriceNumber;
+  if (!Number.isFinite(base) || base <= 1) {
+    return 1;
+  }
+  let rounded = base <= 25
+    ? Math.max(1, Math.floor(base * factor))
+    : roundMoney(Math.max(1, base * factor));
+  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 1 && rounded >= askingPriceNumber) {
+    rounded = askingPriceNumber <= 25
+      ? Math.max(1, Math.floor(askingPriceNumber - 1))
+      : roundMoney(askingPriceNumber * 0.9);
+  }
+  return rounded;
+}
+
 function buildConsumerNegotiationGuidance(value, { decision, offer, reliableCompsFound, askingPriceNumber, fairValueNumber }) {
   const text = cleanText(value);
   if (!reliableCompsFound || decision.valueRating === "Insufficient Evidence") {
+    if (decision.valueRating !== "Insufficient Evidence" && Array.isArray(offer.recommendedOffer) && offer.recommendedOffer.length) {
+      return text || `Use this as cautious personal-use negotiation, not a verified market claim. ${offer.openingOffer}; ${offer.targetPurchasePrice}; keep the maximum tied to the central supported range and condition.`;
+    }
     return text || "Do not negotiate from a precise market claim yet. First verify the exact item, condition, included parts, and a reliable comparable price.";
   }
 
@@ -10447,6 +10895,10 @@ export const __queryIntegrityTestHooks = {
   canSupportPreliminaryAskingRangeFromVisibleRecord,
   buildConsumerPricesFound,
   summarizeConsumerVisiblePriceEvidence,
+  buildConsumerOffer,
+  classifyConsumerPurchaseDecision,
+  buildWeightedPriceEvidenceRecord,
+  analyzePriceEvidenceCluster,
   extractShippingEvidence,
   normalizePriceTypeLabel
 };

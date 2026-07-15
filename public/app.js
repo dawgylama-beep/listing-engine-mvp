@@ -197,7 +197,11 @@ const consumerSections = [
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["askingPrice", "Asking Price"],
   ["pricesFound", "Prices Found"],
+  ["verifiedMarketRange", "Verified Market Range"],
+  ["currentAskingPriceRange", "Current Asking-Price Range"],
   ["preliminaryReferenceRange", "Preliminary Reference Range"],
+  ["priceRangeAnalysis", "Price Range Analysis"],
+  ["customerPricingSummary", "Customer Pricing Summary"],
   ["fairValueNotEstablished", "Fair Value Not Established"],
   ["whatThisMeans", "What This Means"],
   ["bestNextStep", "Best Next Step"],
@@ -988,6 +992,24 @@ function normalizeReportForEvidenceDisplay(report, workflow) {
     return normalized;
   }
 
+  if (classified.state === "current_asking") {
+    normalized.currentAskingPriceRange = firstNonEmpty(
+      report.currentAskingPriceRange,
+      `${classified.range} based on ${supportingResultCount} visible active exact/strong asking-price result${supportingResultCount === 1 ? "" : "s"}; this is not verified fair market value because qualified sold evidence was not available.`
+    );
+    normalized.referenceRangeBasis = firstNonEmpty(
+      report.referenceRangeBasis,
+      `${supportingResultCount} visible supporting result${supportingResultCount === 1 ? "" : "s"} and ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`
+    );
+    normalized.fairValueNotEstablished = "";
+    normalized.estimatedFairMarketValue = "";
+    normalized.estimatedMarketValue = "";
+    normalized.fairPriceRange = [];
+    normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, "The active asking range is directionally useful, but it is not verified fair market value because no qualified sold evidence established a sold range.");
+    normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
+    return normalized;
+  }
+
   normalized.preliminaryReferenceRange = "";
   normalized.fairValueNotEstablished = "Fair Value: Not established";
   normalized.estimatedFairMarketValue = "";
@@ -1075,19 +1097,28 @@ function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
 
 function classifyValuationEvidenceForDisplay(report = {}) {
   const state = String(report.valuationEvidenceState || "").toLowerCase();
-  const directRange = normalizeMoneyText(firstNonEmpty(report.preliminaryReferenceRange, report.estimatedFairMarketValue, report.estimatedMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, report.suggestedListingPrice));
+  const explicitLabel = String(report.valuationEvidenceLabel || "").trim();
+  const directRange = normalizeMoneyText(firstNonEmpty(report.verifiedMarketRange, report.currentAskingPriceRange, report.preliminaryReferenceRange, report.estimatedFairMarketValue, report.estimatedMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, report.suggestedListingPrice));
   if (state === "supported") {
     return {
       state: "supported",
-      label: "Estimated Fair Market Value",
+      label: explicitLabel || "Verified Market Range",
       range: directRange,
-      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Source-backed exact or strong comparable evidence supports this value.")
+      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Qualified verified sold exact or strong comparable evidence supports this value.")
+    };
+  }
+  if (state === "current_asking") {
+    return {
+      state: "current_asking",
+      label: explicitLabel || "Current Asking-Price Range",
+      range: directRange,
+      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Active exact or strong asking-price evidence supports this current asking range; it is not verified fair market value.")
     };
   }
   if (state === "preliminary") {
     return {
       state: "preliminary",
-      label: "Preliminary Reference Range",
+      label: explicitLabel || "Preliminary Reference Range",
       range: directRange,
       explanation: firstNonEmpty(report.valuationEvidenceExplanation, "The range is tentative and not verified fair market value.")
     };
@@ -1118,6 +1149,8 @@ function classifyValuationEvidenceForDisplay(report = {}) {
   const hasInsufficientEvidence = /insufficient evidence|no reliable|weak|partial|rejected|ai-only|ai only|rough value|active listing|active asking|not established|unavailable|low confidence/.test(evidenceText);
   const hasReliableComps = /source-backed comps found|exact match|strong similar match/.test(evidenceText) && !hasInsufficientEvidence;
   const range = extractMoneyRangeText([
+    report.verifiedMarketRange,
+    report.currentAskingPriceRange,
     report.preliminaryReferenceRange,
     report.estimatedFairMarketValue,
     report.fairPriceRange,
@@ -1397,6 +1430,7 @@ function renderResearchEvidencePanel(report) {
     ["Search Queries", report.searchQueriesUsed],
     ["Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage],
     ["Item Identification Evidence", report.itemIdentificationEvidence],
+    ["Price Range Analysis", report.priceRangeAnalysis],
     ["Strong Comparables", report.strongComparables],
     ["Partial Comparables", report.partialComparables],
     ["Reference Results", report.referenceResults],
@@ -1446,6 +1480,7 @@ function renderCustomerTechnicalSearchDetails(report) {
     ["Weak or Rejected Matches", [...normalizeArray(report.weakMatches), ...normalizeArray(report.rejectedMatches)]],
     ["Search Limitations", report.searchLimitations],
     ["Reference Range Basis", report.referenceRangeBasis],
+    ["Pricing Outliers Excluded", report.pricingOutliersExcluded],
     ["Full Search Diagnostics", report.searchDiagnostics]
   ].forEach(([label, value]) => {
     if (!shouldRenderSection(label, value)) {
@@ -1928,6 +1963,9 @@ function getValuationDisplayValue(report, valuation) {
   }
   if (valuation.state === "preliminary") {
     return firstNonEmpty(report.preliminaryReferenceRange, valuation.range, "Preliminary reference range needs more evidence");
+  }
+  if (valuation.state === "current_asking") {
+    return firstNonEmpty(report.currentAskingPriceRange, valuation.range, "Current asking-price range needs more evidence");
   }
   return firstNonEmpty(report.fairValueNotEstablished, "Fair Value: Not established");
 }
@@ -2607,6 +2645,8 @@ function renderConsumerCompactSummary(report, workflow) {
   details.className = "consumer-compact-sections";
 
   appendConsumerCompactSection(details, "Evidence Summary", firstNonEmpty(
+    report.customerPricingSummary,
+    report.priceRangeAnalysis,
     report.searchEvidenceSummary,
     report.comparableQuality,
     report.noCompatiblePricesFound,
@@ -3218,6 +3258,7 @@ function formatResearchEvidence(report) {
     formatSection("Search Queries", report.searchQueriesUsed),
     formatSection("Source Coverage", normalizeArray(report.sourcesSearched).length ? report.sourcesSearched : report.searchCoverage),
     formatSection("Item Identification Evidence", report.itemIdentificationEvidence),
+    formatSection("Price Range Analysis", report.priceRangeAnalysis),
     formatSection("Strong Comparables", report.strongComparables),
     formatSection("Partial Comparables", report.partialComparables),
     formatSection("Reference Results", report.referenceResults),
@@ -3225,6 +3266,7 @@ function formatResearchEvidence(report) {
     formatSection("Rejected Matches", report.rejectedMatches),
     formatSection("Search Limitations", report.searchLimitations),
     formatSection("Reference Range Basis", report.referenceRangeBasis),
+    formatSection("Pricing Outliers Excluded", report.pricingOutliersExcluded),
     formatSection("Technical Search Details", formatSearchDiagnosticsText(report.searchDiagnostics)),
     formatSection("Consumer Downside Risk", report.consumerDownsideRisk),
     formatSection("Cautious Buy Explanation", report.cautiousBuyExplanation)

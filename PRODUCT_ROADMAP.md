@@ -293,6 +293,12 @@
 - Exact no-price WorthPoint/reference matches are treated as `Item Identification Evidence`, not Strong Comparables or price/range evidence
 - Recovery search planning now includes exact, reduced, price-oriented, shopping/general, and separate marketplace-domain searches when compatible priced evidence is scarce
 
+## Version 1.10.6 (Completed)
+- Personal Buy pricing now separates `Verified Market Range`, `Current Asking-Price Range`, and `Preliminary Reference Range`
+- Outlier/reference prices are excluded from the primary customer-facing range while remaining visible in Technical Search Details
+- Buyer badges are calibrated so weak, partial, guide, or reference evidence cannot produce `Exceptional Value`
+- Opening offers now stay below the target/asking price when cautious negotiation is appropriate
+
 ## Version 2.0
 - User accounts
 - Saved listings

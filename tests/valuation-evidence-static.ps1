@@ -39,8 +39,8 @@ $checks = @(
   @{ Name = "Server formats plain asking prices as currency"; Text = $server; Pattern = "function Format-MoneyInputText" },
   @{ Name = "Server Ask preserves valuation evidence state"; Text = $server; Pattern = "Preserve the current report's valuationEvidenceState" },
   @{ Name = "Server scenario avoids confident weak value"; Text = $server; Pattern = "not verified fair market value or confirmed sold-comps support" },
-  @{ Name = "Visible app version is 1.10.5"; Text = $index; Pattern = "Version 1.10.5" },
-  @{ Name = "Package version is 1.10.5"; Text = $package; Pattern = '"version": "1.10.5"' },
+  @{ Name = "Visible app version is 1.10.6"; Text = $index; Pattern = "Version 1.10.6" },
+  @{ Name = "Package version is 1.10.6"; Text = $package; Pattern = '"version": "1.10.6"' },
   @{ Name = "Roadmap documents 1.9.1"; Text = $roadmap; Pattern = "Version 1.9.1 (Completed)" }
 )
 

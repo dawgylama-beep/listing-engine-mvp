@@ -617,6 +617,86 @@ try {
   const priceEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(mixedSourceRecords);
   assert(priceEvidence.pricedRecords.length === mixedPrices.length, "Preliminary range should count compatible priced records only.");
   assert(mixedPrices.every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
+  const preliminaryOutlierSourceRecords = {
+    partialComparables: [
+      priceRecord({ url: "https://example.com/prelim-6", canonicalUrl: "https://example.com/prelim-6", displayedPrice: "$6.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-18", canonicalUrl: "https://example.com/prelim-18", displayedPrice: "$18.00", priceType: "Estimated/Guide Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-22", canonicalUrl: "https://example.com/prelim-22", displayedPrice: "$22.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-30", canonicalUrl: "https://example.com/prelim-30", displayedPrice: "$30.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-1155", canonicalUrl: "https://example.com/prelim-1155", title: "Georgia Bulldogs Coca-Cola collector tray rare signed premium variant", displayedPrice: "$1,155.00", priceType: "Estimated/Guide Price", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Signed premium variant; not the submitted ordinary tray." })
+    ]
+  };
+  const preliminaryOutlierEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(preliminaryOutlierSourceRecords);
+  assert(preliminaryOutlierEvidence.primaryRangeType === "preliminary_reference", "Weak/partial/reference prices should stay in the Preliminary Reference Range bucket.");
+  assert(preliminaryOutlierEvidence.low === 6 && preliminaryOutlierEvidence.high === 30, "Primary preliminary range should use the central cluster instead of the isolated high outlier.");
+  assert(preliminaryOutlierEvidence.rawHigh === 1155, "Raw outlier price should remain visible in diagnostic evidence.");
+  assert(preliminaryOutlierEvidence.outlierRecords.some((record) => /\$1,155/.test(record.displayedPrice)), "Excluded outlier should be preserved for Technical Search Details.");
+  assert(/not used to set the primary range/i.test(preliminaryOutlierEvidence.outlierNote), "Outlier note should explain why the wide raw range did not set the primary range.");
+  const preliminaryCards = __queryIntegrityTestHooks.buildConsumerPricesFound(preliminaryOutlierSourceRecords, 10, {
+    excludeRangeOutlierUrls: preliminaryOutlierEvidence.outlierRecords.map((record) => record.url)
+  });
+  assert(!JSON.stringify(preliminaryCards).includes("1,155"), "Excluded range outlier should not remain in customer-facing Prices Found cards.");
+  const conditionProfile = {
+    condition: "used",
+    concerns: [],
+    isUnknown: false,
+    hasHardRisk: false,
+    hasModerateRisk: false,
+    missingParts: false,
+    repairRisk: false,
+    risks: []
+  };
+  const buyerIntake = {
+    purchase_context: "antique_mall",
+    asking_price: "$10",
+    purchase_intent: "personal_use",
+    item_condition: "used",
+    item_name: "Georgia Bulldogs Coca-Cola tray",
+    known_brand: "Coca-Cola",
+    buyer_notes: "HOW 'BOUT THEM DAWGS 1980 NATIONAL CHAMPIONS Vince Dooley"
+  };
+  const weakDecision = __queryIntegrityTestHooks.classifyConsumerPurchaseDecision({
+    askingPriceNumber: 10,
+    fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
+    reliableCompsFound: false,
+    exactItems: [],
+    similarItems: [],
+    conditionProfile,
+    buyerIntake,
+    identity: georgiaIdentity,
+    priceEvidence: preliminaryOutlierEvidence
+  });
+  assert(weakDecision.valueRating !== "Exceptional Value", "Weak/partial/reference evidence must not produce an Exceptional Value badge.");
+  assert(/Low-Cost Cautious Buy|Reasonable Personal-Use Buy|Promising Price - Limited Evidence|Proceed with Caution/.test(weakDecision.valueRating), "Weak evidence should use a lower-certainty customer badge.");
+  assert(/Low/i.test(weakDecision.pricingConfidence), "Weak/reference pricing should keep pricing confidence low.");
+  const weakOffer = __queryIntegrityTestHooks.buildConsumerOffer({
+    askingPriceNumber: 10,
+    fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
+    decision: weakDecision,
+    conditionProfile
+  });
+  assert(weakOffer.openingOffer !== weakOffer.targetPurchasePrice, "Opening offer should not equal the target purchase price for a negotiable low-dollar buy.");
+  assert(/\$[1-9]/.test(weakOffer.openingOffer) && /\$10/.test(weakOffer.targetPurchasePrice), "Opening offer should be below the $10 target asking price when negotiation is reasonable.");
+  const soldOutranksActive = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+    strongComparables: [
+      priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
+      priceRecord({ url: "https://example.com/sold-44", canonicalUrl: "https://example.com/sold-44", displayedPrice: "$44.00", priceType: "Verified Sold", rawText: "Verified sold price $44.00", classification: "Strong Similar Match", identityMatchStrength: "Strong" }),
+      priceRecord({ url: "https://example.com/active-15", canonicalUrl: "https://example.com/active-15", displayedPrice: "$15.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
+    ]
+  });
+  assert(soldOutranksActive.primaryRangeType === "verified_market", "Verified sold exact/strong evidence should outrank active asking evidence.");
+  assert(/\$40-\$44/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
+  const activeOutranksPartial = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+    strongComparables: [
+      priceRecord({ url: "https://example.com/active-24", canonicalUrl: "https://example.com/active-24", displayedPrice: "$24.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
+    ],
+    partialComparables: [
+      priceRecord({ url: "https://example.com/partial-6", canonicalUrl: "https://example.com/partial-6", displayedPrice: "$6.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/partial-1155", canonicalUrl: "https://example.com/partial-1155", displayedPrice: "$1,155.00", priceType: "Estimated/Guide Price", classification: "Partial Comparable", identityMatchStrength: "Partial" })
+    ]
+  });
+  assert(activeOutranksPartial.primaryRangeType === "current_asking", "Active exact/strong asking evidence should outrank partial/reference prices when sold evidence is absent.");
+  assert(/Current Asking-Price Range/i.test(activeOutranksPartial.currentAskingPriceRange), "Current asking bucket should expose its own customer-facing range label.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
   const malformedCandidates = [
