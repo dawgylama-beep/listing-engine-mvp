@@ -1,4 +1,4 @@
-# Marketplace Edge Roadmap
+# Katherine’s Eye Roadmap
 
 ## Version 1.0 (Completed)
 - Web MVP
@@ -345,6 +345,16 @@
 - Package matching now separates exact retail matches, compatible alternatives, unit-price-only comparisons, package-size differences, and rejected retail mismatches
 - Technical Search Details now show retail evidence mode, route classification, suppressed query terms, accepted/rejected retail candidates, manual ZIP status, and excluded secondary evidence counts
 - Regression tests cover the Office Works/Kroger fixed-price retail path, secondary evidence isolation, query suppression, package mismatch rules, location-denied/manual-ZIP copy, and preserved 1.10.9-1.10.11 safeguards
+
+## Version 1.11.0 (Completed)
+- Katherine’s Eye is now the canonical current product identity across active UI, metadata, prompts, local server text, docs, and current tests
+- Page title, description, Open Graph/Twitter metadata, Apple title, and PWA manifest now identify the product as Katherine’s Eye
+- Ask Katherine’s Eye replaces the former Ask Market Edge customer-facing label while preserving stable internal action identifiers
+- Browser location flow now calls `navigator.geolocation.getCurrentPosition()` directly from the Use My Location tap and does not treat permission state `prompt` as denial
+- Location failures now distinguish permission denied, position unavailable, timeout, unsupported browser, insecure context, reverse-geocoding failure, ZIP-not-confirmed fallback, manual ZIP, and skipped local pricing
+- Vercel response headers allow first-party geolocation with `Permissions-Policy: geolocation=(self)`
+- Coordinates are used only ephemerally for reverse geocoding, rounded before lookup, discarded after ZIP/general area resolution, and never shown in reports or diagnostics
+- Regression tests cover brand consistency, legacy-storage/no-storage behavior, geolocation error mapping, permission prompt guardrails, privacy safeguards, and preserved 1.10.12 retail behavior
 
 ## Version 2.0
 - User accounts

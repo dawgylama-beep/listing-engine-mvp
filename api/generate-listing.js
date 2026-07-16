@@ -777,6 +777,7 @@ const buyerIntakeStringFields = [
   "store_name",
   "location_zip",
   "location_mode",
+  "location_state",
   "location_permission",
   "location_area",
   "retailer_or_marketplace_name",
@@ -908,7 +909,7 @@ export default async function handler(req, res) {
 
 async function handleAskMarketEdge({ body, res }) {
   if (JSON.stringify(body || {}).length > 180000) {
-    return res.status(413).json({ error: "Ask Market Edge context is too large. Start a new item and try again." });
+    return res.status(413).json({ error: "Ask Katherine’s Eye context is too large. Start a new item and try again." });
   }
 
   const sessionId = cleanText(body.sessionId).slice(0, 120);
@@ -919,11 +920,11 @@ async function handleAskMarketEdge({ body, res }) {
   const recentConversationContext = sanitizeAskConversation(body.recentConversationContext);
 
   if (!sessionId) {
-    return res.status(400).json({ error: "Ask Market Edge needs a current item session." });
+    return res.status(400).json({ error: "Ask Katherine’s Eye needs a current item session." });
   }
 
   if (!workflow) {
-    return res.status(400).json({ error: "Ask Market Edge needs a valid workflow." });
+    return res.status(400).json({ error: "Ask Katherine’s Eye needs a valid workflow." });
   }
 
   if (!question) {
@@ -931,7 +932,7 @@ async function handleAskMarketEdge({ body, res }) {
   }
 
   if (!currentItemContext || !currentItemContext.currentReport) {
-    return res.status(400).json({ error: "Ask Market Edge needs a completed item report first." });
+    return res.status(400).json({ error: "Ask Katherine’s Eye needs a completed item report first." });
   }
 
   const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
@@ -975,7 +976,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     listing: "Active workflow is Generate Listing. Help revise listing copy, platform fit, title, description, price strategy, condition disclosure, and seller notes without inventing facts."
   }[workflow];
   const prompt = [
-    "Ask Market Edge is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.",
+    "Ask Katherine’s Eye is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.",
     "The current structured report is the authoritative starting point. Use the active report before generating new conclusions.",
     "Ground every answer in the active item session: uploaded-photo findings, user description, workflow, buyer intent, asking price, visual subject, visual confidence, exact product identity, exact product confidence, user-provided identity, photo evidence, search queries, sources searched, research results, comparable classifications, pricing estimates, recommendation, risk flags, listing content, prior follow-up exchanges, and user-provided scenario changes when available.",
     "Do not behave as though the user is asking about an unrelated new item unless the frontend has started a New Item session. Do not carry stale context from another workflow.",
@@ -1000,7 +1001,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "Question route behavior: listing_revision questions revise the current listing, preserve verified facts, visible condition issues, uncertainty disclosures, pricing honesty, and damage disclosures, and do not add official, licensed, authentic, rare, or exact era claims without support.",
     "Question route behavior: platform_guidance questions use current item characteristics like size, shipping difficulty, value, audience, collectibility, condition, confidence, and likely demand. Frame advice as practical guidance, not guaranteed platform performance.",
     "Question route behavior: new_live_search requests are deliberate search requests. Because this Ask endpoint does not execute a new follow-up live search, state that no new search occurred, answer only from current evidence, set needsNewSearch true, and do not fabricate sources or results.",
-    "Question route behavior: unsupported_or_unrelated questions should explain that Ask Market Edge can only answer questions about the current item/report and should ask for a relevant item-specific question.",
+    "Question route behavior: unsupported_or_unrelated questions should explain that Ask Katherine’s Eye can only answer questions about the current item/report and should ask for a relevant item-specific question.",
     "Use the current report's Visual Recognition fields first for questions like what is this, why do you think it is a brand/organization/mascot/logo/character, what clues support that, or what should be photographed next.",
     "When identity is discussed, separate visual subject recognition, user-provided identity, exact product identity, maker, era, licensing, authenticity, exact comparable status, and pricing confidence.",
     "If broad subject identity is supported but exact product is unverified, preserve the supported subject instead of saying the whole identity is unverified.",
@@ -1032,7 +1033,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
   ];
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Ask Market Edge, a context-aware item and report follow-up assistant. The current structured report is authoritative context. Answer only from the active item session and return structured JSON.",
+    systemText: "You are Ask Katherine’s Eye, a context-aware item and report follow-up assistant. The current structured report is authoritative context. Answer only from the active item session and return structured JSON.",
     userContent,
     schemaName: "ask_market_edge_answer",
     schema: askMarketEdgeSchema
@@ -1049,7 +1050,7 @@ function normalizeAskAnswer(answer, { answerType, scenario }) {
     evidenceBasis: normalizeStringArray(answer.evidenceBasis, 6),
     assumptions: normalizeStringArray(answer.assumptions, 6),
     recalculatedFields: normalizeStringArray(answer.recalculatedFields, 8),
-    confidence: ensureConfidenceLayer(answer.confidence, "Low", "Ask Market Edge uses the current report context and does not perform a new live search unless source-backed new results are explicitly supplied."),
+    confidence: ensureConfidenceLayer(answer.confidence, "Low", "Ask Katherine’s Eye uses the current report context and does not perform a new live search unless source-backed new results are explicitly supplied."),
     recommendedNextAction: cleanText(answer.recommendedNextAction),
     needsNewSearch: answerType === "new_live_search" ? true : Boolean(answer.needsNewSearch),
     needsAdditionalPhoto: Boolean(answer.needsAdditionalPhoto),
@@ -1347,7 +1348,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Listing Engine, a careful assistant that turns item photos, seller notes, and source-backed research into marketplace listing drafts. Return only the requested structured JSON.",
+    systemText: "You are Katherine’s Eye, a careful assistant that turns item photos, seller notes, and source-backed research into marketplace listing drafts. Return only the requested structured JSON.",
     userContent,
     schemaName: "marketplace_listing",
     schema: listingSchema
@@ -1450,7 +1451,7 @@ async function recognizeVisualSubject({ apiKey, model, platform, notes, photos, 
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Market Edge's Visual Intelligence Engine. Recognize broad visual subjects from photos before product identification. Return only structured JSON.",
+    systemText: "You are Katherine’s Eye Visual Intelligence Engine. Recognize broad visual subjects from photos before product identification. Return only structured JSON.",
     userContent,
     schemaName: "visual_subject_recognition",
     schema: visualRecognitionSchema
@@ -3309,7 +3310,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
 function normalizeComparableText(value) {
   return cleanText(value)
     .toLowerCase()
-    .replace(/[’]/g, "'")
+    .replace(/[â€™]/g, "'")
     .replace(/[^a-z0-9$.'":\/ -]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -4112,7 +4113,9 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const resaleSuppressed = context.retailStoreContext || context.onlineRetailerContext
     ? normalizeStringArray(searchQueries, 24).every((query) => !isRetailForbiddenSecondaryEvidenceText(query))
     : false;
-  const locationDeniedManualZip = /denied/i.test(context.locationPermission || context.locationMode) && Boolean(context.locationZip);
+  const locationState = cleanText(context.locationState);
+  const locationDeniedManualZip = /permission-denied|denied/i.test(`${locationState} ${context.locationPermission} ${context.locationMode}`) && Boolean(context.locationZip);
+  const locationUnavailable = /position-unavailable|timeout|unsupported|insecure-context|reverse-geocode-failed|skipped/i.test(locationState);
 
   return {
     retailEvidenceMode,
@@ -4156,9 +4159,10 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     purchaseContext: context.purchaseContext || "",
     storeName: storeName || "",
     locationModeUsed: context.locationMode || "",
+    locationStateUsed: locationState || "",
     locationLookupOutcome: locationDeniedManualZip
       ? `Location permission was not granted. ZIP ${context.locationZip} was entered manually.`
-      : context.locationArea ? `General area resolved: ${context.locationArea}` : context.locationMode || "not requested",
+      : context.locationArea ? `General area resolved: ${context.locationArea}` : locationUnavailable ? `Location fallback used: ${locationState}` : context.locationMode || "not requested",
     zipPresence: context.locationZip ? "ZIP provided" : "ZIP not provided",
     manualZipUsed: locationDeniedManualZip ? `Manual ZIP used: ${context.locationZip}` : "",
     browserCoordinatesDisplayed: "No",
@@ -4442,7 +4446,7 @@ function querySemanticSignature(value) {
   return sanitizeSearchQueryText(value)
     .toLowerCase()
     .replace(/site:[A-Za-z0-9.-]+/gi, "")
-    .replace(/["'’]/g, "")
+    .replace(/["'â€™]/g, "")
     .replace(/\b(?:the|and|with|for|official|collector'?s?|collectible|vintage|used|item|listing|price|resale|ebay|etsy|mercari|worthpoint|picclick)\b/g, "")
     .replace(/[()]+/g, " ")
     .replace(/\s+/g, " ")
@@ -4563,7 +4567,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Marketplace Edge, a careful consumer purchase decision assistant. Help everyday buyers decide whether an item is fairly priced for personal use. Return only the requested structured JSON.",
+    systemText: "You are Katherine’s Eye, a careful consumer purchase decision assistant. Help everyday buyers decide whether an item is fairly priced for personal use. Return only the requested structured JSON.",
     userContent,
     schemaName: "consumer_purchase_decision",
     schema: consumerDecisionSchema
@@ -4687,7 +4691,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON.",
+    systemText: "You are Katherine’s Eye, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON.",
     userContent,
     schemaName: "market_value_report",
     schema: valuationSchema
@@ -5610,6 +5614,7 @@ function normalizeBuyerIntake(value) {
   intake.store_name = cleanText(intake.store_name);
   intake.retailer_or_marketplace_name = cleanText(intake.retailer_or_marketplace_name);
   intake.location_mode = cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : intake.location_area ? "browser_location_general_area" : ""));
+  intake.location_state = cleanText(intake.location_state || (intake.location_zip ? "manual-ZIP" : intake.location_area ? "general-area-resolved" : ""));
   intake.location_permission = cleanText(intake.location_permission);
   intake.condition_concerns = normalizeConditionConcerns(source.condition_concerns);
   intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
@@ -5654,6 +5659,7 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
     `store_name: ${intake.store_name || "not provided"}`,
     `location_zip: ${intake.location_zip || "not provided"}`,
     `location_mode: ${intake.location_mode || "not provided"}`,
+    `location_state: ${intake.location_state || "not provided"}`,
     `location_permission: ${intake.location_permission || "not provided"}`,
     `location_area: ${intake.location_area || "not provided"}`,
     `retailer_or_marketplace_name: ${intake.retailer_or_marketplace_name || "not provided"}`,
@@ -5992,6 +5998,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const locationZip = normalizeZipCode(buyerIntake.location_zip);
   const locationArea = cleanText(buyerIntake.location_area);
   const locationMode = cleanText(buyerIntake.location_mode || (locationZip ? "manual_zip" : ""));
+  const locationState = cleanText(buyerIntake.location_state || (locationZip ? "manual-ZIP" : locationArea ? "general-area-resolved" : ""));
   const retailerDomain = getRetailerDomainForStore(firstKnown(storeName, retailerOrMarketplaceName));
   const retailStoreContext = isRetailStorePurchaseContext(purchaseContext);
   const onlineRetailerContext = isOnlineRetailerPurchaseContext(purchaseContext);
@@ -6058,6 +6065,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     locationZip,
     locationArea,
     locationMode,
+    locationState,
     locationPermission: cleanText(buyerIntake.location_permission),
     retailerDomain,
     knownShippingAmount: cleanText(buyerIntake.known_shipping_amount),
@@ -6289,7 +6297,7 @@ function scoreExactVisiblePhrase(value) {
   const text = cleanText(value);
   let score = 0;
   if (/[A-Z]{2,}/.test(value)) score += 2;
-  if (/['’]/.test(text)) score += 8;
+  if (/['â€™]/.test(text)) score += 8;
   if (/\b(?:18|19|20)\d{2}\b/.test(text)) score += 5;
   if (/champion|national|official|collector|commemorative|edition|slogan|motto/i.test(text)) score += 5;
   const wordCount = text.split(/\s+/).filter(Boolean).length;
@@ -9290,7 +9298,7 @@ function sanitizeUnsupportedMarketText(text, askingPriceText = "") {
   const source = cleanText(text);
   if (!source) return source;
   const hasUnsupportedMarketClaim = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value|comparable evidence appears useful enough/i.test(source);
-  const hasMoneyRange = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(source);
+  const hasMoneyRange = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|â€“|â€”)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(source);
   const hasPercentMarket = /\b\d{1,3}%\b.*\b(market|value|below|above|discount)/i.test(source);
   const askingAmount = extractFirstMoneyAmount(askingPriceText);
   const amounts = extractMoneyAmounts(source);
@@ -9776,7 +9784,7 @@ function buildPurchaseContextSummary(buyerIntake = normalizeBuyerIntake({})) {
     ? `ZIP ${zip}`
     : area
       ? `general area ${area}`
-      : /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(buyerIntake.location_mode || buyerIntake.location_permission)
+      : /location_(denied|unavailable|timeout|unsupported|skipped)|reverse_geocode_failed|insecure_context|permission-denied|position-unavailable|reverse-geocode-failed|insecure-context|skipped/.test(`${buyerIntake.location_mode} ${buyerIntake.location_permission} ${buyerIntake.location_state}`)
         ? "local prices and nearby availability will not be checked"
         : /browser_location/.test(buyerIntake.location_mode)
           ? "general browser location approved"
@@ -9832,7 +9840,7 @@ function buildLocalStoreContext(buyerIntake = normalizeBuyerIntake({}), liveSear
     ? `ZIP/general area: ${zip}.`
     : area
       ? `General area: ${area}. Enter ZIP for more precise local pricing.`
-      : /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(buyerIntake.location_mode || buyerIntake.location_permission)
+      : /location_(denied|unavailable|timeout|unsupported|skipped)|reverse_geocode_failed|insecure_context|permission-denied|position-unavailable|reverse-geocode-failed|insecure-context|skipped/.test(`${buyerIntake.location_mode} ${buyerIntake.location_permission} ${buyerIntake.location_state}`)
         ? "Local prices and nearby availability were not checked because ZIP/local area was unavailable."
         : /browser_location/.test(buyerIntake.location_mode)
           ? "General location permission was approved; precise coordinates are not stored or displayed."
@@ -9938,7 +9946,7 @@ function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveS
   if (!getRetailStoreName(buyerIntake)) {
     missingActions.push("Add the store name.");
   }
-  if (!normalizeZipCode(buyerIntake.location_zip) && buyerIntake.location_mode !== "browser_location_approved") {
+  if (!normalizeZipCode(buyerIntake.location_zip) && !cleanText(buyerIntake.location_area) && !/browser_location_(zip|general_area)|manual_zip|location_skipped/.test(buyerIntake.location_mode || "")) {
     missingActions.push("Enter your ZIP code.");
   }
   if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount)) {
@@ -9952,7 +9960,7 @@ function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveS
     ? "Low-Risk Purchase - Limited Evidence"
     : "Need More Information";
   const explanation = Number.isFinite(askingPriceNumber)
-    ? `${formatMoney(askingPriceNumber)} was not verified against compatible source-backed current retail prices. Financial exposure may be limited, but Katherine's Eye did not confirm this is a good deal.`
+    ? `${formatMoney(askingPriceNumber)} was not verified against compatible source-backed current retail prices. Financial exposure may be limited, but Katherine’s Eye did not confirm this is a good deal.`
     : "The current retail price was not verified because no compatible source-backed current retail price passed filtering.";
 
   return {
@@ -11280,7 +11288,7 @@ function buildConsumerAdditionalInfoNeeded(value, { reliableCompsFound, buyerInt
     if (!getRetailStoreName(buyerIntake)) {
       addUnique(needed, "Add the store name.");
     }
-    if (!normalizeZipCode(buyerIntake.location_zip) && buyerIntake.location_mode !== "browser_location_approved") {
+    if (!normalizeZipCode(buyerIntake.location_zip) && !cleanText(buyerIntake.location_area) && !/browser_location_(zip|general_area)|manual_zip|location_skipped/.test(buyerIntake.location_mode || "")) {
       addUnique(needed, "Enter your ZIP code for nearby retail price context.");
     }
     if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount)) {

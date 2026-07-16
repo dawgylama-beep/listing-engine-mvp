@@ -1,6 +1,6 @@
-# Listing Engine MVP
+# Katherine’s Eye MVP
 
-A minimal web prototype that turns item photos, a selected marketplace, and seller notes into a structured marketplace listing using the OpenAI API.
+A minimal web prototype that helps buyers, sellers, collectors, and resellers evaluate items from photos, notes, source-backed evidence, and careful pricing logic. Generate Listing still creates marketplace listing drafts; Personal Buy and Worth Buying modes support buying and valuation decisions.
 
 ## START HERE FOR NON-TECHNICAL USERS
 
@@ -77,7 +77,7 @@ Easy method:
 
 1. Double-click `START_LISTING_ENGINE.bat`.
 2. A terminal window will open.
-3. It will stop any old Listing Engine server using port `5175`.
+3. It will stop any old Katherine’s Eye server using port `5175`.
 4. Leave that window open while using the app.
 
 Command method:
@@ -113,7 +113,7 @@ http://localhost:5175
 4. Press Enter.
 5. Upload item photos, choose a marketplace, add notes, and click Generate Listing.
 
-If something is already using `localhost:5175`, close old PowerShell windows running Listing Engine, then start it again.
+If something is already using `localhost:5175`, close old PowerShell windows running Katherine’s Eye, then start it again.
 
 ## Run locally
 
@@ -144,7 +144,7 @@ Do not upload your local `.env` file. It contains your private API key. The `.gi
 1. Go to GitHub.
 2. Create a new repository.
 3. Make it private while you are testing.
-4. Upload the Listing Engine project files.
+4. Upload the Katherine’s Eye project files.
 5. Do not upload `.env`.
 
 ### 2. Create a Vercel project
@@ -152,12 +152,12 @@ Do not upload your local `.env` file. It contains your private API key. The `.gi
 1. Go to Vercel.
 2. Sign in with GitHub.
 3. Click Add New Project.
-4. Choose the GitHub repository for Listing Engine.
+4. Choose the GitHub repository for Katherine’s Eye.
 5. Keep the default project settings.
 
 ### 3. Add your OpenAI API key safely
 
-1. In Vercel, open the Listing Engine project.
+1. In Vercel, open the Katherine’s Eye project.
 2. Go to Settings.
 3. Click Environment Variables.
 4. Add this variable:
@@ -196,6 +196,26 @@ https://your-project-name.vercel.app
 5. Click Generate Listing.
 
 If generation fails, check that `OPENAI_API_KEY` is set in Vercel and redeploy.
+
+## Manual Location Verification
+
+Static tests cannot prove that Chrome on iPhone displays the native location prompt. Use this checklist after deployment:
+
+1. Open `https://katherineseye.com` in Chrome on iPhone.
+2. Use a browser/site state where location permission has not already been permanently denied.
+3. Select Retail Store.
+4. Tap Use My Location.
+5. Confirm the site displays `Requesting location permission...`.
+6. Confirm Chrome/iOS displays its native location prompt when eligible.
+7. Allow location.
+8. Confirm ZIP or general area is populated.
+9. Confirm precise coordinates are not displayed.
+10. Reset or deny permission.
+11. Tap Use My Location again.
+12. Confirm genuine denial is reported accurately.
+13. Confirm Try Location Again and manual ZIP fallback work.
+14. Confirm timeout or unavailable errors do not say permission denied.
+15. Confirm the site is served over HTTPS and Vercel sends `Permissions-Policy: geolocation=(self)`.
 
 ## Scope
 

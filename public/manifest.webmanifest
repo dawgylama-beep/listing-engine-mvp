@@ -1,0 +1,9 @@
+{
+  "name": "Katherine’s Eye",
+  "short_name": "Katherine’s Eye",
+  "description": "Buying, selling and valuation intelligence for item photos, notes, and source-backed evidence.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#202417"
+}

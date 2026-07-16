@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.12"; Text = $index; Pattern = "Version 1.10.12" },
-  @{ Name = "Package version is 1.10.12"; Text = $package; Pattern = '"version": "1.10.12"' },
-  @{ Name = "Server version is 1.10.12"; Text = $server; Pattern = '$AppVersion = "1.10.12"' },
-  @{ Name = "Roadmap documents 1.10.12"; Text = $roadmap; Pattern = "Version 1.10.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.0"; Text = $index; Pattern = "Version 1.11.0" },
+  @{ Name = "Package version is 1.11.0"; Text = $package; Pattern = '"version": "1.11.0"' },
+  @{ Name = "Server version is 1.11.0"; Text = $server; Pattern = '$AppVersion = "1.11.0"' },
+  @{ Name = "Roadmap documents 1.11.0"; Text = $roadmap; Pattern = "Version 1.11.0 (Completed)" },
   @{ Name = "API finalizes canonical identity before routing"; Text = $api; Pattern = "finalizeIdentityForResearch(extractedIdentity, intake)" },
   @{ Name = "API blocks unresolved conflict before live search"; Text = $api; Pattern = "identityConfirmationRequired" },
   @{ Name = "Canonical identity has field status metadata"; Text = $api; Pattern = "createCanonicalField" },
@@ -44,10 +44,10 @@ $checks = @(
   @{ Name = "Location not requested automatically"; Text = $app; Pattern = 'useLocationButton.addEventListener("click", handleUseLocationClick)' },
   @{ Name = "Reverse geocoding function exists"; Text = $app; Pattern = "function reverseGeocodePosition" },
   @{ Name = "Location success can populate ZIP"; Text = $app; Pattern = "locationZipInput.value = area.zip" },
-  @{ Name = "Location success can populate general area"; Text = $app; Pattern = 'locationModeInput.value = "browser_location_general_area"' },
-  @{ Name = "Permission denied copy remains exact"; Text = $app; Pattern = "Location access was not granted. Enter a ZIP code to check nearby prices." },
+  @{ Name = "Location success can populate general area"; Text = $app; Pattern = 'mode: "browser_location_general_area"' },
+  @{ Name = "Permission denied copy remains exact"; Text = $app; Pattern = "Location access was not granted. Enable location for Chrome and this site, or enter a ZIP code." },
   @{ Name = "Timeout fallback copy exists"; Text = $app; Pattern = "Location lookup timed out. Try again or enter a ZIP code." },
-  @{ Name = "Unsupported insecure fallback copy exists"; Text = $app; Pattern = "Location services are not available in this browser session. Enter a ZIP code." },
+  @{ Name = "Unsupported insecure fallback copy exists"; Text = $app; Pattern = "Location services require a secure browser connection. Enter a ZIP code." },
   @{ Name = "Coordinates are not sent in buyer intake"; Text = $app; Pattern = "location_area" },
   @{ Name = "Identity confirmation card exists"; Text = $app; Pattern = "renderIdentityConfirmationCard" },
   @{ Name = "Confirm action resubmits with token"; Text = $app; Pattern = "pendingIdentityConfirmationToken" },

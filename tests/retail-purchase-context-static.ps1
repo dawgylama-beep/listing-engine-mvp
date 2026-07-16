@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.12"; Text = $index; Pattern = "Version 1.10.12" },
-  @{ Name = "Package version is 1.10.12"; Text = $package; Pattern = '"version": "1.10.12"' },
-  @{ Name = "Server version is 1.10.12"; Text = $server; Pattern = '$AppVersion = "1.10.12"' },
-  @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.10.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.0"; Text = $index; Pattern = "Version 1.11.0" },
+  @{ Name = "Package version is 1.11.0"; Text = $package; Pattern = '"version": "1.11.0"' },
+  @{ Name = "Server version is 1.11.0"; Text = $server; Pattern = '$AppVersion = "1.11.0"' },
+  @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.11.0 (Completed)" },
   @{ Name = "Personal Buy context selector exists"; Text = $index; Pattern = 'id="purchase_context"' },
   @{ Name = "Retail store option exists"; Text = $index; Pattern = 'value="retail_store"' },
   @{ Name = "Online retailer option exists"; Text = $index; Pattern = 'value="online_retailer"' },
@@ -27,7 +27,7 @@ $checks = @(
   @{ Name = "Store name field exists"; Text = $index; Pattern = 'id="store_name"' },
   @{ Name = "ZIP code field exists"; Text = $index; Pattern = 'id="location_zip"' },
   @{ Name = "Use My Location button exists"; Text = $index; Pattern = 'id="use-location-button"' },
-  @{ Name = "Location denied copy is exact"; Text = $app; Pattern = "Location access was not granted. Enter a ZIP code to check nearby prices." },
+  @{ Name = "Location denied copy is exact"; Text = $app; Pattern = "Location access was not granted. Enable location for Chrome and this site, or enter a ZIP code." },
   @{ Name = "Location is requested only by click handler"; Text = $app; Pattern = 'useLocationButton.addEventListener("click", handleUseLocationClick)' },
   @{ Name = "No automatic geolocation on page load"; Text = $app; Pattern = 'function handleUseLocationClick()' },
   @{ Name = "Manual UPC label exists"; Text = $index; Pattern = "Barcode or UPC number" },

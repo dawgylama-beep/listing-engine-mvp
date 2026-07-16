@@ -1,6 +1,6 @@
-# Listing Engine Deployment Checklist
+# Katherine’s Eye Deployment Checklist
 
-Use this checklist before uploading Listing Engine to GitHub and Vercel.
+Use this checklist before uploading Katherine’s Eye to GitHub and Vercel.
 
 ## Preflight Safety Check
 
@@ -96,7 +96,7 @@ START_LISTING_ENGINE.bat
 11. Type this commit message:
 
 ```text
-Initial Listing Engine MVP upload
+Initial Katherine’s Eye MVP upload
 ```
 
 12. Click `Commit changes`.

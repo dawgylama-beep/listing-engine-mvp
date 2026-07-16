@@ -3,7 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Marketplace Edge</title>
+    <title>Katherine’s Eye - Buying, Selling and Valuation Intelligence</title>
+    <meta name="description" content="Katherine’s Eye helps buyers, sellers, collectors, and resellers evaluate items from photos, notes, current evidence, and careful pricing logic.">
+    <meta property="og:title" content="Katherine’s Eye - Buying, Selling and Valuation Intelligence">
+    <meta property="og:description" content="Photo-first buying, selling, and valuation intelligence for everyday items, collectibles, and resale decisions.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Katherine’s Eye - Buying, Selling and Valuation Intelligence">
+    <meta name="twitter:description" content="Use Katherine’s Eye to identify items, compare evidence, and make clearer buy, sell, or listing decisions.">
+    <meta name="apple-mobile-web-app-title" content="Katherine’s Eye">
+    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -12,15 +21,15 @@
         <div class="panel input-panel">
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
-            <h1 id="app-title">Marketplace Edge</h1>
-            <p class="version-badge">Version 1.10.12</p>
+            <h1 id="app-title">Katherine’s Eye</h1>
+            <p class="version-badge">Version 1.11.0</p>
           </header>
 
           <form id="listing-form" class="listing-form">
             <details class="details-panel guide-panel">
               <summary>
                 <span class="details-summary-text">
-                  <span class="details-title">How to Use Marketplace Edge</span>
+                  <span class="details-title">How to Use Katherine’s Eye</span>
                   <span class="details-helper">Quick buyer-first guide for photos, pricing, confidence, and listings</span>
                 </span>
                 <span class="details-chevron" aria-hidden="true"></span>
@@ -38,8 +47,8 @@
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-what-does">
-                  <h3 id="guide-what-does">What Marketplace Edge Does</h3>
-                  <p>Marketplace Edge helps you decide whether an item is worth buying at this price, right now. Know before you buy. Then profit if you sell.</p>
+                  <h3 id="guide-what-does">What Katherine’s Eye Does</h3>
+                  <p>Katherine’s Eye helps you decide whether an item is worth buying at this price, right now. Know before you buy. Then profit if you sell.</p>
                   <p>It can identify an item from photos, compare the asking price with available market information, give a personal-use value rating, support resale decisions, estimate resale potential, recommend a selling platform, suggest listing and sale prices, and generate a listing after the item is purchased.</p>
                   <p>Live results depend on available sources, photo quality, and identifiable item details. Treat the output as decision support, not a guarantee.</p>
                 </section>
@@ -105,7 +114,7 @@
                     </div>
                     <div>
                       <dt>Maximum Recommended Buy Price</dt>
-                      <dd>The highest price Marketplace Edge believes may still make sense.</dd>
+                      <dd>The highest price Katherine’s Eye believes may still make sense.</dd>
                     </div>
                     <div>
                       <dt>Suggested Listing Price</dt>
@@ -161,7 +170,7 @@
                     <li>Use the copy buttons to copy the listing content.</li>
                     <li>Verify all facts before posting.</li>
                   </ol>
-                  <p>Generate Listing requires a selected platform, item notes, and at least one photo. Marketplace Edge does not directly post the listing for you.</p>
+                  <p>Generate Listing requires a selected platform, item notes, and at least one photo. Katherine’s Eye does not directly post the listing for you.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-reminders">
@@ -270,7 +279,7 @@
                     <option value="private_seller">Private seller</option>
                     <option value="other">Other</option>
                   </select>
-                  <p class="field-note">This changes how Katherine's Eye researches the item.</p>
+                  <p class="field-note">This changes how Katherine’s Eye researches the item.</p>
                 </div>
 
                 <div class="field-control">
@@ -324,8 +333,15 @@
 
                 <div class="field-control full-span location-control">
                   <button id="use-location-button" class="secondary-button" type="button">Use My Location</button>
+                  <p class="field-note">Katherine’s Eye uses your approximate location to check nearby prices and store options. Your precise location is not stored.</p>
                   <p id="location-status" class="field-note" role="status" aria-live="polite"></p>
+                  <div id="location-fallback-actions" class="location-fallback-actions" hidden>
+                    <button id="retry-location-button" class="secondary-button" type="button">Try Location Again</button>
+                    <button id="manual-zip-button" class="secondary-button" type="button">Enter ZIP Manually</button>
+                    <button id="skip-location-button" class="secondary-button" type="button">Continue Without Local Pricing</button>
+                  </div>
                   <input id="location_mode" name="location_mode" type="hidden" value="">
+                  <input id="location_state" name="location_state" type="hidden" value="idle">
                   <input id="location_permission" name="location_permission" type="hidden" value="">
                   <input id="location_area" name="location_area" type="hidden" value="">
                 </div>
@@ -456,7 +472,7 @@
             <div class="ask-heading">
               <div>
                 <p class="eyebrow">Context-aware follow-up</p>
-                <h2 id="ask-title">Ask Market Edge</h2>
+                <h2 id="ask-title">Ask Katherine’s Eye</h2>
               </div>
               <button id="clear-ask-button" class="secondary-button" type="button">Clear Conversation</button>
             </div>
@@ -467,7 +483,7 @@
               <textarea id="ask-question" rows="4" maxlength="900" placeholder="Example: Would this be worth buying at $40?"></textarea>
               <div class="ask-actions">
                 <button id="ask-submit-button" class="primary-button" type="submit">
-                  <span id="ask-submit-label">Ask Market Edge</span>
+                  <span id="ask-submit-label">Ask Katherine’s Eye</span>
                 </button>
               </div>
             </form>

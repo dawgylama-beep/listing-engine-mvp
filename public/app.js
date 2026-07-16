@@ -22,8 +22,13 @@ const askingPriceInput = document.querySelector("#asking_price");
 const storeNameInput = document.querySelector("#store_name");
 const locationZipInput = document.querySelector("#location_zip");
 const useLocationButton = document.querySelector("#use-location-button");
+const retryLocationButton = document.querySelector("#retry-location-button");
+const manualZipButton = document.querySelector("#manual-zip-button");
+const skipLocationButton = document.querySelector("#skip-location-button");
+const locationFallbackActions = document.querySelector("#location-fallback-actions");
 const locationStatus = document.querySelector("#location-status");
 const locationModeInput = document.querySelector("#location_mode");
+const locationStateInput = document.querySelector("#location_state");
 const locationPermissionInput = document.querySelector("#location_permission");
 const locationAreaInput = document.querySelector("#location_area");
 const retailerOrMarketplaceInput = document.querySelector("#retailer_or_marketplace_name");
@@ -55,6 +60,21 @@ const submissionStages = Object.freeze({
   API_REQUEST: "api_request",
   API_RESPONSE: "api_response",
   REPORT_RENDER: "report_render"
+});
+
+const locationStates = Object.freeze({
+  IDLE: "idle",
+  REQUESTING: "requesting",
+  PERMISSION_DENIED: "permission-denied",
+  POSITION_UNAVAILABLE: "position-unavailable",
+  TIMEOUT: "timeout",
+  UNSUPPORTED: "unsupported",
+  INSECURE_CONTEXT: "insecure-context",
+  REVERSE_GEOCODE_FAILED: "reverse-geocode-failed",
+  GENERAL_AREA_RESOLVED: "general-area-resolved",
+  ZIP_RESOLVED: "zip-resolved",
+  MANUAL_ZIP: "manual-ZIP",
+  SKIPPED: "skipped"
 });
 
 const listingSections = [
@@ -402,6 +422,10 @@ purchaseContextInput.addEventListener("change", () => {
   syncPurchaseContextFields(config);
 });
 useLocationButton.addEventListener("click", handleUseLocationClick);
+retryLocationButton?.addEventListener("click", handleUseLocationClick);
+manualZipButton?.addEventListener("click", handleManualZipClick);
+skipLocationButton?.addEventListener("click", handleSkipLocationClick);
+locationZipInput.addEventListener("input", handleManualZipInput);
 form.addEventListener("submit", handleSubmit);
 copyAllButton.addEventListener("click", () => {
   if (!latestReport) {
@@ -741,7 +765,8 @@ function syncPurchaseContextFields(config) {
   });
 
   storeNameInput.required = retailSelected;
-  locationZipInput.required = retailSelected && locationModeInput.value !== "browser_location_approved";
+  const locationResolvedForForm = Boolean(locationZipInput.value.trim() || locationAreaInput.value.trim() || /browser_location_(zip|general_area)|manual_zip|location_skipped/.test(locationModeInput.value));
+  locationZipInput.required = retailSelected && !locationResolvedForForm;
   purchaseContextInput.required = Boolean(showBuyerIntake && config.purchaseContextRequired);
 
   if (!retailSelected) {
@@ -749,8 +774,10 @@ function syncPurchaseContextFields(config) {
     locationZipInput.required = false;
     locationStatus.textContent = "";
     locationModeInput.value = "";
+    locationStateInput.value = locationStates.IDLE;
     locationPermissionInput.value = "";
     locationAreaInput.value = "";
+    setLocationFallbackActions(false);
   }
 
   if (!namedContextSelected) {
@@ -776,6 +803,7 @@ function validateBuyerPurchaseContext(config, formData) {
   const storeName = String(formData.get("store_name") || "").trim();
   const zip = String(formData.get("location_zip") || "").trim();
   const locationMode = String(formData.get("location_mode") || "").trim();
+  const locationState = String(formData.get("location_state") || "").trim();
   const locationPermission = String(formData.get("location_permission") || "").trim();
   const locationArea = String(formData.get("location_area") || "").trim();
 
@@ -783,8 +811,9 @@ function validateBuyerPurchaseContext(config, formData) {
     return "Enter the store name before checking a retail-store purchase.";
   }
 
-  const locationResolved = Boolean(zip || locationArea || /browser_location_(zip|general_area)/.test(locationMode));
-  const locationFallbackAcknowledged = /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(`${locationMode} ${locationPermission}`);
+  const locationResolved = Boolean(zip || locationArea || /browser_location_(zip|general_area)|manual_zip/.test(locationMode) || /zip-resolved|general-area-resolved|manual-ZIP/.test(locationState));
+  const locationFallbackAcknowledged = /location_(denied|unavailable|timeout|unsupported|skipped)|reverse_geocode_failed|insecure_context/.test(`${locationMode} ${locationPermission}`)
+    || /permission-denied|position-unavailable|timeout|unsupported|insecure-context|reverse-geocode-failed|skipped/.test(locationState);
   if (!locationResolved && !locationFallbackAcknowledged) {
     return "Enter a ZIP code or tap Use My Location before checking nearby retail prices.";
   }
@@ -795,37 +824,68 @@ function validateBuyerPurchaseContext(config, formData) {
 async function handleUseLocationClick() {
   const isLocalSession = ["localhost", "127.0.0.1"].includes(location.hostname);
   if (!window.isSecureContext && !isLocalSession) {
-    applyLocationFallback("location_unsupported", "unsupported", "Location services are not available in this browser session. Enter a ZIP code.");
+    applyLocationFallback({
+      state: locationStates.INSECURE_CONTEXT,
+      mode: "insecure_context",
+      permission: "unavailable",
+      message: "Location services require a secure browser connection. Enter a ZIP code.",
+      showActions: true
+    });
     return;
   }
 
   if (!navigator.geolocation) {
-    applyLocationFallback("location_unsupported", "unsupported", "Location services are not available in this browser session. Enter a ZIP code.");
+    applyLocationFallback({
+      state: locationStates.UNSUPPORTED,
+      mode: "location_unsupported",
+      permission: "unsupported",
+      message: "Location services are not supported in this browser. Enter a ZIP code.",
+      showActions: true
+    });
     return;
   }
 
   setLocationButtonBusy(true);
-  locationStatus.textContent = "Asking for location permission...";
-  locationModeInput.value = "browser_location_pending";
+  setLocationState(locationStates.REQUESTING, {
+    mode: "browser_location_pending",
+    permission: "prompt",
+    message: "Requesting location permission..."
+  });
   locationPermissionInput.value = "prompt";
   locationAreaInput.value = "";
+  setLocationFallbackActions(false);
 
   try {
     const position = await getCurrentBrowserPosition();
-    locationPermissionInput.value = "granted";
-    locationStatus.textContent = "Location permission granted. Finding your general area...";
+    setLocationState(locationStates.REQUESTING, {
+      mode: "browser_location_resolving",
+      permission: "granted",
+      message: "Location found. Finding your general area..."
+    });
     const area = await reverseGeocodePosition(position);
     if (area.zip) {
       locationZipInput.value = area.zip;
       locationAreaInput.value = area.label;
-      locationModeInput.value = "browser_location_zip";
-      locationStatus.textContent = `Location found: ${area.label}. Precise coordinates are not stored or displayed.`;
+      setLocationState(locationStates.ZIP_RESOLVED, {
+        mode: "browser_location_zip",
+        permission: "granted",
+        message: `Location found: ${area.label}. Precise coordinates are not stored or displayed.`
+      });
     } else if (area.label) {
       locationAreaInput.value = area.label;
-      locationModeInput.value = "browser_location_general_area";
-      locationStatus.textContent = `General area found: ${area.label}. Enter ZIP for more precise local pricing. Precise coordinates are not stored or displayed.`;
+      setLocationState(locationStates.GENERAL_AREA_RESOLVED, {
+        mode: "browser_location_general_area",
+        permission: "granted",
+        message: `General area found: ${area.label}. Enter ZIP for more precise local pricing. Precise coordinates are not stored or displayed.`
+      });
     } else {
-      applyLocationFallback("reverse_geocode_failed", "granted", "Your location was allowed, but ZIP could not be resolved. Enter a ZIP code to continue local research.");
+      applyLocationFallback({
+        state: locationStates.REVERSE_GEOCODE_FAILED,
+        mode: "reverse_geocode_failed",
+        permission: "granted",
+        message: "Your general area was found, but the ZIP code could not be confirmed. Enter the ZIP for more precise local pricing.",
+        showActions: true
+      });
       return;
     }
   } catch (error) {
@@ -838,11 +898,15 @@ async function handleUseLocationClick() {
 
 function getCurrentBrowserPosition() {
   return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 8000,
-      maximumAge: 15 * 60 * 1000
-    });
+    try {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 15 * 60 * 1000
+      });
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
@@ -853,7 +917,9 @@ async function reverseGeocodePosition(position) {
     throw new Error("reverse_geocode_failed");
   }
 
-  const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=en`, {
+  const roundedLatitude = Math.round(latitude * 1000) / 1000;
+  const roundedLongitude = Math.round(longitude * 1000) / 1000;
+  const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(roundedLatitude)}&longitude=${encodeURIComponent(roundedLongitude)}&localityLanguage=en`, {
     method: "GET",
     cache: "no-store"
   });
@@ -871,26 +937,119 @@ async function reverseGeocodePosition(position) {
 function handleLocationError(error) {
   const code = Number(error?.code || 0);
   if (code === 1) {
-    applyLocationFallback("location_denied", "denied", "Location access was not granted. Enter a ZIP code to check nearby prices.");
+    applyLocationFallback({
+      state: locationStates.PERMISSION_DENIED,
+      mode: "location_denied",
+      permission: "denied",
+      message: "Location access was not granted. Enable location for Chrome and this site, or enter a ZIP code.",
+      showActions: true
+    });
     return;
   }
   if (code === 2) {
-    applyLocationFallback("location_unavailable", "unavailable", "Your location could not be determined. Enter a ZIP code to continue local research.");
+    applyLocationFallback({
+      state: locationStates.POSITION_UNAVAILABLE,
+      mode: "location_unavailable",
+      permission: "unavailable",
+      message: "Your location could not be determined. Try again or enter a ZIP code.",
+      showActions: true
+    });
     return;
   }
   if (code === 3) {
-    applyLocationFallback("location_timeout", "timeout", "Location lookup timed out. Try again or enter a ZIP code.");
+    applyLocationFallback({
+      state: locationStates.TIMEOUT,
+      mode: "location_timeout",
+      permission: "timeout",
+      message: "Location lookup timed out. Try again or enter a ZIP code.",
+      showActions: true
+    });
     return;
   }
-  applyLocationFallback("reverse_geocode_failed", "unavailable", "Your location could not be determined. Enter a ZIP code to continue local research.");
+  if (String(error?.message || "").includes("reverse_geocode_failed")) {
+    applyLocationFallback({
+      state: locationStates.REVERSE_GEOCODE_FAILED,
+      mode: "reverse_geocode_failed",
+      permission: "granted",
+      message: "Your location was found, but Katherine’s Eye could not determine the ZIP code. Enter the ZIP manually.",
+      showActions: true
+    });
+    return;
+  }
+  applyLocationFallback({
+    state: locationStates.POSITION_UNAVAILABLE,
+    mode: "location_unavailable",
+    permission: "unavailable",
+    message: "Your location could not be determined. Try again or enter a ZIP code.",
+    showActions: true
+  });
 }
 
-function applyLocationFallback(mode, permission, message) {
+function setLocationState(state, { mode = "", permission = "", message = "" } = {}) {
+  locationStateInput.value = state || locationStates.IDLE;
   locationModeInput.value = mode;
   locationPermissionInput.value = permission;
+  if (message) {
+    locationStatus.textContent = message;
+  }
+}
+
+function applyLocationFallback({ state, mode, permission, message, showActions = false }) {
+  setLocationState(state, { mode, permission, message });
   locationAreaInput.value = "";
   locationStatus.textContent = `${message} Local prices and nearby availability will not be checked without a ZIP or resolved area.`;
+  setLocationFallbackActions(showActions);
   syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+}
+
+function handleManualZipClick() {
+  locationZipInput.focus();
+  setLocationState(locationStates.MANUAL_ZIP, {
+    mode: "manual_zip",
+    permission: locationPermissionInput.value || "manual",
+    message: "Enter ZIP manually for more precise local pricing."
+  });
+  setLocationFallbackActions(false);
+  syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+}
+
+function handleSkipLocationClick() {
+  locationZipInput.value = "";
+  locationAreaInput.value = "";
+  setLocationState(locationStates.SKIPPED, {
+    mode: "location_skipped",
+    permission: locationPermissionInput.value || "skipped",
+    message: "Local prices and nearby availability will not be checked."
+  });
+  setLocationFallbackActions(false);
+  syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+}
+
+function handleManualZipInput() {
+  if (!locationZipInput.value.trim()) {
+    if (locationStateInput.value === locationStates.MANUAL_ZIP || locationModeInput.value === "manual_zip") {
+      setLocationState(locationStates.IDLE, { mode: "", permission: "", message: "" });
+      locationStatus.textContent = "";
+    }
+    syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+    return;
+  }
+
+  locationAreaInput.value = "";
+  setLocationState(locationStates.MANUAL_ZIP, {
+    mode: "manual_zip",
+    permission: "manual",
+    message: "Manual ZIP entered for local pricing context."
+  });
+  setLocationFallbackActions(false);
+  syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+}
+
+function setLocationFallbackActions(visible) {
+  if (!locationFallbackActions) {
+    return;
+  }
+  locationFallbackActions.hidden = !visible;
 }
 
 function setLocationButtonBusy(isBusy) {
@@ -1160,6 +1319,7 @@ function getBuyerIntake(formData, notes) {
     store_name: getValue("store_name"),
     location_zip: getValue("location_zip"),
     location_mode: getValue("location_mode"),
+    location_state: getValue("location_state"),
     location_permission: getValue("location_permission"),
     location_area: getValue("location_area"),
     retailer_or_marketplace_name: getValue("retailer_or_marketplace_name"),
@@ -1297,7 +1457,7 @@ function applyFrontendZeroEvidenceGuard(report, workflow) {
     ? `At ${askingPrice}, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established.`
     : "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
   const retailExplanation = askingPrice
-    ? `At ${askingPrice}, the current retail price was not verified against source-backed current-retail comparisons. The financial exposure may be limited, but Katherine's Eye did not confirm this is a good deal.`
+    ? `At ${askingPrice}, the current retail price was not verified against source-backed current-retail comparisons. The financial exposure may be limited, but Katherine’s Eye did not confirm this is a good deal.`
     : "The current retail price was not verified against source-backed current-retail comparisons.";
   const guarded = {
     ...report,
@@ -1374,7 +1534,7 @@ function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
   const text = String(value || "");
   if (!text) return text;
   const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|comparable evidence appears useful enough/i.test(text);
-  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
+  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|â€“|â€”)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
   const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
   const amounts = extractMoneyAmountsFromText(text);
   const nonAskingMoney = amounts.some((amount) => !Number.isFinite(askingAmount) || Math.round(amount) !== Math.round(askingAmount));
@@ -1817,6 +1977,7 @@ function renderSearchDiagnostics(diagnostics) {
     ["Purchase Context", diagnostics.purchaseContext],
     ["Store Name", diagnostics.storeName],
     ["Location Mode Used", diagnostics.locationModeUsed],
+    ["Location State", diagnostics.locationStateUsed],
     ["Location Lookup Outcome", diagnostics.locationLookupOutcome],
     ["ZIP Present", diagnostics.zipPresence],
     ["Barcode Extraction Status", diagnostics.barcodeExtractionStatus],
@@ -1842,6 +2003,8 @@ function renderSearchDiagnostics(diagnostics) {
     ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
     ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
     ["Manual ZIP Used", diagnostics.manualZipUsed],
+    ["Location State", diagnostics.locationStateUsed],
+    ["Location Lookup Outcome", diagnostics.locationLookupOutcome],
     ["Browser Coordinates Displayed", diagnostics.browserCoordinatesDisplayed],
     ["Provider Sources Returned", diagnostics.providerSourceCount],
     ["Organic Results Returned", diagnostics.organicResultCount],
@@ -2624,7 +2787,7 @@ async function submitAskQuestion(event) {
   const workflow = currentWorkflow;
 
   if (!session || !latestReport) {
-    setAskStatus("Ask Market Edge needs a completed item report first.", "error");
+    setAskStatus("Ask Katherine’s Eye needs a completed item report first.", "error");
     return;
   }
 
@@ -2667,7 +2830,7 @@ async function submitAskQuestion(event) {
 
     const answer = data.answer;
     if (!answer || !answer.answer) {
-      throw new Error("Ask Market Edge returned an empty answer.");
+      throw new Error("Ask Katherine’s Eye returned an empty answer.");
     }
 
     session.conversationHistory.push({
@@ -2755,7 +2918,7 @@ function renderAskConversation() {
   if (!history.length) {
     const empty = document.createElement("p");
     empty.className = "ask-empty";
-    empty.textContent = "Ask about this item, the evidence, the recommendation, a different price, or the listing. Ask Market Edge uses the current report and will tell you when a new search or more evidence is needed.";
+    empty.textContent = "Ask about this item, the evidence, the recommendation, a different price, or the listing. Ask Katherine’s Eye uses the current report and will tell you when a new search or more evidence is needed.";
     askHistory.appendChild(empty);
     return;
   }
@@ -2919,7 +3082,7 @@ function isCurrentAskRequest(requestId, sessionId, workflow) {
 
 function setAskLoading(isLoading) {
   askSubmitButton.disabled = isLoading;
-  askSubmitLabel.textContent = isLoading ? "Reviewing..." : "Ask Market Edge";
+  askSubmitLabel.textContent = isLoading ? "Reviewing..." : "Ask Katherine’s Eye";
 }
 
 function setAskStatus(message, type) {
@@ -3466,7 +3629,7 @@ function renderIdentityConfirmationCard(confirmation = {}, config = workflowConf
   title.textContent = confirmation.message || "We found conflicting product details.";
 
   const helper = document.createElement("p");
-  helper.textContent = "Confirm the likely item before Katherine's Eye searches prices.";
+  helper.textContent = "Confirm the likely item before Katherine’s Eye searches prices.";
 
   const likely = document.createElement("div");
   likely.className = "identity-confirmation-block";
@@ -3629,7 +3792,7 @@ function renderLoadingProgress(stages, activeIndex) {
   const title = document.createElement("h3");
   title.textContent = "Analyzing item";
   const helper = document.createElement("p");
-  helper.textContent = "Market Edge is checking the item step by step.";
+  helper.textContent = "Katherine’s Eye is checking the item step by step.";
 
   const list = document.createElement("ol");
   list.className = "loading-steps";

@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.12"
+$AppVersion = "1.11.0"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -844,7 +844,7 @@ function Handle-AskMarketEdge {
 
   $BodyJson = $Body | ConvertTo-Json -Depth 60 -Compress
   if ($BodyJson.Length -gt 180000) {
-    Send-Json $Stream 413 @{ error = "Ask Market Edge context is too large. Start a new item and try again." }
+    Send-Json $Stream 413 @{ error = "Ask Katherine’s Eye context is too large. Start a new item and try again." }
     return
   }
 
@@ -863,12 +863,12 @@ function Handle-AskMarketEdge {
   }
 
   if (-not $SessionId) {
-    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a current item session." }
+    Send-Json $Stream 400 @{ error = "Ask Katherine’s Eye needs a current item session." }
     return
   }
 
   if (-not $Workflow) {
-    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a valid workflow." }
+    Send-Json $Stream 400 @{ error = "Ask Katherine’s Eye needs a valid workflow." }
     return
   }
 
@@ -878,7 +878,7 @@ function Handle-AskMarketEdge {
   }
 
   if ($null -eq $Context -or $null -eq $Context.currentReport) {
-    Send-Json $Stream 400 @{ error = "Ask Market Edge needs a completed item report first." }
+    Send-Json $Stream 400 @{ error = "Ask Katherine’s Eye needs a completed item report first." }
     return
   }
 
@@ -946,7 +946,7 @@ function Invoke-AskMarketEdge {
   $ContextJson = $Context | ConvertTo-Json -Depth 50 -Compress
   $ConversationJson = $RecentConversation | ConvertTo-Json -Depth 20 -Compress
   $Instruction = @"
-Ask Market Edge is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.
+Ask Katherine’s Eye is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.
 The current structured report is the authoritative starting point. Use the active report before generating new conclusions.
 Ground every answer in the active item session: uploaded-photo findings, user description, workflow, buyer intent, asking price, visual subject, visual confidence, exact product identity, exact product confidence, user-provided identity, photo evidence, search queries, sources searched, research results, comparable classifications, pricing estimates, recommendation, risk flags, listing content, prior follow-up exchanges, and user-provided scenario changes when available.
 Do not behave as though the user is asking about an unrelated new item unless the frontend has started a New Item session. Do not carry stale context from another workflow.
@@ -971,7 +971,7 @@ Question route behavior: evidence_request questions identify the single most use
 Question route behavior: listing_revision questions revise the current listing, preserve verified facts, visible condition issues, uncertainty disclosures, pricing honesty, and damage disclosures, and do not add official, licensed, authentic, rare, or exact era claims without support.
 Question route behavior: platform_guidance questions use current item characteristics like size, shipping difficulty, value, audience, collectibility, condition, confidence, and likely demand. Frame advice as practical guidance, not guaranteed platform performance.
 Question route behavior: new_live_search requests are deliberate search requests. Because this Ask endpoint does not execute a new follow-up live search, state that no new search occurred, answer only from current evidence, set needsNewSearch true, and do not fabricate sources or results.
-Question route behavior: unsupported_or_unrelated questions should explain that Ask Market Edge can only answer questions about the current item/report and should ask for a relevant item-specific question.
+Question route behavior: unsupported_or_unrelated questions should explain that Ask Katherine’s Eye can only answer questions about the current item/report and should ask for a relevant item-specific question.
 Use the current report's Visual Recognition fields first for questions like what is this, why do you think it is a brand/organization/mascot/logo/character, what clues support that, or what should be photographed next.
 When identity is discussed, separate visual subject recognition, user-provided identity, exact product identity, maker, era, licensing, authenticity, exact comparable status, and pricing confidence.
 If broad subject identity is supported but exact product is unverified, preserve the supported subject instead of saying the whole identity is unverified.
@@ -994,7 +994,7 @@ Session ID: $SessionId.
         content = @(
           @{
             type = "input_text"
-            text = "You are Ask Market Edge, a context-aware item and report follow-up assistant. The current structured report is authoritative context. Answer only from the active item session and return structured JSON."
+            text = "You are Ask Katherine’s Eye, a context-aware item and report follow-up assistant. The current structured report is authoritative context. Answer only from the active item session and return structured JSON."
           }
         )
       },
@@ -1042,13 +1042,13 @@ $Instruction
 
   $OutputText = Extract-OutputText $Response
   if (-not $OutputText) {
-    throw "OpenAI returned an empty Ask Market Edge response."
+    throw "OpenAI returned an empty Ask Katherine’s Eye response."
   }
 
   try {
     return ($OutputText | ConvertFrom-Json)
   } catch {
-    throw "OpenAI returned a response that was not valid Ask Market Edge JSON."
+    throw "OpenAI returned a response that was not valid Ask Katherine’s Eye JSON."
   }
 }
 
@@ -1174,7 +1174,7 @@ function Normalize-AskMarketEdgeAnswer {
     evidenceBasis = @(Normalize-ReportArray $Answer.evidenceBasis | Select-Object -First 6)
     assumptions = @(Normalize-ReportArray $Answer.assumptions | Select-Object -First 6)
     recalculatedFields = @(Normalize-ReportArray $Answer.recalculatedFields | Select-Object -First 8)
-    confidence = Ensure-ConfidenceLayer $Answer.confidence "Low" "Ask Market Edge uses the current report context and does not perform a new live search unless source-backed new results are explicitly supplied."
+    confidence = Ensure-ConfidenceLayer $Answer.confidence "Low" "Ask Katherine’s Eye uses the current report context and does not perform a new live search unless source-backed new results are explicitly supplied."
     recommendedNextAction = Clean-Text $Answer.recommendedNextAction
     needsNewSearch = $(if ($AnswerType -eq "new_live_search") { $true } else { [bool]$Answer.needsNewSearch })
     needsAdditionalPhoto = [bool]$Answer.needsAdditionalPhoto
@@ -1210,7 +1210,7 @@ function Generate-ReportWithOpenAI {
       $Schema = $ConsumerDecisionSchema
       $SchemaName = "consumer_purchase_decision"
       $UseWebSearch = $true
-      $SystemText = "You are Marketplace Edge, a careful consumer purchase decision assistant. Help everyday buyers decide whether an item is fairly priced for personal use. Return only the requested structured JSON."
+      $SystemText = "You are Katherine’s Eye, a careful consumer purchase decision assistant. Help everyday buyers decide whether an item is fairly priced for personal use. Return only the requested structured JSON."
       $TaskText = @"
 Create a personal-use consumer buying decision report, not a reseller profit report and not a marketplace listing draft.
 Primary question: Is this item fairly priced for someone buying it for themselves?
@@ -1252,7 +1252,7 @@ Ask for the single most useful next detail or photo when evidence is insufficien
     $Schema = $ValuationSchema
     $SchemaName = "market_value_report"
     $UseWebSearch = $true
-    $SystemText = "You are Listing Engine, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON."
+    $SystemText = "You are Katherine’s Eye, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON."
     $TaskText = @"
 Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.
 Primary question: Should the user buy this item at this price, right now?
@@ -1379,7 +1379,7 @@ If a platform is selected, include platform-specific observations while still pr
     $Schema = $ListingSchema
     $SchemaName = "marketplace_listing"
     $UseWebSearch = $true
-    $SystemText = "You are Listing Engine, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
+    $SystemText = "You are Katherine’s Eye, a careful assistant that turns item photos and seller notes into marketplace listing drafts. Return only the requested structured JSON."
     $TaskText = @"
 Create an evidence-backed marketplace listing draft. Be specific, honest, and concise.
 You must use the web_search tool for item research before recommending a listing price.
@@ -2221,7 +2221,7 @@ function Sanitize-UnsupportedMarketText {
   }
 
   $UnsupportedClaim = $Source -match "reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|source-backed value|comparable evidence appears useful enough"
-  $MoneyRange = $Source -match "\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?"
+  $MoneyRange = $Source -match "\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|â€“|â€”)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?"
   $AskingAmounts = @(Get-MoneyAmounts $AskingPriceText)
   $AskingAmount = $(if ($AskingAmounts.Count) { [double]$AskingAmounts[0] } else { $null })
   $HasNonAskingMoney = $false
@@ -3418,6 +3418,7 @@ function Normalize-BuyerIntake {
     store_name = ""
     location_zip = ""
     location_mode = ""
+    location_state = ""
     location_permission = ""
     location_area = ""
     retailer_or_marketplace_name = ""
@@ -3447,6 +3448,7 @@ function Normalize-BuyerIntake {
     "store_name",
     "location_zip",
     "location_mode",
+    "location_state",
     "location_permission",
     "location_area",
     "retailer_or_marketplace_name",
@@ -3536,6 +3538,7 @@ function Format-BuyerIntakeForPrompt {
     "store_name: $(Get-BuyerIntakeValue $BuyerIntake 'store_name')",
     "location_zip: $(Get-BuyerIntakeValue $BuyerIntake 'location_zip')",
     "location_mode: $(Get-BuyerIntakeValue $BuyerIntake 'location_mode')",
+    "location_state: $(Get-BuyerIntakeValue $BuyerIntake 'location_state')",
     "location_permission: $(Get-BuyerIntakeValue $BuyerIntake 'location_permission')",
     "location_area: $(Get-BuyerIntakeValue $BuyerIntake 'location_area')",
     "retailer_or_marketplace_name: $(Get-BuyerIntakeValue $BuyerIntake 'retailer_or_marketplace_name')",
@@ -4819,14 +4822,14 @@ if ($env:PORT) {
 }
 
 if ($Check) {
-  Write-Host "Marketplace Edge server syntax OK - Version $AppVersion"
+  Write-Host "Katherine’s Eye server syntax OK - Version $AppVersion"
   exit 0
 }
 
 $TcpListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), $Port)
 $TcpListener.Start()
 
-Write-Host "Marketplace Edge Version $AppVersion running at http://localhost:$Port/"
+Write-Host "Katherine’s Eye Version $AppVersion running at http://localhost:$Port/"
 Write-Host "Press Ctrl+C to stop."
 
 try {

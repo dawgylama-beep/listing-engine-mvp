@@ -1,10 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Listing Engine API Key Setup
+title Katherine’s Eye API Key Setup
 
 cls
-echo Listing Engine API Key Setup
+echo Katherine’s Eye API Key Setup
 echo ============================
 echo.
 echo This will create or update the .env file in this folder.
