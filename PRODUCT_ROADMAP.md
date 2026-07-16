@@ -356,6 +356,15 @@
 - Coordinates are used only ephemerally for reverse geocoding, rounded before lookup, discarded after ZIP/general area resolution, and never shown in reports or diagnostics
 - Regression tests cover brand consistency, legacy-storage/no-storage behavior, geolocation error mapping, permission prompt guardrails, privacy safeguards, and preserved 1.10.12 retail behavior
 
+## Version 1.11.1 (Completed)
+- Buyer workflow polish now presents the visible path as photos, buying purpose, purchase location, price, condition, optional details, and analyze
+- Left-panel wording now uses plain customer language such as Product Details, Condition Notes, Buying Details, and Personal-Use Decision
+- Report-only actions now stay hidden until a completed report exists, with empty, loading, failed, and identity-confirmation states kept cleaner
+- Empty report placeholders now give concise first-run guidance without forcing a large blank report area
+- Report headings and summary copy were tightened for consistency while Technical Search Details remain collapsed
+- Mobile spacing, note-field height, card spacing, and first-run report spacing were tightened without changing pricing, search, evidence, shipping, barcode, identity, retail, or location logic
+- Regression tests cover buyer workflow order, report-action visibility, customer-facing terminology, empty-state guidance, mobile spacing, and preserved 1.11.0 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings

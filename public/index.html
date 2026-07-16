@@ -22,15 +22,15 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Katherine’s Eye</h1>
-            <p class="version-badge">Version 1.11.0</p>
+            <p class="version-badge">Version 1.11.1</p>
           </header>
 
           <form id="listing-form" class="listing-form">
             <details class="details-panel guide-panel">
               <summary>
                 <span class="details-summary-text">
-                  <span class="details-title">How to Use Katherine’s Eye</span>
-                  <span class="details-helper">Quick buyer-first guide for photos, pricing, confidence, and listings</span>
+                  <span class="details-title">Need a walkthrough?</span>
+                  <span class="details-helper">Quick tips for photos, price checks, and listing drafts</span>
                 </span>
                 <span class="details-chevron" aria-hidden="true"></span>
               </summary>
@@ -39,10 +39,11 @@
                   <h2 id="guide-quick-start">Quick Start</h2>
                   <ol>
                     <li>Add photos.</li>
-                    <li>Enter where you are buying it.</li>
-                    <li>Enter the asking price.</li>
-                    <li>Choose Buying for Myself or Buying to Resell.</li>
-                    <li>Tap Worth Buying.</li>
+                    <li>Choose Buying for Myself, Buying to Resell, Check Market Value, or Generate Listing.</li>
+                    <li>Add purchase location and price when you have them.</li>
+                    <li>Select condition if you can.</li>
+                    <li>Add optional details only when they help.</li>
+                    <li>Tap the analyze button.</li>
                   </ol>
                 </section>
 
@@ -54,20 +55,20 @@
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-worth-buying">
-                  <h3 id="guide-worth-buying">How to Use Worth Buying</h3>
+                  <h3 id="guide-worth-buying">Buyer Workflow</h3>
                   <ol>
                     <li>Take or upload clear photos.</li>
+                    <li>Choose your buying purpose.</li>
                     <li>Choose where you are buying the item.</li>
                     <li>Enter the seller's current asking price.</li>
-                    <li>Choose Buying for Myself or Buying to Resell.</li>
                     <li>Select the condition.</li>
-                    <li>Open Known Item Details and add any brand, model, SKU, UPC, manufacturer, item name, or age information you know.</li>
-                    <li>Open Condition Concerns and select any problems.</li>
+                    <li>Open Product Details if you know the brand, model, SKU, UPC, manufacturer, item name, or age.</li>
+                    <li>Open Condition Notes if there are flaws or concerns.</li>
                     <li>Add optional notes.</li>
-                    <li>Tap Worth Buying.</li>
+                    <li>Tap Analyze.</li>
                     <li>Review the recommendation, price guidance, selling platform, and confidence.</li>
                   </ol>
-                  <p>Marketplace platform is optional for Worth Buying. If Buying to Resell is selected, the platform can indicate where you plan to sell. Asking price means what the current seller wants. Photos are required; notes are optional.</p>
+                  <p>For buyer workflows, photos and buying purpose come first. Optional details can stay blank until you know them.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-photos">
@@ -82,13 +83,13 @@
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-known-details">
-                  <h3 id="guide-known-details">How to Use Known Item Details</h3>
+                  <h3 id="guide-known-details">Product Details</h3>
                   <p>Add only what you know: item name, brand, manufacturer, model, SKU, UPC, or approximate age or era. Do not guess.</p>
                   <p>If a number is visible on the item, copy it exactly, including letters, punctuation, and leading zeroes.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-condition">
-                  <h3 id="guide-condition">How to Use Condition Concerns</h3>
+                  <h3 id="guide-condition">Condition Notes</h3>
                   <p>Condition affects both buying and resale recommendations. Select problems such as visible damage, cracks or chips, missing pieces, incomplete set, stains or wear, not working, untested, authenticity concerns, odor, or smoke.</p>
                   <p>Photograph condition problems whenever possible.</p>
                 </section>
@@ -187,7 +188,7 @@
               </div>
             </details>
 
-            <div class="field">
+            <div class="field photo-stage">
               <div class="photo-inputs">
                 <div class="photo-control">
                   <label for="camera-photo">Take Photo</label>
@@ -205,7 +206,7 @@
             </div>
 
             <fieldset id="workflow-field" class="field workflow-field">
-              <legend>What do you want to do?</legend>
+              <legend>Buying purpose</legend>
               <div class="workflow-options" role="radiogroup" aria-label="Workflow">
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="personal_use" checked>
@@ -236,11 +237,11 @@
                   </span>
                 </label>
               </div>
-              <p id="workflow-helper" class="field-note">Start with Buying for Myself to decide whether this is a fair personal-use purchase.</p>
+              <p id="workflow-helper" class="field-note">Start with Buying for Myself to decide whether the price makes sense for you.</p>
             </fieldset>
 
-            <div id="platform-field" class="field">
-              <label for="platform">Marketplace platform</label>
+            <div id="platform-field" class="field optional-field">
+              <label for="platform">Marketplace or selling platform</label>
               <select id="platform" name="platform">
                 <option value="">Select a platform</option>
                 <option>Facebook Marketplace</option>
@@ -257,15 +258,15 @@
             <section id="buyer-intake-section" class="field buyer-intake" aria-labelledby="buyer-intake-title">
               <div class="field-heading">
                 <div>
-                  <p class="mini-eyebrow">Worth Buying?</p>
-                  <h2 id="buyer-intake-title">Guided Buyer Intake</h2>
+                  <p class="mini-eyebrow">Purchase details</p>
+                  <h2 id="buyer-intake-title">Buying Details</h2>
                 </div>
-                <p class="field-note">Optional for listings. Helps Market Intelligence judge this buying opportunity.</p>
+                <p class="field-note">Add what you know. Price, condition, and product details can stay blank if you are not sure.</p>
               </div>
 
               <div class="intake-grid">
                 <div class="field-control">
-                  <label for="purchase_context">Where are you buying this?</label>
+                  <label for="purchase_context">Purchase location</label>
                   <select id="purchase_context" name="purchase_context">
                     <option value="">Select one</option>
                     <option value="retail_store">Retail store</option>
@@ -279,12 +280,13 @@
                     <option value="private_seller">Private seller</option>
                     <option value="other">Other</option>
                   </select>
-                  <p class="field-note">This changes how Katherine’s Eye researches the item.</p>
+                  <p class="field-note">Choose the setting so Katherine’s Eye uses the right price context.</p>
                 </div>
 
                 <div class="field-control">
-                  <label for="asking_price">Current asking price</label>
+                  <label for="asking_price">Price</label>
                   <input id="asking_price" name="asking_price" type="text" inputmode="decimal" placeholder="Seller/store price, e.g. $65 firm">
+                  <p class="field-note">Optional. Add it for a clearer buy/no-buy decision.</p>
                 </div>
 
                 <div id="purchase-intent-control" class="field-control">
@@ -315,6 +317,7 @@
                     <option value="for_parts">For parts</option>
                     <option value="unknown">Unknown</option>
                   </select>
+                  <p class="field-note">Optional. Choose your best read, and photograph flaws when possible.</p>
                 </div>
               </div>
 
@@ -322,18 +325,18 @@
                 <div class="field-control">
                   <label for="store_name">Store name</label>
                   <input id="store_name" name="store_name" type="text" autocomplete="organization" placeholder="Walmart, Target, Staples, local store">
-                  <p class="field-note">Examples: Walmart, Target, Home Depot, Dollar General, Staples, local store.</p>
+                  <p class="field-note">Example: Walmart, Target, Home Depot, Dollar General, Staples, or a local store.</p>
                 </div>
 
                 <div class="field-control">
                   <label for="location_zip">ZIP code</label>
                   <input id="location_zip" name="location_zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="ZIP code">
-                  <p class="field-note">Used only for nearby price context when relevant.</p>
+                  <p class="field-note">Used only for nearby price context.</p>
                 </div>
 
                 <div class="field-control full-span location-control">
                   <button id="use-location-button" class="secondary-button" type="button">Use My Location</button>
-                  <p class="field-note">Katherine’s Eye uses your approximate location to check nearby prices and store options. Your precise location is not stored.</p>
+                  <p class="field-note">Uses your approximate area for nearby price context. Precise location is not stored.</p>
                   <p id="location-status" class="field-note" role="status" aria-live="polite"></p>
                   <div id="location-fallback-actions" class="location-fallback-actions" hidden>
                     <button id="retry-location-button" class="secondary-button" type="button">Try Location Again</button>
@@ -362,8 +365,8 @@
               <details class="details-panel">
                 <summary>
                   <span class="details-summary-text">
-                    <span class="details-title">Known Item Details</span>
-                    <span class="details-helper">Add brand, model, SKU, UPC, item name, or age</span>
+                    <span class="details-title">Product Details</span>
+                    <span class="details-helper">Add only what you know: brand, model, SKU, UPC, name, or age</span>
                   </span>
                   <span class="details-chevron" aria-hidden="true"></span>
                 </summary>
@@ -403,7 +406,7 @@
               <details class="details-panel condition-concerns">
                 <summary>
                   <span class="details-summary-text">
-                    <span class="details-title">Condition Concerns</span>
+                    <span class="details-title">Condition Notes</span>
                     <span class="details-helper">Select any issues that may affect value, safety, completeness, or resale</span>
                   </span>
                   <span class="details-chevron" aria-hidden="true"></span>
@@ -423,15 +426,15 @@
               </details>
             </section>
 
-            <div class="field">
-              <label for="notes">Item notes</label>
-              <textarea id="notes" name="notes" rows="8" placeholder="Extra context, label wording, flaws, measurements, seller comments, or anything else you want the app to consider..."></textarea>
+            <div class="field optional-notes-field">
+              <label for="notes">Optional details</label>
+              <textarea id="notes" name="notes" rows="6" placeholder="Label wording, flaws, measurements, seller comments, or anything else useful..."></textarea>
               <p id="notes-note" class="field-note">Optional for buyer workflows. Required for Generate Listing.</p>
             </div>
 
             <div class="action-row">
               <button id="workflow-submit-button" class="primary-button" type="submit">
-                <span id="workflow-submit-label">Analyze Personal Buy</span>
+                <span id="workflow-submit-label">Analyze Buying for Myself</span>
               </button>
             </div>
           </form>
@@ -440,23 +443,23 @@
         <div class="panel output-panel">
           <div class="output-heading">
             <div>
-              <p id="output-eyebrow" class="eyebrow">Personal-use buying decision</p>
+              <p id="output-eyebrow" class="eyebrow">Personal-Use Decision</p>
               <h2 id="output-title">Buying for Myself</h2>
             </div>
-            <div class="output-actions">
+            <div id="output-actions" class="output-actions" hidden>
               <button id="new-item-button" class="secondary-button" type="button">New Item</button>
               <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
-              <button id="feedback-button" class="secondary-button" type="button">Send Feedback</button>
+              <button id="feedback-button" class="secondary-button" type="button" aria-expanded="false">Send Feedback</button>
             </div>
           </div>
 
           <section id="feedback-panel" class="feedback-panel" aria-labelledby="feedback-title" hidden>
             <div>
-              <h3 id="feedback-title">Beta Feedback</h3>
+              <h3 id="feedback-title">Send Feedback</h3>
               <p class="feedback-helper">Share what felt confusing, slow, wrong, or useful.</p>
             </div>
             <label for="feedback-text">Feedback</label>
-            <textarea id="feedback-text" rows="4" placeholder="Example: The recommendation was clear, but the price confidence explanation felt too vague."></textarea>
+            <textarea id="feedback-text" rows="4" placeholder="Example: The recommendation was clear, but I wanted a shorter price explanation."></textarea>
             <div class="feedback-actions">
               <button id="feedback-copy-button" class="primary-button" type="button">Copy Feedback</button>
             </div>
@@ -465,7 +468,7 @@
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
-            <p>Your personal-use buying recommendation will appear here.</p>
+            <p>Add photos and choose a buying purpose to start.</p>
           </div>
 
           <section id="ask-panel" class="ask-panel" aria-labelledby="ask-title" hidden>

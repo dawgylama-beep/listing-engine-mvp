@@ -222,10 +222,38 @@ h3 {
 
 .listing-form {
   display: grid;
-  gap: 22px;
+  gap: 18px;
   padding: 28px;
   background:
     linear-gradient(180deg, #ffffff 0%, #fbfaf6 100%);
+}
+
+.guide-panel {
+  order: 7;
+}
+
+.photo-stage {
+  order: 1;
+}
+
+.workflow-field {
+  order: 2;
+}
+
+.buyer-intake {
+  order: 3;
+}
+
+.optional-field {
+  order: 4;
+}
+
+.optional-notes-field {
+  order: 5;
+}
+
+.action-row {
+  order: 6;
 }
 
 .field {
@@ -670,7 +698,7 @@ input[type="text"] {
 }
 
 textarea {
-  min-height: 168px;
+  min-height: 128px;
   resize: vertical;
   padding: 13px;
   line-height: 1.45;
@@ -881,29 +909,30 @@ summary:focus-visible {
 }
 
 .empty-state {
-  min-height: 400px;
-  place-items: center;
+  min-height: 280px;
+  place-items: stretch;
   border: 1px dashed rgba(15, 106, 98, 0.32);
   border-radius: 8px;
   background:
     linear-gradient(135deg, #fffdf8 0%, #f0f7f3 58%, #efe7d8 100%);
   color: var(--muted);
-  text-align: center;
+  text-align: left;
   padding: 24px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .first-run-card {
   display: grid;
-  gap: 10px;
-  max-width: 520px;
+  align-content: center;
+  gap: 12px;
+  max-width: 620px;
 }
 
 .first-run-card h3 {
   margin: 0;
   color: var(--heading);
-  font-size: clamp(1.5rem, 4vw, 2.2rem);
-  line-height: 1.05;
+  font-size: 1.42rem;
+  line-height: 1.15;
 }
 
 .first-run-card p {
@@ -916,6 +945,15 @@ summary:focus-visible {
 .first-run-card .first-run-helper {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.first-run-steps {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: #354047;
+  line-height: 1.45;
 }
 
 .loading-state {
@@ -2282,7 +2320,11 @@ summary:focus-visible {
 
   .listing-form,
   .output-panel {
-    padding: 22px;
+    padding: 18px;
+  }
+
+  .listing-form {
+    gap: 15px;
   }
 
   .output-heading,
@@ -2329,7 +2371,8 @@ summary:focus-visible {
   }
 
   .field {
-    padding: 13px;
+    gap: 8px;
+    padding: 12px;
   }
 
   .field-heading {
@@ -2358,6 +2401,10 @@ summary:focus-visible {
 
   .field-note {
     line-height: 1.45;
+  }
+
+  textarea {
+    min-height: 112px;
   }
 
   .secondary-button,
@@ -2461,6 +2508,7 @@ summary:focus-visible {
   }
 
   .empty-state {
-    min-height: 300px;
+    min-height: 220px;
+    padding: 18px;
   }
 }

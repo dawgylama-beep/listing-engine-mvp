@@ -35,6 +35,7 @@ const retailerOrMarketplaceInput = document.querySelector("#retailer_or_marketpl
 const knownShippingAmountInput = document.querySelector("#known_shipping_amount");
 const notesInput = document.querySelector("#notes");
 const notesNote = document.querySelector("#notes-note");
+const outputActions = document.querySelector("#output-actions");
 const copyAllButton = document.querySelector("#copy-all");
 const newItemButton = document.querySelector("#new-item-button");
 const outputEyebrow = document.querySelector("#output-eyebrow");
@@ -321,16 +322,16 @@ const workflowConfigs = {
     workflow: "personal_use",
     purchaseIntent: "personal_use",
     sections: consumerSections,
-    eyebrow: "Personal-use buying decision",
+    eyebrow: "Personal-Use Decision",
     title: "Buying for Myself",
-    emptyMessage: "Your personal-use buying recommendation will appear here.",
+    emptyMessage: "Your Personal-Use Decision will appear here.",
     loadingMessage: "Searching comparable items for personal-use value...",
     activeLabel: "Analyzing...",
-    defaultLabel: "Analyze Personal Buy",
-    workflowHelper: "Use this when you want to know if the item is fairly priced for you.",
+    defaultLabel: "Analyze Buying for Myself",
+    workflowHelper: "Use this when you want to know if the price makes sense for you.",
     platformNote: "Optional. Leave blank unless a marketplace context matters.",
-    notesNote: "Optional. Add flaws, label wording, seller comments, measurements, or personal-use concerns.",
-    buyerTitle: "Personal Buying Intake",
+    notesNote: "Optional. Add label wording, flaws, seller comments, measurements, or personal-use concerns.",
+    buyerTitle: "Buying Details",
     showPlatform: false,
     showBuyerIntake: true,
     platformRequired: false,
@@ -342,16 +343,16 @@ const workflowConfigs = {
     ...reportTypes.marketValue,
     workflow: "resale",
     purchaseIntent: "resale",
-    eyebrow: "Resale buying decision",
+    eyebrow: "Resale Buying Decision",
     title: "Buying to Resell",
     emptyMessage: "Your resale buying analysis will appear here.",
     loadingMessage: "Searching comparable items for resale potential...",
     activeLabel: "Analyzing...",
-    defaultLabel: "Analyze Resale Buy",
+    defaultLabel: "Analyze Buying to Resell",
     workflowHelper: "Use this when you want margin, resale platform fit, risk, and profit guidance.",
     platformNote: "Optional. Select where you may resell if you already know the target platform.",
     notesNote: "Optional. Add flaws, seller comments, transport costs, shipping issues, or resale concerns.",
-    buyerTitle: "Resale Buying Intake",
+    buyerTitle: "Buying Details",
     showPlatform: true,
     showBuyerIntake: true,
     platformRequired: false,
@@ -363,7 +364,7 @@ const workflowConfigs = {
     ...reportTypes.marketValue,
     workflow: "market_value",
     purchaseIntent: "",
-    eyebrow: "Market value check",
+    eyebrow: "Market Value Check",
     title: "Check Market Value",
     emptyMessage: "Your general market value report will appear here.",
     loadingMessage: "Searching comparable items for market value...",
@@ -372,7 +373,7 @@ const workflowConfigs = {
     workflowHelper: "Use this for a general value read when you are not choosing personal-use or resale logic yet.",
     platformNote: "Optional. Leave blank for broad market logic.",
     notesNote: "Optional. Add any item details, labels, flaws, measurements, or seller comments.",
-    buyerTitle: "Market Value Intake",
+    buyerTitle: "Market Value Details",
     showPlatform: true,
     showBuyerIntake: true,
     platformRequired: false,
@@ -386,7 +387,7 @@ const workflowConfigs = {
     purchaseIntent: "",
     workflowHelper: "Use this after you have the item and want a seller-ready marketplace listing.",
     platformNote: "Required for Generate Listing.",
-    notesNote: "Required for Generate Listing. Add condition, flaws, measurements, and anything the buyer should know.",
+    notesNote: "Required for Generate Listing. Add condition, flaws, measurements, and anything a buyer should know.",
     showPlatform: true,
     showBuyerIntake: false,
     platformRequired: true,
@@ -1350,7 +1351,7 @@ function getDisplayConfig(config, report) {
   if (config.reportType === "marketValue" && isConsumerReport(report)) {
     return {
       ...config,
-      eyebrow: "Personal-use buying decision",
+      eyebrow: "Personal-Use Decision",
       title: "Buying for Myself"
     };
   }
@@ -1754,6 +1755,7 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionSta
 
 function renderReport(report, sections) {
   stopLoadingProgress();
+  setReportActionsVisible(true);
   const renderId = `report-${++reportRenderSequence}`;
   results.className = "results";
   results.dataset.currentReportId = renderId;
@@ -1774,8 +1776,8 @@ function renderReport(report, sections) {
 
   const whyCards = buildSectionCards(report, sections, isWhySection);
   const whyGroup = renderReportGroup({
-    title: "Why",
-    helper: "The reasoning, confidence, risks, and evidence that shaped this recommendation.",
+    title: "Why This Recommendation",
+    helper: "The main reasons, confidence, risks, and evidence.",
     open: true,
     children: whyCards.length ? whyCards : [renderPlainInsight("Why this result?", getBestWhyText(report))]
   });
@@ -1803,8 +1805,8 @@ function renderReport(report, sections) {
   reportRoot.appendChild(renderReportGroup({
     title: researchResultCount ? `Research Details - ${researchResultCount} visible records` : "Research Details",
     helper: researchResultCount
-      ? "Search queries, sources, visible result records, comparable classification, rejection reasons, and limitations."
-      : "Visual evidence, source coverage, comparable quality, pricing rationale, and detailed fields.",
+      ? "Visible source records, comparable classification, rejection reasons, and limits."
+      : "Visual evidence, source coverage, comparable quality, price rationale, and limits.",
     open: false,
     children: researchChildren
   }));
@@ -1865,7 +1867,7 @@ function renderResearchEvidencePanel(report) {
   const header = document.createElement("div");
   header.className = "section-topline";
   const title = document.createElement("h3");
-  title.textContent = "Research Evidence";
+  title.textContent = "Evidence Found";
   const copyButton = document.createElement("button");
   copyButton.className = "copy-button";
   copyButton.type = "button";
@@ -2338,7 +2340,7 @@ function renderExecutiveSummary(report, workflow) {
   const why = document.createElement("details");
   why.className = "summary-why";
   const whySummary = document.createElement("summary");
-  whySummary.textContent = "Why?";
+  whySummary.textContent = "Why this recommendation?";
   const whyText = document.createElement("p");
   whyText.textContent = getBestWhyText(report);
   why.append(whySummary, whyText);
@@ -2550,18 +2552,18 @@ function renderAppraiserSummary(report, workflow) {
   header.className = "appraiser-summary-header";
   const eyebrow = document.createElement("p");
   eyebrow.className = "summary-eyebrow";
-  eyebrow.textContent = "Final read";
+  eyebrow.textContent = "Bottom line";
   const title = document.createElement("h3");
-  title.textContent = "Appraiser Summary";
+  title.textContent = "Final Summary";
   header.append(eyebrow, title);
 
   const grid = document.createElement("div");
   grid.className = "appraiser-grid";
   [
-    ["What I Know", getWhatIKnow(report)],
-    ["What I'm Unsure About", getWhatIsUnclear(report)],
-    ["What I'd Check Next", getWhatToCheckNext(report)],
-    ["Final Recommendation", getFinalRecommendation(report, workflow)]
+    ["What We Know", getWhatIKnow(report)],
+    ["What Still Needs Checking", getWhatIsUnclear(report)],
+    ["What To Check Next", getWhatToCheckNext(report)],
+    ["Bottom Line", getFinalRecommendation(report, workflow)]
   ].forEach(([label, value]) => {
     const section = document.createElement("section");
     const heading = document.createElement("h4");
@@ -2596,7 +2598,7 @@ function getWhatIKnow(report) {
     report.itemIdentification,
     report.identifiedItem,
     report.subjectIdentity,
-    "The photos and notes provide enough context for a preliminary item read."
+    "The photos and notes provide enough context for a preliminary read."
   );
 }
 
@@ -3106,7 +3108,7 @@ function renderConsumerSummary(report) {
 
   const label = document.createElement("p");
   label.className = "summary-eyebrow";
-  label.textContent = retailReport ? "Retail purchase decision" : "Personal-use decision";
+  label.textContent = retailReport ? "Retail purchase decision" : "Personal-Use Decision";
 
   const title = document.createElement("h3");
   title.textContent = retailReport
@@ -3619,6 +3621,7 @@ function renderRiskScore(report) {
 function renderIdentityConfirmationCard(confirmation = {}, config = workflowConfigs[defaultWorkflow]) {
   latestReport = null;
   copyAllButton.disabled = true;
+  setReportActionsVisible(false);
   results.className = "results";
   setOutputHeading(config);
 
@@ -3706,19 +3709,43 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   stopLoadingProgress();
   latestReport = null;
   copyAllButton.disabled = true;
+  setReportActionsVisible(false);
   results.className = "results empty-state";
 
   const intro = document.createElement("div");
   intro.className = "first-run-card";
   const title = document.createElement("h3");
-  title.textContent = "Photograph any item.";
+  title.textContent = "Ready when your photos are.";
   const copy = document.createElement("p");
-  copy.textContent = "We'll identify it, estimate its value, and help you make the smartest buying or selling decision.";
+  copy.textContent = "Add item photos, choose your buying purpose, then add the details you know.";
+  const steps = document.createElement("ul");
+  steps.className = "first-run-steps";
+  [
+    "Photos first.",
+    "Then buying purpose, purchase location, price, and condition.",
+    "Product details and notes are optional unless you are generating a listing."
+  ].forEach((step) => {
+    const item = document.createElement("li");
+    item.textContent = step;
+    steps.appendChild(item);
+  });
   const helper = document.createElement("p");
   helper.className = "first-run-helper";
   helper.textContent = config.emptyMessage;
-  intro.append(title, copy, helper);
+  intro.append(title, copy, steps, helper);
   results.replaceChildren(intro);
+}
+
+function setReportActionsVisible(visible) {
+  if (!outputActions) {
+    return;
+  }
+  outputActions.hidden = !visible;
+  if (!visible) {
+    feedbackPanel.hidden = true;
+    feedbackButton.setAttribute("aria-expanded", "false");
+    feedbackStatus.textContent = "";
+  }
 }
 
 function setOutputHeading(config) {
@@ -3784,6 +3811,7 @@ function getLoadingStages(workflow) {
 
 function renderLoadingProgress(stages, activeIndex) {
   results.className = "results loading-state";
+  setReportActionsVisible(false);
 
   const card = document.createElement("section");
   card.className = "loading-card";
@@ -3903,6 +3931,9 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
 }
 
 function toggleFeedbackPanel() {
+  if (!latestReport) {
+    return;
+  }
   const shouldShow = feedbackPanel.hidden;
   feedbackPanel.hidden = !shouldShow;
   feedbackButton.setAttribute("aria-expanded", shouldShow ? "true" : "false");
@@ -3946,16 +3977,16 @@ function formatReport(report, sections) {
     .map(([key, label]) => key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]))
     .join("\n\n");
   const finalText = [
-    "What I Know",
+    "What We Know",
     normalizeDisplayValue(getWhatIKnow(report)),
     "",
-    "What I'm Unsure About",
+    "What Still Needs Checking",
     normalizeDisplayValue(getWhatIsUnclear(report)),
     "",
-    "What I'd Check Next",
+    "What To Check Next",
     normalizeDisplayValue(getWhatToCheckNext(report)),
     "",
-    "Final Recommendation",
+    "Bottom Line",
     normalizeDisplayValue(getFinalRecommendation(report, currentWorkflow)),
     "",
     "End of Report"

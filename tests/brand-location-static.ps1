@@ -28,10 +28,10 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.0"; Text = $index; Pattern = "Version 1.11.0" },
-  @{ Name = "Package version is 1.11.0"; Text = $package; Pattern = '"version": "1.11.0"' },
+  @{ Name = "Visible app version is 1.11.1"; Text = $index; Pattern = "Version 1.11.1" },
+  @{ Name = "Package version is 1.11.1"; Text = $package; Pattern = '"version": "1.11.1"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
-  @{ Name = "Roadmap documents Version 1.11.0"; Text = $roadmap; Pattern = "Version 1.11.0 (Completed)" },
+  @{ Name = "Roadmap documents Version 1.11.1"; Text = $roadmap; Pattern = "Version 1.11.1 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine’s Eye - Buying, Selling and Valuation Intelligence</title>" },
   @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherine’s Eye' },
   @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherine’s Eye' },
@@ -59,7 +59,7 @@ $checks = @(
   @{ Name = "Retry button exists"; Text = $index; Pattern = "Try Location Again" },
   @{ Name = "Manual ZIP fallback exists"; Text = $index; Pattern = "Enter ZIP Manually" },
   @{ Name = "Continue without local pricing exists"; Text = $index; Pattern = "Continue Without Local Pricing" },
-  @{ Name = "Location helper text uses Katherine's Eye"; Text = $index; Pattern = "Katherine’s Eye uses your approximate location to check nearby prices and store options. Your precise location is not stored." },
+  @{ Name = "Location helper text keeps location private"; Text = $index; Pattern = "Uses your approximate area for nearby price context. Precise location is not stored." },
   @{ Name = "Location state field exists"; Text = $index; Pattern = 'id="location_state"' },
   @{ Name = "Location state is sent to API"; Text = $app; Pattern = "location_state: getValue(`"location_state`")" },
   @{ Name = "Coordinates are rounded before reverse geocoding"; Text = $app; Pattern = "Math.round(latitude * 1000) / 1000" },
