@@ -2477,7 +2477,8 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
       return;
     }
     const domainKey = requestedDomains.map((domain) => domain.toLowerCase()).join("|");
-    const signature = `${querySemanticSignature(finalQuery)}|${domainKey}`;
+    const siteSignature = (finalQuery.match(/\bsite:[a-z0-9.-]+/i) || [""])[0].toLowerCase();
+    const signature = `${querySemanticSignature(finalQuery)}|${domainKey}|${siteSignature}`;
     if (!signature.trim()) return;
     const candidateRecord = {
       ...baseRecord,
@@ -2498,12 +2499,19 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     validRecords.push(candidateRecord);
   };
 
-  highPriorityCandidates.slice(0, 24).forEach((record) => {
+  const initialHighPriorityCandidates = highPriorityCandidates
+    .filter((record) => record.candidateOrigin !== "model_search_query")
+    .slice(0, 24);
+  const modelSearchCandidatesToValidate = highPriorityCandidates
+    .filter((record) => record.candidateOrigin === "model_search_query");
+
+  initialHighPriorityCandidates.forEach((record) => {
     addRecord({ ...record, maxValidRecords: 4 });
   });
 
   if (marketplaceDomains.length && validRecords.length < 6) {
-    const seedRecord = highPriorityCandidates.find((record) => isMarketplaceUsefulQuery(record.query, context))
+    const seedRecord = validRecords.find((record) => isMarketplaceUsefulQuery(record.query, context))
+      || highPriorityCandidates.find((record) => record.validationPassed !== false && isMarketplaceUsefulQuery(record.query, context))
       || highPriorityCandidates[0]
       || fallbackCandidates[0]
       || null;
@@ -2513,7 +2521,26 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     addRecord({ query: siteQuery, rawCandidate: seedRecord?.rawCandidate || seedQuery, candidateOrigin: "marketplace_domain_composition", searchPass: "marketplace_site_google", marketplaceDomains });
   }
 
-  for (const record of recoveryCandidates) {
+  modelSearchCandidatesToValidate.forEach((record) => {
+    addRecord({ ...record, maxValidRecords: 10 });
+  });
+
+  for (const record of recoveryCandidates.filter((item) => item.searchPass === "marketplace_domain_recovery").slice(0, 1)) {
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
+  }
+
+  for (const record of recoveryCandidates.filter((item) => item.searchPass === "price_oriented_recovery").slice(0, 1)) {
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
+  }
+
+  for (const record of recoveryCandidates.filter((item) => item.searchPass === "shopping_general_recovery")) {
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
+  }
+
+  for (const record of recoveryCandidates.filter((item) => item.searchPass !== "marketplace_domain_recovery" && item.searchPass !== "price_oriented_recovery" && item.searchPass !== "shopping_general_recovery")) {
     if (validRecords.length >= 12) break;
     addRecord({ ...record, maxValidRecords: 12 });
   }
@@ -2544,7 +2571,9 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
   const records = [];
   const organization = firstKnown(context.visualOrganization, context.schoolName, context.teamName, context.subjectIdentity);
   const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
-  const itemType = context.itemType;
+  const itemType = /^(?:not\s+verified|unknown|none|n\/a)?$/i.test(cleanText(context.itemType))
+    ? mostDistinctiveCategoryWord(context.productTitle || context.subjectIdentity || context.categoryPhrase)
+    : context.itemType;
   const exactPhrase = selectExactVisiblePhrase(context);
   const eventPhrase = selectEventSearchPhrase(context);
   const productTitle = cleanSearchQuery(context.exactProductIdentity || context.productTitle || context.subjectIdentity, 8);
@@ -2571,8 +2600,14 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
 
   const add = ({ query, searchPass, candidateOrigin, marketplaceDomains: domains = [] }) => {
     if (!query) return;
+    const queryWithItemNoun = !context.retailStoreContext
+      && /recovery/i.test(searchPass || "")
+      && itemType
+      && !hasQueryItemNoun(query, context)
+      ? cleanSearchQuery([query, itemType].filter(Boolean).join(" "), 14)
+      : query;
     records.push({
-      query,
+      query: queryWithItemNoun,
       rawCandidate: query,
       candidateOrigin,
       searchPass,
@@ -2828,6 +2863,9 @@ function validateSerperQueryCandidate(query, context = {}, options = {}) {
   }
   if (syntaxFailure) {
     return { passed: false, reason: syntaxFailure };
+  }
+  if (isCurrentRetailOnlyMode(context.retailEvidenceMode) && isRetailForbiddenSecondaryEvidenceText(core)) {
+    return { passed: false, reason: "retail_forbidden_secondary_market_terms" };
   }
   if (isBrandOnlyQuery(core, context)) {
     return { passed: false, reason: "brand_only_query" };
@@ -3247,7 +3285,10 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
     productHit ? 1 : 0
   ].reduce((sum, value) => sum + value, 0);
 
-  if ((exactPhraseHits.length && itemTypeHit && (brandHit || organizationHit || productHit)) || score >= 7) {
+  const hasDistinctiveExactSupport = exactPhraseHits.length >= 2
+    || productHit
+    || (organizationHit && (personHit || yearHit));
+  if (itemTypeHit && hasDistinctiveExactSupport && (brandHit || organizationHit || productHit) && score >= 7) {
     return "Exact";
   }
   if ((itemTypeHit && (brandHit || organizationHit || productHit)) || score >= 5) {
@@ -3357,7 +3398,8 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
   const submittedText = buildSubmittedItemTypeText(identity, context);
   const candidateText = buildCandidateItemTypeText(record);
   const submitted = detectCanonicalComparableItemType(submittedText);
-  const candidate = detectCanonicalComparableItemType(candidateText);
+  const titleUrlCandidate = detectCanonicalComparableItemType([record.title, record.url, record.canonicalUrl].filter(Boolean).join(" "));
+  const candidate = titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
   const setScope = detectComparableSetScope(submittedText, candidateText);
   const packScope = detectComparablePackScope(submittedText, candidateText);
 
@@ -4004,8 +4046,8 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     parsedCandidateCount: providerSourceCount,
     normalizedCandidateCount: records.length,
     deduplicatedCandidateCount: records.length,
-    exactCandidateCount: records.filter((record) => record.identityMatchStrength === "Exact").length,
-    strongSimilarCandidateCount: records.filter((record) => record.identityMatchStrength === "Strong Similar").length,
+    exactCandidateCount: records.filter((record) => /^Exact\b/i.test(record.identityMatchStrength || "")).length,
+    strongSimilarCandidateCount: records.filter((record) => /Strong Similar/i.test(record.identityMatchStrength || "")).length,
     pricedCandidateCount,
     compatiblePricedCandidateCount,
     noPriceIdentityReferenceCount,
@@ -4039,6 +4081,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const retailSpecificQueries = normalizeStringArray(searchQueries, 24)
     .filter((query) => isRetailSpecificQuery(query, context))
     .slice(0, 12);
+  const retailEvidenceMode = context.retailEvidenceMode || "collectible-resale";
+  const retailRouteClassification = context.retailRouteClassification || "";
   const storeName = context.storeName || context.retailerOrMarketplaceName;
   const namedStoreRequests = providerRequestRecords.filter((record) => storeName && cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()));
   const upcRequests = providerRequestRecords.filter((record) => context.barcodeDigits && cleanText(record.query).includes(context.barcodeDigits));
@@ -4056,11 +4100,45 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   ].join(" ").includes(context.barcodeDigits));
   const packMismatchRecords = records.filter((record) => /pack_quantity_mismatch/i.test(record.itemTypeCompatibilityStatus || record.rejectionReason || ""));
   const unsupportedRejected = normalizeStringArray(context.unsupportedIdentityTerms, 24);
+  const allQueryRecords = providerRequestRecords.length
+    ? providerRequestRecords
+    : normalizeStringArray(searchQueries, 24).map((query) => ({ query, validationPassed: true }));
+  const suppressedQueryRecords = allQueryRecords.filter((record) => /retail_forbidden_secondary_market_terms/i.test(record.validationFailureReason || "") || isRetailForbiddenSecondaryEvidenceText(record.rawCandidate || record.query));
+  const currentRetailAccepted = records.filter((record) => isQualifiedCurrentRetailSourceRecord(record, context));
+  const retailRejected = records.filter((record) => !currentRetailAccepted.includes(record) && (
+    isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))
+    || !isQualifiedCurrentRetailSourceRecord(record, context)
+  ));
   const resaleSuppressed = context.retailStoreContext || context.onlineRetailerContext
-    ? normalizeStringArray(searchQueries, 24).every((query) => !/\b(?:sold|auction|completed|opening bid|historical sale|eBay sold|collector value)\b/i.test(query))
+    ? normalizeStringArray(searchQueries, 24).every((query) => !isRetailForbiddenSecondaryEvidenceText(query))
     : false;
+  const locationDeniedManualZip = /denied/i.test(context.locationPermission || context.locationMode) && Boolean(context.locationZip);
 
   return {
+    retailEvidenceMode,
+    retailRouteClassification,
+    queriesSuppressed: isCurrentRetailOnlyMode(retailEvidenceMode)
+      ? "sold/auction/historical/collector/resale terms suppressed for current-retail-only evidence mode"
+      : "",
+    currentRetailCandidatesAccepted: currentRetailAccepted.map((record) => ({
+      title: cleanText(record.title),
+      source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
+      url: cleanText(record.url),
+      displayedPrice: cleanText(record.displayedPrice || record.price),
+      retailEvidenceLabel: "Current retail candidate accepted"
+    })).slice(0, 12),
+    currentRetailCandidatesRejected: retailRejected.map((record) => ({
+      title: cleanText(record.title),
+      source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
+      url: cleanText(record.url),
+      displayedPrice: cleanText(record.displayedPrice || record.price),
+      reason: isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))
+        ? "Excluded from retail decision as secondary-market, auction, sold, historical, guide, reference, or resale evidence."
+        : cleanText(record.rejectionReason || record.itemTypeCompatibilityExplanation || "Did not pass current retail source/package/identity checks.")
+    })).slice(0, 12),
+    referenceSecondaryEvidenceExcludedFromRetailDecision: retailRejected
+      .filter((record) => isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" ")))
+      .length,
     canonicalProductIdentity: context.canonicalProductIdentity || null,
     finalizedSearchIdentity: context.finalizedSearchIdentity || context.canonicalCustomerTitle || "",
     canonicalIdentityConfidence: context.canonicalIdentityConfidence || "",
@@ -4072,13 +4150,18 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       retailerDomainQueryAttempted: context.retailerDomain ? providerRequestRecords.some((record) => cleanText(record.query).toLowerCase().includes(`site:${context.retailerDomain}`) && record.attempted) : false,
       namedStoreQueriesGenerated: namedStoreRequests.length,
       resaleQueriesSuppressed: resaleSuppressed,
+      suppressedSecondaryMarketQueryCount: suppressedQueryRecords.length,
       unsupportedQueryTermsRejected: unsupportedRejected
     },
     purchaseContext: context.purchaseContext || "",
     storeName: storeName || "",
     locationModeUsed: context.locationMode || "",
-    locationLookupOutcome: context.locationArea ? `General area resolved: ${context.locationArea}` : context.locationMode || "not requested",
+    locationLookupOutcome: locationDeniedManualZip
+      ? `Location permission was not granted. ZIP ${context.locationZip} was entered manually.`
+      : context.locationArea ? `General area resolved: ${context.locationArea}` : context.locationMode || "not requested",
     zipPresence: context.locationZip ? "ZIP provided" : "ZIP not provided",
+    manualZipUsed: locationDeniedManualZip ? `Manual ZIP used: ${context.locationZip}` : "",
+    browserCoordinatesDisplayed: "No",
     barcodeExtractionStatus: context.barcodeDigits
       ? "Barcode/UPC digits available"
       : context.barcodeReadStatus === "unreadable"
@@ -4423,6 +4506,10 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "The backend supplied a finalized Canonical Product Identity when available. Treat it as authoritative for customer-facing item title, search identity, matching, pricing, and recommendation wording. Rejected identity candidates may appear only as rejected diagnostics, not as active product identity.",
     "For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.",
     "For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.",
+    "For ordinary current retail products, use Retail Evidence Mode: current-retail-only. Do not use auction, historical sold, guide, WorthPoint, PicClick, resale, thrift, flea-market, estate-sale, collector, or secondary-market evidence to establish customer-facing current retail value.",
+    "For ordinary fixed-price retail-store purchases, do not show Opening Offer, negotiation target, offer ladder, market-supported maximum, personal-enjoyment exception, or Maximum Price Guard. Default to Store price is fixed unless the intake explicitly says the retail price is negotiable.",
+    "For ordinary current retail products, show Current Retail Price: Not verified when no exact/strong qualified current retail source was found. Do not fabricate a retail range, named-store price, or competing retailer result.",
+    "Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Match, Compatible Alternative, Package-Size Difference, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.",
     "If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
     "When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.",
     "For retail products, compare package price and unit price separately when quantity is explicit and compatible. Do not compare a 100-count box directly with a 25-count box as an exact match; use unit-price context only when product type, size, and specs are compatible.",
@@ -5659,8 +5746,8 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
     identity.distinctiveVisualDescription,
     identity.guidedBuyerIntakeSummary,
-    identity.identityConflictNotes.join(" "),
-    identity.buyerContext.join(" ")
+    Array.isArray(identity.identityConflictNotes) ? identity.identityConflictNotes.join(" ") : "",
+    Array.isArray(identity.buyerContext) ? identity.buyerContext.join(" ") : ""
   ].join(" ").toLowerCase();
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
@@ -5842,7 +5929,8 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     const safeRetailSet = new Set();
     const orderedRetailQueries = [];
     for (const query of safeRetailQueries) {
-      const signature = querySemanticSignature(query);
+      const siteSignature = (query.match(/\bsite:[a-z0-9.-]+/i) || [""])[0].toLowerCase();
+      const signature = `${querySemanticSignature(query)}|${siteSignature}`;
       if (signature && !safeRetailSet.has(signature)) {
         safeRetailSet.add(signature);
         orderedRetailQueries.push(query);
@@ -5934,6 +6022,8 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const packageQuantity = firstKnown(canonicalPackageQuantity, identity.packageQuantity, identity.unitCount, extractPackQuantityText([productTitle, notesText, identity.size, identity.dimensions, identity.frontBoxWording, identity.backLabelWording].join(" ")));
   const packageSize = firstKnown(canonicalDimensions, identity.packageSize, identity.size, identity.dimensions);
   const hasHighSpecificityText = distinctivePhrases.length > 0 || barcodeDigits || upc || model || itemCode;
+  const retailEvidenceMode = getRetailEvidenceMode({ buyerIntake, identity });
+  const retailRouteClassification = getRetailRouteClassification({ buyerIntake, identity });
 
   return {
     routeText,
@@ -6006,6 +6096,8 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     canonicalIdentityConfidence: cleanText(canonicalProductIdentity.canonicalConfidence),
     canonicalUserConfirmationRequired: Boolean(canonicalProductIdentity.userConfirmationRequired),
     canonicalVariant,
+    retailEvidenceMode,
+    retailRouteClassification,
     eventPhrases,
     hasHighSpecificityText
   };
@@ -6022,7 +6114,8 @@ function buildRetailContextSearchQueries(context) {
   const identifier = firstKnown(context.model, context.itemCode);
   const productTitle = firstKnown(context.productTitle, context.exactProductIdentity, context.subjectIdentity, context.itemType);
   const productType = firstKnown(context.itemType, mostDistinctiveCategoryWord(context.categoryPhrase));
-  const pack = compactWords([context.packageQuantity, context.packageSize]);
+  const packageQuantity = cleanText(context.packageQuantity).replace(/\b(\d+)-count\b/gi, "$1 count");
+  const pack = compactWords([packageQuantity, context.packageSize]);
   const location = context.locationZip || cleanText(context.locationArea);
 
   if (barcode) {
@@ -6039,17 +6132,17 @@ function buildRetailContextSearchQueries(context) {
   if (brand && identifier) {
     queries.push(compactWords([brand, identifier]));
   }
-  if (brand && productType && context.packageQuantity) {
-    queries.push(compactWords([brand, productType, context.packageQuantity]));
+  if (brand && productType && packageQuantity) {
+    queries.push(compactWords([brand, productType, packageQuantity]));
   }
   if (storeName && productTitle) {
     queries.push(compactWords([storeName, brand, productTitle]));
   }
-  if (storeName && productType && context.packageQuantity) {
-    queries.push(compactWords([storeName, productType, context.packageQuantity]));
+  if (storeName && productType && packageQuantity) {
+    queries.push(compactWords([storeName, productType, packageQuantity]));
   }
-  if (productType && context.packageQuantity && location) {
-    queries.push(compactWords([productType, context.packageQuantity, "near", location]));
+  if (productType && packageQuantity && location) {
+    queries.push(compactWords([productType, packageQuantity, "near", location]));
   }
 
   if (barcode) {
@@ -7837,7 +7930,7 @@ function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
   const itemAmount = getVisibleItemPriceAmount(record);
   const shipping = extractShippingEvidence(record);
   const deliveredAmount = Number.isFinite(itemAmount) && shipping.deliveredCostSupported && Number.isFinite(shipping.amount)
-    ? roundMoney(itemAmount + shipping.amount)
+    ? Math.round((itemAmount + shipping.amount) * 100) / 100
     : null;
   const priceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
   const listingStatus = inferPriceFoundListingStatus(record, priceType);
@@ -7971,10 +8064,10 @@ function extractShippingEvidence(record = {}) {
     if (Number.isFinite(amount)) {
       return {
         status: "known",
-        label: formatSourceMoney(amount),
+        label: formatSourceMoneyWithCents(amount),
         amount,
         deliveredCostSupported: true,
-        disclosure: `Shipping was shown as ${formatSourceMoney(amount)}.`
+        disclosure: `Shipping was shown as ${formatSourceMoneyWithCents(amount)}.`
       };
     }
   }
@@ -8123,6 +8216,516 @@ function isCurrentPurchasablePriceFoundRecord(record = {}) {
   return /Active Asking/i.test(record.priceType)
     && !/historical|sold|reference|auction|not a current purchasing option|not confirmed as currently purchasable|unavailable|stale/i.test(record.listingStatus || "")
     && !/Non-Transactional Reference|Bulk\/Lot Reference|Verified Sold|Estimated|Guide|Reference|Auction/i.test(record.priceType || "");
+}
+
+function getRetailEvidenceMode({ buyerIntake = normalizeBuyerIntake({}), identity = {} } = {}) {
+  if (isOrdinaryCurrentRetailProduct({ buyerIntake, identity })) {
+    return "current-retail-only";
+  }
+  if ((isRetailStorePurchaseContext(buyerIntake.purchase_context) || isOnlineRetailerPurchaseContext(buyerIntake.purchase_context))
+    && /\b(?:discontinued|retired|unavailable|out\s+of\s+stock|no\s+longer\s+made|secondary\s+market|replacement)\b/i.test(buildConsumerRiskContextText({ buyerIntake, identity }))) {
+    return "secondary-market-replacement";
+  }
+  return "collectible-resale";
+}
+
+function getRetailRouteClassification({ buyerIntake = normalizeBuyerIntake({}), identity = {} } = {}) {
+  if (isOrdinaryCurrentRetailProduct({ buyerIntake, identity })) {
+    return "Ordinary Current Retail Product";
+  }
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  if (/\b(?:discontinued|retired|unavailable|out\s+of\s+stock|no\s+longer\s+made|secondary\s+market|replacement)\b/i.test(text)) {
+    return "Secondary-Market Replacement Product";
+  }
+  return "Collectible / Resale Product";
+}
+
+function isCurrentRetailOnlyMode(mode) {
+  return cleanText(mode).toLowerCase() === "current-retail-only";
+}
+
+function isOrdinaryCurrentRetailProduct({ buyerIntake = normalizeBuyerIntake({}), identity = {} } = {}) {
+  const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
+  const retailContext = isRetailStorePurchaseContext(purchaseContext) || isOnlineRetailerPurchaseContext(purchaseContext);
+  if (!retailContext) {
+    return false;
+  }
+  const text = buildConsumerRiskContextText({ buyerIntake, identity });
+  const hasIdentifier = Boolean(
+    getSearchBarcodeDigits(identity, buyerIntake)
+    || hasKnownValue(buyerIntake.known_sku)
+    || hasKnownValue(buyerIntake.known_model)
+    || hasKnownValue(identity.sku)
+    || hasKnownValue(identity.model)
+  );
+  const ordinaryRetailSignals = /\b(?:upc|barcode|sku|model|retail|store|kroger|walmart|target|staples|office depot|officeworks|office works|envelopes?|security envelopes?|stationery|office supplies?|grocery|household|consumable|pack|count|ct|box|carton|current product|new product)\b/i.test(text);
+  const collectibleSignals = /\b(?:vintage|antique|collectible|memorabilia|commemorative|rare|limited edition|numbered edition|one[-\s]?of[-\s]?a[-\s]?kind|handmade|custom|estate sale|flea market|thrift|yard sale|secondhand|resale|used|pre[-\s]?owned|etsy|mercari|ebay|auction|worthpoint|picclick|historical sold|retired logo|retired design)\b/i.test(text);
+  const discontinuedSignals = /\b(?:discontinued|retired product|no longer made|out of stock everywhere|secondary-market replacement)\b/i.test(text);
+  return (hasIdentifier || ordinaryRetailSignals) && !collectibleSignals && !discontinuedSignals;
+}
+
+function isRetailForbiddenSecondaryEvidenceText(value = "") {
+  return /\b(?:sold|completed|ended listing|historical|auction|bid|hammer price|price realized|worthpoint|picclick|ebay sold|etsy vintage|mercari sold|collector value|collectible value|resale value|thrift|flea market|estate sale|active resale|used marketplace|pre[-\s]?owned|secondhand)\b/i.test(cleanText(value));
+}
+
+function stripRetailSecondaryMarketQueryTerms(query = "") {
+  return cleanSearchQuery(cleanText(query)
+    .replace(/\b(?:sold|completed|historical|auction|bid|worthpoint|picclick|ebay sold|etsy vintage|mercari sold|collector value|collectible value|resale value)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim(), 18);
+}
+
+function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  const submittedQuantity = extractPackQuantityNumber([
+    identity.packageQuantity,
+    identity.unitCount,
+    identity.packageSize,
+    identity.dimensions,
+    buyerIntake.item_name,
+    buyerIntake.buyer_notes
+  ].join(" "));
+  const candidateQuantity = extractPackQuantityNumber([
+    record.title,
+    record.rawText,
+    record.snippet,
+    record.conciseLimitation
+  ].join(" "));
+  const text = cleanText([
+    identity.productNameOrBoxTitle,
+    identity.category,
+    identity.likelyItemDescription,
+    buyerIntake.item_name,
+    buyerIntake.buyer_notes,
+    record.title,
+    record.rawText,
+    record.snippet
+  ].join(" ")).toLowerCase();
+
+  if (/\bsecurity\b/.test(text) && /\bplain\b/.test(text) && !/\bsecurity\b.*\bplain\b|\bplain\b.*\bsecurity\b/.test(cleanText([record.title, record.rawText, record.snippet].join(" ")).toLowerCase())) {
+    return {
+      status: "materially_incompatible",
+      label: "Rejected Retail Mismatch",
+      reason: "Security-envelope evidence was not compatible with a plain-envelope result."
+    };
+  }
+  if (Number.isFinite(submittedQuantity) && Number.isFinite(candidateQuantity) && submittedQuantity > 0 && candidateQuantity > 0) {
+    if (submittedQuantity === candidateQuantity) {
+      return {
+        status: "exact_package_match",
+        label: "Exact Retail Match",
+        reason: `Package count matches at ${submittedQuantity} units.`
+      };
+    }
+    const ratio = Math.max(submittedQuantity, candidateQuantity) / Math.min(submittedQuantity, candidateQuantity);
+    if (ratio <= 1.25 || (submittedQuantity === 45 && candidateQuantity === 50) || (submittedQuantity === 50 && candidateQuantity === 45)) {
+      return {
+        status: "compatible_unit_price",
+        label: "Compatible Alternative",
+        reason: `${submittedQuantity}-count and ${candidateQuantity}-count packages are close enough for unit-price comparison, not exact package-price comparison.`
+      };
+    }
+    if (ratio <= 2.5) {
+      return {
+        status: "unit_price_only",
+        label: "Package-Size Difference",
+        reason: `${candidateQuantity}-count package may be unit-price comparable but is not an exact package-price match to ${submittedQuantity}-count.`
+      };
+    }
+    return {
+      status: "materially_incompatible",
+      label: "Rejected Retail Mismatch",
+      reason: `Package count differs too much for retail price comparison (${submittedQuantity} vs ${candidateQuantity}).`
+    };
+  }
+  if (/\bstrip[-\s]?and[-\s]?seal\b/i.test(text) && /\bgummed\b/i.test(text)) {
+    return {
+      status: "compatible_alternative",
+      label: "Compatible Alternative",
+      reason: "Strip-and-seal and gummed closures may be compatible alternatives, but they are not exact package matches."
+    };
+  }
+  return {
+    status: "unknown_or_not_applicable",
+    label: /exact/i.test(record.matchQuality || record.classification || record.identityMatchStrength || "") ? "Strong Retail Match" : "Compatible Alternative",
+    reason: "Package compatibility should be verified from the source."
+  };
+}
+
+function isQualifiedCurrentRetailPriceFoundRecord(record = {}, identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  if (!record || typeof record !== "object" || !record.url || !Number.isFinite(record.itemPriceAmount)) {
+    return false;
+  }
+  const text = [
+    record.source,
+    record.marketplace,
+    record.title,
+    record.priceType,
+    record.listingStatus,
+    record.conciseLimitation,
+    record.rawText,
+    record.url
+  ].map(cleanText).join(" ");
+  if (isRetailForbiddenSecondaryEvidenceText(text)) {
+    return false;
+  }
+  if (!isCurrentPurchasablePriceFoundRecord(record)) {
+    return false;
+  }
+  const packageCompatibility = classifyRetailPackageCompatibility(record, identity, buyerIntake);
+  return packageCompatibility.status !== "materially_incompatible";
+}
+
+function isQualifiedCurrentRetailSourceRecord(record = {}, context = {}) {
+  if (!record || typeof record !== "object" || !record.url || !isUsableSourceRecord(record)) {
+    return false;
+  }
+  const amount = getVisibleItemPriceAmount(record);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return false;
+  }
+  const text = [
+    record.source,
+    record.domain,
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.priceType,
+    record.priceEvidenceType,
+    record.activeSoldReferenceStatus,
+    record.url
+  ].map(cleanText).join(" ");
+  if (isRetailForbiddenSecondaryEvidenceText(text)) {
+    return false;
+  }
+  if (!/Active Asking/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record))
+    && !/\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|retail price|store price)\b/i.test(text)) {
+    return false;
+  }
+  if (/\b(?:unavailable|out\s+of\s+stock|not\s+available|removed|stale|cached)\b/i.test(text)) {
+    return false;
+  }
+  if (record.itemTypeCompatible === false || /mismatch/i.test(cleanText(record.itemTypeCompatibilityStatus || record.rejectionReason))) {
+    return false;
+  }
+  if (context && isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
+    const fakeIdentity = {
+      packageQuantity: context.packageQuantity,
+      unitCount: context.packageQuantity,
+      packageSize: context.packageSize,
+      productNameOrBoxTitle: context.productTitle,
+      category: context.itemType,
+      likelyItemDescription: context.subjectIdentity
+    };
+    const fakeIntake = normalizeBuyerIntake({
+      purchase_context: context.purchaseContext,
+      item_name: context.productTitle,
+      buyer_notes: context.notesText
+    });
+    return classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake).status !== "materially_incompatible";
+  }
+  return true;
+}
+
+function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), identity = {}, liveSearch = {}, pricesFound = [], askingPriceNumber = null, searchCompleted = false } = {}) {
+  const retailEvidenceMode = getRetailEvidenceMode({ buyerIntake, identity });
+  const retailRouteClassification = getRetailRouteClassification({ buyerIntake, identity });
+  const currentRetailOnly = isCurrentRetailOnlyMode(retailEvidenceMode);
+  const storeName = getRetailStoreName(buyerIntake);
+  const allPrices = normalizeArray(pricesFound).filter((item) => item && typeof item === "object");
+  const acceptedPrices = currentRetailOnly
+    ? allPrices.filter((record) => isQualifiedCurrentRetailPriceFoundRecord(record, identity, buyerIntake))
+    : allPrices;
+  const excludedPrices = currentRetailOnly
+    ? allPrices.filter((record) => !acceptedPrices.includes(record))
+    : [];
+  const acceptedWithRetailLabels = acceptedPrices.map((record) => {
+    const packageCompatibility = classifyRetailPackageCompatibility(record, identity, buyerIntake);
+    const exactLabel = /exact/i.test(record.matchQuality || "") ? "Exact Retail Match" : packageCompatibility.label;
+    const label = packageCompatibility.status === "exact_package_match" ? exactLabel : packageCompatibility.label;
+    return {
+      ...record,
+      priceType: "Current Retail Price",
+      priceTypeLabel: label,
+      priceContextLabel: label,
+      priceContextSummary: packageCompatibility.reason,
+      retailPackageCompatibility: packageCompatibility.status
+    };
+  });
+  const namedStorePrices = acceptedWithRetailLabels.filter((record) => storeName && [
+    record.source,
+    record.marketplace,
+    record.title,
+    record.url,
+    record.rawText
+  ].join(" ").toLowerCase().includes(storeName.toLowerCase().split(/\s+/)[0]));
+  const exactRetail = acceptedWithRetailLabels.filter((record) => /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
+  const strongRetail = acceptedWithRetailLabels.filter((record) => /exact|strong/i.test(record.matchQuality || record.priceContextLabel || ""));
+  const sorted = acceptedWithRetailLabels.slice().sort(compareCompatiblePriceContext);
+  const amounts = sorted.map((record) => record.itemPriceAmount).filter(Number.isFinite).sort((a, b) => a - b);
+  const retailRange = amounts.length >= 2 ? formatMoneyRangeFromAmounts(amounts[0], amounts[amounts.length - 1]) : "";
+  const best = sorted[0] ? annotatePriceContextRecord(
+    sorted[0],
+    "Best Current Retail Alternative",
+    sorted[0].deliveredCostAmount
+      ? `Lowest supported delivered cost found: ${sorted[0].deliveredCost}. Taxes may apply.`
+      : "Lowest qualified current retail item price found. Shipping, pickup, taxes, or availability may still need source confirmation."
+  ) : null;
+  const askingText = Number.isFinite(askingPriceNumber) ? formatMoney(askingPriceNumber) : "the entered store price";
+  const noRetailPrice = "Current Retail Price: Not verified";
+  const priceAssessment = !currentRetailOnly
+    ? ""
+    : amounts.length >= 2
+      ? `${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Range"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
+      : amounts.length === 1
+        ? `Current Retail Price Found: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
+        : `${noRetailPrice}. No qualified source-backed current retail price passed exact/strong identity, package, and source checks.`;
+  const namedStoreResult = buildNamedStoreRetailResult({
+    storeName,
+    namedStorePrices,
+    liveSearch,
+    searchCompleted,
+    currentRetailOnly
+  });
+  const retailPurchaseDecision = !currentRetailOnly
+    ? ""
+    : amounts.length
+      ? buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, acceptedPrices: acceptedWithRetailLabels })
+      : Number.isFinite(askingPriceNumber) && askingPriceNumber <= consumerDecisionThresholds.lowDollarCautiousBuyMax
+        ? "Low-Risk Purchase - Price Not Verified"
+        : "Current Retail Price Not Verified";
+  const retailPriceLimit = !currentRetailOnly
+    ? ""
+    : amounts.length
+      ? buildRetailPriceLimitFromPrices({ acceptedPrices: acceptedWithRetailLabels, askingPriceNumber })
+      : "Retail Price Limit: Not established";
+
+  return {
+    retailEvidenceMode,
+    retailRouteClassification,
+    currentRetailOnly,
+    storeName,
+    acceptedPrices: acceptedWithRetailLabels,
+    excludedPrices,
+    namedStorePrices,
+    exactRetailCount: exactRetail.length,
+    strongRetailCount: strongRetail.length,
+    currentRetailPriceAssessment: priceAssessment,
+    namedStoreResult,
+    bestCurrentRetailAlternative: best,
+    otherCurrentRetailPrices: best
+      ? sorted.filter((record) => priceContextKey(record) !== priceContextKey(best)).slice(0, 4)
+      : sorted.slice(0, 4),
+    packageUnitPriceComparison: buildRetailPackageUnitPriceComparison(identity, acceptedWithRetailLabels),
+    localAvailabilityContext: buildRetailLocalAvailabilityContext(buyerIntake, liveSearch),
+    retailPurchaseDecision,
+    retailPriceLimit,
+    askingStorePrice: Number.isFinite(askingPriceNumber)
+      ? `Store/asking price entered: ${askingText}.`
+      : buildConsumerAskingPriceText(buyerIntake, identity),
+    priceConfidence: amounts.length
+      ? ensureConfidenceLayer("", amounts.length >= 2 ? "Medium" : "Low", "Only qualified current retail price evidence was used. Verify package size, taxes, pickup/delivery, and availability.")
+      : forceLowConfidence("", "No qualified current retail price was verified; retail decision is based only on entered price, item identity, and low-dollar exposure."),
+    nextBestAction: amounts.length
+      ? "Confirm exact package count, local availability, taxes, and pickup or delivery terms before purchasing."
+      : "Confirm the shelf/app price at the named store, check the UPC/package count, and compare against a current retailer result before calling this a deal.",
+    searchCompleted
+  };
+}
+
+function buildNamedStoreRetailResult({ storeName = "", namedStorePrices = [], liveSearch = {}, searchCompleted = false, currentRetailOnly = false } = {}) {
+  if (!currentRetailOnly) {
+    return "";
+  }
+  const store = storeName || "Named store";
+  if (namedStorePrices.length) {
+    const first = namedStorePrices[0];
+    const exact = /exact/i.test(first.matchQuality || first.priceContextLabel || "");
+    return `${exact ? "Exact product price found" : "Compatible product price found"} at ${store}: ${first.itemPrice || "price shown"}${first.url ? " (source-backed)." : "."}`;
+  }
+  const attempted = normalizeStringArray(liveSearch.queriesActuallySent || liveSearch.searchQueries, 24)
+    .some((query) => storeName && cleanText(query).toLowerCase().includes(storeName.toLowerCase()));
+  if (storeName && attempted && searchCompleted) {
+    return `${store} searched - exact product not found. No source-backed ${store} price was found in the current search.`;
+  }
+  if (storeName && searchCompleted) {
+    return `${store} price unavailable. No source-backed ${store} price was found in the current search.`;
+  }
+  return `${store} availability not confirmed. No source-backed ${store} price was found in the current search.`;
+}
+
+function buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, acceptedPrices = [] } = {}) {
+  if (!Number.isFinite(askingPriceNumber) || !acceptedPrices.length) {
+    return "Current Retail Price Found - Check Store Price";
+  }
+  const amounts = acceptedPrices.map((record) => Number.isFinite(record.deliveredCostAmount) ? record.deliveredCostAmount : record.itemPriceAmount).filter(Number.isFinite);
+  if (!amounts.length) {
+    return "Current Retail Price Found - Check Store Price";
+  }
+  const lowest = Math.min(...amounts);
+  const highest = Math.max(...amounts);
+  if (askingPriceNumber <= lowest) {
+    return "Good Retail Price - Source-Backed";
+  }
+  if (askingPriceNumber <= highest * 1.1) {
+    return "Reasonable Retail Price - Verify Package";
+  }
+  return "Compare Before Buying";
+}
+
+function buildRetailPriceLimitFromPrices({ acceptedPrices = [], askingPriceNumber = null } = {}) {
+  const amounts = acceptedPrices.map((record) => Number.isFinite(record.deliveredCostAmount) ? record.deliveredCostAmount : record.itemPriceAmount).filter(Number.isFinite);
+  if (!amounts.length) {
+    return "Retail Price Limit: Not established";
+  }
+  const best = Math.min(...amounts);
+  const label = Number.isFinite(askingPriceNumber) && askingPriceNumber <= best
+    ? `Retail Price Limit: ${formatMoney(best)} before taxes and package/availability checks.`
+    : `Retail Price Limit: ${formatMoney(Math.max(best, Math.min(...amounts)))} based on qualified current retail evidence.`;
+  return `${label} Do not use secondary-market, auction, sold, or reference prices for this retail limit.`;
+}
+
+function buildRetailPackageUnitPriceComparison(identity = {}, pricesFound = []) {
+  if (!pricesFound.length) {
+    return "Package and unit price comparison: Not established because no qualified current retail price was verified.";
+  }
+  const rows = pricesFound.map((record) => {
+    const amount = Number(record.itemPriceAmount);
+    const quantity = extractPackQuantityNumber([record.title, record.rawText, record.conciseLimitation].join(" "));
+    if (Number.isFinite(amount) && Number.isFinite(quantity) && quantity > 0) {
+      return `${record.title || record.source}: ${formatMoney(amount)} for ${quantity} units (${formatUnitMoney(amount / quantity)} each). ${record.priceContextSummary || ""}`;
+    }
+    return `${record.title || record.source}: ${record.itemPrice || "price shown"}; unit price not established from visible package count.`;
+  }).filter(Boolean).slice(0, 4);
+  return rows.length ? rows.join(" ") : buildPackageUnitPriceContext(identity, pricesFound);
+}
+
+function buildRetailLocalAvailabilityContext(buyerIntake = normalizeBuyerIntake({}), liveSearch = {}) {
+  const zip = normalizeZipCode(buyerIntake.location_zip);
+  const permission = cleanText(buyerIntake.location_permission || buyerIntake.location_mode);
+  const store = getRetailStoreName(buyerIntake);
+  if (/denied/i.test(permission) && zip) {
+    return `Location permission was not granted. ZIP ${zip} was entered manually. Try Location Again is available in the intake. ${store ? `${store} availability is not confirmed unless a source-backed store result says so.` : "Named-store availability is not confirmed unless source-backed."}`;
+  }
+  if (zip) {
+    return `ZIP ${zip} was used for local retail context. Store inventory and pickup availability are not confirmed unless a source-backed result says so.`;
+  }
+  if (/browser_location/i.test(permission)) {
+    return "Browser location was allowed for general local context; precise coordinates are not displayed. Store inventory still requires source-backed confirmation.";
+  }
+  return "Local availability was not verified. Enter ZIP or store context to improve retail coverage.";
+}
+
+function buildRetailCurrentPriceSpectrumSummary(profile = {}) {
+  if (!profile.currentRetailOnly) {
+    return "";
+  }
+  const prices = normalizeArray(profile.acceptedPrices);
+  if (!prices.length) {
+    return "Current retail price spectrum: not established because no qualified current retail prices were found.";
+  }
+  const amounts = prices.map((record) => record.itemPriceAmount).filter(Number.isFinite).sort((a, b) => a - b);
+  if (amounts.length >= 2) {
+    return `Current retail price spectrum uses qualified current retail evidence only: ${formatMoneyRangeFromAmounts(amounts[0], amounts[amounts.length - 1])}. Secondary-market, auction, sold, historical, guide, and reference prices are excluded.`;
+  }
+  return `Current retail price spectrum uses one qualified current retail price only: ${formatMoney(amounts[0])}. A range is not shown from a single source.`;
+}
+
+function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
+  if (!profile.currentRetailOnly) {
+    return report;
+  }
+  const acceptedPrices = normalizeArray(profile.acceptedPrices);
+  const hasRetailEvidence = acceptedPrices.length > 0;
+  const forbiddenNotice = "Retail Evidence Mode: current-retail-only. Customer-facing retail price guidance uses only qualified current retail evidence; secondary-market, auction, sold, historical, guide, and reference prices are excluded from the retail decision.";
+  const valueRating = hasRetailEvidence
+    ? report.valueRating
+    : "Price Not Verified - Low Financial Risk";
+  const recommendation = profile.retailPurchaseDecision || (hasRetailEvidence ? report.recommendation : "Low-Risk Purchase - Price Not Verified");
+  const priceAssessment = profile.currentRetailPriceAssessment || "Current Retail Price: Not verified.";
+
+  return {
+    ...report,
+    retailEvidenceMode: profile.retailEvidenceMode,
+    retailRouteClassification: profile.retailRouteClassification,
+    retailPurchaseDecision: recommendation,
+    askingStorePrice: profile.askingStorePrice,
+    currentRetailPriceAssessment: priceAssessment,
+    namedStoreResult: profile.namedStoreResult,
+    bestCurrentRetailAlternative: profile.bestCurrentRetailAlternative,
+    otherCurrentRetailPrices: profile.otherCurrentRetailPrices,
+    packageUnitPriceComparison: profile.packageUnitPriceComparison,
+    localAvailabilityContext: profile.localAvailabilityContext,
+    retailPriceLimit: profile.retailPriceLimit,
+    priceConfidence: profile.priceConfidence || report.priceConfidence,
+    pricingConfidence: profile.priceConfidence || report.pricingConfidence,
+    liveComparableSearchStatus: report.liveComparableSearchStatus,
+    pricesFound: acceptedPrices,
+    noCompatiblePricesFound: acceptedPrices.length
+      ? ""
+      : "Current Retail Price: Not verified. No qualified current retail prices were found.",
+    bestCompatiblePriceFound: profile.bestCurrentRetailAlternative,
+    otherCompatiblePricesFound: profile.otherCurrentRetailPrices,
+    currentPurchaseOptionSummary: profile.currentRetailPriceAssessment,
+    priceSpectrumSummary: buildRetailCurrentPriceSpectrumSummary(profile),
+    retailPriceContext: profile.currentRetailPriceAssessment,
+    packageUnitPriceContext: profile.packageUnitPriceComparison,
+    localStoreContext: profile.localAvailabilityContext,
+    verifiedMarketRange: "",
+    currentAskingPriceRange: "",
+    preliminaryReferenceRange: "",
+    referenceRangeBasis: "",
+    valuationEvidenceState: hasRetailEvidence ? "current_retail" : "retail_unverified",
+    valuationEvidenceLabel: hasRetailEvidence ? "Current Retail Price Assessment" : "Current Retail Price Not Verified",
+    valuationEvidenceExplanation: hasRetailEvidence
+      ? "Qualified source-backed current retail evidence was used. Sold, auction, guide, reference, and secondary-market evidence did not set retail price guidance."
+      : "No qualified source-backed current retail price was found. Retail value is not verified.",
+    priceRangeAnalysis: hasRetailEvidence
+      ? "Retail range analysis is limited to qualified current retail prices. A range is shown only when at least two qualified records exist."
+      : "No retail range is shown because no qualified current retail price was verified.",
+    customerPricingSummary: priceAssessment,
+    priceBasis: ensurePrefix(report.priceBasis, forbiddenNotice),
+    estimatedFairMarketValue: "",
+    fairPriceRange: [],
+    fairValueNotEstablished: hasRetailEvidence ? "" : "Current Retail Price: Not verified",
+    valueRating,
+    recommendation,
+    buyerDecisionConfidence: hasRetailEvidence
+      ? ensureConfidenceLayer(report.buyerDecisionConfidence, "Medium", "Current retail evidence was retained; verify store availability and package/unit match.")
+      : "Low - current retail price was not verified with source-backed current retail evidence.",
+    bestNextStep: profile.nextBestAction || report.bestNextStep,
+    consumerDownsideRisk: report.consumerDownsideRisk,
+    cautiousBuyExplanation: "",
+    recommendedOffer: [],
+    openingOffer: "",
+    targetPurchasePrice: "",
+    maximumRecommendedPrice: profile.retailPriceLimit,
+    maximumRecommendedBuyPrice: profile.retailPriceLimit,
+    maximumRecommendedPriceExplanation: "",
+    walkAwayPrice: "",
+    negotiationGuidance: "",
+    reasonsToBuy: hasRetailEvidence ? normalizeFlexibleArray(report.reasonsToBuy, 4, []) : [],
+    reasonsForCaution: mergeStringArrays(
+      hasRetailEvidence ? report.reasonsForCaution : [],
+      hasRetailEvidence
+        ? ["Verify exact package count, local availability, taxes, and pickup/delivery terms."]
+        : ["No source-backed current retail price was verified.", "Do not treat auction, sold, guide, reference, or resale evidence as the current retail price."],
+      8
+    ),
+    productOrConditionRisks: report.productOrConditionRisks,
+    betterValueConsiderations: hasRetailEvidence
+      ? report.betterValueConsiderations
+      : ["Current retail price was not verified. Confirm the named-store shelf/app price or a qualified current retailer price before calling this a deal."],
+    currentPriceAssessment: priceAssessment,
+    pricingRationale: ensurePrefix(profile.currentRetailPriceAssessment || report.pricingRationale, forbiddenNotice),
+    searchDiagnostics: {
+      ...(report.searchDiagnostics || {}),
+      retailEvidenceMode: profile.retailEvidenceMode,
+      retailRouteClassification: profile.retailRouteClassification,
+      queriesSuppressed: "sold/auction/historical/collector/resale terms suppressed for current-retail-only evidence mode",
+      customerFacingRetailEvidenceCount: acceptedPrices.length,
+      referenceSecondaryEvidenceExcludedFromRetailDecision: Number(report.searchDiagnostics?.referenceSecondaryEvidenceExcludedFromRetailDecision || 0) + normalizeArray(profile.excludedPrices).length
+    }
+  };
 }
 
 function buildBestCompatiblePriceFound(pricesFound = []) {
@@ -8967,8 +9570,21 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const pricesFound = buildConsumerPricesFound(liveSearch, askingPriceNumber, {
     excludeRangeOutlierUrls: priceEvidence.outlierRecords.map((record) => record.url)
   });
+  const retailEvidenceProfile = buildRetailEvidenceProfile({
+    buyerIntake,
+    identity,
+    liveSearch,
+    pricesFound,
+    askingPriceNumber,
+    searchCompleted
+  });
+  const customerFacingPricesFound = retailEvidenceProfile.currentRetailOnly
+    ? retailEvidenceProfile.acceptedPrices
+    : pricesFound;
   const retainedVisibleResultCount = Number(liveSearch.searchDiagnostics?.retainedVisibleResultCount || liveSearch.visibleResearchResultCount || 0);
-  const fairValueNumber = priceEvidence.referenceCenter || (retainedVisibleResultCount ? extractConsumerFairValueNumber(report) : null);
+  const fairValueNumber = retailEvidenceProfile.currentRetailOnly
+    ? null
+    : priceEvidence.referenceCenter || (retainedVisibleResultCount ? extractConsumerFairValueNumber(report) : null);
   const conditionProfile = getConsumerConditionProfile(buyerIntake, identity);
   const decision = classifyConsumerPurchaseDecision({
     askingPriceNumber,
@@ -8987,7 +9603,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identity,
     liveSearch,
     priceEvidence,
-    pricesFound,
+    pricesFound: customerFacingPricesFound,
     askingPriceNumber,
     searchCompleted
   });
@@ -9004,11 +9620,19 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     : searchCompleted
       ? "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence."
       : "Live research did not complete. Consumer decision is AI-reasoning-only and low confidence.";
-  const pricesFoundSummary = buildPricesFoundSummary(pricesFound, askingPriceNumber);
-  const bestCompatiblePriceFound = buildBestCompatiblePriceFound(pricesFound);
-  const otherCompatiblePricesFound = buildOtherCompatiblePricesFound(pricesFound, bestCompatiblePriceFound);
-  const priceSpectrumSummary = buildPriceSpectrumSummary(pricesFound);
-  const currentPurchaseOptionSummary = buildCurrentPurchaseOptionSummary(pricesFound);
+  const pricesFoundSummary = buildPricesFoundSummary(customerFacingPricesFound, askingPriceNumber);
+  const bestCompatiblePriceFound = retailEvidenceProfile.currentRetailOnly
+    ? retailEvidenceProfile.bestCurrentRetailAlternative
+    : buildBestCompatiblePriceFound(customerFacingPricesFound);
+  const otherCompatiblePricesFound = retailEvidenceProfile.currentRetailOnly
+    ? retailEvidenceProfile.otherCurrentRetailPrices
+    : buildOtherCompatiblePricesFound(customerFacingPricesFound, bestCompatiblePriceFound);
+  const priceSpectrumSummary = retailEvidenceProfile.currentRetailOnly
+    ? buildRetailCurrentPriceSpectrumSummary(retailEvidenceProfile)
+    : buildPriceSpectrumSummary(customerFacingPricesFound);
+  const currentPurchaseOptionSummary = retailEvidenceProfile.currentRetailOnly
+    ? retailEvidenceProfile.currentRetailPriceAssessment
+    : buildCurrentPurchaseOptionSummary(customerFacingPricesFound);
   const researchResults = buildListingResearchResults({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const comparableQuality = buildListingComparableQuality({ ...liveSearch, liveSearchStatus }, comparableItemsFound);
   const cautionItems = mergeStringArrays(
@@ -9044,51 +9668,62 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ...researchVisibility,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     purchaseContextSummary: buildPurchaseContextSummary(buyerIntake),
+    retailEvidenceMode: retailEvidenceProfile.retailEvidenceMode,
+    retailRouteClassification: retailEvidenceProfile.retailRouteClassification,
+    retailPurchaseDecision: retailEvidenceProfile.retailPurchaseDecision,
+    askingStorePrice: retailEvidenceProfile.askingStorePrice,
+    currentRetailPriceAssessment: retailEvidenceProfile.currentRetailPriceAssessment,
+    namedStoreResult: retailEvidenceProfile.namedStoreResult,
+    bestCurrentRetailAlternative: retailEvidenceProfile.bestCurrentRetailAlternative,
+    otherCurrentRetailPrices: retailEvidenceProfile.otherCurrentRetailPrices,
+    packageUnitPriceComparison: retailEvidenceProfile.packageUnitPriceComparison,
+    localAvailabilityContext: retailEvidenceProfile.localAvailabilityContext,
+    retailPriceLimit: retailEvidenceProfile.retailPriceLimit,
     barcodeSearchStatus: buildBarcodeSearchStatus(identity, buyerIntake, liveSearch),
     localStoreContext: buildLocalStoreContext(buyerIntake, liveSearch),
-    retailPriceContext: buildRetailPriceContext(buyerIntake, priceEvidence, pricesFound, liveSearch),
-    packageUnitPriceContext: buildPackageUnitPriceContext(identity, pricesFound, liveSearch),
+    retailPriceContext: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildRetailPriceContext(buyerIntake, priceEvidence, customerFacingPricesFound, liveSearch),
+    packageUnitPriceContext: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.packageUnitPriceComparison : buildPackageUnitPriceContext(identity, customerFacingPricesFound, liveSearch),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
     bestCompatiblePriceFound,
     currentPurchaseOptionSummary,
     otherCompatiblePricesFound,
     priceSpectrumSummary,
-    pricesFound,
-    noCompatiblePricesFound: pricesFound.length ? "" : "No compatible source-backed prices were found.",
-    verifiedMarketRange: priceEvidence.verifiedMarketRange,
-    currentAskingPriceRange: priceEvidence.currentAskingPriceRange,
-    preliminaryReferenceRange: priceEvidence.primaryRangeType === "preliminary_reference"
+    pricesFound: customerFacingPricesFound,
+    noCompatiblePricesFound: customerFacingPricesFound.length ? "" : retailEvidenceProfile.currentRetailOnly ? "Current Retail Price: Not verified. No qualified current retail prices were found." : "No compatible source-backed prices were found.",
+    verifiedMarketRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.verifiedMarketRange,
+    currentAskingPriceRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.currentAskingPriceRange,
+    preliminaryReferenceRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.primaryRangeType === "preliminary_reference"
       ? cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile)
       : priceEvidence.preliminaryReferenceRange,
-    referenceRangeBasis: cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
-    valuationEvidenceState: priceEvidence.primaryRangeType === "verified_market" ? "supported" : priceEvidence.primaryRangeType === "current_asking" ? "current_asking" : priceEvidence.primaryRangeType ? "preliminary" : "insufficient",
-    valuationEvidenceLabel: priceEvidence.primaryRangeLabel || "Fair Value Not Established",
-    valuationEvidenceExplanation: buildConsumerValuationEvidenceExplanation(priceEvidence),
-    priceRangeAnalysis: buildConsumerPriceRangeAnalysis(priceEvidence),
+    referenceRangeBasis: retailEvidenceProfile.currentRetailOnly ? "" : cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
+    valuationEvidenceState: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "current_retail" : "retail_unverified") : priceEvidence.primaryRangeType === "verified_market" ? "supported" : priceEvidence.primaryRangeType === "current_asking" ? "current_asking" : priceEvidence.primaryRangeType ? "preliminary" : "insufficient",
+    valuationEvidenceLabel: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "Current Retail Price Assessment" : "Current Retail Price Not Verified") : priceEvidence.primaryRangeLabel || "Fair Value Not Established",
+    valuationEvidenceExplanation: retailEvidenceProfile.currentRetailOnly ? "Retail evidence is isolated to current retail records only." : buildConsumerValuationEvidenceExplanation(priceEvidence),
+    priceRangeAnalysis: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildConsumerPriceRangeAnalysis(priceEvidence),
     pricingOutliersExcluded: priceEvidence.outlierRecords,
-    customerPricingSummary: buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted, pricesFound }),
-    priceBasis: ensurePrefix(report.priceBasis, priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
-    estimatedFairMarketValue: priceEvidence.primaryRangeType === "verified_market" ? priceEvidence.verifiedMarketRange : buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
+    customerPricingSummary: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted, pricesFound: customerFacingPricesFound }),
+    priceBasis: ensurePrefix(report.priceBasis, retailEvidenceProfile.currentRetailOnly ? "Retail Evidence Mode: current-retail-only. Pricing basis uses qualified current retail evidence only." : priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
+    estimatedFairMarketValue: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.primaryRangeType === "verified_market" ? priceEvidence.verifiedMarketRange : buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
       fairValueNumber,
       reliableCompsFound
     }),
-    fairPriceRange: buildConsumerFairPriceRange(report.fairPriceRange, {
+    fairPriceRange: retailEvidenceProfile.currentRetailOnly ? [] : buildConsumerFairPriceRange(report.fairPriceRange, {
       fairValueNumber,
       reliableCompsFound
     }),
     valueRating: decision.valueRating,
-    recommendation: retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
+    recommendation: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPurchaseDecision : retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
     buyerDecisionConfidence: retailCalibration.buyerDecisionConfidence || report.buyerDecisionConfidence,
     bestNextStep: retailCalibration.bestNextStep || report.bestNextStep,
     consumerDownsideRisk: decision.downsideRisk.summary,
-    cautiousBuyExplanation: decision.cautiousBuyExplanation,
-    recommendedOffer: offer.recommendedOffer,
-    openingOffer: offer.openingOffer,
-    targetPurchasePrice: offer.targetPurchasePrice,
-    maximumRecommendedPrice: offer.maximumRecommendedPrice,
-    maximumRecommendedPriceExplanation: offer.maximumRecommendedPriceExplanation,
-    walkAwayPrice: offer.walkAwayPrice,
-    negotiationGuidance: buildConsumerNegotiationGuidance(report.negotiationGuidance, {
+    cautiousBuyExplanation: retailEvidenceProfile.currentRetailOnly ? "" : decision.cautiousBuyExplanation,
+    recommendedOffer: retailEvidenceProfile.currentRetailOnly ? [] : offer.recommendedOffer,
+    openingOffer: retailEvidenceProfile.currentRetailOnly ? "" : offer.openingOffer,
+    targetPurchasePrice: retailEvidenceProfile.currentRetailOnly ? "" : offer.targetPurchasePrice,
+    maximumRecommendedPrice: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPriceLimit : offer.maximumRecommendedPrice,
+    maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : offer.maximumRecommendedPriceExplanation,
+    walkAwayPrice: retailEvidenceProfile.currentRetailOnly ? "" : offer.walkAwayPrice,
+    negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? "" : buildConsumerNegotiationGuidance(report.negotiationGuidance, {
       decision,
       offer,
       reliableCompsFound,
@@ -9104,8 +9739,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     betterValueConsiderations,
     researchResults,
     comparableQuality,
-    currentPriceAssessment: retailCalibration.currentPriceAssessment || report.currentPriceAssessment,
-    pricingConfidence: retailCalibration.pricingConfidence || decision.pricingConfidence,
+    currentPriceAssessment: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : retailCalibration.currentPriceAssessment || report.currentPriceAssessment,
+    pricingConfidence: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.priceConfidence : retailCalibration.pricingConfidence || decision.pricingConfidence,
     pricingRationale: ensurePrefix(report.pricingRationale, `${retailCalibration.pricingRationalePrefix || basis} ${priceEvidence.primaryEvidenceSummary || ""} ${priceEvidence.outlierNote || ""} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
     additionalInformationNeeded: buildConsumerAdditionalInfoNeeded(report.additionalInformationNeeded, {
       reliableCompsFound,
@@ -9120,11 +9755,12 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     weFoundSimilarComparableItems: reliableCompsFound ? similarItems : []
   };
 
-  return applyValuationEvidenceLabels(normalizedReport, {
+  const guardedReport = applyValuationEvidenceLabels(normalizedReport, {
     reliableCompsFound,
     searchCompleted,
     workflow: "personal_use"
   });
+  return applyCurrentRetailDecisionFirewall(guardedReport, retailEvidenceProfile);
 }
 
 function buildPurchaseContextSummary(buyerIntake = normalizeBuyerIntake({})) {
@@ -9731,7 +10367,6 @@ function isQualifiedVerifiedSoldPriceEvidence(record = {}, normalizedPriceType =
     record.priceEvidenceType,
     record.priceTypeLabel,
     record.activeSoldReferenceStatus,
-    record.evidenceRole,
     record.influencedVerifiedMarketRange,
     extractLabeledResultPart(record.rawText, /(?:price\s*type|price\s*evidence\s*type|listing\s*status|sold\s*status|status)\s*[:=-]\s*([^|;.]+)/i)
   ].join(" "));
@@ -9927,7 +10562,7 @@ function formatPriceEvidenceRangeText(label, analysis = {}) {
   if (!analysis.hasRange) {
     return "";
   }
-  return `${label} - approximately ${formatMoneyRange(roundMoney(analysis.low), roundMoney(analysis.high))}`;
+  return `${label} - approximately ${formatMoneyRangeFromAmounts(analysis.low, analysis.high)}`;
 }
 
 function buildOutlierRangeNote(outlierRecords = []) {
@@ -10178,7 +10813,12 @@ function sanitizeConsumerRiskList(items, { buyerIntake, identity }) {
 
 function sanitizeBetterValueConsiderations(items, { decision, conditionProfile }) {
   const values = normalizeStringArray(items, 8);
-  if (decision.recommendation !== "Buy" && decision.recommendation !== "Buy If It Fits Your Needs") {
+  const recommendation = cleanText(decision.recommendation);
+  const purchasePositive = /^buy\b/i.test(recommendation)
+    || /^cautious buy\b/i.test(recommendation)
+    || /^low-risk purchase\b/i.test(recommendation)
+    || /^low risk purchase\b/i.test(recommendation);
+  if (!purchasePositive) {
     return values;
   }
 
@@ -10188,7 +10828,7 @@ function sanitizeBetterValueConsiderations(items, { decision, conditionProfile }
     decision.downsideRisk?.hardFactors,
     decision.downsideRisk?.moderateFactors
   ].flat().map(cleanText).join(" ").toLowerCase();
-  const hasConcreteWaitRisk = /condition|missing|repair|authenticity|price above|compatibility|return protection|shipping|damage|incomplete|unclear/.test(riskText);
+  const hasConcreteWaitRisk = /missing|repair|authenticity|price above|compatibility|damage|incomplete/.test(riskText);
 
   return values.filter((item) => {
     if (!/\b(wait|similar item|another item|better value may be available|cleaner comparable|open-box|refurbished|comparable model)\b/i.test(item)) {
@@ -11766,6 +12406,18 @@ function formatSourceMoney(value) {
   });
 }
 
+function formatSourceMoneyWithCents(value) {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function splitComparableItems(items) {
   const exactItems = [];
   const similarItems = [];
@@ -12478,6 +13130,9 @@ function removeUnsupportedQueryDescriptors(value, context = {}) {
 
 function finalizeSearchQueryCandidate(value, context = {}, maxTerms = 12) {
   let cleaned = cleanSearchQuery(removeUnsupportedQueryDescriptors(value, context), maxTerms);
+  if (isCurrentRetailOnlyMode(context.retailEvidenceMode) && isRetailForbiddenSecondaryEvidenceText(cleaned)) {
+    cleaned = stripRetailSecondaryMarketQueryTerms(cleaned);
+  }
   const unsupportedTerms = findUnsupportedQueryTerms(cleaned, context);
   if (unsupportedTerms.length) {
     for (const term of unsupportedTerms) {
@@ -12566,8 +13221,13 @@ function isRepetitiveQuery(query, existingQueries) {
   const normalized = query.toLowerCase();
   const quotedPhrase = getQuotedQueryPhrase(normalized);
   const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
+  const hasSiteRestriction = /\bsite:[a-z0-9.-]+/i.test(normalized);
   for (const existing of existingQueries) {
     const existingNormalized = existing.toLowerCase();
+    const existingHasSiteRestriction = /\bsite:[a-z0-9.-]+/i.test(existingNormalized);
+    if (hasSiteRestriction !== existingHasSiteRestriction) {
+      continue;
+    }
     const existingQuotedPhrase = getQuotedQueryPhrase(existingNormalized);
     if (quotedPhrase && existingQuotedPhrase && quotedPhrase !== existingQuotedPhrase) {
       continue;

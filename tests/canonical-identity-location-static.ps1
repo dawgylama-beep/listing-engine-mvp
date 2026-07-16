@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.11"; Text = $index; Pattern = "Version 1.10.11" },
-  @{ Name = "Package version is 1.10.11"; Text = $package; Pattern = '"version": "1.10.11"' },
-  @{ Name = "Server version is 1.10.11"; Text = $server; Pattern = '$AppVersion = "1.10.11"' },
-  @{ Name = "Roadmap documents 1.10.11"; Text = $roadmap; Pattern = "Version 1.10.11 (Completed)" },
+  @{ Name = "Visible app version is 1.10.12"; Text = $index; Pattern = "Version 1.10.12" },
+  @{ Name = "Package version is 1.10.12"; Text = $package; Pattern = '"version": "1.10.12"' },
+  @{ Name = "Server version is 1.10.12"; Text = $server; Pattern = '$AppVersion = "1.10.12"' },
+  @{ Name = "Roadmap documents 1.10.12"; Text = $roadmap; Pattern = "Version 1.10.12 (Completed)" },
   @{ Name = "API finalizes canonical identity before routing"; Text = $api; Pattern = "finalizeIdentityForResearch(extractedIdentity, intake)" },
   @{ Name = "API blocks unresolved conflict before live search"; Text = $api; Pattern = "identityConfirmationRequired" },
   @{ Name = "Canonical identity has field status metadata"; Text = $api; Pattern = "createCanonicalField" },
@@ -33,8 +33,8 @@ $checks = @(
   @{ Name = "Retail store plus UPC query exists"; Text = $api; Pattern = "queries.push(compactWords([storeName, barcode]));" },
   @{ Name = "Retail domain plus UPC query exists"; Text = $api; Pattern = "buildSerperSingleMarketplaceQuery(barcode, context.retailerDomain)" },
   @{ Name = "Retail brand plus SKU query exists"; Text = $api; Pattern = "queries.push(compactWords([brand, identifier]));" },
-  @{ Name = "Retail brand plus pack-count query exists"; Text = $api; Pattern = "queries.push(compactWords([brand, productType, context.packageQuantity]));" },
-  @{ Name = "Retail local competitor query exists"; Text = $api; Pattern = 'queries.push(compactWords([productType, context.packageQuantity, "near", location]));' },
+  @{ Name = "Retail brand plus pack-count query exists"; Text = $api; Pattern = "queries.push(compactWords([brand, productType, packageQuantity]));" },
+  @{ Name = "Retail local competitor query exists"; Text = $api; Pattern = 'queries.push(compactWords([productType, packageQuantity, "near", location]));' },
   @{ Name = "Customer item title uses canonical identity"; Text = $api; Pattern = "identity.canonicalProductIdentity?.customerFacingTitle" },
   @{ Name = "Diagnostics include Canonical Product Identity"; Text = $app; Pattern = '["Canonical Product Identity", diagnostics.canonicalProductIdentity]' },
   @{ Name = "Diagnostics include Retail Query Integrity"; Text = $app; Pattern = '["Retail Query Integrity", diagnostics.retailQueryIntegrity]' },

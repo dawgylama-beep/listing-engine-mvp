@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.11"
+$AppVersion = "1.10.12"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1265,6 +1265,10 @@ Do not let no exact comparable found erase a visually/user-supported subject ide
 Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.
 For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.
 For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.
+For ordinary current retail products, use Retail Evidence Mode: current-retail-only. Do not use auction, historical sold, guide, WorthPoint, PicClick, resale, thrift, flea-market, estate-sale, collector, or secondary-market evidence to establish customer-facing current retail value.
+For ordinary fixed-price retail-store purchases, do not show Opening Offer, negotiation target, offer ladder, market-supported maximum, personal-enjoyment exception, or Maximum Price Guard. Default to Store price is fixed unless the intake explicitly says the retail price is negotiable.
+For ordinary current retail products, show Current Retail Price: Not verified when no exact/strong qualified current retail source was found. Do not fabricate a retail range, named-store price, or competing retailer result.
+Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Match, Compatible Alternative, Package-Size Difference, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.
 Before retail query generation, reconcile one Canonical Product Identity from barcode/UPC, visible package text, brand, item number/SKU, package count, size, user description, purchase context, and store name. Strong barcode/OCR/package/SKU evidence must outrank weaker visual inference.
 Reject unsupported identity terms before search. Example: if barcode/package text says Office Works Security Envelopes, 45 count, Strip & Seal, item 6110325, UPC 041226087161, do not use poster print in title, queries, matching, pricing, or customer-facing text unless the user confirms that conflict.
 For retail-store products, generate separate query ideas in priority order: exact UPC alone, store plus exact UPC, known retailer-domain plus exact UPC, brand plus product name, brand plus SKU/item number, brand plus product type and package count, store plus brand/product, and local competitor query only when ZIP or general area is available.

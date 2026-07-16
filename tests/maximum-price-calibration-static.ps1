@@ -13,10 +13,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.10.11"; Text = $index; Pattern = "Version 1.10.11" },
-  @{ Name = "Package version is 1.10.11"; Text = $package; Pattern = '"version": "1.10.11"' },
-  @{ Name = "Server version is 1.10.11"; Text = $server; Pattern = '$AppVersion = "1.10.11"' },
-  @{ Name = "Roadmap documents 1.10.11"; Text = $roadmap; Pattern = "Version 1.10.11 (Completed)" },
+  @{ Name = "Visible app version is 1.10.12"; Text = $index; Pattern = "Version 1.10.12" },
+  @{ Name = "Package version is 1.10.12"; Text = $package; Pattern = '"version": "1.10.12"' },
+  @{ Name = "Server version is 1.10.12"; Text = $server; Pattern = '$AppVersion = "1.10.12"' },
+  @{ Name = "Roadmap documents 1.10.12"; Text = $roadmap; Pattern = "Version 1.10.12 (Completed)" },
   @{ Name = "API builds maximum evidence profile"; Text = $api; Pattern = "function buildMaximumPriceEvidenceProfile" },
   @{ Name = "API builds maximum policy"; Text = $api; Pattern = "function buildMaximumRecommendedPricePolicy" },
   @{ Name = "API passes price evidence to offer builder"; Text = $api; Pattern = "priceEvidence" },
@@ -25,7 +25,7 @@ $checks = @(
   @{ Name = "API blocks weak reference maximum"; Text = $api; Pattern = "Weak, partial, guide, auction, estimated, or reference prices may provide context only." },
   @{ Name = "API guards 2x target"; Text = $api; Pattern = "a price above 2x the target requires qualified exact/strong evidence" },
   @{ Name = "API guards 3x asking"; Text = $api; Pattern = "a price above 3x the current asking price requires verified sold or active exact/strong support" },
-  @{ Name = "API includes maximum explanation in report"; Text = $api; Pattern = "maximumRecommendedPriceExplanation: offer.maximumRecommendedPriceExplanation" },
+  @{ Name = "API includes maximum explanation in non-retail report"; Text = $api; Pattern = 'maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : offer.maximumRecommendedPriceExplanation' },
   @{ Name = "Frontend has maximum guard section"; Text = $app; Pattern = '["maximumRecommendedPriceExplanation", "Maximum Price Guard"]' },
   @{ Name = "Frontend compact report shows maximum guard"; Text = $app; Pattern = 'appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation)' },
   @{ Name = "Mock test blocks $135 max"; Text = $mock; Pattern = 'cannot produce a $135 maximum' },

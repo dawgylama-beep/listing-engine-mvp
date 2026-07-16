@@ -208,6 +208,17 @@ const consumerSections = [
   ["identitySummary", "Identity Summary"],
   ["evidenceFoundInPhotos", "Evidence Found in Photos"],
   ["purchaseContextSummary", "Purchase Context"],
+  ["retailEvidenceMode", "Retail Evidence Mode"],
+  ["retailRouteClassification", "Retail Route Classification"],
+  ["retailPurchaseDecision", "Retail Purchase Decision"],
+  ["askingStorePrice", "Asking / Store Price"],
+  ["currentRetailPriceAssessment", "Current Retail Price Assessment"],
+  ["namedStoreResult", "Named Store Result"],
+  ["bestCurrentRetailAlternative", "Best Current Retail Alternative"],
+  ["otherCurrentRetailPrices", "Other Current Retail Prices"],
+  ["packageUnitPriceComparison", "Package and Unit Price Comparison"],
+  ["localAvailabilityContext", "Local Availability Context"],
+  ["retailPriceLimit", "Retail Price Limit"],
   ["barcodeSearchStatus", "Barcode Search Status"],
   ["localStoreContext", "Local Store Context"],
   ["retailPriceContext", "Retail Price Context"],
@@ -1006,6 +1017,17 @@ function extractReportContext(report, sections = []) {
     "researchResults",
     "comparableQuality",
     "purchaseContextSummary",
+    "retailEvidenceMode",
+    "retailRouteClassification",
+    "retailPurchaseDecision",
+    "askingStorePrice",
+    "currentRetailPriceAssessment",
+    "namedStoreResult",
+    "bestCurrentRetailAlternative",
+    "otherCurrentRetailPrices",
+    "packageUnitPriceComparison",
+    "localAvailabilityContext",
+    "retailPriceLimit",
     "barcodeSearchStatus",
     "localStoreContext",
     "retailPriceContext",
@@ -1178,6 +1200,10 @@ function getDisplayConfig(config, report) {
 
 function isConsumerReport(report) {
   return String(report && report.buyerIntent || "").toLowerCase() === "personal_use";
+}
+
+function isCurrentRetailOnlyReport(report) {
+  return String(report && report.retailEvidenceMode || "").toLowerCase() === "current-retail-only";
 }
 
 function normalizeReportForEvidenceDisplay(report, workflow) {
@@ -1808,6 +1834,15 @@ function renderSearchDiagnostics(diagnostics) {
     ["Fallback Provider Used", diagnostics.fallbackProviderUsed === undefined ? "" : diagnostics.fallbackProviderUsed ? "Yes" : "No"],
     ["Serper Calls Attempted", diagnostics.serperCallsAttempted],
     ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
+    ["Retail Evidence Mode", diagnostics.retailEvidenceMode],
+    ["Retail Route Classification", diagnostics.retailRouteClassification],
+    ["Queries Suppressed", diagnostics.queriesSuppressed],
+    ["Customer-Facing Retail Evidence Count", diagnostics.customerFacingRetailEvidenceCount],
+    ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
+    ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
+    ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
+    ["Manual ZIP Used", diagnostics.manualZipUsed],
+    ["Browser Coordinates Displayed", diagnostics.browserCoordinatesDisplayed],
     ["Provider Sources Returned", diagnostics.providerSourceCount],
     ["Organic Results Returned", diagnostics.organicResultCount],
     ["Shopping Results Returned", diagnostics.shoppingResultCount],
@@ -2215,6 +2250,28 @@ function getExecutiveSummary(report, workflow) {
     };
   }
 
+  if (isCurrentRetailOnlyReport(report)) {
+    const recommendation = firstNonEmpty(report.retailPurchaseDecision, report.recommendation, "Current Retail Price Not Verified");
+    const priceAssessment = firstNonEmpty(report.currentRetailPriceAssessment, report.noCompatiblePricesFound, "Current Retail Price: Not verified");
+    const askingPrice = firstNonEmpty(report.askingStorePrice, report.askingPrice, "Not provided");
+    const confidence = getConfidenceText(report);
+    const nextStep = firstNonEmpty(report.bestNextStep, report.whatToVerifyBeforeBuying, report.additionalInformationNeeded, "Confirm package count, current store price, taxes, and pickup or delivery terms before acting.");
+    return {
+      eyebrow: "Executive Summary",
+      title: recommendation,
+      badge: firstNonEmpty(report.retailRouteClassification, "Ordinary Current Retail Product"),
+      tone: report.valueRating || recommendation,
+      metrics: [
+        ["Retail Purchase Decision", recommendation],
+        ["Asking / Store Price", askingPrice],
+        ["Current Retail Price Assessment", priceAssessment],
+        ["Retail Price Limit", report.retailPriceLimit],
+        ["Confidence", confidence],
+        ["Best Next Step", normalizeDisplayValue(nextStep)]
+      ]
+    };
+  }
+
   const recommendation = firstNonEmpty(report.recommendation, report.purchaserDecision, "Need More Information");
   const valueRating = firstNonEmpty(report.valueRating, report.currentPriceAssessment, "Insufficient Evidence");
   const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, "Not provided");
@@ -2239,6 +2296,9 @@ function getExecutiveSummary(report, workflow) {
 }
 
 function getValuationDisplayValue(report, valuation) {
+  if (isCurrentRetailOnlyReport(report)) {
+    return firstNonEmpty(report.currentRetailPriceAssessment, report.noCompatiblePricesFound, "Current Retail Price: Not verified");
+  }
   if (valuation.state === "supported") {
     return firstNonEmpty(report.estimatedFairMarketValue, report.estimatedMarketValue, report.fairPriceRange, valuation.range, "Value needs more evidence");
   }
@@ -2874,6 +2934,7 @@ function clearAskStatus() {
 
 function renderConsumerSummary(report) {
   const valuation = classifyValuationEvidenceForDisplay(report);
+  const retailReport = isCurrentRetailOnlyReport(report);
   const card = document.createElement("article");
   card.className = `consumer-summary-card ${getValueRatingModifier(report.valueRating)}`;
 
@@ -2882,25 +2943,36 @@ function renderConsumerSummary(report) {
 
   const label = document.createElement("p");
   label.className = "summary-eyebrow";
-  label.textContent = "Personal-use decision";
+  label.textContent = retailReport ? "Retail purchase decision" : "Personal-use decision";
 
   const title = document.createElement("h3");
-  title.textContent = report.recommendation || "Need More Information";
+  title.textContent = retailReport
+    ? report.retailPurchaseDecision || report.recommendation || "Current Retail Price Not Verified"
+    : report.recommendation || "Need More Information";
 
   const badge = document.createElement("span");
   badge.className = "summary-badge";
-  badge.textContent = report.valueRating || "Insufficient Evidence";
+  badge.textContent = retailReport
+    ? report.retailRouteClassification || report.valueRating || "Ordinary Current Retail Product"
+    : report.valueRating || "Insufficient Evidence";
 
   header.append(label, title, badge);
 
   const grid = document.createElement("dl");
   grid.className = "consumer-summary-grid";
-  const metrics = [
-    ["Asking Price", report.askingPrice],
-    [valuation.label, getValuationDisplayValue(report, valuation)],
-    ["Recommended Offer", Array.isArray(report.recommendedOffer) ? report.recommendedOffer.join(" | ") : report.recommendedOffer],
-    ["Pricing Confidence", report.pricingConfidence]
-  ];
+  const metrics = retailReport
+    ? [
+        ["Asking / Store Price", report.askingStorePrice || report.askingPrice],
+        ["Current Retail Price Assessment", report.currentRetailPriceAssessment],
+        ["Retail Price Limit", report.retailPriceLimit],
+        ["Pricing Confidence", report.pricingConfidence || report.priceConfidence]
+      ]
+    : [
+        ["Asking Price", report.askingPrice],
+        [valuation.label, getValuationDisplayValue(report, valuation)],
+        ["Recommended Offer", Array.isArray(report.recommendedOffer) ? report.recommendedOffer.join(" | ") : report.recommendedOffer],
+        ["Pricing Confidence", report.pricingConfidence]
+      ];
 
   for (const [name, value] of metrics) {
     if (!value || (Array.isArray(value) && !value.length)) {
@@ -2924,6 +2996,75 @@ function renderConsumerCompactSummary(report, workflow) {
   const card = renderConsumerSummary(report);
   const details = document.createElement("div");
   details.className = "consumer-compact-sections";
+  const copyButton = document.createElement("button");
+  copyButton.className = "copy-button summary-copy";
+  copyButton.type = "button";
+  copyButton.textContent = "Copy Summary";
+  copyButton.addEventListener("click", () => copyText(formatExecutiveSummary(report, workflow), copyButton));
+
+  if (isCurrentRetailOnlyReport(report)) {
+    appendConsumerCompactSection(details, "Retail Purchase Decision", firstNonEmpty(
+      report.retailPurchaseDecision,
+      report.recommendation,
+      "Current Retail Price Not Verified"
+    ));
+    appendConsumerCompactSection(details, "Asking / Store Price", firstNonEmpty(report.askingStorePrice, report.askingPrice));
+    appendConsumerCompactSection(details, "Current Retail Price Assessment", report.currentRetailPriceAssessment);
+    appendConsumerCompactSection(details, "Named Store Result", report.namedStoreResult);
+
+    if (report.bestCurrentRetailAlternative && typeof report.bestCurrentRetailAlternative === "object") {
+      const bestSection = document.createElement("section");
+      bestSection.className = "consumer-compact-section price-context-section";
+      const bestTitle = document.createElement("h4");
+      bestTitle.textContent = report.bestCurrentRetailAlternative.priceContextLabel || "Best Current Retail Alternative";
+      bestSection.appendChild(bestTitle);
+      if (report.bestCurrentRetailAlternative.priceContextSummary) {
+        const summary = document.createElement("p");
+        summary.textContent = report.bestCurrentRetailAlternative.priceContextSummary;
+        bestSection.appendChild(summary);
+      }
+      bestSection.appendChild(renderPriceFoundCard(report.bestCurrentRetailAlternative));
+      details.appendChild(bestSection);
+    }
+
+    if (normalizeArray(report.otherCurrentRetailPrices).length) {
+      const otherSection = document.createElement("section");
+      otherSection.className = "consumer-compact-section price-context-section";
+      const otherTitle = document.createElement("h4");
+      otherTitle.textContent = "Other Current Retail Prices";
+      otherSection.appendChild(otherTitle);
+      otherSection.appendChild(renderPricesFound(report.otherCurrentRetailPrices));
+      details.appendChild(otherSection);
+    }
+
+    appendConsumerCompactSection(details, "Package and Unit Price Comparison", firstNonEmpty(report.packageUnitPriceComparison, report.packageUnitPriceContext));
+    appendConsumerCompactSection(details, "Local Availability Context", firstNonEmpty(report.localAvailabilityContext, report.localStoreContext));
+    appendConsumerCompactSection(details, "Price Confidence", firstNonEmpty(report.pricingConfidence, report.priceConfidence));
+    appendConsumerCompactSection(details, "Retail Price Limit", report.retailPriceLimit);
+    appendConsumerCompactSection(details, "Next Best Action", firstNonEmpty(
+      report.bestNextStep,
+      report.whatToVerifyBeforeBuying,
+      report.additionalInformationNeeded,
+      "Confirm package count, current store price, taxes, and pickup or delivery terms before acting."
+    ));
+
+    const pricesSection = document.createElement("section");
+    pricesSection.className = "consumer-compact-section";
+    const pricesTitle = document.createElement("h4");
+    pricesTitle.textContent = "Current Retail Prices Found";
+    pricesSection.appendChild(pricesTitle);
+    if (normalizeArray(report.pricesFound).length) {
+      pricesSection.appendChild(renderPricesFound(report.pricesFound));
+    } else {
+      const empty = document.createElement("p");
+      empty.textContent = report.noCompatiblePricesFound || "Current Retail Price: Not verified.";
+      pricesSection.appendChild(empty);
+    }
+    details.appendChild(pricesSection);
+
+    card.append(details, copyButton);
+    return card;
+  }
 
   appendConsumerCompactSection(details, "Evidence Summary", firstNonEmpty(
     report.customerPricingSummary,
@@ -2995,12 +3136,6 @@ function renderConsumerCompactSummary(report, workflow) {
     "Verify item identity, condition, and price evidence before acting."
   ));
 
-  const copyButton = document.createElement("button");
-  copyButton.className = "copy-button summary-copy";
-  copyButton.type = "button";
-  copyButton.textContent = "Copy Summary";
-  copyButton.addEventListener("click", () => copyText(formatExecutiveSummary(report, workflow), copyButton));
-
   card.append(details, copyButton);
   return card;
 }
@@ -3040,6 +3175,20 @@ function shouldRenderSection(key, value) {
   }
 
   if (typeof value === "string" && !value.trim()) {
+    return false;
+  }
+
+  if (latestReport && isCurrentRetailOnlyReport(latestReport) && new Set([
+    "recommendedOffer",
+    "maximumRecommendedPriceExplanation",
+    "walkAwayPrice",
+    "negotiationGuidance",
+    "verifiedMarketRange",
+    "currentAskingPriceRange",
+    "preliminaryReferenceRange",
+    "estimatedFairMarketValue",
+    "fairPriceRange"
+  ]).has(key)) {
     return false;
   }
 
@@ -3113,7 +3262,7 @@ function renderPriceFoundCard(item) {
   titleGroup.append(title, source);
   const badge = document.createElement("span");
   badge.className = "price-type-badge";
-  badge.textContent = item.priceType || "Unknown Price Type";
+  badge.textContent = item.priceTypeLabel || item.priceType || "Unknown Price Type";
   header.append(titleGroup, badge);
 
   const amounts = document.createElement("dl");
@@ -3129,6 +3278,7 @@ function renderPriceFoundCard(item) {
   [
     ["Status", item.listingStatus],
     ["Match", item.matchQuality],
+    ["Retail label", item.priceTypeLabel],
     ["Limitation", item.conciseLimitation]
   ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
 
@@ -3692,6 +3842,15 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Fallback Provider Used", diagnostics.fallbackProviderUsed === undefined ? "" : diagnostics.fallbackProviderUsed ? "Yes" : "No"],
     ["Serper Calls Attempted", diagnostics.serperCallsAttempted],
     ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
+    ["Retail Evidence Mode", diagnostics.retailEvidenceMode],
+    ["Retail Route Classification", diagnostics.retailRouteClassification],
+    ["Queries Suppressed", diagnostics.queriesSuppressed],
+    ["Customer-Facing Retail Evidence Count", diagnostics.customerFacingRetailEvidenceCount],
+    ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
+    ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
+    ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
+    ["Manual ZIP Used", diagnostics.manualZipUsed],
+    ["Browser Coordinates Displayed", diagnostics.browserCoordinatesDisplayed],
     ["Provider Sources Returned", diagnostics.providerSourceCount],
     ["Organic Results Returned", diagnostics.organicResultCount],
     ["Shopping Results Returned", diagnostics.shoppingResultCount],
@@ -3750,7 +3909,7 @@ function formatSection(label, value) {
 }
 
 function isPriceFoundSectionLabel(label = "") {
-  return /^(Best Compatible Price Found|Other Compatible Prices Found|Prices Found)$/i.test(label);
+  return /^(Best Compatible Price Found|Other Compatible Prices Found|Prices Found|Best Current Retail Alternative|Other Current Retail Prices|Current Retail Prices Found)$/i.test(label);
 }
 
 function formatPriceFoundRecordText(item = {}) {
@@ -3760,6 +3919,7 @@ function formatPriceFoundRecordText(item = {}) {
     ["Shipping", item.shipping || "Not shown"],
     ["Delivered cost", item.deliveredCost || "Not established"],
     ["Price type", item.priceType],
+    ["Retail label", item.priceTypeLabel],
     ["Listing status", item.listingStatus],
     ["Match quality", item.matchQuality],
     ["Limitation", item.conciseLimitation],

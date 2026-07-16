@@ -337,6 +337,15 @@
 - Technical Search Details now include Canonical Product Identity, Retail Query Integrity, rejected unsupported terms, named-store query status, location outcome, and pack-size mismatch details while remaining collapsed
 - Regression tests cover Office Works security-envelope identity reconciliation, poster-print rejection, retail query priority, geolocation flow, location privacy, and preserved 1.10.7-1.10.10 safeguards
 
+## Version 1.10.12 (Completed)
+- Ordinary current retail products now use a strict `current-retail-only` evidence mode
+- Customer-facing retail decisions exclude auction, historical sold, guide, reference, resale, collector, and secondary-market evidence from current retail value
+- Fixed-price retail-store reports now use Retail Purchase Decision, Current Retail Price Assessment, Named Store Result, Retail Price Limit, package/unit comparison, and local availability context instead of offer ladders or Maximum Price Guard language
+- Retail reports show `Current Retail Price: Not verified` when no qualified source-backed current retail price is found, without fabricating a range or named-store price
+- Package matching now separates exact retail matches, compatible alternatives, unit-price-only comparisons, package-size differences, and rejected retail mismatches
+- Technical Search Details now show retail evidence mode, route classification, suppressed query terms, accepted/rejected retail candidates, manual ZIP status, and excluded secondary evidence counts
+- Regression tests cover the Office Works/Kroger fixed-price retail path, secondary evidence isolation, query suppression, package mismatch rules, location-denied/manual-ZIP copy, and preserved 1.10.9-1.10.11 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings
