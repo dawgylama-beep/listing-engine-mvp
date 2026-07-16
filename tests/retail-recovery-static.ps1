@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.3"; Text = $index; Pattern = "Version 1.11.3" },
-  @{ Name = "Package version is 1.11.3"; Text = $package; Pattern = '"version": "1.11.3"' },
-  @{ Name = "Server version is 1.11.3"; Text = $server; Pattern = '$AppVersion = "1.11.3"' },
+  @{ Name = "Visible app version is 1.11.4"; Text = $index; Pattern = "Version 1.11.4" },
+  @{ Name = "Package version is 1.11.4"; Text = $package; Pattern = '"version": "1.11.4"' },
+  @{ Name = "Server version is 1.11.4"; Text = $server; Pattern = '$AppVersion = "1.11.4"' },
   @{ Name = "Roadmap documents retail recovery"; Text = $roadmap; Pattern = "Retail evidence recovery now distinguishes" },
   @{ Name = "Exact retail match label exists"; Text = $api; Pattern = "Exact Retail Match" },
   @{ Name = "Strong retail alternative label exists"; Text = $api; Pattern = "Strong Retail Alternative" },
@@ -32,10 +32,10 @@ $checks = @(
   @{ Name = "Wide package-size mismatch still rejects"; Text = $api; Pattern = "Package count differs too much for retail price comparison" },
   @{ Name = "Category context is excluded from retail price decisions"; Text = $api; Pattern = 'packageCompatibility.label !== "Retail Category Context"' },
   @{ Name = "Compatible alternatives are customer-facing"; Text = $api; Pattern = "Compatible Current Retail Alternatives" },
-  @{ Name = "Exact product disclaimer exists"; Text = $api; Pattern = "compatible alternatives are not the same item" },
+  @{ Name = "Exact product disclaimer exists"; Text = $api; Pattern = "Compatible alternatives are not the same item" },
   @{ Name = "Package price language exists"; Text = $api; Pattern = "package price" },
   @{ Name = "Per-unit language exists"; Text = $api; Pattern = "per unit" },
-  @{ Name = "Entered unit price language exists"; Text = $api; Pattern = 'The entered ${askingText} price equals approximately' },
+  @{ Name = "Entered unit price language exists"; Text = $api; Pattern = 'Your price is ${askingText} for ${submittedQuantity}' },
   @{ Name = "Retail budget displayed in frontend diagnostics"; Text = $app; Pattern = "Retail Provider Call Budget" },
   @{ Name = "Retail stages displayed in frontend diagnostics"; Text = $app; Pattern = "Retail Stages Attempted" },
   @{ Name = "Retail compatibility counts displayed in frontend diagnostics"; Text = $app; Pattern = "Unit-Price Comparable Count" },

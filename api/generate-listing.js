@@ -1482,6 +1482,7 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
         "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, item code, slogan, event name, organization/team, named person, year, dimension, or reverse-side description appears.",
         "For ordinary current retail products, barcode/UPC digits are the highest-priority identity clue. Extract and preserve the exact digit sequence when readable.",
+        "Do not silently correct barcode digits. If multiple barcode/UPC digit candidates are visible, preserve the alternatives in visibleText or textIdentityEvidence so the server can validate check digits before search.",
         "If barcode lines are visible but the digits cannot be read confidently, set barcodeReadStatus to unreadable and set barcodeFailureMessage to: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
         "Capture pack size, package quantity, unit count, dimensions, closure type, variation, and quantity wording when visible or provided, such as 100-count envelopes, peel-and-seal, #10, legal size, multipack, bottle count, ounce count, or sheet count.",
         "For branded collectibles, advertising/promotional items, sports memorabilia, commemorative items, collector plates/trays, toys, books, art, tools, and appliances, preserve exact visible phrase combinations because they are usually stronger search keys than generic category descriptions.",
@@ -2707,12 +2708,15 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
 
 function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const records = [];
-  const barcode = context.barcodeDigits || normalizeBarcodeDigits(context.upc);
+  const barcode = context.barcodeDigits;
   const storeName = cleanText(context.storeName || context.retailerOrMarketplaceName);
   const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
   const identifier = firstKnown(context.itemCode, context.model);
-  const productFamily = deriveRetailProductFamily(context);
-  const closure = deriveRetailClosurePhrase(context);
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
+  const productFamily = fallbackIdentity.productType || deriveRetailProductFamily(context);
+  const closure = fallbackIdentity.closure || deriveRetailClosurePhrase(context);
+  const feature = fallbackIdentity.importantFeature;
+  const size = fallbackIdentity.size;
   const productTitle = cleanSearchQuery(firstKnown(context.productTitle, context.exactProductIdentity, context.subjectIdentity, productFamily), 9);
   const exactProduct = cleanSearchQuery(compactWords([brand, productTitle || productFamily, context.packageQuantity, context.packageSize]), 12);
   const reducedProduct = stripRetailUnavailableIdentifiers(firstKnown(productTitle, exactProduct, productFamily), context);
@@ -2776,7 +2780,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
 
   for (const count of compatibleCounts) {
     add({
-      query: compactWords([productFamily, closure, `${count} count`]),
+      query: compactWords([productFamily, closure, feature, size, `${count} count`]),
       searchPass: stage3,
       retailStage: stage3,
       retailStageLabel: "Stage 3 - Strong compatible alternatives",
@@ -2784,12 +2788,12 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
       candidateOrigin: "retail_compatible_pack_count"
     });
   }
-  add({ query: compactWords(["business", productFamily, "self seal"]), searchPass: stage3, retailStage: stage3, retailStageLabel: "Stage 3 - Strong compatible alternatives", retailBudgetBucket: "compatibleAlternatives", candidateOrigin: "retail_compatible_business_self_seal" });
-  add({ query: compactWords(["comparable", productFamily, "current retail price"]), searchPass: stage3, retailStage: stage3, retailStageLabel: "Stage 3 - Strong compatible alternatives", retailBudgetBucket: "compatibleAlternatives", candidateOrigin: "retail_compatible_current_price" });
+  add({ query: compactWords([fallbackIdentity.intendedUse, productFamily, closure || "self seal", feature]), searchPass: stage3, retailStage: stage3, retailStageLabel: "Stage 3 - Strong compatible alternatives", retailBudgetBucket: "compatibleAlternatives", candidateOrigin: "retail_compatible_functional_use" });
+  add({ query: compactWords([productFamily, feature, "comparable package current price"]), searchPass: stage3, retailStage: stage3, retailStageLabel: "Stage 3 - Strong compatible alternatives", retailBudgetBucket: "compatibleAlternatives", candidateOrigin: "retail_compatible_current_price" });
 
   for (const retailer of retailers) {
     add({
-      query: compactWords([retailer, productFamily, closure, compatibleCounts[0] ? `${compatibleCounts[0]} count` : "", "current price"]),
+      query: compactWords([retailer, productFamily, closure, feature, compatibleCounts[0] ? `${compatibleCounts[0]} count` : "", "current price"]),
       searchPass: stage4,
       retailStage: stage4,
       retailStageLabel: "Stage 4 - Retailer-specific alternatives",
@@ -2798,8 +2802,8 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
     });
   }
 
-  add({ query: compactWords([productFamily, closure, "shopping"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_shopping_recovery" });
-  add({ query: compactWords([productFamily, closure, "package price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_package_price" });
+  add({ query: compactWords([productFamily, closure, feature, "shopping"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_shopping_recovery" });
+  add({ query: compactWords([productFamily, closure, feature, "package price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_package_price" });
   add({ query: compactWords([productFamily, "current retail price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_current_price" });
 
   return records;
@@ -2807,10 +2811,35 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
 
 function stripRetailUnavailableIdentifiers(value = "", context = {}) {
   let text = cleanText(value);
-  for (const identifier of [context.barcodeDigits, context.upc, context.itemCode, context.model].map(cleanText).filter(Boolean)) {
+  const invalidBarcodeCandidates = normalizeArray(context.barcodeIntegrity?.rejectedCandidates)
+    .map((candidate) => cleanText(candidate.sequence))
+    .filter(Boolean);
+  for (const identifier of [context.barcodeDigits, context.upc, ...invalidBarcodeCandidates, context.itemCode, context.model].map(cleanText).filter(Boolean)) {
     text = text.replace(new RegExp(`\\b${escapeRegExp(identifier)}\\b`, "gi"), "");
   }
   return cleanSearchQuery(text.replace(/\b(?:upc|barcode|sku|item\s*(?:number|#)?)\b/gi, " "), 10);
+}
+
+function buildRetailAttributeFallbackIdentity(context = {}) {
+  const productType = deriveRetailProductFamily(context);
+  const submittedQuantity = getRetailSubmittedPackageQuantity(context);
+  const quantity = Number.isFinite(submittedQuantity) && submittedQuantity > 0
+    ? `${submittedQuantity} count`
+    : cleanText(context.packageQuantity);
+  return {
+    productType,
+    intendedUse: deriveRetailIntendedUse(context),
+    size: deriveRetailSizePhrase(context),
+    quantity,
+    closure: deriveRetailClosurePhrase(context),
+    importantFeature: deriveRetailImportantFeature(context),
+    brand: cleanText(context.brand || context.visualBrand || context.manufacturer),
+    sku: cleanText(context.itemCode || context.model),
+    validatedBarcode: cleanText(context.barcodeDigits),
+    brandRemovedFromFallback: Boolean(context.brand || context.visualBrand || context.manufacturer),
+    invalidBarcodeRemovedFromFallback: normalizeArray(context.barcodeIntegrity?.rejectedCandidates).length > 0,
+    confidence: productType ? "package-attribute fallback" : "limited package-attribute fallback"
+  };
 }
 
 function deriveRetailProductFamily(context = {}) {
@@ -2826,6 +2855,81 @@ function deriveRetailProductFamily(context = {}) {
   if (/\benvelopes?\b/.test(text)) return "envelopes";
   if (/\bstationery\b/.test(text)) return "stationery";
   return cleanSearchQuery(firstKnown(context.itemType, context.categoryPhrase, context.productTitle, context.subjectIdentity), 6);
+}
+
+function deriveRetailIntendedUse(context = {}) {
+  const text = normalizeComparableText([
+    context.productTitle,
+    context.subjectIdentity,
+    context.itemType,
+    context.categoryPhrase,
+    context.notesText,
+    context.labelText
+  ].join(" "));
+  if (/\b(?:security|privacy|confidential)\b/.test(text) && /\benvelopes?\b/.test(text)) return "business privacy mailing";
+  if (/\bbusiness\b/.test(text) && /\benvelopes?\b/.test(text)) return "business mailing";
+  if (/\b(?:food|grocery|household|cleaning|laundry|dish|trash|storage)\b/.test(text)) return "household use";
+  return "";
+}
+
+function deriveRetailSizePhrase(context = {}) {
+  const text = normalizeComparableText([
+    context.packageSize,
+    context.canonicalVariant,
+    context.productTitle,
+    context.subjectIdentity,
+    context.notesText,
+    context.labelText
+  ].join(" "));
+  if (/\benvelopes?\b/.test(text) && /\b#\s*10\b|number\s*10\b|\b10\s+envelopes?\b/i.test(text)) return "#10";
+  const dimension = text.match(/\b\d{1,3}(?:\.\d+)?\s*(?:x|by)\s*\d{1,3}(?:\.\d+)?\s*(?:in|inch|inches|cm|mm)?\b/i);
+  if (dimension) return dimension[0];
+  return cleanSearchQuery(context.packageSize, 4);
+}
+
+function deriveRetailImportantFeature(context = {}) {
+  const text = normalizeComparableText([
+    context.productTitle,
+    context.exactProductIdentity,
+    context.subjectIdentity,
+    context.itemType,
+    context.categoryPhrase,
+    context.notesText,
+    context.labelText
+  ].join(" "));
+  if (/\b(?:security|privacy|confidential|security\s+tint|inside\s+security)\b/.test(text)) return "security privacy";
+  if (/\b(?:waterproof|water resistant)\b/.test(text)) return "waterproof";
+  if (/\b(?:gluten free|sugar free|organic|unscented|scented)\b/.test(text)) {
+    return cleanSearchQuery((text.match(/\b(?:gluten free|sugar free|organic|unscented|scented)\b/i) || [""])[0], 3);
+  }
+  return "";
+}
+
+function extractRetailSizeToken(value = "") {
+  const text = normalizeComparableText(value);
+  if (/\b#\s*10\b|\bnumber\s*10\b|\bno\.?\s*10\b|\b10\s+security\s+envelopes?\b/.test(text)) return "#10";
+  if (/\blegal\s+size\b/.test(text)) return "legal";
+  if (/\bletter\s+size\b/.test(text)) return "letter";
+  const dimension = text.match(/\b\d{1,3}(?:\.\d+)?\s*(?:x|by)\s*\d{1,3}(?:\.\d+)?\s*(?:in|inch|inches|cm|mm)?\b/i);
+  return dimension ? cleanText(dimension[0]).toLowerCase() : "";
+}
+
+function detectRetailProductCategoryConflict(submittedText = "", candidateText = "") {
+  const submitted = normalizeComparableText(submittedText);
+  const candidate = normalizeComparableText(candidateText);
+  const submittedIsEnvelope = /\benvelopes?\b/.test(submitted);
+  if (submittedIsEnvelope) {
+    if (/\b(?:shipping\s+labels?|address\s+labels?|labels?|label\s+maker|stationery\s+kit|note\s+cards?|cardstock|paper\s+clips?|file\s+folders?)\b/.test(candidate)) {
+      return "wrong product category";
+    }
+    if (/\b(?:invitation|wedding|decorative|greeting|party|craft)\s+envelopes?\b/.test(candidate)) {
+      return "wrong product category";
+    }
+  }
+  if (/\b(?:firearm|ammo|ammunition|rifle|pistol|holster|sporting\s+goods?|automotive|motor\s+oil|brake|medical|syringe|prescription)\b/.test(candidate)) {
+    return "prohibited category conflict";
+  }
+  return "";
 }
 
 function deriveRetailClosurePhrase(context = {}) {
@@ -3190,6 +3294,12 @@ function validateSerperQueryCandidate(query, context = {}, options = {}) {
   if (isCurrentRetailOnlyMode(context.retailEvidenceMode) && isRetailForbiddenSecondaryEvidenceText(core)) {
     return { passed: false, reason: "retail_forbidden_secondary_market_terms" };
   }
+  const invalidBarcodeReason = isCurrentRetailOnlyMode(context.retailEvidenceMode)
+    ? invalidRetailBarcodeQueryFailureReason(core, context)
+    : "";
+  if (invalidBarcodeReason) {
+    return { passed: false, reason: invalidBarcodeReason };
+  }
   if (isBrandOnlyQuery(core, context)) {
     return { passed: false, reason: "brand_only_query" };
   }
@@ -3230,6 +3340,27 @@ function validateSerperQueryCandidate(query, context = {}, options = {}) {
   return { passed: true, reason: "" };
 }
 
+function invalidRetailBarcodeQueryFailureReason(query = "", context = {}) {
+  const core = cleanText(query);
+  const rejectedSequences = normalizeArray(context.barcodeIntegrity?.rejectedCandidates)
+    .map((candidate) => cleanText(candidate.sequence))
+    .filter(Boolean);
+  if (rejectedSequences.some((sequence) => core.includes(sequence))) {
+    return "invalid_barcode_suppressed";
+  }
+  const barcodeLikeSequences = extractBarcodeDigitCandidatesFromText(core);
+  for (const sequence of barcodeLikeSequences) {
+    if (context.barcodeDigits && sequence === context.barcodeDigits) {
+      continue;
+    }
+    const validation = validateRetailBarcodeCandidate(sequence);
+    if (!validation.valid) {
+      return "invalid_barcode_suppressed";
+    }
+  }
+  return "";
+}
+
 function hasCurrentRetailAlternativeQueryAnchor(query, context = {}, options = {}) {
   if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
     return false;
@@ -3240,10 +3371,20 @@ function hasCurrentRetailAlternativeQueryAnchor(query, context = {}, options = {
   if (!recoveryStage) {
     return false;
   }
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
+  const fallbackSignals = [
+    fallbackIdentity.productType,
+    fallbackIdentity.intendedUse,
+    fallbackIdentity.size,
+    fallbackIdentity.quantity,
+    fallbackIdentity.closure,
+    fallbackIdentity.importantFeature
+  ].map(normalizeComparableText).filter(Boolean);
   const hasRetailProductNoun = hasQueryItemNoun(text, context);
   const hasCurrentRetailSignal = /\b(?:current|retail|shopping|price|package|pack|count|ct|store|walmart|target|staples|office depot|amazon|kroger|pickup|delivery)\b/i.test(text);
   const hasCompatibilitySignal = /\b(?:security|business|strip|seal|self|peel|gummed|envelope|envelopes|stationery)\b/i.test(text)
-    || /\b\d{1,5}\s*(?:count|ct|pack|pk|envelopes?)\b/i.test(text);
+    || /\b\d{1,5}\s*(?:count|ct|pack|pk|envelopes?|units?)\b/i.test(text)
+    || fallbackSignals.some((signal) => signal && containsNormalizedPhrase(text, signal));
   return hasRetailProductNoun && hasCurrentRetailSignal && hasCompatibilitySignal;
 }
 
@@ -3668,7 +3809,18 @@ function hasCurrentRetailAlternativeSourceSupport(record = {}, context = {}, ite
   if (!text || isRetailForbiddenSecondaryEvidenceText(text)) {
     return false;
   }
-  const productFamily = normalizeComparableText(deriveRetailProductFamily(context));
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
+  if (detectRetailProductCategoryConflict([
+    fallbackIdentity.productType,
+    fallbackIdentity.intendedUse,
+    fallbackIdentity.importantFeature,
+    context.productTitle,
+    context.subjectIdentity,
+    context.itemType
+  ].join(" "), text)) {
+    return false;
+  }
+  const productFamily = normalizeComparableText(fallbackIdentity.productType || deriveRetailProductFamily(context));
   const familyTokens = itemTypeTokens(productFamily || context.itemType).filter((token) => token.length >= 3);
   const hasFamily = productFamily
     ? containsNormalizedPhrase(text, productFamily) || familyTokens.some((token) => new RegExp(`\\b${escapeRegExp(token)}s?\\b`, "i").test(text))
@@ -3678,9 +3830,17 @@ function hasCurrentRetailAlternativeSourceSupport(record = {}, context = {}, ite
   const hasRetailPriceSignal = record.sourceType === "shopping"
     || Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice))
     || /\b(?:current price|retail price|shopping offer|in stock|pickup|delivery|add to cart|store price)\b/i.test(text);
-  const hasPackageOrClosureSignal = /\b\d{1,5}\s*(?:count|ct|pack|pk|envelopes?)\b/i.test(text)
+  const fallbackSignals = [
+    fallbackIdentity.size,
+    fallbackIdentity.quantity,
+    fallbackIdentity.closure,
+    fallbackIdentity.importantFeature,
+    fallbackIdentity.intendedUse
+  ].map(normalizeComparableText).filter(Boolean);
+  const hasPackageOrClosureSignal = /\b\d{1,5}\s*(?:count|ct|pack|pk|envelopes?|units?)\b/i.test(text)
     || /\b(?:strip|peel|self|gummed|seal)\b/i.test(text)
-    || /\b(?:business|security|privacy|confidential)\b/i.test(text);
+    || /\b(?:business|security|privacy|confidential)\b/i.test(text)
+    || fallbackSignals.some((signal) => containsNormalizedPhrase(text, signal));
   return hasFamily && hasRetailPriceSignal && hasPackageOrClosureSignal && (!submittedNeedsSecurity || candidateHasSecurity);
 }
 
@@ -4497,6 +4657,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   ].join(" ").includes(context.barcodeDigits));
   const packMismatchRecords = records.filter((record) => /pack_quantity_mismatch/i.test(record.itemTypeCompatibilityStatus || record.rejectionReason || ""));
   const unsupportedRejected = normalizeStringArray(context.unsupportedIdentityTerms, 24);
+  const barcodeIntegrity = context.barcodeIntegrity || buildBarcodeIntegrity({}, {});
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
   const allQueryRecords = providerRequestRecords.length
     ? providerRequestRecords
     : normalizeStringArray(searchQueries, 24).map((query) => ({ query, validationPassed: true }));
@@ -4561,6 +4723,9 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     recordsRejectedBeforeCompatibilityReview: providerRequestRecords.filter((record) => record.validationPassed === false).length,
     recordsRejectedByCompatibilityReview: retailRejected.length,
     compatibleAlternativesAccepted: currentRetailAccepted.length,
+    zeroResultIdentityRecoveryTriggered: isCurrentRetailOnlyMode(retailEvidenceMode) && records.length >= 12 && !currentRetailAccepted.length
+      ? "Yes - provider returned many results but no exact, strong, or unit-price current retail candidates survived; attribute fallback/cross-brand recovery was included without invalid barcode terms."
+      : "No",
     exactRetailMatchCount,
     strongRetailAlternativeCount,
     unitPriceComparableCount,
@@ -4578,14 +4743,14 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     currentRetailCandidatesAccepted: currentRetailAccepted.map((record) => ({
       title: cleanText(record.title),
       source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
-      url: cleanText(record.url),
+      sourceLinkStatus: record.url ? "Source link available in result card" : "",
       displayedPrice: cleanText(record.displayedPrice || record.displayedPriceText || record.price),
       retailEvidenceLabel: "Current retail candidate accepted"
     })).slice(0, 12),
     currentRetailCandidatesRejected: retailRejected.map((record) => ({
       title: cleanText(record.title),
       source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
-      url: cleanText(record.url),
+      sourceLinkStatus: record.url ? "Source link withheld from technical text" : "",
       displayedPrice: cleanText(record.displayedPrice || record.displayedPriceText || record.price),
       reason: isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))
         ? "Excluded from retail decision as secondary-market, auction, sold, historical, guide, reference, or resale evidence."
@@ -4595,6 +4760,19 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       .filter((record) => isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" ")))
       .length,
     canonicalProductIdentity: context.canonicalProductIdentity || null,
+    canonicalRetailIdentity: {
+      productType: fallbackIdentity.productType,
+      brand: fallbackIdentity.brand,
+      size: fallbackIdentity.size,
+      packageQuantity: fallbackIdentity.quantity,
+      closure: fallbackIdentity.closure,
+      importantFeature: fallbackIdentity.importantFeature,
+      intendedUse: fallbackIdentity.intendedUse,
+      confidence: fallbackIdentity.confidence,
+      fallbackIdentityUsed: isCurrentRetailOnlyMode(retailEvidenceMode) ? "Yes" : "No",
+      brandRemovedFromFallback: fallbackIdentity.brandRemovedFromFallback ? "Yes" : "No",
+      invalidBarcodeRemovedFromFallback: fallbackIdentity.invalidBarcodeRemovedFromFallback ? "Yes" : "No"
+    },
     finalizedSearchIdentity: context.finalizedSearchIdentity || context.canonicalCustomerTitle || "",
     canonicalIdentityConfidence: context.canonicalIdentityConfidence || "",
     conflictingCandidatesRejected: context.conflictingCandidatesRejected || [],
@@ -4619,11 +4797,21 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     manualZipUsed: locationDeniedManualZip ? `Manual ZIP used: ${context.locationZip}` : "",
     browserCoordinatesDisplayed: "No",
     barcodeExtractionStatus: context.barcodeDigits
-      ? "Barcode/UPC digits available"
+      ? "Barcode/UPC digits validated"
       : context.barcodeReadStatus === "unreadable"
         ? "Barcode visible but unreadable"
         : context.barcodeReadStatus || "unknown",
     exactBarcodeDigitsUsed: context.barcodeDigits || "",
+    barcodeIntegrity: {
+      candidatesExtracted: barcodeIntegrity.candidates || [],
+      acceptedSequence: barcodeIntegrity.acceptedSequence || "",
+      acceptedFormat: barcodeIntegrity.acceptedFormat || "",
+      checkDigitResult: barcodeIntegrity.checkDigitResult || "",
+      rejectedSequences: barcodeIntegrity.rejectedCandidates || [],
+      manualValueUsed: barcodeIntegrity.manualValueUsed || "No",
+      invalidBarcodeSearchesSuppressed: barcodeIntegrity.invalidBarcodeSearchesSuppressed || 0,
+      acceptedFromAlternateCandidate: barcodeIntegrity.acceptedFromAlternateCandidate ? "Yes" : "No"
+    },
     retailSpecificQueries,
     namedStoreQueryResults: storeName
       ? `${namedStoreRequests.filter((record) => record.attempted).length} named-store quer${namedStoreRequests.length === 1 ? "y" : "ies"} attempted; named-store result ${storeReturned ? "returned" : "not returned"}.`
@@ -4989,6 +5177,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.",
     "The backend supplied a finalized Canonical Product Identity when available. Treat it as authoritative for customer-facing item title, search identity, matching, pricing, and recommendation wording. Rejected identity candidates may appear only as rejected diagnostics, not as active product identity.",
     "For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.",
+    "Barcode/UPC digits are identity clues, not a single point of failure. Use only check-digit-valid barcode sequences for exact UPC searches; if exact brand/UPC/SKU is unavailable, compare functionally compatible current retail alternatives using product type, size, quantity, closure, privacy/security or other material features, and visible package price.",
     "For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.",
     "For ordinary current retail products, use Retail Evidence Mode: current-retail-only. Do not use auction, historical sold, guide, WorthPoint, PicClick, resale, thrift, flea-market, estate-sale, collector, or secondary-market evidence to establish customer-facing current retail value.",
     "For ordinary fixed-price retail-store purchases, do not show Opening Offer, negotiation target, offer ladder, market-supported maximum, personal-enjoyment exception, or Maximum Price Guard. Default to Store price is fixed unless the intake explicitly says the retail price is negotiable.",
@@ -5968,8 +6157,11 @@ function buildIdentitySummaryText({ subjectIdentity, subjectConfidence, exactPro
 
 function normalizeBarcodeReadStatus(value, upcBarcode = "") {
   const text = cleanText(value).toLowerCase();
-  if (normalizeBarcodeDigits(upcBarcode)) {
+  if (getValidatedBarcodeSequence(upcBarcode)) {
     return "readable";
+  }
+  if (normalizeBarcodeDigits(upcBarcode)) {
+    return "invalid_check_digit";
   }
   if (/unreadable|unclear|blur|not clear|cannot|could not|failed/.test(text)) {
     return "unreadable";
@@ -5983,6 +6175,221 @@ function normalizeBarcodeReadStatus(value, upcBarcode = "") {
 function normalizeBarcodeDigits(value) {
   const digits = cleanText(value).replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 14 ? digits : "";
+}
+
+function inferRetailBarcodeFormat(digits = "") {
+  const value = cleanText(digits);
+  if (!/^\d+$/.test(value)) return "";
+  if (value.length === 8) return "EAN-8";
+  if (value.length === 12) return "UPC-A";
+  if (value.length === 13) return "EAN-13";
+  if (value.length === 14) return "GTIN-14";
+  return "";
+}
+
+function computeRetailBarcodeCheckDigit(bodyDigits = "") {
+  const body = cleanText(bodyDigits);
+  if (!/^\d+$/.test(body)) return null;
+  let sum = 0;
+  let useThree = true;
+  for (let index = body.length - 1; index >= 0; index -= 1) {
+    const digit = Number(body[index]);
+    sum += digit * (useThree ? 3 : 1);
+    useThree = !useThree;
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+function validateRetailBarcodeCandidate(value) {
+  const digits = normalizeBarcodeDigits(value);
+  const format = inferRetailBarcodeFormat(digits);
+  if (!digits) {
+    return {
+      digits: "",
+      format: "",
+      valid: false,
+      checkDigitResult: "not_checked",
+      reason: "barcode_digits_missing"
+    };
+  }
+  if (!/^\d+$/.test(digits)) {
+    return {
+      digits,
+      format,
+      valid: false,
+      checkDigitResult: "failed",
+      reason: "barcode_must_use_digits_only"
+    };
+  }
+  if (!format) {
+    return {
+      digits,
+      format: `unsupported_length_${digits.length}`,
+      valid: false,
+      checkDigitResult: "failed",
+      reason: `unsupported_barcode_length_${digits.length}`
+    };
+  }
+  const expected = computeRetailBarcodeCheckDigit(digits.slice(0, -1));
+  const actual = Number(digits.slice(-1));
+  const valid = expected === actual;
+  return {
+    digits,
+    format,
+    valid,
+    checkDigitResult: valid ? "pass" : "failed",
+    expectedCheckDigit: Number.isFinite(expected) ? String(expected) : "",
+    actualCheckDigit: Number.isFinite(actual) ? String(actual) : "",
+    reason: valid ? "" : "check_digit_failed"
+  };
+}
+
+function getValidatedBarcodeSequence(value) {
+  const validation = validateRetailBarcodeCandidate(value);
+  return validation.valid ? validation.digits : "";
+}
+
+function addBarcodeCandidate(candidates, value, source, evidence = "", manual = false) {
+  const text = cleanText(value);
+  if (!text) return;
+  const directDigits = normalizeBarcodeDigits(text);
+  if (directDigits) {
+    candidates.push({
+      digits: directDigits,
+      source: cleanText(source),
+      evidence: cleanText(evidence || value),
+      manual: Boolean(manual)
+    });
+  }
+  for (const candidate of extractBarcodeDigitCandidatesFromText(text)) {
+    candidates.push({
+      digits: candidate,
+      source: cleanText(source),
+      evidence: cleanText(evidence || value),
+      manual: Boolean(manual)
+    });
+  }
+}
+
+function extractBarcodeDigitCandidatesFromText(value = "") {
+  const text = cleanText(value);
+  const candidates = [];
+  const matcher = /(?:\d[\s-]*){8,14}/g;
+  let match = matcher.exec(text);
+  while (match) {
+    const digits = normalizeBarcodeDigits(match[0]);
+    if (digits && [8, 12, 13, 14].includes(digits.length)) {
+      addUnique(candidates, digits);
+    }
+    match = matcher.exec(text);
+  }
+  return candidates;
+}
+
+function collectBarcodeCandidates(identity = {}, buyerIntake = normalizeBuyerIntake({}), canonicalUpc = "") {
+  const intake = normalizeBuyerIntake(buyerIntake);
+  const candidates = [];
+  addBarcodeCandidate(candidates, intake.known_upc, "manual_upc_entry", "Known UPC field", true);
+  addBarcodeCandidate(candidates, intake.known_upc_digits, "manual_upc_digits", "Known UPC digits", true);
+  addBarcodeCandidate(candidates, canonicalUpc, "canonical_identity_upc", "Canonical product identity UPC");
+  addBarcodeCandidate(candidates, identity.upcBarcode, "ocr_upc_barcode", "Extracted UPC/barcode");
+  addBarcodeCandidate(candidates, identity.barcodeDigits, "ocr_barcode_digits", "Extracted barcode digits");
+  addBarcodeCandidate(candidates, identity.frontBoxWording, "visible_front_package_text", identity.frontBoxWording);
+  addBarcodeCandidate(candidates, identity.backLabelWording, "visible_back_package_text", identity.backLabelWording);
+  addBarcodeCandidate(candidates, identity.productNameOrBoxTitle, "visible_product_title", identity.productNameOrBoxTitle);
+  for (const item of normalizeStringArray(identity.visibleText, 20)) {
+    addBarcodeCandidate(candidates, item, "visible_text", item);
+  }
+  for (const item of normalizeStringArray(identity.textIdentityEvidence, 20)) {
+    addBarcodeCandidate(candidates, item, "text_identity_evidence", item);
+  }
+
+  const byDigits = new Map();
+  for (const candidate of candidates) {
+    if (!candidate.digits) continue;
+    const existing = byDigits.get(candidate.digits);
+    if (existing) {
+      existing.sources = mergeStringArrays(existing.sources, candidate.source, 8);
+      existing.manual = existing.manual || candidate.manual;
+      if (!existing.evidence && candidate.evidence) existing.evidence = candidate.evidence;
+      continue;
+    }
+    byDigits.set(candidate.digits, {
+      digits: candidate.digits,
+      sources: normalizeStringArray(candidate.source, 8),
+      evidence: cleanText(candidate.evidence),
+      manual: Boolean(candidate.manual)
+    });
+  }
+  return [...byDigits.values()];
+}
+
+function buildBarcodeIntegrity(identity = {}, buyerIntake = normalizeBuyerIntake({}), canonicalUpc = "") {
+  const candidates = collectBarcodeCandidates(identity, buyerIntake, canonicalUpc);
+  const reviewed = candidates.map((candidate, index) => {
+    const validation = validateRetailBarcodeCandidate(candidate.digits);
+    return {
+      sequence: candidate.digits,
+      format: validation.format,
+      source: candidate.sources.join(", "),
+      evidence: candidate.evidence,
+      manual: candidate.manual,
+      valid: validation.valid,
+      checkDigitResult: validation.checkDigitResult,
+      expectedCheckDigit: validation.expectedCheckDigit || "",
+      actualCheckDigit: validation.actualCheckDigit || "",
+      reason: validation.reason || "",
+      order: index + 1
+    };
+  });
+  const validCandidates = reviewed.filter((candidate) => candidate.valid);
+  const manualValid = validCandidates.find((candidate) => candidate.manual);
+  const accepted = manualValid || validCandidates[0] || null;
+  const rejected = reviewed.filter((candidate) => !candidate.valid);
+  const alternates = reviewed.filter((candidate) => accepted && candidate.sequence !== accepted.sequence);
+  const status = accepted
+    ? "validated"
+    : reviewed.length
+      ? "invalid_or_unconfirmed"
+      : normalizeBarcodeReadStatus(identity.barcodeReadStatus, "");
+  const failureMessage = accepted
+    ? ""
+    : reviewed.length
+      ? "The barcode could not be confirmed with a valid check digit. Enter the UPC manually or upload a clearer barcode photo."
+      : cleanText(identity.barcodeFailureMessage);
+
+  return {
+    status,
+    acceptedSequence: accepted?.sequence || "",
+    acceptedFormat: accepted?.format || "",
+    checkDigitResult: accepted ? "pass" : rejected.length ? "failed" : "not_available",
+    manualValueUsed: accepted?.manual ? "Yes" : "No",
+    candidates: reviewed.map((candidate) => ({
+      sequence: candidate.sequence,
+      format: candidate.format,
+      source: candidate.source,
+      checkDigitResult: candidate.checkDigitResult,
+      valid: candidate.valid
+    })),
+    rejectedCandidates: rejected.map((candidate) => ({
+      sequence: candidate.sequence,
+      format: candidate.format,
+      source: candidate.source,
+      checkDigitResult: candidate.checkDigitResult,
+      reason: candidate.reason
+    })),
+    alternateCandidates: alternates.map((candidate) => ({
+      sequence: candidate.sequence,
+      format: candidate.format,
+      source: candidate.source,
+      checkDigitResult: candidate.checkDigitResult,
+      valid: candidate.valid
+    })),
+    invalidBarcodeSearchesSuppressed: rejected.length,
+    failureMessage,
+    firstCandidate: reviewed[0]?.sequence || "",
+    acceptedFromAlternateCandidate: Boolean(accepted && reviewed[0] && accepted.sequence !== reviewed[0].sequence)
+  };
 }
 
 function normalizeZipCode(value) {
@@ -6049,12 +6456,7 @@ function getRetailerDomainForStore(storeName = "") {
 }
 
 function getSearchBarcodeDigits(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
-  return firstKnown(
-    normalizeBarcodeDigits(buyerIntake.known_upc_digits),
-    normalizeBarcodeDigits(buyerIntake.known_upc),
-    normalizeBarcodeDigits(identity.upcBarcode),
-    normalizeBarcodeDigits(identity.modelOrItemNumber)
-  );
+  return buildBarcodeIntegrity(identity, buyerIntake).acceptedSequence;
 }
 
 function inferSubjectObjectWord(identity) {
@@ -6429,7 +6831,9 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const diverseQueries = [];
   const scored = [];
   let index = 0;
-  for (const query of queries.map((item) => finalizeSearchQueryCandidate(item, context, 12)).filter(Boolean)) {
+  for (const query of queries
+    .map((item) => stripInvalidRetailBarcodeTerms(finalizeSearchQueryCandidate(item, context, 12), context))
+    .filter(Boolean)) {
     if (!isRepetitiveQuery(query, diverseQueries)) {
       diverseQueries.push(query);
       scored.push({
@@ -6467,6 +6871,20 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     .slice(0, maxQueries);
 }
 
+function stripInvalidRetailBarcodeTerms(query = "", context = {}) {
+  let text = cleanText(query);
+  if (!text || !isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
+    return text;
+  }
+  for (const candidate of normalizeArray(context.barcodeIntegrity?.rejectedCandidates)) {
+    const sequence = cleanText(candidate.sequence);
+    if (sequence) {
+      text = text.replace(new RegExp(`\\b${escapeRegExp(sequence)}\\b`, "g"), " ");
+    }
+  }
+  return cleanSearchQuery(text, 18);
+}
+
 function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
@@ -6502,8 +6920,10 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const mascot = firstKnown(identity.mascot);
   const model = firstKnown(buyerIntake.known_model, identity.model);
   const itemCode = firstKnown(canonicalSku, buyerIntake.known_sku, identity.sku, identity.styleNumber);
-  const upc = canonicalUpc || getSearchBarcodeDigits(identity, buyerIntake) || firstKnown(buyerIntake.known_upc, identity.upcBarcode);
-  const barcodeDigits = normalizeBarcodeDigits(upc);
+  const barcodeIntegrity = buildBarcodeIntegrity(identity, buyerIntake, canonicalUpc);
+  const upc = barcodeIntegrity.acceptedSequence;
+  const barcodeDigits = barcodeIntegrity.acceptedSequence;
+  const rawBarcodeInput = firstKnown(canonicalUpc, buyerIntake.known_upc, buyerIntake.known_upc_digits, identity.upcBarcode, barcodeIntegrity.firstCandidate);
   const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
   const storeName = getRetailStoreName(buyerIntake);
   const retailerOrMarketplaceName = cleanText(buyerIntake.retailer_or_marketplace_name);
@@ -6569,8 +6989,10 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     itemCode,
     upc,
     barcodeDigits,
-    barcodeReadStatus: normalizeBarcodeReadStatus(identity.barcodeReadStatus, identity.upcBarcode),
-    barcodeFailureMessage: cleanText(identity.barcodeFailureMessage),
+    rawBarcodeInput,
+    barcodeIntegrity,
+    barcodeReadStatus: barcodeIntegrity.status,
+    barcodeFailureMessage: barcodeIntegrity.failureMessage || cleanText(identity.barcodeFailureMessage),
     purchaseContext,
     storeName,
     retailerOrMarketplaceName,
@@ -8858,10 +9280,41 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
   const submittedNeedsSecurity = submittedIsEnvelope && /\b(?:security|privacy|confidential|inside\s+security|security\s+tint)\b/.test(submittedText);
   const candidateHasSecurity = /\b(?:security|privacy|confidential|inside\s+security|security\s+tint)\b/.test(candidateText);
   const submittedBrand = cleanText(firstKnown(identity.brand, identity.manufacturer, buyerIntake.known_brand));
-  const submittedIdentifier = cleanText(firstKnown(identity.upcBarcode, identity.sku, identity.model, identity.styleNumber, buyerIntake.known_upc, buyerIntake.known_sku, buyerIntake.known_model));
+  const submittedBarcode = firstKnown(
+    getValidatedBarcodeSequence(identity.upcBarcode),
+    getValidatedBarcodeSequence(buyerIntake.known_upc)
+  );
+  const submittedIdentifier = cleanText(firstKnown(submittedBarcode, identity.sku, identity.model, identity.styleNumber, buyerIntake.known_sku, buyerIntake.known_model));
   const candidateHasSubmittedBrand = submittedBrand && containsNormalizedPhrase(candidateText, submittedBrand);
   const candidateHasSubmittedIdentifier = submittedIdentifier && containsNormalizedPhrase(candidateText, submittedIdentifier);
+  const categoryConflict = detectRetailProductCategoryConflict(submittedText, candidateText);
+  const submittedSize = extractRetailSizeToken([identity.packageSize, identity.dimensions, submittedText].join(" "));
+  const candidateSize = extractRetailSizeToken(candidateText);
+  const candidateBarcodeMismatch = submittedBarcode
+    ? extractBarcodeDigitCandidatesFromText(candidateText).some((sequence) => sequence !== submittedBarcode && validateRetailBarcodeCandidate(sequence).valid)
+    : false;
 
+  if (candidateBarcodeMismatch) {
+    return {
+      status: "materially_incompatible",
+      label: "Rejected Retail Mismatch",
+      reason: "Barcode mismatch"
+    };
+  }
+  if (categoryConflict) {
+    return {
+      status: "materially_incompatible",
+      label: "Rejected Retail Mismatch",
+      reason: categoryConflict
+    };
+  }
+  if (submittedSize && candidateSize && submittedSize !== candidateSize) {
+    return {
+      status: "materially_incompatible",
+      label: "Rejected Retail Mismatch",
+      reason: `Incompatible dimensions or package size (${submittedSize} vs ${candidateSize}).`
+    };
+  }
   if (submittedIsEnvelope && !candidateIsEnvelope) {
     return {
       status: "materially_incompatible",
@@ -8989,12 +9442,21 @@ function isQualifiedCurrentRetailSourceRecord(record = {}, context = {}) {
       packageSize: context.packageSize,
       productNameOrBoxTitle: context.productTitle,
       category: context.itemType,
-      likelyItemDescription: context.subjectIdentity
+      likelyItemDescription: context.subjectIdentity,
+      brand: context.brand || context.visualBrand,
+      manufacturer: context.manufacturer,
+      upcBarcode: context.barcodeDigits,
+      sku: context.itemCode,
+      model: context.model
     };
     const fakeIntake = normalizeBuyerIntake({
       purchase_context: context.purchaseContext,
       item_name: context.productTitle,
-      buyer_notes: context.notesText
+      buyer_notes: context.notesText,
+      known_brand: context.brand || context.visualBrand,
+      known_sku: context.itemCode,
+      known_model: context.model,
+      known_upc: context.barcodeDigits
     });
     const compatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
     return compatibility.status !== "materially_incompatible" && compatibility.label !== "Retail Category Context";
@@ -9061,13 +9523,17 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   ].join(" ")) ? "envelope" : "unit";
   const retailRange = amounts.length >= 2 ? formatMoneyRangeFromAmounts(amounts[0], amounts[amounts.length - 1]) : "";
   const askingText = Number.isFinite(askingPriceNumber) ? formatMoney(askingPriceNumber) : "the entered store price";
+  const exactProductLabel = cleanText(firstKnown(identity.brand, buyerIntake.known_brand, identity.manufacturer, identity.productNameOrBoxTitle, buyerIntake.item_name));
+  const exactProductUnavailableText = exactRetail.length
+    ? ""
+    : `Exact Product: An exact current ${exactProductLabel || "product"} listing was not found. `;
   const unitRangeText = unitAmounts.length >= 2
     ? ` Unit prices ranged from ${formatUnitMoney(unitAmounts[0])} to ${formatUnitMoney(unitAmounts[unitAmounts.length - 1])} per ${retailUnitName}.`
     : unitAmounts.length === 1
       ? ` Unit price was ${formatUnitMoney(unitAmounts[0])} per ${retailUnitName} where quantity was visible.`
       : "";
   const askingUnitText = Number.isFinite(askingPriceNumber) && Number.isFinite(submittedQuantity) && submittedQuantity > 0
-    ? ` The entered ${askingText} price equals approximately ${formatUnitMoney(askingPriceNumber / submittedQuantity)} per ${retailUnitName}.`
+    ? ` Your price is ${askingText} for ${submittedQuantity} ${retailUnitName}${submittedQuantity === 1 ? "" : "s"}, or about ${formatUnitCents(askingPriceNumber / submittedQuantity)} each (${formatUnitMoney(askingPriceNumber / submittedQuantity)} per ${retailUnitName}).`
     : "";
   const best = sorted[0] ? annotatePriceContextRecord(
     sorted[0],
@@ -9080,10 +9546,10 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const priceAssessment = !currentRetailOnly
     ? ""
     : amounts.length >= 2
-      ? `${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Alternatives"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. ${exactRetail.length >= 2 ? "Exact package matches were found." : "An exact listing was not confirmed; compatible alternatives are not the same item."}${unitRangeText}${askingUnitText} Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
+      ? `${exactProductUnavailableText}${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Alternatives"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. ${exactRetail.length >= 2 ? "Exact package matches were found." : "Compatible alternatives are not the same item."}${unitRangeText}${askingUnitText} Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
       : amounts.length === 1
-        ? `${exactRetail.length ? "Current Retail Price Found" : "Compatible Current Retail Alternative"}: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. ${exactRetail.length ? "" : "The exact product/package was not confirmed; compare unit price rather than treating this as the same package price. "}${unitRangeText}${askingUnitText} Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
-        : `${noRetailPrice}. No qualified source-backed current retail price passed exact/strong identity, package, and source checks.`;
+        ? `${exactProductUnavailableText}${exactRetail.length ? "Current Retail Price Found" : "Compatible Current Retail Alternative"}: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. ${exactRetail.length ? "" : "The exact product/package was not confirmed; compare unit price rather than treating this as the same package price. "}${unitRangeText}${askingUnitText} Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
+        : `${noRetailPrice}. An exact current listing was not found. Katherine's Eye also searched comparable current retail products by product type, size, closure, feature, and package count, but no sufficiently compatible priced alternatives survived source and package checks.`;
   const namedStoreResult = buildNamedStoreRetailResult({
     storeName,
     namedStorePrices,
@@ -9094,10 +9560,8 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const retailPurchaseDecision = !currentRetailOnly
     ? ""
     : amounts.length
-      ? buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, acceptedPrices: acceptedWithRetailLabels })
-      : Number.isFinite(askingPriceNumber) && askingPriceNumber <= consumerDecisionThresholds.lowDollarCautiousBuyMax
-        ? "Low-Risk Purchase - Price Not Verified"
-        : "Current Retail Price Not Verified";
+      ? buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, submittedQuantity, acceptedPrices: acceptedWithRetailLabels })
+      : "Price not verified - no compatible alternatives found";
   const retailPriceLimit = !currentRetailOnly
     ? ""
     : amounts.length
@@ -9158,23 +9622,35 @@ function buildNamedStoreRetailResult({ storeName = "", namedStorePrices = [], li
   return `${store} availability not confirmed. No source-backed ${store} price was found in the current search.`;
 }
 
-function buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, acceptedPrices = [] } = {}) {
+function buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, submittedQuantity = null, acceptedPrices = [] } = {}) {
   if (!Number.isFinite(askingPriceNumber) || !acceptedPrices.length) {
-    return "Current Retail Price Found - Check Store Price";
+    return "Price not verified - no compatible alternatives found";
   }
   const amounts = acceptedPrices.map((record) => Number.isFinite(record.deliveredCostAmount) ? record.deliveredCostAmount : record.itemPriceAmount).filter(Number.isFinite);
   if (!amounts.length) {
-    return "Current Retail Price Found - Check Store Price";
+    return "Price not verified - no compatible alternatives found";
   }
+  const unitAmounts = acceptedPrices.map((record) => {
+    const quantity = extractBestPackQuantityNumber([record.title, record.rawText, record.conciseLimitation].join(" "));
+    return Number.isFinite(record.itemPriceAmount) && Number.isFinite(quantity) && quantity > 0
+      ? record.itemPriceAmount / quantity
+      : null;
+  }).filter(Number.isFinite);
   const lowest = Math.min(...amounts);
   const highest = Math.max(...amounts);
   if (askingPriceNumber <= lowest) {
-    return "Good Retail Price - Source-Backed";
+    return "Competitive with current alternatives";
   }
   if (askingPriceNumber <= highest * 1.1) {
-    return "Reasonable Retail Price - Verify Package";
+    return "Reasonable compared with similar products";
   }
-  return "Compare Before Buying";
+  if (Number.isFinite(submittedQuantity) && unitAmounts.length) {
+    const submittedUnit = askingPriceNumber / submittedQuantity;
+    if (askingPriceNumber <= highest && submittedUnit > Math.max(...unitAmounts) * 1.1) {
+      return "Low package price but higher unit price";
+    }
+  }
+  return "Higher than comparable packages";
 }
 
 function buildRetailPriceLimitFromPrices({ acceptedPrices = [], askingPriceNumber = null } = {}) {
@@ -10480,14 +10956,18 @@ function purchaseContextLabel(context) {
 }
 
 function buildBarcodeSearchStatus(identity = {}, buyerIntake = normalizeBuyerIntake({}), liveSearch = {}) {
-  const digits = getSearchBarcodeDigits(identity, buyerIntake);
+  const integrity = buildBarcodeIntegrity(identity, buyerIntake, canonicalFieldValue(identity.canonicalProductIdentity || {}, "UPC"));
+  const digits = integrity.acceptedSequence;
   if (digits) {
     const attempted = normalizeStringArray(liveSearch.queriesActuallySent || liveSearch.searchQueries, 24)
       .some((query) => cleanText(query).includes(digits));
-    return `Barcode/UPC digits used: ${digits}. Exact UPC/barcode search ${attempted ? "was attempted" : "was prepared but not confirmed as attempted in diagnostics"}.`;
+    return `Barcode/UPC validated (${integrity.acceptedFormat || "retail barcode"}): ${digits}. Exact UPC/barcode search ${attempted ? "was attempted" : "was prepared but not confirmed as attempted in diagnostics"}.`;
+  }
+  if (integrity.rejectedCandidates.length) {
+    return "The barcode could not be confirmed with a valid check digit. Invalid barcode searches were suppressed; enter the UPC manually or upload a clearer barcode photo. Katherine's Eye continued with package-attribute retail recovery.";
   }
   if (normalizeBarcodeReadStatus(identity.barcodeReadStatus, identity.upcBarcode) === "unreadable" || cleanText(identity.barcodeFailureMessage)) {
-    return "The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.";
+    return "The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually. Katherine's Eye can still compare by package attributes when enough product details are visible.";
   }
   return "No readable barcode/UPC digits were available. Enter the barcode or UPC number if it is visible on the package.";
 }
@@ -10568,6 +11048,15 @@ function formatUnitMoney(value) {
   }
   const decimals = amount < 0.01 ? 4 : amount < 1 ? 3 : 2;
   return `$${amount.toFixed(decimals)}`;
+}
+
+function formatUnitCents(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) {
+    return "";
+  }
+  const cents = amount * 100;
+  return `${cents.toFixed(cents < 10 ? 2 : 1).replace(/\.0+$/, "").replace(/(\.\d)0$/, "$1")} cents`;
 }
 
 function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveSearch, priceEvidence, pricesFound, askingPriceNumber, searchCompleted } = {}) {
@@ -14286,6 +14775,7 @@ export const __queryIntegrityTestHooks = {
   buildRetailContextSearchQueries,
   buildRetailStagedSearchQueries,
   buildRetailSerperSearchPlan,
+  buildRetailSearchDiagnostics,
   retailSerperBudgetAllocation,
   finalizeSearchQueryCandidate,
   findUnsupportedQueryTerms,
@@ -14338,5 +14828,11 @@ export const __queryIntegrityTestHooks = {
   formatMoney,
   formatSourceMoney,
   formatUnitMoney,
-  normalizeBarcodeDigits
+  formatUnitCents,
+  normalizeBarcodeDigits,
+  validateRetailBarcodeCandidate,
+  buildBarcodeIntegrity,
+  getValidatedBarcodeSequence,
+  buildRetailAttributeFallbackIdentity,
+  detectRetailProductCategoryConflict
 };

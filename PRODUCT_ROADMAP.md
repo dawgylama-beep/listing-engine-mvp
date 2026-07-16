@@ -382,6 +382,16 @@
 - Technical Search Details now audit retail stages planned/executed, provider calls used, organic/shopping counts, priced candidates, compatibility counts, rejection reasons, remaining budget, and recovery stop reason
 - Regression tests cover retail staged execution, provider budget allocation, organic/shopping price parsing, cents preservation, different-brand alternatives, pack-count tolerance, current-retail evidence isolation, customer-facing alternatives, and preserved 1.11.2 safeguards
 
+## Version 1.11.4 (Completed)
+- Barcode integrity now validates UPC-A, EAN-13, EAN-8, and GTIN-14 check digits before exact retail barcode searches can execute
+- Invalid barcode candidates are retained in Technical Search Details, suppressed from exact-provider queries, and can be replaced by alternate valid visible/manual candidates only when supported
+- Current-retail fallback now builds a reusable package-attribute identity from product type, use, size, quantity, closure, material feature, brand, SKU, and validated barcode evidence
+- Exact private-label, SKU, or UPC misses continue into bounded cross-brand recovery without requiring brand equality for functionally compatible current retail alternatives
+- Candidate filtering now rejects barcode mismatches, unrelated product categories, incompatible explicit sizes, missing material security/privacy features, secondary-market evidence, and nontransactional pages before customer pricing
+- Customer retail reports separate exact-product misses from compatible alternatives, preserve package price and unit price, show entered-price unit math, and keep unknown shipping as Not shown / Not established
+- Technical Search Details now show Barcode Integrity, Canonical Retail Identity, cross-brand recovery state, invalid-barcode suppression, zero-result recovery diagnostics, and top retail rejection reasons
+- Regression tests cover barcode validation, invalid UPC suppression, alternate candidate selection, package-attribute recovery, cross-brand alternatives, unit-price precision, unknown shipping acceptance, category firewalling, and preserved 1.11.3 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings

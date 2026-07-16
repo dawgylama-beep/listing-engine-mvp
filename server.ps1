@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.11.3"
+$AppVersion = "1.11.4"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1260,7 +1260,8 @@ For ordinary fixed-price retail-store purchases, do not show Opening Offer, nego
 For ordinary current retail products, show Current Retail Price: Not verified when no exact/strong qualified current retail source was found. Do not fabricate a retail range, named-store price, or competing retailer result.
 Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.
 Before retail query generation, reconcile one Canonical Product Identity from barcode/UPC, visible package text, brand, item number/SKU, package count, size, user description, purchase context, and store name. Strong barcode/OCR/package/SKU evidence must outrank weaker visual inference.
-Reject unsupported identity terms before search. Example: if barcode/package text says Office Works Security Envelopes, 45 count, Strip & Seal, item 6110325, UPC 041226087161, do not use poster print in title, queries, matching, pricing, or customer-facing text unless the user confirms that conflict.
+Validate retail barcode candidates before exact UPC search. Do not silently correct digits; retain rejected candidates in diagnostics, and fall back to package attributes when no valid sequence is established.
+Reject unsupported identity terms before search. Example: if barcode/package text supports a current retail package with a specific product type, count, closure, item number, and valid barcode, do not use an unrelated visual guess in title, queries, matching, pricing, or customer-facing text unless the user confirms that conflict.
 For retail-store products, generate separate query ideas in priority order: exact UPC alone, store plus exact UPC, known retailer-domain plus exact UPC, brand plus product name, brand plus SKU/item number, brand plus product type and package count, store plus brand/product, and local competitor query only when ZIP or general area is available.
 If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.
 When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.
