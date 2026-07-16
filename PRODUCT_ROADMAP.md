@@ -328,6 +328,15 @@
 - Retail Personal Buy decisions now avoid unconditional Buy when price is not verified, using conditional labels such as Price Not Verified and Low-Risk Purchase - Limited Evidence
 - Regression tests cover purchase-context UI, privacy-safe location behavior, UPC/store queries, pack-count mismatch, retail decision calibration, and preserved 1.10.7-1.10.9 safeguards
 
+## Version 1.10.11 (Completed)
+- Canonical Product Identity now reconciles barcode/UPC, visible package/OCR wording, brand, SKU/item number, package count, user notes, purchase context, and store name before live query generation
+- Strong barcode, OCR, SKU, and package evidence now outrank weaker visual inference, with unsupported terms such as poster print rejected before search, matching, pricing, and customer-facing report wording
+- Retail-store query priority now keeps exact UPC, store + UPC, retailer-domain + UPC, brand + SKU, brand + pack count, store + product, and local competitor queries separate and deduplicated
+- Current retail routes suppress resale-oriented sold/auction/historical terms unless the item is explicitly collectible, vintage, discontinued, or in a resale/secondhand context
+- Use My Location now invokes browser geolocation on tap, reverse-geocodes to ZIP or general area when possible, and falls back to manual ZIP without storing or displaying precise coordinates
+- Technical Search Details now include Canonical Product Identity, Retail Query Integrity, rejected unsupported terms, named-store query status, location outcome, and pack-size mismatch details while remaining collapsed
+- Regression tests cover Office Works security-envelope identity reconciliation, poster-print rejection, retail query priority, geolocation flow, location privacy, and preserved 1.10.7-1.10.10 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings

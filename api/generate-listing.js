@@ -778,8 +778,10 @@ const buyerIntakeStringFields = [
   "location_zip",
   "location_mode",
   "location_permission",
+  "location_area",
   "retailer_or_marketplace_name",
   "known_shipping_amount",
+  "identity_confirmation",
   "item_condition",
   "item_name",
   "known_brand",
@@ -890,6 +892,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ listing: safeReport });
   } catch (error) {
+    if (error.identityConfirmationRequired) {
+      return res.status(409).json({
+        action: "identity_confirmation_required",
+        error: error.message,
+        confirmation: sanitizeClientVisiblePayload(error.confirmation || {})
+      });
+    }
+
     return res.status(502).json({
       error: error.message || "OpenAI API request failed."
     });
@@ -1384,7 +1394,13 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
   const visualRecognition = await recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake: intake });
-  const identity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake, visualRecognition });
+  const extractedIdentity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake, visualRecognition });
+  const identity = finalizeIdentityForResearch(extractedIdentity, intake);
+
+  if (identity.canonicalProductIdentity?.userConfirmationRequired && !identityConfirmationMatches(intake, identity.canonicalProductIdentity)) {
+    throw createIdentityConfirmationRequiredError(identity.canonicalProductIdentity);
+  }
+
   const sourceRoute = routeMarketSources(identity, intake, platform);
   const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
   const liveSearch = await executeLiveComparableSearch({
@@ -2381,7 +2397,7 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake).slice(0, 5);
   const domainRecords = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const buildCandidate = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [] }) => ({
-    query: cleanSerperQuery(cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), requestedDomains.length ? 18 : 12)),
+    query: cleanSerperQuery(finalizeSearchQueryCandidate(query, context, requestedDomains.length ? 18 : 12)),
     rawCandidate: cleanText(rawCandidate || query),
     candidateOrigin,
     searchPass,
@@ -2549,7 +2565,9 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
     compactWords([mostDistinctiveProductWord(productTitle), organization, brand, itemType]),
     8
   ).filter(Boolean);
-  const priceTerms = ["price", "sold", "for sale", "auction", "value"];
+  const priceTerms = context.retailStoreContext || context.onlineRetailerContext
+    ? ["current price", "shopping", "in stock", "pickup", "delivery"]
+    : ["price", "sold", "for sale", "auction", "value"];
 
   const add = ({ query, searchPass, candidateOrigin, marketplaceDomains: domains = [] }) => {
     if (!query) return;
@@ -2825,6 +2843,10 @@ function validateSerperQueryCandidate(query, context = {}, options = {}) {
   }
   if (isYearPlusShortFragment(core)) {
     return { passed: false, reason: "year_plus_short_fragment" };
+  }
+  const unsupportedTerms = findUnsupportedQueryTerms(core, context);
+  if (unsupportedTerms.length) {
+    return { passed: false, reason: `unsupported_identity_term:${unsupportedTerms.slice(0, 3).join(",")}` };
   }
   if (!hasLongIdentifier && terms.length < 2) {
     return { passed: false, reason: "fewer_than_two_meaningful_identity_terms" };
@@ -4033,11 +4055,29 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     record.query
   ].join(" ").includes(context.barcodeDigits));
   const packMismatchRecords = records.filter((record) => /pack_quantity_mismatch/i.test(record.itemTypeCompatibilityStatus || record.rejectionReason || ""));
+  const unsupportedRejected = normalizeStringArray(context.unsupportedIdentityTerms, 24);
+  const resaleSuppressed = context.retailStoreContext || context.onlineRetailerContext
+    ? normalizeStringArray(searchQueries, 24).every((query) => !/\b(?:sold|auction|completed|opening bid|historical sale|eBay sold|collector value)\b/i.test(query))
+    : false;
 
   return {
+    canonicalProductIdentity: context.canonicalProductIdentity || null,
+    finalizedSearchIdentity: context.finalizedSearchIdentity || context.canonicalCustomerTitle || "",
+    canonicalIdentityConfidence: context.canonicalIdentityConfidence || "",
+    conflictingCandidatesRejected: context.conflictingCandidatesRejected || [],
+    unsupportedQueryTermsRejected: unsupportedRejected,
+    retailQueryIntegrity: {
+      exactUpcQueryAttempted: context.barcodeDigits ? upcRequests.some((record) => cleanText(record.query) === context.barcodeDigits && record.attempted) : false,
+      storeUpcQueryAttempted: context.barcodeDigits && storeName ? upcRequests.some((record) => cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()) && record.attempted) : false,
+      retailerDomainQueryAttempted: context.retailerDomain ? providerRequestRecords.some((record) => cleanText(record.query).toLowerCase().includes(`site:${context.retailerDomain}`) && record.attempted) : false,
+      namedStoreQueriesGenerated: namedStoreRequests.length,
+      resaleQueriesSuppressed: resaleSuppressed,
+      unsupportedQueryTermsRejected: unsupportedRejected
+    },
     purchaseContext: context.purchaseContext || "",
     storeName: storeName || "",
     locationModeUsed: context.locationMode || "",
+    locationLookupOutcome: context.locationArea ? `General area resolved: ${context.locationArea}` : context.locationMode || "not requested",
     zipPresence: context.locationZip ? "ZIP provided" : "ZIP not provided",
     barcodeExtractionStatus: context.barcodeDigits
       ? "Barcode/UPC digits available"
@@ -4058,8 +4098,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     rejectedPackSizeMismatches: packMismatchRecords.map((record) => cleanText(record.rejectionReason || record.itemTypeCompatibilityExplanation)).filter(Boolean).slice(0, 8),
     localSourceCoverage: context.locationZip
       ? "ZIP was supplied for nearby/local price context. Inventory availability must still be source-backed."
-      : context.locationMode === "browser_location_approved"
-        ? "Browser location permission was granted for general local context; precise coordinates are not stored or displayed."
+      : /browser_location/.test(context.locationMode)
+        ? "Browser location was approved for general local context; precise coordinates are not stored or displayed."
         : "No ZIP or approved location supplied; nearby price and availability coverage is limited."
   };
 }
@@ -4175,7 +4215,7 @@ function buildDomainDirectedSearchPlan({ searchQueries = [], sourceRoute = [], i
   const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake);
   const cleanedQueries = [];
   for (const query of searchQueries) {
-    const cleaned = cleanSearchQuery(removeUnsupportedQueryDescriptors(query, context), 12);
+    const cleaned = finalizeSearchQueryCandidate(query, context, 12);
     if (cleaned && !isInternalPromptFragment(cleaned) && !isRepetitiveQuery(cleaned, cleanedQueries)) {
       cleanedQueries.push(cleaned);
     }
@@ -4187,15 +4227,16 @@ function buildDomainDirectedSearchPlan({ searchQueries = [], sourceRoute = [], i
   const records = [];
 
   const addRecord = ({ query, searchPass, allowedDomains = [] }) => {
+    const finalQuery = finalizeSearchQueryCandidate(query, context, allowedDomains.length ? 18 : 12);
     const domainKey = allowedDomains.join("|").toLowerCase();
-    if (!query || records.some((record) => (
-      queriesAreSemanticallySame(record.query, query)
+    if (!finalQuery || records.some((record) => (
+      queriesAreSemanticallySame(record.query, finalQuery)
         && (record.allowedDomains || []).join("|").toLowerCase() === domainKey
     ))) {
       return;
     }
     records.push({
-      query,
+      query: finalQuery,
       priority: records.length + 1,
       searchPass,
       sourceRoute: sourceCategories,
@@ -4252,7 +4293,7 @@ function selectMarketplaceAllowedDomains(context = {}, sourceRoute = [], buyerIn
   if (isRetailStorePurchaseContext(buyerIntake.purchase_context) || context.retailStoreContext) {
     return mergeStringArrays(
       getRetailerDomainForStore(getRetailStoreName(buyerIntake)),
-      ["walmart.com", "target.com", "staples.com", "officedepot.com", "amazon.com", "homedepot.com", "lowes.com", "dollargeneral.com"],
+      ["walmart.com", "target.com", "staples.com", "officedepot.com", "kroger.com", "amazon.com", "homedepot.com", "lowes.com", "dollargeneral.com"],
       8
     );
   }
@@ -4379,6 +4420,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "Do not turn exact-product uncertainty into total subject uncertainty. Preserve the supported broad subject and lower pricing/exact-product confidence separately.",
     "Do not use marketplace fee, shipping margin, profit, or resale spread logic to drive the recommendation.",
     "Focus on fair value, product fit, condition, completeness, replacement alternatives, buyer risk, negotiation, and whether the asking price makes sense for personal use.",
+    "The backend supplied a finalized Canonical Product Identity when available. Treat it as authoritative for customer-facing item title, search identity, matching, pricing, and recommendation wording. Rejected identity candidates may appear only as rejected diagnostics, not as active product identity.",
     "For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.",
     "For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.",
     "If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
@@ -4847,6 +4889,440 @@ function reconcileIdentityEvidence(identity) {
   };
 }
 
+function finalizeIdentityForResearch(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  const canonicalProductIdentity = buildCanonicalProductIdentity(identity, buyerIntake);
+  return applyCanonicalProductIdentity(identity, canonicalProductIdentity);
+}
+
+function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  const intake = normalizeBuyerIntake(buyerIntake);
+  const upc = getSearchBarcodeDigits(identity, intake);
+  const visiblePackageWording = compactWords([
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
+    identity.textIdentityEvidence
+  ]);
+  const strongEvidenceText = [
+    upc,
+    intake.known_upc_digits,
+    intake.known_upc,
+    intake.known_brand,
+    intake.known_manufacturer,
+    intake.known_model,
+    intake.known_sku,
+    intake.item_name,
+    visiblePackageWording,
+    identity.brand,
+    identity.manufacturer,
+    identity.productNameOrBoxTitle,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    identity.manufacturerLocationText,
+    identity.sku,
+    identity.styleNumber,
+    identity.model,
+    identity.modelOrItemNumber,
+    identity.packageQuantity,
+    identity.packageSize,
+    identity.unitCount,
+    identity.dimensions,
+    identity.size
+  ].flat().map(cleanText).filter(Boolean).join(" ");
+  const weakVisualText = [
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.subjectIdentity,
+    identity.likelyItemDescription,
+    identity.distinctiveVisualDescription,
+    identity.category,
+    identity.exactProductIdentity,
+    identity.visualRecognition?.visualSubject,
+    identity.visualRecognition?.visualSubjectCategory,
+    identity.visualRecognition?.possibleInterpretations,
+    identity.visualRecognition?.distinctiveFeatures
+  ].flat().map(cleanText).filter(Boolean).join(" ");
+  const allEvidenceText = [strongEvidenceText, weakVisualText, intake.buyer_notes].join(" ");
+  const categoryProfile = detectCanonicalCategoryProfile({ strongEvidenceText, weakVisualText, allEvidenceText, purchaseContext: intake.purchase_context });
+  const brand = firstKnown(
+    intake.known_brand,
+    extractSupportedBrandFromEvidence(strongEvidenceText),
+    supportedByEvidence(identity.brand, strongEvidenceText) ? identity.brand : "",
+    supportedByEvidence(identity.recognizedBrand, strongEvidenceText) ? identity.recognizedBrand : "",
+    identity.brand
+  );
+  const manufacturer = firstKnown(
+    intake.known_manufacturer,
+    supportedByEvidence(identity.manufacturer, strongEvidenceText) ? identity.manufacturer : "",
+    brand
+  );
+  const sku = firstKnown(
+    intake.known_sku,
+    extractItemNumberFromEvidence(strongEvidenceText),
+    identity.sku,
+    identity.styleNumber,
+    /^\d{8,14}$/.test(cleanText(identity.modelOrItemNumber)) ? "" : identity.modelOrItemNumber
+  );
+  const packageQuantity = firstKnown(
+    extractPackQuantityText(strongEvidenceText),
+    identity.packageQuantity,
+    identity.unitCount
+  );
+  const dimensionsOrSize = firstKnown(identity.dimensions, identity.size, identity.packageSize);
+  const closureOrVariant = extractRetailVariantFromEvidence(strongEvidenceText);
+  const productName = buildCanonicalProductName({
+    categoryProfile,
+    brand,
+    productTitle: firstKnown(intake.item_name, identity.productNameOrBoxTitle, identity.exactProductIdentity, identity.likelyItemDescription),
+    evidenceText: strongEvidenceText,
+    variant: closureOrVariant
+  });
+  const rejectedCandidates = buildRejectedCanonicalCandidates({
+    identity,
+    canonicalCategory: categoryProfile.categoryKey,
+    strongEvidenceText,
+    weakVisualText
+  });
+  const unresolvedConflicts = rejectedCandidates.filter((candidate) => candidate.status === "needs_confirmation");
+  const supportedSourceList = buildCanonicalSourceList({ upc, visiblePackageWording, intake, identity });
+  const confidence = buildCanonicalConfidence({ upc, productName, packageQuantity, sku, rejectedCandidates, unresolvedConflicts });
+  const userConfirmationRequired = unresolvedConflicts.length > 0;
+  const confirmationToken = buildCanonicalConfirmationToken({ productName, upc, sku, packageQuantity });
+  const fields = {
+    productName: createCanonicalField(productName, confidence, supportedSourceList, "accepted", "Final product name reconciled from the strongest barcode, package text, item-number, and user-entered evidence."),
+    brand: createCanonicalField(brand, brand ? "High" : "Low", supportedSourceList, brand ? "accepted" : "unknown", brand ? "Brand is supported by package, typed, or identity evidence." : "Brand was not established."),
+    manufacturer: createCanonicalField(manufacturer, manufacturer ? "Medium" : "Low", supportedSourceList, manufacturer ? "accepted" : "unknown", manufacturer ? "Manufacturer is supported by available evidence or aligned with brand." : "Manufacturer was not established."),
+    category: createCanonicalField(categoryProfile.category, categoryProfile.confidence, categoryProfile.sources, "accepted", categoryProfile.reason),
+    subcategory: createCanonicalField(categoryProfile.subcategory, categoryProfile.confidence, categoryProfile.sources, "accepted", categoryProfile.reason),
+    UPC: createCanonicalField(upc, upc ? "High" : "Low", upc ? ["manual barcode/UPC or readable barcode"] : [], upc ? "accepted" : "unknown", upc ? "Exact UPC/barcode digits outrank visual inference." : "No exact UPC/barcode digits were available."),
+    SKU: createCanonicalField(sku, sku ? "High" : "Low", sku ? ["SKU/item-number evidence"] : [], sku ? "accepted" : "unknown", sku ? "Item number/SKU is supported by visible or typed evidence." : "SKU/item number was not established."),
+    packageQuantity: createCanonicalField(packageQuantity, packageQuantity ? "High" : "Low", packageQuantity ? ["package quantity wording"] : [], packageQuantity ? "accepted" : "unknown", packageQuantity ? "Package quantity is price-relevant for retail matching." : "Package quantity was not established."),
+    dimensionsOrSize: createCanonicalField(dimensionsOrSize, dimensionsOrSize ? "Medium" : "Low", dimensionsOrSize ? ["size/dimensions evidence"] : [], dimensionsOrSize ? "accepted" : "unknown", dimensionsOrSize ? "Size or dimensions were preserved for matching." : "Size or dimensions were not established."),
+    variant: createCanonicalField(closureOrVariant, closureOrVariant ? "Medium" : "Low", closureOrVariant ? ["visible package wording"] : [], closureOrVariant ? "accepted" : "unknown", closureOrVariant ? "Variant or closure type is price-relevant and supported." : "Variant was not established."),
+    material: createCanonicalField(firstKnown(identity.material), hasKnownValue(identity.material) ? "Medium" : "Low", hasKnownValue(identity.material) ? ["material evidence"] : [], hasKnownValue(identity.material) ? "accepted" : "unknown", "Material is included only when supported."),
+    color: createCanonicalField(firstKnown(identity.color), hasKnownValue(identity.color) ? "Medium" : "Low", hasKnownValue(identity.color) ? ["color evidence"] : [], hasKnownValue(identity.color) ? "accepted" : "unknown", "Color is included only when price-relevant and supported."),
+    visiblePackageWording: createCanonicalField(visiblePackageWording, visiblePackageWording ? "High" : "Low", visiblePackageWording ? ["visible package/OCR text"] : [], visiblePackageWording ? "accepted" : "unknown", "Visible package wording is preserved as stronger evidence than broad visual inference."),
+    purchaseContext: createCanonicalField(intake.purchase_context, intake.purchase_context ? "High" : "Low", intake.purchase_context ? ["guided buyer intake"] : [], intake.purchase_context ? "accepted" : "unknown", "Purchase context controls source routing."),
+    storeName: createCanonicalField(getRetailStoreName(intake), getRetailStoreName(intake) ? "High" : "Low", getRetailStoreName(intake) ? ["guided buyer intake"] : [], getRetailStoreName(intake) ? "accepted" : "unknown", "Store name is used only for named-store search and diagnostics.")
+  };
+
+  const finalizedSearchIdentity = compactWords([
+    canonicalFieldValue({ fields }, "brand"),
+    canonicalFieldValue({ fields }, "productName"),
+    canonicalFieldValue({ fields }, "variant"),
+    canonicalFieldValue({ fields }, "packageQuantity"),
+    canonicalFieldValue({ fields }, "SKU")
+  ]);
+  const customerFacingTitle = formatCanonicalCustomerTitle({ fields, productName, brand, packageQuantity, variant: closureOrVariant, sku, upc });
+
+  return {
+    fields,
+    canonicalConfidence: confidence,
+    evidenceSourcesUsed: supportedSourceList,
+    conflictingCandidatesRejected: rejectedCandidates,
+    unsupportedTermsRejected: buildUnsupportedTermsFromRejectedCandidates(rejectedCandidates),
+    userConfirmationRequired,
+    confirmationToken,
+    finalizedSearchIdentity,
+    customerFacingTitle,
+    localSearchLocation: cleanText(intake.location_zip || intake.location_area),
+    locationMethod: cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : "")),
+    reason: userConfirmationRequired
+      ? "Material identity conflict could not be resolved without user confirmation."
+      : "Canonical identity finalized from the strongest available evidence before search."
+  };
+}
+
+function createCanonicalField(value, confidence, sources = [], status = "accepted", reason = "") {
+  return {
+    value: cleanText(value),
+    confidence: cleanText(confidence || "Low"),
+    sources: normalizeStringArray(sources, 8),
+    status: cleanText(status || "accepted"),
+    reason: cleanText(reason)
+  };
+}
+
+function canonicalFieldValue(canonicalProductIdentity = {}, fieldName) {
+  const field = canonicalProductIdentity.fields?.[fieldName];
+  return cleanText(field && typeof field === "object" ? field.value : canonicalProductIdentity[fieldName]);
+}
+
+function supportedByEvidence(value, evidenceText) {
+  const text = cleanText(value);
+  if (!text || !hasKnownValue(text)) {
+    return false;
+  }
+  return cleanText(evidenceText).toLowerCase().includes(text.toLowerCase());
+}
+
+function detectCanonicalCategoryProfile({ strongEvidenceText = "", weakVisualText = "", allEvidenceText = "", purchaseContext = "" } = {}) {
+  const strong = cleanText(strongEvidenceText).toLowerCase();
+  const all = cleanText(allEvidenceText).toLowerCase();
+  const sources = strong ? ["barcode/package/OCR/user evidence"] : ["visual/user evidence"];
+
+  if (/\bsecurity envelopes?\b|strip\s*&?\s*seal|#?\s*10\s+envelopes?|\benvelopes?\b|stationery/.test(strong || all)) {
+    return {
+      categoryKey: "envelopes",
+      category: "Office supplies",
+      subcategory: /\bsecurity envelopes?\b|strip\s*&?\s*seal/.test(strong || all) ? "Security envelopes" : "Envelopes",
+      confidence: strong ? "High" : "Medium",
+      sources,
+      reason: "Envelope/package wording is stronger than broad visual inference."
+    };
+  }
+  if (/mug|cup/.test(strong || all)) {
+    return { categoryKey: "mug", category: "Drinkware", subcategory: "Mug", confidence: strong ? "High" : "Medium", sources, reason: "Mug wording or visual evidence was detected." };
+  }
+  if (/planter|plant pot/.test(strong || all)) {
+    return { categoryKey: "planter", category: "Home and garden", subcategory: "Planter", confidence: strong ? "High" : "Medium", sources, reason: "Planter wording or visual evidence was detected." };
+  }
+  if (/ornament/.test(strong || all)) {
+    return { categoryKey: "ornament", category: "Holiday decor", subcategory: "Ornament", confidence: strong ? "High" : "Medium", sources, reason: "Ornament evidence was detected." };
+  }
+  if (/figurine|figure/.test(strong || all)) {
+    return { categoryKey: "figurine", category: "Decor", subcategory: "Figurine", confidence: strong ? "High" : "Medium", sources, reason: "Figurine evidence was detected." };
+  }
+  if (/poster|print|artwork|illustration/.test(strong || weakVisualText)) {
+    return { categoryKey: "poster_print", category: "Wall art", subcategory: "Poster print", confidence: strong ? "Medium" : "Low", sources, reason: "Poster/print evidence was detected, but it must not override stronger product evidence." };
+  }
+  if (isRetailStorePurchaseContext(purchaseContext) || isOnlineRetailerPurchaseContext(purchaseContext)) {
+    return { categoryKey: "retail_product", category: "Current retail product", subcategory: "Retail item", confidence: "Medium", sources, reason: "Retail purchase context was provided." };
+  }
+  return { categoryKey: "unknown", category: "Unknown", subcategory: "Unknown", confidence: "Low", sources: [], reason: "No strong category evidence was established." };
+}
+
+function extractSupportedBrandFromEvidence(text) {
+  const source = cleanText(text);
+  const knownBrands = [
+    "Office Works",
+    "Staples",
+    "Avery",
+    "Scotch",
+    "Pen+Gear",
+    "Mead",
+    "Up & Up",
+    "Great Value",
+    "Kroger",
+    "Target",
+    "Walmart"
+  ];
+  return knownBrands.find((brand) => source.toLowerCase().includes(brand.toLowerCase())) || "";
+}
+
+function extractItemNumberFromEvidence(text) {
+  const source = cleanText(text);
+  const labeled = source.match(/\b(?:item|item\s*number|sku|style|model|no\.?)\s*[:#]?\s*([A-Z0-9-]{4,18})\b/i);
+  if (labeled) {
+    return labeled[1];
+  }
+  return "";
+}
+
+function extractRetailVariantFromEvidence(text) {
+  const source = cleanText(text);
+  if (/strip\s*&\s*seal|strip\s+and\s+seal|strip\s*seal/i.test(source)) {
+    return "Strip & Seal";
+  }
+  if (/peel\s*&\s*seal|peel\s+and\s+seal/i.test(source)) {
+    return "Peel & Seal";
+  }
+  if (/self[-\s]?seal/i.test(source)) {
+    return "Self-Seal";
+  }
+  if (/gummed/i.test(source)) {
+    return "Gummed";
+  }
+  return "";
+}
+
+function buildCanonicalProductName({ categoryProfile = {}, brand = "", productTitle = "", evidenceText = "", variant = "" } = {}) {
+  if (categoryProfile.categoryKey === "envelopes") {
+    const envelopeType = /\bsecurity envelopes?\b/i.test(evidenceText) ? "Security Envelopes" : "Envelopes";
+    return compactWords([brand, envelopeType, variant]);
+  }
+  return firstKnown(productTitle, compactWords([brand, categoryProfile.subcategory]), categoryProfile.subcategory, categoryProfile.category);
+}
+
+function buildRejectedCanonicalCandidates({ identity = {}, canonicalCategory = "", strongEvidenceText = "", weakVisualText = "" } = {}) {
+  const rejected = [];
+  const strong = cleanText(strongEvidenceText).toLowerCase();
+  const weak = cleanText(weakVisualText).toLowerCase();
+  const addRejected = (value, reason, status = "rejected") => {
+    const text = cleanText(value);
+    if (!text || rejected.some((candidate) => candidate.value.toLowerCase() === text.toLowerCase())) return;
+    rejected.push({
+      value: text,
+      confidence: status === "needs_confirmation" ? "Medium" : "Low",
+      sources: ["lower-priority visual inference"],
+      status,
+      reason
+    });
+  };
+
+  const productConflicts = [
+    { term: "poster print", pattern: /\bposter\s+print\b|poster|print|artwork|illustration/, conflictsWith: ["envelopes"], reason: "Conflicts with stronger barcode, OCR/package, and item-number evidence for envelopes." },
+    { term: "planter", pattern: /\bplanter|plant pot\b/, conflictsWith: ["mug"], reason: "Conflicts with stronger mug/product evidence." },
+    { term: "mug", pattern: /\bmug|cup\b/, conflictsWith: ["planter"], reason: "Conflicts with stronger planter/product evidence." },
+    { term: "ornament", pattern: /\bornament\b/, conflictsWith: ["figurine"], reason: "Conflicts with stronger figurine/product evidence." },
+    { term: "figurine", pattern: /\bfigurine|figure\b/, conflictsWith: ["ornament"], reason: "Conflicts with stronger ornament/product evidence." },
+    { term: "plain envelopes", pattern: /\bplain envelopes?\b/, conflictsWith: ["envelopes"], reason: "Security-envelope evidence is stronger than generic plain-envelope wording." }
+  ];
+
+  for (const conflict of productConflicts) {
+    if (conflict.pattern.test(weak) && conflict.conflictsWith.includes(canonicalCategory) && !conflict.pattern.test(strong)) {
+      addRejected(conflict.term, conflict.reason);
+    }
+  }
+
+  if (!canonicalCategory || canonicalCategory === "unknown") {
+    const visualCategories = productConflicts.filter((conflict) => conflict.pattern.test(weak)).map((conflict) => conflict.term);
+    if (visualCategories.length > 1) {
+      addRejected(visualCategories.join(" / "), "Multiple material identity candidates were present and stronger evidence did not resolve the conflict.", "needs_confirmation");
+    }
+  }
+
+  return rejected.slice(0, 8);
+}
+
+function buildUnsupportedTermsFromRejectedCandidates(rejectedCandidates = []) {
+  const terms = [];
+  for (const candidate of rejectedCandidates) {
+    const value = cleanText(candidate.value).toLowerCase();
+    if (!value) continue;
+    addUnique(terms, value);
+    if (/poster|print|artwork|illustration/.test(value)) {
+      ["poster print", "poster", "print", "artwork", "illustration"].forEach((term) => addUnique(terms, term));
+    }
+    if (/plain envelopes?/.test(value)) {
+      addUnique(terms, "plain envelope");
+      addUnique(terms, "plain envelopes");
+    }
+  }
+  return terms.slice(0, 20);
+}
+
+function buildCanonicalSourceList({ upc = "", visiblePackageWording = "", intake = {}, identity = {} } = {}) {
+  const sources = [];
+  if (normalizeBarcodeDigits(intake.known_upc) || normalizeBarcodeDigits(intake.known_upc_digits)) addUnique(sources, "manually entered barcode/UPC");
+  if (normalizeBarcodeDigits(identity.upcBarcode) || upc) addUnique(sources, "barcode/UPC evidence");
+  if (visiblePackageWording) addUnique(sources, "visible package/OCR wording");
+  if (intake.known_sku || identity.sku || identity.styleNumber || identity.modelOrItemNumber) addUnique(sources, "SKU/item-number evidence");
+  if (intake.item_name || intake.known_brand || intake.buyer_notes) addUnique(sources, "user-entered buyer details");
+  if (intake.purchase_context) addUnique(sources, "purchase context");
+  if (getRetailStoreName(intake)) addUnique(sources, "store name");
+  return sources.slice(0, 10);
+}
+
+function buildCanonicalConfidence({ upc = "", productName = "", packageQuantity = "", sku = "", rejectedCandidates = [], unresolvedConflicts = [] } = {}) {
+  if (unresolvedConflicts.length) {
+    return "Low - material identity conflict requires user confirmation.";
+  }
+  if (upc && productName && (packageQuantity || sku)) {
+    return rejectedCandidates.length
+      ? "High - stronger barcode/package evidence resolved lower-priority visual conflict."
+      : "High - barcode/package evidence supports the product identity.";
+  }
+  if (productName && (packageQuantity || sku || upc)) {
+    return "Medium - product identity has useful identifiers but should still be verified.";
+  }
+  return "Low - product identity needs stronger barcode, label, SKU, or package evidence.";
+}
+
+function buildCanonicalConfirmationToken({ productName = "", upc = "", sku = "", packageQuantity = "" } = {}) {
+  return cleanText([productName, upc, sku, packageQuantity].filter(Boolean).join("|")).toLowerCase().replace(/[^a-z0-9|]+/g, "-").slice(0, 160);
+}
+
+function identityConfirmationMatches(buyerIntake = normalizeBuyerIntake({}), canonicalProductIdentity = {}) {
+  const supplied = cleanText(buyerIntake.identity_confirmation);
+  if (!supplied) {
+    return false;
+  }
+  return supplied === canonicalProductIdentity.confirmationToken || /^(yes|confirmed|confirm)$/i.test(supplied);
+}
+
+function createIdentityConfirmationRequiredError(canonicalProductIdentity = {}) {
+  const mostLikely = [
+    canonicalFieldValue(canonicalProductIdentity, "productName"),
+    canonicalFieldValue(canonicalProductIdentity, "packageQuantity"),
+    canonicalFieldValue(canonicalProductIdentity, "UPC") ? `UPC ${canonicalFieldValue(canonicalProductIdentity, "UPC")}` : ""
+  ].filter(Boolean).join("\n");
+  const rejected = normalizeArray(canonicalProductIdentity.conflictingCandidatesRejected)
+    .map((candidate) => cleanText(candidate.value))
+    .filter(Boolean);
+  const error = new Error("We found conflicting product details. Confirm the item before research continues.");
+  error.identityConfirmationRequired = true;
+  error.confirmation = {
+    message: "We found conflicting product details.",
+    mostLikelyItem: mostLikely || canonicalProductIdentity.customerFacingTitle || "Likely product identification needs confirmation.",
+    conflictingDetailRejected: rejected,
+    actions: ["Confirm item", "Edit item description", "Enter UPC", "Upload clearer photo"],
+    confirmationToken: canonicalProductIdentity.confirmationToken || "",
+    canonicalProductIdentity
+  };
+  return error;
+}
+
+function formatCanonicalCustomerTitle({ fields = {}, productName = "", brand = "", packageQuantity = "", variant = "", sku = "", upc = "" } = {}) {
+  const fieldWrapper = { fields };
+  const title = firstKnown(
+    canonicalFieldValue(fieldWrapper, "productName"),
+    compactWords([brand, productName, variant])
+  );
+  const pack = firstKnown(canonicalFieldValue(fieldWrapper, "packageQuantity"), packageQuantity);
+  const identifiers = [sku ? `item ${sku}` : "", upc ? `UPC ${upc}` : ""].filter(Boolean).join(", ");
+  return [
+    pack ? `${title}, ${pack}` : title,
+    identifiers ? `(${identifiers})` : ""
+  ].filter(Boolean).join(" ");
+}
+
+function applyCanonicalProductIdentity(identity = {}, canonicalProductIdentity = {}) {
+  const productName = canonicalFieldValue(canonicalProductIdentity, "productName");
+  const brand = canonicalFieldValue(canonicalProductIdentity, "brand");
+  const manufacturer = canonicalFieldValue(canonicalProductIdentity, "manufacturer");
+  const category = canonicalFieldValue(canonicalProductIdentity, "category");
+  const subcategory = canonicalFieldValue(canonicalProductIdentity, "subcategory");
+  const upc = canonicalFieldValue(canonicalProductIdentity, "UPC");
+  const sku = canonicalFieldValue(canonicalProductIdentity, "SKU");
+  const packageQuantity = canonicalFieldValue(canonicalProductIdentity, "packageQuantity");
+  const dimensionsOrSize = canonicalFieldValue(canonicalProductIdentity, "dimensionsOrSize");
+  const visiblePackageWording = canonicalFieldValue(canonicalProductIdentity, "visiblePackageWording");
+  const variant = canonicalFieldValue(canonicalProductIdentity, "variant");
+  const rejectedNotes = normalizeArray(canonicalProductIdentity.conflictingCandidatesRejected)
+    .map((candidate) => `${candidate.value} rejected: ${candidate.reason}`)
+    .filter(Boolean);
+
+  return {
+    ...identity,
+    canonicalProductIdentity,
+    productNameOrBoxTitle: productName || identity.productNameOrBoxTitle,
+    exactProductIdentity: productName || identity.exactProductIdentity,
+    likelyItemDescription: productName || identity.likelyItemDescription,
+    brand: brand || identity.brand,
+    manufacturer: manufacturer || identity.manufacturer,
+    category: subcategory || category || identity.category,
+    upcBarcode: upc || identity.upcBarcode,
+    sku: sku || identity.sku,
+    modelOrItemNumber: sku || identity.modelOrItemNumber,
+    packageQuantity: packageQuantity || identity.packageQuantity,
+    packageSize: dimensionsOrSize || identity.packageSize,
+    size: dimensionsOrSize || identity.size,
+    visibleText: mergeStringArrays(identity.visibleText, visiblePackageWording ? [visiblePackageWording] : [], 24),
+    textIdentityEvidence: mergeStringArrays(identity.textIdentityEvidence, visiblePackageWording ? [visiblePackageWording] : [], 14),
+    strongestSearchableIdentifiers: mergeStringArrays(
+      upc ? [upc] : [],
+      sku ? [compactWords([brand, sku])] : [],
+      productName ? [compactWords([brand, productName, variant, packageQuantity])] : [],
+      identity.strongestSearchableIdentifiers,
+      12
+    ),
+    identityConflictNotes: mergeStringArrays(identity.identityConflictNotes, rejectedNotes, 8),
+    identitySummary: `${identity.identitySummary || ""} Canonical Product Identity: ${canonicalProductIdentity.customerFacingTitle || canonicalProductIdentity.finalizedSearchIdentity || productName || "not established"}.`.trim()
+  };
+}
+
 function normalizeIdentityConfidence(value) {
   const text = cleanText(value);
   if (!text) {
@@ -4989,7 +5465,8 @@ function getRetailerDomainForStore(storeName = "") {
     [/costco/, "costco.com"],
     [/sam'?s\s*club/, "samsclub.com"],
     [/walgreens/, "walgreens.com"],
-    [/cvs/, "cvs.com"]
+    [/cvs/, "cvs.com"],
+    [/kroger/, "kroger.com"]
   ];
   return domains.find(([pattern]) => pattern.test(text))?.[1] || "";
 }
@@ -5041,10 +5518,11 @@ function normalizeBuyerIntake(value) {
 
   intake.purchase_context = normalizePurchaseContext(intake.purchase_context);
   intake.location_zip = normalizeZipCode(intake.location_zip);
+  intake.location_area = cleanText(intake.location_area);
   intake.known_upc_digits = normalizeBarcodeDigits(intake.known_upc);
   intake.store_name = cleanText(intake.store_name);
   intake.retailer_or_marketplace_name = cleanText(intake.retailer_or_marketplace_name);
-  intake.location_mode = cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : ""));
+  intake.location_mode = cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : intake.location_area ? "browser_location_general_area" : ""));
   intake.location_permission = cleanText(intake.location_permission);
   intake.condition_concerns = normalizeConditionConcerns(source.condition_concerns);
   intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
@@ -5090,6 +5568,7 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
     `location_zip: ${intake.location_zip || "not provided"}`,
     `location_mode: ${intake.location_mode || "not provided"}`,
     `location_permission: ${intake.location_permission || "not provided"}`,
+    `location_area: ${intake.location_area || "not provided"}`,
     `retailer_or_marketplace_name: ${intake.retailer_or_marketplace_name || "not provided"}`,
     `known_shipping_amount: ${intake.known_shipping_amount || "not provided"}`,
     `item_condition: ${intake.item_condition || "not provided"}`,
@@ -5101,6 +5580,7 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
     `known_sku: ${intake.known_sku || "not provided"}`,
     `known_upc: ${intake.known_upc || "not provided"}`,
     `known_upc_digits: ${intake.known_upc_digits || "not provided"}`,
+    `identity_confirmation: ${intake.identity_confirmation || "not provided"}`,
     `approximate_age_era: ${intake.approximate_age_era || "not provided"}`,
     `buyer_notes: ${intake.buyer_notes || "not provided"}`
   ].join("\n");
@@ -5334,8 +5814,9 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 
 function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = normalizeBuyerIntake({})) {
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const retailQueries = buildRetailContextSearchQueries(context);
   const queries = [
-    ...buildRetailContextSearchQueries(context),
+    ...retailQueries,
     ...buildHighPriorityExactQueries(context),
     ...buildFallbackSearchQueries(context)
   ];
@@ -5343,7 +5824,7 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   const diverseQueries = [];
   const scored = [];
   let index = 0;
-  for (const query of queries.map((item) => cleanSearchQuery(removeUnsupportedQueryDescriptors(item, context), 12)).filter(Boolean)) {
+  for (const query of queries.map((item) => finalizeSearchQueryCandidate(item, context, 12)).filter(Boolean)) {
     if (!isRepetitiveQuery(query, diverseQueries)) {
       diverseQueries.push(query);
       scored.push({
@@ -5356,6 +5837,24 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
   }
 
   const maxQueries = context.hasHighSpecificityText ? 14 : context.seasonalDecor || context.organizationCollectible || context.visualReferenceSubject ? 8 : 6;
+  if (context.retailStoreContext || context.onlineRetailerContext) {
+    const safeRetailQueries = retailQueries.map((item) => finalizeSearchQueryCandidate(item, context, 18)).filter(Boolean);
+    const safeRetailSet = new Set();
+    const orderedRetailQueries = [];
+    for (const query of safeRetailQueries) {
+      const signature = querySemanticSignature(query);
+      if (signature && !safeRetailSet.has(signature)) {
+        safeRetailSet.add(signature);
+        orderedRetailQueries.push(query);
+      }
+    }
+    const remaining = scored
+      .filter((item) => !orderedRetailQueries.some((retailQuery) => queriesAreSemanticallySame(retailQuery, item.query)))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((item) => item.query);
+    return mergeStringArrays(orderedRetailQueries, remaining, maxQueries);
+  }
+
   return scored
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((item) => item.query)
@@ -5366,31 +5865,44 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const routeText = sourceRoute.join(" ").toLowerCase();
   const notesText = cleanText([notes, buyerIntake.buyer_notes].filter(Boolean).join(" "));
   const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
+  const canonicalProductIdentity = identity.canonicalProductIdentity || {};
+  const canonicalProductName = canonicalFieldValue(canonicalProductIdentity, "productName");
+  const canonicalBrand = canonicalFieldValue(canonicalProductIdentity, "brand");
+  const canonicalManufacturer = canonicalFieldValue(canonicalProductIdentity, "manufacturer");
+  const canonicalCategory = canonicalFieldValue(canonicalProductIdentity, "category");
+  const canonicalSubcategory = canonicalFieldValue(canonicalProductIdentity, "subcategory");
+  const canonicalUpc = canonicalFieldValue(canonicalProductIdentity, "UPC");
+  const canonicalSku = canonicalFieldValue(canonicalProductIdentity, "SKU");
+  const canonicalPackageQuantity = canonicalFieldValue(canonicalProductIdentity, "packageQuantity");
+  const canonicalDimensions = canonicalFieldValue(canonicalProductIdentity, "dimensionsOrSize");
+  const canonicalVariant = canonicalFieldValue(canonicalProductIdentity, "variant");
+  const canonicalVisiblePackageWording = canonicalFieldValue(canonicalProductIdentity, "visiblePackageWording");
   const visualSubject = firstKnown(identity.visualSubject, visualRecognition.visualSubject, identity.subjectIdentity, identity.userProvidedIdentity);
-  const visualCategory = firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category);
+  const visualCategory = firstKnown(canonicalSubcategory, canonicalCategory, identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category);
   const visualOrganization = firstKnown(identity.recognizedOrganization, visualRecognition.recognizedOrganization, identity.recognizedInstitution, visualRecognition.recognizedInstitution, identity.schoolName, identity.teamName);
-  const visualBrand = firstKnown(identity.recognizedBrand, visualRecognition.recognizedBrand, identity.brandSeries, identity.brand);
+  const visualBrand = firstKnown(canonicalBrand, identity.recognizedBrand, visualRecognition.recognizedBrand, identity.brandSeries, identity.brand);
   const visualCharacter = firstKnown(identity.recognizedCharacter, visualRecognition.recognizedCharacter, identity.mascot);
   const visibleLetters = normalizeStringArray(visualRecognition.visibleLetters, 8).join(" ");
   const visibleWords = normalizeStringArray(visualRecognition.visibleWords, 10).join(" ");
   const visualFeatures = normalizeStringArray(visualRecognition.distinctiveFeatures, 6).join(" ");
   const visualStyle = firstKnown(visualRecognition.visualStyle, visualRecognition.estimatedEraStyle);
   const subjectIdentity = firstKnown(visualSubject, identity.subjectIdentity, identity.userProvidedIdentity);
-  const exactProductIdentity = getVerifiedExactProductIdentity(identity.exactProductIdentity);
-  const productTitle = firstKnown(buyerIntake.item_name, identity.productNameOrBoxTitle, exactProductIdentity, subjectIdentity, identity.likelyItemDescription, notesText.slice(0, 120));
-  const brand = firstKnown(buyerIntake.known_brand, visualBrand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
-  const manufacturer = firstKnown(buyerIntake.known_manufacturer, identity.manufacturer);
+  const exactProductIdentity = firstKnown(canonicalProductName, getVerifiedExactProductIdentity(identity.exactProductIdentity));
+  const productTitle = firstKnown(canonicalProductName, buyerIntake.item_name, identity.productNameOrBoxTitle, exactProductIdentity, subjectIdentity, identity.likelyItemDescription, notesText.slice(0, 120));
+  const brand = firstKnown(canonicalBrand, buyerIntake.known_brand, visualBrand, identity.brandSeries, identity.brand, buyerIntake.known_manufacturer, identity.manufacturer);
+  const manufacturer = firstKnown(canonicalManufacturer, buyerIntake.known_manufacturer, identity.manufacturer);
   const teamName = firstKnown(identity.teamName);
   const schoolName = firstKnown(identity.schoolName);
   const mascot = firstKnown(identity.mascot);
   const model = firstKnown(buyerIntake.known_model, identity.model);
-  const itemCode = firstKnown(buyerIntake.known_sku, identity.sku, identity.styleNumber);
-  const upc = getSearchBarcodeDigits(identity, buyerIntake) || firstKnown(buyerIntake.known_upc, identity.upcBarcode);
+  const itemCode = firstKnown(canonicalSku, buyerIntake.known_sku, identity.sku, identity.styleNumber);
+  const upc = canonicalUpc || getSearchBarcodeDigits(identity, buyerIntake) || firstKnown(buyerIntake.known_upc, identity.upcBarcode);
   const barcodeDigits = normalizeBarcodeDigits(upc);
   const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
   const storeName = getRetailStoreName(buyerIntake);
   const retailerOrMarketplaceName = cleanText(buyerIntake.retailer_or_marketplace_name);
   const locationZip = normalizeZipCode(buyerIntake.location_zip);
+  const locationArea = cleanText(buyerIntake.location_area);
   const locationMode = cleanText(buyerIntake.location_mode || (locationZip ? "manual_zip" : ""));
   const retailerDomain = getRetailerDomainForStore(firstKnown(storeName, retailerOrMarketplaceName));
   const retailStoreContext = isRetailStorePurchaseContext(purchaseContext);
@@ -5403,7 +5915,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const concernText = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const locationText = firstKnown(identity.manufacturerLocationText);
   const licensingText = firstKnown(identity.licensingStickerText);
-  const labelText = compactWords([identity.frontBoxWording, identity.backLabelWording, identity.licensingStickerText, identity.copyrightWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
+  const labelText = compactWords([canonicalVisiblePackageWording, identity.frontBoxWording, identity.backLabelWording, identity.licensingStickerText, identity.copyrightWording, Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : ""]);
   const visualPhrase = buildVisualPhrase(identity, notesText);
   const categoryPhrase = buildCategoryPhrase(identity, routeText, notesText);
   const subjectPhrase = compactWords([subjectIdentity, categoryPhrase]);
@@ -5413,14 +5925,14 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const brandedMemorabilia = isBrandedMemorabiliaIdentity(identity, routeText, notesText);
   const promotionalCollectible = isPromotionalCollectibleIdentity(identity, routeText, notesText);
   const visualReferenceSubject = /visual subject reference|historical\/reference|logo\/mascot\/artwork|image\/reference|artwork|illustration|logo|mascot|advertising|poster|sign|plaque|print|political|military|insignia|vintage graphic/.test(routeText);
-  const visibleEvidence = collectVisibleSearchEvidence(identity, visualRecognition, notesText, buyerIntake);
+  const visibleEvidence = mergeStringArrays(canonicalVisiblePackageWording ? [canonicalVisiblePackageWording] : [], collectVisibleSearchEvidence(identity, visualRecognition, notesText, buyerIntake), 24);
   const distinctivePhrases = extractDistinctiveSearchPhrases(visibleEvidence);
   const years = extractSearchYears(visibleEvidence.join(" "));
   const namedPeople = extractLikelyNamedPeople(visibleEvidence.join(" "));
-  const itemType = inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText);
+  const itemType = firstKnown(canonicalSubcategory, inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText));
   const eventPhrases = distinctivePhrases.filter((phrase) => /champion|anniversary|tournament|bowl|series|festival|event|official|collector|edition|commemorative|national|world|regional|conference|\b\d{4}\b/i.test(phrase));
-  const packageQuantity = firstKnown(identity.packageQuantity, identity.unitCount, extractPackQuantityText([productTitle, notesText, identity.size, identity.dimensions, identity.frontBoxWording, identity.backLabelWording].join(" ")));
-  const packageSize = firstKnown(identity.packageSize, identity.size, identity.dimensions);
+  const packageQuantity = firstKnown(canonicalPackageQuantity, identity.packageQuantity, identity.unitCount, extractPackQuantityText([productTitle, notesText, identity.size, identity.dimensions, identity.frontBoxWording, identity.backLabelWording].join(" ")));
+  const packageSize = firstKnown(canonicalDimensions, identity.packageSize, identity.size, identity.dimensions);
   const hasHighSpecificityText = distinctivePhrases.length > 0 || barcodeDigits || upc || model || itemCode;
 
   return {
@@ -5454,6 +5966,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     storeName,
     retailerOrMarketplaceName,
     locationZip,
+    locationArea,
     locationMode,
     locationPermission: cleanText(buyerIntake.location_permission),
     retailerDomain,
@@ -5485,6 +5998,14 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     itemType,
     packageQuantity,
     packageSize,
+    canonicalProductIdentity,
+    finalizedSearchIdentity: canonicalProductIdentity.finalizedSearchIdentity || "",
+    canonicalCustomerTitle: canonicalProductIdentity.customerFacingTitle || "",
+    unsupportedIdentityTerms: normalizeStringArray(canonicalProductIdentity.unsupportedTermsRejected, 24),
+    conflictingCandidatesRejected: normalizeArray(canonicalProductIdentity.conflictingCandidatesRejected),
+    canonicalIdentityConfidence: cleanText(canonicalProductIdentity.canonicalConfidence),
+    canonicalUserConfirmationRequired: Boolean(canonicalProductIdentity.userConfirmationRequired),
+    canonicalVariant,
     eventPhrases,
     hasHighSpecificityText
   };
@@ -5500,21 +6021,44 @@ function buildRetailContextSearchQueries(context) {
   const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
   const identifier = firstKnown(context.model, context.itemCode);
   const productTitle = firstKnown(context.productTitle, context.exactProductIdentity, context.subjectIdentity, context.itemType);
+  const productType = firstKnown(context.itemType, mostDistinctiveCategoryWord(context.categoryPhrase));
   const pack = compactWords([context.packageQuantity, context.packageSize]);
+  const location = context.locationZip || cleanText(context.locationArea);
 
   if (barcode) {
     queries.push(barcode);
-    queries.push(compactWords([barcode, storeName]));
-    queries.push(compactWords([barcode, brand || productTitle]));
-    queries.push(compactWords([barcode, productTitle, pack]));
-    queries.push(compactWords([barcode, "shopping"]));
+    queries.push(compactWords([storeName, barcode]));
+    if (context.retailerDomain) {
+      queries.push(buildSerperSingleMarketplaceQuery(barcode, context.retailerDomain));
+    }
   }
 
-  if (storeName && identifier) {
-    queries.push(compactWords([storeName, brand, identifier, context.itemType]));
+  if (brand && productTitle) {
+    queries.push(compactWords([brand, productTitle]));
+  }
+  if (brand && identifier) {
+    queries.push(compactWords([brand, identifier]));
+  }
+  if (brand && productType && context.packageQuantity) {
+    queries.push(compactWords([brand, productType, context.packageQuantity]));
   }
   if (storeName && productTitle) {
-    queries.push(compactWords([storeName, productTitle, pack]));
+    queries.push(compactWords([storeName, brand, productTitle]));
+  }
+  if (storeName && productType && context.packageQuantity) {
+    queries.push(compactWords([storeName, productType, context.packageQuantity]));
+  }
+  if (productType && context.packageQuantity && location) {
+    queries.push(compactWords([productType, context.packageQuantity, "near", location]));
+  }
+
+  if (barcode) {
+    queries.push(compactWords([barcode, brand || productTitle]));
+    queries.push(compactWords([barcode, productTitle, pack]));
+    queries.push(compactWords([barcode, "current price"]));
+  }
+  if (identifier && storeName) {
+    queries.push(compactWords([storeName, brand, identifier, productType]));
   }
   if (identifier) {
     queries.push(compactWords([brand, identifier, "current retail price"]));
@@ -5524,15 +6068,15 @@ function buildRetailContextSearchQueries(context) {
     queries.push(compactWords([brand, productTitle, "manufacturer price"]));
     queries.push(compactWords([productTitle, "shopping replacement cost"]));
   }
-  if (context.retailerDomain && (barcode || productTitle)) {
-    queries.push(buildSerperSingleMarketplaceQuery(compactWords([barcode || productTitle, pack]), context.retailerDomain));
+  if (context.retailerDomain && productTitle && !barcode) {
+    queries.push(buildSerperSingleMarketplaceQuery(compactWords([productTitle, pack]), context.retailerDomain));
   }
-  if (context.locationZip && productTitle) {
-    queries.push(compactWords([productTitle, storeName, context.locationZip]));
-    queries.push(compactWords([productTitle, context.locationZip, "nearby price"]));
+  if (location && productTitle) {
+    queries.push(compactWords([productTitle, storeName, location]));
+    queries.push(compactWords([productTitle, location, "nearby price"]));
   }
 
-  return mergeStringArrays(queries, 14);
+  return mergeStringArrays(queries, 16);
 }
 
 function buildHighPriorityExactQueries(context) {
@@ -7717,6 +8261,11 @@ function buildListingOfferRange(value, reliableResearchFound) {
 }
 
 function buildIdentifiedItem(identity) {
+  const canonicalTitle = cleanText(identity.canonicalProductIdentity?.customerFacingTitle);
+  if (canonicalTitle) {
+    return canonicalTitle;
+  }
+
   return compactWords([
     identity.visualSubject,
     identity.subjectIdentity,
@@ -8586,11 +9135,16 @@ function buildPurchaseContextSummary(buyerIntake = normalizeBuyerIntake({})) {
   }
   const store = getRetailStoreName(buyerIntake);
   const zip = normalizeZipCode(buyerIntake.location_zip);
+  const area = cleanText(buyerIntake.location_area);
   const location = zip
     ? `ZIP ${zip}`
-    : buyerIntake.location_mode === "browser_location_approved"
-      ? "general browser location approved"
-      : "no local ZIP/location supplied";
+    : area
+      ? `general area ${area}`
+      : /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(buyerIntake.location_mode || buyerIntake.location_permission)
+        ? "local prices and nearby availability will not be checked"
+        : /browser_location/.test(buyerIntake.location_mode)
+          ? "general browser location approved"
+          : "no local ZIP/location supplied";
   const details = [
     `Purchase context: ${label}.`,
     store ? `Store/marketplace: ${store}.` : "",
@@ -8635,13 +9189,18 @@ function buildLocalStoreContext(buyerIntake = normalizeBuyerIntake({}), liveSear
   }
   const store = getRetailStoreName(buyerIntake) || "Store not provided";
   const zip = normalizeZipCode(buyerIntake.location_zip);
+  const area = cleanText(buyerIntake.location_area);
   const returned = normalizeStringArray(liveSearch.sourcesReturned || liveSearch.domainsActuallyReturned, 12);
   const namedStoreReturned = store !== "Store not provided" && returned.some((source) => source.toLowerCase().includes(store.toLowerCase().split(/\s+/)[0]));
   const locationText = zip
     ? `ZIP/general area: ${zip}.`
-    : buyerIntake.location_mode === "browser_location_approved"
-      ? "General location permission was approved; precise coordinates are not stored or displayed."
-      : "No ZIP/location supplied, so nearby price and availability were limited.";
+    : area
+      ? `General area: ${area}. Enter ZIP for more precise local pricing.`
+      : /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(buyerIntake.location_mode || buyerIntake.location_permission)
+        ? "Local prices and nearby availability were not checked because ZIP/local area was unavailable."
+        : /browser_location/.test(buyerIntake.location_mode)
+          ? "General location permission was approved; precise coordinates are not stored or displayed."
+          : "No ZIP/location supplied, so nearby price and availability were limited.";
   return [
     `Named store: ${store}.`,
     locationText,
@@ -10944,6 +11503,11 @@ function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGu
 }
 
 function buildItemIdentification(identity = {}) {
+  const canonicalTitle = cleanText(identity.canonicalProductIdentity?.customerFacingTitle);
+  if (canonicalTitle) {
+    return `Identified as: ${canonicalTitle}. Canonical identity confidence: ${identity.canonicalProductIdentity.canonicalConfidence || "not established"}.`;
+  }
+
   const identityParts = [
     formatKnownPart("subject", identity.subjectIdentity),
     formatKnownPart("subject confidence", identity.subjectConfidence),
@@ -10975,7 +11539,12 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
   const visualEvidence = normalizeStringArray(identity.visualIdentityEvidence, 6);
   const textEvidence = normalizeStringArray(identity.textIdentityEvidence, 6);
   const conflicts = normalizeStringArray(identity.identityConflictNotes, 6);
+  const canonical = identity.canonicalProductIdentity || {};
+  const canonicalTitle = cleanText(canonical.customerFacingTitle);
 
+  if (canonicalTitle) {
+    known.push(`Canonical product identity: ${canonicalTitle}`);
+  }
   if (hasKnownValue(identity.subjectIdentity)) {
     known.push(`Subject: ${identity.subjectIdentity}`);
   }
@@ -11004,7 +11573,7 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
   return {
     subjectIdentity: identity.subjectIdentity || "Unknown subject",
     subjectConfidence: identity.subjectConfidence || "Unclear",
-    exactProductIdentity: identity.exactProductIdentity || "Not verified",
+    exactProductIdentity: canonicalTitle || identity.exactProductIdentity || "Not verified",
     exactProductConfidence: identity.exactProductConfidence || "Low - exact product not verified.",
     makerDateLicensingStatus: makerDateLicensing,
     whatIsKnown: known.length ? known.slice(0, 8) : ["Broad subject identity needs stronger visual, text, or user-provided evidence."],
@@ -11750,6 +12319,7 @@ function inferSearchItemType(identity, visualCategory, productTitle, notesText, 
     routeText
   ].join(" ").toLowerCase();
   const knownTypes = [
+    ["boxed envelopes", /envelope|envelopes|stationery|security envelope|strip\s*&?\s*seal|peel[- ]?and[- ]?seal|gummed/],
     ["collector tray", /collector'?s tray|collector tray|serving tray|tray\b/],
     ["collector plate", /collector plate|commemorative plate|plate\b/],
     ["advertising sign", /advertising sign|tin sign|sign\b/],
@@ -11762,8 +12332,7 @@ function inferSearchItemType(identity, visualCategory, productTitle, notesText, 
     ["ceramic canister", /canister|cookie jar|ceramic jar|lidded/],
     ["apparel", /dress|shirt|jacket|shoe|pants|apparel|fashion/],
     ["electronics", /laptop|computer|phone|tablet|electronics/],
-    ["furniture", /sofa|chair|table|dresser|cabinet|furniture/],
-    ["boxed envelopes", /envelope|envelopes|stationery|security envelope|peel[- ]?and[- ]?seal|gummed/]
+    ["furniture", /sofa|chair|table|dresser|cabinet|furniture/]
   ];
   for (const [label, pattern] of knownTypes) {
     if (pattern.test(haystack)) {
@@ -11882,11 +12451,18 @@ function removeUnsupportedQueryDescriptors(value, context = {}) {
     context.notesText,
     context.labelText,
     context.productTitle,
-    context.subjectIdentity
+    context.subjectIdentity,
+    context.finalizedSearchIdentity,
+    context.canonicalCustomerTitle
   ].flat().map(cleanText).join(" ").toLowerCase();
 
   if (!/\blimited edition\b/.test(evidenceText)) {
     text = text.replace(/\blimited edition\b/gi, "");
+  }
+
+  for (const term of normalizeStringArray(context.unsupportedIdentityTerms, 24)) {
+    const pattern = new RegExp(`\\b${escapeRegExp(term)}\\b`, "gi");
+    text = text.replace(pattern, "");
   }
 
   text = text
@@ -11898,6 +12474,38 @@ function removeUnsupportedQueryDescriptors(value, context = {}) {
     .trim();
 
   return text;
+}
+
+function finalizeSearchQueryCandidate(value, context = {}, maxTerms = 12) {
+  let cleaned = cleanSearchQuery(removeUnsupportedQueryDescriptors(value, context), maxTerms);
+  const unsupportedTerms = findUnsupportedQueryTerms(cleaned, context);
+  if (unsupportedTerms.length) {
+    for (const term of unsupportedTerms) {
+      cleaned = cleaned.replace(new RegExp(`\\b${escapeRegExp(term)}\\b`, "gi"), "");
+    }
+    cleaned = cleanSearchQuery(cleaned, maxTerms);
+  }
+  if (findUnsupportedQueryTerms(cleaned, context).length) {
+    return "";
+  }
+  return cleaned;
+}
+
+function findUnsupportedQueryTerms(query, context = {}) {
+  const text = cleanText(query).toLowerCase();
+  if (!text) {
+    return [];
+  }
+  const terms = normalizeStringArray(context.unsupportedIdentityTerms, 24)
+    .map((term) => term.toLowerCase())
+    .filter(Boolean);
+  const found = [];
+  for (const term of terms) {
+    if (new RegExp(`\\b${escapeRegExp(term)}\\b`, "i").test(text)) {
+      found.push(term);
+    }
+  }
+  return found;
 }
 
 function normalizeTokenString(value) {
@@ -12324,10 +12932,14 @@ function parseBody(body) {
 
 export const __queryIntegrityTestHooks = {
   normalizeBuyerIntake,
+  finalizeIdentityForResearch,
+  buildCanonicalProductIdentity,
   routeMarketSources,
   buildLiveSearchQueries,
   buildSearchQueryContext,
   buildRetailContextSearchQueries,
+  finalizeSearchQueryCandidate,
+  findUnsupportedQueryTerms,
   buildSerperSearchPlan,
   buildSerperMarketplaceQuery,
   buildSerperSingleMarketplaceQuery,

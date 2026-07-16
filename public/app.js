@@ -25,6 +25,7 @@ const useLocationButton = document.querySelector("#use-location-button");
 const locationStatus = document.querySelector("#location-status");
 const locationModeInput = document.querySelector("#location_mode");
 const locationPermissionInput = document.querySelector("#location_permission");
+const locationAreaInput = document.querySelector("#location_area");
 const retailerOrMarketplaceInput = document.querySelector("#retailer_or_marketplace_name");
 const knownShippingAmountInput = document.querySelector("#known_shipping_amount");
 const notesInput = document.querySelector("#notes");
@@ -369,6 +370,7 @@ const MAX_PHOTO_COUNT = 6;
 let latestReport = null;
 let latestSections = workflowConfigs[defaultWorkflow].sections;
 let selectedPhotoFiles = [];
+let pendingIdentityConfirmationToken = "";
 let currentWorkflow = defaultWorkflow;
 let activeItemSession = null;
 let activeRequestId = 0;
@@ -582,6 +584,14 @@ async function handleSubmit(event) {
       throw createSubmissionError("Could not read the analysis response.", submissionStages.API_RESPONSE, "api_response_parse_failed", error);
     }
     if (!response.ok) {
+      if (data.action === "identity_confirmation_required") {
+        pendingIdentityConfirmationToken = String(data.confirmation?.confirmationToken || "").trim();
+        stopLoadingProgress();
+        setLoading(false, workflow);
+        renderIdentityConfirmationCard(data.confirmation || {}, config);
+        setStatus("Confirm the item details before research continues.", "error");
+        return;
+      }
       throw new Error(data.error || config.errorMessage);
     }
 
@@ -729,6 +739,7 @@ function syncPurchaseContextFields(config) {
     locationStatus.textContent = "";
     locationModeInput.value = "";
     locationPermissionInput.value = "";
+    locationAreaInput.value = "";
   }
 
   if (!namedContextSelected) {
@@ -754,52 +765,132 @@ function validateBuyerPurchaseContext(config, formData) {
   const storeName = String(formData.get("store_name") || "").trim();
   const zip = String(formData.get("location_zip") || "").trim();
   const locationMode = String(formData.get("location_mode") || "").trim();
+  const locationPermission = String(formData.get("location_permission") || "").trim();
+  const locationArea = String(formData.get("location_area") || "").trim();
 
   if (!storeName) {
     return "Enter the store name before checking a retail-store purchase.";
   }
 
-  if (!zip && locationMode !== "browser_location_approved") {
+  const locationResolved = Boolean(zip || locationArea || /browser_location_(zip|general_area)/.test(locationMode));
+  const locationFallbackAcknowledged = /location_(denied|unavailable|timeout|unsupported)|reverse_geocode_failed/.test(`${locationMode} ${locationPermission}`);
+  if (!locationResolved && !locationFallbackAcknowledged) {
     return "Enter a ZIP code or tap Use My Location before checking nearby retail prices.";
   }
 
   return "";
 }
 
-function handleUseLocationClick() {
-  if (!navigator.geolocation) {
-    locationModeInput.value = "manual_zip";
-    locationPermissionInput.value = "unsupported";
-    locationStatus.textContent = "Location is not available in this browser. Enter a ZIP code to check nearby prices.";
-    syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+async function handleUseLocationClick() {
+  const isLocalSession = ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (!window.isSecureContext && !isLocalSession) {
+    applyLocationFallback("location_unsupported", "unsupported", "Location services are not available in this browser session. Enter a ZIP code.");
     return;
   }
 
+  if (!navigator.geolocation) {
+    applyLocationFallback("location_unsupported", "unsupported", "Location services are not available in this browser session. Enter a ZIP code.");
+    return;
+  }
+
+  setLocationButtonBusy(true);
   locationStatus.textContent = "Asking for location permission...";
-  navigator.geolocation.getCurrentPosition(
-    () => {
-      locationModeInput.value = "browser_location_approved";
-      locationPermissionInput.value = "granted";
-      locationStatus.textContent = "Location permission granted. Nearby research can use your general area; precise coordinates will not appear in the report.";
-      syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
-    },
-    () => {
-      locationModeInput.value = "permission_denied";
-      locationPermissionInput.value = "denied";
-      locationStatus.textContent = "Location access was not granted. Enter a ZIP code to check nearby prices.";
-      syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
-    },
-    {
+  locationModeInput.value = "browser_location_pending";
+  locationPermissionInput.value = "prompt";
+  locationAreaInput.value = "";
+
+  try {
+    const position = await getCurrentBrowserPosition();
+    locationPermissionInput.value = "granted";
+    locationStatus.textContent = "Location permission granted. Finding your general area...";
+    const area = await reverseGeocodePosition(position);
+    if (area.zip) {
+      locationZipInput.value = area.zip;
+      locationAreaInput.value = area.label;
+      locationModeInput.value = "browser_location_zip";
+      locationStatus.textContent = `Location found: ${area.label}. Precise coordinates are not stored or displayed.`;
+    } else if (area.label) {
+      locationAreaInput.value = area.label;
+      locationModeInput.value = "browser_location_general_area";
+      locationStatus.textContent = `General area found: ${area.label}. Enter ZIP for more precise local pricing. Precise coordinates are not stored or displayed.`;
+    } else {
+      applyLocationFallback("reverse_geocode_failed", "granted", "Your location was allowed, but ZIP could not be resolved. Enter a ZIP code to continue local research.");
+      return;
+    }
+  } catch (error) {
+    handleLocationError(error);
+  } finally {
+    setLocationButtonBusy(false);
+    syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+  }
+}
+
+function getCurrentBrowserPosition() {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: false,
       timeout: 8000,
       maximumAge: 15 * 60 * 1000
-    }
-  );
+    });
+  });
+}
+
+async function reverseGeocodePosition(position) {
+  const latitude = Number(position?.coords?.latitude);
+  const longitude = Number(position?.coords?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error("reverse_geocode_failed");
+  }
+
+  const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=en`, {
+    method: "GET",
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    throw new Error("reverse_geocode_failed");
+  }
+  const data = await response.json();
+  const zip = String(data.postcode || "").match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || "";
+  const city = String(data.city || data.locality || data.principalSubdivision || "").trim();
+  const state = String(data.principalSubdivisionCode || data.principalSubdivision || "").replace(/^US-/, "").trim();
+  const label = [city, state, zip].filter(Boolean).join(city && (state || zip) ? ", " : " ").replace(/,\s*(\d{5})$/, " $1").trim();
+  return { zip, label: label || zip };
+}
+
+function handleLocationError(error) {
+  const code = Number(error?.code || 0);
+  if (code === 1) {
+    applyLocationFallback("location_denied", "denied", "Location access was not granted. Enter a ZIP code to check nearby prices.");
+    return;
+  }
+  if (code === 2) {
+    applyLocationFallback("location_unavailable", "unavailable", "Your location could not be determined. Enter a ZIP code to continue local research.");
+    return;
+  }
+  if (code === 3) {
+    applyLocationFallback("location_timeout", "timeout", "Location lookup timed out. Try again or enter a ZIP code.");
+    return;
+  }
+  applyLocationFallback("reverse_geocode_failed", "unavailable", "Your location could not be determined. Enter a ZIP code to continue local research.");
+}
+
+function applyLocationFallback(mode, permission, message) {
+  locationModeInput.value = mode;
+  locationPermissionInput.value = permission;
+  locationAreaInput.value = "";
+  locationStatus.textContent = `${message} Local prices and nearby availability will not be checked without a ZIP or resolved area.`;
+  syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
+}
+
+function setLocationButtonBusy(isBusy) {
+  useLocationButton.disabled = isBusy;
+  useLocationButton.textContent = isBusy ? "Finding Location..." : "Use My Location";
 }
 
 function clearWorkflowOutput(config) {
   latestReport = null;
   latestSections = config.sections;
+  pendingIdentityConfirmationToken = "";
   clearItemSession({ abortAsk: true });
   resetCopyAllButton();
   clearStatus();
@@ -1048,8 +1139,10 @@ function getBuyerIntake(formData, notes) {
     location_zip: getValue("location_zip"),
     location_mode: getValue("location_mode"),
     location_permission: getValue("location_permission"),
+    location_area: getValue("location_area"),
     retailer_or_marketplace_name: getValue("retailer_or_marketplace_name"),
     known_shipping_amount: getValue("known_shipping_amount"),
+    identity_confirmation: pendingIdentityConfirmationToken,
     item_condition: getValue("item_condition"),
     condition_concerns: formData.getAll("condition_concerns").map((value) => String(value || "").trim()).filter(Boolean),
     item_name: getValue("item_name"),
@@ -1689,9 +1782,16 @@ function renderSearchDiagnostics(diagnostics) {
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
     ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
+    ["Canonical Product Identity", diagnostics.canonicalProductIdentity],
+    ["Finalized Search Identity", diagnostics.finalizedSearchIdentity],
+    ["Canonical Identity Confidence", diagnostics.canonicalIdentityConfidence],
+    ["Conflicting Candidates Rejected", diagnostics.conflictingCandidatesRejected],
+    ["Retail Query Integrity", diagnostics.retailQueryIntegrity],
+    ["Unsupported Query Terms Rejected", diagnostics.unsupportedQueryTermsRejected],
     ["Purchase Context", diagnostics.purchaseContext],
     ["Store Name", diagnostics.storeName],
     ["Location Mode Used", diagnostics.locationModeUsed],
+    ["Location Lookup Outcome", diagnostics.locationLookupOutcome],
     ["ZIP Present", diagnostics.zipPresence],
     ["Barcode Extraction Status", diagnostics.barcodeExtractionStatus],
     ["Exact Barcode Digits Used", diagnostics.exactBarcodeDigitsUsed],
@@ -3201,6 +3301,92 @@ function renderRiskScore(report) {
 
   wrapper.append(top, meter, labels, summaryText, note);
   return wrapper;
+}
+
+function renderIdentityConfirmationCard(confirmation = {}, config = workflowConfigs[defaultWorkflow]) {
+  latestReport = null;
+  copyAllButton.disabled = true;
+  results.className = "results";
+  setOutputHeading(config);
+
+  const card = document.createElement("article");
+  card.className = "section-card identity-confirmation-card";
+
+  const title = document.createElement("h3");
+  title.textContent = confirmation.message || "We found conflicting product details.";
+
+  const helper = document.createElement("p");
+  helper.textContent = "Confirm the likely item before Katherine's Eye searches prices.";
+
+  const likely = document.createElement("div");
+  likely.className = "identity-confirmation-block";
+  const likelyLabel = document.createElement("strong");
+  likelyLabel.textContent = "Most likely item";
+  const likelyText = document.createElement("p");
+  likelyText.textContent = String(confirmation.mostLikelyItem || "Likely product identification needs confirmation.").replace(/\n+/g, " / ");
+  likely.append(likelyLabel, likelyText);
+
+  const rejected = normalizeArray(confirmation.conflictingDetailRejected);
+  if (rejected.length) {
+    const conflict = document.createElement("div");
+    conflict.className = "identity-confirmation-block";
+    const conflictLabel = document.createElement("strong");
+    conflictLabel.textContent = "Conflicting detail rejected";
+    const conflictText = document.createElement("p");
+    conflictText.textContent = rejected.join(", ");
+    conflict.append(conflictLabel, conflictText);
+    card.append(title, helper, likely, conflict);
+  } else {
+    card.append(title, helper, likely);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "identity-confirmation-actions";
+
+  const confirmButton = document.createElement("button");
+  confirmButton.type = "button";
+  confirmButton.className = "primary-button";
+  confirmButton.textContent = "Confirm item";
+  confirmButton.addEventListener("click", () => {
+    pendingIdentityConfirmationToken = String(confirmation.confirmationToken || pendingIdentityConfirmationToken || "confirmed").trim();
+    setStatus("Item confirmed. Running research now...", "loading");
+    form.requestSubmit();
+  });
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "secondary-button";
+  editButton.textContent = "Edit item description";
+  editButton.addEventListener("click", () => {
+    pendingIdentityConfirmationToken = "";
+    notesInput.focus();
+    setStatus("Edit the item notes, then analyze again.", "success");
+  });
+
+  const upcButton = document.createElement("button");
+  upcButton.type = "button";
+  upcButton.className = "secondary-button";
+  upcButton.textContent = "Enter UPC";
+  upcButton.addEventListener("click", () => {
+    pendingIdentityConfirmationToken = "";
+    const upcInput = document.querySelector("#known_upc");
+    upcInput?.focus();
+    setStatus("Enter the barcode or UPC number, then analyze again.", "success");
+  });
+
+  const photoButton = document.createElement("button");
+  photoButton.type = "button";
+  photoButton.className = "secondary-button";
+  photoButton.textContent = "Upload clearer photo";
+  photoButton.addEventListener("click", () => {
+    pendingIdentityConfirmationToken = "";
+    photosInput.click();
+    setStatus("Add a clearer label or barcode photo, then analyze again.", "success");
+  });
+
+  actions.append(confirmButton, editButton, upcButton, photoButton);
+  card.appendChild(actions);
+  results.replaceChildren(card);
 }
 
 function renderEmpty(config = workflowConfigs[defaultWorkflow]) {

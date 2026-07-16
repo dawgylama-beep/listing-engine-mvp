@@ -579,6 +579,52 @@ try {
   });
   assert(/Price Not Verified/i.test(retailCalibration.decisionOverrides.valueRating), "Retail no-comps calibration should label price as not verified.");
   assert(!/^Buy$/i.test(retailCalibration.recommendation), "Retail no-comps calibration must not leave an unconditional Buy recommendation.");
+  const officeWorksIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    asking_price: "$6",
+    purchase_intent: "personal_use",
+    store_name: "Kroger",
+    location_zip: "30188",
+    item_name: "Office Works Security Envelopes",
+    known_brand: "Office Works",
+    known_sku: "6110325",
+    known_upc: "041226087161",
+    buyer_notes: "Office Works Security Envelopes 45 count Strip & Seal item number 6110325"
+  });
+  const officeWorksExtractedIdentity = {
+    brand: "Office Works",
+    manufacturer: "Office Works",
+    sku: "6110325",
+    upcBarcode: "041226087161",
+    category: "office supplies",
+    productNameOrBoxTitle: "Office Works Security Envelopes",
+    exactProductIdentity: "Office Works poster print",
+    subjectIdentity: "Office Works poster print",
+    likelyItemDescription: "poster print",
+    frontBoxWording: "Office Works Security Envelopes 45 Count Strip & Seal",
+    backLabelWording: "UPC 041226087161 Item 6110325",
+    packageQuantity: "45 count",
+    visibleText: ["Office Works", "Security Envelopes", "45 Count", "Strip & Seal", "6110325", "041226087161"],
+    visualRecognition: {
+      visualSubject: "Office Works poster print",
+      visualSubjectCategory: "poster print",
+      possibleInterpretations: ["poster print"]
+    },
+    identityConflictNotes: []
+  };
+  const officeWorksIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch(officeWorksExtractedIdentity, officeWorksIntake);
+  assert(/Office Works Security Envelopes/i.test(officeWorksIdentity.canonicalProductIdentity.customerFacingTitle), "Canonical identity should preserve Office Works security envelopes.");
+  assert(/poster print/i.test(JSON.stringify(officeWorksIdentity.canonicalProductIdentity.conflictingCandidatesRejected)), "Conflicting poster print should be retained only as a rejected diagnostic.");
+  assert(!officeWorksIdentity.canonicalProductIdentity.userConfirmationRequired, "Strong UPC/OCR/package evidence should resolve weak visual conflict without interrupting the user.");
+  const officeWorksRoute = __queryIntegrityTestHooks.routeMarketSources(officeWorksIdentity, officeWorksIntake, "");
+  const officeWorksQueries = __queryIntegrityTestHooks.buildLiveSearchQueries(officeWorksIdentity, officeWorksRoute, "Office Works poster print maybe envelopes", officeWorksIntake);
+  assert(officeWorksQueries[0] === "041226087161", "Office Works exact UPC should be first retail query.");
+  assert(officeWorksQueries.some((query) => /^Kroger\s+041226087161$/i.test(query)), "Kroger plus exact UPC should be generated separately.");
+  assert(officeWorksQueries.some((query) => /^041226087161\s+site:kroger\.com$/i.test(query)), "Known retailer-domain plus UPC should be generated.");
+  assert(officeWorksQueries.some((query) => /Office Works 6110325/i.test(query)), "Brand plus item number should be generated.");
+  assert(officeWorksQueries.some((query) => /Office Works security envelopes 45 count/i.test(query)), "Brand plus product type plus package count should be generated.");
+  assert(!officeWorksQueries.some((query) => /poster|print/i.test(query)), "Unsupported poster print terms must not enter retail search queries.");
+  assert(!officeWorksQueries.some((query) => /\b(?:sold|auction|completed|opening bid|historical sale|eBay sold)\b/i.test(query)), "Retail-store route must suppress resale-oriented query terms for ordinary current products.");
   const itemTypeCases = [
     ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
     ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],

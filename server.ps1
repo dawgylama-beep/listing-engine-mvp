@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.10.10"
+$AppVersion = "1.10.11"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -1265,8 +1265,12 @@ Do not let no exact comparable found erase a visually/user-supported subject ide
 Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.
 For Retail store purchase context, evaluate current retail replacement cost first. Use exact UPC/barcode, store name, current retailer price, manufacturer/current retail price, nearby competing retailer results, delivered/pickup context, and package/quantity compatibility before any resale/collectible logic.
 For ordinary current retail consumables, do not prioritize historical sold comps and do not call a price a confirmed good deal unless source-backed current retail comparisons support it.
+Before retail query generation, reconcile one Canonical Product Identity from barcode/UPC, visible package text, brand, item number/SKU, package count, size, user description, purchase context, and store name. Strong barcode/OCR/package/SKU evidence must outrank weaker visual inference.
+Reject unsupported identity terms before search. Example: if barcode/package text says Office Works Security Envelopes, 45 count, Strip & Seal, item 6110325, UPC 041226087161, do not use poster print in title, queries, matching, pricing, or customer-facing text unless the user confirms that conflict.
+For retail-store products, generate separate query ideas in priority order: exact UPC alone, store plus exact UPC, known retailer-domain plus exact UPC, brand plus product name, brand plus SKU/item number, brand plus product type and package count, store plus brand/product, and local competitor query only when ZIP or general area is available.
 If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.
 When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.
+Location should use manual ZIP or browser-derived general area only; never display or store precise coordinates in customer-facing or technical output.
 For retail products, compare package price and unit price separately when quantity is explicit and compatible. Do not compare a 100-count box directly with a 25-count box as an exact match; use unit-price context only when product type, size, and specs are compatible.
 Local Store Context must include named store and ZIP/general area when supplied, current store price if found, pickup/availability only when source-backed, and 'Availability not confirmed' when inventory support is missing.
 Next Best Action must ask for the specific missing retail identifier: closer barcode photo, manual UPC, store name, ZIP code, box size, pack count, quantity, model, or SKU.
@@ -3411,8 +3415,10 @@ function Normalize-BuyerIntake {
     location_zip = ""
     location_mode = ""
     location_permission = ""
+    location_area = ""
     retailer_or_marketplace_name = ""
     known_shipping_amount = ""
+    identity_confirmation = ""
     item_condition = ""
     condition_concerns = @()
     item_name = ""
@@ -3438,8 +3444,10 @@ function Normalize-BuyerIntake {
     "location_zip",
     "location_mode",
     "location_permission",
+    "location_area",
     "retailer_or_marketplace_name",
     "known_shipping_amount",
+    "identity_confirmation",
     "item_condition",
     "item_name",
     "known_brand",
@@ -3525,6 +3533,7 @@ function Format-BuyerIntakeForPrompt {
     "location_zip: $(Get-BuyerIntakeValue $BuyerIntake 'location_zip')",
     "location_mode: $(Get-BuyerIntakeValue $BuyerIntake 'location_mode')",
     "location_permission: $(Get-BuyerIntakeValue $BuyerIntake 'location_permission')",
+    "location_area: $(Get-BuyerIntakeValue $BuyerIntake 'location_area')",
     "retailer_or_marketplace_name: $(Get-BuyerIntakeValue $BuyerIntake 'retailer_or_marketplace_name')",
     "known_shipping_amount: $(Get-BuyerIntakeValue $BuyerIntake 'known_shipping_amount')",
     "item_condition: $(Get-BuyerIntakeValue $BuyerIntake 'item_condition')",
@@ -3536,6 +3545,7 @@ function Format-BuyerIntakeForPrompt {
     "known_sku: $(Get-BuyerIntakeValue $BuyerIntake 'known_sku')",
     "known_upc: $(Get-BuyerIntakeValue $BuyerIntake 'known_upc')",
     "known_upc_digits: $(Get-BuyerIntakeValue $BuyerIntake 'known_upc_digits')",
+    "identity_confirmation: $(Get-BuyerIntakeValue $BuyerIntake 'identity_confirmation')",
     "approximate_age_era: $(Get-BuyerIntakeValue $BuyerIntake 'approximate_age_era')",
     "buyer_notes: $(Get-BuyerIntakeValue $BuyerIntake 'buyer_notes')"
   ) -join "`n"
