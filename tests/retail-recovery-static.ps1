@@ -1,0 +1,62 @@
+param(
+  [string]$Root = (Split-Path -Parent $PSScriptRoot)
+)
+
+$ErrorActionPreference = "Stop"
+
+$api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$index = Get-Content (Join-Path $Root "public/index.html") -Raw
+$package = Get-Content (Join-Path $Root "package.json") -Raw
+$server = Get-Content (Join-Path $Root "server.ps1") -Raw
+$roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
+
+$checks = @(
+  @{ Name = "Visible app version is 1.11.2"; Text = $index; Pattern = "Version 1.11.2" },
+  @{ Name = "Package version is 1.11.2"; Text = $package; Pattern = '"version": "1.11.2"' },
+  @{ Name = "Server version is 1.11.2"; Text = $server; Pattern = '$AppVersion = "1.11.2"' },
+  @{ Name = "Roadmap documents retail recovery"; Text = $roadmap; Pattern = "Retail evidence recovery now distinguishes" },
+  @{ Name = "Exact retail match label exists"; Text = $api; Pattern = "Exact Retail Match" },
+  @{ Name = "Strong retail alternative label exists"; Text = $api; Pattern = "Strong Retail Alternative" },
+  @{ Name = "Unit-price comparable label exists"; Text = $api; Pattern = "Unit-Price Comparable" },
+  @{ Name = "Retail category context label exists"; Text = $api; Pattern = "Retail Category Context" },
+  @{ Name = "Rejected retail mismatch label exists"; Text = $api; Pattern = "Rejected Retail Mismatch" },
+  @{ Name = "45 versus 50 count recovery exists"; Text = $api; Pattern = "submittedQuantity === 45 && candidateQuantity === 50" },
+  @{ Name = "Wide package-size mismatch still rejects"; Text = $api; Pattern = "Package count differs too much for retail price comparison" },
+  @{ Name = "Category context is excluded from retail price decisions"; Text = $api; Pattern = 'packageCompatibility.label !== "Retail Category Context"' },
+  @{ Name = "Compatible alternatives are customer-facing"; Text = $api; Pattern = "Compatible Current Retail Alternatives" },
+  @{ Name = "Exact product disclaimer exists"; Text = $api; Pattern = "The exact product/package was not confirmed" },
+  @{ Name = "Package price language exists"; Text = $api; Pattern = "package price" },
+  @{ Name = "Per-unit language exists"; Text = $api; Pattern = "per unit" },
+  @{ Name = "Unit formatter exists"; Text = $api; Pattern = "function formatUnitMoney" },
+  @{ Name = "Exact UPC remains first priority"; Text = $api; Pattern = "queries.push(barcode);" },
+  @{ Name = "Forbidden secondary evidence remains blocked"; Text = $api; Pattern = "function isRetailForbiddenSecondaryEvidenceText" },
+  @{ Name = "Server prompt uses new retail labels"; Text = $server; Pattern = "Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch" },
+  @{ Name = "Frontend can display current retail prices"; Text = $app; Pattern = "Current Retail Prices Found" },
+  @{ Name = "Frontend preserves retail label display"; Text = $app; Pattern = "item.priceTypeLabel || item.priceType" }
+)
+
+$failed = @()
+foreach ($check in $checks) {
+  if (-not $check.Text.Contains($check.Pattern)) {
+    $failed += $check.Name
+  }
+}
+
+$forbidden = @(
+  @{ Name = "Old compatible alternative label should not remain in API taxonomy"; Text = $api; Pattern = 'label: "Compatible Alternative"' },
+  @{ Name = "Old package-size difference label should not remain in API taxonomy"; Text = $api; Pattern = 'label: "Package-Size Difference"' },
+  @{ Name = "Old strong retail match label should not remain in API taxonomy"; Text = $api; Pattern = 'label: "Strong Retail Match"' }
+)
+
+foreach ($check in $forbidden) {
+  if ($check.Text.Contains($check.Pattern)) {
+    $failed += $check.Name
+  }
+}
+
+if ($failed.Count -gt 0) {
+  Write-Error ("Retail recovery static checks failed:`n- " + ($failed -join "`n- "))
+}
+
+Write-Host "Retail recovery static checks OK - $($checks.Count) checks passed."

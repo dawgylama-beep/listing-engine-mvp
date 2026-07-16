@@ -780,10 +780,14 @@ const buyerIntakeStringFields = [
   "location_state",
   "location_permission",
   "location_area",
+  "owner_location_zip",
   "retailer_or_marketplace_name",
   "known_shipping_amount",
   "identity_confirmation",
   "item_condition",
+  "item_completeness",
+  "fulfillment_preference",
+  "selling_speed",
   "item_name",
   "known_brand",
   "known_manufacturer",
@@ -791,7 +795,9 @@ const buyerIntakeStringFields = [
   "known_sku",
   "known_upc",
   "approximate_age_era",
-  "buyer_notes"
+  "buyer_notes",
+  "asking_price_cents",
+  "known_shipping_amount_cents"
 ];
 
 const allowedConditionConcerns = new Set([
@@ -837,16 +843,8 @@ export default async function handler(req, res) {
     const notes = cleanText(body.notes);
     const photos = Array.isArray(body.photos) ? body.photos : [];
     const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
-    const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : null;
+    const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : normalizeBuyerIntake(body.sellerIntake);
     const analysisId = cleanText(body.analysisId || createServerAnalysisId()).slice(0, 120);
-
-    if (reportType === "listing" && !platform) {
-      return res.status(400).json({ error: "Choose a marketplace platform." });
-    }
-
-    if (reportType === "listing" && !notes) {
-      return res.status(400).json({ error: "Add item notes before generating a listing." });
-    }
 
     if (!photos.length) {
       return res.status(400).json({ error: "Upload at least one item photo." });
@@ -972,8 +970,8 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
   const workflowInstruction = {
     personal_use: "Active workflow is Buying for Myself. Use personal-use value, offer, fair-price, condition-risk, fit, and walk-away logic. Do not use reseller margin logic.",
     resale: "Active workflow is Buying to Resell. Use resale margin, fees, shipping/transport, liquidity, max-buy-price, risk, and likely net-profit logic.",
-    market_value: "Active workflow is Check Market Value. Explain value estimate, confidence, research quality, and what evidence would improve confidence.",
-    listing: "Active workflow is Generate Listing. Help revise listing copy, platform fit, title, description, price strategy, condition disclosure, and seller notes without inventing facts."
+    market_value: "Active workflow is Value Something I Own. Use owner valuation, identification confidence, condition, completeness, value evidence, likely selling venues, and next-verification logic. Do not ask for purchase price or use buying-decision labels.",
+    listing: "Active workflow is Sell Something I Own. Help with seller pricing, listing copy, platform fit, pickup/shipping fit, selling speed, condition disclosure, and seller notes without inventing facts."
   }[workflow];
   const prompt = [
     "Ask Katherine’s Eye is not a generic chatbot. It is a context-aware item adviser discussing the current item and current report only.",
@@ -1011,7 +1009,7 @@ async function generateAskMarketEdgeAnswer({ apiKey, model, sessionId, workflow,
     "Use short recent conversation history to understand references like what about at $30, does that change your answer, what if the box is missing, make it shorter, use Facebook instead, search older ones, or why not. Avoid repetition and carry forward scenario changes only within this active item session.",
     workflowInstruction,
     `Controlled question route: ${answerType}.`,
-    proposedPrice ? `Proposed scenario price parsed by the app: $${proposedPrice}.` : "No scenario price was parsed by the app.",
+    proposedPrice ? `Proposed scenario price parsed by the app: ${formatMoney(proposedPrice)}.` : "No scenario price was parsed by the app.",
     scenario ? `Deterministic scenario notes: ${scenario}.` : "No deterministic scenario notes were available.",
     `Session ID: ${sessionId}.`
   ].join("\n");
@@ -1243,38 +1241,38 @@ function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, cu
   ].flat().join(" "));
 
   if (!fairRange) {
-    return `Scenario price $${proposedPrice} was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation.`;
+    return `Scenario price ${formatMoney(proposedPrice)} was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation.`;
   }
 
   if (classified.state !== "supported") {
     const rangeText = classified.range || formatMoneyRange(fairRange[0], fairRange[1]);
     if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
-      return `At $${proposedPrice}, compare the scenario only to the current preliminary reference range of ${rangeText}. The price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
+      return `At ${formatMoney(proposedPrice)}, compare the scenario only to the current preliminary reference range of ${rangeText}. The price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
     }
-    return `At $${proposedPrice}, use reseller caution because the available range is preliminary reference evidence only (${rangeText}), not verified fair market value or confirmed sold-comps support.`;
+    return `At ${formatMoney(proposedPrice)}, use reseller caution because the available range is preliminary reference evidence only (${rangeText}), not verified fair market value or confirmed sold-comps support.`;
   }
 
   const midpoint = (fairRange[0] + fairRange[1]) / 2;
   const ratio = proposedPrice / midpoint;
   if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
     if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
-      return `At $${proposedPrice}, the price is below the current fair-value midpoint of about $${Math.round(midpoint)} and leans Good Value/Fair Price for personal use if condition assumptions still hold.`;
+      return `At ${formatMoney(proposedPrice)}, the price is below the current fair-value midpoint of about ${formatMoney(midpoint)} and leans Good Value/Fair Price for personal use if condition assumptions still hold.`;
     }
     if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
-      return `At $${proposedPrice}, the price is close to the current fair-value midpoint of about $${Math.round(midpoint)} and leans Fair Price for personal use if condition assumptions still hold.`;
+      return `At ${formatMoney(proposedPrice)}, the price is close to the current fair-value midpoint of about ${formatMoney(midpoint)} and leans Fair Price for personal use if condition assumptions still hold.`;
     }
-    return `At $${proposedPrice}, the price is above the current fair-value midpoint of about $${Math.round(midpoint)} and should lean Negotiate/Pass unless condition, completeness, or fit improves.`;
+    return `At ${formatMoney(proposedPrice)}, the price is above the current fair-value midpoint of about ${formatMoney(midpoint)} and should lean Negotiate/Pass unless condition, completeness, or fit improves.`;
   }
 
   const maxBuy = extractMoneyRange(String(report.maximumRecommendedBuyPrice || ""));
   if (maxBuy) {
     const ceiling = maxBuy[1];
     return proposedPrice <= ceiling
-      ? `At $${proposedPrice}, the scenario is at or below the current max-buy guidance of about $${Math.round(ceiling)} before added resale costs.`
-      : `At $${proposedPrice}, the scenario is above the current max-buy guidance of about $${Math.round(ceiling)} and likely weakens resale margin.`;
+      ? `At ${formatMoney(proposedPrice)}, the scenario is at or below the current max-buy guidance of about ${formatMoney(ceiling)} before added resale costs.`
+      : `At ${formatMoney(proposedPrice)}, the scenario is above the current max-buy guidance of about ${formatMoney(ceiling)} and likely weakens resale margin.`;
   }
 
-  return `At $${proposedPrice}, use reseller margin caution because the current report does not contain a clear numeric maximum buy price.`;
+  return `At ${formatMoney(proposedPrice)}, use reseller margin caution because the current report does not contain a clear numeric maximum buy price.`;
 }
 
 async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake }) {
@@ -1282,21 +1280,23 @@ async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos
     return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake });
   }
 
-  return generateListingWithResearch({ apiKey, model, platform, notes, photos });
+  return generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake });
 }
 
-async function generateListingWithResearch({ apiKey, model, platform, notes, photos }) {
+async function generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
+  const sellerIntake = normalizeBuyerIntake({
+    ...(buyerIntake || {}),
+    purchase_context: "owned_item",
+    purchase_intent: "seller_listing",
+    buyer_notes: notes
+  });
   const research = await runResearchPipeline({
     apiKey,
     model,
     platform,
     notes,
     photos,
-    buyerIntake: normalizeBuyerIntake({
-      purchase_context: "online_marketplace",
-      purchase_intent: "resale",
-      buyer_notes: notes
-    }),
+    buyerIntake: sellerIntake,
     researchPurpose: "listing"
   });
   const report = await generateFinalListingReport({ apiKey, model, platform, notes, research });
@@ -4513,7 +4513,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
     "For ordinary current retail products, use Retail Evidence Mode: current-retail-only. Do not use auction, historical sold, guide, WorthPoint, PicClick, resale, thrift, flea-market, estate-sale, collector, or secondary-market evidence to establish customer-facing current retail value.",
     "For ordinary fixed-price retail-store purchases, do not show Opening Offer, negotiation target, offer ladder, market-supported maximum, personal-enjoyment exception, or Maximum Price Guard. Default to Store price is fixed unless the intake explicitly says the retail price is negotiable.",
     "For ordinary current retail products, show Current Retail Price: Not verified when no exact/strong qualified current retail source was found. Do not fabricate a retail range, named-store price, or competing retailer result.",
-    "Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Match, Compatible Alternative, Package-Size Difference, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.",
+    "Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.",
     "If the barcode could not be read and no manual UPC was supplied, tell the customer directly: The barcode could not be read clearly. Upload a closer photo of the barcode or enter the numbers manually.",
     "When no current retail comparisons are found for a retail-store purchase, use conditional labels such as Price Not Verified, Low-Risk Purchase - Limited Evidence, Reasonable Personal-Use Purchase - Current retail price not confirmed, or Wait for Retail Price Confirmation. Do not output an unconditional Buy paired with Insufficient Evidence or no compatible prices.",
     "For retail products, compare package price and unit price separately when quantity is explicit and compatible. Do not compare a 100-count box directly with a 25-count box as an exact match; use unit-price context only when product type, size, and specs are compatible.",
@@ -4577,7 +4577,10 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
 }
 
 async function generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake }) {
-  const platformContext = platform || "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.";
+  const ownerValue = isOwnerValueIntent(buyerIntake.purchase_intent);
+  const platformContext = platform || (ownerValue
+    ? "No specific marketplace selected. Use owner value logic across likely resale, local, collector, retail reference, and secondhand contexts."
+    : "No specific marketplace selected. Use buyer-first market logic across retail, online, local, collector, resale, and secondhand contexts.");
   const resalePlatformContext = buildResalePlatformContext(platform, buyerIntake);
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const liveSearchInstruction = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found"
@@ -4586,13 +4589,14 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
       ? "Live comparable search completed with no reliable source-backed exact or strong similar comps. The remaining value range is AI market reasoning only and should be treated as low confidence."
       : "Live comparable search did not complete. The remaining value range is AI market reasoning only and should be treated as low confidence.";
   const taskText = [
-    "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
-    "Primary question: Should the user buy this item at this price, right now?",
+    ownerValue ? "Create an owner value assessment, not a buying decision and not a marketplace listing draft." : "Create a buyer-first Worth Buying / Market Intelligence report, not a marketplace listing draft.",
+    ownerValue ? "Primary question: What is this owned item worth based on supported evidence, condition, completeness, and likely selling venues?" : "Primary question: Should the user buy this item at this price, right now?",
     "Use Visual Subject Recognition first. Preserve what the photos strongly support even if exact product identity, comps, maker, date, licensing, authenticity, or valuation remain uncertain.",
-    "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
+    ownerValue ? "Use Guided Buyer Intake as ownership context. Do not require purchase location, seller/store asking price, opening offer, target purchase price, or walk-away price." : "Use Guided Buyer Intake as the current purchase opportunity. The asking price is the seller/store price right now, not automatic market value.",
+    ownerValue ? "Include likely identification, value evidence, verified sold range when supported, active asking range when supported, preliminary reference range when only weaker evidence is available, value drivers, condition effects, recommended selling venues, confidence, and next best action." : "",
     "Separate broad subject identity from exact product identity. Preserve supported broad subject recognition even when maker, date, licensing, authenticity, and exact comparable are unverified.",
     "Do not let no exact comparable found erase a visually/user-supported subject identity; lower exact-product, comparable, and pricing confidence separately.",
-    "Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.",
+    ownerValue ? "Do not confuse ownership context with platform: owner context describes the item the user already has; platform is where the user may sell it if they choose." : "Do not confuse purchase_context with platform: purchase_context is where the user is buying the item now; platform is where the user may later sell it.",
     "Consider purchase context, purchase intent, condition, condition concerns, identification confidence, live comp confidence, valuation confidence, and resale margin where relevant.",
     "For Worth Buying, platform is optional. When purchase_intent is resale or both and platform is selected, treat that selected platform as the intended resale platform. When no resale platform is selected, recommend the best likely selling platform.",
     "For resale intent, do not call something a good buy unless likely margin reasonably accounts for marketplace fees, shipping or transport, condition risk, time to sell, and comp confidence.",
@@ -4691,7 +4695,9 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Katherine’s Eye, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON.",
+    systemText: ownerValue
+      ? "You are Katherine’s Eye, an owner-value assessment assistant. Help people identify what they own, estimate supported value, and choose practical selling venues without inventing evidence. Return only the requested structured JSON."
+      : "You are Katherine’s Eye, a buyer-first market intelligence assistant. Help shoppers, collectors, and resellers decide whether to buy an item right now. Return only the requested structured JSON.",
     userContent,
     schemaName: "market_value_report",
     schema: valuationSchema
@@ -5609,6 +5615,7 @@ function normalizeBuyerIntake(value) {
 
   intake.purchase_context = normalizePurchaseContext(intake.purchase_context);
   intake.location_zip = normalizeZipCode(intake.location_zip);
+  intake.owner_location_zip = normalizeZipCode(intake.owner_location_zip);
   intake.location_area = cleanText(intake.location_area);
   intake.known_upc_digits = normalizeBarcodeDigits(intake.known_upc);
   intake.store_name = cleanText(intake.store_name);
@@ -5617,9 +5624,34 @@ function normalizeBuyerIntake(value) {
   intake.location_state = cleanText(intake.location_state || (intake.location_zip ? "manual-ZIP" : intake.location_area ? "general-area-resolved" : ""));
   intake.location_permission = cleanText(intake.location_permission);
   intake.condition_concerns = normalizeConditionConcerns(source.condition_concerns);
-  intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
+  intake.asking_price_cents = parseCurrencyCents(source.asking_price_cents ?? intake.asking_price);
+  intake.known_shipping_amount_cents = parseCurrencyCents(source.known_shipping_amount_cents ?? intake.known_shipping_amount);
+  intake.parsed_asking_price = centsToMoney(intake.asking_price_cents);
+  if (!Number.isFinite(intake.parsed_asking_price)) {
+    intake.parsed_asking_price = parseAskingPrice(intake.asking_price);
+  }
 
   return intake;
+}
+
+function parseCurrencyCents(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.round(value);
+  }
+  const text = cleanText(value);
+  if (!text) {
+    return null;
+  }
+  const match = text.match(/(?:^|[^\d])(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?|\d{1,6}(?:\.\d{1,2})?)(?:[^\d]|$)/);
+  if (!match) {
+    return null;
+  }
+  const amount = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : null;
+}
+
+function centsToMoney(cents) {
+  return Number.isFinite(cents) ? cents / 100 : null;
 }
 
 function normalizeConditionConcerns(value) {
@@ -8327,15 +8359,15 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
     const ratio = Math.max(submittedQuantity, candidateQuantity) / Math.min(submittedQuantity, candidateQuantity);
     if (ratio <= 1.25 || (submittedQuantity === 45 && candidateQuantity === 50) || (submittedQuantity === 50 && candidateQuantity === 45)) {
       return {
-        status: "compatible_unit_price",
-        label: "Compatible Alternative",
+        status: "strong_retail_alternative",
+        label: "Strong Retail Alternative",
         reason: `${submittedQuantity}-count and ${candidateQuantity}-count packages are close enough for unit-price comparison, not exact package-price comparison.`
       };
     }
     if (ratio <= 2.5) {
       return {
         status: "unit_price_only",
-        label: "Package-Size Difference",
+        label: "Unit-Price Comparable",
         reason: `${candidateQuantity}-count package may be unit-price comparable but is not an exact package-price match to ${submittedQuantity}-count.`
       };
     }
@@ -8347,14 +8379,14 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
   }
   if (/\bstrip[-\s]?and[-\s]?seal\b/i.test(text) && /\bgummed\b/i.test(text)) {
     return {
-      status: "compatible_alternative",
-      label: "Compatible Alternative",
+      status: "strong_retail_alternative",
+      label: "Strong Retail Alternative",
       reason: "Strip-and-seal and gummed closures may be compatible alternatives, but they are not exact package matches."
     };
   }
   return {
     status: "unknown_or_not_applicable",
-    label: /exact/i.test(record.matchQuality || record.classification || record.identityMatchStrength || "") ? "Strong Retail Match" : "Compatible Alternative",
+    label: /exact|strong/i.test(record.matchQuality || record.classification || record.identityMatchStrength || "") ? "Strong Retail Alternative" : "Retail Category Context",
     reason: "Package compatibility should be verified from the source."
   };
 }
@@ -8380,7 +8412,7 @@ function isQualifiedCurrentRetailPriceFoundRecord(record = {}, identity = {}, bu
     return false;
   }
   const packageCompatibility = classifyRetailPackageCompatibility(record, identity, buyerIntake);
-  return packageCompatibility.status !== "materially_incompatible";
+  return packageCompatibility.status !== "materially_incompatible" && packageCompatibility.label !== "Retail Category Context";
 }
 
 function isQualifiedCurrentRetailSourceRecord(record = {}, context = {}) {
@@ -8429,7 +8461,8 @@ function isQualifiedCurrentRetailSourceRecord(record = {}, context = {}) {
       item_name: context.productTitle,
       buyer_notes: context.notesText
     });
-    return classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake).status !== "materially_incompatible";
+    const compatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
+    return compatibility.status !== "materially_incompatible" && compatibility.label !== "Retail Category Context";
   }
   return true;
 }
@@ -8483,9 +8516,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const priceAssessment = !currentRetailOnly
     ? ""
     : amounts.length >= 2
-      ? `${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Range"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
+      ? `${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Alternatives"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. ${exactRetail.length >= 2 ? "Exact package matches were found." : "The exact product/package was not confirmed, so package price and unit price stay separate."} Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
       : amounts.length === 1
-        ? `Current Retail Price Found: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
+        ? `${exactRetail.length ? "Current Retail Price Found" : "Compatible Current Retail Alternative"}: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. ${exactRetail.length ? "" : "The exact product/package was not confirmed; compare unit price rather than treating this as the same package price. "}Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
         : `${noRetailPrice}. No qualified source-backed current retail price passed exact/strong identity, package, and source checks.`;
   const namedStoreResult = buildNamedStoreRetailResult({
     storeName,
@@ -8600,7 +8633,7 @@ function buildRetailPackageUnitPriceComparison(identity = {}, pricesFound = []) 
     const amount = Number(record.itemPriceAmount);
     const quantity = extractPackQuantityNumber([record.title, record.rawText, record.conciseLimitation].join(" "));
     if (Number.isFinite(amount) && Number.isFinite(quantity) && quantity > 0) {
-      return `${record.title || record.source}: ${formatMoney(amount)} for ${quantity} units (${formatUnitMoney(amount / quantity)} each). ${record.priceContextSummary || ""}`;
+      return `${record.title || record.source}: package price ${formatMoney(amount)} for ${quantity} units (${formatUnitMoney(amount / quantity)} per unit). ${record.priceContextSummary || ""}`;
     }
     return `${record.title || record.source}: ${record.itemPrice || "price shown"}; unit price not established from visible package count.`;
   }).filter(Boolean).slice(0, 4);
@@ -9302,13 +9335,19 @@ function sanitizeUnsupportedMarketText(text, askingPriceText = "") {
   const hasPercentMarket = /\b\d{1,3}%\b.*\b(market|value|below|above|discount)/i.test(source);
   const askingAmount = extractFirstMoneyAmount(askingPriceText);
   const amounts = extractMoneyAmounts(source);
-  const hasNonAskingMoney = amounts.some((amount) => !Number.isFinite(askingAmount) || Math.round(amount) !== Math.round(askingAmount));
+  const askingCents = moneyAmountToCents(askingAmount);
+  const hasNonAskingMoney = amounts.some((amount) => !Number.isFinite(askingCents) || moneyAmountToCents(amount) !== askingCents);
 
   if (hasUnsupportedMarketClaim || hasMoneyRange || hasPercentMarket || (hasNonAskingMoney && /\bmarket|value|range|reference|asking|sold|price|below|above\b/i.test(source))) {
     return "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
   }
 
   return source;
+}
+
+function moneyAmountToCents(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
 }
 
 function extractValuationEvidenceRange(report = {}) {
@@ -9554,11 +9593,73 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     priceBasis: ensurePrefix(report.priceBasis, basis)
   };
 
-  return applyValuationEvidenceLabels(normalizedReport, {
+  const labeledReport = applyValuationEvidenceLabels(normalizedReport, {
     reliableCompsFound,
     searchCompleted,
     workflow: "market_value"
   });
+  return isOwnerValueIntent(buyerIntake.purchase_intent)
+    ? applyOwnerValueReportModel(labeledReport, buyerIntake, identity, platform, { reliableCompsFound, searchCompleted })
+    : labeledReport;
+}
+
+function applyOwnerValueReportModel(report = {}, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "", context = {}) {
+  const valueEvidence = firstKnown(
+    report.estimatedMarketValue,
+    report.fairPriceRange,
+    report.preliminaryReferenceRange,
+    report.aiOnlyRoughValueRange,
+    report.currentPriceAssessment,
+    "Value is not established from the available evidence yet."
+  );
+  const sellingVenue = firstKnown(
+    report.recommendedSellingPlatform,
+    platform,
+    "Recommended selling venue depends on size, shipping practicality, condition, and buyer audience."
+  );
+  const ownerLocation = buyerIntake.owner_location_zip
+    ? ` Owner ZIP context was provided as ${buyerIntake.owner_location_zip}; do not expose precise coordinates.`
+    : "";
+  const nextVerification = firstKnown(
+    report.whatToVerifyBeforeBuying,
+    report.missingDetails,
+    "Verify exact identifiers, condition, completeness, dimensions, and any maker, model, label, barcode, signature, or authenticity clues before relying on a final value."
+  );
+  const confidenceBasis = context.reliableCompsFound
+    ? "Source-backed comparable evidence is available, but condition, completeness, and venue still affect realized value."
+    : context.searchCompleted
+      ? "Search completed without reliable exact or strong similar comps; treat the value as preliminary."
+      : "Live search did not complete; treat the value as low-confidence and AI-assisted.";
+
+  return {
+    ...report,
+    buyerIntent: "owner_value",
+    purchaserDecision: `Owner Value Assessment - ${stripOwnerBuyingLanguage(valueEvidence)}`,
+    buyerTypeFit: firstKnown(report.buyerTypeFit, "Owner valuation / possible sale"),
+    currentAskingPrice: "Not required - this workflow values an item already owned.",
+    currentPriceAssessment: stripOwnerBuyingLanguage(firstKnown(report.currentPriceAssessment, valueEvidence)),
+    maximumRecommendedBuyPrice: "",
+    betterPriceCheckNeeded: stripOwnerBuyingLanguage(firstKnown(report.betterPriceCheckNeeded, `Additional value check depends on stronger identity, condition, completeness, and source-backed comparable evidence.${ownerLocation}`)),
+    whatToVerifyBeforeBuying: nextVerification,
+    buyerDecisionConfidence: ensureConfidenceLayer(report.buyerDecisionConfidence, "Low", confidenceBasis),
+    recommendedSellingPlatform: sellingVenue,
+    searchDiagnostics: {
+      ...(report.searchDiagnostics || {}),
+      purposeModel: "owner_value"
+    }
+  };
+}
+
+function stripOwnerBuyingLanguage(value = "") {
+  return cleanText(value)
+    .replace(/\bBuy Here\b/gi, "Owner Value")
+    .replace(/\bNegotiate\b/gi, "Value Needs Context")
+    .replace(/\bPass\b/gi, "Value Not Supported")
+    .replace(/\bmaximum recommended buy price\b/gi, "owner value limit")
+    .replace(/\bwalk-away price\b/gi, "value limit")
+    .replace(/\bopening offer\b/gi, "preliminary value context")
+    .replace(/\btarget purchase price\b/gi, "target value context")
+    .replace(/\bbefore buying\b/gi, "before relying on the value");
 }
 
 function enforceConsumerDecisionHonesty(report, research, buyerIntake = normalizeBuyerIntake({}), platform = "") {
@@ -9893,7 +9994,7 @@ function buildUnitPriceContextForRecord(record = {}, packageText = "") {
   if (!Number.isFinite(amount) || !Number.isFinite(quantity) || quantity <= 0) {
     return "";
   }
-  return `${record.title || "Source price"}: ${formatMoney(amount)} for ${quantity} units - about ${formatUnitMoney(amount / quantity)} each. Package price remains ${formatMoney(amount)}.`;
+  return `${record.title || "Source price"}: package price ${formatMoney(amount)} for ${quantity} units - about ${formatUnitMoney(amount / quantity)} per unit. Package price remains ${formatMoney(amount)}.`;
 }
 
 function formatUnitMoney(value) {
@@ -9901,7 +10002,8 @@ function formatUnitMoney(value) {
   if (!Number.isFinite(amount) || amount < 0) {
     return "";
   }
-  return `$${amount.toFixed(amount < 1 ? 2 : 2)}`;
+  const decimals = amount < 0.01 ? 4 : amount < 1 ? 3 : 2;
+  return `$${amount.toFixed(decimals)}`;
 }
 
 function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveSearch, priceEvidence, pricesFound, askingPriceNumber, searchCompleted } = {}) {
@@ -12326,6 +12428,10 @@ function isPersonalUseIntent(value) {
   return /^personal_use$/i.test(cleanText(value));
 }
 
+function isOwnerValueIntent(value) {
+  return /^owner_value$/i.test(cleanText(value));
+}
+
 function extractMoneyRange(text) {
   const amounts = [];
   const regex = /\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/g;
@@ -12397,7 +12503,16 @@ function formatMoneyRangeFromAmounts(low, high) {
 }
 
 function formatMoney(value) {
-  return `$${Math.round(value).toLocaleString("en-US")}`;
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return "";
+  }
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function formatSourceMoney(value) {
@@ -12405,12 +12520,11 @@ function formatSourceMoney(value) {
     return "";
   }
   const roundedCents = Math.round(value * 100) / 100;
-  const hasCents = Math.abs(roundedCents - Math.round(roundedCents)) > 0.001;
   return roundedCents.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: hasCents ? 2 : 0,
-    maximumFractionDigits: hasCents ? 2 : 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
 }
 
@@ -13647,6 +13761,13 @@ export const __queryIntegrityTestHooks = {
   hasExplicitSoldTransactionProof,
   isCurrentPurchasablePriceFoundRecord,
   buildRetailDecisionCalibration,
+  classifyRetailPackageCompatibility,
+  buildRetailEvidenceProfile,
   extractPackQuantityNumber,
+  parseCurrencyCents,
+  moneyAmountToCents,
+  formatMoney,
+  formatSourceMoney,
+  formatUnitMoney,
   normalizeBarcodeDigits
 };

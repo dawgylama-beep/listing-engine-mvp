@@ -641,6 +641,21 @@ label {
   gap: 12px;
 }
 
+.photo-stage-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.photo-stage-header h2 {
+  font-size: 1.04rem;
+}
+
+.photo-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .photo-control {
   display: grid;
   gap: 6px;
@@ -648,6 +663,46 @@ label {
   border: 1px solid rgba(15, 106, 98, 0.14);
   border-radius: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbf8 100%);
+}
+
+.compact-photo-control {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.photo-action {
+  display: grid;
+  gap: 2px;
+  min-height: 48px;
+  padding: 11px 12px;
+  border: 1px solid rgba(15, 106, 98, 0.24);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--heading);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.photo-action:hover {
+  border-color: rgba(15, 106, 98, 0.45);
+  box-shadow: 0 8px 18px rgba(17, 24, 32, 0.08);
+}
+
+.photo-action small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .control-helper {
@@ -674,6 +729,18 @@ textarea {
 input[type="file"] {
   padding: 12px;
   background: var(--surface);
+}
+
+input[type="file"].visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 input[type="file"]::file-selector-button {
@@ -909,7 +976,7 @@ summary:focus-visible {
 }
 
 .empty-state {
-  min-height: 280px;
+  min-height: 150px;
   place-items: stretch;
   border: 1px dashed rgba(15, 106, 98, 0.32);
   border-radius: 8px;
@@ -924,8 +991,12 @@ summary:focus-visible {
 .first-run-card {
   display: grid;
   align-content: center;
-  gap: 12px;
+  gap: 6px;
   max-width: 620px;
+}
+
+.compact-empty-card {
+  align-content: start;
 }
 
 .first-run-card h3 {
@@ -945,15 +1016,6 @@ summary:focus-visible {
 .first-run-card .first-run-helper {
   color: var(--muted);
   font-size: 0.92rem;
-}
-
-.first-run-steps {
-  display: grid;
-  gap: 7px;
-  margin: 0;
-  padding-left: 20px;
-  color: #354047;
-  line-height: 1.45;
 }
 
 .loading-state {
@@ -2381,7 +2443,8 @@ summary:focus-visible {
 
   .intake-grid,
   .checkbox-grid,
-  .workflow-options {
+  .workflow-options,
+  .photo-actions {
     grid-template-columns: 1fr;
   }
 
@@ -2508,7 +2571,7 @@ summary:focus-visible {
   }
 
   .empty-state {
-    min-height: 220px;
+    min-height: 130px;
     padding: 18px;
   }
 }

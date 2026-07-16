@@ -12,13 +12,26 @@ const platformField = document.querySelector("#platform-field");
 const platformInput = document.querySelector("#platform");
 const platformNote = document.querySelector("#platform-note");
 const buyerIntakeSection = document.querySelector("#buyer-intake-section");
+const buyerIntakeEyebrow = document.querySelector("#buyer-intake-eyebrow");
 const buyerIntakeTitle = document.querySelector("#buyer-intake-title");
+const buyerIntakeHelper = document.querySelector("#buyer-intake-helper");
+const purchaseContextControl = document.querySelector("#purchase-context-control");
 const purchaseContextInput = document.querySelector("#purchase_context");
+const askingPriceControl = document.querySelector("#asking-price-control");
+const askingPriceLabel = document.querySelector("#asking-price-label");
+const askingPriceNote = document.querySelector("#asking-price-note");
 const retailContextFields = document.querySelector("#retail-context-fields");
 const contextNameFields = document.querySelector("#context-name-fields");
+const ownerLocationFields = document.querySelector("#owner-location-fields");
+const sellerPreferencesFields = document.querySelector("#seller-preferences-fields");
 const purchaseIntentControl = document.querySelector("#purchase-intent-control");
 const purchaseIntentInput = document.querySelector("#purchase_intent");
 const askingPriceInput = document.querySelector("#asking_price");
+const completenessControl = document.querySelector("#completeness-control");
+const itemCompletenessInput = document.querySelector("#item_completeness");
+const ownerLocationZipInput = document.querySelector("#owner_location_zip");
+const fulfillmentPreferenceInput = document.querySelector("#fulfillment_preference");
+const sellingSpeedInput = document.querySelector("#selling_speed");
 const storeNameInput = document.querySelector("#store_name");
 const locationZipInput = document.querySelector("#location_zip");
 const useLocationButton = document.querySelector("#use-location-button");
@@ -205,6 +218,19 @@ const valuationSections = [
   ["searchQueriesUsed", "Search Queries Used"]
 ];
 
+const ownerValueSections = valuationSections.map(([key, label]) => {
+  const labels = {
+    purchaserDecision: "Owner Value Assessment",
+    buyer_risk_score: "Value Confidence Risk",
+    buyerDecisionConfidence: "Assessment Confidence",
+    currentAskingPrice: "Owner Price Context",
+    maximumRecommendedBuyPrice: "Owner Value Limit",
+    betterPriceCheckNeeded: "Additional Value Check Needed?",
+    whatToVerifyBeforeBuying: "What To Verify Next"
+  };
+  return [key, labels[key] || label];
+});
+
 const consumerSections = [
   ["identifiedItem", "Identified Item"],
   ["identificationConfidence", "Identification Confidence"],
@@ -322,18 +348,28 @@ const workflowConfigs = {
     workflow: "personal_use",
     purchaseIntent: "personal_use",
     sections: consumerSections,
-    eyebrow: "Personal-Use Decision",
+    eyebrow: "Personal-Use Buying Decision",
     title: "Buying for Myself",
-    emptyMessage: "Your Personal-Use Decision will appear here.",
+    emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for personal-use value...",
     activeLabel: "Analyzing...",
     defaultLabel: "Analyze Buying for Myself",
-    workflowHelper: "Use this when you want to know if the price makes sense for you.",
+    workflowHelper: "Fair-price guidance, comparisons, and a clear buying recommendation.",
     platformNote: "Optional. Leave blank unless a marketplace context matters.",
     notesNote: "Optional. Add label wording, flaws, seller comments, measurements, or personal-use concerns.",
+    buyerEyebrow: "Purchase details",
     buyerTitle: "Buying Details",
+    buyerHelper: "Add what you know about the purchase opportunity. Price and condition can stay blank if you are not sure.",
+    priceLabel: "Seller/store price",
+    pricePlaceholder: "Seller/store price, e.g. $5.50",
+    priceNote: "Optional. Add cents exactly when shown, such as 5.50.",
     showPlatform: false,
     showBuyerIntake: true,
+    showPurchaseContext: true,
+    showPrice: true,
+    showCompleteness: false,
+    showOwnerLocation: false,
+    showSellerPreferences: false,
     platformRequired: false,
     notesRequired: false,
     askingPriceRequired: false,
@@ -345,16 +381,26 @@ const workflowConfigs = {
     purchaseIntent: "resale",
     eyebrow: "Resale Buying Decision",
     title: "Buying to Resell",
-    emptyMessage: "Your resale buying analysis will appear here.",
+    emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for resale potential...",
     activeLabel: "Analyzing...",
     defaultLabel: "Analyze Buying to Resell",
-    workflowHelper: "Use this when you want margin, resale platform fit, risk, and profit guidance.",
+    workflowHelper: "Margin, resale price, platform fit, risk, and profit guidance.",
     platformNote: "Optional. Select where you may resell if you already know the target platform.",
     notesNote: "Optional. Add flaws, seller comments, transport costs, shipping issues, or resale concerns.",
+    buyerEyebrow: "Acquisition details",
     buyerTitle: "Buying Details",
+    buyerHelper: "Add acquisition price, purchase context, condition, expected costs, and product details when known.",
+    priceLabel: "Acquisition price",
+    pricePlaceholder: "Acquisition price, e.g. $12.75",
+    priceNote: "Optional. Add exact cents for margin and risk calculations.",
     showPlatform: true,
     showBuyerIntake: true,
+    showPurchaseContext: true,
+    showPrice: true,
+    showCompleteness: true,
+    showOwnerLocation: false,
+    showSellerPreferences: false,
     platformRequired: false,
     notesRequired: false,
     askingPriceRequired: false,
@@ -363,19 +409,30 @@ const workflowConfigs = {
   market_value: {
     ...reportTypes.marketValue,
     workflow: "market_value",
-    purchaseIntent: "",
-    eyebrow: "Market Value Check",
-    title: "Check Market Value",
-    emptyMessage: "Your general market value report will appear here.",
-    loadingMessage: "Searching comparable items for market value...",
-    activeLabel: "Checking...",
-    defaultLabel: "Check Market Value",
-    workflowHelper: "Use this for a general value read when you are not choosing personal-use or resale logic yet.",
-    platformNote: "Optional. Leave blank for broad market logic.",
-    notesNote: "Optional. Add any item details, labels, flaws, measurements, or seller comments.",
-    buyerTitle: "Market Value Details",
+    purchaseIntent: "owner_value",
+    sections: ownerValueSections,
+    eyebrow: "Owner Value Assessment",
+    title: "Value Something I Own",
+    emptyMessage: "Your recommendation will appear here after analysis.",
+    loadingMessage: "Searching comparable items for owner value...",
+    activeLabel: "Valuing...",
+    defaultLabel: "Value My Item",
+    workflowHelper: "Identify what you have and estimate its supported market value.",
+    platformNote: "Optional. Select a likely venue only if it matters to value.",
+    notesNote: "Optional. Add provenance, ownership notes, flaws, measurements, or what you already know.",
+    buyerEyebrow: "Ownership details",
+    buyerTitle: "Ownership Details",
+    buyerHelper: "Add condition, completeness, age or provenance, and product details. No purchase price is required.",
+    priceLabel: "",
+    pricePlaceholder: "",
+    priceNote: "",
     showPlatform: true,
     showBuyerIntake: true,
+    showPurchaseContext: false,
+    showPrice: false,
+    showCompleteness: true,
+    showOwnerLocation: true,
+    showSellerPreferences: false,
     platformRequired: false,
     notesRequired: false,
     askingPriceRequired: false,
@@ -384,19 +441,48 @@ const workflowConfigs = {
   listing: {
     ...reportTypes.listing,
     workflow: "listing",
-    purchaseIntent: "",
-    workflowHelper: "Use this after you have the item and want a seller-ready marketplace listing.",
-    platformNote: "Required for Generate Listing.",
-    notesNote: "Required for Generate Listing. Add condition, flaws, measurements, and anything a buyer should know.",
+    purchaseIntent: "seller_listing",
+    eyebrow: "Seller Pricing and Listing Plan",
+    title: "Sell Something I Own",
+    emptyMessage: "Your recommendation will appear here after analysis.",
+    loadingMessage: "Researching seller pricing and listing support...",
+    activeLabel: "Creating...",
+    defaultLabel: "Create Selling Plan and Listing",
+    workflowHelper: "Set a selling price and create a seller-ready listing.",
+    platformNote: "Optional. Select your preferred marketplace when useful.",
+    notesNote: "Optional. Add ownership notes, flaws, measurements, accessories, and what a buyer should know.",
+    buyerEyebrow: "Selling details",
+    buyerTitle: "Selling Details",
+    buyerHelper: "Add condition, completeness, platform preference, pickup or shipping, selling speed, and product details.",
     showPlatform: true,
-    showBuyerIntake: false,
-    platformRequired: true,
-    notesRequired: true,
+    showBuyerIntake: true,
+    showPurchaseContext: false,
+    showPrice: false,
+    showCompleteness: true,
+    showOwnerLocation: false,
+    showSellerPreferences: true,
+    platformRequired: false,
+    notesRequired: false,
     askingPriceRequired: false
   }
 };
 
 const defaultWorkflow = "personal_use";
+const legacyWorkflowMap = {
+  personal: "personal_use",
+  personal_buy: "personal_use",
+  personal_use_buy: "personal_use",
+  worth_buying: "personal_use",
+  resale_buy: "resale",
+  reseller: "resale",
+  check_market_value: "market_value",
+  marketValue: "market_value",
+  value: "market_value",
+  owner_value: "market_value",
+  generate_listing: "listing",
+  sell: "listing",
+  seller_listing: "listing"
+};
 const MAX_PHOTO_COUNT = 6;
 
 let latestReport = null;
@@ -538,7 +624,8 @@ async function handleSubmit(event) {
   syncWorkflowFormState(config);
   const formData = new FormData(form);
   const platform = String(formData.get("platform") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
+  const rawNotes = String(formData.get("notes") || "").trim();
+  const notes = buildWorkflowNotes(config, formData, rawNotes);
 
   if (config.platformRequired && !platform) {
     clearWorkflowOutput(config);
@@ -549,6 +636,13 @@ async function handleSubmit(event) {
   if (config.notesRequired && !notes) {
     clearWorkflowOutput(config);
     setStatus("Add item notes before generating a listing.", "error");
+    return;
+  }
+
+  const priceError = validateVisibleCurrencyFields(config, formData);
+  if (priceError) {
+    clearWorkflowOutput(config);
+    setStatus(priceError, "error");
     return;
   }
 
@@ -596,6 +690,8 @@ async function handleSubmit(event) {
         ...getBuyerIntake(formData, notes),
         purchase_intent: config.purchaseIntent
       };
+    } else if (config.workflow === "listing") {
+      requestBody.sellerIntake = getBuyerIntake(formData, notes);
     }
 
     setSubmissionStage(submissionState, submissionStages.API_REQUEST);
@@ -679,7 +775,15 @@ async function handleSubmit(event) {
 
 function getSelectedWorkflow() {
   const selected = workflowInputs.find((input) => input.checked);
-  return selected && workflowConfigs[selected.value] ? selected.value : defaultWorkflow;
+  return normalizeWorkflowValue(selected && selected.value);
+}
+
+function normalizeWorkflowValue(value) {
+  const raw = String(value || "").trim();
+  if (workflowConfigs[raw]) {
+    return raw;
+  }
+  return legacyWorkflowMap[raw] || defaultWorkflow;
 }
 
 function applyWorkflowState({ clearOutput = false, abortRequests = false } = {}) {
@@ -710,6 +814,9 @@ function syncWorkflowFormState(config) {
   askingPriceInput.required = Boolean(config.askingPriceRequired);
   purchaseContextInput.required = Boolean(config.showBuyerIntake && config.purchaseContextRequired);
   purchaseIntentInput.value = config.purchaseIntent;
+  askingPriceLabel.textContent = config.priceLabel || "Price";
+  askingPriceInput.placeholder = config.pricePlaceholder || "";
+  askingPriceNote.textContent = config.priceNote || "";
 
   setWorkflowSectionState(platformField, {
     visible: config.showPlatform,
@@ -723,9 +830,31 @@ function syncWorkflowFormState(config) {
     visible: false,
     disabled: true
   });
+  setWorkflowSectionState(purchaseContextControl, {
+    visible: Boolean(config.showPurchaseContext),
+    disabled: !config.showPurchaseContext
+  });
+  setWorkflowSectionState(askingPriceControl, {
+    visible: Boolean(config.showPrice),
+    disabled: !config.showPrice
+  });
+  setWorkflowSectionState(completenessControl, {
+    visible: Boolean(config.showCompleteness),
+    disabled: !config.showCompleteness
+  });
+  setWorkflowSectionState(ownerLocationFields, {
+    visible: Boolean(config.showOwnerLocation),
+    disabled: !config.showOwnerLocation
+  });
+  setWorkflowSectionState(sellerPreferencesFields, {
+    visible: Boolean(config.showSellerPreferences),
+    disabled: !config.showSellerPreferences
+  });
 
   if (config.showBuyerIntake) {
+    buyerIntakeEyebrow.textContent = config.buyerEyebrow || "Details";
     buyerIntakeTitle.textContent = config.buyerTitle;
+    buyerIntakeHelper.textContent = config.buyerHelper || "Add what you know.";
   }
 
   syncPurchaseContextFields(config);
@@ -747,8 +876,9 @@ function setWorkflowSectionState(element, { visible, disabled }) {
 function syncPurchaseContextFields(config) {
   const showBuyerIntake = Boolean(config.showBuyerIntake);
   const context = String(purchaseContextInput.value || "").trim();
-  const retailSelected = showBuyerIntake && context === "retail_store";
-  const namedContextSelected = showBuyerIntake && [
+  const contextControlsVisible = showBuyerIntake && Boolean(config.showPurchaseContext);
+  const retailSelected = contextControlsVisible && context === "retail_store";
+  const namedContextSelected = contextControlsVisible && [
     "online_retailer",
     "facebook_marketplace",
     "ebay_etsy_mercari",
@@ -768,7 +898,7 @@ function syncPurchaseContextFields(config) {
   storeNameInput.required = retailSelected;
   const locationResolvedForForm = Boolean(locationZipInput.value.trim() || locationAreaInput.value.trim() || /browser_location_(zip|general_area)|manual_zip|location_skipped/.test(locationModeInput.value));
   locationZipInput.required = retailSelected && !locationResolvedForForm;
-  purchaseContextInput.required = Boolean(showBuyerIntake && config.purchaseContextRequired);
+  purchaseContextInput.required = Boolean(contextControlsVisible && config.purchaseContextRequired);
 
   if (!retailSelected) {
     storeNameInput.required = false;
@@ -820,6 +950,73 @@ function validateBuyerPurchaseContext(config, formData) {
   }
 
   return "";
+}
+
+function validateVisibleCurrencyFields(config, formData) {
+  const fields = [
+    { visible: Boolean(config.showPrice), name: "asking_price", label: config.priceLabel || "Price" },
+    { visible: !knownShippingAmountInput.disabled, name: "known_shipping_amount", label: "Shipping amount" }
+  ];
+
+  for (const field of fields) {
+    const value = String(formData.get(field.name) || "").trim();
+    if (!field.visible || !value || /free|pickup|included|unknown|not sure/i.test(value)) {
+      continue;
+    }
+    if (parseCurrencyCentsFromText(value) === null) {
+      return `${field.label} must include a valid nonnegative amount, such as 5.50 or $1,199.95.`;
+    }
+  }
+
+  return "";
+}
+
+function parseCurrencyCentsFromText(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return null;
+  }
+  const match = text.match(/(?:^|[^\d])(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?|\d{1,6}(?:\.\d{1,2})?)(?:[^\d]|$)/);
+  if (!match) {
+    return null;
+  }
+  const normalized = match[1].replace(/,/g, "");
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount < 0) {
+    return null;
+  }
+  return Math.round(amount * 100);
+}
+
+function formatIntakeLabel(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function buildWorkflowNotes(config, formData, rawNotes) {
+  const structured = [];
+  const add = (label, name) => {
+    const value = String(formData.get(name) || "").trim();
+    if (value) {
+      structured.push(`${label}: ${formatIntakeLabel(value)}`);
+    }
+  };
+
+  if (config.workflow === "market_value") {
+    add("Completeness", "item_completeness");
+    add("Owner ZIP", "owner_location_zip");
+  }
+
+  if (config.workflow === "listing") {
+    add("Condition", "item_condition");
+    add("Completeness", "item_completeness");
+    add("Pickup or shipping", "fulfillment_preference");
+    add("Selling speed", "selling_speed");
+    add("Preferred marketplace", "platform");
+  }
+
+  return [rawNotes, ...structured].filter(Boolean).join("\n");
 }
 
 async function handleUseLocationClick() {
@@ -1105,7 +1302,12 @@ function createItemSession({ workflow, config, formData, platform, notes, report
         ...getBuyerIntake(formData, notes),
         purchase_intent: config.purchaseIntent
       }
-    : {};
+    : config.workflow === "listing"
+      ? {
+          ...getBuyerIntake(formData, notes),
+          purchase_intent: "seller_listing"
+        }
+      : {};
   const reportContext = extractReportContext(report, sections);
 
   return {
@@ -1301,6 +1503,10 @@ function startNewItem() {
   selectedPhotoFiles = [];
   photosInput.value = "";
   cameraInput.value = "";
+  itemCompletenessInput.value = "";
+  ownerLocationZipInput.value = "";
+  fulfillmentPreferenceInput.value = "";
+  sellingSpeedInput.value = "";
   workflowInputs.forEach((input) => {
     input.checked = input.value === defaultWorkflow;
   });
@@ -1323,10 +1529,14 @@ function getBuyerIntake(formData, notes) {
     location_state: getValue("location_state"),
     location_permission: getValue("location_permission"),
     location_area: getValue("location_area"),
+    owner_location_zip: getValue("owner_location_zip"),
     retailer_or_marketplace_name: getValue("retailer_or_marketplace_name"),
     known_shipping_amount: getValue("known_shipping_amount"),
     identity_confirmation: pendingIdentityConfirmationToken,
     item_condition: getValue("item_condition"),
+    item_completeness: getValue("item_completeness"),
+    fulfillment_preference: getValue("fulfillment_preference"),
+    selling_speed: getValue("selling_speed"),
     condition_concerns: formData.getAll("condition_concerns").map((value) => String(value || "").trim()).filter(Boolean),
     item_name: getValue("item_name"),
     known_brand: getValue("known_brand"),
@@ -1335,7 +1545,9 @@ function getBuyerIntake(formData, notes) {
     known_sku: getValue("known_sku"),
     known_upc: getValue("known_upc"),
     approximate_age_era: getValue("approximate_age_era"),
-    buyer_notes: notes
+    buyer_notes: notes,
+    asking_price_cents: parseCurrencyCentsFromText(getValue("asking_price")),
+    known_shipping_amount_cents: parseCurrencyCentsFromText(getValue("known_shipping_amount"))
   };
 }
 
@@ -1351,7 +1563,7 @@ function getDisplayConfig(config, report) {
   if (config.reportType === "marketValue" && isConsumerReport(report)) {
     return {
       ...config,
-      eyebrow: "Personal-Use Decision",
+      eyebrow: "Personal-Use Buying Decision",
       title: "Buying for Myself"
     };
   }
@@ -1538,7 +1750,8 @@ function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
   const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|â€“|â€”)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
   const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
   const amounts = extractMoneyAmountsFromText(text);
-  const nonAskingMoney = amounts.some((amount) => !Number.isFinite(askingAmount) || Math.round(amount) !== Math.round(askingAmount));
+  const askingCents = moneyToCents(askingAmount);
+  const nonAskingMoney = amounts.some((amount) => !Number.isFinite(askingCents) || moneyToCents(amount) !== askingCents);
   if (unsupported || range || (nonAskingMoney && /\bmarket|value|range|reference|asking|sold|price|below|above\b/i.test(text))) {
     return "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
   }
@@ -1737,7 +1950,21 @@ function normalizeMoneyArray(value) {
 }
 
 function formatMoney(value) {
-  return `$${Math.round(Number(value) || 0).toLocaleString("en-US")}`;
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return "";
+  }
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function moneyToCents(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
 }
 
 async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionState = null) {
@@ -2364,7 +2591,7 @@ function getExecutiveSummary(report, workflow) {
     return {
       eyebrow: "Executive Summary",
       title: price,
-      badge: "Generate Listing",
+      badge: "Seller Pricing and Listing Plan",
       tone: confidence,
       metrics: [
         ["Recommended Listing Price", price],
@@ -2405,10 +2632,11 @@ function getExecutiveSummary(report, workflow) {
     return {
       eyebrow: "Executive Summary",
       title: value,
-      badge: valuation.label,
+      badge: "Owner Value Assessment",
       tone: confidence,
       metrics: [
         [valuation.label, value],
+        ["Recommended Selling Venues", firstNonEmpty(report.recommendedSellingPlatform, report.platformSpecificSellingGuidance)],
         ["Confidence", confidence],
         ["Most Likely Identity", identity]
       ]
@@ -2447,7 +2675,7 @@ function getExecutiveSummary(report, workflow) {
   return {
     eyebrow: "Executive Summary",
     title: recommendation,
-    badge: valueRating,
+      badge: workflow === "personal_use" ? "Personal-Use Buying Decision" : valueRating,
     tone: valueRating,
     metrics: [
       ["Recommendation", recommendation],
@@ -2920,7 +3148,7 @@ function renderAskConversation() {
   if (!history.length) {
     const empty = document.createElement("p");
     empty.className = "ask-empty";
-    empty.textContent = "Ask about this item, the evidence, the recommendation, a different price, or the listing. Ask Katherine’s Eye uses the current report and will tell you when a new search or more evidence is needed.";
+    empty.textContent = getAskEmptyPrompt(activeItemSession);
     askHistory.appendChild(empty);
     return;
   }
@@ -2928,6 +3156,19 @@ function renderAskConversation() {
   for (const entry of history) {
     askHistory.appendChild(renderAskEntry(entry));
   }
+}
+
+function getAskEmptyPrompt(session) {
+  if (session?.workflow === "market_value") {
+    return "Ask about this item, condition, provenance, valuation evidence, selling venues, or what would improve confidence. Ask Katherine’s Eye uses the current owner value assessment.";
+  }
+  if (session?.workflow === "listing") {
+    return "Ask about platform fit, pricing, title, description, shipping, pickup, selling speed, or listing revisions. Ask Katherine’s Eye uses the current seller plan.";
+  }
+  if (session?.workflow === "resale") {
+    return "Ask about price, alternatives, margin, platform fit, risk, shipping, negotiation, or timeline. Ask Katherine’s Eye uses the current resale buying report.";
+  }
+  return "Ask about this item, the evidence, the recommendation, price, alternatives, shipping, or negotiation. Ask Katherine’s Eye uses the current buying report.";
 }
 
 function renderAskEntry(entry) {
@@ -3108,7 +3349,7 @@ function renderConsumerSummary(report) {
 
   const label = document.createElement("p");
   label.className = "summary-eyebrow";
-  label.textContent = retailReport ? "Retail purchase decision" : "Personal-Use Decision";
+  label.textContent = retailReport ? "Retail purchase decision" : "Personal-Use Buying Decision";
 
   const title = document.createElement("h3");
   title.textContent = retailReport
@@ -3713,26 +3954,13 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   results.className = "results empty-state";
 
   const intro = document.createElement("div");
-  intro.className = "first-run-card";
-  const title = document.createElement("h3");
-  title.textContent = "Ready when your photos are.";
+  intro.className = "first-run-card compact-empty-card";
   const copy = document.createElement("p");
-  copy.textContent = "Add item photos, choose your buying purpose, then add the details you know.";
-  const steps = document.createElement("ul");
-  steps.className = "first-run-steps";
-  [
-    "Photos first.",
-    "Then buying purpose, purchase location, price, and condition.",
-    "Product details and notes are optional unless you are generating a listing."
-  ].forEach((step) => {
-    const item = document.createElement("li");
-    item.textContent = step;
-    steps.appendChild(item);
-  });
+  copy.textContent = "Your recommendation will appear here after analysis.";
   const helper = document.createElement("p");
   helper.className = "first-run-helper";
-  helper.textContent = config.emptyMessage;
-  intro.append(title, copy, steps, helper);
+  helper.textContent = "Add clear photos and any details you know.";
+  intro.append(copy, helper);
   results.replaceChildren(intro);
 }
 

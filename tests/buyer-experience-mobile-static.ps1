@@ -12,11 +12,11 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.1"; Text = $index; Pattern = "Version 1.11.1" },
-  @{ Name = "Package version is 1.11.1"; Text = $package; Pattern = '"version": "1.11.1"' },
-  @{ Name = "Server version is 1.11.1"; Text = $server; Pattern = '$AppVersion = "1.11.1"' },
-  @{ Name = "Roadmap documents Version 1.11.1"; Text = $roadmap; Pattern = "Version 1.11.1 (Completed)" },
-  @{ Name = "Buyer purpose heading is plain"; Text = $index; Pattern = "<legend>Buying purpose</legend>" },
+  @{ Name = "Visible app version is 1.11.2"; Text = $index; Pattern = "Version 1.11.2" },
+  @{ Name = "Package version is 1.11.2"; Text = $package; Pattern = '"version": "1.11.2"' },
+  @{ Name = "Server version is 1.11.2"; Text = $server; Pattern = '$AppVersion = "1.11.2"' },
+  @{ Name = "Roadmap documents Version 1.11.2"; Text = $roadmap; Pattern = "Version 1.11.2 (Completed)" },
+  @{ Name = "Purpose heading is plain"; Text = $index; Pattern = "<legend>Purpose</legend>" },
   @{ Name = "Personal-use submit label is consistent"; Text = $index; Pattern = "Analyze Buying for Myself" },
   @{ Name = "Resale submit label is consistent"; Text = $app; Pattern = 'defaultLabel: "Analyze Buying to Resell"' },
   @{ Name = "Product details heading is customer-facing"; Text = $index; Pattern = '<span class="details-title">Product Details</span>' },
@@ -26,8 +26,8 @@ $checks = @(
   @{ Name = "Report actions helper exists"; Text = $app; Pattern = "function setReportActionsVisible" },
   @{ Name = "Report actions show on completed report"; Text = $app; Pattern = "setReportActionsVisible(true);" },
   @{ Name = "Report actions hide for non-report states"; Text = $app; Pattern = "setReportActionsVisible(false);" },
-  @{ Name = "Empty state has concise title"; Text = $app; Pattern = 'title.textContent = "Ready when your photos are."' },
-  @{ Name = "Empty state has step list"; Text = $app; Pattern = 'steps.className = "first-run-steps"' },
+  @{ Name = "Empty state has concise copy"; Text = $app; Pattern = 'copy.textContent = "Your recommendation will appear here after analysis."' },
+  @{ Name = "Empty state has compact helper"; Text = $app; Pattern = 'helper.textContent = "Add clear photos and any details you know."' },
   @{ Name = "Why heading is customer-facing"; Text = $app; Pattern = 'title: "Why This Recommendation"' },
   @{ Name = "Final report summary is plain"; Text = $app; Pattern = 'title.textContent = "Final Summary"' },
   @{ Name = "Technical details remain collapsed"; Text = $app; Pattern = "function renderTechnicalSearchDetails" },
@@ -35,8 +35,8 @@ $checks = @(
   @{ Name = "Photos are first in visual flow"; Text = $styles; Pattern = ".photo-stage" },
   @{ Name = "Optional note field is shorter"; Text = $styles; Pattern = "min-height: 128px;" },
   @{ Name = "Mobile note field is shorter"; Text = $styles; Pattern = "min-height: 112px;" },
-  @{ Name = "Empty state is shorter on desktop"; Text = $styles; Pattern = "min-height: 280px;" },
-  @{ Name = "Empty state is shorter on mobile"; Text = $styles; Pattern = "min-height: 220px;" }
+  @{ Name = "Empty state is shorter on desktop"; Text = $styles; Pattern = "min-height: 150px;" },
+  @{ Name = "Empty state is shorter on mobile"; Text = $styles; Pattern = "min-height: 130px;" }
 )
 
 $failed = @()
@@ -49,7 +49,7 @@ foreach ($check in $checks) {
 $orderChecks = @(
   @{ Name = "Guide is ordered after action row"; Pattern = "\.guide-panel\s*\{[\s\S]*?order:\s*7;" },
   @{ Name = "Photos are ordered first"; Pattern = "\.photo-stage\s*\{[\s\S]*?order:\s*1;" },
-  @{ Name = "Buying purpose is ordered second"; Pattern = "\.workflow-field\s*\{[\s\S]*?order:\s*2;" },
+  @{ Name = "Purpose is ordered second"; Pattern = "\.workflow-field\s*\{[\s\S]*?order:\s*2;" },
   @{ Name = "Buying details are ordered third"; Pattern = "\.buyer-intake\s*\{[\s\S]*?order:\s*3;" },
   @{ Name = "Optional platform is ordered after buying details"; Pattern = "\.optional-field\s*\{[\s\S]*?order:\s*4;" },
   @{ Name = "Optional notes are ordered before analyze"; Pattern = "\.optional-notes-field\s*\{[\s\S]*?order:\s*5;" },

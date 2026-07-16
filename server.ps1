@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.11.1"
+$AppVersion = "1.11.2"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -774,16 +774,6 @@ function Handle-GenerateListing {
     }
   }
 
-  if ($ReportType -eq "listing" -and -not $Platform) {
-    Send-Json $Stream 400 @{ error = "Choose a marketplace platform." }
-    return
-  }
-
-  if ($ReportType -eq "listing" -and -not $Notes) {
-    Send-Json $Stream 400 @{ error = "Add item notes before generating a listing." }
-    return
-  }
-
   if ($Photos.Count -eq 0) {
     Send-Json $Stream 400 @{ error = "Upload at least one item photo." }
     return
@@ -932,8 +922,8 @@ function Invoke-AskMarketEdge {
   $WorkflowInstruction = @{
     personal_use = "Active workflow is Buying for Myself. Use personal-use value, offer, fair-price, condition-risk, fit, and walk-away logic. Do not use reseller margin logic."
     resale = "Active workflow is Buying to Resell. Use resale margin, fees, shipping or transport, liquidity, max-buy-price, risk, and likely net-profit logic."
-    market_value = "Active workflow is Check Market Value. Explain value estimate, confidence, research quality, and what evidence would improve confidence."
-    listing = "Active workflow is Generate Listing. Help revise listing copy, platform fit, title, description, price strategy, condition disclosure, and seller notes without inventing facts."
+    market_value = "Active workflow is Value Something I Own. Use owner valuation, identification confidence, condition, completeness, value evidence, likely selling venues, and next-verification logic. Do not ask for purchase price or use buying-decision labels."
+    listing = "Active workflow is Sell Something I Own. Help with seller pricing, listing copy, platform fit, pickup/shipping fit, selling speed, condition disclosure, and seller notes without inventing facts."
   }[$Workflow]
   $PriceText = "No scenario price was parsed by the app."
   if ($null -ne $ProposedPrice) {
@@ -1268,7 +1258,7 @@ For ordinary current retail consumables, do not prioritize historical sold comps
 For ordinary current retail products, use Retail Evidence Mode: current-retail-only. Do not use auction, historical sold, guide, WorthPoint, PicClick, resale, thrift, flea-market, estate-sale, collector, or secondary-market evidence to establish customer-facing current retail value.
 For ordinary fixed-price retail-store purchases, do not show Opening Offer, negotiation target, offer ladder, market-supported maximum, personal-enjoyment exception, or Maximum Price Guard. Default to Store price is fixed unless the intake explicitly says the retail price is negotiable.
 For ordinary current retail products, show Current Retail Price: Not verified when no exact/strong qualified current retail source was found. Do not fabricate a retail range, named-store price, or competing retailer result.
-Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Match, Compatible Alternative, Package-Size Difference, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.
+Use retail labels only for retail evidence: Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch. Do not label ordinary retail results as Verified Sold, Reference Price, Auction Current Bid, Historical Sold Evidence, or Preliminary Reference Range.
 Before retail query generation, reconcile one Canonical Product Identity from barcode/UPC, visible package text, brand, item number/SKU, package count, size, user description, purchase context, and store name. Strong barcode/OCR/package/SKU evidence must outrank weaker visual inference.
 Reject unsupported identity terms before search. Example: if barcode/package text says Office Works Security Envelopes, 45 count, Strip & Seal, item 6110325, UPC 041226087161, do not use poster print in title, queries, matching, pricing, or customer-facing text unless the user confirms that conflict.
 For retail-store products, generate separate query ideas in priority order: exact UPC alone, store plus exact UPC, known retailer-domain plus exact UPC, brand plus product name, brand plus SKU/item number, brand plus product type and package count, store plus brand/product, and local competitor query only when ZIP or general area is available.
@@ -4651,7 +4641,7 @@ function Format-MoneyRange {
 function Format-Money {
   param([double]$Value)
 
-  return ('$' + [Math]::Round($Value).ToString('N0'))
+  return ('$' + $Value.ToString('N2'))
 }
 
 function Test-RejectedWeakComparableItem {

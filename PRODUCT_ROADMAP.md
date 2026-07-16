@@ -365,6 +365,14 @@
 - Mobile spacing, note-field height, card spacing, and first-run report spacing were tightened without changing pricing, search, evidence, shipping, barcode, identity, retail, or location logic
 - Regression tests cover buyer workflow order, report-action visibility, customer-facing terminology, empty-state guidance, mobile spacing, and preserved 1.11.0 safeguards
 
+## Version 1.11.2 (Completed)
+- Purpose selection now exposes four clear customer workflows: Buying for Myself, Buying to Resell, Value Something I Own, and Sell Something I Own
+- Owner-value and seller workflows use ownership/selling details without requiring purchase location, asking price, marketplace platform, or seller notes
+- Currency parsing and report formatting now preserve cents across frontend intake, API normalization, local server output, Ask scenario handling, and unsupported-evidence guards
+- Retail evidence recovery now distinguishes Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, and Rejected Retail Mismatch while keeping package price and unit price separate
+- Photo controls are compacted into camera and library actions, and the initial report state is shorter while report-only actions remain hidden until a completed report exists
+- Regression tests cover purpose-specific forms, cents preservation, retail compatible-alternative recovery, compact mobile photo UI, and preserved 1.11.1 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings

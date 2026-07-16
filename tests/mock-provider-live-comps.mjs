@@ -559,6 +559,11 @@ try {
   assert(packMismatch.itemTypeCompatible === false && packMismatch.status === "pack_quantity_mismatch", "100-count envelope box must not be treated as an exact match to a 25-count box.");
   const compatibleQuantity = __queryIntegrityTestHooks.extractPackQuantityNumber("100-count security envelopes");
   assert(compatibleQuantity === 100, "Pack quantity parser should extract 100-count retail quantities.");
+  assert(__queryIntegrityTestHooks.formatMoney(5.5) === "$5.50", "formatMoney should preserve $5.50 instead of rounding to $6.");
+  assert(__queryIntegrityTestHooks.formatSourceMoney(6) === "$6.00", "formatSourceMoney should show cents for whole-dollar source prices.");
+  assert(__queryIntegrityTestHooks.formatUnitMoney(5.5 / 45) === "$0.122", "Sub-dollar unit prices should retain useful precision.");
+  assert(__queryIntegrityTestHooks.parseCurrencyCents("$5.50") === 550, "Currency parser should store $5.50 as 550 cents.");
+  assert(__queryIntegrityTestHooks.moneyAmountToCents(5.5) === 550, "Money amount helper should convert decimal dollars to cents.");
   const retailDecision = {
     valueRating: "Insufficient Evidence",
     recommendation: "Buy",
@@ -625,6 +630,66 @@ try {
   assert(officeWorksQueries.some((query) => /Office Works security envelopes 45 count/i.test(query)), "Brand plus product type plus package count should be generated.");
   assert(!officeWorksQueries.some((query) => /poster|print/i.test(query)), "Unsupported poster print terms must not enter retail search queries.");
   assert(!officeWorksQueries.some((query) => /\b(?:sold|auction|completed|opening bid|historical sale|eBay sold)\b/i.test(query)), "Retail-store route must suppress resale-oriented query terms for ordinary current products.");
+  const officeWorksStrongAlternative = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
+    {
+      title: "Office Works Security Envelopes 50 Count Gummed",
+      rawText: "Office Works security envelopes 50 count gummed current retail price $5.50",
+      itemPriceAmount: 5.5,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/office-works-50-count"
+    },
+    officeWorksIdentity,
+    officeWorksIntake
+  );
+  assert(officeWorksStrongAlternative.label === "Strong Retail Alternative", "45-count and 50-count retail packages should recover as a strong retail alternative.");
+  const officeWorksUnitComparable = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
+    {
+      title: "Office Works Security Envelopes 90 Count",
+      rawText: "Office Works security envelopes 90 count current retail price $9.99",
+      itemPriceAmount: 9.99,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/office-works-90-count"
+    },
+    officeWorksIdentity,
+    officeWorksIntake
+  );
+  assert(officeWorksUnitComparable.label === "Unit-Price Comparable", "Larger compatible retail packages should be limited to unit-price comparison.");
+  const officeWorksMismatch = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
+    {
+      title: "Plain White Envelopes 45 Count",
+      rawText: "plain envelopes 45 count current retail price $4.99",
+      itemPriceAmount: 4.99,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/plain-envelopes"
+    },
+    officeWorksIdentity,
+    officeWorksIntake
+  );
+  assert(officeWorksMismatch.label === "Rejected Retail Mismatch", "Security-envelope evidence should reject plain-envelope retail results.");
+  const officeWorksRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
+    buyerIntake: officeWorksIntake,
+    identity: officeWorksIdentity,
+    liveSearch: { webSearchExecuted: true },
+    askingPriceNumber: 5.5,
+    searchCompleted: true,
+    pricesFound: [
+      {
+        source: "Example Retail",
+        title: "Office Works Security Envelopes 50 Count Gummed",
+        rawText: "Office Works security envelopes 50 count gummed current retail price $5.50",
+        itemPriceAmount: 5.5,
+        itemPrice: "$5.50",
+        priceType: "Active Asking",
+        listingStatus: "In stock",
+        url: "https://example.com/office-works-50-count"
+      }
+    ]
+  });
+  assert(/Compatible Current Retail Alternative/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Retail recovery should disclose compatible alternatives when exact package is not confirmed.");
+  assert(/package price \$5\.50 for 50 units \(\$0\.110 per unit\)/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Retail package comparison should show package price and unit price with cents.");
   const itemTypeCases = [
     ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
     ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],
@@ -694,7 +759,7 @@ try {
   assert(deliveredHigher[0].itemPrice === "$6.49" && deliveredHigher[0].shipping === "$8.00" && deliveredHigher[0].deliveredCost === "$14.49", "Delivered cost should equal item price plus explicit shipping.");
   assert(/delivered cost is higher/i.test(deliveredHigher[0].comparisonToYourPrice), "Lower item price with higher delivered cost must not be called a better deal.");
   const unknownShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/unknown-shipping", displayedPrice: "$6.00" })] }, 10);
-  assert(unknownShipping[0].itemPrice === "$6" && unknownShipping[0].shipping === "Not shown" && unknownShipping[0].deliveredCost === "Not established", "A $6 listing with no shipping evidence should show item price, Shipping: Not shown, and Delivered cost: Not established.");
+  assert(unknownShipping[0].itemPrice === "$6.00" && unknownShipping[0].shipping === "Not shown" && unknownShipping[0].deliveredCost === "Not established", "A $6 listing with no shipping evidence should show item price, Shipping: Not shown, and Delivered cost: Not established.");
   assert(unknownShipping[0].shippingAmount === null && unknownShipping[0].deliveredCostAmount === null, "Unknown shipping should never be treated as free or as a delivered total.");
   assert(/may not be the lowest total cost because shipping was not shown/i.test(unknownShipping[0].comparisonToYourPrice), "Lower item price with unknown shipping should not be confirmed as a better delivered deal.");
   const freeShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/free-shipping", delivery: "Free shipping" })] }, 10);
@@ -709,7 +774,7 @@ try {
     ]
   }, 10);
   const bestDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound(deliveredRanking);
-  assert(/fifteen-free/.test(bestDelivered.url) && bestDelivered.deliveredCost === "$15", "A $6 item with $15 shipping should rank behind a $15 item with free shipping.");
+  assert(/fifteen-free/.test(bestDelivered.url) && bestDelivered.deliveredCost === "$15.00", "A $6 item with $15 shipping should rank behind a $15 item with free shipping.");
   assert(!/six-unknown/.test(bestDelivered.url), "A $6 item with unknown shipping must not automatically be labeled the best delivered deal.");
   const otherDelivered = __queryIntegrityTestHooks.buildOtherCompatiblePricesFound(deliveredRanking, bestDelivered);
   assert(JSON.stringify(otherDelivered).includes("twenty-five-included"), "Higher compatible prices should remain visible in Other Compatible Prices Found.");
@@ -880,7 +945,7 @@ try {
     }
   });
   const conditionalRecommendation = __queryIntegrityTestHooks.buildConsumerRecommendationText({ recommendation: "Buy" }, conditionalBuyOffer, 10);
-  assert(/Buy only if negotiated to \$9 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
+  assert(/Buy only if negotiated to \$9\.00 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
   const soldOutranksActive = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
@@ -889,7 +954,7 @@ try {
     ]
   });
   assert(soldOutranksActive.primaryRangeType === "verified_market", "Verified sold exact/strong evidence should outrank active asking evidence.");
-  assert(/\$40-\$44/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
+  assert(/\$40\.00-\$44\.00/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
   const supportedHighOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: 44,
@@ -995,7 +1060,7 @@ try {
   });
   assert(weakInsideDecision.valueRating === "Reasonable Personal-Use Buy - Limited Evidence", "A low-dollar asking price inside a weak preliminary range should use a cautious personal-use buy label.");
   assert(!/Wait for a Better Price|Pass/i.test(weakInsideDecision.recommendation), "Weak/reference evidence inside the preliminary range must not independently force Wait or Pass.");
-  assert(/does not prove that \$10 is overpriced/i.test(weakInsideDecision.cautiousBuyExplanation), "Customer explanation should say weak evidence does not prove the $10 ask is overpriced.");
+  assert(/does not prove that \$10\.00 is overpriced/i.test(weakInsideDecision.cautiousBuyExplanation), "Customer explanation should say weak evidence does not prove the $10 ask is overpriced.");
   const weakInsideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: 6,

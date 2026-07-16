@@ -22,7 +22,7 @@
           <header class="brand-header">
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Katherine’s Eye</h1>
-            <p class="version-badge">Version 1.11.1</p>
+            <p class="version-badge">Version 1.11.2</p>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -39,8 +39,8 @@
                   <h2 id="guide-quick-start">Quick Start</h2>
                   <ol>
                     <li>Add photos.</li>
-                    <li>Choose Buying for Myself, Buying to Resell, Check Market Value, or Generate Listing.</li>
-                    <li>Add purchase location and price when you have them.</li>
+                    <li>Choose Buying for Myself, Buying to Resell, Value Something I Own, or Sell Something I Own.</li>
+                    <li>Add purchase price and location only when you are buying.</li>
                     <li>Select condition if you can.</li>
                     <li>Add optional details only when they help.</li>
                     <li>Tap the analyze button.</li>
@@ -49,8 +49,8 @@
 
                 <section class="guide-section" aria-labelledby="guide-what-does">
                   <h3 id="guide-what-does">What Katherine’s Eye Does</h3>
-                  <p>Katherine’s Eye helps you decide whether an item is worth buying at this price, right now. Know before you buy. Then profit if you sell.</p>
-                  <p>It can identify an item from photos, compare the asking price with available market information, give a personal-use value rating, support resale decisions, estimate resale potential, recommend a selling platform, suggest listing and sale prices, and generate a listing after the item is purchased.</p>
+                  <p>Katherine’s Eye helps you identify items, compare supported price evidence, decide whether to buy, estimate what you own, and prepare seller-ready listing guidance.</p>
+                  <p>It can compare a purchase price, estimate owner value, separate active asking prices from verified sold evidence, recommend selling venues, suggest listing and sale prices, and create a listing plan from the same item context.</p>
                   <p>Live results depend on available sources, photo quality, and identifiable item details. Treat the output as decision support, not a guarantee.</p>
                 </section>
 
@@ -58,7 +58,7 @@
                   <h3 id="guide-worth-buying">Buyer Workflow</h3>
                   <ol>
                     <li>Take or upload clear photos.</li>
-                    <li>Choose your buying purpose.</li>
+                    <li>Choose Buying for Myself or Buying to Resell.</li>
                     <li>Choose where you are buying the item.</li>
                     <li>Enter the seller's current asking price.</li>
                     <li>Select the condition.</li>
@@ -68,7 +68,7 @@
                     <li>Tap Analyze.</li>
                     <li>Review the recommendation, price guidance, selling platform, and confidence.</li>
                   </ol>
-                  <p>For buyer workflows, photos and buying purpose come first. Optional details can stay blank until you know them.</p>
+                  <p>For buyer workflows, photos and buying purpose come first. Owner and seller workflows do not require purchase location or asking-price fields.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-photos">
@@ -161,17 +161,17 @@
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-generate-listing">
-                  <h3 id="guide-generate-listing">How to Use Generate Listing</h3>
+                  <h3 id="guide-generate-listing">Seller Workflow</h3>
                   <ol>
-                    <li>Select the marketplace platform.</li>
                     <li>Take or upload clear photos.</li>
-                    <li>Enter item notes and condition details.</li>
-                    <li>Tap Generate Listing.</li>
+                    <li>Choose Sell Something I Own.</li>
+                    <li>Add condition, completeness, preferred platform, pickup or shipping preference, and selling speed when known.</li>
+                    <li>Tap Create Selling Plan and Listing.</li>
                     <li>Review the generated title, description, price guidance, and item details.</li>
                     <li>Use the copy buttons to copy the listing content.</li>
                     <li>Verify all facts before posting.</li>
                   </ol>
-                  <p>Generate Listing requires a selected platform, item notes, and at least one photo. Katherine’s Eye does not directly post the listing for you.</p>
+                  <p>The Sell Something I Own workflow keeps the existing Generate Listing capability available inside a seller-focused plan. Katherine’s Eye does not directly post the listing for you.</p>
                 </section>
 
                 <section class="guide-section" aria-labelledby="guide-reminders">
@@ -189,51 +189,61 @@
             </details>
 
             <div class="field photo-stage">
-              <div class="photo-inputs">
-                <div class="photo-control">
-                  <label for="camera-photo">Take Photo</label>
-                  <p class="control-helper">Opens your camera on phones and tablets.</p>
-                  <input id="camera-photo" type="file" accept="image/*" capture="environment">
+              <div class="photo-stage-header">
+                <div>
+                  <p class="mini-eyebrow">Photos</p>
+                  <h2>Add Photos</h2>
                 </div>
-                <div class="photo-control">
-                  <label for="photos">Upload Photos</label>
-                  <p class="control-helper">Choose from your photo library or files.</p>
-                  <input id="photos" name="photos" type="file" accept="image/*" multiple>
+                <p class="field-note">Add up to 6 item photos. Clear close-ups of labels, marks, and damage usually improve confidence.</p>
+              </div>
+              <div class="photo-inputs photo-actions">
+                <div class="photo-control compact-photo-control">
+                  <label class="photo-action" for="camera-photo">
+                    <span>Take Photo</span>
+                    <small>Camera</small>
+                  </label>
+                  <input id="camera-photo" class="visually-hidden-file" type="file" accept="image/*" capture="environment">
+                </div>
+                <div class="photo-control compact-photo-control">
+                  <label class="photo-action" for="photos">
+                    <span>Choose from Library</span>
+                    <small>Photos or files</small>
+                  </label>
+                  <input id="photos" class="visually-hidden-file" name="photos" type="file" accept="image/*" multiple>
                 </div>
               </div>
-              <p class="field-note">Add up to 6 item photos. Clear close-ups of labels, marks, and damage usually improve confidence.</p>
               <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
             </div>
 
             <fieldset id="workflow-field" class="field workflow-field">
-              <legend>Buying purpose</legend>
+              <legend>Purpose</legend>
               <div class="workflow-options" role="radiogroup" aria-label="Workflow">
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="personal_use" checked>
                   <span>
                     <strong>Buying for Myself</strong>
-                    <small>Fair price, value rating, offer, and walk-away guidance</small>
+                    <small>Fair-price guidance, comparisons, and a clear buying recommendation.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="resale">
                   <span>
                     <strong>Buying to Resell</strong>
-                    <small>Margin, resale price, platform fit, risk, and profit logic</small>
+                    <small>Margin, resale price, platform fit, risk, and profit guidance.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="market_value">
                   <span>
-                    <strong>Check Market Value</strong>
-                    <small>General value check when you are not ready to choose a buying purpose</small>
+                    <strong>Value Something I Own</strong>
+                    <small>Identify what you have and estimate its supported market value.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="listing">
                   <span>
-                    <strong>Generate Listing</strong>
-                    <small>Create a seller-ready marketplace listing after you have the item</small>
+                    <strong>Sell Something I Own</strong>
+                    <small>Set a selling price and create a seller-ready listing.</small>
                   </span>
                 </label>
               </div>
@@ -252,20 +262,20 @@
                 <option>Craigslist</option>
                 <option>OfferUp</option>
               </select>
-              <p id="platform-note" class="field-note">Optional for buyer workflows. Required for Generate Listing.</p>
+              <p id="platform-note" class="field-note">Optional. Select a marketplace when it helps the recommendation.</p>
             </div>
 
             <section id="buyer-intake-section" class="field buyer-intake" aria-labelledby="buyer-intake-title">
               <div class="field-heading">
                 <div>
-                  <p class="mini-eyebrow">Purchase details</p>
+                  <p id="buyer-intake-eyebrow" class="mini-eyebrow">Purchase details</p>
                   <h2 id="buyer-intake-title">Buying Details</h2>
                 </div>
-                <p class="field-note">Add what you know. Price, condition, and product details can stay blank if you are not sure.</p>
+                <p id="buyer-intake-helper" class="field-note">Add what you know. Price, condition, and product details can stay blank if you are not sure.</p>
               </div>
 
               <div class="intake-grid">
-                <div class="field-control">
+                <div id="purchase-context-control" class="field-control">
                   <label for="purchase_context">Purchase location</label>
                   <select id="purchase_context" name="purchase_context">
                     <option value="">Select one</option>
@@ -283,10 +293,10 @@
                   <p class="field-note">Choose the setting so Katherine’s Eye uses the right price context.</p>
                 </div>
 
-                <div class="field-control">
-                  <label for="asking_price">Price</label>
+                <div id="asking-price-control" class="field-control">
+                  <label id="asking-price-label" for="asking_price">Price</label>
                   <input id="asking_price" name="asking_price" type="text" inputmode="decimal" placeholder="Seller/store price, e.g. $65 firm">
-                  <p class="field-note">Optional. Add it for a clearer buy/no-buy decision.</p>
+                  <p id="asking-price-note" class="field-note">Optional. Add it for a clearer buy/no-buy decision.</p>
                 </div>
 
                 <div id="purchase-intent-control" class="field-control">
@@ -300,7 +310,7 @@
                   </select>
                 </div>
 
-                <div class="field-control">
+                <div id="condition-control" class="field-control">
                   <label for="item_condition">Condition</label>
                   <select id="item_condition" name="item_condition">
                     <option value="">Select one</option>
@@ -318,6 +328,19 @@
                     <option value="unknown">Unknown</option>
                   </select>
                   <p class="field-note">Optional. Choose your best read, and photograph flaws when possible.</p>
+                </div>
+
+                <div id="completeness-control" class="field-control">
+                  <label for="item_completeness">Completeness</label>
+                  <select id="item_completeness" name="item_completeness">
+                    <option value="">Select one</option>
+                    <option value="complete">Complete</option>
+                    <option value="missing_parts">Missing parts</option>
+                    <option value="incomplete_set">Incomplete set</option>
+                    <option value="sealed_or_new">Sealed or new</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                  <p class="field-note">Optional. Include parts, accessories, packaging, and set completeness when known.</p>
                 </div>
               </div>
 
@@ -359,6 +382,36 @@
                 <div class="field-control">
                   <label for="known_shipping_amount">Shipping amount, if known</label>
                   <input id="known_shipping_amount" name="known_shipping_amount" type="text" inputmode="decimal" placeholder="$8.99, free, pickup only">
+                </div>
+              </div>
+
+              <div id="owner-location-fields" class="intake-grid conditional-fields" hidden>
+                <div class="field-control">
+                  <label for="owner_location_zip">ZIP code, optional</label>
+                  <input id="owner_location_zip" name="owner_location_zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="ZIP code">
+                  <p class="field-note">Use only when local market context may matter.</p>
+                </div>
+              </div>
+
+              <div id="seller-preferences-fields" class="intake-grid conditional-fields" hidden>
+                <div class="field-control">
+                  <label for="fulfillment_preference">Pickup or shipping</label>
+                  <select id="fulfillment_preference" name="fulfillment_preference">
+                    <option value="">Select one</option>
+                    <option value="local_pickup">Local pickup</option>
+                    <option value="shipping">Shipping</option>
+                    <option value="either">Either</option>
+                    <option value="not_sure">Not sure</option>
+                  </select>
+                </div>
+                <div class="field-control">
+                  <label for="selling_speed">Selling speed</label>
+                  <select id="selling_speed" name="selling_speed">
+                    <option value="">Select one</option>
+                    <option value="sell_quickly">Sell quickly</option>
+                    <option value="balanced">Balanced price and speed</option>
+                    <option value="maximize_price">Maximize price</option>
+                  </select>
                 </div>
               </div>
 
@@ -429,7 +482,7 @@
             <div class="field optional-notes-field">
               <label for="notes">Optional details</label>
               <textarea id="notes" name="notes" rows="6" placeholder="Label wording, flaws, measurements, seller comments, or anything else useful..."></textarea>
-              <p id="notes-note" class="field-note">Optional for buyer workflows. Required for Generate Listing.</p>
+              <p id="notes-note" class="field-note">Optional for buyer workflows. Add ownership or selling details when useful.</p>
             </div>
 
             <div class="action-row">
@@ -468,7 +521,7 @@
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
-            <p>Add photos and choose a buying purpose to start.</p>
+            <p>Add photos and choose a purpose to start.</p>
           </div>
 
           <section id="ask-panel" class="ask-panel" aria-labelledby="ask-title" hidden>

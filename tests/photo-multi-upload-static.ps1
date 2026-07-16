@@ -11,12 +11,12 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.1"; Text = $index; Pattern = "Version 1.11.1" },
-  @{ Name = "Package version is 1.11.1"; Text = $package; Pattern = '"version": "1.11.1"' },
-  @{ Name = "Server version is 1.11.1"; Text = $server; Pattern = '$AppVersion = "1.11.1"' },
-  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.11.1 (Completed)" },
-  @{ Name = "Photo library input keeps multiple attribute"; Text = $index; Pattern = 'id="photos" name="photos" type="file" accept="image/*" multiple' },
-  @{ Name = "Camera input remains camera capture"; Text = $index; Pattern = 'id="camera-photo" type="file" accept="image/*" capture="environment"' },
+  @{ Name = "Visible app version is 1.11.2"; Text = $index; Pattern = "Version 1.11.2" },
+  @{ Name = "Package version is 1.11.2"; Text = $package; Pattern = '"version": "1.11.2"' },
+  @{ Name = "Server version is 1.11.2"; Text = $server; Pattern = '$AppVersion = "1.11.2"' },
+  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.11.2 (Completed)" },
+  @{ Name = "Photo library input keeps multiple attribute"; Text = $index; Pattern = 'id="photos" class="visually-hidden-file" name="photos" type="file" accept="image/*" multiple' },
+  @{ Name = "Camera input remains camera capture"; Text = $index; Pattern = 'id="camera-photo" class="visually-hidden-file" type="file" accept="image/*" capture="environment"' },
   @{ Name = "Shared selected photo state exists"; Text = $app; Pattern = "let selectedPhotoFiles = [];" },
   @{ Name = "Six-photo limit remains explicit"; Text = $app; Pattern = "const MAX_PHOTO_COUNT = 6;" },
   @{ Name = "Library change handler is used"; Text = $app; Pattern = 'photosInput.addEventListener("change", handleLibraryPhotoChange)' },
