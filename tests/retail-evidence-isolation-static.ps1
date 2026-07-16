@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.2"; Text = $index; Pattern = "Version 1.11.2" },
-  @{ Name = "Package version is 1.11.2"; Text = $package; Pattern = '"version": "1.11.2"' },
-  @{ Name = "Server version is 1.11.2"; Text = $server; Pattern = '$AppVersion = "1.11.2"' },
-  @{ Name = "Roadmap documents Version 1.11.2"; Text = $roadmap; Pattern = "Version 1.11.2 (Completed)" },
+  @{ Name = "Visible app version is 1.11.3"; Text = $index; Pattern = "Version 1.11.3" },
+  @{ Name = "Package version is 1.11.3"; Text = $package; Pattern = '"version": "1.11.3"' },
+  @{ Name = "Server version is 1.11.3"; Text = $server; Pattern = '$AppVersion = "1.11.3"' },
+  @{ Name = "Roadmap documents Version 1.11.3"; Text = $roadmap; Pattern = "Version 1.11.3 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
   @{ Name = "Current retail only mode exists"; Text = $api; Pattern = "current-retail-only" },
@@ -35,7 +35,7 @@ $checks = @(
   @{ Name = "Retail package compatibility helper exists"; Text = $api; Pattern = "function classifyRetailPackageCompatibility" },
   @{ Name = "45 vs 50 count compatible logic exists"; Text = $api; Pattern = "submittedQuantity === 45 && candidateQuantity === 50" },
   @{ Name = "Unit-price comparable label exists"; Text = $api; Pattern = "Unit-Price Comparable" },
-  @{ Name = "Security versus plain mismatch exists"; Text = $api; Pattern = "Security-envelope evidence was not compatible with a plain-envelope result." },
+  @{ Name = "Security versus plain mismatch exists"; Text = $api; Pattern = "Security-envelope evidence was not compatible with a non-security envelope result." },
   @{ Name = "Strip and seal versus gummed alternative exists"; Text = $api; Pattern = "Strip-and-seal and gummed closures may be compatible alternatives" },
   @{ Name = "Named store no source-backed price copy exists"; Text = $api; Pattern = "No source-backed" },
   @{ Name = "Manual ZIP denial phrase exists"; Text = $api; Pattern = "Location permission was not granted. ZIP" },

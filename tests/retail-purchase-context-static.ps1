@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.2"; Text = $index; Pattern = "Version 1.11.2" },
-  @{ Name = "Package version is 1.11.2"; Text = $package; Pattern = '"version": "1.11.2"' },
-  @{ Name = "Server version is 1.11.2"; Text = $server; Pattern = '$AppVersion = "1.11.2"' },
-  @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.11.2 (Completed)" },
+  @{ Name = "Visible app version is 1.11.3"; Text = $index; Pattern = "Version 1.11.3" },
+  @{ Name = "Package version is 1.11.3"; Text = $package; Pattern = '"version": "1.11.3"' },
+  @{ Name = "Server version is 1.11.3"; Text = $server; Pattern = '$AppVersion = "1.11.3"' },
+  @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.11.3 (Completed)" },
   @{ Name = "Personal Buy context selector exists"; Text = $index; Pattern = 'id="purchase_context"' },
   @{ Name = "Retail store option exists"; Text = $index; Pattern = 'value="retail_store"' },
   @{ Name = "Online retailer option exists"; Text = $index; Pattern = 'value="online_retailer"' },
@@ -44,7 +44,7 @@ $checks = @(
   @{ Name = "Store domain lookup exists"; Text = $api; Pattern = "function getRetailerDomainForStore" },
   @{ Name = "Pure UPC validation bypasses item noun requirement"; Text = $api; Pattern = "if (!hasItemNoun && !hasLongIdentifier)" },
   @{ Name = "Pack quantity mismatch guard exists"; Text = $api; Pattern = "pack_quantity_mismatch" },
-  @{ Name = "100-count mismatch test exists"; Text = $mock; Pattern = "100-count envelope box must not be treated as an exact match to a 25-count box." },
+  @{ Name = "100-count mismatch test exists"; Text = $mock; Pattern = "A 25-count box should still be rejected for a submitted 100-count package" },
   @{ Name = "Unit-price context keeps package price separate"; Text = $api; Pattern = "Package price remains" },
   @{ Name = "Local Store Context report section exists"; Text = $app; Pattern = "Local Store Context" },
   @{ Name = "Retail Price Context report section exists"; Text = $app; Pattern = "Retail Price Context" },

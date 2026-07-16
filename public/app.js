@@ -2226,8 +2226,27 @@ function renderSearchDiagnostics(diagnostics) {
     ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
     ["Retail Evidence Mode", diagnostics.retailEvidenceMode],
     ["Retail Route Classification", diagnostics.retailRouteClassification],
+    ["Retail Provider Call Budget", diagnostics.retailProviderCallBudget],
+    ["Retail Recovery Trigger", diagnostics.retailRecoveryTrigger],
+    ["Retail Stages Planned", diagnostics.retailStagesPlanned],
+    ["Retail Stages Attempted", diagnostics.retailStagesAttempted],
+    ["Retail Queries Planned", diagnostics.retailQueriesPlanned],
+    ["Retail Queries Executed", diagnostics.retailQueriesExecuted],
+    ["Retail Provider Calls Used", diagnostics.retailProviderCallsUsed],
+    ["Retail Search Budget Remaining", diagnostics.retailSearchBudgetRemaining],
+    ["Retail Recovery Stopped Reason", diagnostics.retailRecoveryStoppedReason],
     ["Queries Suppressed", diagnostics.queriesSuppressed],
     ["Customer-Facing Retail Evidence Count", diagnostics.customerFacingRetailEvidenceCount],
+    ["Records With Visible Prices", diagnostics.recordsWithVisiblePrices],
+    ["Records Rejected Before Compatibility Review", diagnostics.recordsRejectedBeforeCompatibilityReview],
+    ["Records Rejected By Compatibility Review", diagnostics.recordsRejectedByCompatibilityReview],
+    ["Compatible Alternatives Accepted", diagnostics.compatibleAlternativesAccepted],
+    ["Exact Retail Match Count", diagnostics.exactRetailMatchCount],
+    ["Strong Retail Alternative Count", diagnostics.strongRetailAlternativeCount],
+    ["Unit-Price Comparable Count", diagnostics.unitPriceComparableCount],
+    ["Retail Category Context Count", diagnostics.retailCategoryContextCount],
+    ["Rejected Retail Mismatch Count", diagnostics.rejectedRetailMismatchCount],
+    ["Retail Rejection Reasons", diagnostics.retailRejectionReasons],
     ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
     ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
     ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
@@ -2366,6 +2385,7 @@ function renderQueryDiagnosticCard(item) {
   meta.className = "query-diagnostic-meta";
   meta.textContent = [
     isAttemptedDiagnosticRecord(item) ? "Attempted" : "Rejected",
+    item.retailStageLabel || item.retailStage,
     formatSearchPass(item.searchPass) || "search pass not recorded",
     item.validationPassed === false ? cleanDiagnosticText(item.validationFailureReason || "invalid query preflight") : ""
   ].filter(Boolean).join(" - ");
@@ -2380,6 +2400,8 @@ function renderQueryDiagnosticCard(item) {
     ["Validation", item.validationPassed === false ? "Rejected before provider call" : "Passed"],
     ["Validation Reason", item.validationFailureReason],
     ["Provider", item.provider || item.source],
+    ["Retail Stage", item.retailStageLabel || item.retailStage],
+    ["Retail Budget Bucket", item.retailBudgetBucket],
     ["Search Pass", formatSearchPass(item.searchPass)],
     ["Allowed Domains", item.allowedDomainsRequested || item.allowedDomains],
     ["Marketplace Domains", item.marketplaceDomainsRequested],
@@ -4266,8 +4288,27 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Serper Calls Succeeded", diagnostics.serperCallsSucceeded],
     ["Retail Evidence Mode", diagnostics.retailEvidenceMode],
     ["Retail Route Classification", diagnostics.retailRouteClassification],
+    ["Retail Provider Call Budget", diagnostics.retailProviderCallBudget],
+    ["Retail Recovery Trigger", diagnostics.retailRecoveryTrigger],
+    ["Retail Stages Planned", diagnostics.retailStagesPlanned],
+    ["Retail Stages Attempted", diagnostics.retailStagesAttempted],
+    ["Retail Queries Planned", diagnostics.retailQueriesPlanned],
+    ["Retail Queries Executed", diagnostics.retailQueriesExecuted],
+    ["Retail Provider Calls Used", diagnostics.retailProviderCallsUsed],
+    ["Retail Search Budget Remaining", diagnostics.retailSearchBudgetRemaining],
+    ["Retail Recovery Stopped Reason", diagnostics.retailRecoveryStoppedReason],
     ["Queries Suppressed", diagnostics.queriesSuppressed],
     ["Customer-Facing Retail Evidence Count", diagnostics.customerFacingRetailEvidenceCount],
+    ["Records With Visible Prices", diagnostics.recordsWithVisiblePrices],
+    ["Records Rejected Before Compatibility Review", diagnostics.recordsRejectedBeforeCompatibilityReview],
+    ["Records Rejected By Compatibility Review", diagnostics.recordsRejectedByCompatibilityReview],
+    ["Compatible Alternatives Accepted", diagnostics.compatibleAlternativesAccepted],
+    ["Exact Retail Match Count", diagnostics.exactRetailMatchCount],
+    ["Strong Retail Alternative Count", diagnostics.strongRetailAlternativeCount],
+    ["Unit-Price Comparable Count", diagnostics.unitPriceComparableCount],
+    ["Retail Category Context Count", diagnostics.retailCategoryContextCount],
+    ["Rejected Retail Mismatch Count", diagnostics.rejectedRetailMismatchCount],
+    ["Retail Rejection Reasons", diagnostics.retailRejectionReasons],
     ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
     ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
     ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
@@ -4305,7 +4346,7 @@ function formatSearchDiagnosticsText(diagnostics) {
   if (Array.isArray(records) && records.length) {
     rows.push("Search Query Diagnostics:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Retail Stage: ${cleanDiagnosticText(item.retailStageLabel || item.retailStage || "") || "not retail-staged"} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

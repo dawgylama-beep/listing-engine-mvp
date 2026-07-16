@@ -373,6 +373,15 @@
 - Photo controls are compacted into camera and library actions, and the initial report state is shorter while report-only actions remain hidden until a completed report exists
 - Regression tests cover purpose-specific forms, cents preservation, retail compatible-alternative recovery, compact mobile photo UI, and preserved 1.11.1 safeguards
 
+## Version 1.11.3 (Completed)
+- Retail search execution now uses a bounded staged Serper plan for current-retail products, with exact identity, reduced exact-product, compatible-alternative, retailer-specific, and shopping/general recovery allocations
+- Compatible current retail alternatives are executed as provider queries instead of only being planned, and exact UPC/store/site searches can no longer consume the entire recovery budget
+- Organic and shopping retail result parsing preserves visible package prices while avoiding shipping-only, review-count, and other non-item-price amounts
+- Same-family retail pack-count differences now reach retail compatibility review so compatible 40-, 50-, 80-, and 100-count alternatives can be compared by package and unit price without being treated as exact matches
+- Customer retail reports now surface accepted compatible alternatives, package price, unit price, unknown shipping, delivered-cost status, and an evidence-based retail purchase decision when current alternatives exist
+- Technical Search Details now audit retail stages planned/executed, provider calls used, organic/shopping counts, priced candidates, compatibility counts, rejection reasons, remaining budget, and recovery stop reason
+- Regression tests cover retail staged execution, provider budget allocation, organic/shopping price parsing, cents preservation, different-brand alternatives, pack-count tolerance, current-retail evidence isolation, customer-facing alternatives, and preserved 1.11.2 safeguards
+
 ## Version 2.0
 - User accounts
 - Saved listings
