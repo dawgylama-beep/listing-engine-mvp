@@ -784,6 +784,8 @@ try {
   assert(officeWorksShoppingRequests.every((record) => record.searchType === "shopping" && record.providerEndpoint === "serper_shopping"), "Stage 5 retail recovery must use the dedicated Shopping endpoint metadata.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_6_local_retail" && /30188/.test(record.query)), "A usable ZIP should reserve and execute a location-aware retail stage.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_6_local_retail" && record.searchType === "organic_web" && record.providerEndpoint === "serper_search"), "Location-aware retail execution should use the organic web endpoint unless a separate local provider exists.");
+  assert(officeWorksAttempted.filter((record) => record.retailStage === "stage_4_retailer_specific").every((record) => /\b45\s*count\b/i.test(record.query) && !/\b40\s*count\b/i.test(record.query)), "Retailer-specific recovery should lead with the confirmed 45 count, not the lower nearby count.");
+  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_6_local_retail" && /\b45\s*count\b/i.test(record.query) && !/\b40\s*count\b/i.test(record.query)), "ZIP/local retail recovery should lead with the confirmed 45 count.");
   assert(officeWorksRequestRecords.every((record) => record.generatedStatus === "generated" && record.plannedStatus === "planned" && typeof record.attempted === "boolean" && typeof record.succeeded === "boolean" && Number.isFinite(record.returnedResultCount) && Number.isFinite(record.qualifiedResultCount)), "Generated, planned, attempted, succeeded, returned, and qualified states should remain distinct on provider request records.");
   const officeWorksContext = __queryIntegrityTestHooks.buildSearchQueryContext(
     officeWorksIdentity,
@@ -838,6 +840,122 @@ try {
   });
   const detectedZipLocalQuery = detectedZipPlan.map((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record)).find((record) => record.attempted && record.retailStage === "stage_6_local_retail")?.query;
   assert(manualZipLocalQuery && detectedZipLocalQuery === manualZipLocalQuery, "Manual ZIP and detected ZIP should converge on the same backend local-retail execution path.");
+  const localEnvelopeRecord = {
+    title: "Retail Security Envelopes 45 Count Strip Seal",
+    domain: "target.com",
+    source: "Target",
+    url: "https://target.com/p/security-envelopes-45",
+    displayedPriceText: "$5.50",
+    parsedPrice: 5.5,
+    priceEvidenceType: "Active Asking",
+    sourceType: "organic",
+    searchType: "organic_web",
+    providerEndpoint: "serper_search",
+    searchPass: "stage_6_local_retail",
+    query: manualZipLocalQuery,
+    identityMatchStrength: "Strong Similar",
+    itemTypeCompatible: true,
+    itemTypeCompatibilityStatus: "compatible",
+    sourceBacked: "URL-cited",
+    snippet: "Current price $5.50. Pickup availability not confirmed."
+  };
+  const localEnvelopeDiagnostics = __queryIntegrityTestHooks.buildRetailSearchDiagnostics({
+    context: officeWorksContext,
+    providerRequestRecords: officeWorksRequestRecords.map((record) => record.retailStage === "stage_6_local_retail"
+      ? { ...record, attempted: true, succeeded: true, providerSourceCount: 1, returnedResultCount: 1 }
+      : record),
+    records: [localEnvelopeRecord],
+    searchQueries: officeWorksQueries
+  });
+  assert(/local retail candidate.*visible prices passed source screening/i.test(localEnvelopeDiagnostics.locationAwareRetailSearchStatus), "Local diagnostics should describe source-screened candidates, not ambiguous qualified results.");
+  assert(localEnvelopeDiagnostics.customerPriceEligibleRetailCandidateCount === 1, "Eligible local retail candidates should be counted from shared assessments.");
+  const promotedLocalEnvelopePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [localEnvelopeRecord],
+    searchDiagnostics: localEnvelopeDiagnostics
+  }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
+  assert(promotedLocalEnvelopePrices.length === 1 && /Compatible Alternative Price|Exact Product Price/i.test(promotedLocalEnvelopePrices[0].priceContextLabel), "Eligible local-stage current retail evidence should reach customer Prices Found.");
+
+  const genericRetailIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    asking_price: "$12.00",
+    purchase_intent: "personal_use",
+    store_name: "Target",
+    location_zip: "10001",
+    item_name: "Private label household cleaner 12 count",
+    known_brand: "Store Brand",
+    buyer_notes: "ordinary current retail household consumable"
+  });
+  const genericRetailIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    brand: "Store Brand",
+    productNameOrBoxTitle: "Private label household cleaner",
+    category: "household cleaner",
+    likelyItemDescription: "household cleaner",
+    packageQuantity: "12 count",
+    frontBoxWording: "Private label household cleaner 12 count"
+  }, genericRetailIntake);
+  const retailRecord = (overrides = {}) => ({
+    title: "National Brand Household Cleaner 10 Count",
+    domain: "national-retailer.example",
+    source: "National Retailer",
+    url: "https://national-retailer.example/household-cleaner-10",
+    displayedPriceText: "$10.00",
+    parsedPrice: 10,
+    priceEvidenceType: "Active Asking",
+    sourceType: "organic",
+    searchType: "organic_web",
+    providerEndpoint: "serper_search",
+    searchPass: "stage_3_compatible_alternatives",
+    query: "household cleaner 10 count current price",
+    identityMatchStrength: "Strong Similar",
+    itemTypeCompatible: true,
+    itemTypeCompatibilityStatus: "compatible",
+    sourceBacked: "URL-cited",
+    snippet: "Current price $10.00. In stock.",
+    ...overrides
+  });
+  const retailContext = __queryIntegrityTestHooks.buildSearchQueryContext(genericRetailIdentity, __queryIntegrityTestHooks.routeMarketSources(genericRetailIdentity, genericRetailIntake, ""), "household cleaner", genericRetailIntake);
+  const retailAssessments = __queryIntegrityTestHooks.buildRetailEvidenceAssessments([
+    retailRecord(),
+    retailRecord({ title: "Household Cleaner Refill", url: "https://national-retailer.example/household-cleaner-refill", displayedPriceText: "$8.00", parsedPrice: 8, snippet: "Current price $8.00. Availability not shown." }),
+    retailRecord({ title: "Wrong Accessory Replacement Cap", url: "https://national-retailer.example/replacement-cap", itemTypeCompatible: false, itemTypeCompatibilityStatus: "mismatch", snippet: "Current price $2.00." }),
+    retailRecord({ title: "Used marketplace household cleaner lot", url: "https://marketplace.example/used-cleaner", priceEvidenceType: "Active Asking", snippet: "Used marketplace listing $4.00." })
+  ], retailContext);
+  assert(retailAssessments.some((assessment) => assessment.customerPriceCardEligibility && assessment.customerEvidenceTier !== "tier_5"), "Cross-brand ordinary retail alternatives should be eligible when product type and price are supported.");
+  assert(retailAssessments.some((assessment) => /package price only/i.test(assessment.confidenceDowngradeReasons.join(" "))), "Missing package count should downgrade to package-price-only instead of hard rejection.");
+  assert(retailAssessments.some((assessment) => /Wrong product type|incompatible|Wrong Accessory|Wrong product/i.test(`${assessment.sourceTitle} ${assessment.hardRejectionReason}`)), "Accessory or wrong-product records should be hard rejected.");
+  assert(retailAssessments.some((assessment) => /secondary|reference|Used marketplace/i.test(`${assessment.sourceTitle} ${assessment.hardRejectionReason} ${assessment.secondaryMarketStatus}`)), "Used-marketplace contamination should not become current retail evidence.");
+  const promotedGenericPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [
+      retailRecord(),
+      retailRecord({ title: "Shopping Household Cleaner 12 Count", sourceType: "shopping", searchType: "shopping", providerEndpoint: "serper_shopping", searchPass: "stage_5_shopping_general", url: "https://shopping-retailer.example/cleaner-12", displayedPriceText: "$11.50", parsedPrice: 11.5, priceEvidenceType: "Shopping Offer" }),
+      retailRecord({ title: "Local Household Cleaner 12 Count", searchPass: "stage_6_local_retail", query: "household cleaner near 10001 12 count current price", url: "https://local-retailer.example/cleaner-12", displayedPriceText: "$11.00", parsedPrice: 11 })
+    ],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
+  assert(promotedGenericPrices.some((record) => /Shopping Household Cleaner/i.test(record.title)), "Shopping-stage priced records should promote to customer prices.");
+  assert(promotedGenericPrices.some((record) => /Local Household Cleaner/i.test(record.title)), "Local-stage priced records should promote to customer prices.");
+  assert(promotedGenericPrices.every((record) => record.priceType === "Current Retail Price"), "Promoted ordinary retail cards should be labeled as current retail prices.");
+  const richerDuplicate = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
+    retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "", parsedPrice: null, snippet: "No visible price." }),
+    retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "$9.99", parsedPrice: 9.99, snippet: "Current price $9.99. In stock." })
+  ]);
+  assert(richerDuplicate.length === 1 && richerDuplicate[0].displayedPriceText === "$9.99", "Richer price-bearing duplicate should survive deduplication.");
+  const uncertainSkuIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    brand: "Store Brand",
+    productNameOrBoxTitle: "Private label household cleaner",
+    category: "household cleaner",
+    sku: "610325",
+    upcBarcode: "041226087161",
+    backLabelWording: "UPC 041226087161 Item 6110325",
+    visibleText: ["Store Brand", "Household Cleaner", "Item 6110325", "041226087161"]
+  }, __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    item_name: "Private label household cleaner",
+    known_upc: "041226087161"
+  }));
+  assert(uncertainSkuIdentity.canonicalProductIdentity.fields.SKU.status === "uncertain", "Competing OCR SKU candidates should be downgraded to uncertain.");
+  assert(!uncertainSkuIdentity.sku, "Uncertain OCR SKU must not be copied into exact searchable identity.");
+  assert(uncertainSkuIdentity.canonicalProductIdentity.fields.UPC.value === "041226087161", "Valid barcode should remain the stronger exact identity.");
   const invalidBarcodeIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
     asking_price: "$5.50",

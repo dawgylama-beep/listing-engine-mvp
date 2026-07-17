@@ -13,10 +13,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
-  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
-  @{ Name = "Server version is 1.11.5"; Text = $server; Pattern = '$AppVersion = "1.11.5"' },
-  @{ Name = "Roadmap documents 1.11.5"; Text = $roadmap; Pattern = "Version 1.11.5 (Completed)" },
+  @{ Name = "Visible app version is 1.11.6"; Text = $index; Pattern = "Version 1.11.6" },
+  @{ Name = "Package version is 1.11.6"; Text = $package; Pattern = '"version": "1.11.6"' },
+  @{ Name = "Server version is 1.11.6"; Text = $server; Pattern = '$AppVersion = "1.11.6"' },
+  @{ Name = "Roadmap documents 1.11.6"; Text = $roadmap; Pattern = "Version 1.11.6 (Completed)" },
   @{ Name = "API builds maximum evidence profile"; Text = $api; Pattern = "function buildMaximumPriceEvidenceProfile" },
   @{ Name = "API builds maximum policy"; Text = $api; Pattern = "function buildMaximumRecommendedPricePolicy" },
   @{ Name = "API passes price evidence to offer builder"; Text = $api; Pattern = "priceEvidence" },

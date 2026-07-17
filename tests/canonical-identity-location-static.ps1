@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
-  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
-  @{ Name = "Server version is 1.11.5"; Text = $server; Pattern = '$AppVersion = "1.11.5"' },
-  @{ Name = "Roadmap documents 1.11.5"; Text = $roadmap; Pattern = "Version 1.11.5 (Completed)" },
+  @{ Name = "Visible app version is 1.11.6"; Text = $index; Pattern = "Version 1.11.6" },
+  @{ Name = "Package version is 1.11.6"; Text = $package; Pattern = '"version": "1.11.6"' },
+  @{ Name = "Server version is 1.11.6"; Text = $server; Pattern = '$AppVersion = "1.11.6"' },
+  @{ Name = "Roadmap documents 1.11.6"; Text = $roadmap; Pattern = "Version 1.11.6 (Completed)" },
   @{ Name = "API finalizes canonical identity before routing"; Text = $api; Pattern = "finalizeIdentityForResearch(extractedIdentity, intake)" },
   @{ Name = "API blocks unresolved conflict before live search"; Text = $api; Pattern = "identityConfirmationRequired" },
   @{ Name = "Canonical identity has field status metadata"; Text = $api; Pattern = "createCanonicalField" },
@@ -43,6 +43,9 @@ $checks = @(
   @{ Name = "Use My Location requests geolocation on click"; Text = $app; Pattern = "navigator.geolocation.getCurrentPosition(resolve, reject" },
   @{ Name = "Location not requested automatically"; Text = $app; Pattern = 'useLocationButton.addEventListener("click", handleUseLocationClick)' },
   @{ Name = "Reverse geocoding function exists"; Text = $app; Pattern = "function reverseGeocodePosition" },
+  @{ Name = "Reverse geocoding uses same-origin API"; Text = $app; Pattern = 'fetch("/api/reverse-geocode"' },
+  @{ Name = "Browser does not call public reverse geocoder directly"; Text = $app; Pattern = "api.bigdatacloud.net"; ShouldNotContain = $true },
+  @{ Name = "Location retry is capped after repeated failures"; Text = $app; Pattern = "locationFailureCount < 2" },
   @{ Name = "Location success can populate ZIP"; Text = $app; Pattern = "locationZipInput.value = area.zip" },
   @{ Name = "Location success can populate general area"; Text = $app; Pattern = 'mode: "browser_location_general_area"' },
   @{ Name = "Permission denied copy remains browser-neutral"; Text = $app; Pattern = "Location access was not granted. Enable location for this browser and site, or enter a ZIP code." },
@@ -61,7 +64,10 @@ $checks = @(
 
 $failed = @()
 foreach ($check in $checks) {
-  if (-not $check.Text.Contains($check.Pattern)) {
+  $contains = $check.Text.Contains($check.Pattern)
+  if ($check.ShouldNotContain) {
+    if ($contains) { $failed += $check.Name }
+  } elseif (-not $contains) {
     $failed += $check.Name
   }
 }

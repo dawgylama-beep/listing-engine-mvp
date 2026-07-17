@@ -405,6 +405,17 @@
 - Remaining limitation: local validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding, deployment, or paid-provider acceptance call was run for this release
 - Regression tests cover the Office Works/Kroger/30188 case, 4.12-inch dimension firewall, unsupported 4-count uncertainty, unknown-count behavior, domain-constrained retailer recovery, Shopping endpoint truth, ZIP-aware local execution, location failure copy, execution-state accounting, barcode safeguards, and $5.50 precision
 
+## Version 1.11.6 (Completed)
+- Current-retail evidence now flows through a shared source-screening assessment before customer price promotion, covering exact products, compatible alternatives, Shopping-stage records, and local-retail-stage records without product-specific exceptions
+- Eligible ordinary retail alternatives with visible current prices now reach customer-facing Current Retail Price cards, while broader category, secondary-market, wrong-product, unavailable, and nontransactional records remain blocked or diagnostic-only
+- Missing package count now downgrades compatible alternatives to package-price-only evidence instead of hard rejection, and package-count compatibility uses the general ratio rule rather than hardcoded count pairs
+- Serper record deduplication now prefers richer price-bearing, better-matched records so no-price duplicates cannot hide useful retail prices
+- Uncertain OCR SKU/item-number candidates now remain diagnostic-only and do not populate exact searchable identity unless typed by the user or clearly supported by a single labeled visual item-number candidate
+- Browser location lookup now uses a same-origin `/api/reverse-geocode` endpoint, keeps rounded coordinates out of reports and search payloads, caps repeated retry prompts, and preserves manual ZIP as the same local-retail search path
+- Technical Search Details now separate source-screened retail candidates from customer-price-eligible candidates and avoid ambiguous "qualified result" wording for retail promotion
+- Regression tests cover global retail assessment/promotion, Shopping and local-stage price cards, package-price-only downgrades, richer duplicate survival, uncertain SKU exclusion, same-origin reverse geocoding, capped retry behavior, and preserved 1.11.5 retail/location safeguards
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -91,6 +91,8 @@ const locationStates = Object.freeze({
   SKIPPED: "skipped"
 });
 
+let locationFailureCount = 0;
+
 const listingSections = [
   ["platform", "Platform"],
   ["categorySuggestion", "Category Suggestion"],
@@ -1027,7 +1029,8 @@ async function handleUseLocationClick() {
       mode: "insecure_context",
       permission: "unavailable",
       message: "Location services require a secure browser connection. Enter a ZIP code.",
-      showActions: true
+      showActions: true,
+      allowRetry: false
     });
     return;
   }
@@ -1038,7 +1041,8 @@ async function handleUseLocationClick() {
       mode: "location_unsupported",
       permission: "unsupported",
       message: "Location services are not supported in this browser. Enter a ZIP code.",
-      showActions: true
+      showActions: true,
+      allowRetry: false
     });
     return;
   }
@@ -1062,6 +1066,7 @@ async function handleUseLocationClick() {
     });
     const area = await reverseGeocodePosition(position);
     if (area.zip) {
+      locationFailureCount = 0;
       locationZipInput.value = area.zip;
       locationAreaInput.value = area.label;
       setLocationState(locationStates.ZIP_RESOLVED, {
@@ -1070,6 +1075,7 @@ async function handleUseLocationClick() {
         message: `Location found: ${area.label}. Precise coordinates are not stored or displayed.`
       });
     } else if (area.label) {
+      locationFailureCount = 0;
       locationAreaInput.value = area.label;
       setLocationState(locationStates.GENERAL_AREA_RESOLVED, {
         mode: "browser_location_general_area",
@@ -1077,12 +1083,14 @@ async function handleUseLocationClick() {
         message: `General area found: ${area.label}. Enter ZIP for more precise local pricing. Precise coordinates are not stored or displayed.`
       });
     } else {
+      locationFailureCount += 1;
       applyLocationFallback({
         state: locationStates.REVERSE_GEOCODE_FAILED,
         mode: "reverse_geocode_failed",
         permission: "granted",
         message: "Your general area was found, but the ZIP code could not be confirmed. Enter the ZIP for more precise local pricing.",
-        showActions: true
+        showActions: true,
+        allowRetry: locationFailureCount < 2
       });
       return;
     }
@@ -1117,22 +1125,29 @@ async function reverseGeocodePosition(position) {
 
   const roundedLatitude = Math.round(latitude * 1000) / 1000;
   const roundedLongitude = Math.round(longitude * 1000) / 1000;
-  const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(roundedLatitude)}&longitude=${encodeURIComponent(roundedLongitude)}&localityLanguage=en`, {
-    method: "GET",
+  const response = await fetch("/api/reverse-geocode", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      latitude: roundedLatitude,
+      longitude: roundedLongitude
+    }),
     cache: "no-store"
   });
   if (!response.ok) {
     throw new Error("reverse_geocode_failed");
   }
   const data = await response.json();
-  const zip = String(data.postcode || "").match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || "";
-  const city = String(data.city || data.locality || data.principalSubdivision || "").trim();
-  const state = String(data.principalSubdivisionCode || data.principalSubdivision || "").replace(/^US-/, "").trim();
-  const label = [city, state, zip].filter(Boolean).join(city && (state || zip) ? ", " : " ").replace(/,\s*(\d{5})$/, " $1").trim();
+  const zip = String(data.zip || "").match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || "";
+  const label = String(data.label || [data.city, data.state, zip].filter(Boolean).join(" ")).trim();
   return { zip, label: label || zip };
 }
 
 function handleLocationError(error) {
+  locationFailureCount += 1;
+  const allowRetry = locationFailureCount < 2;
   const code = Number(error?.code || 0);
   if (code === 1) {
     applyLocationFallback({
@@ -1140,7 +1155,8 @@ function handleLocationError(error) {
       mode: "location_denied",
       permission: "denied",
       message: "Location access was not granted. Enable location for this browser and site, or enter a ZIP code.",
-      showActions: true
+      showActions: true,
+      allowRetry
     });
     return;
   }
@@ -1150,7 +1166,8 @@ function handleLocationError(error) {
       mode: "location_unavailable",
       permission: "unavailable",
       message: "Your location could not be determined. Try again or enter a ZIP code.",
-      showActions: true
+      showActions: true,
+      allowRetry
     });
     return;
   }
@@ -1160,7 +1177,8 @@ function handleLocationError(error) {
       mode: "location_timeout",
       permission: "timeout",
       message: "Location lookup timed out. Try again or enter a ZIP code.",
-      showActions: true
+      showActions: true,
+      allowRetry
     });
     return;
   }
@@ -1170,7 +1188,8 @@ function handleLocationError(error) {
       mode: "reverse_geocode_failed",
       permission: "granted",
       message: "Your location was found, but Katherine’s Eye could not determine the ZIP code. Enter the ZIP manually.",
-      showActions: true
+      showActions: true,
+      allowRetry
     });
     return;
   }
@@ -1179,7 +1198,8 @@ function handleLocationError(error) {
     mode: "location_unavailable",
     permission: "unavailable",
     message: "Your location could not be determined. Try again or enter a ZIP code.",
-    showActions: true
+    showActions: true,
+    allowRetry
   });
 }
 
@@ -1192,15 +1212,16 @@ function setLocationState(state, { mode = "", permission = "", message = "" } = 
   }
 }
 
-function applyLocationFallback({ state, mode, permission, message, showActions = false }) {
+function applyLocationFallback({ state, mode, permission, message, showActions = false, allowRetry = true }) {
   setLocationState(state, { mode, permission, message });
   locationAreaInput.value = "";
-  locationStatus.textContent = `${message} Local prices and nearby availability will not be checked without a ZIP or resolved area.`;
-  setLocationFallbackActions(showActions);
+  locationStatus.textContent = `${message} Enter ZIP manually to use the same local retail search path.`;
+  setLocationFallbackActions(showActions, { allowRetry });
   syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
 }
 
 function handleManualZipClick() {
+  locationFailureCount = 0;
   locationZipInput.focus();
   setLocationState(locationStates.MANUAL_ZIP, {
     mode: "manual_zip",
@@ -1212,6 +1233,7 @@ function handleManualZipClick() {
 }
 
 function handleSkipLocationClick() {
+  locationFailureCount = 0;
   locationZipInput.value = "";
   locationAreaInput.value = "";
   setLocationState(locationStates.SKIPPED, {
@@ -1234,6 +1256,7 @@ function handleManualZipInput() {
   }
 
   locationAreaInput.value = "";
+  locationFailureCount = 0;
   setLocationState(locationStates.MANUAL_ZIP, {
     mode: "manual_zip",
     permission: "manual",
@@ -1243,11 +1266,20 @@ function handleManualZipInput() {
   syncPurchaseContextFields(workflowConfigs[getSelectedWorkflow()] || workflowConfigs[defaultWorkflow]);
 }
 
-function setLocationFallbackActions(visible) {
+function setLocationFallbackActions(visible, { allowRetry = true } = {}) {
   if (!locationFallbackActions) {
     return;
   }
   locationFallbackActions.hidden = !visible;
+  if (retryLocationButton) {
+    retryLocationButton.hidden = !visible || !allowRetry;
+  }
+  if (manualZipButton) {
+    manualZipButton.hidden = !visible;
+  }
+  if (skipLocationButton) {
+    skipLocationButton.hidden = !visible;
+  }
 }
 
 function setLocationButtonBusy(isBusy) {
@@ -2258,6 +2290,7 @@ function renderSearchDiagnostics(diagnostics) {
     ["Rejected Retail Mismatch Count", diagnostics.rejectedRetailMismatchCount],
     ["Retail Rejection Reasons", diagnostics.retailRejectionReasons],
     ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
+    ["Customer Price Eligible Retail Candidates", diagnostics.customerPriceEligibleRetailCandidateCount],
     ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
     ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
     ["Manual ZIP Used", diagnostics.manualZipUsed],
@@ -2424,6 +2457,7 @@ function renderQueryDiagnosticCard(item) {
     ["Structured Candidates Created", item.parsedResultCount],
     ["Normalized Candidates", item.normalizedResultCount],
     ["Comparable Records Retained", item.retainedResultCount],
+    ["Customer Price Eligible", item.qualifiedResultCount],
     ["Failure", item.failureStage || item.primaryRejectionStageOrReason],
     ["Error", item.errorCode || item.controlledError]
   ].forEach(([label, value]) => {
@@ -4179,8 +4213,8 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
     return "We could not find an exact match. Try one full-item photo plus one close-up of the label, mark, model number, barcode, or damage.";
   }
 
-  if (/api key|OPENAI/i.test(message)) {
-    return message;
+  if (/api\s*key|service configuration|not configured/i.test(message)) {
+    return "The analysis service is not configured for this environment yet. Please try again after setup is complete.";
   }
 
   if (/network|failed to fetch|request failed|timeout/i.test(message)) {
@@ -4321,6 +4355,7 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Rejected Retail Mismatch Count", diagnostics.rejectedRetailMismatchCount],
     ["Retail Rejection Reasons", diagnostics.retailRejectionReasons],
     ["Current Retail Candidates Accepted", diagnostics.currentRetailCandidatesAccepted],
+    ["Customer Price Eligible Retail Candidates", diagnostics.customerPriceEligibleRetailCandidateCount],
     ["Current Retail Candidates Rejected", diagnostics.currentRetailCandidatesRejected],
     ["Reference/Secondary Evidence Excluded From Retail Decision", diagnostics.referenceSecondaryEvidenceExcludedFromRetailDecision],
     ["Manual ZIP Used", diagnostics.manualZipUsed],
@@ -4357,7 +4392,7 @@ function formatSearchDiagnosticsText(diagnostics) {
   if (Array.isArray(records) && records.length) {
     rows.push("Search Query Diagnostics:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Retail Stage: ${cleanDiagnosticText(item.retailStageLabel || item.retailStage || "") || "not retail-staged"} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Endpoint/Search Type: ${cleanDiagnosticText(item.providerEndpoint || "") || "not recorded"} / ${cleanDiagnosticText(item.searchType || "") || "not recorded"} | Generated: ${cleanDiagnosticText(item.generatedStatus || "") || "generated"} | Planned: ${cleanDiagnosticText(item.plannedStatus || "") || "planned"} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.returnedResultCount ?? item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Qualified Results: ${item.qualifiedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Retail Stage: ${cleanDiagnosticText(item.retailStageLabel || item.retailStage || "") || "not retail-staged"} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Endpoint/Search Type: ${cleanDiagnosticText(item.providerEndpoint || "") || "not recorded"} / ${cleanDiagnosticText(item.searchType || "") || "not recorded"} | Generated: ${cleanDiagnosticText(item.generatedStatus || "") || "generated"} | Planned: ${cleanDiagnosticText(item.plannedStatus || "") || "planned"} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.returnedResultCount ?? item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Customer Price Eligible: ${item.qualifiedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

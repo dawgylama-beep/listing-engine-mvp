@@ -1891,7 +1891,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context);
   const dedupedRecords = dedupeSerperCandidateRecords(normalizedRecords);
-  applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords);
+  applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
   return normalizeSerperLiveSearchResult({
     records: dedupedRecords,
     rawProviderRecords,
@@ -2204,19 +2204,24 @@ function dedupeSerperCandidateRecords(records = []) {
   return [...byUrl.values()];
 }
 
-function applySerperRecordAccountingToRequests(providerRequestRecords = [], providerResponseSummaries = [], records = []) {
+function applySerperRecordAccountingToRequests(providerRequestRecords = [], providerResponseSummaries = [], records = [], context = {}) {
+  const assessments = buildRetailEvidenceAssessments(records, context);
   for (const requestRecord of providerRequestRecords) {
     const query = cleanText(requestRecord.query);
     const matchingRecords = records.filter((record) => {
       const queriesFound = normalizeStringArray(record.queriesFound, 12);
       return record.query === query || queriesFound.includes(query);
     });
+    const matchingAssessments = assessments.filter((assessment) => {
+      const queriesFound = normalizeStringArray(assessment.record?.queriesFound, 12);
+      return assessment.searchQuery === query || queriesFound.includes(query);
+    });
     const retained = matchingRecords.filter((record) => /Exact|Strong Similar|Partial|Reference Only/i.test(record.identityMatchStrength));
-    const qualified = matchingRecords.filter((record) => isStrongComparableEvidenceRecord(record));
+    const customerPriceEligible = matchingAssessments.filter((assessment) => assessment.customerPriceCardEligibility);
     const rejected = matchingRecords.filter((record) => /Rejected/i.test(record.identityMatchStrength));
     requestRecord.normalizedResultCount = matchingRecords.length || requestRecord.normalizedResultCount || 0;
     requestRecord.retainedResultCount = retained.length;
-    requestRecord.qualifiedResultCount = qualified.length;
+    requestRecord.qualifiedResultCount = customerPriceEligible.length;
     requestRecord.returnedResultCount = Number(requestRecord.providerSourceCount || requestRecord.rawResultCount || 0);
     requestRecord.rejectedResultCount = rejected.length;
     requestRecord.failureStage = classifySerperAcquisitionStage({
@@ -2278,6 +2283,7 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     buyerIntake,
     notes
   });
+  const retailEvidenceAssessments = normalizeArray(diagnostics.retailEvidenceAssessments);
 
   return {
     liveSearchStatus,
@@ -2299,6 +2305,7 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     providerRequestRecords,
     providerResponseSummaries,
     providerSourceRecords: records.slice(0, 50),
+    retailEvidenceAssessments,
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
     sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
     allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
@@ -3009,7 +3016,7 @@ function getRetailCompatiblePackageCounts(quantity) {
   }
   const down = Math.max(1, Math.floor(quantity / 10) * 10);
   const up = Math.ceil(quantity / 10) * 10;
-  const nearby = [down, quantity, up].filter((item) => item > 1);
+  const nearby = [quantity, down, up].filter((item) => item > 1);
   if (quantity <= 60) {
     nearby.push(100, 80);
   } else {
@@ -4465,13 +4472,17 @@ function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType =
 function preferRicherSerperRecord(existing = {}, incoming = {}) {
   const score = (record) => {
     let value = 0;
-    if (record.displayedPriceText) value += 8;
+    if (Number.isFinite(getVisibleItemPriceAmount(record))) value += 30;
+    if (record.displayedPriceText) value += 10;
+    if (record.identityMatchStrength === "Exact") value += 18;
+    else if (record.identityMatchStrength === "Strong Similar") value += 14;
+    else if (record.identityMatchStrength === "Partial") value += 7;
+    else if (record.identityMatchStrength === "Reference Only") value += 3;
+    if (extractPackQuantityNumber([record.title, record.rawText, record.snippet].join(" "))) value += 6;
+    if (/\b(?:in stock|pickup|delivery|add to cart|current price|retail price|shopping offer|store price)\b/i.test([record.title, record.snippet, record.rawText, record.priceEvidenceType].join(" "))) value += 5;
+    if (record.domain || record.source) value += 3;
+    if (record.sourceType === "shopping") value += 3;
     if (record.snippet) value += 2;
-    if (record.sourceType === "shopping") value += 2;
-    if (record.identityMatchStrength === "Exact") value += 10;
-    else if (record.identityMatchStrength === "Strong Similar") value += 7;
-    else if (record.identityMatchStrength === "Partial") value += 4;
-    else if (record.identityMatchStrength === "Reference Only") value += 2;
     value += Math.min(4, Math.floor(cleanText(record.title).length / 40));
     return value;
   };
@@ -4767,11 +4778,11 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     ? providerRequestRecords
     : normalizeStringArray(searchQueries, 24).map((query) => ({ query, validationPassed: true }));
   const suppressedQueryRecords = allQueryRecords.filter((record) => /retail_forbidden_secondary_market_terms/i.test(record.validationFailureReason || "") || isRetailForbiddenSecondaryEvidenceText(record.rawCandidate || record.query));
-  const currentRetailAccepted = records.filter((record) => isQualifiedCurrentRetailSourceRecord(record, context));
-  const retailRejected = records.filter((record) => !currentRetailAccepted.includes(record) && (
-    isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))
-    || !isQualifiedCurrentRetailSourceRecord(record, context)
-  ));
+  const retailEvidenceAssessments = buildRetailEvidenceAssessments(records, context);
+  const currentRetailAcceptedAssessments = retailEvidenceAssessments.filter((assessment) => assessment.sourceScreeningPassed);
+  const currentRetailAccepted = currentRetailAcceptedAssessments.map((assessment) => assessment.record);
+  const retailRejectedAssessments = retailEvidenceAssessments.filter((assessment) => !assessment.sourceScreeningPassed);
+  const retailRejected = retailRejectedAssessments.map((assessment) => assessment.record);
   const retailStageRecords = providerRequestRecords.filter((record) => record.retailStage);
   const retailQueriesPlanned = retailStageRecords.map((record) => ({
     stage: cleanText(record.retailStageLabel || record.retailStage),
@@ -4789,10 +4800,14 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const retailQueriesExecuted = retailQueriesPlanned.filter((record) => record.attempted);
   const retailStagesPlanned = [...new Set(retailQueriesPlanned.map((record) => record.stage).filter(Boolean))];
   const retailStagesAttempted = [...new Set(retailQueriesExecuted.map((record) => record.stage).filter(Boolean))];
-  const pricedRecords = records.filter((record) => Number.isFinite(getVisibleItemPriceAmount(record)));
-  const compatibilityReviews = records.map((record) => ({
-    record,
-    compatibility: classifyRetailSourceRecordCompatibility(record, context)
+  const pricedRecords = retailEvidenceAssessments.filter((assessment) => Number.isFinite(assessment.priceAmount));
+  const compatibilityReviews = retailEvidenceAssessments.map((assessment) => ({
+    record: assessment.record,
+    compatibility: {
+      label: assessment.packageCompatibilityLabel,
+      status: assessment.packageCompatibility,
+      reason: assessment.knownSpecificationDifferences
+    }
   }));
   const exactRetailMatchCount = compatibilityReviews.filter((item) => item.compatibility.label === "Exact Retail Match").length;
   const strongRetailAlternativeCount = compatibilityReviews.filter((item) => item.compatibility.label === "Strong Retail Alternative").length;
@@ -4810,11 +4825,12 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
   const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
   const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
-  const localRetailQualifiedRecords = currentRetailAccepted.filter((record) => record.searchPass === "stage_6_local_retail");
+  const localRetailCandidateAssessments = currentRetailAcceptedAssessments.filter((assessment) => assessment.searchStage === "stage_6_local_retail");
+  const localRetailCustomerEligibleAssessments = localRetailCandidateAssessments.filter((assessment) => assessment.customerPriceCardEligibility);
   const locationAwareRetailSearchStatus = locationContext
     ? localRetailAttempted
-      ? localRetailQualifiedRecords.length
-        ? `Location-aware retail search executed for ${locationContext}; ${localRetailQualifiedRecords.length} qualified local retail result${localRetailQualifiedRecords.length === 1 ? "" : "s"} survived.`
+      ? localRetailCandidateAssessments.length
+        ? `Location-aware retail search executed for ${locationContext}; ${localRetailCandidateAssessments.length} local retail candidate${localRetailCandidateAssessments.length === 1 ? "" : "s"} with visible prices passed source screening; ${localRetailCustomerEligibleAssessments.length} ${localRetailCustomerEligibleAssessments.length === 1 ? "was" : "were"} eligible for customer price comparison.`
         : localRetailSucceeded
           ? `Location-aware retail search executed for ${locationContext}, but no useful local retail evidence survived.`
           : `Location-aware retail search was attempted for ${locationContext}, but the provider request did not succeed.`
@@ -4858,10 +4874,12 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
         ? "Bounded retail provider-call budget reached."
         : "All planned bounded retail stages were executed or rejected by local preflight validation."
       : "",
+    retailEvidenceAssessments: retailEvidenceAssessments.map(sanitizeRetailEvidenceAssessment).slice(0, 50),
     recordsWithVisiblePrices: pricedRecords.length,
     recordsRejectedBeforeCompatibilityReview: providerRequestRecords.filter((record) => record.validationPassed === false).length,
-    recordsRejectedByCompatibilityReview: retailRejected.length,
+    recordsRejectedByCompatibilityReview: retailRejectedAssessments.length,
     compatibleAlternativesAccepted: currentRetailAccepted.length,
+    customerPriceEligibleRetailCandidateCount: retailEvidenceAssessments.filter((assessment) => assessment.customerPriceCardEligibility).length,
     zeroResultIdentityRecoveryTriggered: isCurrentRetailOnlyMode(retailEvidenceMode) && records.length >= 12 && !currentRetailAccepted.length
       ? "Yes - provider returned many results but no exact, strong, or unit-price current retail candidates survived; attribute fallback/cross-brand recovery was included without invalid barcode terms."
       : "No",
@@ -4870,33 +4888,30 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     unitPriceComparableCount,
     retailCategoryContextCount,
     rejectedRetailMismatchCount,
-    retailRejectionReasons: normalizeDropReasons(retailRejected.map((record) => {
-      if (isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))) {
-        return "secondary_market_or_reference_evidence";
-      }
-      return classifyRetailSourceRecordCompatibility(record, context).reason || record.rejectionReason || record.itemTypeCompatibilityExplanation || "retail_compatibility_filter";
-    })),
+    retailRejectionReasons: normalizeDropReasons(retailRejectedAssessments.map((assessment) => (
+      assessment.hardRejectionReason || assessment.finalPromotionReason || "shared_retail_evidence_assessment"
+    ))),
     queriesSuppressed: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? "sold/auction/historical/collector/resale terms suppressed for current-retail-only evidence mode"
       : "",
-    currentRetailCandidatesAccepted: currentRetailAccepted.map((record) => ({
-      title: cleanText(record.title),
-      source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
-      sourceLinkStatus: record.url ? "Source link available in result card" : "",
-      displayedPrice: cleanText(record.displayedPrice || record.displayedPriceText || record.price),
-      retailEvidenceLabel: "Current retail candidate accepted"
+    currentRetailCandidatesAccepted: currentRetailAcceptedAssessments.map((assessment) => ({
+      title: cleanText(assessment.sourceTitle),
+      source: cleanText(assessment.retailerIdentity || assessment.sourceDomain),
+      sourceLinkStatus: assessment.sourceUrl ? "Source link available in result card" : "",
+      displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
+      retailEvidenceLabel: `${assessment.customerEvidenceTierLabel} source-screening candidate`,
+      customerPriceCardEligibility: assessment.customerPriceCardEligibility ? "Yes" : "No",
+      finalPromotionReason: assessment.finalPromotionReason
     })).slice(0, 12),
-    currentRetailCandidatesRejected: retailRejected.map((record) => ({
-      title: cleanText(record.title),
-      source: cleanText(record.source || record.domain || inferSourceFromResult(record.rawText, record.url)),
-      sourceLinkStatus: record.url ? "Source link withheld from technical text" : "",
-      displayedPrice: cleanText(record.displayedPrice || record.displayedPriceText || record.price),
-      reason: isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" "))
-        ? "Excluded from retail decision as secondary-market, auction, sold, historical, guide, reference, or resale evidence."
-        : cleanText(record.rejectionReason || record.itemTypeCompatibilityExplanation || "Did not pass current retail source/package/identity checks.")
+    currentRetailCandidatesRejected: retailRejectedAssessments.map((assessment) => ({
+      title: cleanText(assessment.sourceTitle),
+      source: cleanText(assessment.retailerIdentity || assessment.sourceDomain),
+      sourceLinkStatus: assessment.sourceUrl ? "Source link withheld from technical text" : "",
+      displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
+      reason: assessment.hardRejectionReason || assessment.finalPromotionReason || "Did not pass shared current-retail evidence assessment."
     })).slice(0, 12),
-    referenceSecondaryEvidenceExcludedFromRetailDecision: retailRejected
-      .filter((record) => isRetailForbiddenSecondaryEvidenceText([record.title, record.snippet, record.rawText, record.url, record.priceType, record.priceEvidenceType].join(" ")))
+    referenceSecondaryEvidenceExcludedFromRetailDecision: retailRejectedAssessments
+      .filter((assessment) => assessment.secondaryMarketStatus === "secondary_or_reference_evidence")
       .length,
     canonicalProductIdentity: context.canonicalProductIdentity || null,
     canonicalRetailIdentity: {
@@ -5965,13 +5980,8 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     supportedByEvidence(identity.manufacturer, strongEvidenceText) ? identity.manufacturer : "",
     brand
   );
-  const sku = firstKnown(
-    intake.known_sku,
-    extractItemNumberFromEvidence(strongEvidenceText),
-    identity.sku,
-    identity.styleNumber,
-    /^\d{8,14}$/.test(cleanText(identity.modelOrItemNumber)) ? "" : identity.modelOrItemNumber
-  );
+  const skuDecision = buildCanonicalSkuDecision(identity, intake, strongEvidenceText, upc);
+  const sku = skuDecision.sku;
   const packageQuantityDecision = buildCanonicalPackageQuantityDecision(identity, intake);
   const packageQuantity = packageQuantityDecision.packageQuantity;
   const dimensionsOrSize = firstKnown(identity.dimensions, identity.size, identity.packageSize);
@@ -6001,7 +6011,7 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     category: createCanonicalField(categoryProfile.category, categoryProfile.confidence, categoryProfile.sources, "accepted", categoryProfile.reason),
     subcategory: createCanonicalField(categoryProfile.subcategory, categoryProfile.confidence, categoryProfile.sources, "accepted", categoryProfile.reason),
     UPC: createCanonicalField(upc, upc ? "High" : "Low", upc ? ["manual barcode/UPC or readable barcode"] : [], upc ? "accepted" : "unknown", upc ? "Exact UPC/barcode digits outrank visual inference." : "No exact UPC/barcode digits were available."),
-    SKU: createCanonicalField(sku, sku ? "High" : "Low", sku ? ["SKU/item-number evidence"] : [], sku ? "accepted" : "unknown", sku ? "Item number/SKU is supported by visible or typed evidence." : "SKU/item number was not established."),
+    SKU: createCanonicalField(sku, skuDecision.confidence, skuDecision.sources, skuDecision.status, skuDecision.reason),
     packageQuantity: createCanonicalField(packageQuantity, packageQuantityDecision.confidence, packageQuantityDecision.evidence, packageQuantityDecision.status, packageQuantityDecision.reason),
     dimensionsOrSize: createCanonicalField(dimensionsOrSize, dimensionsOrSize ? "Medium" : "Low", dimensionsOrSize ? ["size/dimensions evidence"] : [], dimensionsOrSize ? "accepted" : "unknown", dimensionsOrSize ? "Size or dimensions were preserved for matching." : "Size or dimensions were not established."),
     variant: createCanonicalField(closureOrVariant, closureOrVariant ? "Medium" : "Low", closureOrVariant ? ["visible package wording"] : [], closureOrVariant ? "accepted" : "unknown", closureOrVariant ? "Variant or closure type is price-relevant and supported." : "Variant was not established."),
@@ -6035,6 +6045,8 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     packageQuantityEvidence: packageQuantityDecision.evidence,
     packageQuantityStatus: packageQuantityDecision.status,
     uncertainPackageQuantityCandidate: packageQuantityDecision.uncertainValue,
+    skuCandidateDiagnostics: skuDecision.candidates,
+    uncertainSkuCandidates: skuDecision.uncertainCandidates,
     localSearchLocation: cleanText(intake.location_zip || intake.location_area),
     locationMethod: cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : "")),
     reason: userConfirmationRequired
@@ -6121,12 +6133,81 @@ function extractSupportedBrandFromEvidence(text) {
 }
 
 function extractItemNumberFromEvidence(text) {
+  return extractItemNumberCandidatesFromEvidence(text)[0] || "";
+}
+
+function extractItemNumberCandidatesFromEvidence(text) {
   const source = cleanText(text);
-  const labeled = source.match(/\b(?:item|item\s*number|sku|style|model|no\.?)\s*[:#]?\s*([A-Z0-9-]{4,18})\b/i);
-  if (labeled) {
-    return labeled[1];
+  const candidates = [];
+  for (const match of source.matchAll(/\b(?:item|item\s*number|sku|style|model|no\.?)\s*[:#]?\s*([A-Z0-9-]{4,18})\b/gi)) {
+    addUnique(candidates, cleanText(match[1]).toUpperCase());
   }
-  return "";
+  return candidates;
+}
+
+function buildCanonicalSkuDecision(identity = {}, intake = normalizeBuyerIntake({}), strongEvidenceText = "", upc = "") {
+  const typedSku = cleanText(intake.known_sku);
+  if (typedSku) {
+    return {
+      sku: typedSku,
+      confidence: "High",
+      status: "accepted",
+      sources: ["typed SKU/item number"],
+      reason: "SKU/item number was typed by the user; verify against the package if the source disagrees.",
+      candidates: [{ value: typedSku, source: "typed SKU/item number", confidence: "typed" }],
+      uncertainCandidates: []
+    };
+  }
+
+  const candidates = [];
+  for (const value of extractItemNumberCandidatesFromEvidence(strongEvidenceText)) {
+    candidates.push({ value, source: "clearly labeled visual item-number evidence", confidence: "labeled_visual" });
+  }
+  for (const [value, source] of [
+    [identity.sku, "extracted SKU field"],
+    [identity.styleNumber, "extracted style field"],
+    [/^\d{8,14}$/.test(cleanText(identity.modelOrItemNumber)) ? "" : identity.modelOrItemNumber, "extracted model/item-number field"]
+  ]) {
+    const cleaned = cleanText(value).toUpperCase();
+    if (cleaned) {
+      candidates.push({ value: cleaned, source, confidence: "extracted" });
+    }
+  }
+  const uniqueValues = [...new Set(candidates.map((candidate) => cleanText(candidate.value)).filter(Boolean))];
+  if (!uniqueValues.length) {
+    return {
+      sku: "",
+      confidence: "Low",
+      status: "unknown",
+      sources: [],
+      reason: "SKU/item number was not established.",
+      candidates: [],
+      uncertainCandidates: []
+    };
+  }
+  const labeledValues = new Set(candidates.filter((candidate) => candidate.confidence === "labeled_visual").map((candidate) => candidate.value));
+  if (uniqueValues.length === 1 && labeledValues.has(uniqueValues[0])) {
+    return {
+      sku: uniqueValues[0],
+      confidence: upc ? "Medium" : "Medium",
+      status: "accepted",
+      sources: ["clearly labeled visual item-number evidence"],
+      reason: upc
+        ? "Clearly labeled item-number evidence was retained, but the validated UPC remains the stronger exact identity."
+        : "Clearly labeled item-number evidence was retained with medium confidence.",
+      candidates,
+      uncertainCandidates: []
+    };
+  }
+  return {
+    sku: "",
+    confidence: "Uncertain",
+    status: "uncertain",
+    sources: candidates.map((candidate) => candidate.source),
+    reason: "Competing or unlabeled extracted SKU/item-number evidence was not promoted to confirmed identity. Valid UPC/barcode and product wording should drive exact search first.",
+    candidates,
+    uncertainCandidates: candidates
+  };
 }
 
 function extractRetailVariantFromEvidence(text) {
@@ -6313,8 +6394,8 @@ function applyCanonicalProductIdentity(identity = {}, canonicalProductIdentity =
     manufacturer: manufacturer || identity.manufacturer,
     category: subcategory || category || identity.category,
     upcBarcode: upc || identity.upcBarcode,
-    sku: sku || identity.sku,
-    modelOrItemNumber: sku || identity.modelOrItemNumber,
+    sku,
+    modelOrItemNumber: sku,
     packageQuantity,
     packageSize: dimensionsOrSize || identity.packageSize,
     size: dimensionsOrSize || identity.size,
@@ -9079,9 +9160,92 @@ function canSupportPreliminaryAskingRangeFromVisibleRecord(record = {}) {
   return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
 }
 
-function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { excludeRangeOutlierUrls = [] } = {}) {
+function buildRetailAssessmentPriceFoundRecords(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
+  const diagnostics = liveSearch.searchDiagnostics || liveSearch.diagnostics || {};
+  const retailEvidenceMode = diagnostics.retailEvidenceMode || getRetailEvidenceMode({ buyerIntake, identity });
+  if (!isCurrentRetailOnlyMode(retailEvidenceMode)) {
+    return [];
+  }
+  const context = buildSearchQueryContext(identity, [], "", buyerIntake);
+  const sourceAssessments = normalizeArray(liveSearch.retailEvidenceAssessments).length
+    ? normalizeArray(liveSearch.retailEvidenceAssessments)
+    : normalizeArray(diagnostics.retailEvidenceAssessments).length
+      ? normalizeArray(diagnostics.retailEvidenceAssessments)
+      : buildRetailEvidenceAssessments(liveSearch.providerSourceRecords || [], context).map(sanitizeRetailEvidenceAssessment);
+  return sourceAssessments
+    .filter((assessment) => assessment && assessment.customerPriceCardEligibility)
+    .filter((assessment) => !/^tier_5$/i.test(assessment.customerEvidenceTier || ""))
+    .map((assessment) => buildRetailAssessmentPriceFoundRecord(assessment, askingPriceNumber))
+    .filter(Boolean);
+}
+
+function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumber = null) {
+  const amount = Number(assessment.priceAmount);
+  if (!Number.isFinite(amount) || amount <= 0 || !assessment.sourceUrl) {
+    return null;
+  }
+  const rawText = [
+    assessment.sourceTitle,
+    assessment.knownSpecificationDifferences,
+    assessment.finalPromotionReason,
+    assessment.confidenceDowngradeReasons?.join(" ")
+  ].filter(Boolean).join(" ");
+  const base = {
+    title: assessment.sourceTitle,
+    source: assessment.retailerIdentity || assessment.sourceDomain,
+    url: assessment.sourceUrl,
+    canonicalUrl: assessment.sourceUrl,
+    displayedPrice: formatSourceMoney(amount),
+    parsedPrice: amount,
+    priceType: "Current Retail Price",
+    priceEvidenceType: "Current Retail Price",
+    listingStatus: assessment.availabilityStatus,
+    classification: assessment.customerEvidenceTier === "tier_1" ? "Exact Match" : "Strong Similar Match",
+    identityMatchStrength: assessment.customerEvidenceTier === "tier_1" ? "Exact" : "Strong Similar",
+    itemTypeCompatible: true,
+    itemTypeCompatibilityStatus: "compatible",
+    sourceBacked: "URL-cited",
+    rawText
+  };
+  const card = buildPriceFoundRecord(base, askingPriceNumber);
+  return {
+    ...card,
+    priceType: "Current Retail Price",
+    priceTypeLabel: assessment.customerEvidenceTierLabel,
+    priceContextLabel: assessment.customerEvidenceTier === "tier_1" ? "Exact Product Price" : "Compatible Alternative Price",
+    priceContextSummary: assessment.finalPromotionReason,
+    matchQuality: assessment.customerEvidenceTierLabel,
+    listingStatus: assessment.availabilityStatus,
+    conciseLimitation: buildRetailAssessmentPriceLimitation(assessment),
+    retailEvidenceTier: assessment.customerEvidenceTier,
+    retailEvidenceTierLabel: assessment.customerEvidenceTierLabel,
+    knownDifferences: assessment.knownSpecificationDifferences,
+    packageQuantity: Number.isFinite(assessment.packageQuantity) ? assessment.packageQuantity : null,
+    packageQuantityConfidence: assessment.packageQuantityConfidence,
+    unitPriceEligibility: assessment.unitPriceEligibility,
+    shippingStatus: assessment.shippingStatus,
+    sourceBacked: "URL-cited",
+    rawText
+  };
+}
+
+function buildRetailAssessmentPriceLimitation(assessment = {}) {
+  const limits = normalizeStringArray(assessment.confidenceDowngradeReasons, 8);
+  if (assessment.unitPriceEligibility !== "eligible") {
+    limits.push("Unit price is shown only when package quantity is supported.");
+  }
+  if (/unconfirmed/i.test(assessment.availabilityStatus || "")) {
+    limits.push("Availability was not confirmed by the search result.");
+  }
+  return limits.length
+    ? [...new Set(limits)].join(" ")
+    : "Current retail evidence passed shared source screening; confirm price, taxes, availability, and package details at the source.";
+}
+
+function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { excludeRangeOutlierUrls = [], identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
   const excluded = new Set(excludeRangeOutlierUrls.map((url) => canonicalizeComparableUrl(url) || cleanText(url)).filter(Boolean));
   const candidateRecords = [
+    ...buildRetailAssessmentPriceFoundRecords(liveSearch, askingPriceNumber, { identity, buyerIntake }),
     ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
     ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
     ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
@@ -9089,10 +9253,11 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
   const byListing = new Map();
 
   for (const record of candidateRecords) {
-    if (!isPriceFoundEligible(record)) {
+    const alreadyPromotedRetailCard = Boolean(record.retailEvidenceTier && record.itemPriceAmount);
+    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record)) {
       continue;
     }
-    const enriched = buildPriceFoundRecord(record, askingPriceNumber);
+    const enriched = alreadyPromotedRetailCard ? record : buildPriceFoundRecord(record, askingPriceNumber);
     const key = canonicalizeComparableUrl(enriched.url) || `${enriched.title}|${enriched.source}|${enriched.itemPrice}`.toLowerCase();
     if (excluded.has(canonicalizeComparableUrl(enriched.url) || cleanText(enriched.url))) {
       continue;
@@ -9396,16 +9561,23 @@ function buildPriceFoundComparison({ askingPriceNumber, itemAmount, shipping, de
 }
 
 function priceFoundSortRank(record = {}) {
-  if (/Active Asking/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 1;
-  if (/Active Asking/i.test(record.priceType)) return 2;
+  if (/Active Asking|Current Retail Price|Shopping Offer/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 1;
+  if (/Active Asking|Current Retail Price|Shopping Offer/i.test(record.priceType)) return 2;
   if (/Verified Sold/i.test(record.priceType)) return 3;
   if (/Auction Current Bid|Auction Opening Bid/i.test(record.priceType)) return 4;
   return 5;
 }
 
+function retailEvidenceTierRank(record = {}) {
+  const match = cleanText(record.retailEvidenceTier).match(/tier_(\d+)/i);
+  return match ? Number(match[1]) : 99;
+}
+
 function comparePriceFoundRecords(a, b) {
   const rankDelta = priceFoundSortRank(a) - priceFoundSortRank(b);
   if (rankDelta) return rankDelta;
+  const tierDelta = retailEvidenceTierRank(a) - retailEvidenceTierRank(b);
+  if (tierDelta) return tierDelta;
   const aDelivered = Number.isFinite(a.deliveredCostAmount) ? a.deliveredCostAmount : Number.POSITIVE_INFINITY;
   const bDelivered = Number.isFinite(b.deliveredCostAmount) ? b.deliveredCostAmount : Number.POSITIVE_INFINITY;
   if (aDelivered !== bDelivered) return aDelivered - bDelivered;
@@ -9415,6 +9587,8 @@ function comparePriceFoundRecords(a, b) {
 }
 
 function compareCompatiblePriceContext(a, b) {
+  const tierDelta = retailEvidenceTierRank(a) - retailEvidenceTierRank(b);
+  if (tierDelta) return tierDelta;
   const aHasDelivered = Number.isFinite(a.deliveredCostAmount);
   const bHasDelivered = Number.isFinite(b.deliveredCostAmount);
   if (aHasDelivered && bHasDelivered && a.deliveredCostAmount !== b.deliveredCostAmount) {
@@ -9601,7 +9775,7 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
       };
     }
     const ratio = Math.max(submittedQuantity, candidateQuantity) / Math.min(submittedQuantity, candidateQuantity);
-    if (ratio <= 1.25 || (submittedQuantity === 45 && candidateQuantity === 50) || (submittedQuantity === 50 && candidateQuantity === 45)) {
+    if (ratio <= 1.25) {
       return {
         status: "strong_retail_alternative",
         label: "Strong Retail Alternative",
@@ -9642,6 +9816,267 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
   };
 }
 
+function buildRetailEvidenceAssessments(records = [], context = {}) {
+  return normalizeArray(records)
+    .filter((record) => record && typeof record === "object")
+    .map((record, index) => buildRetailEvidenceAssessment(record, context, index));
+}
+
+function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
+  const sourceUrl = cleanText(record.url || record.canonicalUrl);
+  const sourceTitle = cleanText(record.title) || sourceUrl || "Source result";
+  const sourceDomain = cleanText(record.domain || inferSourceFromResult(record.rawText, sourceUrl));
+  const sourceText = [
+    record.source,
+    record.domain,
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.priceType,
+    record.priceEvidenceType,
+    record.activeSoldReferenceStatus,
+    record.url
+  ].map(cleanText).join(" ");
+  const priceAmount = getVisibleItemPriceAmount(record);
+  const displayedPrice = cleanText(record.displayedPrice || record.displayedPriceText || record.price);
+  const priceOrigin = record.sourceType === "shopping"
+    ? "Serper Shopping offer price"
+    : displayedPrice
+      ? "Visible search result price text"
+      : Number.isFinite(record.parsedPrice)
+        ? "Parsed search result price"
+        : "";
+  const fakeIdentity = {
+    packageQuantity: context.packageQuantity,
+    unitCount: context.packageQuantity,
+    packageSize: context.packageSize,
+    dimensions: context.packageSize,
+    productNameOrBoxTitle: context.productTitle,
+    category: context.itemType,
+    likelyItemDescription: context.subjectIdentity,
+    brand: context.brand || context.visualBrand,
+    manufacturer: context.manufacturer,
+    upcBarcode: context.barcodeDigits,
+    sku: context.itemCode,
+    model: context.model
+  };
+  const fakeIntake = normalizeBuyerIntake({
+    purchase_context: context.purchaseContext,
+    item_name: context.productTitle,
+    buyer_notes: context.notesText,
+    known_brand: context.brand || context.visualBrand,
+    known_sku: context.itemCode,
+    known_model: context.model,
+    known_upc: context.barcodeDigits,
+    store_name: context.storeName,
+    location_zip: context.locationZip,
+    location_area: context.locationArea,
+    location_mode: context.locationMode,
+    location_state: context.locationState,
+    location_permission: context.locationPermission
+  });
+  const packageCompatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
+  const priceTypeLabel = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
+  const hasCurrentListingEvidence = /Active Asking|Shopping Offer|Current Retail Price/i.test(priceTypeLabel)
+    || /\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|retail price|store price)\b/i.test(sourceText);
+  const unavailable = /\b(?:unavailable|out\s+of\s+stock|not\s+available|removed|stale|cached)\b/i.test(sourceText);
+  const secondaryMarket = isRetailForbiddenSecondaryEvidenceText(sourceText);
+  const sourceUsable = sourceUrl && isUsableSourceRecord(record);
+  const itemTypeRejected = record.itemTypeCompatible === false || /mismatch/i.test(cleanText(record.itemTypeCompatibilityStatus || record.rejectionReason));
+  const nonTransactional = isNonTransactionalContentRecord(record);
+  const hardRejectionReason = buildRetailAssessmentHardRejectionReason({
+    record,
+    sourceUsable,
+    priceAmount,
+    secondaryMarket,
+    hasCurrentListingEvidence,
+    unavailable,
+    itemTypeRejected,
+    nonTransactional,
+    packageCompatibility,
+    priceTypeLabel
+  });
+  const packageQuantity = extractPackQuantityNumber([
+    record.title,
+    record.rawText,
+    record.snippet,
+    record.conciseLimitation
+  ].join(" "));
+  const shipping = extractShippingEvidence(record);
+  const availabilityStatus = unavailable
+    ? "Unavailable or stale"
+    : /\b(?:in stock|available now|add to cart|pickup|delivery)\b/i.test(sourceText)
+      ? "Availability signal visible"
+      : "Availability unconfirmed";
+  const tier = classifyRetailEvidenceTier({ record, packageCompatibility, hardRejectionReason });
+  const confidenceDowngradeReasons = buildRetailAssessmentDowngrades({
+    record,
+    context,
+    packageCompatibility,
+    packageQuantity,
+    shipping,
+    availabilityStatus,
+    priceOrigin
+  });
+  const sourceScreeningPassed = !hardRejectionReason && tier.rank <= 4 && Number.isFinite(priceAmount) && priceAmount > 0 && hasCurrentListingEvidence;
+  const customerPriceCardEligibility = sourceScreeningPassed;
+  const finalPromotionReason = customerPriceCardEligibility
+    ? `${tier.label}. ${packageCompatibility.reason || "Current retail price evidence passed shared source screening."}`.trim()
+    : hardRejectionReason || `${tier.label} is retained for context only.`;
+
+  return {
+    record,
+    recordKey: canonicalizeComparableUrl(sourceUrl) || `${sourceTitle}|${sourceDomain}|${index}`.toLowerCase(),
+    sourceTitle,
+    sourceUrl,
+    sourceDomain,
+    searchQuery: cleanText(record.query),
+    searchStage: cleanText(record.searchPass || record.retailStage),
+    endpointSearchType: cleanText(record.providerEndpoint || record.searchType || "organic_web"),
+    searchType: cleanText(record.searchType || "organic_web"),
+    retailerIdentity: cleanText(record.source || sourceDomain || inferSourceFromResult(record.rawText, sourceUrl)),
+    exactProductStatus: tier.exact ? "exact_product" : tier.rank <= 4 ? "compatible_or_functional_alternative" : "category_context",
+    productTypeCompatibility: record.itemTypeCompatible === false ? "incompatible" : cleanText(record.itemTypeCompatibilityStatus || "compatible_or_not_contradicted"),
+    functionalCompatibility: packageCompatibility.label,
+    knownSpecificationDifferences: packageCompatibility.reason,
+    priceAmount,
+    priceCurrency: cleanText(record.currency) || (Number.isFinite(priceAmount) ? "$" : ""),
+    priceOrigin,
+    priceParsingConfidence: Number.isFinite(priceAmount) ? "supported_visible_price" : "no_supported_price",
+    packageQuantity,
+    packageQuantityConfidence: Number.isFinite(packageQuantity) ? "supported_from_source_text" : "unknown",
+    packageCompatibility: packageCompatibility.status,
+    packageCompatibilityLabel: packageCompatibility.label,
+    unitPriceEligibility: Number.isFinite(priceAmount) && Number.isFinite(packageQuantity) && packageQuantity > 0 ? "eligible" : "not_eligible",
+    currentListingEvidence: hasCurrentListingEvidence ? "current_listing_signal_present" : "not_current_listing_supported",
+    availabilityStatus,
+    shippingStatus: shipping.status,
+    localRelevance: record.searchPass === "stage_6_local_retail" || /\bnear\b/i.test(record.query || "") ? "local_stage_or_query" : "not_local_specific",
+    secondaryMarketStatus: secondaryMarket ? "secondary_or_reference_evidence" : "not_secondary_market",
+    hardRejectionReason,
+    confidenceDowngradeReasons,
+    customerPriceCardEligibility,
+    customerEvidenceTier: tier.id,
+    customerEvidenceTierLabel: tier.label,
+    sourceScreeningPassed,
+    finalPromotionReason
+  };
+}
+
+function buildRetailAssessmentHardRejectionReason({
+  record = {},
+  sourceUsable = false,
+  priceAmount = null,
+  secondaryMarket = false,
+  hasCurrentListingEvidence = false,
+  unavailable = false,
+  itemTypeRejected = false,
+  nonTransactional = false,
+  packageCompatibility = {},
+  priceTypeLabel = ""
+} = {}) {
+  if (!sourceUsable) return "No usable source URL was supplied.";
+  if (secondaryMarket) return "Used, sold, auction, secondary-market, guide, or reference evidence cannot be a current retail price.";
+  if (!Number.isFinite(priceAmount) || priceAmount <= 0) return "No supported current price was parsed.";
+  if (/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceTypeLabel)) {
+    return "Price evidence was not a supported current retail price.";
+  }
+  if (nonTransactional) return "Source appears non-transactional, social, directory, map, editorial, or bulk/reference content.";
+  if (!hasCurrentListingEvidence) return "Current-listing evidence was not visible.";
+  if (unavailable) return "Listing appeared unavailable, out of stock, removed, cached, or stale.";
+  if (itemTypeRejected) return "Wrong product type or materially incompatible item evidence.";
+  if (packageCompatibility.status === "materially_incompatible") return packageCompatibility.reason || "Materially incompatible package or specification.";
+  if (packageCompatibility.label === "Retail Category Context") return "Broader category reference did not identify a compatible priced product.";
+  return "";
+}
+
+function classifyRetailEvidenceTier({ record = {}, packageCompatibility = {}, hardRejectionReason = "" } = {}) {
+  if (hardRejectionReason || packageCompatibility.label === "Retail Category Context") {
+    return { id: "tier_5", rank: 5, label: "Broader category reference", exact: false };
+  }
+  const identityText = cleanText([record.matchQuality, record.classification, record.identityMatchStrength].join(" "));
+  const exactProduct = /exact/i.test(identityText) || packageCompatibility.label === "Exact Retail Match";
+  if (packageCompatibility.status === "exact_package_match") {
+    return { id: "tier_1", rank: 1, label: "Exact product and exact package", exact: true };
+  }
+  if (exactProduct) {
+    return { id: "tier_2", rank: 2, label: "Exact product with package variation", exact: true };
+  }
+  if (/strong_retail_alternative|quantity_unknown_functional_replacement/i.test(packageCompatibility.status)
+    || /Strong Retail Alternative/i.test(packageCompatibility.label)) {
+    return { id: "tier_3", rank: 3, label: "Same product type/specifications, different or unconfirmed brand", exact: false };
+  }
+  if (/unit_price_only|unknown_or_not_applicable/i.test(packageCompatibility.status)) {
+    return { id: "tier_4", rank: 4, label: "Functionally equivalent retail alternative", exact: false };
+  }
+  return { id: "tier_5", rank: 5, label: "Broader category reference", exact: false };
+}
+
+function buildRetailAssessmentDowngrades({ record = {}, context = {}, packageCompatibility = {}, packageQuantity = null, shipping = {}, availabilityStatus = "", priceOrigin = "" } = {}) {
+  const reasons = [];
+  if (!/Exact Retail Match/i.test(packageCompatibility.label)) {
+    reasons.push("not an exact product/package match");
+  }
+  if (/variation|different|not exact|count differs|not fully visible/i.test(packageCompatibility.reason || "")) {
+    reasons.push(packageCompatibility.reason);
+  }
+  if (!Number.isFinite(packageQuantity)) {
+    reasons.push("package quantity not visible; package price only");
+  }
+  if (shipping.status === "unknown") {
+    reasons.push("shipping not shown");
+  }
+  if (/unconfirmed/i.test(availabilityStatus)) {
+    reasons.push("availability unconfirmed");
+  }
+  const namedStore = cleanText(context.storeName || context.retailerOrMarketplaceName);
+  if (namedStore && ![record.source, record.domain, record.title, record.url].join(" ").toLowerCase().includes(namedStore.toLowerCase().split(/\s+/)[0])) {
+    reasons.push("retailer differs from the named store");
+  }
+  if (/Visible search result price text|Parsed search result price/i.test(priceOrigin)) {
+    reasons.push("price came from search-result evidence, not structured retailer page data");
+  }
+  return [...new Set(reasons.map(cleanText).filter(Boolean))].slice(0, 8);
+}
+
+function sanitizeRetailEvidenceAssessment(assessment = {}) {
+  return {
+    recordKey: cleanText(assessment.recordKey),
+    sourceTitle: cleanText(assessment.sourceTitle),
+    sourceUrl: cleanText(assessment.sourceUrl),
+    sourceDomain: cleanText(assessment.sourceDomain),
+    searchQuery: cleanText(assessment.searchQuery),
+    searchStage: cleanText(assessment.searchStage),
+    endpointSearchType: cleanText(assessment.endpointSearchType),
+    retailerIdentity: cleanText(assessment.retailerIdentity),
+    exactProductStatus: cleanText(assessment.exactProductStatus),
+    productTypeCompatibility: cleanText(assessment.productTypeCompatibility),
+    functionalCompatibility: cleanText(assessment.functionalCompatibility),
+    knownSpecificationDifferences: cleanText(assessment.knownSpecificationDifferences),
+    priceAmount: Number.isFinite(assessment.priceAmount) ? assessment.priceAmount : null,
+    priceCurrency: cleanText(assessment.priceCurrency),
+    priceOrigin: cleanText(assessment.priceOrigin),
+    priceParsingConfidence: cleanText(assessment.priceParsingConfidence),
+    packageQuantity: Number.isFinite(assessment.packageQuantity) ? assessment.packageQuantity : null,
+    packageQuantityConfidence: cleanText(assessment.packageQuantityConfidence),
+    packageCompatibility: cleanText(assessment.packageCompatibility),
+    packageCompatibilityLabel: cleanText(assessment.packageCompatibilityLabel),
+    unitPriceEligibility: cleanText(assessment.unitPriceEligibility),
+    currentListingEvidence: cleanText(assessment.currentListingEvidence),
+    availabilityStatus: cleanText(assessment.availabilityStatus),
+    shippingStatus: cleanText(assessment.shippingStatus),
+    localRelevance: cleanText(assessment.localRelevance),
+    secondaryMarketStatus: cleanText(assessment.secondaryMarketStatus),
+    hardRejectionReason: cleanText(assessment.hardRejectionReason),
+    confidenceDowngradeReasons: normalizeStringArray(assessment.confidenceDowngradeReasons, 8),
+    customerPriceCardEligibility: Boolean(assessment.customerPriceCardEligibility),
+    customerEvidenceTier: cleanText(assessment.customerEvidenceTier),
+    customerEvidenceTierLabel: cleanText(assessment.customerEvidenceTierLabel),
+    sourceScreeningPassed: Boolean(assessment.sourceScreeningPassed),
+    finalPromotionReason: cleanText(assessment.finalPromotionReason)
+  };
+}
+
 function isQualifiedCurrentRetailPriceFoundRecord(record = {}, identity = {}, buyerIntake = normalizeBuyerIntake({})) {
   if (!record || typeof record !== "object" || !record.url || !Number.isFinite(record.itemPriceAmount)) {
     return false;
@@ -9667,64 +10102,7 @@ function isQualifiedCurrentRetailPriceFoundRecord(record = {}, identity = {}, bu
 }
 
 function isQualifiedCurrentRetailSourceRecord(record = {}, context = {}) {
-  if (!record || typeof record !== "object" || !record.url || !isUsableSourceRecord(record)) {
-    return false;
-  }
-  const amount = getVisibleItemPriceAmount(record);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return false;
-  }
-  const text = [
-    record.source,
-    record.domain,
-    record.title,
-    record.snippet,
-    record.rawText,
-    record.priceType,
-    record.priceEvidenceType,
-    record.activeSoldReferenceStatus,
-    record.url
-  ].map(cleanText).join(" ");
-  if (isRetailForbiddenSecondaryEvidenceText(text)) {
-    return false;
-  }
-  if (!/Active Asking/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record))
-    && !/\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|retail price|store price)\b/i.test(text)) {
-    return false;
-  }
-  if (/\b(?:unavailable|out\s+of\s+stock|not\s+available|removed|stale|cached)\b/i.test(text)) {
-    return false;
-  }
-  if (record.itemTypeCompatible === false || /mismatch/i.test(cleanText(record.itemTypeCompatibilityStatus || record.rejectionReason))) {
-    return false;
-  }
-  if (context && isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
-    const fakeIdentity = {
-      packageQuantity: context.packageQuantity,
-      unitCount: context.packageQuantity,
-      packageSize: context.packageSize,
-      productNameOrBoxTitle: context.productTitle,
-      category: context.itemType,
-      likelyItemDescription: context.subjectIdentity,
-      brand: context.brand || context.visualBrand,
-      manufacturer: context.manufacturer,
-      upcBarcode: context.barcodeDigits,
-      sku: context.itemCode,
-      model: context.model
-    };
-    const fakeIntake = normalizeBuyerIntake({
-      purchase_context: context.purchaseContext,
-      item_name: context.productTitle,
-      buyer_notes: context.notesText,
-      known_brand: context.brand || context.visualBrand,
-      known_sku: context.itemCode,
-      known_model: context.model,
-      known_upc: context.barcodeDigits
-    });
-    const compatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
-    return compatibility.status !== "materially_incompatible" && compatibility.label !== "Retail Category Context";
-  }
-  return true;
+  return buildRetailEvidenceAssessment(record, context).sourceScreeningPassed;
 }
 
 function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), identity = {}, liveSearch = {}, pricesFound = [], askingPriceNumber = null, searchCompleted = false } = {}) {
@@ -9809,9 +10187,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const priceAssessment = !currentRetailOnly
     ? ""
     : amounts.length >= 2
-      ? `${exactProductUnavailableText}${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Alternatives"}: ${retailRange} based on ${acceptedWithRetailLabels.length} qualified source-backed current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. ${exactRetail.length >= 2 ? "Exact package matches were found." : "Compatible alternatives are not the same item."}${unitRangeText}${askingUnitText} Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
+      ? `${exactRetail.length >= 2 ? "Exact Current Retail Range" : "Compatible Current Retail Alternatives"}: ${retailRange} based on ${acceptedWithRetailLabels.length} customer-visible current retail price${acceptedWithRetailLabels.length === 1 ? "" : "s"}. ${exactRetail.length >= 2 ? "Exact package matches were found." : `${exactProductUnavailableText}Compatible alternatives are not the same item.`}${unitRangeText}${askingUnitText} Package size, unit price, shipping, pickup, taxes, and availability remain separate.`
       : amounts.length === 1
-        ? `${exactProductUnavailableText}${exactRetail.length ? "Current Retail Price Found" : "Compatible Current Retail Alternative"}: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. ${exactRetail.length ? "" : "The exact product/package was not confirmed; compare unit price rather than treating this as the same package price. "}${unitRangeText}${askingUnitText} Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
+        ? `${exactRetail.length ? "Current Retail Price Found" : "Compatible Current Retail Alternative"}: ${formatMoney(amounts[0])} from ${sorted[0].source || "one source"}. ${exactRetail.length ? "" : `${exactProductUnavailableText}The exact product/package was not confirmed; compare unit price rather than treating this as the same package price. `}${unitRangeText}${askingUnitText} Confirm package size, taxes, availability, and pickup/delivery before relying on it.`
         : `${noRetailPrice}. An exact current listing was not found. Katherine's Eye also searched comparable current retail products by product type, size, closure, feature, and package count, but no sufficiently compatible priced alternatives survived source and package checks.`;
   const namedStoreResult = buildNamedStoreRetailResult({
     storeName,
@@ -10989,7 +11367,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const askingPriceNumber = getConsumerAskingPriceNumber(buyerIntake, identity);
   const priceEvidence = summarizeConsumerVisiblePriceEvidence(liveSearch);
   const pricesFound = buildConsumerPricesFound(liveSearch, askingPriceNumber, {
-    excludeRangeOutlierUrls: priceEvidence.outlierRecords.map((record) => record.url)
+    excludeRangeOutlierUrls: priceEvidence.outlierRecords.map((record) => record.url),
+    identity,
+    buyerIntake
   });
   const retailEvidenceProfile = buildRetailEvidenceProfile({
     buyerIntake,
@@ -15062,6 +15442,7 @@ export const __queryIntegrityTestHooks = {
   buildSerperMarketplaceQuery,
   buildSerperSingleMarketplaceQuery,
   bucketSerperRecords,
+  dedupeSerperCandidateRecords,
   parseSerperResponse,
   isStrongComparableEvidenceRecord,
   isNoPriceIdentityReference,
@@ -15100,6 +15481,8 @@ export const __queryIntegrityTestHooks = {
   isCurrentPurchasablePriceFoundRecord,
   buildRetailDecisionCalibration,
   classifyRetailPackageCompatibility,
+  buildRetailEvidenceAssessments,
+  buildRetailAssessmentPriceFoundRecords,
   isQualifiedCurrentRetailSourceRecord,
   isQualifiedCurrentRetailPriceFoundRecord,
   buildRetailEvidenceProfile,

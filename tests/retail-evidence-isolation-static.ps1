@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
-  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
-  @{ Name = "Server version is 1.11.5"; Text = $server; Pattern = '$AppVersion = "1.11.5"' },
-  @{ Name = "Roadmap documents Version 1.11.5"; Text = $roadmap; Pattern = "Version 1.11.5 (Completed)" },
+  @{ Name = "Visible app version is 1.11.6"; Text = $index; Pattern = "Version 1.11.6" },
+  @{ Name = "Package version is 1.11.6"; Text = $package; Pattern = '"version": "1.11.6"' },
+  @{ Name = "Server version is 1.11.6"; Text = $server; Pattern = '$AppVersion = "1.11.6"' },
+  @{ Name = "Roadmap documents Version 1.11.6"; Text = $roadmap; Pattern = "Version 1.11.6 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
   @{ Name = "Current retail only mode exists"; Text = $api; Pattern = "current-retail-only" },
@@ -33,7 +33,7 @@ $checks = @(
   @{ Name = "Retail assessment label exists"; Text = $api; Pattern = "Current Retail Price Assessment" },
   @{ Name = "No personal enjoyment retail path"; Text = $api; Pattern = "personal-enjoyment exception" },
   @{ Name = "Retail package compatibility helper exists"; Text = $api; Pattern = "function classifyRetailPackageCompatibility" },
-  @{ Name = "45 vs 50 count compatible logic exists"; Text = $api; Pattern = "submittedQuantity === 45 && candidateQuantity === 50" },
+  @{ Name = "Nearby package-count compatibility is ratio based"; Text = $api; Pattern = "ratio <= 1.25" },
   @{ Name = "Unit-price comparable label exists"; Text = $api; Pattern = "Unit-Price Comparable" },
   @{ Name = "Security versus plain mismatch exists"; Text = $api; Pattern = "Security-envelope evidence was not compatible with a non-security envelope result." },
   @{ Name = "Strip and seal versus gummed alternative exists"; Text = $api; Pattern = "Strip-and-seal and gummed closures may be compatible alternatives" },

@@ -12,16 +12,16 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
-  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
-  @{ Name = "Server version is 1.11.5"; Text = $server; Pattern = '$AppVersion = "1.11.5"' },
+  @{ Name = "Visible app version is 1.11.6"; Text = $index; Pattern = "Version 1.11.6" },
+  @{ Name = "Package version is 1.11.6"; Text = $package; Pattern = '"version": "1.11.6"' },
+  @{ Name = "Server version is 1.11.6"; Text = $server; Pattern = '$AppVersion = "1.11.6"' },
   @{ Name = "Roadmap documents retail recovery"; Text = $roadmap; Pattern = "Retail evidence recovery now distinguishes" },
   @{ Name = "Exact retail match label exists"; Text = $api; Pattern = "Exact Retail Match" },
   @{ Name = "Strong retail alternative label exists"; Text = $api; Pattern = "Strong Retail Alternative" },
   @{ Name = "Unit-price comparable label exists"; Text = $api; Pattern = "Unit-Price Comparable" },
   @{ Name = "Retail category context label exists"; Text = $api; Pattern = "Retail Category Context" },
   @{ Name = "Rejected retail mismatch label exists"; Text = $api; Pattern = "Rejected Retail Mismatch" },
-  @{ Name = "45 versus 50 count recovery exists"; Text = $api; Pattern = "submittedQuantity === 45 && candidateQuantity === 50" },
+  @{ Name = "Nearby package count recovery is ratio based"; Text = $api; Pattern = "ratio <= 1.25" },
   @{ Name = "Retail Serper budget allocation exists"; Text = $api; Pattern = "const retailSerperBudgetAllocation = Object.freeze" },
   @{ Name = "Retail staged Serper planner exists"; Text = $api; Pattern = "function buildRetailSerperSearchPlan" },
   @{ Name = "Retail compatible alternative stage exists"; Text = $api; Pattern = "stage_3_compatible_alternatives" },

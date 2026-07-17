@@ -11,6 +11,7 @@ $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
 $manifest = Get-Content (Join-Path $Root "public/manifest.webmanifest") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
 $server = Get-Content (Join-Path $Root "server.ps1") -Raw
+$reverseGeocode = Get-Content (Join-Path $Root "api/reverse-geocode.js") -Raw
 $vercel = Get-Content (Join-Path $Root "vercel.json") -Raw
 $readme = Get-Content (Join-Path $Root "README.md") -Raw
 $deployment = Get-Content (Join-Path $Root "DEPLOYMENT_CHECKLIST.md") -Raw
@@ -28,10 +29,10 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
-  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
+  @{ Name = "Visible app version is 1.11.6"; Text = $index; Pattern = "Version 1.11.6" },
+  @{ Name = "Package version is 1.11.6"; Text = $package; Pattern = '"version": "1.11.6"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
-  @{ Name = "Roadmap documents Version 1.11.5"; Text = $roadmap; Pattern = "Version 1.11.5 (Completed)" },
+  @{ Name = "Roadmap documents Version 1.11.6"; Text = $roadmap; Pattern = "Version 1.11.6 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine’s Eye - Buying, Selling and Valuation Intelligence</title>" },
   @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherine’s Eye' },
   @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherine’s Eye' },
@@ -63,6 +64,11 @@ $checks = @(
   @{ Name = "Location state field exists"; Text = $index; Pattern = 'id="location_state"' },
   @{ Name = "Location state is sent to API"; Text = $app; Pattern = "location_state: getValue(`"location_state`")" },
   @{ Name = "Coordinates are rounded before reverse geocoding"; Text = $app; Pattern = "Math.round(latitude * 1000) / 1000" },
+  @{ Name = "Browser reverse geocoding uses same-origin endpoint"; Text = $app; Pattern = 'fetch("/api/reverse-geocode"' },
+  @{ Name = "Browser does not call public reverse geocoder directly"; Text = $app; Pattern = "api.bigdatacloud.net"; ShouldNotContain = $true },
+  @{ Name = "Same-origin reverse geocode API exists"; Text = $reverseGeocode; Pattern = "reverse-geocode-client" },
+  @{ Name = "Local server routes reverse geocode API"; Text = $server; Pattern = '/api/reverse-geocode' },
+  @{ Name = "Location retry is capped"; Text = $app; Pattern = "locationFailureCount < 2" },
   @{ Name = "Precise coordinate display wording remains private"; Text = $app; Pattern = "Precise coordinates are not stored or displayed." },
   @{ Name = "Diagnostics show location state"; Text = $app; Pattern = '["Location State", diagnostics.locationStateUsed]' },
   @{ Name = "API diagnostics show location state"; Text = $api; Pattern = "locationStateUsed: locationState" },

@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.11.5"
+$AppVersion = "1.11.6"
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -723,6 +723,11 @@ function Route-Request {
     return
   }
 
+  if ($Request.Method -eq "POST" -and $Request.Path -eq "/api/reverse-geocode") {
+    Handle-ReverseGeocode $Stream $Request
+    return
+  }
+
   if ($Request.Method -eq "GET") {
     Serve-Static $Stream $Request.Path
     return
@@ -823,6 +828,50 @@ function Handle-GenerateListing {
     }
   } catch {
     Send-Json $Stream 502 @{ error = $_.Exception.Message }
+  }
+}
+
+function Handle-ReverseGeocode {
+  param(
+    [System.Net.Sockets.NetworkStream]$Stream,
+    $Request
+  )
+
+  try {
+    $Body = $Request.Body | ConvertFrom-Json
+  } catch {
+    Send-Json $Stream 400 @{ error = "Request body must be valid JSON." }
+    return
+  }
+
+  $Latitude = [double]::NaN
+  $Longitude = [double]::NaN
+  if (-not [double]::TryParse([string]$Body.latitude, [ref]$Latitude) -or -not [double]::TryParse([string]$Body.longitude, [ref]$Longitude)) {
+    Send-Json $Stream 400 @{ error = "Valid rounded coordinates are required." }
+    return
+  }
+
+  $RoundedLatitude = [Math]::Round($Latitude, 3)
+  $RoundedLongitude = [Math]::Round($Longitude, 3)
+  try {
+    $Url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$([uri]::EscapeDataString([string]$RoundedLatitude))&longitude=$([uri]::EscapeDataString([string]$RoundedLongitude))&localityLanguage=en"
+    $Response = Invoke-RestMethod -Method Get -Uri $Url -TimeoutSec 8
+    $Zip = ""
+    if ([string]$Response.postcode -match "\b\d{5}(?:-\d{4})?\b") {
+      $Zip = $Matches[0]
+    }
+    $CityValue = if ($Response.city) { $Response.city } elseif ($Response.locality) { $Response.locality } else { $Response.principalSubdivision }
+    $StateValue = if ($Response.principalSubdivisionCode) { $Response.principalSubdivisionCode } else { $Response.principalSubdivision }
+    $City = Clean-Text $CityValue
+    $State = (Clean-Text $StateValue) -replace "^US-", ""
+    $Label = (($City, $State, $Zip) | Where-Object { $_ }) -join " "
+    if (-not $Zip -and -not $Label) {
+      Send-Json $Stream 422 @{ error = "Reverse geocoder response did not include a ZIP or general area." }
+      return
+    }
+    Send-Json $Stream 200 @{ zip = $Zip; city = $City; state = $State; label = $Label }
+  } catch {
+    Send-Json $Stream 502 @{ error = "Reverse geocoding failed." }
   }
 }
 
