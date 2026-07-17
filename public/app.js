@@ -3721,6 +3721,8 @@ function renderPricesFound(value) {
 function renderPriceFoundCard(item) {
   const card = document.createElement("article");
   card.className = "price-found-card";
+  const retailerName = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
+  const retailerUnknown = /retailer not identified|^source$/i.test(retailerName);
 
   const header = document.createElement("div");
   header.className = "price-found-header";
@@ -3730,44 +3732,68 @@ function renderPriceFoundCard(item) {
   title.textContent = item.title || "Source listing";
   const source = document.createElement("p");
   source.className = "price-found-source";
-  source.textContent = item.source || item.marketplace || "Source";
+  source.textContent = `Where to buy: ${retailerUnknown ? "Retailer not identified" : retailerName}`;
   titleGroup.append(title, source);
   const badge = document.createElement("span");
   badge.className = "price-type-badge";
-  badge.textContent = item.priceTypeLabel || item.priceType || "Unknown Price Type";
+  badge.textContent = item.priceContextLabel || item.priceTypeLabel || item.priceType || "Unknown Price Type";
   header.append(titleGroup, badge);
 
   const amounts = document.createElement("dl");
   amounts.className = "price-found-amounts";
+  const quantityText = item.packageQuantity
+    ? `${item.packageQuantity} units${item.unitPrice ? ` · ${item.unitPrice} each` : ""}`
+    : "Not shown";
   [
-    ["Item price", item.itemPrice],
-    ["Shipping", item.shipping || "Not shown"],
-    ["Delivered cost", item.deliveredCost || "Not established"]
+    ["Price", item.itemPrice],
+    ["Quantity / unit", quantityText],
+    ["Availability", item.listingStatus || "Availability unconfirmed"]
   ].forEach(([label, detail]) => appendDefinitionRow(amounts, label, detail));
 
   const meta = document.createElement("dl");
   meta.className = "price-found-visible-meta";
   [
-    ["Status", item.listingStatus],
-    ["Match", item.matchQuality],
-    ["Retail label", item.priceTypeLabel],
-    ["Limitation", item.conciseLimitation]
+    ["Match", item.matchQuality || item.priceTypeLabel],
+    ["Difference", item.knownDifferences || item.priceContextSummary || "No material difference shown"],
+    ["Limit", item.conciseLimitation]
   ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
 
   const comparison = document.createElement("p");
   comparison.className = "price-found-comparison";
-  comparison.textContent = item.comparisonToYourPrice || item.priceContextSummary || item.conciseLimitation || "";
+  comparison.textContent = item.comparisonToYourPrice || item.conciseLimitation || "";
+
+  const details = document.createElement("details");
+  details.className = "price-found-details";
+  const summary = document.createElement("summary");
+  summary.textContent = "Details";
+  const detailList = document.createElement("dl");
+  detailList.className = "price-found-visible-meta";
+  [
+    ["Retailer domain", item.retailerDomain],
+    ["Search provider", item.searchProvider],
+    ["Evidence type", item.sourceEvidenceType],
+    ["Retailer confidence", item.retailerConfidenceLevel],
+    ["Attribution evidence", normalizeDisplayValue(item.retailerAttributionEvidence)],
+    ["Shipping", item.shipping || "Not shown"],
+    ["Delivered cost", item.deliveredCost || "Not established"],
+    ["Shipping note", item.shippingDisclosure],
+    ["Named-store match", item.namedStoreMatchStatus],
+    ["Decision eligible", item.retailPriceDecisionEligibility === false ? "No" : item.retailPriceDecisionEligibility === true ? "Yes" : ""],
+    ["Downgrades", normalizeDisplayValue(item.confidenceDowngradeReasons)],
+    ["Full note", item.priceContextSummary]
+  ].forEach(([label, detail]) => appendDefinitionRow(detailList, label, detail));
+  details.append(summary, detailList);
 
   if (item.url) {
     const link = document.createElement("a");
-    link.className = "source-result-link";
+    link.className = "source-result-link price-found-action";
     link.href = item.url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = "Open source";
-    card.append(header, amounts, meta, comparison, link);
+    link.textContent = retailerUnknown ? "View source" : `View at ${retailerName}`;
+    card.append(header, amounts, meta, comparison, details, link);
   } else {
-    card.append(header, amounts, meta, comparison);
+    card.append(header, amounts, meta, comparison, details);
   }
 
   return card;
@@ -4422,16 +4448,20 @@ function isPriceFoundSectionLabel(label = "") {
 }
 
 function formatPriceFoundRecordText(item = {}) {
+  const retailer = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
   const fields = [
-    ["Source", item.source || item.marketplace],
+    ["Where to buy", retailer],
+    ["Retailer domain", item.retailerDomain],
     ["Item price", item.itemPrice],
+    ["Package quantity", item.packageQuantity],
+    ["Unit price", item.unitPrice],
     ["Shipping", item.shipping || "Not shown"],
     ["Delivered cost", item.deliveredCost || "Not established"],
-    ["Price type", item.priceType],
-    ["Retail label", item.priceTypeLabel],
-    ["Listing status", item.listingStatus],
-    ["Match quality", item.matchQuality],
+    ["Match type", item.matchQuality || item.priceTypeLabel],
+    ["Availability", item.listingStatus],
+    ["Important difference", item.knownDifferences || item.priceContextSummary],
     ["Limitation", item.conciseLimitation],
+    ["Search provider", item.searchProvider],
     ["Open source", item.url]
   ]
     .filter(([, value]) => value)

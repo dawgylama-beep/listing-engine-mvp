@@ -1753,7 +1753,7 @@ summary:focus-visible {
 
 .price-found-source {
   margin: 0;
-  color: #54615d;
+  color: #263a35;
   font-size: 0.82rem;
   font-weight: 750;
 }
@@ -1844,8 +1844,28 @@ summary:focus-visible {
 
 .price-found-details summary {
   cursor: pointer;
-  color: #0a665c;
+  color: #084f47;
   font-weight: 850;
+}
+
+.price-found-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #0a665c;
+  color: #ffffff;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.price-found-action:hover,
+.price-found-action:focus-visible {
+  background: #084f47;
+  color: #ffffff;
 }
 
 .ask-panel {

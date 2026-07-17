@@ -924,6 +924,52 @@ try {
   assert(retailAssessments.some((assessment) => /package price only/i.test(assessment.confidenceDowngradeReasons.join(" "))), "Missing package count should downgrade to package-price-only instead of hard rejection.");
   assert(retailAssessments.some((assessment) => /Wrong product type|incompatible|Wrong Accessory|Wrong product/i.test(`${assessment.sourceTitle} ${assessment.hardRejectionReason}`)), "Accessory or wrong-product records should be hard rejected.");
   assert(retailAssessments.some((assessment) => /secondary|reference|Used marketplace/i.test(`${assessment.sourceTitle} ${assessment.hardRejectionReason} ${assessment.secondaryMarketStatus}`)), "Used-marketplace contamination should not become current retail evidence.");
+  const redirectedRetailUrl = "https://www.google.com/url?q=https%3A%2F%2Fmerchant.example%2Fcleaner-12&sa=U";
+  assert(__queryIntegrityTestHooks.unwrapRetailDestinationUrl(redirectedRetailUrl) === "https://merchant.example/cleaner-12", "Search-provider redirects should unwrap to the destination retailer URL when present.");
+  const retailerAttributionAssessments = __queryIntegrityTestHooks.buildRetailEvidenceAssessments([
+    retailRecord({
+      title: "Shopping Household Cleaner 12 Count",
+      url: redirectedRetailUrl,
+      domain: "google.com",
+      merchantName: "Merchant Example",
+      sourceType: "shopping",
+      searchType: "shopping",
+      providerEndpoint: "serper_shopping",
+      displayedPriceText: "$10.50",
+      parsedPrice: 10.5,
+      priceEvidenceType: "Shopping Offer"
+    }),
+    retailRecord({
+      title: "Household Cleaner 12 Count",
+      url: "https://www.google.com/search?q=household-cleaner-12",
+      domain: "google.com",
+      source: "Google",
+      displayedPriceText: "$1.99",
+      parsedPrice: 1.99,
+      snippet: "Current price $1.99."
+    }),
+    retailRecord({
+      title: "PROWORX Medium Raceway Accessory Cord Hiding Kit",
+      url: "https://hardware.example/accessory-kit",
+      domain: "hardware.example",
+      source: "Hardware Example",
+      displayedPriceText: "$7.99",
+      parsedPrice: 7.99,
+      snippet: "Security, privacy, seal, office current price overlap."
+    })
+  ], retailContext);
+  const merchantAssessment = retailerAttributionAssessments.find((assessment) => /Shopping Household Cleaner/i.test(assessment.sourceTitle));
+  assert(merchantAssessment.retailerDisplayName === "Merchant Example", "Retailer name should come from structured Shopping merchant evidence.");
+  assert(merchantAssessment.retailerDomain === "merchant.example", "Destination retailer domain should be distinguished from the search provider domain.");
+  assert(merchantAssessment.searchProvider === "Serper Google Search", "Search provider should remain technical metadata, not the seller.");
+  assert(merchantAssessment.destinationUrl === "https://merchant.example/cleaner-12", "Customer destination URL should preserve the true retailer destination.");
+  const providerOnlyAssessment = retailerAttributionAssessments.find((assessment) => /google\.com\/search/i.test(assessment.sourceUrl));
+  assert(providerOnlyAssessment.retailerDisplayName === "Retailer not identified", "Unknown retailer should be displayed explicitly.");
+  assert(providerOnlyAssessment.retailPriceDecisionEligibility === false, "Unknown-retailer evidence must not be eligible for best alternative or retail limit.");
+  const accessoryAssessment = retailerAttributionAssessments.find((assessment) => /PROWORX/i.test(assessment.sourceTitle));
+  assert(accessoryAssessment.customerPriceCardEligibility === false, "Product-type mismatch cannot become a customer price card.");
+  assert(/Product-family mismatch|contradictory title/i.test(accessoryAssessment.hardRejectionReason), "Accessory versus primary product mismatch should be hard rejected from negative title evidence.");
+  assert(accessoryAssessment.contradictoryEvidence.length > 0, "Contradictory product-family evidence should be recorded.");
   const promotedGenericPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
     providerSourceRecords: [
       retailRecord(),
@@ -935,6 +981,25 @@ try {
   assert(promotedGenericPrices.some((record) => /Shopping Household Cleaner/i.test(record.title)), "Shopping-stage priced records should promote to customer prices.");
   assert(promotedGenericPrices.some((record) => /Local Household Cleaner/i.test(record.title)), "Local-stage priced records should promote to customer prices.");
   assert(promotedGenericPrices.every((record) => record.priceType === "Current Retail Price"), "Promoted ordinary retail cards should be labeled as current retail prices.");
+  assert(promotedGenericPrices.every((record) => record.retailerDisplayName), "Every promoted retail card should carry a retailer display name.");
+  const decisionSafetyPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [
+      retailRecord({ title: "Household Cleaner 12 Count", url: "https://www.google.com/search?q=household-cleaner-12", domain: "google.com", source: "Google", displayedPriceText: "$1.99", parsedPrice: 1.99, snippet: "Current price $1.99." }),
+      retailRecord({ title: "National Brand Household Cleaner 12 Count", url: "https://merchant.example/cleaner-12", domain: "merchant.example", source: "Merchant Example", displayedPriceText: "$10.00", parsedPrice: 10 })
+    ],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
+  assert(decisionSafetyPrices.some((record) => /Retailer not identified/i.test(record.retailerDisplayName) && record.retailPriceDecisionEligibility === false), "Unknown-retailer current retail cards may be visible but must be decision-ineligible.");
+  const decisionSafetyProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
+    buyerIntake: genericRetailIntake,
+    identity: genericRetailIdentity,
+    liveSearch: { searchDiagnostics: { retailEvidenceMode: "current-retail-only" } },
+    pricesFound: decisionSafetyPrices,
+    askingPriceNumber: 12,
+    searchCompleted: true
+  });
+  assert(decisionSafetyProfile.bestCurrentRetailAlternative?.itemPriceAmount === 10, "Best Current Retail Alternative must ignore unknown-retailer prices.");
+  assert(!/1\.99/.test(decisionSafetyProfile.retailPriceLimit), "Retail Price Limit must not be established by unknown-retailer evidence.");
   const richerDuplicate = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
     retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "", parsedPrice: null, snippet: "No visible price." }),
     retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "$9.99", parsedPrice: 9.99, snippet: "Current price $9.99. In stock." })

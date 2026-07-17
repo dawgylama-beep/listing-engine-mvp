@@ -416,6 +416,16 @@
 - Regression tests cover global retail assessment/promotion, Shopping and local-stage price cards, package-price-only downgrades, richer duplicate survival, uncertain SKU exclusion, same-origin reverse geocoding, capped retry behavior, and preserved 1.11.5 retail/location safeguards
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.7 (Completed)
+- Customer-visible current retail cards now show "Where to buy" with the derived retailer name near the top, preserve the destination product URL, and keep search-provider/source diagnostics in expandable details
+- Retailer attribution now distinguishes structured Shopping merchant evidence, destination retailer domains, supported merchant/source fields, search providers, and explicit unknown-retailer cases without treating Google or Serper as the seller
+- Search-provider redirect URLs are unwrapped when a true retail destination is available, while provider-only URLs remain visible as "Retailer not identified" and cannot set Best Current Retail Alternative or Retail Price Limit
+- Current retail price guidance now uses only decision-eligible records with supported price, identifiable transactional retailer evidence, valid destination domain, same product-family compatibility, and no hard rejection
+- A reusable product-family firewall records target family, candidate family, positive evidence, contradictory evidence, final outcome, and rejection reason; negative candidate-title evidence hard rejects incompatible accessories, components, tools, appliance parts, groceries, toiletries, and unrelated household products across product types
+- Customer cards are compressed to product, retailer, price, quantity/unit price, match type, availability, key difference/limit, and a primary action, with shipping, delivered cost, confidence downgrades, and technical attribution moved into per-card Details
+- Regression tests cover retailer attribution, provider-versus-seller separation, redirect unwrapping, explicit unknown retailer display, unknown-retailer price-guidance exclusion, product-family mismatch rejection, negative-title evidence, recalculated best/limit guidance, readable source contrast, compressed cards, and preserved 1.11.6 retail/location safeguards
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings
