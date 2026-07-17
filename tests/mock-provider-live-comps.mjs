@@ -378,9 +378,10 @@ function consumerDecisionJson(zeroResults) {
 }
 
 globalThis.fetch = async (_url, options = {}) => {
-  if (_url === "https://google.serper.dev/search") {
+  if (_url === "https://google.serper.dev/search" || _url === "https://google.serper.dev/shopping") {
     const payload = JSON.parse(options.body);
     serperPayloads.push({
+      endpoint: _url.endsWith("/shopping") ? "shopping" : "search",
       q: payload.q,
       gl: payload.gl,
       hl: payload.hl,
@@ -602,10 +603,17 @@ try {
         position: 1
       }
     ]
-  }, { query: "security envelopes strip and seal current price", searchPass: "stage_5_shopping_general" });
+  }, {
+    query: "security envelopes strip and seal current price",
+    searchPass: "stage_5_shopping_general",
+    searchType: "shopping",
+    providerEndpoint: "serper_shopping"
+  });
   assert(parsedRetailSerper.organicResultCount === 1 && parsedRetailSerper.shoppingResultCount === 1, "Serper parser should count organic and shopping retail results.");
   assert(parsedRetailSerper.records.some((record) => record.sourceType === "organic" && record.displayedPriceText === "$4.99" && record.parsedPrice === 4.99), "Organic retail prices should be parsed from price context without using shipping.");
   assert(parsedRetailSerper.records.some((record) => record.sourceType === "shopping" && record.displayedPriceText === "$8.99" && record.parsedPrice === 8.99), "Shopping-result prices should be parsed from structured shopping price fields.");
+  assert(parsedRetailSerper.records.every((record) => record.searchType === "shopping" && record.providerEndpoint === "serper_shopping"), "Shopping records should retain the dedicated endpoint/search type metadata.");
+  assert(__queryIntegrityTestHooks.classifySerperStatus(404, { message: "unknown endpoint" }, "shopping") === "serper_shopping_unavailable", "Shopping endpoint failures should be classified as Shopping unavailable, not zero Shopping results.");
   const validUpc = __queryIntegrityTestHooks.validateRetailBarcodeCandidate("041226087161");
   assert(validUpc.valid === true && validUpc.format === "UPC-A", "Valid UPC-A should pass check-digit validation.");
   const transposedUpc = __queryIntegrityTestHooks.validateRetailBarcodeCandidate("014226087161");
@@ -661,8 +669,10 @@ try {
     likelyItemDescription: "poster print",
     frontBoxWording: "Office Works Security Envelopes 45 Count Strip & Seal",
     backLabelWording: "UPC 041226087161 Item 6110325",
+    dimensions: "4.12 x 9.5 inches",
+    packageSize: "4.12 x 9.5 inches",
     packageQuantity: "45 count",
-    visibleText: ["Office Works", "Security Envelopes", "45 Count", "Strip & Seal", "6110325", "041226087161"],
+    visibleText: ["Office Works", "Security Envelopes", "45 Count", "Strip & Seal", "4.12 x 9.5 inches", "6110325", "041226087161"],
     visualRecognition: {
       visualSubject: "Office Works poster print",
       visualSubjectCategory: "poster print",
@@ -674,6 +684,67 @@ try {
   assert(/Office Works Security Envelopes/i.test(officeWorksIdentity.canonicalProductIdentity.customerFacingTitle), "Canonical identity should preserve Office Works security envelopes.");
   assert(/poster print/i.test(JSON.stringify(officeWorksIdentity.canonicalProductIdentity.conflictingCandidatesRejected)), "Conflicting poster print should be retained only as a rejected diagnostic.");
   assert(!officeWorksIdentity.canonicalProductIdentity.userConfirmationRequired, "Strong UPC/OCR/package evidence should resolve weak visual conflict without interrupting the user.");
+  const officeWorksPackageField = officeWorksIdentity.canonicalProductIdentity.fields.packageQuantity;
+  const officeWorksDimensionField = officeWorksIdentity.canonicalProductIdentity.fields.dimensionsOrSize;
+  assert(officeWorksPackageField.value === "45-count" && officeWorksPackageField.status === "accepted", "Visible 45 count should produce accepted canonical package quantity 45-count.");
+  assert(/45 Count/i.test(officeWorksPackageField.sources.join(" ")), "Canonical package quantity should retain explicit quantity evidence.");
+  assert(/4\.12 x 9\.5 inches/i.test(officeWorksDimensionField.value), "Dimensions should remain in the dimensions field.");
+  assert(!/4-count/i.test(JSON.stringify(officeWorksPackageField)), "The 4.12-inch dimension must not become 4-count package evidence.");
+  assert(__queryIntegrityTestHooks.extractPackQuantityNumber("4.12 x 9.5 inches") === null, "Decimal dimensions must never truncate into 4 count.");
+  assert(__queryIntegrityTestHooks.extractPackQuantityNumber("4.125 x 9.5 inches security envelopes") === null, "Decimal fractions in dimensions must never become package counts.");
+  assert(__queryIntegrityTestHooks.extractPackQuantityNumber("#10 envelopes 4.125 x 9.5 inches") === null, "Envelope size numbers should not become quantity evidence.");
+  assert(__queryIntegrityTestHooks.extractPackQuantityNumber("pack of 45 security envelopes") === 45, "Explicit pack-of quantity wording should remain supported.");
+  const officeWorksNoCountIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    asking_price: "$5.50",
+    purchase_intent: "personal_use",
+    store_name: "Kroger",
+    location_zip: "30188",
+    item_name: "Office Works Security Envelopes",
+    known_brand: "Office Works",
+    known_sku: "6110325",
+    known_upc: "041226087161",
+    buyer_notes: "Office Works Security Envelopes Strip & Seal item number 6110325"
+  });
+  const suspiciousFourCountIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    ...officeWorksExtractedIdentity,
+    frontBoxWording: "Office Works Security Envelopes Strip & Seal 4.12 x 9.5 inches",
+    packageQuantity: "4 count",
+    unitCount: "4",
+    visibleText: ["Office Works", "Security Envelopes", "Strip & Seal", "4.12 x 9.5 inches", "6110325", "041226087161"]
+  }, officeWorksNoCountIntake);
+  assert(suspiciousFourCountIdentity.canonicalProductIdentity.fields.packageQuantity.status === "uncertain", "Unsupported 4 count for ordinary security envelopes should become uncertain.");
+  assert(suspiciousFourCountIdentity.canonicalProductIdentity.uncertainPackageQuantityCandidate === "4-count", "Uncertain low quantity candidate should be retained only as diagnostic evidence.");
+  assert(!suspiciousFourCountIdentity.packageQuantity, "Uncertain package quantity must not be copied back as the searchable identity quantity.");
+  assert(__queryIntegrityTestHooks.getSearchablePackageQuantity(suspiciousFourCountIdentity, officeWorksNoCountIntake, suspiciousFourCountIdentity.canonicalProductIdentity) === "", "Uncertain package quantity must not be searchable package quantity.");
+  const suspiciousFourCountRoute = __queryIntegrityTestHooks.routeMarketSources(suspiciousFourCountIdentity, officeWorksNoCountIntake, "");
+  const suspiciousFourCountQueries = __queryIntegrityTestHooks.buildLiveSearchQueries(suspiciousFourCountIdentity, suspiciousFourCountRoute, "Office Works Security Envelopes 4.12 x 9.5 inches", officeWorksNoCountIntake);
+  const suspiciousFourCountPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: suspiciousFourCountQueries,
+    sourceRoute: suspiciousFourCountRoute,
+    identity: suspiciousFourCountIdentity,
+    buyerIntake: officeWorksNoCountIntake,
+    notes: "Office Works Security Envelopes 4.12 x 9.5 inches asking $5.50 at Kroger ZIP 30188"
+  });
+  assert(!suspiciousFourCountPlan.some((record) => /\b4\s*count\b|4-count/i.test(record.query)), "Unsupported 4 count must not drive generated or attempted retailer queries.");
+  assert(!suspiciousFourCountPlan.some((record) => /stage_3_compatible_alternatives/.test(record.retailStage || "") && /\b(?:40|45|50|100)\s*count\b/i.test(record.query)), "Uncertain count must not generate fixed-count alternative queries.");
+  const unknownCountIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    ...officeWorksExtractedIdentity,
+    frontBoxWording: "Office Works Security Envelopes Strip & Seal",
+    packageQuantity: "",
+    unitCount: "",
+    visibleText: ["Office Works", "Security Envelopes", "Strip & Seal", "4.12 x 9.5 inches", "6110325", "041226087161"]
+  }, officeWorksNoCountIntake);
+  assert(unknownCountIdentity.canonicalProductIdentity.fields.packageQuantity.status === "unknown", "Unknown package count should remain unknown.");
+  const unknownCountRoute = __queryIntegrityTestHooks.routeMarketSources(unknownCountIdentity, officeWorksNoCountIntake, "");
+  const unknownCountPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: __queryIntegrityTestHooks.buildLiveSearchQueries(unknownCountIdentity, unknownCountRoute, "Office Works Security Envelopes no visible quantity", officeWorksNoCountIntake),
+    sourceRoute: unknownCountRoute,
+    identity: unknownCountIdentity,
+    buyerIntake: officeWorksNoCountIntake,
+    notes: "Office Works Security Envelopes asking $5.50 at Kroger ZIP 30188"
+  });
+  assert(!unknownCountPlan.some((record) => /stage_3_compatible_alternatives/.test(record.retailStage || "") && /\b\d{1,4}\s*count\b/i.test(record.query)), "Unknown quantity must not invent fixed-count alternative queries.");
   const officeWorksRoute = __queryIntegrityTestHooks.routeMarketSources(officeWorksIdentity, officeWorksIntake, "");
   const officeWorksQueries = __queryIntegrityTestHooks.buildLiveSearchQueries(officeWorksIdentity, officeWorksRoute, "Office Works poster print maybe envelopes", officeWorksIntake);
   assert(officeWorksQueries[0] === "041226087161", "Office Works exact UPC should be first retail query.");
@@ -690,7 +761,8 @@ try {
     buyerIntake: officeWorksIntake,
     notes: "Office Works Security Envelopes strip and seal 45 count asking $5.50 at Kroger ZIP 30188"
   });
-  const officeWorksAttempted = officeWorksPlan.filter((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted);
+  const officeWorksRequestRecords = officeWorksPlan.map((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record));
+  const officeWorksAttempted = officeWorksRequestRecords.filter((record) => record.attempted);
   const officeWorksAttemptedQueries = officeWorksAttempted.map((record) => record.query);
   assert(officeWorksAttemptedQueries[0] === "041226087161", "Exact UPC search should execute first in the retail staged plan.");
   assert(officeWorksAttempted.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls, "Retail recovery provider-call budget should stay bounded.");
@@ -698,12 +770,74 @@ try {
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_2_exact_product_reduced"), "Exact miss recovery should include Stage 2 reduced exact-product queries.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_3_compatible_alternatives"), "Compatible-alternative recovery queries should be executed, not merely planned.");
   assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*40 count/i.test(record.query)), "Stage 3 should execute a compatible 40-count security-envelope query.");
+  assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*45 count/i.test(record.query)), "Stage 3 should execute a compatible 45-count security-envelope query.");
   assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*50 count/i.test(record.query)), "Stage 3 should execute a compatible 50-count security-envelope query.");
   assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*100 count/i.test(record.query)), "Stage 3 should execute a compatible 100-count security-envelope query.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && /\bWalmart\b/i.test(record.query)), "Retailer-specific recovery should execute separate Walmart queries.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && /\bStaples\b/i.test(record.query)), "Retailer-specific recovery should execute separate Staples queries.");
   assert(officeWorksAttempted.filter((record) => record.retailStage === "stage_4_retailer_specific").every((record) => !/\bOR\b/.test(record.query)), "Retailer-specific recovery must not rely on one large OR query.");
-  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_5_shopping_general" && /shopping|package price/i.test(record.query)), "Shopping/general recovery queries should execute within the retail budget.");
+  for (const [retailer, domain] of [["Kroger", "kroger.com"], ["Walmart", "walmart.com"], ["Target", "target.com"], ["Staples", "staples.com"], ["Office Depot", "officedepot.com"]]) {
+    assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && new RegExp(`\\b${retailer}\\b`, "i").test(record.query) && record.query.includes(`site:${domain}`)), `${retailer} recovery should be domain constrained to ${domain}.`);
+  }
+  const officeWorksShoppingRequests = officeWorksAttempted.filter((record) => record.retailStage === "stage_5_shopping_general");
+  assert(officeWorksShoppingRequests.length > 0, "Shopping recovery queries should execute within the retail budget.");
+  assert(officeWorksShoppingRequests.every((record) => record.searchType === "shopping" && record.providerEndpoint === "serper_shopping"), "Stage 5 retail recovery must use the dedicated Shopping endpoint metadata.");
+  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_6_local_retail" && /30188/.test(record.query)), "A usable ZIP should reserve and execute a location-aware retail stage.");
+  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_6_local_retail" && record.searchType === "organic_web" && record.providerEndpoint === "serper_search"), "Location-aware retail execution should use the organic web endpoint unless a separate local provider exists.");
+  assert(officeWorksRequestRecords.every((record) => record.generatedStatus === "generated" && record.plannedStatus === "planned" && typeof record.attempted === "boolean" && typeof record.succeeded === "boolean" && Number.isFinite(record.returnedResultCount) && Number.isFinite(record.qualifiedResultCount)), "Generated, planned, attempted, succeeded, returned, and qualified states should remain distinct on provider request records.");
+  const officeWorksContext = __queryIntegrityTestHooks.buildSearchQueryContext(
+    officeWorksIdentity,
+    officeWorksRoute,
+    "Office Works Security Envelopes 45 count",
+    officeWorksIntake
+  );
+  const shoppingUnavailableDiagnostics = __queryIntegrityTestHooks.buildRetailSearchDiagnostics({
+    context: officeWorksContext,
+    providerRequestRecords: officeWorksRequestRecords.map((record) => record.retailStage === "stage_5_shopping_general"
+      ? { ...record, attempted: true, succeeded: false, errorCode: "serper_shopping_unavailable", failureStage: "serper_shopping_unavailable" }
+      : record),
+    records: [],
+    searchQueries: officeWorksQueries
+  });
+  assert(shoppingUnavailableDiagnostics.shoppingEndpointAttempted === "Yes" && shoppingUnavailableDiagnostics.shoppingEndpointUnavailable === "Yes", "Shopping unavailable should be distinguishable from not attempted.");
+  assert(/Shopping execution unavailable/i.test(shoppingUnavailableDiagnostics.shoppingExecutionStatus), "Shopping unavailable should be labeled unavailable, not searched with zero results.");
+  const shoppingZeroDiagnostics = __queryIntegrityTestHooks.buildRetailSearchDiagnostics({
+    context: officeWorksContext,
+    providerRequestRecords: officeWorksRequestRecords.map((record) => record.retailStage === "stage_5_shopping_general"
+      ? { ...record, attempted: true, succeeded: true, shoppingResultCount: 0, providerSourceCount: 0, returnedResultCount: 0 }
+      : record),
+    records: [],
+    searchQueries: officeWorksQueries
+  });
+  assert(/Shopping endpoint attempted; 0 shopping results returned/i.test(shoppingZeroDiagnostics.shoppingExecutionStatus), "Shopping attempted with zero results should remain different from Shopping unavailable.");
+  const localUnattemptedDiagnostics = __queryIntegrityTestHooks.buildRetailSearchDiagnostics({
+    context: officeWorksContext,
+    providerRequestRecords: officeWorksRequestRecords.map((record) => record.retailStage === "stage_6_local_retail"
+      ? { ...record, attempted: false, succeeded: false, providerSourceCount: 0, returnedResultCount: 0 }
+      : record),
+    records: [],
+    searchQueries: officeWorksQueries
+  });
+  assert(localUnattemptedDiagnostics.locationAwareRetailSearchStatus === "Location was provided, but no location-aware retail search was executed.", "Generated but unattempted ZIP query must not imply local search occurred.");
+  assert(__queryIntegrityTestHooks.buildRetailLocalAvailabilityContext(officeWorksIntake, { searchDiagnostics: localUnattemptedDiagnostics }) === "Location was provided, but no location-aware retail search was executed.", "Customer report should use attempted execution, not ZIP presence, for local retail language.");
+  const detectedZipIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    ...officeWorksIntake,
+    location_mode: "browser_location_zip",
+    location_state: "zip-resolved",
+    location_permission: "granted",
+    location_area: "Woodstock, GA 30188"
+  });
+  const manualZipLocalQuery = officeWorksAttempted.find((record) => record.retailStage === "stage_6_local_retail")?.query;
+  const detectedZipRoute = __queryIntegrityTestHooks.routeMarketSources(officeWorksIdentity, detectedZipIntake, "");
+  const detectedZipPlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: __queryIntegrityTestHooks.buildLiveSearchQueries(officeWorksIdentity, detectedZipRoute, "Office Works Security Envelopes 45 count", detectedZipIntake),
+    sourceRoute: detectedZipRoute,
+    identity: officeWorksIdentity,
+    buyerIntake: detectedZipIntake,
+    notes: "Office Works Security Envelopes strip and seal 45 count asking $5.50 at Kroger ZIP 30188"
+  });
+  const detectedZipLocalQuery = detectedZipPlan.map((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record)).find((record) => record.attempted && record.retailStage === "stage_6_local_retail")?.query;
+  assert(manualZipLocalQuery && detectedZipLocalQuery === manualZipLocalQuery, "Manual ZIP and detected ZIP should converge on the same backend local-retail execution path.");
   const invalidBarcodeIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
     asking_price: "$5.50",
@@ -775,6 +909,19 @@ try {
     officeWorksIntake
   );
   assert(officeWorksStrongAlternative.label === "Strong Retail Alternative", "45-count and 50-count retail packages should recover as a strong retail alternative.");
+  const officeWorksSameCountAlternative = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
+    {
+      title: "Office Works Security Envelopes 45 Count Gummed",
+      rawText: "Office Works security envelopes 45 count gummed current retail price $5.25",
+      itemPriceAmount: 5.25,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/office-works-45-count"
+    },
+    officeWorksIdentity,
+    officeWorksIntake
+  );
+  assert(["Exact Retail Match", "Strong Retail Alternative"].includes(officeWorksSameCountAlternative.label), "A compatible 45-count product should survive retail package compatibility review.");
   const differentBrandStrongAlternative = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
     {
       title: "Staples Security Envelopes 40 Count Self Seal",
@@ -801,6 +948,19 @@ try {
     officeWorksIntake
   );
   assert(officeWorksUnitComparable.label === "Unit-Price Comparable", "Larger compatible retail packages should be limited to unit-price comparison.");
+  const missingQuantityAlternative = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
+    {
+      title: "Staples Security Envelopes Self Seal",
+      rawText: "Staples security envelopes self seal current retail price $4.49",
+      itemPriceAmount: 4.49,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/staples-security-envelopes"
+    },
+    officeWorksIdentity,
+    officeWorksIntake
+  );
+  assert(missingQuantityAlternative.status === "quantity_unknown_functional_replacement" && missingQuantityAlternative.label === "Strong Retail Alternative", "Missing alternative quantity should downgrade comparison quality instead of eliminating a same-type retail result.");
   const compatible80Count = __queryIntegrityTestHooks.classifyRetailPackageCompatibility(
     {
       title: "Mead Security Envelopes 80 Count Self Seal",
@@ -840,6 +1000,27 @@ try {
     officeWorksIntake
   );
   assert(wrongCategoryMismatch.label === "Rejected Retail Mismatch" && /wrong product category/i.test(wrongCategoryMismatch.reason), "Unrelated product categories should be rejected early even when domain and price look retail-like.");
+  const irrelevantOfficeWorksRecords = [
+    {
+      title: "Office Works Business Center - Woodstock",
+      rawText: "Office workspace services and business printing. Price $5.50 consultation.",
+      displayedPriceText: "$5.50",
+      parsedPrice: 5.5,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://www.mapquest.com/us/georgia/office-works-business-center"
+    },
+    {
+      title: "Office Works design studio social profile",
+      rawText: "Office design company profile with photos and government references.",
+      displayedPriceText: "$5.50",
+      parsedPrice: 5.5,
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://www.facebook.com/officeworksdesign"
+    }
+  ];
+  assert(irrelevantOfficeWorksRecords.every((record) => !__queryIntegrityTestHooks.isQualifiedCurrentRetailSourceRecord(record, officeWorksContext)), "Unrelated Office Works business, social, and location results must not qualify as envelope retail evidence.");
   const officeWorksRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: officeWorksIntake,
     identity: officeWorksIdentity,
@@ -858,6 +1039,16 @@ try {
         shipping: "Not shown",
         shippingStatus: "unknown",
         url: "https://example.com/staples-security-envelopes-40"
+      },
+      {
+        source: "Office Works",
+        title: "Office Works Security Envelopes 45 Count Gummed",
+        rawText: "Office Works security envelopes 45 count gummed current retail price $5.25",
+        itemPriceAmount: 5.25,
+        itemPrice: "$5.25",
+        priceType: "Active Asking",
+        listingStatus: "In stock",
+        url: "https://example.com/office-works-45-count"
       },
       {
         source: "Example Retail",
@@ -881,17 +1072,36 @@ try {
       }
     ]
   });
-  assert(officeWorksRetailProfile.acceptedPrices.length === 3, "Accepted alternatives should remain available for customer-facing retail output.");
+  assert(officeWorksRetailProfile.acceptedPrices.length === 4, "Accepted alternatives should remain available for customer-facing retail output.");
   assert(officeWorksRetailProfile.acceptedPrices.some((record) => /Staples/i.test(record.source) && /Not shown/i.test(record.shipping || "")), "Unknown shipping should not reject an otherwise useful current retailer alternative.");
   assert(/Compatible Current Retail Alternatives/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Retail recovery should disclose compatible alternatives when exact package is not confirmed.");
   assert(!/No qualified source-backed current retail price/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Accepted alternatives cannot coexist with a no-qualified-current-retail-prices assessment.");
   assert(!/Not established/i.test(officeWorksRetailProfile.retailPriceLimit), "Accepted alternatives should establish a retail price limit instead of leaving it empty.");
   assert(!/Not established/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Accepted unit-price comparables should establish package and unit-price comparison.");
-  assert(officeWorksRetailProfile.otherCurrentRetailPrices.length === 2, "Up to five useful alternatives should be displayable as best plus other retail prices.");
+  assert(officeWorksRetailProfile.otherCurrentRetailPrices.length === 3, "Up to five useful alternatives should be displayable as best plus other retail prices.");
   assert(/Exact Product: An exact current Office Works listing was not found/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Exact and cross-brand results should remain clearly distinguished.");
   assert(/about 12\.2 cents each \(\$0\.122 per envelope\)/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Entered $5.50 for 45 should be shown as about 12.2 cents each.");
   assert(/from \$0\.090/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "100-count alternatives should contribute unit-price comparison when source-supported.");
   assert(/package price \$5\.50 for 50 units \(\$0\.110 per unit\)/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Retail package comparison should show package price and unit price with cents.");
+  const missingQuantityRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
+    buyerIntake: officeWorksIntake,
+    identity: officeWorksIdentity,
+    liveSearch: { webSearchExecuted: true },
+    askingPriceNumber: 5.5,
+    searchCompleted: true,
+    pricesFound: [{
+      source: "Staples",
+      title: "Staples Security Envelopes Self Seal",
+      rawText: "Staples security envelopes self seal current retail price $4.49",
+      itemPriceAmount: 4.49,
+      itemPrice: "$4.49",
+      priceType: "Active Asking",
+      listingStatus: "In stock",
+      url: "https://example.com/staples-security-envelopes"
+    }]
+  });
+  assert(missingQuantityRetailProfile.acceptedPrices.length === 1, "Missing-count same-type alternative should remain customer-visible as compatible current retail evidence.");
+  assert(/unit price not established from visible package count/i.test(missingQuantityRetailProfile.packageUnitPriceComparison), "Unit price should not be calculated when the alternative package quantity is missing.");
   const itemTypeCases = [
     ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
     ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],

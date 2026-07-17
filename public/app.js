@@ -1139,7 +1139,7 @@ function handleLocationError(error) {
       state: locationStates.PERMISSION_DENIED,
       mode: "location_denied",
       permission: "denied",
-      message: "Location access was not granted. Enable location for Chrome and this site, or enter a ZIP code.",
+      message: "Location access was not granted. Enable location for this browser and site, or enter a ZIP code.",
       showActions: true
     });
     return;
@@ -2236,6 +2236,11 @@ function renderSearchDiagnostics(diagnostics) {
     ["Retail Stages Attempted", diagnostics.retailStagesAttempted],
     ["Retail Queries Planned", diagnostics.retailQueriesPlanned],
     ["Retail Queries Executed", diagnostics.retailQueriesExecuted],
+    ["Location-Aware Retail Search Status", diagnostics.locationAwareRetailSearchStatus],
+    ["Local Retail Queries Attempted", diagnostics.localRetailQueriesAttempted],
+    ["Shopping Execution Status", diagnostics.shoppingExecutionStatus],
+    ["Shopping Endpoint Attempted", diagnostics.shoppingEndpointAttempted],
+    ["Shopping Endpoint Unavailable", diagnostics.shoppingEndpointUnavailable],
     ["Retail Provider Calls Used", diagnostics.retailProviderCallsUsed],
     ["Retail Search Budget Remaining", diagnostics.retailSearchBudgetRemaining],
     ["Retail Recovery Stopped Reason", diagnostics.retailRecoveryStoppedReason],
@@ -4352,7 +4357,7 @@ function formatSearchDiagnosticsText(diagnostics) {
   if (Array.isArray(records) && records.length) {
     rows.push("Search Query Diagnostics:");
     records.forEach((item) => {
-      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Retail Stage: ${cleanDiagnosticText(item.retailStageLabel || item.retailStage || "") || "not retail-staged"} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
+      rows.push(`- Query: ${cleanDiagnosticText(item.query)} | Final Query: ${cleanDiagnosticText(item.finalQuery || item.query)} | Raw Candidate: ${cleanDiagnosticText(item.rawCandidate || "") || "not recorded"} | Origin: ${cleanDiagnosticText(item.candidateOrigin || "") || "not recorded"} | Validation: ${item.validationPassed === false ? "rejected before provider call" : "passed"}${item.validationFailureReason ? ` | Validation Reason: ${cleanDiagnosticText(item.validationFailureReason)}` : ""} | Retail Stage: ${cleanDiagnosticText(item.retailStageLabel || item.retailStage || "") || "not retail-staged"} | Search Pass: ${formatSearchPass(item.searchPass) || "not recorded"} | Provider: ${cleanDiagnosticText(item.provider || item.source || "OpenAI web_search")} | Endpoint/Search Type: ${cleanDiagnosticText(item.providerEndpoint || "") || "not recorded"} / ${cleanDiagnosticText(item.searchType || "") || "not recorded"} | Generated: ${cleanDiagnosticText(item.generatedStatus || "") || "generated"} | Planned: ${cleanDiagnosticText(item.plannedStatus || "") || "planned"} | Allowed Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.allowedDomainsRequested || item.allowedDomains || [])) || "none"} | Marketplace Domains: ${cleanDiagnosticText(normalizeDisplayValue(item.marketplaceDomainsRequested || [])) || "none"} | Attempted: ${(item.attempted ?? item.requestAttempted) ? "yes" : "no"} | Succeeded: ${(item.succeeded ?? item.requestSucceeded) ? "yes" : "no"} | Provider Sources Returned: ${item.returnedResultCount ?? item.providerSourceCount ?? item.rawResultCount ?? 0} | Organic: ${item.organicResultCount ?? 0} | Shopping: ${item.shoppingResultCount ?? 0} | Domains Returned: ${cleanDiagnosticText(normalizeDisplayValue(item.domainsReturned || [])) || "none"} | Structured Candidates Created: ${item.parsedResultCount ?? 0} | Comparable Records Retained: ${item.retainedResultCount ?? 0} | Qualified Results: ${item.qualifiedResultCount ?? 0} | Stage: ${item.failureStage || item.primaryRejectionStageOrReason || "none"}${item.errorCode || item.controlledError ? ` | Error: ${cleanDiagnosticText(item.errorCode || item.controlledError)}` : ""}`);
     });
   }
 

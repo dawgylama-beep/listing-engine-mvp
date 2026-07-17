@@ -392,6 +392,19 @@
 - Technical Search Details now show Barcode Integrity, Canonical Retail Identity, cross-brand recovery state, invalid-barcode suppression, zero-result recovery diagnostics, and top retail rejection reasons
 - Regression tests cover barcode validation, invalid UPC suppression, alternate candidate selection, package-attribute recovery, cross-brand alternatives, unit-price precision, unknown shipping acceptance, category firewalling, and preserved 1.11.3 safeguards
 
+## Version 1.11.5 (Completed)
+- Package-count canonicalization now keeps dimensions separate from quantity, blocks decimal measurements such as 4.12 x 9.5 inches from becoming counts, and marks suspicious unsupported low security-envelope quantities such as 4-count as uncertain
+- Retail fixed-count recovery now uses only explicit quantity wording, keeps unknown counts unknown, and allows compatible 40-, 45-, 50-, and 100-count alternatives without treating them as the exact product
+- Retail package comparison keeps package price separate from unit price; unit math appears only when both submitted and candidate package counts are supported, while missing candidate counts remain package-price-only compatible alternatives
+- Retailer recovery now uses domain-constrained queries for mapped retailers including Kroger, Walmart, Target, Staples, and Office Depot, reducing irrelevant Office Works business, social, map, and non-envelope references
+- Serper execution metadata now records endpoint/search type, generated/planned/attempted/succeeded states, returned-result counts, and qualified-result counts; Shopping is labeled only when the dedicated Shopping endpoint is attempted
+- If the configured Serper Shopping endpoint is unavailable, reports label Shopping unavailable instead of saying Shopping was searched with zero results
+- Manual ZIP and browser-detected ZIP now converge on the same bounded local-retail stage, and at least one ZIP-aware query is reserved when usable location context exists
+- Customer-facing location language no longer treats ZIP presence as proof of local search; if no local query was attempted, the report says, "Location was provided, but no location-aware retail search was executed."
+- Browser location denial copy is browser-neutral for iPhone Safari and other browsers while preserving explicit-tap geolocation, denied/unavailable/timeout states, and privacy-safe coordinate discard after ZIP/general-area derivation
+- Remaining limitation: local validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding, deployment, or paid-provider acceptance call was run for this release
+- Regression tests cover the Office Works/Kroger/30188 case, 4.12-inch dimension firewall, unsupported 4-count uncertainty, unknown-count behavior, domain-constrained retailer recovery, Shopping endpoint truth, ZIP-aware local execution, location failure copy, execution-state accounting, barcode safeguards, and $5.50 precision
+
 ## Version 2.0
 - User accounts
 - Saved listings

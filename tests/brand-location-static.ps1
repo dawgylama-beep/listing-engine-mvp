@@ -28,10 +28,10 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.4"; Text = $index; Pattern = "Version 1.11.4" },
-  @{ Name = "Package version is 1.11.4"; Text = $package; Pattern = '"version": "1.11.4"' },
+  @{ Name = "Visible app version is 1.11.5"; Text = $index; Pattern = "Version 1.11.5" },
+  @{ Name = "Package version is 1.11.5"; Text = $package; Pattern = '"version": "1.11.5"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
-  @{ Name = "Roadmap documents Version 1.11.4"; Text = $roadmap; Pattern = "Version 1.11.4 (Completed)" },
+  @{ Name = "Roadmap documents Version 1.11.5"; Text = $roadmap; Pattern = "Version 1.11.5 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine’s Eye - Buying, Selling and Valuation Intelligence</title>" },
   @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherine’s Eye' },
   @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherine’s Eye' },
@@ -49,7 +49,7 @@ $checks = @(
   @{ Name = "Use My Location calls browser geolocation"; Text = $app; Pattern = "navigator.geolocation.getCurrentPosition(resolve, reject" },
   @{ Name = "Permissions API does not short-circuit prompt"; Text = $app; Pattern = "navigator.permissions"; ShouldNotContain = $true },
   @{ Name = "Prompt state shows requesting permission"; Text = $app; Pattern = "Requesting location permission..." },
-  @{ Name = "Permission denied has specific message"; Text = $app; Pattern = "Location access was not granted. Enable location for Chrome and this site, or enter a ZIP code." },
+  @{ Name = "Permission denied has browser-neutral message"; Text = $app; Pattern = "Location access was not granted. Enable location for this browser and site, or enter a ZIP code." },
   @{ Name = "Position unavailable has specific message"; Text = $app; Pattern = "Your location could not be determined. Try again or enter a ZIP code." },
   @{ Name = "Timeout has specific message"; Text = $app; Pattern = "Location lookup timed out. Try again or enter a ZIP code." },
   @{ Name = "Unsupported browser has specific message"; Text = $app; Pattern = "Location services are not supported in this browser. Enter a ZIP code." },

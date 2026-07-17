@@ -1773,12 +1773,13 @@ function getSerperApiKey() {
 }
 
 const retailSerperBudgetAllocation = Object.freeze({
-  maxProviderCalls: 18,
+  maxProviderCalls: 19,
   exactIdentity: 4,
   exactProductReduced: 3,
   compatibleAlternatives: 4,
   retailerSpecific: 5,
-  shoppingGeneral: 2
+  shoppingGeneral: 2,
+  localRetail: 1
 });
 
 async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
@@ -1805,6 +1806,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
       const response = await requestSerperSearch({
         apiKey: serperApiKey,
         query: queryRecord.query,
+        searchType: queryRecord.searchType || "organic_web",
         prevalidated: queryRecord.validationPassed !== false,
         timeoutMs: 7000,
         maxRetries: 1
@@ -1819,6 +1821,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
       requestRecord.knowledgeGraphResultCount = parsed.knowledgeGraphResultCount;
       requestRecord.providerSourceCount = parsed.records.length;
       requestRecord.rawResultCount = parsed.records.length;
+      requestRecord.returnedResultCount = parsed.records.length;
       requestRecord.parsedResultCount = parsed.records.length;
       requestRecord.normalizedResultCount = parsed.records.length;
       requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
@@ -1842,6 +1845,8 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
         retailStage: queryRecord.retailStage || "",
         retailStageLabel: queryRecord.retailStageLabel || "",
         retailBudgetBucket: queryRecord.retailBudgetBucket || "",
+        searchType: queryRecord.searchType || "organic_web",
+        providerEndpoint: queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search"),
         provider: "Serper Google Search",
         providerKey: "serper_google",
         marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
@@ -1853,6 +1858,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
         validationFailureReason: queryRecord.validationFailureReason || "",
         statusCode: diagnostic.statusCode || null,
         providerSourceCount: 0,
+        returnedResultCount: 0,
         organicResultCount: 0,
         shoppingResultCount: 0,
         domainsReturned: [],
@@ -1913,6 +1919,10 @@ function createSerperRequestRecord(queryRecord) {
     retailStage: queryRecord.retailStage || "",
     retailStageLabel: queryRecord.retailStageLabel || "",
     retailBudgetBucket: queryRecord.retailBudgetBucket || "",
+    searchType: cleanText(queryRecord.searchType || "organic_web"),
+    providerEndpoint: cleanText(queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search")),
+    generatedStatus: "generated",
+    plannedStatus: "planned",
     sourceRoute: queryRecord.sourceRoute,
     marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
     allowedDomainsRequested: queryRecord.marketplaceDomains || [],
@@ -1934,6 +1944,8 @@ function createSerperRequestRecord(queryRecord) {
     parsedResultCount: 0,
     normalizedResultCount: 0,
     retainedResultCount: 0,
+    returnedResultCount: 0,
+    qualifiedResultCount: 0,
     domainsReturned: [],
     sourceURLsReturned: [],
     errorCode: validationPassed ? "" : "invalid_query_preflight",
@@ -1949,6 +1961,8 @@ function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestR
     retailStage: requestRecord.retailStage || queryRecord.retailStage || "",
     retailStageLabel: requestRecord.retailStageLabel || queryRecord.retailStageLabel || "",
     retailBudgetBucket: requestRecord.retailBudgetBucket || queryRecord.retailBudgetBucket || "",
+    searchType: requestRecord.searchType || queryRecord.searchType || "organic_web",
+    providerEndpoint: requestRecord.providerEndpoint || queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search"),
     provider: "Serper Google Search",
     providerKey: "serper_google",
     marketplaceDomainsRequested: requestRecord.marketplaceDomainsRequested || queryRecord.marketplaceDomains || [],
@@ -1959,8 +1973,12 @@ function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestR
     finalQuery: requestRecord.finalQuery || queryRecord.finalQuery || queryRecord.query || "",
     validationPassed: false,
     validationFailureReason: requestRecord.validationFailureReason || queryRecord.validationFailureReason || "invalid_query_preflight",
+    generatedStatus: requestRecord.generatedStatus || "generated",
+    plannedStatus: requestRecord.plannedStatus || "planned",
     statusCode: null,
     providerSourceCount: 0,
+    returnedResultCount: 0,
+    qualifiedResultCount: 0,
     organicResultCount: 0,
     shoppingResultCount: 0,
     knowledgeGraphResultCount: 0,
@@ -1972,8 +1990,9 @@ function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestR
   };
 }
 
-async function requestSerperSearch({ apiKey, query, prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
+async function requestSerperSearch({ apiKey, query, searchType = "organic_web", prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
   const safeQuery = cleanSerperQuery(query);
+  const endpointPath = searchType === "shopping" ? "shopping" : "search";
   const validation = prevalidated
     ? validateSerperTransportQuery(safeQuery)
     : validateSerperQueryCandidate(safeQuery);
@@ -1987,7 +2006,7 @@ async function requestSerperSearch({ apiKey, query, prevalidated = false, timeou
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = Date.now();
     try {
-      const response = await fetch("https://google.serper.dev/search", {
+      const response = await fetch(`https://google.serper.dev/${endpointPath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2004,7 +2023,7 @@ async function requestSerperSearch({ apiKey, query, prevalidated = false, timeou
       clearTimeout(timeout);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const category = classifySerperStatus(response.status, data);
+        const category = classifySerperStatus(response.status, data, searchType);
         throw createSerperRequestError({
           category,
           statusCode: response.status,
@@ -2019,7 +2038,7 @@ async function requestSerperSearch({ apiKey, query, prevalidated = false, timeou
         ? createSerperRequestError({ category: "serper_timeout", code: "timeout", message: "Serper request timed out." })
         : error;
       const diagnostic = classifySerperError(lastError);
-      if (attempt >= maxRetries || ["serper_authentication_failure", "serper_rate_limited"].includes(diagnostic.category)) {
+      if (attempt >= maxRetries || ["serper_authentication_failure", "serper_rate_limited", "serper_shopping_unavailable"].includes(diagnostic.category)) {
         throw lastError;
       }
     }
@@ -2099,6 +2118,8 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
     provider,
     query: cleanText(queryRecord.query),
     searchPass: cleanText(queryRecord.searchPass),
+    searchType: cleanText(queryRecord.searchType || "organic_web"),
+    providerEndpoint: cleanText(queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search")),
     marketplaceDomainsRequested: normalizeStringArray(queryRecord.marketplaceDomains, 8),
     title: cleanText(title || canonicalUrl),
     url: canonicalUrl,
@@ -2191,9 +2212,12 @@ function applySerperRecordAccountingToRequests(providerRequestRecords = [], prov
       return record.query === query || queriesFound.includes(query);
     });
     const retained = matchingRecords.filter((record) => /Exact|Strong Similar|Partial|Reference Only/i.test(record.identityMatchStrength));
+    const qualified = matchingRecords.filter((record) => isStrongComparableEvidenceRecord(record));
     const rejected = matchingRecords.filter((record) => /Rejected/i.test(record.identityMatchStrength));
     requestRecord.normalizedResultCount = matchingRecords.length || requestRecord.normalizedResultCount || 0;
     requestRecord.retainedResultCount = retained.length;
+    requestRecord.qualifiedResultCount = qualified.length;
+    requestRecord.returnedResultCount = Number(requestRecord.providerSourceCount || requestRecord.rawResultCount || 0);
     requestRecord.rejectedResultCount = rejected.length;
     requestRecord.failureStage = classifySerperAcquisitionStage({
       providerCallsSucceeded: requestRecord.succeeded ? 1 : 0,
@@ -2210,6 +2234,8 @@ function applySerperRecordAccountingToRequests(providerRequestRecords = [], prov
     if (!matchingRequest) continue;
     summary.normalizedResultCount = matchingRequest.normalizedResultCount;
     summary.retainedResultCount = matchingRequest.retainedResultCount;
+    summary.qualifiedResultCount = matchingRequest.qualifiedResultCount;
+    summary.returnedResultCount = matchingRequest.returnedResultCount;
     summary.rejectedResultCount = matchingRequest.rejectedResultCount;
     summary.failureStage = matchingRequest.failureStage;
   }
@@ -2607,7 +2633,8 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
     stage_2_exact_product_reduced: retailSerperBudgetAllocation.exactProductReduced,
     stage_3_compatible_alternatives: retailSerperBudgetAllocation.compatibleAlternatives,
     stage_4_retailer_specific: retailSerperBudgetAllocation.retailerSpecific,
-    stage_5_shopping_general: retailSerperBudgetAllocation.shoppingGeneral
+    stage_5_shopping_general: retailSerperBudgetAllocation.shoppingGeneral,
+    stage_6_local_retail: retailSerperBudgetAllocation.localRetail
   };
   const validRecords = [];
   const rejectedRecords = [];
@@ -2625,6 +2652,8 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
     const requestedDomains = normalizeStringArray(record.marketplaceDomains, 8);
     const normalizedCandidate = cleanSerperQuery(finalizeSearchQueryCandidate(record.query, retailContext, requestedDomains.length ? 18 : 14));
     const finalQuery = normalizedCandidate;
+    const searchType = cleanText(record.searchType || (stage === "stage_5_shopping_general" ? "shopping" : "organic_web"));
+    const providerEndpoint = searchType === "shopping" ? "serper_shopping" : "serper_search";
     const validation = validateSerperQueryCandidate(finalQuery, retailContext, {
       searchPass: record.searchPass,
       marketplaceDomains: requestedDomains,
@@ -2641,6 +2670,8 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
       retailStage: stage,
       retailStageLabel: cleanText(record.retailStageLabel),
       retailBudgetBucket: cleanText(record.retailBudgetBucket),
+      searchType,
+      providerEndpoint,
       sourceRoute: categories,
       marketplaceDomains: requestedDomains,
       allowedDomains: requestedDomains,
@@ -2692,7 +2723,7 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
       candidateOrigin: "retail_last_resort_identity_fallback",
       searchPass: "stage_5_shopping_general",
       retailStage: "stage_5_shopping_general",
-      retailStageLabel: "Stage 5 - Shopping/general retail recovery",
+      retailStageLabel: "Stage 5 - Shopping retail recovery",
       retailBudgetBucket: "shoppingGeneral"
     });
   }
@@ -2723,6 +2754,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const submittedQuantity = getRetailSubmittedPackageQuantity(context);
   const compatibleCounts = getRetailCompatiblePackageCounts(submittedQuantity);
   const retailers = buildRetailerSpecificSearchTargets(context);
+  const location = context.locationZip || cleanText(context.locationArea);
 
   const add = ({ query, rawCandidate = query, searchPass, retailStage, retailStageLabel, retailBudgetBucket, candidateOrigin, marketplaceDomains = [] }) => {
     if (!query) return;
@@ -2743,6 +2775,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const stage3 = "stage_3_compatible_alternatives";
   const stage4 = "stage_4_retailer_specific";
   const stage5 = "stage_5_shopping_general";
+  const stage6 = "stage_6_local_retail";
 
   if (barcode) {
     add({ query: barcode, searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_exact_upc" });
@@ -2780,7 +2813,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
 
   for (const count of compatibleCounts) {
     add({
-      query: compactWords([productFamily, closure, feature, size, `${count} count`]),
+      query: compactWords([productFamily, closure, feature, `${count} count`]),
       searchPass: stage3,
       retailStage: stage3,
       retailStageLabel: "Stage 3 - Strong compatible alternatives",
@@ -2792,19 +2825,34 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   add({ query: compactWords([productFamily, feature, "comparable package current price"]), searchPass: stage3, retailStage: stage3, retailStageLabel: "Stage 3 - Strong compatible alternatives", retailBudgetBucket: "compatibleAlternatives", candidateOrigin: "retail_compatible_current_price" });
 
   for (const retailer of retailers) {
+    const retailerName = cleanText(retailer.name || retailer);
+    const retailerDomain = cleanText(retailer.domain || getRetailerDomainForStore(retailerName));
+    const baseQuery = compactWords([retailerName, productFamily, closure, compatibleCounts[0] ? `${compatibleCounts[0]} count` : "", "current price"]);
     add({
-      query: compactWords([retailer, productFamily, closure, feature, compatibleCounts[0] ? `${compatibleCounts[0]} count` : "", "current price"]),
+      query: retailerDomain ? buildSerperSingleMarketplaceQuery(baseQuery, retailerDomain) : baseQuery,
       searchPass: stage4,
       retailStage: stage4,
       retailStageLabel: "Stage 4 - Retailer-specific alternatives",
       retailBudgetBucket: "retailerSpecific",
-      candidateOrigin: "retail_separate_retailer_query"
+      candidateOrigin: retailerDomain ? "retail_domain_constrained_retailer_query" : "retail_separate_retailer_query",
+      marketplaceDomains: retailerDomain ? [retailerDomain] : []
     });
   }
 
-  add({ query: compactWords([productFamily, closure, feature, "shopping"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_shopping_recovery" });
-  add({ query: compactWords([productFamily, closure, feature, "package price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_package_price" });
-  add({ query: compactWords([productFamily, "current retail price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping/general retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_current_price" });
+  if (location) {
+    add({
+      query: compactWords([productFamily, "near", location, compatibleCounts[0] ? `${compatibleCounts[0]} count` : "", "current price"]),
+      searchPass: stage6,
+      retailStage: stage6,
+      retailStageLabel: "Stage 6 - Location-aware retail",
+      retailBudgetBucket: "localRetail",
+      candidateOrigin: "retail_location_aware_query"
+    });
+  }
+
+  add({ query: compactWords([productFamily, closure, feature, "shopping"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_shopping_recovery" });
+  add({ query: compactWords([productFamily, closure, feature, "package price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_package_price" });
+  add({ query: compactWords([productFamily, "current retail price"]), searchPass: stage5, retailStage: stage5, retailStageLabel: "Stage 5 - Shopping retail recovery", retailBudgetBucket: "shoppingGeneral", candidateOrigin: "retail_general_current_price" });
 
   return records;
 }
@@ -2949,14 +2997,10 @@ function deriveRetailClosurePhrase(context = {}) {
 }
 
 function getRetailSubmittedPackageQuantity(context = {}) {
-  return extractPackQuantityNumber([
-    context.packageQuantity,
-    context.packageSize,
-    context.productTitle,
-    context.exactProductIdentity,
-    context.subjectIdentity,
-    context.notesText
-  ].join(" "));
+  if (/uncertain|unknown|rejected/i.test(cleanText(context.packageQuantityStatus || context.packageQuantityConfidence))) {
+    return null;
+  }
+  return extractPackQuantityNumber(context.packageQuantity);
 }
 
 function getRetailCompatiblePackageCounts(quantity) {
@@ -2990,7 +3034,10 @@ function buildRetailerSpecificSearchTargets(context = {}) {
     storeName,
     /\benvelopes?|stationery|office\b/.test(text) ? officeRetailers : generalRetailers,
     8
-  );
+  ).map((name) => ({
+    name,
+    domain: getRetailerDomainForStore(name)
+  })).filter((target) => target.name);
 }
 
 function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = []) {
@@ -3367,7 +3414,7 @@ function hasCurrentRetailAlternativeQueryAnchor(query, context = {}, options = {
   }
   const text = normalizeComparableText(query);
   const stageText = cleanText(`${options.searchPass || ""} ${options.retailStage || ""}`);
-  const recoveryStage = /stage_3_compatible_alternatives|stage_4_retailer_specific|stage_5_shopping_general|compatible|retailer|shopping|recovery/i.test(stageText);
+  const recoveryStage = /stage_3_compatible_alternatives|stage_4_retailer_specific|stage_5_shopping_general|stage_6_local_retail|compatible|retailer|shopping|local|recovery/i.test(stageText);
   if (!recoveryStage) {
     return false;
   }
@@ -3598,8 +3645,11 @@ function createSerperRequestError({ category = "serper_provider_error", code = "
   return error;
 }
 
-function classifySerperStatus(statusCode, data = {}) {
+function classifySerperStatus(statusCode, data = {}, searchType = "organic_web") {
   const haystack = [data.error, data.message, data.code, data?.error?.message].map((value) => String(value || "").toLowerCase()).join(" ");
+  if (searchType === "shopping" && (statusCode === 400 || statusCode === 404 || /not found|unsupported|unknown endpoint|invalid endpoint/.test(haystack))) {
+    return "serper_shopping_unavailable";
+  }
   if (statusCode === 401 || statusCode === 403 || /auth|api key|unauthorized|forbidden/.test(haystack)) {
     return "serper_authentication_failure";
   }
@@ -3628,7 +3678,9 @@ function classifySerperError(error = {}) {
       ? "Serper Google Search was rate limited or quota-limited."
       : category === "serper_timeout"
         ? "Serper Google Search timed out before source results could be retrieved."
-        : message;
+        : category === "serper_shopping_unavailable"
+          ? "Serper Shopping execution was unavailable for this configured provider path."
+          : message;
   return {
     category,
     statusCode: error.statusCode || null,
@@ -3674,6 +3726,8 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
     retailStage: queryRecord.retailStage || "",
     retailStageLabel: queryRecord.retailStageLabel || "",
     retailBudgetBucket: queryRecord.retailBudgetBucket || "",
+    searchType: queryRecord.searchType || requestRecord.searchType || "organic_web",
+    providerEndpoint: queryRecord.providerEndpoint || requestRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search"),
     provider: "Serper Google Search",
     providerKey: "serper_google",
     marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
@@ -3687,12 +3741,14 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
     statusCode: requestRecord.statusCode || null,
     webSearchCallAppeared: false,
     providerSourceCount: parsed.records.length,
+    returnedResultCount: parsed.records.length,
     organicResultCount: parsed.organicResultCount,
     shoppingResultCount: parsed.shoppingResultCount,
     knowledgeGraphResultCount: parsed.knowledgeGraphResultCount,
     relatedSearchCount: parsed.relatedSearchCount,
     parsedCandidateCount: parsed.records.length,
     retainedResultCount: requestRecord.retainedResultCount || 0,
+    qualifiedResultCount: requestRecord.qualifiedResultCount || 0,
     sourceURLsReturned: requestRecord.sourceURLsReturned || [],
     domainsReturned: requestRecord.domainsReturned || []
   };
@@ -4136,23 +4192,67 @@ function detectComparablePackScope(submittedText, candidateText, context = {}) {
   return { status: "compatible", submittedQuantity, candidateQuantity, explanation: "" };
 }
 
-function extractPackQuantityNumber(value) {
-  const text = normalizeComparableText(value);
+function extractPackQuantityEvidence(value, source = "") {
+  const rawText = cleanText(value);
+  const text = normalizeComparableText(rawText);
+  if (!text) {
+    return null;
+  }
   const patterns = [
-    /\b(\d{1,5})\s*(?:count|ct|cnt|pk|pack|piece|pc|pcs|sheets?|envelopes?|units?)\b/i,
-    /\b(?:count|ct|pack|quantity|qty)\s*[:#-]?\s*(\d{1,5})\b/i,
-    /\b(\d{1,5})\s*[- ]?(?:count|ct)\b/i
+    /\b(?:pack|package|box|carton|case)\s+of\s+(\d{1,5})\b/i,
+    /\b(\d{1,5})\s*[- ]?(?:count|ct|cnt|pk|pack|piece|pc|pcs|sheets?|envelopes?|units?)\b/i,
+    /\b(?:count|ct|pack|quantity|qty)\s*[:#-]?\s*(\d{1,5})\b/i
   ];
   for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const amount = Number(match[1]);
-      if (Number.isFinite(amount) && amount > 1) {
-        return amount;
-      }
-    }
+    const match = pattern.exec(text);
+    if (!match) continue;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount <= 1) continue;
+    if (isQuantityMatchDecimalOrDimensionArtifact(text, match)) continue;
+    if (isEnvelopeSizePhraseNotQuantity(text, match)) continue;
+    return {
+      quantity: amount,
+      text: cleanText(match[0]),
+      source: cleanText(source),
+      normalized: `${amount}-count`
+    };
   }
   return null;
+}
+
+function isQuantityMatchDecimalOrDimensionArtifact(text = "", match = []) {
+  const token = cleanText(match[1]);
+  if (!token) return true;
+  const start = match.index + match[0].indexOf(token);
+  const before = text.slice(Math.max(0, start - 2), start);
+  const after = text.slice(start + token.length, start + token.length + 4);
+  if (/[.\d]$/.test(before) || /^\.\d/.test(after)) {
+    return true;
+  }
+  const nearby = text.slice(Math.max(0, start - 12), start + token.length + 24);
+  const tokenInDimension = new RegExp(
+    `\\b${escapeRegExp(token)}(?:\\.\\d+)?\\s*(?:x|by)\\s*\\d{1,3}(?:\\.\\d+)?\\s*(?:in|inch|inches|cm|mm)?\\b|\\b\\d{1,3}(?:\\.\\d+)?\\s*(?:x|by)\\s*${escapeRegExp(token)}(?:\\.\\d+)?\\s*(?:in|inch|inches|cm|mm)?\\b`,
+    "i"
+  );
+  return tokenInDimension.test(nearby);
+}
+
+function isEnvelopeSizePhraseNotQuantity(text = "", match = []) {
+  const token = cleanText(match[1]);
+  if (!token) return false;
+  const start = match.index + match[0].indexOf(token);
+  const nearby = text.slice(Math.max(0, start - 12), start + token.length + 32);
+  if (new RegExp(`(?:#|no\\.?\\s*|number\\s*)${escapeRegExp(token)}\\s+envelopes?`, "i").test(nearby)) {
+    return true;
+  }
+  const amount = Number(token);
+  return Number.isFinite(amount)
+    && amount <= 10
+    && new RegExp(`\\b${escapeRegExp(token)}\\s+envelopes?\\s+\\d{1,3}(?:\\.\\d+)?\\s*(?:x|by)\\b`, "i").test(nearby);
+}
+
+function extractPackQuantityNumber(value) {
+  return extractPackQuantityEvidence(value)?.quantity || null;
 }
 
 function extractBestPackQuantityNumber(values = []) {
@@ -4494,6 +4594,8 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     provider: "serper_google",
     providerLabel: "Serper Google Search",
     sourceType: record.sourceType,
+    searchType: record.searchType,
+    providerEndpoint: record.providerEndpoint,
     searchPass: record.searchPass,
     query: record.query,
     queriesFound: record.queriesFound || [record.query].filter(Boolean),
@@ -4519,6 +4621,8 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       `Influenced Verified Market Range: ${record.influencedVerifiedMarketRange}`,
       `Included in Preliminary Asking-Price Range: ${record.includedInPreliminaryAskingPriceRange}`,
       `Source Type: ${record.sourceType}`,
+      `Search Type: ${record.searchType || "organic_web"}`,
+      `Provider Endpoint: ${record.providerEndpoint || "serper_search"}`,
       `Search pass: ${record.searchPass}`,
       `Query: ${record.query}`,
       `Why: ${record.matchExplanation}`
@@ -4674,7 +4778,11 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     query: cleanText(record.query),
     attempted: Boolean(record.attempted),
     succeeded: Boolean(record.succeeded),
+    searchType: cleanText(record.searchType || "organic_web"),
+    providerEndpoint: cleanText(record.providerEndpoint || "serper_search"),
     providerSourceCount: Number(record.providerSourceCount || 0),
+    returnedResultCount: Number(record.returnedResultCount || record.providerSourceCount || 0),
+    qualifiedResultCount: Number(record.qualifiedResultCount || 0),
     organicResultCount: Number(record.organicResultCount || 0),
     shoppingResultCount: Number(record.shoppingResultCount || 0)
   }));
@@ -4698,6 +4806,32 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const locationState = cleanText(context.locationState);
   const locationDeniedManualZip = /permission-denied|denied/i.test(`${locationState} ${context.locationPermission} ${context.locationMode}`) && Boolean(context.locationZip);
   const locationUnavailable = /position-unavailable|timeout|unsupported|insecure-context|reverse-geocode-failed|skipped/i.test(locationState);
+  const locationContext = context.locationZip || cleanText(context.locationArea);
+  const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
+  const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
+  const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
+  const localRetailQualifiedRecords = currentRetailAccepted.filter((record) => record.searchPass === "stage_6_local_retail");
+  const locationAwareRetailSearchStatus = locationContext
+    ? localRetailAttempted
+      ? localRetailQualifiedRecords.length
+        ? `Location-aware retail search executed for ${locationContext}; ${localRetailQualifiedRecords.length} qualified local retail result${localRetailQualifiedRecords.length === 1 ? "" : "s"} survived.`
+        : localRetailSucceeded
+          ? `Location-aware retail search executed for ${locationContext}, but no useful local retail evidence survived.`
+          : `Location-aware retail search was attempted for ${locationContext}, but the provider request did not succeed.`
+      : "Location was provided, but no location-aware retail search was executed."
+    : "No usable ZIP/general area was provided for a location-aware retail search.";
+  const shoppingRequests = providerRequestRecords.filter((record) => record.searchType === "shopping" || record.providerEndpoint === "serper_shopping");
+  const shoppingAttempted = shoppingRequests.some((record) => record.attempted);
+  const shoppingSucceeded = shoppingRequests.some((record) => record.succeeded);
+  const shoppingUnavailable = shoppingRequests.some((record) => /serper_shopping_unavailable/i.test(`${record.errorCode} ${record.failureStage}`));
+  const shoppingReturnedCount = shoppingRequests.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0);
+  const shoppingExecutionStatus = shoppingAttempted
+    ? shoppingUnavailable
+      ? "Shopping execution unavailable - dedicated Serper Shopping endpoint did not complete."
+      : shoppingSucceeded
+        ? `Shopping endpoint attempted; ${shoppingReturnedCount} shopping result${shoppingReturnedCount === 1 ? "" : "s"} returned.`
+        : "Shopping endpoint attempted, but no Shopping request succeeded."
+    : "Shopping execution unavailable - no dedicated Shopping request was attempted.";
 
   return {
     retailEvidenceMode,
@@ -4705,13 +4839,18 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     retailProviderCallBudget: retailSerperBudgetAllocation,
     retailRecoveryTrigger: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? stage1AcceptedCount < 3
-        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, and shopping/general recovery stages were included within the bounded retail budget.`
+        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, Shopping, and location-aware recovery stages were included within the bounded retail budget.`
         : "Stage 1 produced at least three usable current retail records; recovery records may still appear only if already inside the bounded staged plan."
       : "",
     retailStagesPlanned,
     retailStagesAttempted,
     retailQueriesPlanned,
     retailQueriesExecuted,
+    localRetailQueriesAttempted: localRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
+    locationAwareRetailSearchStatus,
+    shoppingExecutionStatus,
+    shoppingEndpointAttempted: shoppingAttempted ? "Yes" : "No",
+    shoppingEndpointUnavailable: shoppingUnavailable ? "Yes" : "No",
     retailProviderCallsUsed: retailQueriesExecuted.length,
     retailSearchBudgetRemaining: Math.max(0, retailSerperBudgetAllocation.maxProviderCalls - retailQueriesExecuted.length),
     retailRecoveryStoppedReason: isCurrentRetailOnlyMode(retailEvidenceMode)
@@ -4792,7 +4931,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     locationStateUsed: locationState || "",
     locationLookupOutcome: locationDeniedManualZip
       ? `Location permission was not granted. ZIP ${context.locationZip} was entered manually.`
-      : context.locationArea ? `General area resolved: ${context.locationArea}` : locationUnavailable ? `Location fallback used: ${locationState}` : context.locationMode || "not requested",
+      : context.locationZip ? `Location provided: ZIP ${context.locationZip}. Search execution status: ${locationAwareRetailSearchStatus}`
+        : context.locationArea ? `General area resolved: ${context.locationArea}. Search execution status: ${locationAwareRetailSearchStatus}` : locationUnavailable ? `Location fallback used: ${locationState}` : context.locationMode || "not requested",
     zipPresence: context.locationZip ? "ZIP provided" : "ZIP not provided",
     manualZipUsed: locationDeniedManualZip ? `Manual ZIP used: ${context.locationZip}` : "",
     browserCoordinatesDisplayed: "No",
@@ -4823,8 +4963,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       ? `Submitted package clues: ${compactWords([context.packageQuantity, context.packageSize]) || "not established"}.`
       : "Submitted package size/count not established.",
     rejectedPackSizeMismatches: packMismatchRecords.map((record) => cleanText(record.rejectionReason || record.itemTypeCompatibilityExplanation)).filter(Boolean).slice(0, 8),
-    localSourceCoverage: context.locationZip
-      ? "ZIP was supplied for nearby/local price context. Inventory availability must still be source-backed."
+    localSourceCoverage: locationContext
+      ? locationAwareRetailSearchStatus
       : /browser_location/.test(context.locationMode)
         ? "Browser location was approved for general local context; precise coordinates are not stored or displayed."
         : "No ZIP or approved location supplied; nearby price and availability coverage is limited."
@@ -5660,6 +5800,108 @@ function finalizeIdentityForResearch(identity = {}, buyerIntake = normalizeBuyer
   return applyCanonicalProductIdentity(identity, canonicalProductIdentity);
 }
 
+function collectPackageQuantityEvidenceEntries(identity = {}, buyerIntake = normalizeBuyerIntake({}), { includeExtractedFields = false } = {}) {
+  const intake = normalizeBuyerIntake(buyerIntake);
+  const entries = [
+    { source: "user item name", value: intake.item_name },
+    { source: "user buyer notes", value: intake.buyer_notes },
+    { source: "visible product title", value: identity.productNameOrBoxTitle },
+    { source: "front package wording", value: identity.frontBoxWording },
+    { source: "back label wording", value: identity.backLabelWording }
+  ];
+  for (const item of normalizeStringArray(identity.visibleText, 24)) {
+    entries.push({ source: "visible text/OCR", value: item });
+  }
+  for (const item of normalizeStringArray(identity.textIdentityEvidence, 24)) {
+    entries.push({ source: "text identity evidence", value: item });
+  }
+  if (includeExtractedFields) {
+    entries.push({ source: "extracted package quantity field", value: identity.packageQuantity });
+    entries.push({ source: "extracted unit count field", value: identity.unitCount });
+  }
+  return entries.filter((entry) => hasKnownValue(entry.value));
+}
+
+function buildCanonicalPackageQuantityDecision(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  const primaryEntries = collectPackageQuantityEvidenceEntries(identity, buyerIntake, { includeExtractedFields: false });
+  for (const entry of primaryEntries) {
+    const evidence = extractPackQuantityEvidence(entry.value, entry.source);
+    if (evidence) {
+      return {
+        packageQuantity: evidence.normalized,
+        confidence: /user/i.test(entry.source) ? "Medium" : "High",
+        status: "accepted",
+        evidence: [`${evidence.text} from ${entry.source}`],
+        uncertainValue: "",
+        reason: "Package quantity is supported by explicit quantity wording separate from dimensions."
+      };
+    }
+  }
+
+  const extractedEntries = collectPackageQuantityEvidenceEntries(identity, buyerIntake, { includeExtractedFields: true })
+    .filter((entry) => /extracted/.test(entry.source));
+  for (const entry of extractedEntries) {
+    const evidence = extractPackQuantityEvidence(entry.value, entry.source);
+    if (!evidence) continue;
+    if (isSuspiciousLowRetailPackageQuantity(evidence.quantity, identity, buyerIntake)) {
+      return {
+        packageQuantity: "",
+        confidence: "Uncertain",
+        status: "uncertain",
+        evidence: [`${evidence.text} from ${entry.source}`],
+        uncertainValue: evidence.normalized,
+        reason: "Suspiciously low package quantity for ordinary security envelopes was not supported by visible or user-entered quantity wording, so it cannot drive fixed-count search or rejection."
+      };
+    }
+    return {
+      packageQuantity: evidence.normalized,
+      confidence: "Medium",
+      status: "accepted",
+      evidence: [`${evidence.text} from ${entry.source}`],
+      uncertainValue: "",
+      reason: "Package quantity came from an explicit extracted quantity field and did not conflict with the retail package sanity checks."
+    };
+  }
+
+  return {
+    packageQuantity: "",
+    confidence: "Low",
+    status: "unknown",
+    evidence: [],
+    uncertainValue: "",
+    reason: "Package quantity was not established from explicit quantity wording."
+  };
+}
+
+function isSuspiciousLowRetailPackageQuantity(quantity, identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  if (!Number.isFinite(quantity) || quantity >= 10) {
+    return false;
+  }
+  const text = normalizeComparableText([
+    buyerIntake.item_name,
+    buyerIntake.buyer_notes,
+    identity.productNameOrBoxTitle,
+    identity.exactProductIdentity,
+    identity.subjectIdentity,
+    identity.frontBoxWording,
+    identity.backLabelWording,
+    Array.isArray(identity.visibleText) ? identity.visibleText.join(" ") : "",
+    identity.category
+  ].join(" "));
+  return /\bsecurity\b/.test(text) && /\benvelopes?\b/.test(text);
+}
+
+function getSearchablePackageQuantity(identity = {}, buyerIntake = normalizeBuyerIntake({}), canonicalProductIdentity = {}) {
+  const field = canonicalProductIdentity.fields?.packageQuantity || {};
+  const status = cleanText(field.status);
+  const value = cleanText(field.value);
+  if (value && status === "accepted") {
+    return value;
+  }
+  const decision = buildCanonicalPackageQuantityDecision(identity, buyerIntake);
+  return decision.status === "accepted" ? decision.packageQuantity : "";
+}
+
 function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
   const intake = normalizeBuyerIntake(buyerIntake);
   const upc = getSearchBarcodeDigits(identity, intake);
@@ -5730,11 +5972,8 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     identity.styleNumber,
     /^\d{8,14}$/.test(cleanText(identity.modelOrItemNumber)) ? "" : identity.modelOrItemNumber
   );
-  const packageQuantity = firstKnown(
-    extractPackQuantityText(strongEvidenceText),
-    identity.packageQuantity,
-    identity.unitCount
-  );
+  const packageQuantityDecision = buildCanonicalPackageQuantityDecision(identity, intake);
+  const packageQuantity = packageQuantityDecision.packageQuantity;
   const dimensionsOrSize = firstKnown(identity.dimensions, identity.size, identity.packageSize);
   const closureOrVariant = extractRetailVariantFromEvidence(strongEvidenceText);
   const productName = buildCanonicalProductName({
@@ -5763,7 +6002,7 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     subcategory: createCanonicalField(categoryProfile.subcategory, categoryProfile.confidence, categoryProfile.sources, "accepted", categoryProfile.reason),
     UPC: createCanonicalField(upc, upc ? "High" : "Low", upc ? ["manual barcode/UPC or readable barcode"] : [], upc ? "accepted" : "unknown", upc ? "Exact UPC/barcode digits outrank visual inference." : "No exact UPC/barcode digits were available."),
     SKU: createCanonicalField(sku, sku ? "High" : "Low", sku ? ["SKU/item-number evidence"] : [], sku ? "accepted" : "unknown", sku ? "Item number/SKU is supported by visible or typed evidence." : "SKU/item number was not established."),
-    packageQuantity: createCanonicalField(packageQuantity, packageQuantity ? "High" : "Low", packageQuantity ? ["package quantity wording"] : [], packageQuantity ? "accepted" : "unknown", packageQuantity ? "Package quantity is price-relevant for retail matching." : "Package quantity was not established."),
+    packageQuantity: createCanonicalField(packageQuantity, packageQuantityDecision.confidence, packageQuantityDecision.evidence, packageQuantityDecision.status, packageQuantityDecision.reason),
     dimensionsOrSize: createCanonicalField(dimensionsOrSize, dimensionsOrSize ? "Medium" : "Low", dimensionsOrSize ? ["size/dimensions evidence"] : [], dimensionsOrSize ? "accepted" : "unknown", dimensionsOrSize ? "Size or dimensions were preserved for matching." : "Size or dimensions were not established."),
     variant: createCanonicalField(closureOrVariant, closureOrVariant ? "Medium" : "Low", closureOrVariant ? ["visible package wording"] : [], closureOrVariant ? "accepted" : "unknown", closureOrVariant ? "Variant or closure type is price-relevant and supported." : "Variant was not established."),
     material: createCanonicalField(firstKnown(identity.material), hasKnownValue(identity.material) ? "Medium" : "Low", hasKnownValue(identity.material) ? ["material evidence"] : [], hasKnownValue(identity.material) ? "accepted" : "unknown", "Material is included only when supported."),
@@ -5792,6 +6031,10 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
     confirmationToken,
     finalizedSearchIdentity,
     customerFacingTitle,
+    packageQuantityConfidence: packageQuantityDecision.confidence,
+    packageQuantityEvidence: packageQuantityDecision.evidence,
+    packageQuantityStatus: packageQuantityDecision.status,
+    uncertainPackageQuantityCandidate: packageQuantityDecision.uncertainValue,
     localSearchLocation: cleanText(intake.location_zip || intake.location_area),
     locationMethod: cleanText(intake.location_mode || (intake.location_zip ? "manual_zip" : "")),
     reason: userConfirmationRequired
@@ -6072,7 +6315,7 @@ function applyCanonicalProductIdentity(identity = {}, canonicalProductIdentity =
     upcBarcode: upc || identity.upcBarcode,
     sku: sku || identity.sku,
     modelOrItemNumber: sku || identity.modelOrItemNumber,
-    packageQuantity: packageQuantity || identity.packageQuantity,
+    packageQuantity,
     packageSize: dimensionsOrSize || identity.packageSize,
     size: dimensionsOrSize || identity.size,
     visibleText: mergeStringArrays(identity.visibleText, visiblePackageWording ? [visiblePackageWording] : [], 24),
@@ -6958,7 +7201,8 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const namedPeople = extractLikelyNamedPeople(visibleEvidence.join(" "));
   const itemType = firstKnown(canonicalSubcategory, inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText));
   const eventPhrases = distinctivePhrases.filter((phrase) => /champion|anniversary|tournament|bowl|series|festival|event|official|collector|edition|commemorative|national|world|regional|conference|\b\d{4}\b/i.test(phrase));
-  const packageQuantity = firstKnown(canonicalPackageQuantity, identity.packageQuantity, identity.unitCount, extractPackQuantityText([productTitle, notesText, identity.size, identity.dimensions, identity.frontBoxWording, identity.backLabelWording].join(" ")));
+  const packageQuantityField = canonicalProductIdentity.fields?.packageQuantity || {};
+  const packageQuantity = getSearchablePackageQuantity(identity, buyerIntake, canonicalProductIdentity);
   const packageSize = firstKnown(canonicalDimensions, identity.packageSize, identity.size, identity.dimensions);
   const hasHighSpecificityText = distinctivePhrases.length > 0 || barcodeDigits || upc || model || itemCode;
   const retailEvidenceMode = getRetailEvidenceMode({ buyerIntake, identity });
@@ -7029,6 +7273,10 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     namedPeople,
     itemType,
     packageQuantity,
+    packageQuantityConfidence: cleanText(canonicalProductIdentity.packageQuantityConfidence || packageQuantityField.confidence),
+    packageQuantityStatus: cleanText(canonicalProductIdentity.packageQuantityStatus || packageQuantityField.status),
+    packageQuantityEvidence: normalizeStringArray(canonicalProductIdentity.packageQuantityEvidence || packageQuantityField.sources, 8),
+    uncertainPackageQuantityCandidate: cleanText(canonicalProductIdentity.uncertainPackageQuantityCandidate),
     packageSize,
     canonicalProductIdentity,
     finalizedSearchIdentity: canonicalProductIdentity.finalizedSearchIdentity || "",
@@ -7712,6 +7960,10 @@ function sanitizeProviderRequestRecord(record = {}) {
     retailStage: cleanText(record.retailStage),
     retailStageLabel: cleanText(record.retailStageLabel),
     retailBudgetBucket: cleanText(record.retailBudgetBucket),
+    searchType: cleanText(record.searchType || "organic_web"),
+    providerEndpoint: cleanText(record.providerEndpoint || "serper_search"),
+    generatedStatus: cleanText(record.generatedStatus || "generated"),
+    plannedStatus: cleanText(record.plannedStatus || "planned"),
     sourceRoute: normalizeStringArray(record.sourceRoute, 8),
     allowedDomainsRequested: normalizeStringArray(record.allowedDomainsRequested, 8),
     marketplaceDomainsRequested: normalizeStringArray(record.marketplaceDomainsRequested, 8),
@@ -7727,6 +7979,7 @@ function sanitizeProviderRequestRecord(record = {}) {
     attempted: Boolean(record.attempted),
     succeeded: Boolean(record.succeeded),
     providerSourceCount: Number(record.providerSourceCount || 0),
+    returnedResultCount: Number(record.returnedResultCount || record.providerSourceCount || record.rawResultCount || 0),
     organicResultCount: Number(record.organicResultCount || 0),
     shoppingResultCount: Number(record.shoppingResultCount || 0),
     knowledgeGraphResultCount: Number(record.knowledgeGraphResultCount || 0),
@@ -7736,6 +7989,7 @@ function sanitizeProviderRequestRecord(record = {}) {
     parsedResultCount: Number(record.parsedResultCount || 0),
     normalizedResultCount: Number(record.normalizedResultCount || 0),
     retainedResultCount: Number(record.retainedResultCount || 0),
+    qualifiedResultCount: Number(record.qualifiedResultCount || 0),
     rejectedResultCount: Number(record.rejectedResultCount || 0),
     errorCode: cleanText(record.errorCode),
     failureStage: cleanText(record.failureStage || "unknown")
@@ -7750,6 +8004,8 @@ function sanitizeProviderResponseSummary(summary = {}) {
     retailStage: cleanText(summary.retailStage),
     retailStageLabel: cleanText(summary.retailStageLabel),
     retailBudgetBucket: cleanText(summary.retailBudgetBucket),
+    searchType: cleanText(summary.searchType || "organic_web"),
+    providerEndpoint: cleanText(summary.providerEndpoint || "serper_search"),
     provider: cleanText(summary.provider || "OpenAI web_search"),
     providerKey: cleanText(summary.providerKey || ""),
     allowedDomainsRequested: normalizeStringArray(summary.allowedDomainsRequested, 8),
@@ -7765,6 +8021,7 @@ function sanitizeProviderResponseSummary(summary = {}) {
     webSearchCallAppeared: Boolean(summary.webSearchCallAppeared),
     urlCitationCount: Number(summary.urlCitationCount || 0),
     providerSourceCount: Number(summary.providerSourceCount || 0),
+    returnedResultCount: Number(summary.returnedResultCount || summary.providerSourceCount || 0),
     organicResultCount: Number(summary.organicResultCount || 0),
     shoppingResultCount: Number(summary.shoppingResultCount || 0),
     knowledgeGraphResultCount: Number(summary.knowledgeGraphResultCount || 0),
@@ -7772,6 +8029,7 @@ function sanitizeProviderResponseSummary(summary = {}) {
     parsedCandidateCount: Number(summary.parsedCandidateCount || 0),
     normalizedResultCount: Number(summary.normalizedResultCount || 0),
     retainedResultCount: Number(summary.retainedResultCount || 0),
+    qualifiedResultCount: Number(summary.qualifiedResultCount || 0),
     rejectedResultCount: Number(summary.rejectedResultCount || 0),
     sourceURLsReturned: normalizeStringArray(summary.sourceURLsReturned, 12),
     domainsReturned: normalizeStringArray(summary.domainsReturned, 8),
@@ -9251,8 +9509,6 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
   const submittedQuantity = extractBestPackQuantityNumber([
     identity.packageQuantity,
     identity.unitCount,
-    identity.packageSize,
-    identity.dimensions,
     buyerIntake.item_name,
     buyerIntake.buyer_notes
   ]);
@@ -9363,6 +9619,13 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
       status: "materially_incompatible",
       label: "Rejected Retail Mismatch",
       reason: `Package count differs too much for retail price comparison (${submittedQuantity} vs ${candidateQuantity}).`
+    };
+  }
+  if (submittedIsEnvelope && candidateIsEnvelope && (!Number.isFinite(submittedQuantity) || !Number.isFinite(candidateQuantity))) {
+    return {
+      status: "quantity_unknown_functional_replacement",
+      label: "Strong Retail Alternative",
+      reason: "Envelope type and security/privacy use appear compatible, but package count is not fully visible for both products. Show package price only; unit-price comparison is unavailable."
     };
   }
   if (/\bstrip[-\s]?and[-\s]?seal\b/i.test(text) && /\bgummed\b/i.test(text)) {
@@ -9682,13 +9945,22 @@ function buildRetailPackageUnitPriceComparison(identity = {}, pricesFound = []) 
 
 function buildRetailLocalAvailabilityContext(buyerIntake = normalizeBuyerIntake({}), liveSearch = {}) {
   const zip = normalizeZipCode(buyerIntake.location_zip);
+  const area = cleanText(buyerIntake.location_area);
   const permission = cleanText(buyerIntake.location_permission || buyerIntake.location_mode);
   const store = getRetailStoreName(buyerIntake);
+  const diagnostics = liveSearch.searchDiagnostics || liveSearch.diagnostics || {};
+  const locationStatus = cleanText(diagnostics.locationAwareRetailSearchStatus);
+  if ((zip || area) && /no location-aware retail search was executed/i.test(locationStatus)) {
+    return "Location was provided, but no location-aware retail search was executed.";
+  }
+  if ((zip || area) && /executed|attempted/i.test(locationStatus)) {
+    return `${locationStatus} Store inventory and pickup availability are not confirmed unless a source-backed result says so.`;
+  }
   if (/denied/i.test(permission) && zip) {
     return `Location permission was not granted. ZIP ${zip} was entered manually. Try Location Again is available in the intake. ${store ? `${store} availability is not confirmed unless a source-backed store result says so.` : "Named-store availability is not confirmed unless source-backed."}`;
   }
   if (zip) {
-    return `ZIP ${zip} was used for local retail context. Store inventory and pickup availability are not confirmed unless a source-backed result says so.`;
+    return `ZIP ${zip} was provided. Location-aware retail search execution was not confirmed. Store inventory and pickup availability are not confirmed unless a source-backed result says so.`;
   }
   if (/browser_location/i.test(permission)) {
     return "Browser location was allowed for general local context; precise coordinates are not displayed. Store inventory still requires source-backed confirmation.";
@@ -10979,12 +11251,18 @@ function buildLocalStoreContext(buyerIntake = normalizeBuyerIntake({}), liveSear
   const store = getRetailStoreName(buyerIntake) || "Store not provided";
   const zip = normalizeZipCode(buyerIntake.location_zip);
   const area = cleanText(buyerIntake.location_area);
+  const diagnostics = liveSearch.searchDiagnostics || liveSearch.diagnostics || {};
+  const locationStatus = cleanText(diagnostics.locationAwareRetailSearchStatus);
   const returned = normalizeStringArray(liveSearch.sourcesReturned || liveSearch.domainsActuallyReturned, 12);
   const namedStoreReturned = store !== "Store not provided" && returned.some((source) => source.toLowerCase().includes(store.toLowerCase().split(/\s+/)[0]));
   const locationText = zip
-    ? `ZIP/general area: ${zip}.`
+    ? /no location-aware retail search was executed/i.test(locationStatus)
+      ? "Location was provided, but no location-aware retail search was executed."
+      : `ZIP/general area: ${zip}. ${locationStatus || "Location-aware retail search execution was not confirmed."}`
     : area
-      ? `General area: ${area}. Enter ZIP for more precise local pricing.`
+      ? /no location-aware retail search was executed/i.test(locationStatus)
+        ? "Location was provided, but no location-aware retail search was executed."
+        : `General area: ${area}. ${locationStatus || "Enter ZIP for more precise local pricing."}`
       : /location_(denied|unavailable|timeout|unsupported|skipped)|reverse_geocode_failed|insecure_context|permission-denied|position-unavailable|reverse-geocode-failed|insecure-context|skipped/.test(`${buyerIntake.location_mode} ${buyerIntake.location_permission} ${buyerIntake.location_state}`)
         ? "Local prices and nearby availability were not checked because ZIP/local area was unavailable."
         : /browser_location/.test(buyerIntake.location_mode)
@@ -14769,6 +15047,7 @@ export const __queryIntegrityTestHooks = {
   normalizeBuyerIntake,
   finalizeIdentityForResearch,
   buildCanonicalProductIdentity,
+  buildCanonicalPackageQuantityDecision,
   routeMarketSources,
   buildLiveSearchQueries,
   buildSearchQueryContext,
@@ -14789,6 +15068,7 @@ export const __queryIntegrityTestHooks = {
   cleanSerperQuery,
   parseListLikeSearchPhrases,
   validateSerperQueryCandidate,
+  classifySerperStatus,
   splitQueryTermsPreservingQuotes,
   shortenSerperQueryWithoutFragments,
   createSerperRequestRecord,
@@ -14820,7 +15100,14 @@ export const __queryIntegrityTestHooks = {
   isCurrentPurchasablePriceFoundRecord,
   buildRetailDecisionCalibration,
   classifyRetailPackageCompatibility,
+  isQualifiedCurrentRetailSourceRecord,
+  isQualifiedCurrentRetailPriceFoundRecord,
   buildRetailEvidenceProfile,
+  buildRetailLocalAvailabilityContext,
+  buildLocalStoreContext,
+  getSearchablePackageQuantity,
+  isSuspiciousLowRetailPackageQuantity,
+  extractPackQuantityEvidence,
   extractPackQuantityNumber,
   extractDisplayedPrice,
   parseCurrencyCents,
