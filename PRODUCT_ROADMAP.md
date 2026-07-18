@@ -447,6 +447,16 @@
 - Provider-call impact: current-retail Serper budget increases from 19 to 23 maximum planned provider calls, adding up to 4 online-retail registry queries while preserving exact, compatible, retailer-specific, Shopping, and local-retail stage caps
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.10 (Completed)
+- The permanent Version 1.11.9 Start Here instruction box was removed from the intake flow and replaced with a compact upper-right Help & Instructions menu button in the Katherine's Eye page header
+- Help & Instructions now opens a mobile-friendly drawer/full-screen panel with a clean category list for Buying for Myself, Buying to Resell, Value Something I Own, Sell Something I Own, Taking Good Photos, Using Location, and Understanding Your Results
+- Each help category opens independently into detailed numbered task instructions or plain result definitions, while the full instruction content is no longer rendered openly on the intake page
+- The purpose-specific one-sentence guidance remains under the Purpose selector, and its How to do this control opens Help & Instructions directly to the selected workflow's task instructions
+- The help panel supports close, back navigation, focus trapping, Escape-key close, body scroll locking, and focus restoration to the Help & Instructions menu button
+- The four workflow submit labels now match the help instructions: Analyze Purchase, Analyze Resale, Estimate Value, and Prepare to Sell, without changing workflow routing, provider execution, pricing, evidence qualification, location behavior, online-retail coverage, or the compact Where to Buy list
+- Regression tests cover removal of the permanent Start Here box, header help menu placement, all seven categories, independent category opening, workflow-specific numbered instructions, How to do this routing, keyboard/focus/body-scroll behavior, hidden-by-default detailed instructions, and preserved compact Where to Buy presentation
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -66,6 +66,17 @@ const feedbackPanel = document.querySelector("#feedback-panel");
 const feedbackText = document.querySelector("#feedback-text");
 const feedbackCopyButton = document.querySelector("#feedback-copy-button");
 const feedbackStatus = document.querySelector("#feedback-status");
+const helpMenuButton = document.querySelector("#help-menu-button");
+const purposeHelpLink = document.querySelector("#purpose-help-link");
+const helpPanelBackdrop = document.querySelector("#help-panel-backdrop");
+const helpPanel = document.querySelector("#help-panel");
+const helpCloseButton = document.querySelector("#help-close-button");
+const helpBackButton = document.querySelector("#help-back-button");
+const helpCategoryView = document.querySelector("#help-category-view");
+const helpCategoryList = document.querySelector("#help-category-list");
+const helpDetailView = document.querySelector("#help-detail-view");
+const helpDetailTitle = document.querySelector("#help-detail-title");
+const helpDetailContent = document.querySelector("#help-detail-content");
 
 const submissionStages = Object.freeze({
   IDLE: "idle",
@@ -355,7 +366,7 @@ const workflowConfigs = {
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for personal-use value...",
     activeLabel: "Analyzing...",
-    defaultLabel: "Analyze Buying for Myself",
+    defaultLabel: "Analyze Purchase",
     workflowHelper: "Add the store price and location. We’ll compare current alternatives and show where else a price was found.",
     platformNote: "Optional. Leave blank unless a marketplace context matters.",
     notesNote: "Optional. Add label wording, flaws, seller comments, measurements, or personal-use concerns.",
@@ -386,7 +397,7 @@ const workflowConfigs = {
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for resale potential...",
     activeLabel: "Analyzing...",
-    defaultLabel: "Analyze Buying to Resell",
+    defaultLabel: "Analyze Resale",
     workflowHelper: "Add your purchase price. We’ll estimate resale potential, likely costs, and risk.",
     platformNote: "Optional. Select where you may resell if you already know the target platform.",
     notesNote: "Optional. Add flaws, seller comments, transport costs, shipping issues, or resale concerns.",
@@ -418,7 +429,7 @@ const workflowConfigs = {
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for owner value...",
     activeLabel: "Valuing...",
-    defaultLabel: "Value My Item",
+    defaultLabel: "Estimate Value",
     workflowHelper: "Add photos and any known details. We’ll estimate its value using appropriate market evidence.",
     platformNote: "Optional. Select a likely venue only if it matters to value.",
     notesNote: "Optional. Add provenance, ownership notes, flaws, measurements, or what you already know.",
@@ -449,7 +460,7 @@ const workflowConfigs = {
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Researching seller pricing and listing support...",
     activeLabel: "Creating...",
-    defaultLabel: "Create Selling Plan and Listing",
+    defaultLabel: "Prepare to Sell",
     workflowHelper: "Add condition and selling details. We’ll recommend pricing and help prepare the listing.",
     platformNote: "Optional. Select your preferred marketplace when useful.",
     notesNote: "Optional. Add ownership notes, flaws, measurements, accessories, and what a buyer should know.",
@@ -485,6 +496,130 @@ const legacyWorkflowMap = {
   sell: "listing",
   seller_listing: "listing"
 };
+
+const workflowHelpCategoryMap = Object.freeze({
+  personal_use: "buying-for-myself",
+  resale: "buying-to-resell",
+  market_value: "value-something-i-own",
+  listing: "sell-something-i-own"
+});
+
+const helpInstructionCategories = Object.freeze([
+  {
+    id: "buying-for-myself",
+    title: "Buying for Myself",
+    workflow: "personal_use",
+    steps: [
+      "Select “Buying for Myself.”",
+      "Take or upload clear photos of the product, packaging, barcode, model number, and price label.",
+      "Enter the store’s name.",
+      "Enter the price you are being asked to pay.",
+      "Use your location or enter a ZIP code if you want nearby price context.",
+      "Add the product name, brand, model, quantity, or UPC when known.",
+      "Select “Analyze Purchase.”",
+      "Review the purchase decision and the Where to Buy list.",
+      "Open a retailer link or directions to verify the current price and availability before purchasing."
+    ],
+    explanation: "Katherine’s Eye may show the exact product or compatible alternatives. A price found online does not guarantee local inventory."
+  },
+  {
+    id: "buying-to-resell",
+    title: "Buying to Resell",
+    workflow: "resale",
+    steps: [
+      "Select “Buying to Resell.”",
+      "Add clear photos of the item, labels, identifiers, and condition.",
+      "Enter the price you would pay.",
+      "Add known brand, model, age, quantity, and condition details.",
+      "Select the intended resale marketplace when requested.",
+      "Select “Analyze Resale.”",
+      "Review expected resale value, likely costs, profit potential, demand, risk, and recommended maximum purchase price.",
+      "Verify source listings before buying."
+    ],
+    explanation: "Asking prices are not the same as completed sales, and fees, shipping, taxes, and unsold inventory affect profit."
+  },
+  {
+    id: "value-something-i-own",
+    title: "Value Something I Own",
+    workflow: "market_value",
+    steps: [
+      "Select “Value Something I Own.”",
+      "Photograph the full item from several angles.",
+      "Photograph maker marks, labels, signatures, model numbers, serial numbers, and damage.",
+      "Enter anything known about its brand, age, origin, size, materials, and condition.",
+      "Select “Estimate Value.”",
+      "Review the estimated value range, evidence quality, and confidence.",
+      "Open supporting sources when available."
+    ],
+    explanation: "Better identification and condition evidence generally produce a stronger valuation."
+  },
+  {
+    id: "sell-something-i-own",
+    title: "Sell Something I Own",
+    workflow: "listing",
+    steps: [
+      "Select “Sell Something I Own.”",
+      "Add clear photos showing the complete item and its actual condition.",
+      "Enter known brand, model, age, measurements, included parts, and defects.",
+      "Select the selling platform when requested.",
+      "Enter shipping or pickup information when known.",
+      "Select “Prepare to Sell.”",
+      "Review suggested asking price, likely selling range, listing guidance, and supporting evidence.",
+      "Copy or edit the generated listing before publishing."
+    ],
+    explanation: "Katherine’s Eye prepares guidance but does not automatically publish the listing or guarantee a sale."
+  },
+  {
+    id: "taking-good-photos",
+    title: "Taking Good Photos",
+    steps: [
+      "Use bright, even lighting.",
+      "Photograph the entire item.",
+      "Add close-ups of the front, back, sides, labels, barcode, model number, and price.",
+      "Photograph flaws, damage, missing parts, or wear.",
+      "Keep text in focus and fill most of the frame.",
+      "Avoid glare, fingers covering labels, and distant photographs."
+    ]
+  },
+  {
+    id: "using-location",
+    title: "Using Location",
+    steps: [
+      "Tap “Use My Location.”",
+      "Allow location access when the browser asks.",
+      "If access fails or is denied, enter a ZIP code manually.",
+      "Continue without location when nearby pricing is unnecessary."
+    ],
+    explanation: "Approximate location is used for nearby price context. It does not prove that an item is currently in stock. Customers must check with the retailer for price and availability."
+  },
+  {
+    id: "understanding-your-results",
+    title: "Understanding Your Results",
+    intro: "These labels explain what Katherine’s Eye is telling you.",
+    definitions: [
+      ["Exact Product", "The evidence appears to identify the same item."],
+      ["Compatible Alternative", "A similar item serving the same purpose, but not necessarily the same brand or package."],
+      ["Asking/Store Price", "The price entered by the customer."],
+      ["Retail Price", "A current price found from a retailer source."],
+      ["Unit Price", "Price per item, ounce, foot, or other supported unit."],
+      ["Price Limit", "The recommended maximum based on available evidence."],
+      ["Confidence", "How strongly the evidence supports the conclusion."],
+      ["Availability Unconfirmed", "A price was found, but inventory was not verified."],
+      ["View at Retailer", "Opens the supporting retailer page."],
+      ["Directions", "Opens a supported nearby location."],
+      ["Technical Search Details", "Optional diagnostic information; most customers do not need it."]
+    ]
+  }
+]);
+
+const helpFocusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])"
+].join(",");
 const MAX_PHOTO_COUNT = 6;
 
 let latestReport = null;
@@ -500,6 +635,7 @@ let activeAskRequestController = null;
 let loadingProgressTimer = null;
 let loadingProgressIndex = 0;
 let reportRenderSequence = 0;
+let activeHelpCategoryId = "";
 
 cameraInput.addEventListener("change", handleCameraPhotoChange);
 photosInput.addEventListener("change", handleLibraryPhotoChange);
@@ -528,11 +664,210 @@ askForm.addEventListener("submit", submitAskQuestion);
 clearAskButton.addEventListener("click", clearAskConversation);
 feedbackButton.addEventListener("click", toggleFeedbackPanel);
 feedbackCopyButton.addEventListener("click", copyFeedbackText);
+initializeHelpPanel();
 window.addEventListener("pageshow", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
 });
 
 applyWorkflowState({ clearOutput: true, abortRequests: false });
+
+function initializeHelpPanel() {
+  if (!helpMenuButton || !helpPanel || !helpCategoryList) {
+    return;
+  }
+
+  renderHelpCategoryList();
+  helpMenuButton.addEventListener("click", () => openHelpPanel());
+  purposeHelpLink?.addEventListener("click", () => openHelpForWorkflow(getSelectedWorkflow()));
+  helpCloseButton?.addEventListener("click", closeHelpPanel);
+  helpBackButton?.addEventListener("click", () => showHelpCategoryList({ focus: true }));
+  helpPanelBackdrop?.addEventListener("click", closeHelpPanel);
+  helpPanel.addEventListener("keydown", handleHelpPanelKeydown);
+  document.addEventListener("keydown", handleGlobalHelpKeydown);
+}
+
+function renderHelpCategoryList() {
+  helpCategoryList.replaceChildren();
+
+  for (const category of helpInstructionCategories) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.className = "help-category-button";
+    button.type = "button";
+    button.dataset.helpCategory = category.id;
+    button.textContent = category.title;
+    button.addEventListener("click", () => showHelpCategoryDetail(category.id, { focus: true }));
+    item.append(button);
+    helpCategoryList.append(item);
+  }
+}
+
+function openHelpPanel(categoryId = "") {
+  const resolvedCategoryId = String(categoryId || "").trim();
+  helpPanel.hidden = false;
+  helpPanelBackdrop.hidden = false;
+  document.body.classList.add("help-panel-open");
+  helpMenuButton.setAttribute("aria-expanded", "true");
+
+  if (resolvedCategoryId) {
+    showHelpCategoryDetail(resolvedCategoryId);
+  } else {
+    showHelpCategoryList();
+  }
+
+  const preferredTarget = resolvedCategoryId ? helpBackButton : helpCategoryList.querySelector(".help-category-button");
+  focusHelpElement(preferredTarget || helpCloseButton || helpPanel);
+}
+
+function openHelpForWorkflow(workflow) {
+  const categoryId = workflowHelpCategoryMap[normalizeWorkflowValue(workflow)] || workflowHelpCategoryMap[defaultWorkflow];
+  openHelpPanel(categoryId);
+}
+
+function closeHelpPanel() {
+  if (!isHelpPanelOpen()) {
+    return;
+  }
+
+  helpPanel.hidden = true;
+  helpPanelBackdrop.hidden = true;
+  document.body.classList.remove("help-panel-open");
+  helpMenuButton.setAttribute("aria-expanded", "false");
+  showHelpCategoryList();
+  helpMenuButton.focus();
+}
+
+function isHelpPanelOpen() {
+  return Boolean(helpPanel && !helpPanel.hidden);
+}
+
+function focusHelpElement(element) {
+  window.setTimeout(() => element?.focus(), 0);
+}
+
+function showHelpCategoryList(options = {}) {
+  activeHelpCategoryId = "";
+  helpCategoryView.hidden = false;
+  helpDetailView.hidden = true;
+  helpBackButton.hidden = true;
+
+  if (options.focus) {
+    const firstCategory = helpCategoryList.querySelector(".help-category-button");
+    focusHelpElement(firstCategory || helpCloseButton || helpPanel);
+  }
+}
+
+function showHelpCategoryDetail(categoryId, options = {}) {
+  const category = getHelpCategory(categoryId);
+  if (!category) {
+    showHelpCategoryList(options);
+    return;
+  }
+
+  activeHelpCategoryId = category.id;
+  helpCategoryView.hidden = true;
+  helpDetailView.hidden = false;
+  helpBackButton.hidden = false;
+  helpDetailTitle.textContent = category.title;
+  renderHelpDetail(category);
+
+  if (options.focus) {
+    focusHelpElement(helpBackButton);
+  }
+}
+
+function getHelpCategory(categoryId) {
+  const normalizedId = String(categoryId || "").trim();
+  return helpInstructionCategories.find((category) => category.id === normalizedId);
+}
+
+function renderHelpDetail(category) {
+  helpDetailContent.replaceChildren();
+
+  if (category.intro) {
+    const intro = document.createElement("p");
+    intro.className = "help-intro";
+    intro.textContent = category.intro;
+    helpDetailContent.append(intro);
+  }
+
+  if (Array.isArray(category.steps) && category.steps.length) {
+    const list = document.createElement("ol");
+    list.className = "help-steps";
+    for (const step of category.steps) {
+      const item = document.createElement("li");
+      item.textContent = step;
+      list.append(item);
+    }
+    helpDetailContent.append(list);
+  }
+
+  if (category.explanation) {
+    const explanation = document.createElement("p");
+    explanation.className = "help-explanation";
+    explanation.textContent = category.explanation;
+    helpDetailContent.append(explanation);
+  }
+
+  if (Array.isArray(category.definitions) && category.definitions.length) {
+    const definitions = document.createElement("dl");
+    definitions.className = "help-definition-list";
+    for (const [term, description] of category.definitions) {
+      const termNode = document.createElement("dt");
+      termNode.textContent = term;
+      const descriptionNode = document.createElement("dd");
+      descriptionNode.textContent = description;
+      definitions.append(termNode, descriptionNode);
+    }
+    helpDetailContent.append(definitions);
+  }
+}
+
+function handleHelpPanelKeydown(event) {
+  if (event.key !== "Tab" || !isHelpPanelOpen()) {
+    return;
+  }
+
+  trapHelpPanelFocus(event);
+}
+
+function handleGlobalHelpKeydown(event) {
+  if (event.key === "Escape" && isHelpPanelOpen()) {
+    event.preventDefault();
+    closeHelpPanel();
+  }
+}
+
+function trapHelpPanelFocus(event) {
+  const focusable = getHelpPanelFocusableElements();
+  if (!focusable.length) {
+    event.preventDefault();
+    helpPanel.focus();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function getHelpPanelFocusableElements() {
+  return Array.from(helpPanel.querySelectorAll(helpFocusableSelector)).filter((element) => {
+    if (element.disabled || element.closest("[hidden]")) {
+      return false;
+    }
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  });
+}
 
 function handleCameraPhotoChange() {
   const files = Array.from(cameraInput.files || []);
@@ -810,6 +1145,11 @@ function syncWorkflowFormState(config) {
   form.dataset.workflow = config.workflow;
   if (workflowHelper.textContent !== config.workflowHelper) {
     workflowHelper.textContent = config.workflowHelper;
+  }
+  if (purposeHelpLink) {
+    const helpCategory = workflowHelpCategoryMap[config.workflow] || workflowHelpCategoryMap[defaultWorkflow];
+    purposeHelpLink.dataset.helpCategory = helpCategory;
+    purposeHelpLink.setAttribute("aria-label", `How to do this: ${config.title}`);
   }
   platformNote.textContent = config.platformNote;
   notesNote.textContent = config.notesNote;

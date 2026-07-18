@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -15,8 +15,8 @@ $app = Get-Content -LiteralPath $appPath -Raw
 $index = Get-Content -LiteralPath $indexPath -Raw
 
 $checks = @(
-  @{ Name = "API treats Ask as non-generic"; Text = $api; Pattern = "Ask Katherine’s Eye is not a generic chatbot" },
-  @{ Name = "Server treats Ask as non-generic"; Text = $server; Pattern = "Ask Katherine’s Eye is not a generic chatbot" },
+  @{ Name = "API treats Ask as non-generic"; Text = $api; Pattern = "Ask Katherineâ€™s Eye is not a generic chatbot" },
+  @{ Name = "Server treats Ask as non-generic"; Text = $server; Pattern = "Ask Katherineâ€™s Eye is not a generic chatbot" },
   @{ Name = "API active report is authoritative"; Text = $api; Pattern = "current structured report is the authoritative starting point" },
   @{ Name = "Server active report is authoritative"; Text = $server; Pattern = "current structured report is the authoritative starting point" },
   @{ Name = "API includes new_live_search schema route"; Text = $api; Pattern = '"new_live_search"' },
@@ -48,7 +48,7 @@ $checks = @(
   @{ Name = "Frontend clears item session on New Item"; Text = $app; Pattern = "clearItemSession" },
   @{ Name = "Frontend blocks stale Ask responses"; Text = $app; Pattern = "isCurrentAskRequest" },
   @{ Name = "Frontend Ask helper references evidence and price"; Text = $index; Pattern = "Ask about this item, the evidence, the recommendation, a different price, or the listing" },
-  @{ Name = "Frontend visible version is current"; Text = $index; Pattern = "Version 1.11.9" }
+  @{ Name = "Frontend visible version is current"; Text = $index; Pattern = "Version 1.11.10" }
 )
 
 $failed = @()
@@ -59,7 +59,7 @@ foreach ($check in $checks) {
 }
 
 if ($failed.Count -gt 0) {
-  throw "Ask Katherine’s Eye static instruction checks failed: $($failed -join '; ')"
+  throw "Ask Katherineâ€™s Eye static instruction checks failed: $($failed -join '; ')"
 }
 
-Write-Host "Ask Katherine’s Eye instruction static checks OK - $($checks.Count) checks passed."
+Write-Host "Ask Katherineâ€™s Eye instruction static checks OK - $($checks.Count) checks passed."

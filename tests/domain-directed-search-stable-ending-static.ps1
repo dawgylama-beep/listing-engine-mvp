@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -13,10 +13,10 @@ $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
-  @{ Name = "Roadmap documents 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
+  @{ Name = "Roadmap documents 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
   @{ Name = "API uses current web_search tool"; Text = $api; Pattern = 'type: "web_search"' },
   @{ Name = "API forces live search tool execution"; Text = $api; Pattern = 'tool_choice: "required"' },
   @{ Name = "API requests complete provider sources"; Text = $api; Pattern = 'web_search_call.action.sources' },

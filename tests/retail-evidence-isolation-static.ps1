@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
-  @{ Name = "Roadmap documents Version 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
+  @{ Name = "Roadmap documents Version 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
   @{ Name = "Current retail only mode exists"; Text = $api; Pattern = "current-retail-only" },

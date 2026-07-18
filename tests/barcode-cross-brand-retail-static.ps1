@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $api = Get-Content -LiteralPath (Join-Path $Root "api/generate-listing.js") -Raw
@@ -9,8 +9,8 @@ $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content -LiteralPath (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Roadmap documents 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Roadmap documents 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
   @{ Name = "UPC validation helper exists"; Text = $api; Pattern = "function validateRetailBarcodeCandidate" },
   @{ Name = "Barcode check digit helper exists"; Text = $api; Pattern = "function computeRetailBarcodeCheckDigit" },
   @{ Name = "Barcode integrity helper exists"; Text = $api; Pattern = "function buildBarcodeIntegrity" },

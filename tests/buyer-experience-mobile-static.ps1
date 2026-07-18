@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -12,13 +12,13 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
-  @{ Name = "Roadmap documents Version 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
+  @{ Name = "Roadmap documents Version 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
   @{ Name = "Purpose heading is plain"; Text = $index; Pattern = "<legend>Purpose</legend>" },
-  @{ Name = "Personal-use submit label is consistent"; Text = $index; Pattern = "Analyze Buying for Myself" },
-  @{ Name = "Resale submit label is consistent"; Text = $app; Pattern = 'defaultLabel: "Analyze Buying to Resell"' },
+  @{ Name = "Personal-use submit label matches help"; Text = $index; Pattern = "Analyze Purchase" },
+  @{ Name = "Resale submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Analyze Resale"' },
   @{ Name = "Product details heading is customer-facing"; Text = $index; Pattern = '<span class="details-title">Product Details</span>' },
   @{ Name = "Condition notes heading is customer-facing"; Text = $index; Pattern = '<span class="details-title">Condition Notes</span>' },
   @{ Name = "Optional notes label is plain"; Text = $index; Pattern = '<label for="notes">Optional details</label>' },
@@ -31,7 +31,8 @@ $checks = @(
   @{ Name = "Why heading is customer-facing"; Text = $app; Pattern = 'title: "Why This Recommendation"' },
   @{ Name = "Final report summary is plain"; Text = $app; Pattern = 'title.textContent = "Final Summary"' },
   @{ Name = "Technical details remain collapsed"; Text = $app; Pattern = "function renderTechnicalSearchDetails" },
-  @{ Name = "Compact intake instructions exist"; Text = $index; Pattern = 'class="intake-instructions"' },
+  @{ Name = "Header help menu exists"; Text = $index; Pattern = 'id="help-menu-button" class="help-menu-button"' },
+  @{ Name = "Purpose How to do this link exists"; Text = $index; Pattern = 'id="purpose-help-link" class="purpose-help-link"' },
   @{ Name = "Purpose guidance is visible and live-updated"; Text = $index; Pattern = 'id="workflow-helper" class="purpose-guidance field-note" aria-live="polite" aria-atomic="true"' },
   @{ Name = "Photos are first in visual flow"; Text = $styles; Pattern = ".photo-stage" },
   @{ Name = "Optional note field is shorter"; Text = $styles; Pattern = "min-height: 128px;" },
@@ -48,13 +49,12 @@ foreach ($check in $checks) {
 }
 
 $orderChecks = @(
-  @{ Name = "Compact instructions are ordered first"; Pattern = "\.intake-instructions\s*\{[\s\S]*?order:\s*1;" },
-  @{ Name = "Purpose is ordered second"; Pattern = "\.workflow-field\s*\{[\s\S]*?order:\s*2;" },
-  @{ Name = "Photos are ordered third"; Pattern = "\.photo-stage\s*\{[\s\S]*?order:\s*3;" },
-  @{ Name = "Buying details are ordered fourth"; Pattern = "\.buyer-intake\s*\{[\s\S]*?order:\s*4;" },
-  @{ Name = "Optional platform is ordered after buying details"; Pattern = "\.optional-field\s*\{[\s\S]*?order:\s*5;" },
-  @{ Name = "Optional notes are ordered before analyze"; Pattern = "\.optional-notes-field\s*\{[\s\S]*?order:\s*6;" },
-  @{ Name = "Analyze action remains last in intake"; Pattern = "\.action-row\s*\{[\s\S]*?order:\s*7;" }
+  @{ Name = "Purpose is ordered first"; Pattern = "\.workflow-field\s*\{[\s\S]*?order:\s*1;" },
+  @{ Name = "Photos are ordered second"; Pattern = "\.photo-stage\s*\{[\s\S]*?order:\s*2;" },
+  @{ Name = "Buying details are ordered third"; Pattern = "\.buyer-intake\s*\{[\s\S]*?order:\s*3;" },
+  @{ Name = "Optional platform is ordered after buying details"; Pattern = "\.optional-field\s*\{[\s\S]*?order:\s*4;" },
+  @{ Name = "Optional notes are ordered before analyze"; Pattern = "\.optional-notes-field\s*\{[\s\S]*?order:\s*5;" },
+  @{ Name = "Analyze action remains last in intake"; Pattern = "\.action-row\s*\{[\s\S]*?order:\s*6;" }
 )
 
 foreach ($check in $orderChecks) {
@@ -80,6 +80,8 @@ foreach ($label in $obsoleteVisibleLabels) {
 }
 
 $obsoleteGuideContent = @(
+  "Start Here",
+  "intake-instructions",
   "Need a walkthrough?",
   "Quick Start",
   "Buyer Workflow",

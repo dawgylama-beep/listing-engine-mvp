@@ -20,21 +20,20 @@
       <section class="workspace" aria-labelledby="app-title">
         <div class="panel input-panel">
           <header class="brand-header">
+            <button id="help-menu-button" class="help-menu-button" type="button" aria-label="Help & Instructions" aria-haspopup="dialog" aria-controls="help-panel" aria-expanded="false">
+              <span class="help-menu-lines" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <span class="help-menu-label">Help & Instructions</span>
+            </button>
             <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
             <h1 id="app-title">Katherine’s Eye</h1>
-            <p class="version-badge">Version 1.11.9</p>
+            <p class="version-badge">Version 1.11.10</p>
           </header>
 
           <form id="listing-form" class="listing-form">
-            <section class="intake-instructions" aria-labelledby="intake-instructions-title">
-              <h2 id="intake-instructions-title">Start Here</h2>
-              <ol class="intake-steps">
-                <li>Choose what you want to do.</li>
-                <li>Add clear photos and anything you know.</li>
-                <li>Enter a price when buying, then let Katherine’s Eye evaluate it.</li>
-              </ol>
-            </section>
-
             <fieldset id="workflow-field" class="field workflow-field" aria-describedby="workflow-helper">
               <legend>Purpose</legend>
               <div class="workflow-options" role="radiogroup" aria-label="Workflow">
@@ -67,7 +66,10 @@
                   </span>
                 </label>
               </div>
-              <p id="workflow-helper" class="purpose-guidance field-note" aria-live="polite" aria-atomic="true">Add the store price and location. We’ll compare current alternatives and show where else a price was found.</p>
+              <div class="purpose-guidance-row">
+                <p id="workflow-helper" class="purpose-guidance field-note" aria-live="polite" aria-atomic="true">Add the store price and location. We’ll compare current alternatives and show where else a price was found.</p>
+                <button id="purpose-help-link" class="purpose-help-link" type="button" data-help-category="buying-for-myself">How to do this</button>
+              </div>
             </fieldset>
 
             <div class="field photo-stage">
@@ -334,7 +336,7 @@
 
             <div class="action-row">
               <button id="workflow-submit-button" class="primary-button" type="submit">
-                <span id="workflow-submit-label">Analyze Buying for Myself</span>
+                <span id="workflow-submit-label">Analyze Purchase</span>
               </button>
             </div>
           </form>
@@ -395,6 +397,29 @@
         </div>
       </section>
     </main>
+
+    <div id="help-panel-backdrop" class="help-panel-backdrop" hidden></div>
+    <aside id="help-panel" class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-panel-title" hidden tabindex="-1">
+      <div class="help-panel-shell">
+        <header class="help-panel-header">
+          <button id="help-back-button" class="help-back-button" type="button" hidden>Back</button>
+          <h2 id="help-panel-title">Help & Instructions</h2>
+          <button id="help-close-button" class="help-close-button" type="button" aria-label="Close Help & Instructions">Close</button>
+        </header>
+
+        <div class="help-panel-body">
+          <section id="help-category-view" aria-labelledby="help-categories-title">
+            <h3 id="help-categories-title">Choose a topic</h3>
+            <ul id="help-category-list" class="help-category-list"></ul>
+          </section>
+
+          <section id="help-detail-view" class="help-detail-view" aria-labelledby="help-detail-title" hidden>
+            <h3 id="help-detail-title"></h3>
+            <div id="help-detail-content" class="help-detail-content"></div>
+          </section>
+        </div>
+      </div>
+    </aside>
 
     <script src="/app.js"></script>
   </body>

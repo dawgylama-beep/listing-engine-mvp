@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -11,10 +11,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
-  @{ Name = "Roadmap documents 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
+  @{ Name = "Roadmap documents 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
   @{ Name = "Submission stage constants exist"; Text = $app; Pattern = "const submissionStages = Object.freeze" },
   @{ Name = "Photo read stage exists"; Text = $app; Pattern = 'PHOTO_READ: "photo_read"' },
   @{ Name = "Image process stage exists"; Text = $app; Pattern = 'IMAGE_PROCESS: "image_process"' },

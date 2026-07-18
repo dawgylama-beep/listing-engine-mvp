@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -39,8 +39,8 @@ $checks = @(
   @{ Name = "Server formats plain asking prices as currency"; Text = $server; Pattern = "function Format-MoneyInputText" },
   @{ Name = "Server Ask preserves valuation evidence state"; Text = $server; Pattern = "Preserve the current report's valuationEvidenceState" },
   @{ Name = "Server scenario avoids confident weak value"; Text = $server; Pattern = "not verified fair market value or confirmed sold-comps support" },
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
   @{ Name = "Roadmap documents 1.9.1"; Text = $roadmap; Pattern = "Version 1.9.1 (Completed)" }
 )
 

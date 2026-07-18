@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
-  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
-  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
+  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
+  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
+  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
   @{ Name = "Roadmap documents four-purpose model"; Text = $roadmap; Pattern = "Buying for Myself, Buying to Resell, Value Something I Own, and Sell Something I Own" },
   @{ Name = "Purpose legend is generic"; Text = $index; Pattern = "<legend>Purpose</legend>" },
   @{ Name = "Buying for Myself radio exists"; Text = $index; Pattern = "<strong>Buying for Myself</strong>" },
@@ -31,7 +31,10 @@ $checks = @(
   @{ Name = "Seller preferences exist"; Text = $index; Pattern = 'id="seller-preferences-fields"' },
   @{ Name = "Fulfillment preference is captured"; Text = $index; Pattern = 'id="fulfillment_preference"' },
   @{ Name = "Selling speed is captured"; Text = $index; Pattern = 'id="selling_speed"' },
-  @{ Name = "Seller submit label is explicit"; Text = $app; Pattern = 'defaultLabel: "Create Selling Plan and Listing"' },
+  @{ Name = "Personal-use submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Analyze Purchase"' },
+  @{ Name = "Resale submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Analyze Resale"' },
+  @{ Name = "Owner submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Estimate Value"' },
+  @{ Name = "Seller submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Prepare to Sell"' },
   @{ Name = "Owner report heading is explicit"; Text = $app; Pattern = "Owner Value Assessment" },
   @{ Name = "Seller report heading is explicit"; Text = $app; Pattern = "Seller Pricing and Listing Plan" },
   @{ Name = "Seller workflow leaves platform optional"; Text = $app; Pattern = "platformRequired: false" },
