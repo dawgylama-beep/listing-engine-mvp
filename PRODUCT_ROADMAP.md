@@ -457,6 +457,17 @@
 - Regression tests cover removal of the permanent Start Here box, header help menu placement, all seven categories, independent category opening, workflow-specific numbered instructions, How to do this routing, keyboard/focus/body-scroll behavior, hidden-by-default detailed instructions, and preserved compact Where to Buy presentation
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.11 (Completed)
+- Current-retail barcode handling now builds a validated UPC-A/EAN-13/GTIN equivalence set, so zero-padded identities can support exact product matching without accepting invalid barcode candidates or raw-string-only URL matches
+- Retail staged search now keeps the submitted UPC first, adds bounded equivalent barcode and retailer-domain exact queries, preserves Shopping endpoint metadata, and reserves a small limited-result recovery bucket inside the current-retail provider-call budget
+- Exact retailer product pages returned by the provider are enriched from source-backed title, snippet, URL, and structured fields, preserving destination URL, retailer, visible price, package quantity, barcode/GTIN evidence, availability wording, shipping limitations, and a clear metadata-only enrichment limitation when no page fetch is performed
+- Where to Buy ordering now promotes exact current product pages above compatible alternatives while keeping delivered-cost best-deal logic separate and requiring supported shipping before claiming a delivered-cost advantage
+- The final Where to Buy list selects for retailer diversity before filling extra rows, so supported multi-retailer evidence is not crowded out by repeated offers from the same retailer
+- Technical Search Details now expose normalized barcode identities, exact pages found, returned retailer domains, customer-visible counts by retailer, limited-result recovery execution, and exact-page accepted/rejected reasons
+- Regression tests cover UPC/GTIN equivalence, exact retailer page promotion, exact price outranking compatible prices, one-result recovery triggering, multi-retailer display, no fabricated retailer coverage, equivalent-URL dedupe, wrong-product rejection, package-difference disclosure, availability limits, preserved $5.50 precision, compact Where to Buy preservation, Help & Instructions preservation, and no new regression-fixture production special-casing
+- Provider-call impact: current-retail Serper budget increases from 23 to 28 maximum planned provider calls, adding up to 2 equivalent-barcode exact identity calls and up to 3 limited-result retailer-recovery calls while preserving data-driven retailer selection and all hard rejection safeguards
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings

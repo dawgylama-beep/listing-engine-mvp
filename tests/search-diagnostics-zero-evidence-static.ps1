@@ -34,10 +34,10 @@ $georgiaTrayMockedExtractedEvidence = @{
 }
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
-  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
-  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
-  @{ Name = "Roadmap documents 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
+  @{ Name = "Visible app version is 1.11.11"; Text = $index; Pattern = "Version 1.11.11" },
+  @{ Name = "Package version is 1.11.11"; Text = $package; Pattern = '"version": "1.11.11"' },
+  @{ Name = "Server version is 1.11.11"; Text = $server; Pattern = '$AppVersion = "1.11.11"' },
+  @{ Name = "Roadmap documents 1.11.11"; Text = $roadmap; Pattern = "Version 1.11.11 (Completed)" },
   @{ Name = "API builds search diagnostics"; Text = $api; Pattern = "function buildSearchDiagnostics" },
   @{ Name = "API records generated queries"; Text = $api; Pattern = "queriesGenerated" },
   @{ Name = "API records queries actually sent"; Text = $api; Pattern = "queriesActuallySent" },

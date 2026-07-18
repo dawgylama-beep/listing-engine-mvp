@@ -12,17 +12,17 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.10"; Text = $index; Pattern = "Version 1.11.10" },
-  @{ Name = "Package version is 1.11.10"; Text = $package; Pattern = '"version": "1.11.10"' },
-  @{ Name = "Server version is 1.11.10"; Text = $server; Pattern = '$AppVersion = "1.11.10"' },
-  @{ Name = "Roadmap documents 1.11.10"; Text = $roadmap; Pattern = "Version 1.11.10 (Completed)" },
+  @{ Name = "Visible app version is 1.11.11"; Text = $index; Pattern = "Version 1.11.11" },
+  @{ Name = "Package version is 1.11.11"; Text = $package; Pattern = '"version": "1.11.11"' },
+  @{ Name = "Server version is 1.11.11"; Text = $server; Pattern = '$AppVersion = "1.11.11"' },
+  @{ Name = "Roadmap documents 1.11.11"; Text = $roadmap; Pattern = "Version 1.11.11 (Completed)" },
   @{ Name = "Canonical item type compatibility function exists"; Text = $api; Pattern = "function evaluateComparableItemTypeCompatibility" },
   @{ Name = "Submitted item type text is built deterministically"; Text = $api; Pattern = "function buildSubmittedItemTypeText" },
   @{ Name = "Candidate item type text includes URL slug"; Text = $api; Pattern = "record.canonicalUrl" },
   @{ Name = "Candidate unknown type is not compatible"; Text = $api; Pattern = "candidate_type_unknown" },
   @{ Name = "Set scope mismatch is handled"; Text = $api; Pattern = "set_scope_mismatch" },
   @{ Name = "Shared wording cannot override product type"; Text = $api; Pattern = "Shared brand, date, event, or theme wording cannot make different product types comparable." },
-  @{ Name = "Match classifier receives compatibility"; Text = $api; Pattern = "classifySerperIdentityMatch(record, identity, context, itemTypeCompatibility)" },
+  @{ Name = "Match classifier receives compatibility"; Text = $api; Pattern = "classifySerperIdentityMatch(enrichedRecord, identity, context, itemTypeCompatibility)" },
   @{ Name = "Classifier gates valuation-unsafe product forms"; Text = $api; Pattern = "if (!isComparableItemTypeValuationSafe(compatibility))" },
   @{ Name = "Evidence role receives compatibility"; Text = $api; Pattern = 'function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {})' },
   @{ Name = "Non-valuation influence reason exists"; Text = $api; Pattern = "function buildNonValuationInfluenceReason" },

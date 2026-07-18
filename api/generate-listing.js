@@ -1773,14 +1773,15 @@ function getSerperApiKey() {
 }
 
 const retailSerperBudgetAllocation = Object.freeze({
-  maxProviderCalls: 23,
-  exactIdentity: 4,
+  maxProviderCalls: 28,
+  exactIdentity: 6,
   exactProductReduced: 3,
   compatibleAlternatives: 4,
   retailerSpecific: 5,
   onlineRetail: 4,
   shoppingGeneral: 2,
-  localRetail: 1
+  localRetail: 1,
+  limitedResultRecovery: 3
 });
 
 const onlineRetailerRegistry = Object.freeze([
@@ -1909,7 +1910,20 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
 
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context);
-  const dedupedRecords = dedupeSerperCandidateRecords(normalizedRecords);
+  let dedupedRecords = dedupeSerperCandidateRecords(normalizedRecords, context);
+  dedupedRecords = await executeLimitedResultRetailRecovery({
+    serperApiKey,
+    context,
+    identity,
+    buyerIntake,
+    notes,
+    sourceRoute,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    rawProviderRecords,
+    currentRecords: dedupedRecords
+  });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
   return normalizeSerperLiveSearchResult({
     records: dedupedRecords,
@@ -1927,6 +1941,253 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
     buyerIntake,
     notes
   });
+}
+
+function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRecords = [], records = [], assessments = null } = {}) {
+  if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
+    return false;
+  }
+  const evidenceAssessments = assessments || buildRetailEvidenceAssessments(records, context);
+  const visibleRetailerDomains = new Set(evidenceAssessments
+    .filter((assessment) => assessment.customerPriceCardEligibility)
+    .map((assessment) => cleanText(assessment.retailerDomain || hostnameFromUrl(assessment.destinationUrl)).toLowerCase())
+    .filter(Boolean));
+  const visibleRetailers = visibleRetailerDomains.size;
+  if (visibleRetailers > 1) {
+    return false;
+  }
+  const attemptedRecovery = providerRequestRecords.some((record) => record.retailStage === "stage_7_limited_result_recovery" && record.attempted);
+  if (attemptedRecovery) {
+    return false;
+  }
+  const returnedRetailProductPages = records.some((record) => isLikelyRetailProductPageUrl(record.destinationUrl || record.url || record.canonicalUrl));
+  const dataDrivenTargets = mergeRetailTargetRecords(
+    buildRetailerSpecificSearchTargets(context),
+    buildOnlineRetailSearchTargets(context)
+  );
+  const remainingTarget = dataDrivenTargets.some((target) => {
+    const domain = cleanText(target.domain || getRetailerDomainForStore(target.name)).toLowerCase();
+    return domain && !visibleRetailerDomains.has(domain);
+  });
+  const retailerStagesAttempted = providerRequestRecords.some((record) => record.attempted && /stage_4_retailer_specific|stage_5_online_retail|stage_5_shopping_general/i.test(record.retailStage || ""));
+  return Boolean(remainingTarget && (returnedRetailProductPages || retailerStagesAttempted || records.length));
+}
+
+function mergeRetailTargetRecords(...groups) {
+  const selected = [];
+  const seen = new Set();
+  for (const group of groups) {
+    for (const item of normalizeArray(group)) {
+      const target = typeof item === "string"
+        ? { name: item, domain: getRetailerDomainForStore(item) }
+        : item || {};
+      const signature = cleanText(target.domain || target.key || target.name).toLowerCase();
+      if (!signature || seen.has(signature)) continue;
+      seen.add(signature);
+      selected.push(target);
+    }
+  }
+  return selected;
+}
+
+function buildLimitedResultRetailRecoveryQueries(context = {}, providerRequestRecords = [], records = []) {
+  const assessments = buildRetailEvidenceAssessments(records, context);
+  const visibleDomains = new Set(assessments
+    .filter((assessment) => assessment.customerPriceCardEligibility)
+    .map((assessment) => cleanText(assessment.retailerDomain || hostnameFromUrl(assessment.destinationUrl)).toLowerCase())
+    .filter(Boolean));
+  const attemptedDomainCounts = new Map();
+  for (const record of providerRequestRecords) {
+    for (const domain of normalizeStringArray(record.marketplaceDomainsRequested || record.allowedDomainsRequested || record.marketplaceDomains || [], 8)) {
+      const key = cleanText(domain).toLowerCase();
+      if (!key) continue;
+      attemptedDomainCounts.set(key, (attemptedDomainCounts.get(key) || 0) + (record.attempted ? 1 : 0));
+    }
+  }
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
+  const productFamily = fallbackIdentity.productType || deriveRetailProductFamily(context);
+  const closure = fallbackIdentity.closure || deriveRetailClosurePhrase(context);
+  const feature = fallbackIdentity.importantFeature;
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const barcode = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(context.upc || context.barcodeDigits), 6)[1]
+    || context.barcodeDigits
+    || context.upc;
+  const targets = mergeRetailTargetRecords(
+    buildRetailerSpecificSearchTargets(context),
+    buildOnlineRetailSearchTargets(context)
+  )
+    .filter((target) => {
+      const domain = cleanText(target.domain || getRetailerDomainForStore(target.name)).toLowerCase();
+      return domain && !visibleDomains.has(domain);
+    })
+    .sort((a, b) => {
+      const aDomain = cleanText(a.domain || getRetailerDomainForStore(a.name)).toLowerCase();
+      const bDomain = cleanText(b.domain || getRetailerDomainForStore(b.name)).toLowerCase();
+      return (attemptedDomainCounts.get(aDomain) || 0) - (attemptedDomainCounts.get(bDomain) || 0)
+        || cleanText(a.name).localeCompare(cleanText(b.name));
+    });
+  const recordsToRun = [];
+  const add = (target) => {
+    if (recordsToRun.length >= retailSerperBudgetAllocation.limitedResultRecovery) return;
+    const retailerName = cleanText(target.name);
+    const retailerDomain = cleanText(target.domain || getRetailerDomainForStore(retailerName));
+    if (!retailerDomain) return;
+    const baseQuery = barcode
+      ? compactWords([barcode, brand || productFamily, productFamily, "current price"])
+      : compactWords([brand, productFamily, closure, feature, "current price"]);
+    recordsToRun.push({
+      query: buildSerperSingleMarketplaceQuery(baseQuery, retailerDomain),
+      rawCandidate: baseQuery,
+      candidateOrigin: "limited_result_retailer_diversity_recovery",
+      searchPass: "limited_result_recovery",
+      retailStage: "stage_7_limited_result_recovery",
+      retailStageLabel: "Stage 7 - Limited-result retailer recovery",
+      retailBudgetBucket: "limitedResultRecovery",
+      searchType: "organic_web",
+      providerEndpoint: "serper_search",
+      marketplaceDomains: [retailerDomain]
+    });
+  };
+  targets.forEach(add);
+  return recordsToRun;
+}
+
+function finalizeLimitedResultRetailRecoveryQueries(context = {}, sourceRoute = [], queryRecords = []) {
+  const categories = buildSourcesTargeted(sourceRoute);
+  return queryRecords.map((record) => {
+    const requestedDomains = normalizeStringArray(record.marketplaceDomains, 8);
+    const normalizedCandidate = cleanSerperQuery(finalizeSearchQueryCandidate(record.query, context, requestedDomains.length ? 18 : 14));
+    const validation = validateSerperQueryCandidate(normalizedCandidate, context, {
+      searchPass: record.searchPass,
+      retailStage: record.retailStage,
+      marketplaceDomains: requestedDomains,
+      rawCandidate: record.rawCandidate || record.query
+    });
+    return {
+      ...record,
+      query: normalizedCandidate || cleanText(record.rawCandidate || record.query),
+      normalizedCandidate,
+      finalQuery: normalizedCandidate,
+      sourceRoute: categories,
+      allowedDomains: requestedDomains,
+      validationPassed: validation.passed,
+      validationFailureReason: validation.passed ? "" : validation.reason
+    };
+  });
+}
+
+async function executeLimitedResultRetailRecovery({
+  serperApiKey,
+  context = {},
+  identity = {},
+  buyerIntake = normalizeBuyerIntake({}),
+  notes = "",
+  sourceRoute = [],
+  providerRequestRecords = [],
+  providerResponseSummaries = [],
+  providerErrors = [],
+  rawProviderRecords = [],
+  currentRecords = []
+} = {}) {
+  const assessments = buildRetailEvidenceAssessments(currentRecords, context);
+  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: currentRecords, assessments })) {
+    return currentRecords;
+  }
+  const plannedQueries = finalizeLimitedResultRetailRecoveryQueries(
+    context,
+    sourceRoute,
+    buildLimitedResultRetailRecoveryQueries(context, providerRequestRecords, currentRecords)
+  )
+    .slice(0, retailSerperBudgetAllocation.limitedResultRecovery)
+    .map((record, index) => ({
+      ...record,
+      priority: providerRequestRecords.length + index + 1
+    }));
+  if (!plannedQueries.length) {
+    return currentRecords;
+  }
+  const recoveryRequestRecords = plannedQueries.map((queryRecord) => createSerperRequestRecord(queryRecord));
+  providerRequestRecords.push(...recoveryRequestRecords);
+  recoveryRequestRecords.forEach((requestRecord, index) => {
+    if (!requestRecord.attempted) {
+      providerResponseSummaries.push(createSerperPreflightRejectedResponseSummary(plannedQueries[index], requestRecord));
+    }
+  });
+  await Promise.all(recoveryRequestRecords.map(async (requestRecord, index) => {
+    if (!requestRecord.attempted) {
+      return;
+    }
+    const queryRecord = plannedQueries[index];
+    try {
+      const response = await requestSerperSearch({
+        apiKey: serperApiKey,
+        query: queryRecord.query,
+        searchType: queryRecord.searchType || "organic_web",
+        prevalidated: queryRecord.validationPassed !== false,
+        timeoutMs: 7000,
+        maxRetries: 1
+      });
+      const parsed = parseSerperResponse(response.json, queryRecord);
+      rawProviderRecords.push(...parsed.records);
+      requestRecord.succeeded = true;
+      requestRecord.statusCode = response.statusCode;
+      requestRecord.elapsedMilliseconds = response.elapsedMs;
+      requestRecord.organicResultCount = parsed.organicResultCount;
+      requestRecord.shoppingResultCount = parsed.shoppingResultCount;
+      requestRecord.knowledgeGraphResultCount = parsed.knowledgeGraphResultCount;
+      requestRecord.providerSourceCount = parsed.records.length;
+      requestRecord.rawResultCount = parsed.records.length;
+      requestRecord.returnedResultCount = parsed.records.length;
+      requestRecord.parsedResultCount = parsed.records.length;
+      requestRecord.normalizedResultCount = parsed.records.length;
+      requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
+      requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
+    } catch (error) {
+      const diagnostic = classifySerperError(error);
+      requestRecord.succeeded = false;
+      requestRecord.errorCode = diagnostic.code || diagnostic.category;
+      requestRecord.failureStage = diagnostic.category;
+      providerErrors.push({
+        ...diagnostic,
+        query: queryRecord.query,
+        priority: queryRecord.priority
+      });
+      providerResponseSummaries.push({
+        query: queryRecord.query,
+        priority: queryRecord.priority,
+        searchPass: queryRecord.searchPass,
+        retailStage: queryRecord.retailStage || "",
+        retailStageLabel: queryRecord.retailStageLabel || "",
+        retailBudgetBucket: queryRecord.retailBudgetBucket || "",
+        searchType: queryRecord.searchType || "organic_web",
+        providerEndpoint: queryRecord.providerEndpoint || "serper_search",
+        provider: "Serper Google Search",
+        providerKey: "serper_google",
+        marketplaceDomainsRequested: queryRecord.marketplaceDomains || [],
+        rawCandidate: queryRecord.rawCandidate || queryRecord.query,
+        candidateOrigin: queryRecord.candidateOrigin || queryRecord.searchPass,
+        normalizedCandidate: queryRecord.normalizedCandidate || queryRecord.query,
+        finalQuery: queryRecord.finalQuery || queryRecord.query,
+        validationPassed: queryRecord.validationPassed !== false,
+        validationFailureReason: queryRecord.validationFailureReason || "",
+        statusCode: diagnostic.statusCode || null,
+        providerSourceCount: 0,
+        returnedResultCount: 0,
+        organicResultCount: 0,
+        shoppingResultCount: 0,
+        domainsReturned: [],
+        sourceURLsReturned: [],
+        errorCode: diagnostic.code || diagnostic.category,
+        errorMessage: diagnostic.message
+      });
+    }
+  }));
+  return dedupeSerperCandidateRecords(
+    normalizeSerperCandidateRecords(rawProviderRecords, identity, context),
+    context
+  );
 }
 
 function createSerperRequestRecord(queryRecord) {
@@ -2168,15 +2429,16 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
   return records
     .filter((record) => record.url && /^https?:\/\//i.test(record.url))
     .map((record) => {
-      const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(record, identity, context);
-      const identityMatchStrength = classifySerperIdentityMatch(record, identity, context, itemTypeCompatibility);
-      const priceEvidenceType = classifySerperPriceEvidence(record);
+      const enrichedRecord = enrichExactRetailPageRecord(record, context);
+      const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(enrichedRecord, identity, context);
+      const identityMatchStrength = classifySerperIdentityMatch(enrichedRecord, identity, context, itemTypeCompatibility);
+      const priceEvidenceType = classifySerperPriceEvidence(enrichedRecord);
       const valuationBearing = isValuationBearingComparable(identityMatchStrength, priceEvidenceType, itemTypeCompatibility);
-      const preliminaryRangeIncluded = isPreliminaryAskingPriceRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, record);
-      const verifiedMarketInfluence = isVerifiedMarketRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, record);
-      const rejectionReason = buildSerperRejectionReason(record, identityMatchStrength, context, itemTypeCompatibility);
+      const preliminaryRangeIncluded = isPreliminaryAskingPriceRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, enrichedRecord);
+      const verifiedMarketInfluence = isVerifiedMarketRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, enrichedRecord);
+      const rejectionReason = buildSerperRejectionReason(enrichedRecord, identityMatchStrength, context, itemTypeCompatibility);
       return {
-        ...record,
+        ...enrichedRecord,
         itemTypeCompatible: itemTypeCompatibility.itemTypeCompatible,
         submittedItemType: itemTypeCompatibility.submittedItemType,
         candidateItemType: itemTypeCompatibility.candidateItemType,
@@ -2208,10 +2470,20 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
     });
 }
 
-function dedupeSerperCandidateRecords(records = []) {
+function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
+  if (!hasEquivalentBarcodeIdentity(record, context)) {
+    return "";
+  }
+  const destinationUrl = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  const domain = hostnameFromUrl(destinationUrl || record.url);
+  const primaryBarcode = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(context.barcodeDigits || context.upc), 24)[0] || "";
+  return domain && primaryBarcode ? `retail-exact:${domain}:${primaryBarcode}` : "";
+}
+
+function dedupeSerperCandidateRecords(records = [], context = {}) {
   const byUrl = new Map();
   for (const record of records) {
-    const key = record.canonicalUrl || record.url;
+    const key = buildEquivalentRetailPageDedupeKey(record, context) || record.canonicalUrl || record.url;
     const existing = byUrl.get(key);
     if (!existing) {
       byUrl.set(key, {
@@ -2773,6 +3045,8 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
 function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const records = [];
   const barcode = context.barcodeDigits;
+  const barcodeIdentities = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(barcode), 6);
+  const primaryBarcode = barcodeIdentities[0] || barcode;
   const storeName = cleanText(context.storeName || context.retailerOrMarketplaceName);
   const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
   const identifier = firstKnown(context.itemCode, context.model);
@@ -2812,13 +3086,23 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const stage5 = "stage_5_shopping_general";
   const stage6 = "stage_6_local_retail";
 
-  if (barcode) {
-    add({ query: barcode, searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_exact_upc" });
-    add({ query: compactWords([storeName, barcode]), searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_store_upc" });
+  if (primaryBarcode) {
+    for (const identityCode of (barcodeIdentities.length ? barcodeIdentities : [primaryBarcode]).slice(0, 3)) {
+      add({
+        query: identityCode,
+        rawCandidate: primaryBarcode,
+        searchPass: stage1,
+        retailStage: stage1,
+        retailStageLabel: "Stage 1 - Exact identity",
+        retailBudgetBucket: "exactIdentity",
+        candidateOrigin: identityCode === primaryBarcode ? "retail_exact_upc" : "retail_exact_barcode_equivalent"
+      });
+    }
+    add({ query: compactWords([storeName, primaryBarcode]), searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_store_upc" });
     if (context.retailerDomain) {
       add({
-        query: buildSerperSingleMarketplaceQuery(barcode, context.retailerDomain),
-        rawCandidate: barcode,
+        query: buildSerperSingleMarketplaceQuery(primaryBarcode, context.retailerDomain),
+        rawCandidate: primaryBarcode,
         searchPass: stage1,
         retailStage: stage1,
         retailStageLabel: "Stage 1 - Exact identity",
@@ -2826,6 +3110,18 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
         candidateOrigin: "retail_site_upc",
         marketplaceDomains: [context.retailerDomain]
       });
+      if (barcodeIdentities[1]) {
+        add({
+          query: buildSerperSingleMarketplaceQuery(barcodeIdentities[1], context.retailerDomain),
+          rawCandidate: primaryBarcode,
+          searchPass: stage1,
+          retailStage: stage1,
+          retailStageLabel: "Stage 1 - Exact identity",
+          retailBudgetBucket: "exactIdentity",
+          candidateOrigin: "retail_site_barcode_equivalent",
+          marketplaceDomains: [context.retailerDomain]
+        });
+      }
     }
   }
   if (brand && identifier) {
@@ -3183,7 +3479,9 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
   const eventPhrase = selectEventSearchPhrase(context);
   const productTitle = cleanSearchQuery(context.exactProductIdentity || context.productTitle || context.subjectIdentity, 8);
   const identifier = firstKnown(context.upc, context.model, context.itemCode);
+  const barcodeIdentities = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(context.upc || context.barcodeDigits), 6);
   const exactBases = mergeStringArrays(
+    barcodeIdentities.map((barcode) => compactWords([barcode, brand || productTitle, itemType])),
     identifier ? [compactWords([identifier, brand || productTitle, itemType])] : [],
     exactPhrase ? [compactWords([quoteSearchPhrase(exactPhrase), brand, organization, itemType])] : [],
     eventPhrase ? [compactWords([quoteSearchPhrase(eventPhrase), organization, brand, itemType])] : [],
@@ -3855,6 +4153,119 @@ function parseDisplayedPrice(text) {
   return Number.isFinite(amount) ? amount : null;
 }
 
+function isLikelyRetailProductPageUrl(url = "") {
+  const domain = hostnameFromUrl(url);
+  if (!domain || isSearchProviderDomain(domain)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+    return /\/(?:p|ip|product|products|item|sku|shop|store)\//i.test(path)
+      || /(?:product|sku|upc|gtin|item)/i.test(parsed.search);
+  } catch {
+    return false;
+  }
+}
+
+function isLikelyExactRetailProductPage(record = {}, context = {}) {
+  if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
+    return false;
+  }
+  const destinationUrl = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  if (!isLikelyRetailProductPageUrl(destinationUrl)) {
+    return false;
+  }
+  if (hasEquivalentBarcodeIdentity(record, context)) {
+    return true;
+  }
+  const text = normalizeComparableText([
+    record.title,
+    record.snippet,
+    record.rawText,
+    destinationUrl
+  ].join(" "));
+  const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
+  const productFamily = normalizeComparableText(fallbackIdentity.productType || context.itemType);
+  const brand = normalizeComparableText(firstKnown(context.brand, context.visualBrand, context.manufacturer));
+  const queryWasExact = /stage_1_exact_identity|retail_exact|retail_site_upc|retail_store_upc/i.test(`${record.searchPass} ${record.query}`);
+  return Boolean(
+    queryWasExact
+    && productFamily
+    && containsNormalizedPhrase(text, productFamily)
+    && (!brand || containsNormalizedPhrase(text, brand))
+    && !isRetailForbiddenSecondaryEvidenceText(text)
+  );
+}
+
+function extractExactRetailPageEvidence(record = {}, context = {}) {
+  const destinationUrl = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  const barcodeIdentitiesFound = extractSupportedBarcodeIdentitySetFromText([
+    record.title,
+    record.snippet,
+    record.rawText,
+    destinationUrl
+  ].join(" "));
+  const matchingBarcodeIdentities = normalizeStringArray(context.barcodeIdentitySet, 24)
+    .filter((identityCode) => barcodeIdentitiesFound.includes(identityCode));
+  const packageQuantity = extractPackQuantityNumber([
+    record.title,
+    record.snippet,
+    record.rawText
+  ].join(" "));
+  const availabilityText = cleanText([
+    record.snippet,
+    record.rawText,
+    record.delivery
+  ].join(" ")).match(/\b(?:in stock|out of stock|available|unavailable|pickup|delivery|add to cart)[^|.;]{0,80}/i)?.[0] || "";
+  return {
+    destinationUrl,
+    retailerDomain: hostnameFromUrl(destinationUrl),
+    normalizedBarcodeIdentitiesFound: barcodeIdentitiesFound,
+    matchingBarcodeIdentities,
+    packageQuantity: Number.isFinite(packageQuantity) ? packageQuantity : null,
+    availabilityText: cleanText(availabilityText),
+    enrichmentMode: "search_result_metadata_only"
+  };
+}
+
+function enrichExactRetailPageRecord(record = {}, context = {}) {
+  if (!isLikelyExactRetailProductPage(record, context)) {
+    return record;
+  }
+  const evidence = extractExactRetailPageEvidence(record, context);
+  const pagePrice = parseDisplayedPrice([
+    record.displayedPriceText,
+    record.price,
+    record.snippet,
+    record.rawText,
+    record.title
+  ].join(" "));
+  const displayedPriceText = record.displayedPriceText || (Number.isFinite(pagePrice) ? formatSourceMoney(pagePrice) : "");
+  const packageText = Number.isFinite(evidence.packageQuantity) ? `${evidence.packageQuantity} count` : "";
+  const rawText = [
+    record.rawText,
+    evidence.matchingBarcodeIdentities.length ? `Equivalent UPC/GTIN identity: ${evidence.matchingBarcodeIdentities.join(", ")}` : "",
+    packageText ? `Supported package quantity: ${packageText}` : "",
+    evidence.availabilityText ? `Availability wording: ${evidence.availabilityText}` : "",
+    "Exact retailer product page recovery used provider-returned title, snippet, URL, and structured fields only; live page fetch was not performed unless separately permitted."
+  ].filter(Boolean).join(" | ");
+  return {
+    ...record,
+    url: evidence.destinationUrl || record.url,
+    canonicalUrl: canonicalizeComparableUrl(evidence.destinationUrl || record.canonicalUrl || record.url),
+    domain: evidence.retailerDomain || record.domain,
+    destinationUrl: evidence.destinationUrl || record.destinationUrl,
+    displayedPriceText,
+    parsedPrice: Number.isFinite(record.parsedPrice) ? record.parsedPrice : pagePrice,
+    priceEvidenceType: Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
+    exactRetailPage: true,
+    exactRetailPageEvidence: evidence,
+    exactPageRecoveryStatus: "exact_retailer_page_enriched_from_provider_metadata",
+    rawText
+  };
+}
+
 function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
   return {
     query: queryRecord.query,
@@ -3907,6 +4318,8 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
 
   const identifiers = [
     context.upc,
+    context.barcodeDigits,
+    ...(context.barcodeIdentitySet || []),
     context.model,
     context.itemCode,
     identity.upcBarcode,
@@ -3915,7 +4328,8 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
     identity.styleNumber,
     identity.modelOrItemNumber
   ].map(cleanText).filter(hasKnownValue);
-  const identifierHit = identifiers.some((identifier) => containsNormalizedPhrase(haystack, identifier));
+  const barcodeEquivalentHit = hasEquivalentBarcodeIdentity(record, context);
+  const identifierHit = barcodeEquivalentHit || identifiers.some((identifier) => containsNormalizedPhrase(haystack, identifier));
 
   const distinctivePhrases = mergeStringArrays(
     context.distinctivePhrases,
@@ -4220,6 +4634,9 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
   const candidateNormalized = normalizeComparableText(candidateText);
   if (submittedProduct && containsNormalizedPhrase(candidateNormalized, submittedProduct)) {
     positiveCompatibilityEvidence.push("Candidate repeats the submitted product wording.");
+  }
+  if (hasEquivalentBarcodeIdentity(record, context)) {
+    positiveCompatibilityEvidence.push("Candidate exposes an equivalent UPC/GTIN identity.");
   }
 
   if (titleCandidate.key && submitted.key && titleCandidate.key !== submitted.key) {
@@ -4968,19 +5385,15 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const retailRouteClassification = context.retailRouteClassification || "";
   const storeName = context.storeName || context.retailerOrMarketplaceName;
   const namedStoreRequests = providerRequestRecords.filter((record) => storeName && cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()));
-  const upcRequests = providerRequestRecords.filter((record) => context.barcodeDigits && cleanText(record.query).includes(context.barcodeDigits));
+  const barcodeIdentities = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(context.barcodeDigits), 24);
+  const upcRequests = providerRequestRecords.filter((record) => barcodeIdentities.some((identityCode) => cleanText(record.query).includes(identityCode)));
   const storeReturned = records.some((record) => storeName && [
     record.domain,
     record.title,
     record.snippet,
     record.url
   ].join(" ").toLowerCase().includes(storeName.toLowerCase()));
-  const exactUpcFound = records.some((record) => context.barcodeDigits && [
-    record.title,
-    record.snippet,
-    record.url,
-    record.query
-  ].join(" ").includes(context.barcodeDigits));
+  const exactUpcFound = records.some((record) => hasEquivalentBarcodeIdentity(record, context));
   const packMismatchRecords = records.filter((record) => /pack_quantity_mismatch/i.test(record.itemTypeCompatibilityStatus || record.rejectionReason || ""));
   const unsupportedRejected = normalizeStringArray(context.unsupportedIdentityTerms, 24);
   const barcodeIntegrity = context.barcodeIntegrity || buildBarcodeIntegrity({}, {});
@@ -4994,6 +5407,15 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const currentRetailAccepted = currentRetailAcceptedAssessments.map((assessment) => assessment.record);
   const retailRejectedAssessments = retailEvidenceAssessments.filter((assessment) => !assessment.sourceScreeningPassed);
   const retailRejected = retailRejectedAssessments.map((assessment) => assessment.record);
+  const exactRetailPageAssessments = retailEvidenceAssessments.filter((assessment) => assessment.exactPageRecoveryStatus);
+  const returnedRetailerDomains = summarizeSourceLabels(retailEvidenceAssessments
+    .map((assessment) => assessment.retailerDomain || assessment.sourceDomain)
+    .filter((domain) => domain && !isSearchProviderDomain(domain)));
+  const customerVisibleCountByRetailer = currentRetailAcceptedAssessments.reduce((summary, assessment) => {
+    const key = cleanText(assessment.retailerDisplayName || assessment.retailerDomain || "Retailer not identified");
+    if (key) summary[key] = (summary[key] || 0) + 1;
+    return summary;
+  }, {});
   const retailStageRecords = providerRequestRecords.filter((record) => record.retailStage);
   const retailQueriesPlanned = retailStageRecords.map((record) => ({
     stage: cleanText(record.retailStageLabel || record.retailStage),
@@ -5044,6 +5466,10 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       ? `Online retail coverage executed; ${onlineRetailReturnedCount} provider source${onlineRetailReturnedCount === 1 ? "" : "s"} returned and ${onlineRetailCustomerEligibleAssessments.length} online retail candidate${onlineRetailCustomerEligibleAssessments.length === 1 ? "" : "s"} reached customer price eligibility.`
       : "Online retail coverage was attempted, but no online retail request succeeded."
     : "Online retail coverage was planned only if registry queries survived preflight; no online retail provider request was attempted.";
+  const limitedResultRecoveryRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_7_limited_result_recovery");
+  const limitedResultRecoveryAttempted = limitedResultRecoveryRequests.some((record) => record.attempted);
+  const limitedResultRecoveryReturnedCount = limitedResultRecoveryRequests.reduce((sum, record) => sum + Number(record.returnedResultCount || record.providerSourceCount || 0), 0);
+  const visibleRetailerCount = Object.keys(customerVisibleCountByRetailer).filter((key) => !/retailer not identified/i.test(key)).length;
   const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
   const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
   const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
@@ -5077,13 +5503,37 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     retailProviderCallBudget: retailSerperBudgetAllocation,
     retailRecoveryTrigger: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? stage1AcceptedCount < 3
-        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, online-retail, Shopping, and location-aware recovery stages were included within the bounded retail budget.`
-        : "Stage 1 produced at least three usable current retail records; recovery records may still appear only if already inside the bounded staged plan."
+        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, online-retail, Shopping, location-aware, and limited-result recovery stages were included within the bounded retail budget when needed.`
+        : "Stage 1 produced at least three usable current retail records; recovery records may still appear only if already inside the bounded staged plan or the limited-result recovery threshold is later met."
       : "",
     retailStagesPlanned,
     retailStagesAttempted,
     retailQueriesPlanned,
     retailQueriesExecuted,
+    normalizedBarcodeIdentities: normalizeStringArray(context.barcodeIdentitySet || barcodeIntegrity.normalizedIdentities, 24),
+    exactRetailPagesFound: exactRetailPageAssessments.map((assessment) => ({
+      title: cleanText(assessment.sourceTitle),
+      retailer: cleanText(assessment.retailerDisplayName),
+      retailerDomain: cleanText(assessment.retailerDomain),
+      destinationUrl: cleanText(assessment.destinationUrl),
+      matchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
+      enrichmentMode: cleanText(assessment.exactPageRecoveryMode),
+      priceAmount: Number.isFinite(assessment.priceAmount) ? assessment.priceAmount : null,
+      packageQuantity: Number.isFinite(assessment.packageQuantity) ? assessment.packageQuantity : null,
+      availabilityStatus: cleanText(assessment.availabilityStatus),
+      promotion: cleanText(assessment.finalPromotionReason)
+    })).slice(0, 12),
+    returnedRetailerDomains,
+    customerVisibleCountByRetailer,
+    limitedResultRecoveryPassRan: limitedResultRecoveryAttempted ? "Yes" : "No",
+    limitedResultRecoveryQueriesAttempted: limitedResultRecoveryRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
+    limitedResultRecoveryProviderCallsUsed: limitedResultRecoveryRequests.filter((record) => record.attempted).length,
+    limitedResultRecoverySourcesReturned: limitedResultRecoveryReturnedCount,
+    limitedResultRecoveryReason: isCurrentRetailOnlyMode(retailEvidenceMode)
+      ? limitedResultRecoveryAttempted
+        ? `Limited-result recovery ran because ${visibleRetailerCount} customer-visible retailer${visibleRetailerCount === 1 ? "" : "s"} survived before recovery and data-driven retailer targets remained.`
+        : "Limited-result recovery did not run because multiple customer-visible retailers were already present, no remaining data-driven retailer target was available, or current-retail mode was not active."
+      : "",
     onlineRetailQueriesAttempted: onlineRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
     onlineRetailSearchStatus,
     onlineRetailProviderCallsUsed: onlineRetailRequests.filter((record) => record.attempted).length,
@@ -5127,6 +5577,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       destinationUrl: cleanText(assessment.destinationUrl),
       searchProvider: cleanText(assessment.searchProvider),
       sourceLinkStatus: assessment.sourceUrl ? "Source link available in result card" : "",
+      exactPageRecoveryStatus: cleanText(assessment.exactPageRecoveryStatus),
+      exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
       displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
       purchaseChannel: cleanText(assessment.purchaseChannel),
       retailOfferPlatform: cleanText(assessment.retailOfferPlatform),
@@ -5144,6 +5596,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       source: cleanText(assessment.retailerDisplayName || assessment.retailerIdentity || assessment.sourceDomain),
       retailerDomain: cleanText(assessment.retailerDomain),
       productFamilyOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
+      exactPageRecoveryStatus: cleanText(assessment.exactPageRecoveryStatus),
+      exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
       contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 4),
       sourceLinkStatus: assessment.sourceUrl ? "Source link withheld from technical text" : "",
       displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
@@ -5172,8 +5626,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     conflictingCandidatesRejected: context.conflictingCandidatesRejected || [],
     unsupportedQueryTermsRejected: unsupportedRejected,
     retailQueryIntegrity: {
-      exactUpcQueryAttempted: context.barcodeDigits ? upcRequests.some((record) => cleanText(record.query) === context.barcodeDigits && record.attempted) : false,
-      storeUpcQueryAttempted: context.barcodeDigits && storeName ? upcRequests.some((record) => cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()) && record.attempted) : false,
+      exactUpcQueryAttempted: barcodeIdentities.length ? upcRequests.some((record) => barcodeIdentities.includes(cleanText(record.query)) && record.attempted) : false,
+      storeUpcQueryAttempted: barcodeIdentities.length && storeName ? upcRequests.some((record) => cleanText(record.query).toLowerCase().includes(storeName.toLowerCase()) && record.attempted) : false,
       retailerDomainQueryAttempted: context.retailerDomain ? providerRequestRecords.some((record) => cleanText(record.query).toLowerCase().includes(`site:${context.retailerDomain}`) && record.attempted) : false,
       namedStoreQueriesGenerated: namedStoreRequests.length,
       resaleQueriesSuppressed: resaleSuppressed,
@@ -5201,6 +5655,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       candidatesExtracted: barcodeIntegrity.candidates || [],
       acceptedSequence: barcodeIntegrity.acceptedSequence || "",
       acceptedFormat: barcodeIntegrity.acceptedFormat || "",
+      normalizedIdentities: normalizeStringArray(barcodeIntegrity.normalizedIdentities || context.barcodeIdentitySet, 24),
+      acceptedEquivalenceClass: barcodeIntegrity.acceptedEquivalenceClass || normalizeStringArray(context.barcodeIdentitySet, 24).join(" | "),
       checkDigitResult: barcodeIntegrity.checkDigitResult || "",
       rejectedSequences: barcodeIntegrity.rejectedCandidates || [],
       manualValueUsed: barcodeIntegrity.manualValueUsed || "No",
@@ -5212,7 +5668,7 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       ? `${namedStoreRequests.filter((record) => record.attempted).length} named-store quer${namedStoreRequests.length === 1 ? "y" : "ies"} attempted; named-store result ${storeReturned ? "returned" : "not returned"}.`
       : "No named store supplied.",
     exactUpcQueryResults: context.barcodeDigits
-      ? `${upcRequests.filter((record) => record.attempted).length} UPC quer${upcRequests.length === 1 ? "y" : "ies"} attempted; exact UPC result ${exactUpcFound ? "found" : "not found"}.`
+      ? `${upcRequests.filter((record) => record.attempted).length} UPC/GTIN quer${upcRequests.length === 1 ? "y" : "ies"} attempted; equivalent UPC/GTIN result ${exactUpcFound ? "found" : "not found"}.`
       : "No exact barcode/UPC digits available.",
     packSizeMatchDetails: context.packageQuantity || context.packageSize
       ? `Submitted package clues: ${compactWords([context.packageQuantity, context.packageSize]) || "not established"}.`
@@ -6813,6 +7269,90 @@ function getValidatedBarcodeSequence(value) {
   return validation.valid ? validation.digits : "";
 }
 
+function buildBarcodeIdentitySet(value) {
+  const digits = normalizeBarcodeDigits(value);
+  if (!digits) {
+    return [];
+  }
+  const validation = validateRetailBarcodeCandidate(digits);
+  if (!validation.valid) {
+    return [];
+  }
+  const set = new Set();
+  const add = (candidate) => {
+    const normalized = normalizeBarcodeDigits(candidate);
+    if (!normalized) return;
+    const candidateValidation = validateRetailBarcodeCandidate(normalized);
+    if (candidateValidation.valid) {
+      set.add(normalized);
+    }
+  };
+  add(digits);
+  if (digits.length === 12) {
+    add(`0${digits}`);
+    add(`00${digits}`);
+  } else if (digits.length === 13) {
+    if (digits.startsWith("0")) add(digits.slice(1));
+    add(`0${digits}`);
+  } else if (digits.length === 14) {
+    if (digits.startsWith("0")) add(digits.slice(1));
+    if (digits.startsWith("00")) add(digits.slice(2));
+  }
+  return [...set].filter(Boolean);
+}
+
+function collectBarcodeIdentitySet(identity = {}, buyerIntake = normalizeBuyerIntake({}), canonicalUpc = "") {
+  const values = [
+    canonicalUpc,
+    buyerIntake.known_upc,
+    buyerIntake.known_upc_digits,
+    identity.upcBarcode,
+    identity.barcodeDigits
+  ];
+  const identities = [];
+  for (const value of values) {
+    for (const candidate of buildBarcodeIdentitySet(value)) {
+      addUnique(identities, candidate);
+    }
+  }
+  return identities;
+}
+
+function barcodeIdentitySetsIntersect(left = [], right = []) {
+  const leftSet = new Set(normalizeStringArray(left, 24));
+  return normalizeStringArray(right, 24).some((value) => leftSet.has(value));
+}
+
+function extractSupportedBarcodeIdentitySetFromText(value = "") {
+  const identities = [];
+  for (const candidate of extractBarcodeDigitCandidatesFromText(value)) {
+    for (const equivalent of buildBarcodeIdentitySet(candidate)) {
+      addUnique(identities, equivalent);
+    }
+  }
+  return identities;
+}
+
+function hasEquivalentBarcodeIdentity(record = {}, context = {}) {
+  const submittedIdentities = normalizeStringArray(
+    context.barcodeIdentitySet || buildBarcodeIdentitySet(context.barcodeDigits || context.upc),
+    24
+  );
+  if (!submittedIdentities.length) {
+    return false;
+  }
+  const candidateIdentities = extractSupportedBarcodeIdentitySetFromText([
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.displayedPriceText,
+    record.url,
+    record.canonicalUrl,
+    record.query
+  ].join(" "));
+  return barcodeIdentitySetsIntersect(submittedIdentities, candidateIdentities);
+}
+
 function addBarcodeCandidate(candidates, value, source, evidence = "", manual = false) {
   const text = cleanText(value);
   if (!text) return;
@@ -6921,11 +7461,16 @@ function buildBarcodeIntegrity(identity = {}, buyerIntake = normalizeBuyerIntake
     : reviewed.length
       ? "The barcode could not be confirmed with a valid check digit. Enter the UPC manually or upload a clearer barcode photo."
       : cleanText(identity.barcodeFailureMessage);
+  const normalizedIdentities = accepted
+    ? buildBarcodeIdentitySet(accepted.sequence)
+    : collectBarcodeIdentitySet(identity, buyerIntake, canonicalUpc);
 
   return {
     status,
     acceptedSequence: accepted?.sequence || "",
     acceptedFormat: accepted?.format || "",
+    normalizedIdentities,
+    acceptedEquivalenceClass: normalizedIdentities.join(" | "),
     checkDigitResult: accepted ? "pass" : rejected.length ? "failed" : "not_available",
     manualValueUsed: accepted?.manual ? "Yes" : "No",
     candidates: reviewed.map((candidate) => ({
@@ -7686,7 +8231,11 @@ function buildLiveSearchQueries(identity, sourceRoute, notes, buyerIntake = norm
     index += 1;
   }
 
-  const maxQueries = context.hasHighSpecificityText ? 14 : context.seasonalDecor || context.organizationCollectible || context.visualReferenceSubject ? 8 : 6;
+  const maxQueries = (context.retailStoreContext || context.onlineRetailerContext)
+    ? 18
+    : context.hasHighSpecificityText
+      ? 14
+      : context.seasonalDecor || context.organizationCollectible || context.visualReferenceSubject ? 8 : 6;
   if (context.retailStoreContext || context.onlineRetailerContext) {
     const safeRetailQueries = retailQueries.map((item) => finalizeSearchQueryCandidate(item, context, 18)).filter(Boolean);
     const safeRetailSet = new Set();
@@ -7764,6 +8313,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
   const barcodeIntegrity = buildBarcodeIntegrity(identity, buyerIntake, canonicalUpc);
   const upc = barcodeIntegrity.acceptedSequence;
   const barcodeDigits = barcodeIntegrity.acceptedSequence;
+  const barcodeIdentitySet = normalizeStringArray(barcodeIntegrity.normalizedIdentities || buildBarcodeIdentitySet(barcodeDigits), 24);
   const rawBarcodeInput = firstKnown(canonicalUpc, buyerIntake.known_upc, buyerIntake.known_upc_digits, identity.upcBarcode, barcodeIntegrity.firstCandidate);
   const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
   const storeName = getRetailStoreName(buyerIntake);
@@ -7831,6 +8381,8 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     itemCode,
     upc,
     barcodeDigits,
+    barcodeIdentitySet,
+    normalizedBarcodeIdentities: barcodeIdentitySet,
     rawBarcodeInput,
     barcodeIntegrity,
     barcodeReadStatus: barcodeIntegrity.status,
@@ -7897,6 +8449,8 @@ function buildRetailContextSearchQueries(context) {
   }
   const queries = [];
   const barcode = context.barcodeDigits || normalizeBarcodeDigits(context.upc);
+  const barcodeIdentities = normalizeStringArray(context.barcodeIdentitySet || buildBarcodeIdentitySet(barcode), 6);
+  const primaryBarcode = barcodeIdentities[0] || barcode;
   const storeName = context.storeName || context.retailerOrMarketplaceName;
   const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
   const identifier = firstKnown(context.model, context.itemCode);
@@ -7908,9 +8462,18 @@ function buildRetailContextSearchQueries(context) {
 
   if (barcode) {
     queries.push(barcode);
+    for (const identityCode of (barcodeIdentities.length ? barcodeIdentities : [primaryBarcode]).filter((identityCode) => identityCode && identityCode !== barcode)) {
+      queries.push(identityCode);
+    }
     queries.push(compactWords([storeName, barcode]));
+    if (barcodeIdentities[1]) {
+      queries.push(compactWords([storeName, barcodeIdentities[1]]));
+    }
     if (context.retailerDomain) {
       queries.push(buildSerperSingleMarketplaceQuery(barcode, context.retailerDomain));
+      if (barcodeIdentities[1]) {
+        queries.push(buildSerperSingleMarketplaceQuery(barcodeIdentities[1], context.retailerDomain));
+      }
     }
   }
 
@@ -7936,7 +8499,7 @@ function buildRetailContextSearchQueries(context) {
   if (barcode) {
     queries.push(compactWords([barcode, brand || productTitle]));
     queries.push(compactWords([barcode, productTitle, pack]));
-    queries.push(compactWords([barcode, "current price"]));
+    queries.push(compactWords([barcode, "current retail price"]));
   }
   if (identifier && storeName) {
     queries.push(compactWords([storeName, brand, identifier, productType]));
@@ -7957,7 +8520,7 @@ function buildRetailContextSearchQueries(context) {
     queries.push(compactWords([productTitle, location, "nearby price"]));
   }
 
-  return mergeStringArrays(queries, 16);
+  return mergeStringArrays(queries, 20);
 }
 
 function buildHighPriorityExactQueries(context) {
@@ -9749,6 +10312,10 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     originalSourceUrl: assessment.originalSourceUrl,
     searchProvider: assessment.searchProvider,
     sourceEvidenceType: assessment.sourceEvidenceType,
+    exactPageRecoveryStatus: assessment.exactPageRecoveryStatus,
+    exactPageRecoveryMode: assessment.exactPageRecoveryMode,
+    exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
+    exactPageNormalizedBarcodeIdentitiesFound: normalizeStringArray(assessment.exactPageNormalizedBarcodeIdentitiesFound, 12),
     onlineLocalStatus: assessment.onlineLocalStatus,
     purchaseChannel: assessment.purchaseChannel,
     namedStoreMatchStatus: assessment.namedStoreMatchStatus,
@@ -9829,9 +10396,46 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     }
   }
 
-  return [...byListing.values()]
-    .sort(comparePriceFoundRecords)
-    .slice(0, 8);
+  return selectDiversePriceFoundRecords([...byListing.values()].sort(comparePriceFoundRecords), 8);
+}
+
+function priceFoundRetailerKey(record = {}) {
+  const destinationUrl = cleanText(record.destinationUrl || record.url || record.canonicalUrl);
+  const domain = cleanText(record.retailerDomain || hostnameFromUrl(destinationUrl)).toLowerCase();
+  const name = cleanText(record.retailerDisplayName || record.source || record.marketplace).toLowerCase();
+  return domain || name;
+}
+
+function selectDiversePriceFoundRecords(records = [], limit = 8) {
+  const sorted = normalizeArray(records)
+    .filter((record) => record && typeof record === "object")
+    .slice()
+    .sort(comparePriceFoundRecords);
+  const selected = [];
+  const seenRetailers = new Set();
+  const add = (record) => {
+    const key = priceContextKey(record);
+    if (!key || selected.some((item) => priceContextKey(item) === key)) {
+      return false;
+    }
+    selected.push(record);
+    return true;
+  };
+  for (const record of sorted) {
+    if (selected.length >= limit) break;
+    const retailerKey = priceFoundRetailerKey(record);
+    if (!retailerKey || seenRetailers.has(retailerKey)) {
+      continue;
+    }
+    if (add(record)) {
+      seenRetailers.add(retailerKey);
+    }
+  }
+  for (const record of sorted) {
+    if (selected.length >= limit) break;
+    add(record);
+  }
+  return selected.slice(0, limit);
 }
 
 function dedupeResearchRecordsByListing(records = []) {
@@ -10135,10 +10739,10 @@ function retailEvidenceTierRank(record = {}) {
 }
 
 function comparePriceFoundRecords(a, b) {
-  const rankDelta = priceFoundSortRank(a) - priceFoundSortRank(b);
-  if (rankDelta) return rankDelta;
   const tierDelta = retailEvidenceTierRank(a) - retailEvidenceTierRank(b);
   if (tierDelta) return tierDelta;
+  const rankDelta = priceFoundSortRank(a) - priceFoundSortRank(b);
+  if (rankDelta) return rankDelta;
   const aDelivered = Number.isFinite(a.deliveredCostAmount) ? a.deliveredCostAmount : Number.POSITIVE_INFINITY;
   const bDelivered = Number.isFinite(b.deliveredCostAmount) ? b.deliveredCostAmount : Number.POSITIVE_INFINITY;
   if (aDelivered !== bDelivered) return aDelivered - bDelivered;
@@ -10276,14 +10880,22 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
     getValidatedBarcodeSequence(identity.upcBarcode),
     getValidatedBarcodeSequence(buyerIntake.known_upc)
   );
+  const submittedBarcodeIdentitySet = buildBarcodeIdentitySet(submittedBarcode);
   const submittedIdentifier = cleanText(firstKnown(submittedBarcode, identity.sku, identity.model, identity.styleNumber, buyerIntake.known_sku, buyerIntake.known_model));
   const candidateHasSubmittedBrand = submittedBrand && containsNormalizedPhrase(candidateText, submittedBrand);
-  const candidateHasSubmittedIdentifier = submittedIdentifier && containsNormalizedPhrase(candidateText, submittedIdentifier);
+  const candidateHasEquivalentBarcode = submittedBarcodeIdentitySet.length
+    ? hasEquivalentBarcodeIdentity(record, { barcodeIdentitySet: submittedBarcodeIdentitySet, barcodeDigits: submittedBarcode, upc: submittedBarcode })
+    : false;
+  const candidateHasSubmittedIdentifier = submittedIdentifier && (containsNormalizedPhrase(candidateText, submittedIdentifier) || candidateHasEquivalentBarcode);
   const categoryConflict = detectRetailProductCategoryConflict(submittedText, candidateText);
   const submittedSize = extractRetailSizeToken([identity.packageSize, identity.dimensions, submittedText].join(" "));
   const candidateSize = extractRetailSizeToken(candidateText);
   const candidateBarcodeMismatch = submittedBarcode
-    ? extractBarcodeDigitCandidatesFromText(candidateText).some((sequence) => sequence !== submittedBarcode && validateRetailBarcodeCandidate(sequence).valid)
+    ? extractBarcodeDigitCandidatesFromText(candidateText).some((sequence) => {
+        const validation = validateRetailBarcodeCandidate(sequence);
+        if (!validation.valid) return false;
+        return !barcodeIdentitySetsIntersect(submittedBarcodeIdentitySet, buildBarcodeIdentitySet(sequence));
+      })
     : false;
 
   if (candidateBarcodeMismatch) {
@@ -10476,6 +11088,7 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     record.snippet,
     record.conciseLimitation
   ].join(" "));
+  const exactPageEvidence = record.exactRetailPageEvidence || {};
   const shipping = extractShippingEvidence(record);
   const offerDetails = deriveRetailOfferDetails(record, retailerAttribution);
   const purchaseChannel = classifyRetailPurchaseChannel(record, retailerAttribution);
@@ -10521,6 +11134,10 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     originalSourceUrl: retailerAttribution.originalSourceUrl,
     searchProvider: retailerAttribution.searchProvider,
     sourceEvidenceType: retailerAttribution.sourceEvidenceType,
+    exactPageRecoveryStatus: cleanText(record.exactPageRecoveryStatus),
+    exactPageRecoveryMode: cleanText(exactPageEvidence.enrichmentMode),
+    exactPageMatchedBarcodeIdentities: normalizeStringArray(exactPageEvidence.matchingBarcodeIdentities, 12),
+    exactPageNormalizedBarcodeIdentitiesFound: normalizeStringArray(exactPageEvidence.normalizedBarcodeIdentitiesFound, 12),
     onlineLocalStatus: retailerAttribution.onlineLocalStatus,
     purchaseChannel,
     namedStoreMatchStatus: retailerAttribution.namedStoreMatchStatus,
@@ -10611,7 +11228,7 @@ function classifyRetailEvidenceTier({ record = {}, packageCompatibility = {}, ha
     return { id: "tier_5", rank: 5, label: "Broader category reference", exact: false };
   }
   const identityText = cleanText([record.matchQuality, record.classification, record.identityMatchStrength].join(" "));
-  const exactProduct = /exact/i.test(identityText) || packageCompatibility.label === "Exact Retail Match";
+  const exactProduct = record.exactRetailPage === true || /exact/i.test(identityText) || packageCompatibility.label === "Exact Retail Match";
   if (packageCompatibility.status === "exact_package_match") {
     return { id: "tier_1", rank: 1, label: "Exact product and exact package", exact: true };
   }
@@ -10674,6 +11291,10 @@ function sanitizeRetailEvidenceAssessment(assessment = {}) {
     originalSourceUrl: cleanText(assessment.originalSourceUrl),
     searchProvider: cleanText(assessment.searchProvider),
     sourceEvidenceType: cleanText(assessment.sourceEvidenceType),
+    exactPageRecoveryStatus: cleanText(assessment.exactPageRecoveryStatus),
+    exactPageRecoveryMode: cleanText(assessment.exactPageRecoveryMode),
+    exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
+    exactPageNormalizedBarcodeIdentitiesFound: normalizeStringArray(assessment.exactPageNormalizedBarcodeIdentitiesFound, 12),
     onlineLocalStatus: cleanText(assessment.onlineLocalStatus),
     purchaseChannel: cleanText(assessment.purchaseChannel),
     namedStoreMatchStatus: cleanText(assessment.namedStoreMatchStatus),
@@ -16122,6 +16743,10 @@ export const __queryIntegrityTestHooks = {
   retailSerperBudgetAllocation,
   onlineRetailerRegistry,
   buildOnlineRetailSearchTargets,
+  buildLimitedResultRetailRecoveryQueries,
+  shouldRunLimitedResultRetailRecovery,
+  isLikelyExactRetailProductPage,
+  enrichExactRetailPageRecord,
   detectOnlineRetailCategoryTags,
   finalizeSearchQueryCandidate,
   findUnsupportedQueryTerms,
@@ -16192,6 +16817,10 @@ export const __queryIntegrityTestHooks = {
   formatUnitMoney,
   formatUnitCents,
   normalizeBarcodeDigits,
+  buildBarcodeIdentitySet,
+  barcodeIdentitySetsIntersect,
+  extractSupportedBarcodeIdentitySetFromText,
+  hasEquivalentBarcodeIdentity,
   validateRetailBarcodeCandidate,
   buildBarcodeIntegrity,
   getValidatedBarcodeSequence,

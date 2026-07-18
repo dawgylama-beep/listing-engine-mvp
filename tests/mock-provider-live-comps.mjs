@@ -914,6 +914,87 @@ try {
     ...overrides
   });
   const retailContext = __queryIntegrityTestHooks.buildSearchQueryContext(genericRetailIdentity, __queryIntegrityTestHooks.routeMarketSources(genericRetailIdentity, genericRetailIntake, ""), "household cleaner", genericRetailIntake);
+  const officeWorksBarcodeIdentities = __queryIntegrityTestHooks.buildBarcodeIdentitySet("041226087161");
+  assert(officeWorksBarcodeIdentities.includes("041226087161") && officeWorksBarcodeIdentities.includes("0041226087161"), "UPC-A and zero-padded EAN-13 identities should share one barcode equivalence set.");
+  assert(__queryIntegrityTestHooks.barcodeIdentitySetsIntersect(officeWorksBarcodeIdentities, __queryIntegrityTestHooks.buildBarcodeIdentitySet("0041226087161")), "Zero-padded GTIN identity should compare equivalent to the submitted UPC-A.");
+  assert(__queryIntegrityTestHooks.hasEquivalentBarcodeIdentity({
+    title: "Office Works Strip and Seal Security Envelopes White 45 Count",
+    url: "https://retailer.example/p/office-works/0041226087161"
+  }, { barcodeIdentitySet: officeWorksBarcodeIdentities }), "Exact retailer-page URLs can support barcode equivalence without identical raw UPC formatting.");
+  const officeWorksExactPage = retailRecord({
+    title: "Office Works Strip and Seal Security Envelopes White 45 Count",
+    domain: "kroger.com",
+    source: "Kroger",
+    url: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/0041226087161",
+    displayedPriceText: "$2.99",
+    parsedPrice: 2.99,
+    searchPass: "stage_1_exact_identity",
+    query: "0041226087161 site:kroger.com",
+    rawText: "Current price $2.99. GTIN 0041226087161. 45 count. Availability not shown.",
+    snippet: "Current price $2.99. 45 count. Availability not shown."
+  });
+  const enrichedOfficeWorksExactPage = __queryIntegrityTestHooks.enrichExactRetailPageRecord(officeWorksExactPage, officeWorksContext);
+  assert(enrichedOfficeWorksExactPage.exactRetailPage === true && enrichedOfficeWorksExactPage.parsedPrice === 2.99, "Likely exact retailer product pages should be enriched and preserve current item price.");
+  assert(__queryIntegrityTestHooks.isLikelyExactRetailProductPage(enrichedOfficeWorksExactPage, officeWorksContext), "Exact retailer page recovery should identify product-page URLs with equivalent UPC/GTIN support.");
+  const lowerCompatibleOfficeOffer = retailRecord({
+    title: "Security Envelopes Strip and Seal 50 Count",
+    domain: "staples.com",
+    source: "Staples",
+    url: "https://www.staples.com/security-envelopes-strip-seal-50",
+    displayedPriceText: "$1.99",
+    parsedPrice: 1.99,
+    searchPass: "stage_3_compatible_alternatives",
+    query: "security envelopes strip and seal 50 count current price",
+    rawText: "Current price $1.99. 50 count. Free shipping.",
+    snippet: "Current price $1.99. 50 count. Free shipping."
+  });
+  const exactAndCompatiblePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [lowerCompatibleOfficeOffer, enrichedOfficeWorksExactPage],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
+  assert(/kroger/i.test(exactAndCompatiblePrices[0]?.retailerDisplayName || "") && exactAndCompatiblePrices[0].itemPrice === "$2.99", "Exact retailer product price should outrank a cheaper compatible alternative in Where to Buy.");
+  assert(/Exact Product Price|Exact Retail Match/i.test(exactAndCompatiblePrices[0].priceContextLabel), "Exact retailer product page promotion should reach exact price context.");
+  assert(exactAndCompatiblePrices.some((record) => /45-count and 50-count packages.*unit-price comparison/i.test(record.knownDifferences || record.priceContextSummary || "")), "Package-count differences should remain disclosed for compatible alternatives.");
+  assert(/Availability unconfirmed/i.test(exactAndCompatiblePrices[0].listingStatus || ""), "Availability must not be inferred solely from a visible price.");
+  const duplicateExactPages = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
+    enrichedOfficeWorksExactPage,
+    {
+      ...enrichedOfficeWorksExactPage,
+      url: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/00041226087161?utm_source=test",
+      canonicalUrl: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/00041226087161"
+    }
+  ], officeWorksContext);
+  assert(duplicateExactPages.length === 1, "Equivalent exact retailer-page offers should not duplicate Where to Buy rows.");
+  assert(__queryIntegrityTestHooks.shouldRunLimitedResultRetailRecovery({
+    context: officeWorksContext,
+    providerRequestRecords: officeWorksRequestRecords,
+    records: [enrichedOfficeWorksExactPage]
+  }), "One-result recovery should trigger when only one customer-visible retailer survives and data-driven retailer targets remain.");
+  const limitedRecoveryQueries = __queryIntegrityTestHooks.buildLimitedResultRetailRecoveryQueries(officeWorksContext, officeWorksRequestRecords, [enrichedOfficeWorksExactPage]);
+  assert(limitedRecoveryQueries.length > 0 && limitedRecoveryQueries.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.limitedResultRecovery, "Limited-result recovery queries must remain bounded.");
+  assert(limitedRecoveryQueries.every((record) => record.retailStage === "stage_7_limited_result_recovery" && record.marketplaceDomains.length === 1), "Limited-result recovery should use domain-constrained retailer diversity queries.");
+  assert(__queryIntegrityTestHooks.parseCurrencyCents("$5.50") === 550, "Existing $5.50 precision should remain exact.");
+  const multiRetailerOfficePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [
+      enrichedOfficeWorksExactPage,
+      lowerCompatibleOfficeOffer,
+      retailRecord({
+        title: "Security Envelopes Strip and Seal 45 Count",
+        domain: "target.com",
+        source: "Target",
+        url: "https://www.target.com/p/security-envelopes-strip-seal-45",
+        displayedPriceText: "$3.29",
+        parsedPrice: 3.29,
+        searchPass: "stage_4_retailer_specific",
+        query: "security envelopes strip and seal 45 count current price site:target.com",
+        rawText: "Current price $3.29. 45 count. Pickup availability not confirmed.",
+        snippet: "Current price $3.29. 45 count."
+      })
+    ],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
+  assert(new Set(multiRetailerOfficePrices.map((record) => record.retailerDomain)).size >= 3, "Multiple retailers should appear when supported by source-backed current retail evidence.");
+
   const retailAssessments = __queryIntegrityTestHooks.buildRetailEvidenceAssessments([
     retailRecord(),
     retailRecord({ title: "Household Cleaner Refill", url: "https://national-retailer.example/household-cleaner-refill", displayedPriceText: "$8.00", parsedPrice: 8, snippet: "Current price $8.00. Availability not shown." }),
