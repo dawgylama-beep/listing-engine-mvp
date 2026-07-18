@@ -58,7 +58,7 @@ $workflowInstructionChecks = @(
   "Prepare to Sell"
 )
 
-Require-Contains "Visible app version is 1.11.11" $index "Version 1.11.11"
+Require-Contains "Visible app version is 1.11.12" $index "Version 1.11.12"
 Require-NotContains "Permanent Start Here box is removed" $index 'class="intake-instructions"'
 Require-NotContains "Start Here heading is removed" $index "Start Here"
 Require-NotContains "Old three-step instruction text is removed" $index "Choose what you want to do."

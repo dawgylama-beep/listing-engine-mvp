@@ -51,21 +51,21 @@ Require-Contains "Compact list class is used" $pricesRenderer 'list.className = 
 Require-Contains "Multiple rows render through one list" $pricesRenderer "records.forEach((item, index) => {"
 Require-Contains "Retail result is a compact list row" $rowRenderer 'const card = document.createElement("li");'
 Require-Contains "Compact row class is used" $rowRenderer 'card.className = "price-found-row";'
-Require-Contains "Retailer and price share the lead line" $rowRenderer 'source.textContent = `${retailerUnknown ? "Retailer not identified" : retailerName}'
-Require-Contains "Quantity follows as compact metadata" $rowRenderer 'const quantityParts = [formatPriceFoundQuantity(item)];'
-Require-Contains "Purchase channel is included with quantity" $rowRenderer 'quantityParts.push(purchaseChannel);'
+Require-Contains "Retailer/source and price share the lead line" $rowRenderer 'source.textContent = `${retailerUnknown ? "Retailer not identified" : displaySourceName}'
+Require-Contains "Quantity follows as compact metadata" $rowRenderer 'const quantityParts = getPriceFoundMetaParts(item, purchaseChannel, unitPriceText);'
+Require-Contains "Retail metadata helper preserves purchase channel" $app "function getPriceFoundMetaParts"
 Require-Contains "Purchase channel helper exists" $app "function getPriceFoundPurchaseChannel"
 Require-Contains "Unknown quantity is explicit" $app 'return "Not shown";'
 Require-Contains "Numeric quantity becomes count wording" $app 'return `${cleaned} count`;'
-Require-Contains "Unit price appears only when supported" $rowRenderer 'if (unitPriceText) {'
+Require-Contains "Unit price appears only when supported" $app 'if (unitPriceText) {'
 Require-Contains "Unit price helper avoids duplicate each" $app "function formatPriceFoundUnitPrice"
 Require-Contains "Nearby address is supported without becoming the lead" $rowRenderer 'address.textContent = addressText;'
 Require-Contains "Address is only appended when supported" $rowRenderer "...(addressText ? [address] : [])"
 Require-Contains "One list-level availability disclaimer exists" $pricesRenderer 'disclaimer.textContent = "Prices were found online. Check the retailer for current availability.";'
 Require-NotContains "Per-row availability note is removed" $rowRenderer "price-found-check-note"
-Require-Contains "Known retailer action is preserved" $rowRenderer 'View at ${retailerName}'
+Require-Contains "Known retailer action is preserved" $rowRenderer 'getPriceFoundActionLabel(item'
 Require-Contains "Directions action is compact" $rowRenderer 'Directions'
-Require-Contains "Unknown retailer action says View Listing" $rowRenderer 'View Listing'
+Require-Contains "Unknown retailer action says View Listing" $app 'View Listing'
 Require-Contains "Details remain collapsed per row" $rowRenderer 'details.className = "price-found-details";'
 Require-Contains "Matching explanation is inside Details" $rowRenderer '["Matching explanation", item.priceContextSummary || matchLabel]'
 Require-Contains "Evidence tier is inside Details" $rowRenderer '["Evidence tier", item.retailEvidenceTierLabel || item.retailEvidenceTier || item.priceTypeLabel]'

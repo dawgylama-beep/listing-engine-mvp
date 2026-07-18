@@ -1802,6 +1802,20 @@ const onlineRetailerRegistry = Object.freeze([
   { key: "manufacturer_direct", name: "Manufacturer/direct store", domain: "", marketplacePlatform: false, categories: ["manufacturer_direct"] }
 ]);
 
+const secondaryMarketAuctionRegistry = Object.freeze([
+  { key: "ebay", name: "eBay", domain: "ebay.com", sourceFamily: "marketplace", categories: ["general", "collectible", "vintage", "memorabilia", "auction"] },
+  { key: "mercari", name: "Mercari", domain: "mercari.com", sourceFamily: "marketplace", categories: ["general", "collectible", "vintage"] },
+  { key: "etsy", name: "Etsy", domain: "etsy.com", sourceFamily: "marketplace", categories: ["collectible", "vintage", "handmade", "decor"] },
+  { key: "liveauctioneers", name: "LiveAuctioneers", domain: "liveauctioneers.com", sourceFamily: "auction", categories: ["auction", "collectible", "vintage", "fine_art"] },
+  { key: "hibid", name: "HiBid", domain: "hibid.com", sourceFamily: "auction", categories: ["auction", "collectible", "vintage", "estate"] },
+  { key: "invaluable", name: "Invaluable", domain: "invaluable.com", sourceFamily: "auction", categories: ["auction", "collectible", "vintage", "fine_art"] },
+  { key: "auctionzip", name: "AuctionZip", domain: "auctionzip.com", sourceFamily: "auction", categories: ["auction", "estate", "collectible"] },
+  { key: "worthpoint", name: "WorthPoint", domain: "worthpoint.com", sourceFamily: "archive", categories: ["archive", "collectible", "vintage"] },
+  { key: "picclick", name: "PicClick", domain: "picclick.com", sourceFamily: "archive", categories: ["archive", "marketplace_index", "collectible"] },
+  { key: "rubylane", name: "Ruby Lane", domain: "rubylane.com", sourceFamily: "specialty_dealer", categories: ["collectible", "vintage", "decor", "jewelry"] },
+  { key: "chairish", name: "Chairish", domain: "chairish.com", sourceFamily: "specialty_dealer", categories: ["vintage", "decor", "furniture", "art"] }
+]);
+
 async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
   const requestStartedAtMs = Date.now();
@@ -2448,7 +2462,7 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
         candidatePackQuantity: itemTypeCompatibility.candidatePackQuantity || "",
         identityMatchStrength,
         priceEvidenceType,
-        priceTypeLabel: normalizePriceTypeLabel(priceEvidenceType, record),
+        priceTypeLabel: normalizePriceTypeLabel(priceEvidenceType, enrichedRecord),
         retained: !/Rejected/i.test(identityMatchStrength),
         rejectionReason,
         sourceBacked: "URL-cited",
@@ -2885,6 +2899,11 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   modelSearchCandidatesToValidate.forEach((record) => {
     addRecord({ ...record, maxValidRecords: 10 });
   });
+
+  for (const record of recoveryCandidates.filter((item) => item.searchPass === "collectible_exact_source_recovery").slice(0, 2)) {
+    if (validRecords.length >= 12) break;
+    addRecord({ ...record, maxValidRecords: 12 });
+  }
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass === "marketplace_domain_recovery").slice(0, 1)) {
     if (validRecords.length >= 12) break;
@@ -3499,7 +3518,7 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
   ).filter(Boolean);
   const priceTerms = context.retailStoreContext || context.onlineRetailerContext
     ? ["current price", "shopping", "in stock", "pickup", "delivery"]
-    : ["price", "sold", "for sale", "auction", "value"];
+    : buildCollectiblePriceTypeRecoveryTerms(context);
 
   const add = ({ query, searchPass, candidateOrigin, marketplaceDomains: domains = [] }) => {
     if (!query) return;
@@ -3544,6 +3563,10 @@ function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = [])
       searchPass: "marketplace_domain_recovery",
       marketplaceDomains: [domain]
     });
+  }
+
+  for (const record of buildCollectibleExactSourceRecoveryQueries(context, marketplaceDomains)) {
+    add(record);
   }
 
   for (const base of mergeStringArrays(exactBases, reducedBases, 3)) {
@@ -4911,9 +4934,10 @@ function isComparableItemTypeValuationSafe(itemTypeCompatibility = {}) {
 }
 
 function isValuationBearingComparable(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}) {
+  const normalizedPriceType = normalizePriceTypeLabel(priceEvidenceType, { priceType: priceEvidenceType });
   return isComparableItemTypeValuationSafe(itemTypeCompatibility)
     && /Exact|Strong Similar/i.test(identityMatchStrength)
-    && !/No Usable|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceEvidenceType);
+    && !/No Usable|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference|Auction Current Bid|Auction Opening Bid|Auction Estimate|Closed Unsold Listing|Price Unavailable|Estimated\/Guide Price|Reference Price/i.test(normalizedPriceType);
 }
 
 function isVerifiedMarketRangeEvidence(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {}, record = {}) {
@@ -4927,7 +4951,8 @@ function isPreliminaryAskingPriceRangeEvidence(identityMatchStrength = "", price
   return isComparableItemTypeValuationSafe(itemTypeCompatibility)
     && /Exact|Strong Similar|Partial/i.test(identityMatchStrength)
     && Boolean(record.displayedPriceText || record.displayedPrice || record.price || Number.isFinite(record.parsedPrice))
-    && !/No Usable|Reference Without Price|Unknown Price Type|Non-Transactional Reference|Bulk\/Lot Reference/i.test(normalizedPriceType);
+    && !isRelatedDesignOnlyRecord(record)
+    && !/No Usable|Reference Without Price|Unknown Price Type|Non-Transactional Reference|Bulk\/Lot Reference|Auction Current Bid|Auction Opening Bid|Auction Estimate|Closed Unsold Listing|Price Unavailable|Estimated\/Guide Price|Reference Price/i.test(normalizedPriceType);
 }
 
 function buildNonValuationInfluenceReason(priceEvidenceType = "", itemTypeCompatibility = {}) {
@@ -4969,6 +4994,9 @@ function buildPreliminaryRangeNonInclusionReason(priceEvidenceType = "", itemTyp
   if (/No Usable|Reference Without Price/i.test(priceEvidenceType)) {
     return "No - no usable visible price was supplied.";
   }
+  if (/Auction Current Bid|Auction Opening Bid|Auction Estimate|Closed Unsold Listing|Price Unavailable|Estimated\/Guide Price|Reference Price/i.test(priceEvidenceType)) {
+    return "No - this price type is context only and is not a completed sale or active asking-price range.";
+  }
   return "No - match quality is not useful enough for a preliminary asking-price range.";
 }
 
@@ -4993,8 +5021,74 @@ function hasStrongItemTypeMismatch(haystack, itemType) {
   return false;
 }
 
+function isSecondaryMarketAuctionDomain(domainOrUrl = "") {
+  const domain = cleanText(hostnameFromUrl(domainOrUrl) || domainOrUrl).replace(/^www\./i, "").toLowerCase();
+  return secondaryMarketAuctionRegistry.some((target) => domain === target.domain || domain.endsWith(`.${target.domain}`));
+}
+
+function getSecondaryMarketAuctionTarget(record = {}) {
+  const domain = cleanText(record.domain || hostnameFromUrl(record.url || record.canonicalUrl)).replace(/^www\./i, "").toLowerCase();
+  return secondaryMarketAuctionRegistry.find((target) => domain === target.domain || domain.endsWith(`.${target.domain}`)) || null;
+}
+
+function isAuctionSourceRecord(record = {}) {
+  const target = getSecondaryMarketAuctionTarget(record);
+  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  return target?.sourceFamily === "auction"
+    || /\b(?:auction|bid|bidding|hammer\s+price|price\s+realized|opening\s+bid|starting\s+bid|lot\s+\d+)\b/i.test(text);
+}
+
+function isExactSecondaryMarketEvidenceRecord(record = {}) {
+  const identityText = cleanText([record.identityMatchStrength, record.classification, record.matchQuality, record.rawText].join(" "));
+  return /exact/i.test(identityText)
+    && !isRelatedDesignOnlyRecord(record)
+    && (isSecondaryMarketAuctionDomain(record.domain || record.url || record.canonicalUrl)
+      || isAuctionSourceRecord(record)
+      || /\b(?:marketplace|auction|active listing|current bid|opening bid|auction estimate|closed unsold|verified sold)\b/i.test(buildComparableEvidenceText(record)));
+}
+
+function isRelatedDesignOnlyRecord(record = {}) {
+  const text = normalizeComparableText([
+    record.classification,
+    record.identityMatchStrength,
+    record.matchQuality,
+    record.evidenceRole,
+    record.matchExplanation,
+    record.itemIdentityDifferences,
+    record.rejectionReason,
+    record.title,
+    record.snippet,
+    record.rawText
+  ].join(" "));
+  return /\b(?:related\s+item|different\s+(?:design|artwork|slogan|pattern|graphic|color|year|edition|team|school|logo|mascot|shape|object)|not\s+the\s+same\s+design|similar\s+but\s+different|wrong\s+(?:design|item|object)|lookalike)\b/i.test(text);
+}
+
+function hasExplicitBuyItNowEvidence(record = {}) {
+  const text = normalizeComparableText([
+    record.priceType,
+    record.priceEvidenceType,
+    record.priceTypeLabel,
+    record.activeSoldReferenceStatus,
+    record.listingStatus,
+    record.listingType,
+    record.listingFormat,
+    record.offerType,
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.delivery
+  ].join(" "));
+  if (!text) {
+    return false;
+  }
+  if (/\b(?:not|no|without)\s+(?:a\s+)?buy\s+it\s+now\b|\bbuy\s*it\s*now\s+(?:unavailable|not\s+shown|not\s+available|not\s+offered)\b/i.test(text)) {
+    return false;
+  }
+  return /\b(?:buy\s*it\s*now|buy-it-now|buy_now|bin\s+price|price\s+type\s*[:=-]?\s*bin)\b/i.test(text);
+}
+
 function classifySerperPriceEvidence(record = {}) {
-  const text = normalizeComparableText([record.title, record.snippet, record.domain, record.displayedPriceText].join(" "));
+  const text = normalizeComparableText([record.title, record.snippet, record.rawText, record.domain, record.displayedPriceText, record.date, record.delivery, record.listingType, record.listingFormat, record.offerType].join(" "));
   const hasPrice = Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice));
   if (isBulkLotReferenceWithoutUnitPrice(record)) {
     return "Bulk/Lot Reference";
@@ -5005,14 +5099,35 @@ function classifySerperPriceEvidence(record = {}) {
   if (record.sourceType === "shopping" && hasPrice) {
     return "Shopping Offer";
   }
+  if (/\b(?:unsold|passed|passed\s+lot|no\s+sale|bidding\s+ended\s+with\s+no\s+sale|closed\s+unsold|ended\s+unsold|not\s+sold)\b/i.test(text)) {
+    return "Closed Unsold Listing";
+  }
   if (hasPrice && /\b(sold for|sold price|price realized|hammer price|final sale price)\b/i.test(text) && hasExplicitSoldTransactionProof(record)) {
     return "Confirmed Sold";
+  }
+  if (hasPrice && /\b(?:current\s+bid|current\s+auction\s+bid|bid\s+currently|latest\s+bid|high\s+bid|highest\s+bid)\b/i.test(text)) {
+    return "Auction Current Bid";
+  }
+  if (hasPrice && /\b(?:opening\s+bid|starting\s+bid|start\s+bid|min(?:imum)?\s+bid)\b/i.test(text)) {
+    return "Auction Opening Bid";
+  }
+  if (hasPrice && /\b(?:auction\s+estimate|estimated\s+(?:at|value|price)|estimate\s*[:=-]|low\s+estimate|high\s+estimate|guide\s+price|price\s+guide)\b/i.test(text)) {
+    return "Auction Estimate";
   }
   if (hasPrice && /\b(sold|ended|completed)\b/i.test(text)) {
     return "Ended Listing Without Confirmed Sale";
   }
+  if (hasExplicitBuyItNowEvidence(record)) {
+    return "Buy It Now";
+  }
   if (hasPrice) {
     return "Active Asking";
+  }
+  if (/\b(?:active\s+listing|for\s+sale|current\s+listing|available)\b/i.test(text) && isSecondaryMarketAuctionDomain(record.domain || record.url || record.canonicalUrl)) {
+    return "Active Listing";
+  }
+  if (isSecondaryMarketAuctionDomain(record.domain || record.url || record.canonicalUrl) || isAuctionSourceRecord(record)) {
+    return "Price Unavailable";
   }
   if (record.sourceType === "knowledge_graph_reference" || /reference|archive|worthpoint|picclick|collector|history|wiki/.test(text)) {
     return "Reference Without Price";
@@ -5130,7 +5245,7 @@ function bucketSerperRecords(records = []) {
   };
   for (const record of records) {
     const visible = serperRecordToVisibleResearchRecord(record);
-    if (isStrongComparableEvidenceRecord(record, visible)) {
+    if (isStrongComparableEvidenceRecord(record, visible) || isExactSecondaryMarketDisplayEvidence(record, visible)) {
       buckets.strongComparables.push(visible);
     } else if (isNoPriceIdentityReference(record, visible)) {
       buckets.itemIdentificationEvidence.push({
@@ -5159,6 +5274,16 @@ function bucketSerperRecords(records = []) {
     weakMatches: buckets.weakMatches.slice(0, 8),
     rejectedMatches: buckets.rejectedMatches.slice(0, 8)
   };
+}
+
+function isExactSecondaryMarketDisplayEvidence(record = {}, visible = serperRecordToVisibleResearchRecord(record)) {
+  return isExactSecondaryMarketEvidenceRecord(record)
+    && visible.url
+    && visible.sourceBacked === "URL-cited"
+    && !isBulkLotReferenceWithoutUnitPrice(visible)
+    && !isNonTransactionalContentRecord(visible)
+    && !/Weak|Rejected/i.test(visible.classification || visible.evidenceRole || "")
+    && !/mismatch|unknown|scope/.test(cleanText(visible.itemTypeCompatibilityStatus).toLowerCase());
 }
 
 function isStrongComparableEvidenceRecord(record = {}, visible = serperRecordToVisibleResearchRecord(record)) {
@@ -5194,11 +5319,22 @@ function serperRecordToVisibleResearchRecord(record = {}) {
           : record.identityMatchStrength === "Weak"
             ? "Weak Match"
             : "Rejected Match";
-  const status = /sold/i.test(record.priceEvidenceType)
-    ? "sold/ended evidence status requires source context"
-    : /Active Asking|Shopping Offer/i.test(record.priceEvidenceType)
+  const normalizedPriceType = normalizePriceTypeLabel(record.priceEvidenceType, record);
+  const status = /Verified Sold|Confirmed Sold/i.test(normalizedPriceType)
+    ? "confirmed sold evidence"
+    : /Closed Unsold Listing/i.test(normalizedPriceType)
+      ? "closed unsold reference"
+      : /Auction Current Bid/i.test(normalizedPriceType)
+        ? "current auction bid"
+        : /Auction Opening Bid/i.test(normalizedPriceType)
+          ? "auction opening bid"
+          : /Auction Estimate|Estimated\/Guide Price/i.test(normalizedPriceType)
+            ? "auction estimate/reference"
+            : /Active Asking|Buy It Now|Active Listing|Shopping Offer/i.test(normalizedPriceType)
       ? "active/reference asking evidence"
-      : "reference/no-price evidence";
+      : /Price Unavailable/i.test(normalizedPriceType)
+        ? "price unavailable"
+        : "reference/no-price evidence";
   return {
     title: record.title || record.url || "Source result",
     source: record.domain || record.source || "Serper Google result",
@@ -5321,6 +5457,14 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
     ...retailDiagnostics,
     allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
+    secondaryMarketAuctionDomainsRequested: buildSecondaryMarketAuctionTargets(context, 8).map((target) => target.domain),
+    collectibleSearchLadder: buildCollectibleAttributeSearchLadder(context).slice(0, 8),
+    collectibleExactRecoveryPassesAttempted: [...new Set(providerRequestRecords
+      .filter((record) => record.attempted && /collectible_exact_source_recovery/i.test(record.searchPass || ""))
+      .map((record) => record.searchPass))],
+    collectibleExactRecoveryStillNeeded: shouldRunCollectibleExactRecovery(context, records),
+    exactSecondaryMarketCandidateCount: records.filter((record) => isExactSecondaryMarketEvidenceRecord(record)).length,
+    exactSecondaryMarketVisibleCount: records.filter((record) => isExactSecondaryMarketEvidenceRecord(record) && !/Rejected|Weak/i.test(record.identityMatchStrength || "")).length,
     searchProviderUsed: "Serper Google Search",
     providerKey: "serper_google",
     serperConfigured: true,
@@ -5882,6 +6026,131 @@ function buildDomainDirectedSearchPlan({ searchQueries = [], sourceRoute = [], i
   }));
 }
 
+function isCollectibleSearchContext(context = {}) {
+  const haystack = [
+    context.routeText,
+    context.purchaseContext,
+    context.notesText,
+    context.visualCategory,
+    context.categoryPhrase,
+    context.visualStyle,
+    context.productTitle,
+    context.subjectIdentity,
+    context.itemType,
+    context.brand,
+    context.manufacturer,
+    context.visualFeatures,
+    context.labelText,
+    context.ageEra,
+    context.licensingText,
+    context.conditionText
+  ].join(" ").toLowerCase();
+  return /\b(?:vintage|antique|collectible|collector|memorabilia|commemorative|advertising|promotional|licensed|limited\s+edition|estate|auction|resale|secondhand|decor|decoration|ceramic|tray|plate|plaque|sign|tin|figurine|ornament|artwork|illustration|mascot|team|school|sports|holiday|christmas)\b/i.test(haystack)
+    && !isCurrentRetailOnlyMode(context.retailEvidenceMode);
+}
+
+function buildCollectibleAttributeSearchLadder(context = {}) {
+  if (!isCollectibleSearchContext(context)) {
+    return [];
+  }
+  const organization = firstKnown(context.visualOrganization, context.schoolName, context.teamName, context.subjectIdentity);
+  const brand = firstKnown(context.brand, context.visualBrand, context.manufacturer);
+  const itemType = context.itemType || mostDistinctiveCategoryWord(context.categoryPhrase);
+  const exactPhrase = selectExactVisiblePhrase(context);
+  const eventPhrase = selectEventSearchPhrase(context);
+  const productTitle = cleanSearchQuery(context.exactProductIdentity || context.productTitle || context.subjectIdentity, 9);
+  const featurePhrase = cleanSearchQuery(context.visualFeatures, 8);
+  const dimensions = cleanSearchQuery(context.packageSize, 5);
+  const modelOrMark = firstKnown(context.itemCode, context.model, context.labelText);
+  const year = context.years?.[0] || "";
+
+  return mergeStringArrays(
+    exactPhrase ? [compactWords([quoteSearchPhrase(exactPhrase), brand, organization, itemType])] : [],
+    eventPhrase ? [compactWords([quoteSearchPhrase(eventPhrase), brand, organization, itemType])] : [],
+    modelOrMark ? [compactWords([modelOrMark, brand, itemType])] : [],
+    productTitle ? [compactWords([productTitle, brand, organization, itemType])] : [],
+    featurePhrase ? [compactWords([brand, organization, itemType, featurePhrase])] : [],
+    dimensions ? [compactWords([brand, organization, itemType, dimensions])] : [],
+    year ? [compactWords([year, brand, organization, itemType])] : [],
+    compactWords([brand, organization, itemType, "collectible"]),
+    compactWords([organization, itemType, "vintage"]),
+    12
+  ).filter(Boolean);
+}
+
+function buildSecondaryMarketAuctionTargets(context = {}, maxDomains = 8) {
+  if (!isCollectibleSearchContext(context)) {
+    return [];
+  }
+  const haystack = [
+    context.routeText,
+    context.visualCategory,
+    context.categoryPhrase,
+    context.itemType,
+    context.productTitle,
+    context.subjectIdentity,
+    context.visualFeatures,
+    context.notesText
+  ].join(" ").toLowerCase();
+  const weighted = secondaryMarketAuctionRegistry.map((target, index) => {
+    let score = 20 - index;
+    if (target.sourceFamily === "auction" && /\bauction|estate|bid|hammer|sale\b/i.test(haystack)) score += 12;
+    if (target.sourceFamily === "archive" && /\barchive|reference|sold|history|worth\b/i.test(haystack)) score += 6;
+    if (target.sourceFamily === "specialty_dealer" && /\bdecor|furniture|art|jewelry|ceramic|vintage\b/i.test(haystack)) score += 5;
+    if ((target.categories || []).some((category) => haystack.includes(category.replace(/_/g, " ")))) score += 4;
+    return { ...target, score };
+  });
+  return weighted
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .map(({ score, ...target }) => target)
+    .slice(0, maxDomains);
+}
+
+function buildCollectibleExactSourceRecoveryQueries(context = {}, marketplaceDomains = []) {
+  if (!isCollectibleSearchContext(context)) {
+    return [];
+  }
+  const bases = buildCollectibleAttributeSearchLadder(context).slice(0, 4);
+  const targets = mergeStringArrays(
+    marketplaceDomains,
+    buildSecondaryMarketAuctionTargets(context, 8).map((target) => target.domain),
+    8
+  );
+  const records = [];
+  for (const domain of targets.slice(0, 5)) {
+    const base = bases[records.length % Math.max(bases.length, 1)] || compactWords([context.productTitle, context.brand, context.itemType]);
+    if (!base) continue;
+    records.push({
+      query: buildSerperSingleMarketplaceQuery(base, domain),
+      rawCandidate: base,
+      candidateOrigin: "collectible_exact_source_recovery",
+      searchPass: "collectible_exact_source_recovery",
+      marketplaceDomains: [domain]
+    });
+  }
+  return records;
+}
+
+function buildCollectiblePriceTypeRecoveryTerms(context = {}) {
+  return isCollectibleSearchContext(context)
+    ? ["sold", "active listing", "current bid", "opening bid", "auction estimate"]
+    : ["price", "sold", "for sale", "auction", "value"];
+}
+
+function shouldRunCollectibleExactRecovery(context = {}, records = []) {
+  if (!isCollectibleSearchContext(context)) {
+    return false;
+  }
+  const visibleRecords = normalizeArray(records).filter((record) => record && typeof record === "object" && record.retained !== false);
+  const exactVisible = visibleRecords.some((record) => isExactSecondaryMarketEvidenceRecord(record) && !isRelatedDesignOnlyRecord(record));
+  if (!exactVisible) {
+    return true;
+  }
+  const exactRawSuppressed = normalizeArray(records).some((record) => isExactSecondaryMarketEvidenceRecord(record) && (record.retained === false || /Rejected|Weak/i.test(record.identityMatchStrength || record.classification || "")));
+  const relatedOnlyVisible = visibleRecords.length > 0 && visibleRecords.every((record) => isRelatedDesignOnlyRecord(record) || /Partial|Reference|Weak|Rejected/i.test(record.identityMatchStrength || record.classification || ""));
+  return exactRawSuppressed || relatedOnlyVisible;
+}
+
 function selectMarketplaceAllowedDomains(context = {}, sourceRoute = [], buyerIntake = normalizeBuyerIntake({})) {
   const routeText = sourceRoute.join(" ").toLowerCase();
   const haystack = [
@@ -5922,8 +6191,8 @@ function selectMarketplaceAllowedDomains(context = {}, sourceRoute = [], buyerIn
   if (/furniture|sofa|chair|table|dresser|cabinet|local pickup|facebook marketplace|craigslist|offerup|bulky/.test(haystack)) {
     return ["facebook.com", "craigslist.org", "offerup.com", "ebay.com"];
   }
-  if (/vintage|collectible|memorabilia|commemorative|advertising|promotional|sports|team|school|mascot|licensed|collector|tray|serving tray|plate|plaque|tin|sign|holiday|christmas|santa|ceramic|canister|cookie jar|etsy|mercari|worthpoint|picclick/.test(haystack)) {
-    return ["ebay.com", "etsy.com", "mercari.com", "worthpoint.com", "picclick.com"];
+  if (/vintage|collectible|memorabilia|commemorative|advertising|promotional|sports|team|school|mascot|licensed|collector|tray|serving tray|plate|plaque|tin|sign|holiday|christmas|santa|ceramic|canister|cookie jar|etsy|mercari|worthpoint|picclick|auction|bid|estate/.test(haystack)) {
+    return buildSecondaryMarketAuctionTargets(context, 8).map((target) => target.domain);
   }
   if (/retail|manufacturer|brand site|shopping|new with tags|sku|upc|barcode/.test(haystack)) {
     return ["amazon.com", "walmart.com", "target.com", "ebay.com"];
@@ -6813,7 +7082,6 @@ function detectCanonicalCategoryProfile({ strongEvidenceText = "", weakVisualTex
 function extractSupportedBrandFromEvidence(text) {
   const source = cleanText(text);
   const knownBrands = [
-    "Office Works",
     "Staples",
     "Avery",
     "Scotch",
@@ -8536,6 +8804,7 @@ function buildHighPriorityExactQueries(context) {
   const primaryPhrases = mergeStringArrays(exactVisibleEntries, context.distinctivePhrases.slice(0, 7), sloganLikePhrases, 14);
 
   queries.push(...buildDiverseSearchIntentQueries(context));
+  queries.push(...buildCollectibleAttributeSearchLadder(context));
 
   if (context.retailStoreContext || context.onlineRetailerContext) {
     queries.push(...buildRetailContextSearchQueries(context));
@@ -9450,7 +9719,8 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
   const preliminaryRangeIncluded = itemTypeValuationSafe
     && displayedPrice
     && /exact|strong|partial/i.test(visibleClassification)
-    && !/No Usable|Reference Without Price|Unknown Price Type/i.test(priceTypeLabel);
+    && !isRelatedDesignOnlyRecord({ title, rawText, classification: visibleClassification })
+    && !/No Usable|Reference Without Price|Unknown Price Type|Auction Current Bid|Auction Opening Bid|Auction Estimate|Closed Unsold Listing|Price Unavailable|Estimated\/Guide Price|Reference Price/i.test(priceTypeLabel);
   const verifiedMarketInfluence = itemTypeValuationSafe
     && displayedPrice
     && /exact|strong/i.test(visibleClassification)
@@ -9581,8 +9851,24 @@ function extractDisplayedPrice(text) {
 
 function inferPriceType(text) {
   const source = String(text || "").toLowerCase();
+  if (/closed unsold|ended unsold|not sold|passed lot|no sale/.test(source)) {
+    return "Closed Unsold Listing";
+  }
   if (/sold|completed sale|sale price|sold price/.test(source) && !/not sold|no sold/.test(source)) {
     return "Confirmed sold price";
+  }
+  if (/current bid|current auction bid|high bid|latest bid/.test(source)) {
+    return "Auction Current Bid";
+  }
+  if (/opening bid|starting bid|minimum bid/.test(source)) {
+    return "Auction Opening Bid";
+  }
+  if (/auction estimate|estimate|guide price/.test(source)) {
+    return "Auction Estimate";
+  }
+  const hasNegatedBuyItNow = /\b(?:not|no|without)\s+(?:a\s+)?buy\s+it\s+now\b|\bbuy\s*it\s*now\s+(?:unavailable|not\s+shown|not\s+available|not\s+offered)\b/.test(source);
+  if (!hasNegatedBuyItNow && /\b(?:buy\s*it\s*now|buy-it-now|buy_now|bin\s+price|price\s+type\s*[:=-]?\s*bin)\b/.test(source)) {
+    return "Buy It Now";
   }
   if (/active|asking|listed|listing price|current listing|for sale/.test(source)) {
     return "Active asking price";
@@ -9590,14 +9876,23 @@ function inferPriceType(text) {
   if (/retail|msrp|store price/.test(source)) {
     return "Current retail price";
   }
+  if (/price unavailable|price not shown|no visible price/.test(source)) {
+    return "Price Unavailable";
+  }
   return "Price type not confirmed";
 }
 
 function inferActiveSoldReferenceStatus(priceType, rawText = "") {
   const text = [priceType, rawText].map(cleanText).join(" ").toLowerCase();
   if (/confirmed sold|sold price|sold for|price realized/.test(text)) return "confirmed sold evidence";
+  if (/closed unsold|ended unsold|not sold|passed lot|no sale/.test(text)) return "closed unsold reference";
+  if (/current bid|current auction bid|high bid|latest bid/.test(text)) return "current auction bid";
+  if (/opening bid|starting bid|minimum bid/.test(text)) return "auction opening bid";
+  if (/auction estimate|estimate|guide price/.test(text)) return "auction estimate/reference";
   if (/ended listing/.test(text)) return "ended listing without confirmed sale";
+  if (/\b(?:buy\s*it\s*now|buy-it-now|buy_now|bin\s+price|price\s+type\s*[:=-]?\s*bin)\b/.test(text)) return "buy it now asking evidence";
   if (/active asking|asking price|for sale|current listing|shopping offer/.test(text)) return "active/reference asking evidence";
+  if (/price unavailable|price not shown/.test(text)) return "price unavailable";
   if (/reference/.test(text)) return "reference/no-price evidence";
   return "";
 }
@@ -10038,7 +10333,7 @@ function buildSearchLimitations(liveSearch, resultsFound) {
     limitations.push("Weak and rejected matches are shown for transparency but do not establish fair market value.");
   }
   if (resultsFound.some((item) => item.priceType === "Active asking price")) {
-    limitations.push("Active asking prices are not confirmed sold evidence.");
+    limitations.push("Active asking prices and Buy It Now listings are not confirmed sold evidence.");
   }
 
   return limitations.length ? limitations : ["Source-backed results are shown with their evidence role and limitations."];
@@ -10122,7 +10417,9 @@ function hasNonTransactionalContentSignals(record = {}) {
 }
 
 function detectBulkLotQuantity(record = {}) {
-  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  const text = normalizeComparableText(
+    buildComparableEvidenceText(record, { includeSystemLabels: false }).replace(/https?:\/\/\S+/gi, " ")
+  );
   const patterns = [
     /\b(?:lot|bundle|collection|group|case)\s+of\s+(\d{1,3})\b/i,
     /\b(\d{1,3})\s*[- ]?(?:piece|pc)\s+(?:lot|bundle|set|collection|group)\b/i,
@@ -10136,7 +10433,10 @@ function detectBulkLotQuantity(record = {}) {
       return { quantity, text };
     }
   }
-  if (/\b(?:pair|lot|bundle|collection|group)\b/i.test(text)) {
+  if (/\b(?:pair|bundle|collection|group)\b/i.test(text)) {
+    return { quantity: 2, text };
+  }
+  if (/\blot\b/i.test(text) && !/\b(?:auction\s+lot|lot\s*#?\s*\d|current\s+bid|opening\s+bid|starting\s+bid|hammer\s+price|price\s+realized)\b/i.test(text)) {
     return { quantity: 2, text };
   }
   return { quantity: 1, text };
@@ -10172,6 +10472,13 @@ function hasExplicitSoldTransactionProof(record = {}) {
   if (/\b(?:not\s+sold|no\s+sold|without\s+confirmed\s+sale|not\s+a\s+sold\s+listing|ended\s+listing\s+without\s+confirmed\s+sale)\b/i.test(text)) {
     return false;
   }
+  if (/\b(?:not\s+(?:a\s+)?(?:verified|confirmed)?\s*sold|no\s+(?:verified|confirmed)?\s*sold|not\s+a\s+completed\s+sale|not\s+.*\bsold\s+evidence|not\s+.*\bconfirmed\s+market\s+value)\b/i.test(text)) {
+    return false;
+  }
+  if (/\b(?:current\s+bid|current\s+auction\s+bid|opening\s+bid|starting\s+bid|auction\s+estimate|estimated\s+(?:at|value|price)|closed\s+unsold)\b/i.test(text)
+    && !/\b(?:sold\s+for|sold\s+at|price\s+realized|hammer\s+price|final\s+sale\s+price|winning\s+bid|won\s+for|auction\s+result)\b/i.test(text)) {
+    return false;
+  }
   const hasTransactionLanguage = /\b(?:sold\s+for|sold\s+at|verified\s+sold\s+price|confirmed\s+sold\s+price|sold\s+price|final\s+sale\s+price|price\s+realized|hammer\s+price|completed\s+sale|completed\s+transaction|closed\s+transaction|auction\s+result|winning\s+bid|won\s+for)\b/i.test(text)
     || (isFacebookMarketplaceRecord(record) && /\b(?:marked\s+sold|sold\s+on\s+facebook\s+marketplace|facebook\s+marketplace\s+sold|completed\s+sale)\b/i.test(text));
   if (!hasTransactionLanguage) {
@@ -10186,7 +10493,7 @@ function hasExplicitSoldTransactionProof(record = {}) {
 function isCurrentPurchasableSourceRecord(record = {}) {
   const priceType = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
   const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
-  return /Active Asking/i.test(priceType)
+  return /Active Asking|Buy It Now/i.test(priceType)
     && !isNonTransactionalContentRecord(record)
     && !/\b(?:sold|completed|ended|unavailable|removed|out\s+of\s+stock|price\s+guide|reference\s+only)\b/i.test(text);
 }
@@ -10233,11 +10540,14 @@ function canSupportPreliminaryAskingRangeFromVisibleRecord(record = {}) {
   if (/weak|rejected/i.test(record.classification || record.evidenceRole || "")) {
     return false;
   }
+  if (isRelatedDesignOnlyRecord(record)) {
+    return false;
+  }
   const amount = getVisibleItemPriceAmount(record);
   if (!Number.isFinite(amount) || amount <= 0) {
     return false;
   }
-  return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
+  return !/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference|Auction Current Bid|Auction Opening Bid|Auction Estimate|Closed Unsold Listing|Price Unavailable|Estimated\/Guide Price|Reference Price/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record));
 }
 
 function buildRetailAssessmentPriceFoundRecords(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
@@ -10376,6 +10686,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     ...buildRetailAssessmentPriceFoundRecords(liveSearch, askingPriceNumber, { identity, buyerIntake }),
     ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
     ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
+    ...normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence"),
     ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
   ];
   const byListing = new Map();
@@ -10479,11 +10790,17 @@ function isPriceFoundEligible(record = {}) {
   if (/weak|rejected/i.test(record.classification || record.evidenceRole || "")) {
     return false;
   }
+  if (isRelatedDesignOnlyRecord(record)) {
+    return false;
+  }
   if (/Non-Transactional Reference|Bulk\/Lot Reference|No Usable Price Evidence|Reference Without Price/i.test(normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record))) {
     return false;
   }
   const amount = getVisibleItemPriceAmount(record);
-  return Number.isFinite(amount) && amount > 0;
+  if (Number.isFinite(amount) && amount > 0) {
+    return true;
+  }
+  return isExactSecondaryMarketEvidenceRecord(record);
 }
 
 function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
@@ -10544,20 +10861,46 @@ function normalizePriceTypeLabel(priceType = "", record = {}) {
     record.snippet,
     record.rawText
   ].join(" "));
-  if (/\b(sold for|sold price|price realized|hammer price|final sale price|confirmed sold|verified sold)\b/i.test(text)) {
+  const explicitPriceTypeText = normalizeComparableText([
+    priceType,
+    record.priceType,
+    record.priceEvidenceType,
+    record.priceTypeLabel,
+    record.activeSoldReferenceStatus
+  ].join(" "));
+  const hasNegatedSoldText = /\b(?:not\s+(?:a\s+)?(?:verified|confirmed)?\s*sold|no\s+(?:verified|confirmed)?\s*sold|not\s+a\s+completed\s+sale|not\s+.*\bsold\s+evidence|not\s+.*\bconfirmed\s+market\s+value)\b/i.test(text);
+  if (/\b(?:unsold|passed|passed\s+lot|no\s+sale|closed\s+unsold|ended\s+unsold|not\s+sold)\b/i.test(text)) {
+    return "Closed Unsold Listing";
+  }
+  if (!hasNegatedSoldText && /\b(sold for|sold price|price realized|hammer price|final sale price|confirmed sold|verified sold)\b/i.test(explicitPriceTypeText)) {
     return hasExplicitSoldTransactionProof(record) ? "Verified Sold" : "Reference Price";
   }
-  if (/\b(current bid|current auction bid|bid currently|latest bid)\b/i.test(text)) {
+  if (/\b(current bid|current auction bid|bid currently|latest bid|high bid|highest bid)\b/i.test(text)) {
     return "Auction Current Bid";
   }
   if (/\b(opening bid|starting bid|start bid|min(?:imum)? bid)\b/i.test(text)) {
     return "Auction Opening Bid";
   }
-  if (/\b(estimated|estimate|guide price|price guide|appraisal|book value)\b/i.test(text)) {
-    return "Estimated/Guide Price";
+  if (/\b(auction estimate|low estimate|high estimate|estimate range|estimated at)\b/i.test(text)) {
+    return "Auction Estimate";
+  }
+  if (hasExplicitBuyItNowEvidence({ ...record, priceType })) {
+    return "Buy It Now";
+  }
+  if (/\b(active listing|current listing|for sale)\b/i.test(text) && !Number.isFinite(getVisibleItemPriceAmount(record))) {
+    return "Active Listing";
   }
   if (/\b(active asking|shopping offer|asking price|listed price|for sale|current listing|active\/reference asking|active listing)\b/i.test(text)) {
     return "Active Asking";
+  }
+  if (/\b(price unavailable|price not shown|no visible price|price unavailable)\b/i.test(text)) {
+    return "Price Unavailable";
+  }
+  if (!hasNegatedSoldText && /\b(sold for|sold price|price realized|hammer price|final sale price|confirmed sold|verified sold)\b/i.test(text)) {
+    return hasExplicitSoldTransactionProof(record) ? "Verified Sold" : "Reference Price";
+  }
+  if (/\b(estimated|estimate|guide price|price guide|appraisal|book value)\b/i.test(text)) {
+    return "Estimated/Guide Price";
   }
   if (/\b(reference price|reference\/no-price|reference|ended listing without confirmed sale|ended|completed)\b/i.test(text)) {
     return "Reference Price";
@@ -10660,6 +11003,9 @@ function inferPriceFoundListingStatus(record = {}, priceType = "") {
   if (/Auction Opening Bid/i.test(priceType)) {
     return "Auction opening bid - not a final sale value";
   }
+  if (/Buy It Now/i.test(priceType)) {
+    return "Buy It Now listing price - current availability not independently confirmed";
+  }
   if (/Active Asking/i.test(priceType)) {
     return "Active asking/listed price - current availability not independently confirmed";
   }
@@ -10679,6 +11025,19 @@ function buildPriceFoundLimitation(record = {}, priceType = "", shipping = {}, l
   }
   if (!/Verified Sold/i.test(priceType)) {
     limits.push(`${priceType} is not verified sold value.`);
+  }
+  if (/Auction Current Bid/i.test(priceType)) {
+    limits.push("Current auction bid only; final sale price is not established.");
+  } else if (/Auction Opening Bid/i.test(priceType)) {
+    limits.push("Opening bid only; it is not a valuation or completed sale.");
+  } else if (/Auction Estimate|Estimated\/Guide Price/i.test(priceType)) {
+    limits.push("Auction estimate or guide price only; no actual transaction is proven.");
+  } else if (/Closed Unsold Listing/i.test(priceType)) {
+    limits.push("Closed unsold listing; do not treat it as sold evidence.");
+  } else if (/Price Unavailable/i.test(priceType)) {
+    limits.push("The exact listing/source did not show a usable price.");
+  } else if (/Buy It Now/i.test(priceType)) {
+    limits.push("Buy It Now listing price; this is not verified sold evidence or confirmed market value.");
   }
   if (shipping.status === "unknown") {
     limits.push("Shipping was not shown, so delivered cost cannot be confirmed.");
@@ -10726,10 +11085,11 @@ function buildPriceFoundComparison({ askingPriceNumber, itemAmount, shipping, de
 }
 
 function priceFoundSortRank(record = {}) {
-  if (/Active Asking|Current Retail Price|Shopping Offer/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 1;
-  if (/Active Asking|Current Retail Price|Shopping Offer/i.test(record.priceType)) return 2;
+  if (/Active Asking|Buy It Now|Current Retail Price|Shopping Offer/i.test(record.priceType) && Number.isFinite(record.deliveredCostAmount)) return 1;
+  if (/Active Asking|Buy It Now|Current Retail Price|Shopping Offer/i.test(record.priceType)) return 2;
   if (/Verified Sold/i.test(record.priceType)) return 3;
   if (/Auction Current Bid|Auction Opening Bid/i.test(record.priceType)) return 4;
+  if (/Auction Estimate|Closed Unsold Listing|Price Unavailable/i.test(record.priceType)) return 5;
   return 5;
 }
 
@@ -10782,7 +11142,7 @@ function annotatePriceContextRecord(record = {}, label = "", summary = "") {
 }
 
 function isCurrentPurchasablePriceFoundRecord(record = {}) {
-  return /Active Asking|Shopping Offer|Current Retail Price/i.test(record.priceType || record.priceTypeLabel || "")
+  return /Active Asking|Buy It Now|Shopping Offer|Current Retail Price/i.test(record.priceType || record.priceTypeLabel || "")
     && !/historical|sold|reference|auction|not a current purchasing option|not confirmed as currently purchasable|unavailable|stale/i.test(record.listingStatus || "")
     && !/Non-Transactional Reference|Bulk\/Lot Reference|Verified Sold|Estimated|Guide|Reference|Auction/i.test(record.priceType || "");
 }
@@ -10827,7 +11187,7 @@ function isOrdinaryCurrentRetailProduct({ buyerIntake = normalizeBuyerIntake({})
     || hasKnownValue(identity.sku)
     || hasKnownValue(identity.model)
   );
-  const ordinaryRetailSignals = /\b(?:upc|barcode|sku|model|retail|store|kroger|walmart|target|staples|office depot|officeworks|office works|envelopes?|security envelopes?|stationery|office supplies?|grocery|household|consumable|pack|count|ct|box|carton|current product|new product)\b/i.test(text);
+  const ordinaryRetailSignals = /\b(?:upc|barcode|sku|model|retail|store|kroger|walmart|target|staples|office depot|envelopes?|security envelopes?|stationery|office supplies?|grocery|household|consumable|pack|count|ct|box|carton|current product|new product)\b/i.test(text);
   const collectibleSignals = /\b(?:vintage|antique|collectible|memorabilia|commemorative|rare|limited edition|numbered edition|one[-\s]?of[-\s]?a[-\s]?kind|handmade|custom|estate sale|flea market|thrift|yard sale|secondhand|resale|used|pre[-\s]?owned|etsy|mercari|ebay|auction|worthpoint|picclick|historical sold|retired logo|retired design)\b/i.test(text);
   const discontinuedSignals = /\b(?:discontinued|retired product|no longer made|out of stock everywhere|secondary-market replacement)\b/i.test(text);
   return (hasIdentifier || ordinaryRetailSignals) && !collectibleSignals && !discontinuedSignals;
@@ -11060,8 +11420,8 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
   const packageCompatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
   const productFamilyCompatibility = assessRetailProductFamilyCompatibility(record, fakeIdentity, fakeIntake, context);
   const priceTypeLabel = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
-  const hasCurrentListingEvidence = /Active Asking|Shopping Offer|Current Retail Price/i.test(priceTypeLabel)
-    || /\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|retail price|store price)\b/i.test(sourceText);
+  const hasCurrentListingEvidence = /Active Asking|Buy It Now|Shopping Offer|Current Retail Price/i.test(priceTypeLabel)
+    || /\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|buy it now|retail price|store price)\b/i.test(sourceText);
   const unavailable = /\b(?:unavailable|out\s+of\s+stock|not\s+available|removed|stale|cached)\b/i.test(sourceText);
   const secondaryMarket = isRetailForbiddenSecondaryEvidenceText(sourceText);
   const sourceUsable = sourceUrl && isUsableSourceRecord(record);
@@ -11798,9 +12158,9 @@ function buildCurrentPurchaseOptionSummary(pricesFound = []) {
     return `A compatible current purchasing option with confirmed delivered cost was found: ${lowest.deliveredCost}. Historical sold and reference prices are not treated as current best deals.`;
   }
   if (currentOptions.length) {
-    return "Compatible current asking-price results were found, but no compatible current purchasing option had a confirmed delivered cost. Shipping, pickup, taxes, or checkout costs still need verification.";
+    return "Compatible current asking-price or Buy It Now results were found, but no compatible current purchasing option had a confirmed delivered cost. Shipping, pickup, taxes, or checkout costs still need verification.";
   }
-  if (pricesFound.some((item) => /Verified Sold|Reference|Auction|Guide|Estimated/i.test(item.priceType || ""))) {
+  if (pricesFound.some((item) => /Verified Sold|Reference|Auction|Guide|Estimated|Closed Unsold|Price Unavailable/i.test(item.priceType || ""))) {
     return "No compatible current purchasing option with a confirmed delivered cost was found. Historical sold, auction, guide, or reference prices are context only and are not a current best deal.";
   }
   return "No compatible current purchasing option with a confirmed delivered cost was found.";
@@ -11826,7 +12186,7 @@ function buildOtherCompatiblePricesFound(pricesFound = [], best = null) {
   add(candidates[Math.floor(candidates.length / 2)]);
   add(candidates[candidates.length - 1]);
   add(candidates.find((item) => /Verified Sold/i.test(item.priceType)));
-  add(candidates.find((item) => /Active Asking/i.test(item.priceType) && Number.isFinite(item.deliveredCostAmount)));
+  add(candidates.find((item) => /Active Asking|Buy It Now/i.test(item.priceType) && Number.isFinite(item.deliveredCostAmount)));
   add(candidates.find((item) => item.shippingStatus === "unknown"));
   return selected.slice(0, 4);
 }
@@ -11873,10 +12233,10 @@ function buildPricesFoundSummary(pricesFound = [], askingPriceNumber = null) {
     ? knownDelivered.filter((item) => item.deliveredCostAmount < askingPriceNumber)
     : [];
   if (lowerDelivered.length) {
-    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; ${lowerDelivered.length} had a lower confirmed delivered cost than the entered purchase price. Active asking prices are not verified sold values.`;
+    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; ${lowerDelivered.length} had a lower confirmed delivered cost than the entered purchase price. Active asking prices and Buy It Now listings are not verified sold values.`;
   }
   if (Number.isFinite(askingPriceNumber) && knownDelivered.length) {
-    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; none with known delivered cost was lower than ${formatMoney(askingPriceNumber)}. Active asking prices are not verified sold values.`;
+    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; none with known delivered cost was lower than ${formatMoney(askingPriceNumber)}. Active asking prices and Buy It Now listings are not verified sold values.`;
   }
   return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found, but at least some delivered costs could not be confirmed because shipping was not shown.`;
 }
@@ -13430,7 +13790,7 @@ function summarizeConsumerVisiblePriceEvidence(liveSearch = {}) {
     hasVerifiedSoldEvidence: soldExactStrongRecords.length > 0,
     hasStrongPriceEvidence: soldExactStrongRecords.length > 0 || activeExactStrongRecords.length > 0,
     priceBasis: basisParts.length
-      ? `Visible price basis - ${basisParts.join("; ")}. The primary customer range uses the strongest available bucket: ${primaryBucket.label}. Active asking prices, auction bids, and guide/reference prices are not confirmed sold values.`
+      ? `Visible price basis - ${basisParts.join("; ")}. The primary customer range uses the strongest available bucket: ${primaryBucket.label}. Active asking prices, Buy It Now listings, auction bids, and guide/reference prices are not confirmed sold values.`
       : "",
     referenceRangeBasis: primaryAnalysis.hasRange
       ? `${primaryBucket.label} uses ${primaryAnalysis.includedRecords.length} central compatible priced source record${primaryAnalysis.includedRecords.length === 1 ? "" : "s"} from the strongest available evidence bucket. Included price types: ${includedPriceTypes.join(", ") || "visible prices"}. ${outlierNote || "No range-setting outliers were excluded."} Shipping is shown separately in Prices Found and is not included unless explicitly stated there.`
@@ -13468,7 +13828,7 @@ function classifyPriceEvidenceBucket({ normalizedPriceType = "", matchLevel = ""
   if (isQualifiedVerifiedSoldPriceEvidence(record, normalizedPriceType, matchLevel) && exactOrStrong) {
     return "verified_market";
   }
-  if (/Active Asking/i.test(normalizedPriceType) && exactOrStrong) {
+  if (/Active Asking|Buy It Now/i.test(normalizedPriceType) && exactOrStrong) {
     return "current_asking";
   }
   return "preliminary_reference";
@@ -13771,7 +14131,7 @@ function buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile)
   const soldNote = priceEvidence.hasVerifiedSoldEvidence
     ? " Verified sold evidence is present in the strongest bucket."
     : " No qualified verified sold evidence was available for the primary range.";
-  return `${label} - approximately ${formatMoneyRange(roundMoney(priceEvidence.low), roundMoney(priceEvidence.high))} based on ${priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount} central compatible visible item price${(priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount) === 1 ? "" : "s"}. ${soldNote} Active asking prices, auction bids, and reference prices are not confirmed sold values; shipping is shown separately in Prices Found when available. ${priceEvidence.outlierNote || ""}${conditionNote}`.replace(/\s+/g, " ").trim();
+  return `${label} - approximately ${formatMoneyRange(roundMoney(priceEvidence.low), roundMoney(priceEvidence.high))} based on ${priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount} central compatible visible item price${(priceEvidence.primaryRangeRecordCount || priceEvidence.pricedRecordCount) === 1 ? "" : "s"}. ${soldNote} Active asking prices, Buy It Now listings, auction bids, and reference prices are not confirmed sold values; shipping is shown separately in Prices Found when available. ${priceEvidence.outlierNote || ""}${conditionNote}`.replace(/\s+/g, " ").trim();
 }
 
 function buildConsumerPriceRangeAnalysis(priceEvidence = {}) {
@@ -13789,16 +14149,19 @@ function buildConsumerPriceRangeAnalysis(priceEvidence = {}) {
 }
 
 function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, searchCompleted = false, pricesFound = [] } = {}) {
+  const exactCurrentListingNotice = buildExactCurrentListingNotice(pricesFound, priceEvidence);
   if (!priceEvidence.pricedRecords?.length) {
-    return searchCompleted
+    const fallback = searchCompleted
       ? "No compatible visible prices were strong enough to create a buyer-facing range. The recommendation is based on limited evidence."
       : "Live search did not complete, so no source-backed price range was established.";
+    return [exactCurrentListingNotice, fallback].filter(Boolean).join(" ");
   }
   const activeShownSeparately = Math.max(0, priceEvidence.activeExactStrongCount - priceEvidence.primaryActiveAskingCount);
   const primaryUnknownShippingCount = Number(priceEvidence.primaryUnknownShippingCount || 0);
   const visibleUnknownShippingCount = pricesFound.filter((item) => item.shippingStatus === "unknown").length;
   const unknownShippingCount = primaryUnknownShippingCount || visibleUnknownShippingCount;
   return [
+    exactCurrentListingNotice,
     `${priceEvidence.primaryRangeLabel || "Primary range"} drove the displayed range using ${priceEvidence.primaryRangeRecordCount || 0} central record${(priceEvidence.primaryRangeRecordCount || 0) === 1 ? "" : "s"}.`,
     `${priceEvidence.primaryVerifiedSoldCount || 0} verified sold exact/strong record${(priceEvidence.primaryVerifiedSoldCount || 0) === 1 ? "" : "s"} were used.`,
     `${priceEvidence.primaryActiveAskingCount || 0} active asking record${(priceEvidence.primaryActiveAskingCount || 0) === 1 ? "" : "s"} were used in the displayed range.`,
@@ -13807,6 +14170,23 @@ function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, search
     priceEvidence.excludedOutlierCount ? `${priceEvidence.excludedOutlierCount} outlier/reference price${priceEvidence.excludedOutlierCount === 1 ? " was" : "s were"} excluded from the primary range.` : "No range-setting outliers were excluded.",
     `Badge selected: ${decision.valueRating || "not rated"} because ${decision.badgeReason || "the asking price was compared to the strongest available evidence bucket."}`
   ].filter(Boolean).join(" ");
+}
+
+function buildExactCurrentListingNotice(pricesFound = [], priceEvidence = {}) {
+  if (priceEvidence.hasVerifiedSoldEvidence) {
+    return "";
+  }
+  const exactListing = normalizeArray(pricesFound).find((item) => {
+    const priceType = normalizePriceTypeLabel(item.priceType || item.priceTypeLabel || item.priceEvidenceType, item);
+    return /exact/i.test([item.matchQuality, item.classification, item.identityMatchStrength, item.priceContextLabel].join(" "))
+      && /Active Asking|Buy It Now|Active Listing|Auction Current Bid|Auction Opening Bid|Price Unavailable/i.test(priceType);
+  });
+  if (!exactListing) {
+    return "";
+  }
+  const source = cleanText(exactListing.retailerDisplayName || exactListing.source || exactListing.marketplace) || "a marketplace source";
+  const price = cleanText(exactListing.itemPrice || exactListing.displayedPrice || exactListing.price) || "Price not shown";
+  return `An exact current listing was found at ${source} for ${price}. This is an active asking price, Buy It Now listing, or auction bid, not a confirmed market value.`;
 }
 
 function buildConsumerValuationEvidenceExplanation(priceEvidence = {}) {
@@ -15718,7 +16098,7 @@ function buildSearchCoverage(liveSearch) {
   }
   coverage.push(`${parsedCandidateCount} structured candidate${parsedCandidateCount === 1 ? "" : "s"} created; ${normalizedCandidateCount} normalized; ${retainedVisibleResultCount} visible comparable/reference record${retainedVisibleResultCount === 1 ? "" : "s"} retained; ${rejectedCandidateCount} rejected.`);
 
-  for (const marketplaceDomain of allowedDomains.filter((domain) => /ebay\.com|etsy\.com|mercari\.com|poshmark\.com|worthpoint\.com|picclick\.com|facebook\.com|craigslist\.org|offerup\.com/i.test(domain))) {
+  for (const marketplaceDomain of allowedDomains.filter((domain) => /ebay\.com|etsy\.com|mercari\.com|liveauctioneers\.com|hibid\.com|invaluable\.com|auctionzip\.com|poshmark\.com|worthpoint\.com|picclick\.com|facebook\.com|craigslist\.org|offerup\.com/i.test(domain))) {
     if (!domainsReturned.some((domain) => domain.toLowerCase() === marketplaceDomain.toLowerCase())) {
       coverage.push(`${marketplaceDomain}-restricted search was requested where supported, but no ${marketplaceDomain} source URLs were returned.`);
     }
@@ -16742,6 +17122,14 @@ export const __queryIntegrityTestHooks = {
   buildRetailSearchDiagnostics,
   retailSerperBudgetAllocation,
   onlineRetailerRegistry,
+  secondaryMarketAuctionRegistry,
+  isCollectibleSearchContext,
+  buildCollectibleAttributeSearchLadder,
+  buildSecondaryMarketAuctionTargets,
+  buildCollectibleExactSourceRecoveryQueries,
+  shouldRunCollectibleExactRecovery,
+  isExactSecondaryMarketEvidenceRecord,
+  isRelatedDesignOnlyRecord,
   buildOnlineRetailSearchTargets,
   buildLimitedResultRetailRecoveryQueries,
   shouldRunLimitedResultRetailRecovery,
@@ -16751,6 +17139,7 @@ export const __queryIntegrityTestHooks = {
   finalizeSearchQueryCandidate,
   findUnsupportedQueryTerms,
   buildSerperSearchPlan,
+  normalizeSerperCandidateRecords,
   buildSerperMarketplaceQuery,
   buildSerperSingleMarketplaceQuery,
   bucketSerperRecords,
@@ -16768,6 +17157,7 @@ export const __queryIntegrityTestHooks = {
   evaluateComparableItemTypeCompatibility,
   classifySerperIdentityMatch,
   classifySerperPriceEvidence,
+  hasExplicitBuyItNowEvidence,
   buildSerperEvidenceRole,
   canInfluenceValuationFromVisibleRecord,
   canSupportPreliminaryAskingRangeFromVisibleRecord,
@@ -16777,6 +17167,7 @@ export const __queryIntegrityTestHooks = {
   buildPriceSpectrumSummary,
   buildCurrentPurchaseOptionSummary,
   summarizeConsumerVisiblePriceEvidence,
+  buildConsumerPricingSummary,
   buildConsumerOffer,
   buildConsumerRecommendationText,
   buildMaximumRecommendedPricePolicy,

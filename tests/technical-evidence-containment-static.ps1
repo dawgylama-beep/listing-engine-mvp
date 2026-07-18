@@ -29,10 +29,10 @@ $checks = @(
   @{ Name = "Frontend source links use short labels"; Text = $app; Pattern = 'link.textContent = "Open source";' },
   @{ Name = "Frontend styles technical report sections"; Text = $styles; Pattern = ".technical-report-section" },
   @{ Name = "Frontend styles compact consumer sections"; Text = $styles; Pattern = ".consumer-compact-section" },
-  @{ Name = "Mock test covers no-price WorthPoint exact match"; Text = $mock; Pattern = "No-price WorthPoint exact matches must not be Strong Comparables." },
+  @{ Name = "Mock test covers no-price secondary exact visibility"; Text = $mock; Pattern = "Exact secondary-market no-price references may remain visible as source-backed exact evidence." },
   @{ Name = "Mock test covers recovery query passes"; Text = $mock; Pattern = "Recovery query passes should be available" },
-  @{ Name = "Mock test covers separate marketplace site searches"; Text = $mock; Pattern = "separate marketplace-domain site searches" },
-  @{ Name = "Mock test covers zero priced identity range exclusion"; Text = $mock; Pattern = "No-price identity evidence must not support Preliminary Asking-Price Range." }
+  @{ Name = "Mock test covers separate source-domain site searches"; Text = $mock; Pattern = "separate source-domain site searches" },
+  @{ Name = "Mock test covers zero priced identity range exclusion"; Text = $mock; Pattern = "No-price reference/archive evidence must not support Preliminary Asking-Price Range." }
 )
 
 $failed = @()

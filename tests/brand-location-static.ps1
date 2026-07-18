@@ -29,10 +29,10 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.11"; Text = $index; Pattern = "Version 1.11.11" },
-  @{ Name = "Package version is 1.11.11"; Text = $package; Pattern = '"version": "1.11.11"' },
+  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
+  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
-  @{ Name = "Roadmap documents Version 1.11.11"; Text = $roadmap; Pattern = "Version 1.11.11 (Completed)" },
+  @{ Name = "Roadmap documents Version 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherineâ€™s Eye - Buying, Selling and Valuation Intelligence</title>" },
   @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherineâ€™s Eye' },
   @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherineâ€™s Eye' },

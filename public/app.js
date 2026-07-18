@@ -147,6 +147,7 @@ const listingSections = [
   ["suggestedOfferRange", "Suggested Offer Range"],
   ["pricingConfidence", "Pricing Confidence"],
   ["pricingRationale", "Pricing Rationale"],
+  ["pricesFound", "Prices Found"],
   ["optimizedListingTitle", "Optimized Listing Title"],
   ["listingDescription", "Listing Description"],
   ["itemSpecifics", "Item Specifics"],
@@ -177,6 +178,7 @@ const valuationSections = [
   ["primary_risk_factors", "Primary Risk Factors"],
   ["risk_reduction_actions", "Risk Reduction Actions"],
   ["priceBasis", "Pricing Basis"],
+  ["pricesFound", "Prices Found"],
   ["expectedSellingTime", "Expected Selling Time"],
   ["platformSpecificSellingGuidance", "Platform-Specific Selling Guidance"],
   ["itemIdentification", "Item Identification"],
@@ -2594,6 +2596,12 @@ function renderSearchDiagnostics(diagnostics) {
     ["Rejected Pack-Size Mismatches", diagnostics.rejectedPackSizeMismatches],
     ["Local Source Coverage", diagnostics.localSourceCoverage],
     ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
+    ["Secondary/Auction Domains Requested", diagnostics.secondaryMarketAuctionDomainsRequested],
+    ["Collectible Search Ladder", diagnostics.collectibleSearchLadder],
+    ["Collectible Exact Recovery Attempted", diagnostics.collectibleExactRecoveryPassesAttempted],
+    ["Collectible Exact Recovery Still Needed", diagnostics.collectibleExactRecoveryStillNeeded === undefined ? "" : diagnostics.collectibleExactRecoveryStillNeeded ? "Yes" : "No"],
+    ["Exact Secondary-Market Candidates", diagnostics.exactSecondaryMarketCandidateCount],
+    ["Exact Secondary-Market Visible Count", diagnostics.exactSecondaryMarketVisibleCount],
     ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
@@ -3344,7 +3352,23 @@ function formatExecutiveSummary(report, workflow) {
 
 function formatConsumerCompactSummaryText(report, workflow) {
   if (!isCurrentRetailOnlyReport(report)) {
-    return formatExecutiveSummary(report, workflow);
+    const pricesFound = buildUnifiedCustomerEvidenceList(report);
+    const pricesText = formatPricesFoundListText(pricesFound);
+    const sections = [
+      ["Executive Summary", formatExecutiveSummary(report, workflow)],
+      ["Prices Found", pricesText],
+      ["Next Best Action", firstNonEmpty(
+        report.bestNextStep,
+        report.recommendedOffer,
+        report.negotiationGuidance,
+        report.whatToVerifyBeforeBuying,
+        report.additionalInformationNeeded
+      )]
+    ];
+    return sections
+      .filter(([, value]) => normalizeDisplayValue(value))
+      .map(([label, value]) => label === "Executive Summary" ? value : `${label}\n${value}`)
+      .join("\n\n");
   }
 
   const whereToBuy = formatPricesFoundListText(report.pricesFound);
@@ -3895,42 +3919,18 @@ function renderConsumerCompactSummary(report, workflow) {
 
   appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation);
 
-  if (report.bestCompatiblePriceFound && typeof report.bestCompatiblePriceFound === "object") {
-    const bestSection = document.createElement("section");
-    bestSection.className = "consumer-compact-section price-context-section";
-    const bestTitle = document.createElement("h4");
-    bestTitle.textContent = report.bestCompatiblePriceFound.priceContextLabel || "Best Compatible Price Found";
-    bestSection.appendChild(bestTitle);
-    if (report.bestCompatiblePriceFound.priceContextSummary) {
-      const summary = document.createElement("p");
-      summary.textContent = report.bestCompatiblePriceFound.priceContextSummary;
-      bestSection.appendChild(summary);
-    }
-    bestSection.appendChild(renderPricesFound([report.bestCompatiblePriceFound], { showBestBadge: true, showAvailabilityDisclaimer: false }));
-    details.appendChild(bestSection);
-  }
-
   appendConsumerCompactSection(details, "Current Purchase Option Summary", report.currentPurchaseOptionSummary);
 
   appendConsumerCompactSection(details, "Price Spectrum Summary", report.priceSpectrumSummary);
-
-  if (normalizeArray(report.otherCompatiblePricesFound).length) {
-    const otherSection = document.createElement("section");
-    otherSection.className = "consumer-compact-section price-context-section";
-    const otherTitle = document.createElement("h4");
-    otherTitle.textContent = "Other Compatible Prices Found";
-    otherSection.appendChild(otherTitle);
-    otherSection.appendChild(renderPricesFound(report.otherCompatiblePricesFound, { showBestBadge: false, showAvailabilityDisclaimer: false }));
-    details.appendChild(otherSection);
-  }
 
   const pricesSection = document.createElement("section");
   pricesSection.className = "consumer-compact-section";
   const pricesTitle = document.createElement("h4");
   pricesTitle.textContent = "Prices Found";
   pricesSection.appendChild(pricesTitle);
-  if (normalizeArray(report.pricesFound).length) {
-    pricesSection.appendChild(renderPricesFound(report.pricesFound));
+  const unifiedPrices = buildUnifiedCustomerEvidenceList(report);
+  if (unifiedPrices.length) {
+    pricesSection.appendChild(renderPricesFound(unifiedPrices));
   } else {
     const empty = document.createElement("p");
     empty.textContent = report.noCompatiblePricesFound || "No compatible source-backed prices were found.";
@@ -3949,6 +3949,41 @@ function renderConsumerCompactSummary(report, workflow) {
 
   card.append(details, copyButton);
   return card;
+}
+
+function buildUnifiedCustomerEvidenceList(report = {}) {
+  const records = [];
+  const add = (item) => {
+    if (item && typeof item === "object") {
+      records.push(item);
+    }
+  };
+  add(report.bestCompatiblePriceFound);
+  normalizeArray(report.pricesFound).forEach(add);
+  normalizeArray(report.otherCompatiblePricesFound).forEach(add);
+
+  const byRecord = new Map();
+  for (const record of records) {
+    const key = getPriceFoundDedupeKey(record);
+    if (!key || byRecord.has(key)) {
+      continue;
+    }
+    byRecord.set(key, record);
+  }
+  return [...byRecord.values()];
+}
+
+function getPriceFoundDedupeKey(item = {}) {
+  const url = firstNonEmpty(item.destinationUrl, item.canonicalUrl, item.url);
+  if (url) {
+    return String(url).trim().replace(/[?#].*$/, "").toLowerCase();
+  }
+  return [
+    item.title,
+    item.retailerDisplayName || item.source || item.marketplace,
+    item.itemPrice || item.displayedPrice || item.price,
+    item.priceType || item.priceTypeLabel
+  ].map((part) => String(part || "").trim().toLowerCase()).filter(Boolean).join("|");
 }
 
 function appendConsumerCompactSection(wrapper, title, value) {
@@ -4092,7 +4127,7 @@ function renderPricesFound(value, options = {}) {
   const list = document.createElement("ul");
   list.className = "prices-found-list compact-price-list";
   records.forEach((item, index) => {
-    list.appendChild(renderPriceFoundCard(item, { isBestPrice: options.showBestBadge !== false && index === 0 }));
+    list.appendChild(renderPriceFoundCard(item, { isBestPrice: options.showBestBadge !== false && index === 0 && isPriceFoundBestBadgeEligible(item) }));
   });
 
   const disclaimer = document.createElement("p");
@@ -4106,10 +4141,27 @@ function renderPricesFound(value, options = {}) {
   return wrapper;
 }
 
+function isPriceFoundBestBadgeEligible(item = {}) {
+  if (item.retailPriceDecisionEligibility === false) {
+    return false;
+  }
+  const sourceText = [item.retailerDisplayName, item.source, item.marketplace, item.retailerDomain, item.url].join(" ");
+  if (/google\.com|bing\.com|search provider|Serper Google Search/i.test(sourceText)) {
+    return false;
+  }
+  const typeText = [item.priceType, item.priceTypeLabel, item.listingStatus].join(" ");
+  if (/Reference|Auction|Estimate|Closed Unsold|Price Unavailable|Verified Sold|No Usable|Bulk\/Lot|Non-Transactional/i.test(typeText)) {
+    return false;
+  }
+  const matchText = [item.matchQuality, item.classification, item.identityMatchStrength, item.priceContextLabel].join(" ");
+  return /Exact|Strong|Current Retail|Compatible/i.test(matchText);
+}
+
 function renderPriceFoundCard(item, options = {}) {
   const card = document.createElement("li");
   card.className = "price-found-row";
   const retailerName = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
+  const displaySourceName = getPriceFoundDisplaySourceName(item, retailerName);
   const retailerUnknown = /retailer not identified|^source$/i.test(retailerName);
   const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
   const matchLabel = getPriceFoundMatchLabel(item);
@@ -4122,7 +4174,7 @@ function renderPriceFoundCard(item, options = {}) {
   primary.className = "price-found-primary";
   const source = document.createElement("p");
   source.className = "price-found-source";
-  source.textContent = `${retailerUnknown ? "Retailer not identified" : retailerName} — ${priceText}`;
+  source.textContent = `${retailerUnknown ? "Retailer not identified" : displaySourceName} — ${priceText}`;
   primary.appendChild(source);
   if (options.isBestPrice) {
     const badge = document.createElement("span");
@@ -4133,11 +4185,7 @@ function renderPriceFoundCard(item, options = {}) {
 
   const quantity = document.createElement("p");
   quantity.className = "price-found-meta-line";
-  const quantityParts = [formatPriceFoundQuantity(item)];
-  if (unitPriceText) {
-    quantityParts.push(unitPriceText);
-  }
-  quantityParts.push(purchaseChannel);
+  const quantityParts = getPriceFoundMetaParts(item, purchaseChannel, unitPriceText);
   quantity.textContent = quantityParts.join(" · ");
 
   const title = document.createElement("p");
@@ -4200,7 +4248,11 @@ function renderPriceFoundCard(item, options = {}) {
     link.href = actionUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = directionsUrl ? "Directions" : retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+    link.textContent = getPriceFoundActionLabel(item, {
+      directionsUrl,
+      retailerUnknown,
+      retailerName: displaySourceName
+    });
     actionRow.appendChild(link);
   }
   actionRow.appendChild(details);
@@ -4242,7 +4294,87 @@ function getPriceFoundMatchLabel(item = {}) {
   return firstNonEmpty(item.priceContextLabel, item.priceTypeLabel, item.matchQuality, item.priceType, "Current retail price");
 }
 
+function getPriceFoundDisplaySourceName(item = {}, fallback = "") {
+  const source = firstNonEmpty(item.retailerDisplayName, item.source, item.marketplace, fallback, "Retailer not identified");
+  const domain = String(firstNonEmpty(item.retailerDomain, item.source, item.marketplace, item.url, fallback)).toLowerCase();
+  if (/ebay\.com|^ebay$/i.test(domain)) return "eBay";
+  if (/mercari\.com|^mercari$/i.test(domain)) return "Mercari";
+  if (/etsy\.com|^etsy$/i.test(domain)) return "Etsy";
+  if (/liveauctioneers\.com|live\s*auctioneers/i.test(domain)) return "LiveAuctioneers";
+  if (/hibid\.com|^hibid$/i.test(domain)) return "HiBid";
+  if (/invaluable\.com|^invaluable$/i.test(domain)) return "Invaluable";
+  if (/auctionzip\.com|auction\s*zip/i.test(domain)) return "AuctionZip";
+  if (/worthpoint\.com|^worthpoint$/i.test(domain)) return "WorthPoint";
+  if (/picclick\.com|^picclick$/i.test(domain)) return "PicClick";
+  return source;
+}
+
+function isSecondaryMarketPriceFoundItem(item = {}) {
+  const text = [
+    item.source,
+    item.marketplace,
+    item.retailerDomain,
+    item.url,
+    item.priceType,
+    item.priceTypeLabel,
+    item.listingStatus,
+    item.activeSoldReferenceStatus
+  ].join(" ").toLowerCase();
+  return /ebay\.com|mercari\.com|etsy\.com|liveauctioneers\.com|hibid\.com|invaluable\.com|auctionzip\.com|worthpoint\.com|picclick\.com|auction|current bid|opening bid|verified sold|closed unsold|active listing|price unavailable/.test(text);
+}
+
+function getPriceFoundMetaParts(item = {}, purchaseChannel = "", unitPriceText = "") {
+  if (isSecondaryMarketPriceFoundItem(item) && !item.retailEvidenceTier) {
+    const match = /exact/i.test([item.matchQuality, item.classification, item.identityMatchStrength, item.priceContextLabel].join(" "))
+      ? "Exact item"
+      : /strong/i.test([item.matchQuality, item.classification, item.identityMatchStrength].join(" "))
+        ? "Similar item"
+        : "Related item - not used for pricing";
+    return [match, formatSecondaryMarketPriceType(item)].filter(Boolean);
+  }
+  const quantityParts = [formatPriceFoundQuantity(item)];
+  if (unitPriceText) {
+    quantityParts.push(unitPriceText);
+  }
+  quantityParts.push(purchaseChannel);
+  return quantityParts;
+}
+
+function formatSecondaryMarketPriceType(item = {}) {
+  const type = firstNonEmpty(item.priceTypeLabel, item.priceType, item.listingStatus);
+  if (/Verified Sold/i.test(type)) return "Verified sold result";
+  if (/Auction Current Bid/i.test(type)) return "Current auction bid";
+  if (/Auction Opening Bid/i.test(type)) return "Auction opening bid";
+  if (/Auction Estimate|Estimated\/Guide Price/i.test(type)) return "Auction estimate";
+  if (/Closed Unsold/i.test(type)) return "Closed unsold listing";
+  if (/Buy It Now/i.test(type)) return "Buy It Now";
+  if (/Price Unavailable|Active Listing/i.test(type)) return "Active listing";
+  if (/Active Asking/i.test(type)) return "Active asking price";
+  return type || "Reference record";
+}
+
+function getPriceFoundActionLabel(item = {}, { directionsUrl = "", retailerUnknown = false, retailerName = "" } = {}) {
+  if (directionsUrl) {
+    return "Directions";
+  }
+  const type = firstNonEmpty(item.priceTypeLabel, item.priceType, item.listingStatus);
+  const sourceText = [item.source, item.marketplace, item.retailerDomain, item.url].join(" ");
+  if (/Verified Sold/i.test(type)) {
+    return "View result";
+  }
+  if (/Buy It Now/i.test(type)) {
+    return retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+  }
+  if (/Auction Current Bid|Auction Opening Bid|Auction Estimate/i.test(type) || /liveauctioneers\.com|hibid\.com|invaluable\.com|auctionzip\.com/i.test(sourceText)) {
+    return "View auction";
+  }
+  return retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+}
+
 function getPriceFoundPurchaseChannel(item = {}, addressText = "") {
+  if (isSecondaryMarketPriceFoundItem(item) && !item.retailEvidenceTier) {
+    return "";
+  }
   const channel = firstNonEmpty(item.purchaseChannel, item.onlineLocalStatus);
   if (/nearby\/online/i.test(channel)) {
     return "Nearby/online";
@@ -4773,9 +4905,17 @@ async function copyText(text, button) {
 }
 
 function formatReport(report, sections) {
-  const detailText = sections
-    .filter(([key]) => shouldRenderSection(key, report[key]))
-    .map(([key, label]) => key === "buyer_risk_score" ? formatRiskSection(report) : formatSection(label, report[key]))
+  const detailText = getReportCopySections(report, sections)
+    .filter(([key]) => shouldRenderSection(key, key === "pricesFound" && isConsumerReport(report) ? buildUnifiedCustomerEvidenceList(report) : report[key]))
+    .map(([key, label]) => {
+      if (key === "buyer_risk_score") {
+        return formatRiskSection(report);
+      }
+      const value = key === "pricesFound" && isConsumerReport(report)
+        ? buildUnifiedCustomerEvidenceList(report)
+        : report[key];
+      return formatSection(label, value);
+    })
     .join("\n\n");
   const finalText = [
     "What We Know",
@@ -4798,6 +4938,19 @@ function formatReport(report, sections) {
     detailText,
     finalText
   ].filter(Boolean).join("\n\n");
+}
+
+function getReportCopySections(report, sections = []) {
+  if (!isConsumerReport(report)) {
+    return sections;
+  }
+  const duplicatePriceKeys = new Set([
+    "bestCompatiblePriceFound",
+    "otherCompatiblePricesFound",
+    "bestCurrentRetailAlternative",
+    "otherCurrentRetailPrices"
+  ]);
+  return sections.filter(([key]) => !duplicatePriceKeys.has(key));
 }
 
 function formatResearchEvidence(report) {
@@ -4830,6 +4983,12 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
     ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
     ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
+    ["Secondary/Auction Domains Requested", diagnostics.secondaryMarketAuctionDomainsRequested],
+    ["Collectible Search Ladder", diagnostics.collectibleSearchLadder],
+    ["Collectible Exact Recovery Attempted", diagnostics.collectibleExactRecoveryPassesAttempted],
+    ["Collectible Exact Recovery Still Needed", diagnostics.collectibleExactRecoveryStillNeeded === undefined ? "" : diagnostics.collectibleExactRecoveryStillNeeded ? "Yes" : "No"],
+    ["Exact Secondary-Market Candidates", diagnostics.exactSecondaryMarketCandidateCount],
+    ["Exact Secondary-Market Visible Count", diagnostics.exactSecondaryMarketVisibleCount],
     ["Domains Actually Returned", diagnostics.domainsActuallyReturned || diagnostics.sourcesReturned],
     ["Provider Calls Attempted", diagnostics.providerCallsAttempted],
     ["Provider Calls Succeeded", diagnostics.providerCallsSucceeded],
@@ -4939,22 +5098,27 @@ function formatPricesFoundListText(value, options = {}) {
     return typeof value === "string" ? value : "";
   }
   return records
-    .map((item, index) => formatPriceFoundRecordText(item, { isBestPrice: options.showBestBadge !== false && index === 0 }))
+    .map((item, index) => formatPriceFoundRecordText(item, { isBestPrice: options.showBestBadge !== false && index === 0 && isPriceFoundBestBadgeEligible(item) }))
     .join("\n\n");
 }
 
 function formatPriceFoundRecordText(item = {}, options = {}) {
   const retailer = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
+  const displaySourceName = getPriceFoundDisplaySourceName(item, retailer);
   const retailerUnknown = /retailer not identified|^source$/i.test(retailer);
   const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
   const addressText = getPriceFoundAddress(item);
   const purchaseChannel = getPriceFoundPurchaseChannel(item, addressText);
   const unitPriceText = formatPriceFoundUnitPrice(item);
   const directionsUrl = getPriceFoundDirectionsUrl(item, addressText);
-  const actionLabel = directionsUrl ? "Directions" : retailerUnknown ? "View Listing" : `View at ${retailer}`;
+  const actionLabel = getPriceFoundActionLabel(item, {
+    directionsUrl,
+    retailerUnknown,
+    retailerName: displaySourceName
+  });
   const actionUrl = directionsUrl || item.url;
-  const primary = `${retailerUnknown ? "Retailer not identified" : retailer} — ${priceText}${options.isBestPrice ? " [Best price]" : ""}`;
-  const meta = [formatPriceFoundQuantity(item), unitPriceText, purchaseChannel].filter(Boolean).join(" · ");
+  const primary = `${retailerUnknown ? "Retailer not identified" : displaySourceName} — ${priceText}${options.isBestPrice ? " [Best price]" : ""}`;
+  const meta = getPriceFoundMetaParts(item, purchaseChannel, unitPriceText).filter(Boolean).join(" · ");
   const action = `${actionLabel}${actionUrl ? `: ${actionUrl}` : ""}   Details`;
   return [primary, meta, addressText, action].filter(Boolean).join("\n");
 }

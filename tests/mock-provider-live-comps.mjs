@@ -1347,6 +1347,41 @@ try {
   assert(/about 12\.2 cents each \(\$0\.122 per envelope\)/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Entered $5.50 for 45 should be shown as about 12.2 cents each.");
   assert(/from \$0\.090/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "100-count alternatives should contribute unit-price comparison when source-supported.");
   assert(/package price \$5\.50 for 50 units \(\$0\.110 per unit\)/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Retail package comparison should show package price and unit price with cents.");
+  const neutralBrandIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "retail_store",
+    asking_price: "$4.75",
+    purchase_intent: "personal_use",
+    store_name: "Kroger",
+    location_zip: "30188",
+    item_name: "Northstar Paper Co Security Envelopes",
+    known_brand: "Northstar Paper Co",
+    known_sku: "NS-45",
+    known_upc: "012345678905",
+    buyer_notes: "Northstar Paper Co Security Envelopes Strip & Seal 45 count item NS-45"
+  });
+  const neutralBrandIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    brand: "Northstar Paper Co",
+    manufacturer: "Northstar Paper Co",
+    sku: "NS-45",
+    upcBarcode: "012345678905",
+    category: "security envelopes",
+    productNameOrBoxTitle: "Northstar Paper Co Security Envelopes",
+    exactProductIdentity: "Northstar Paper Co Security Envelopes",
+    subjectIdentity: "Northstar Paper Co Security Envelopes",
+    packageQuantity: "45 count",
+    unitCount: "45",
+    packageSize: "#10 envelopes 4.125 x 9.5 inches",
+    dimensions: "4.125 x 9.5 inches",
+    frontBoxWording: "Northstar Paper Co Security Envelopes 45 Count Strip & Seal",
+    backLabelWording: "UPC 012345678905 Item NS-45",
+    visibleText: ["Northstar Paper Co", "Security Envelopes", "45 Count", "Strip & Seal", "4.125 x 9.5 inches", "NS-45", "012345678905"]
+  }, neutralBrandIntake);
+  const neutralBrandRoute = __queryIntegrityTestHooks.routeMarketSources(neutralBrandIdentity, neutralBrandIntake, "");
+  const neutralBrandQueries = __queryIntegrityTestHooks.buildLiveSearchQueries(neutralBrandIdentity, neutralBrandRoute, "Northstar Paper Co security envelopes 45 count", neutralBrandIntake);
+  assert(neutralBrandIdentity.canonicalProductIdentity.fields.brand.value === "Northstar Paper Co", "Neutral synthetic brand should be retained from structured/user-supported evidence without production brand literals.");
+  assert(neutralBrandQueries[0] === "012345678905", "Neutral synthetic brand retail route should remain barcode-first.");
+  assert(neutralBrandQueries.some((query) => /Northstar Paper Co NS-45/i.test(query)), "Neutral synthetic brand should generate brand plus item-number retail queries.");
+  assert(neutralBrandQueries.some((query) => /Northstar Paper Co security envelopes 45 count/i.test(query)), "Neutral synthetic brand should generate current retail product queries from general identity evidence.");
   const missingQuantityRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: officeWorksIntake,
     identity: officeWorksIdentity,
@@ -1479,11 +1514,12 @@ try {
     searchPass: "open_web_exact",
     query: "Georgia Bulldogs Coca-Cola collector tray"
   }]);
-  assert(noPriceExactBuckets.strongComparables.length === 0, "No-price WorthPoint exact matches must not be Strong Comparables.");
-  assert(noPriceExactBuckets.itemIdentificationEvidence.length === 1, "No-price exact matches should be Item Identification Evidence.");
-  assert(/no usable price/i.test(noPriceExactBuckets.itemIdentificationEvidence[0].classification), "No-price exact identity evidence should label the missing price limitation.");
-  assert(__queryIntegrityTestHooks.buildConsumerPricesFound(noPriceExactBuckets, 10).length === 0, "No-price identity evidence must not appear in Prices Found.");
-  assert(__queryIntegrityTestHooks.canSupportPreliminaryAskingRangeFromVisibleRecord(noPriceExactBuckets.itemIdentificationEvidence[0]) === false, "No-price identity evidence must not support Preliminary Asking-Price Range.");
+  assert(noPriceExactBuckets.strongComparables.length === 1, "Exact secondary-market no-price references may remain visible as source-backed exact evidence.");
+  assert(noPriceExactBuckets.itemIdentificationEvidence.length === 0, "Exact secondary-market source evidence should not be buried solely because the source is an archive or marketplace.");
+  const noPriceWorthPointPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(noPriceExactBuckets, 10);
+  assert(noPriceWorthPointPrices.length === 1 && /Reference|Price Unavailable/i.test(noPriceWorthPointPrices[0].priceType) && !Number.isFinite(noPriceWorthPointPrices[0].itemPriceAmount), "Exact no-price reference/archive evidence may be visible but must remain price-unavailable context.");
+  assert(__queryIntegrityTestHooks.canSupportPreliminaryAskingRangeFromVisibleRecord(noPriceExactBuckets.strongComparables[0]) === false, "No-price reference/archive evidence must not support Preliminary Asking-Price Range.");
+  assert(__queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(noPriceExactBuckets).pricedRecordCount === 0, "Exact no-price reference/archive evidence must not become range-setting price evidence.");
   const mixedSourceRecords = {
     strongComparables: [
       priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
@@ -1509,15 +1545,15 @@ try {
   assert(priceEvidence.primaryRangeType === "current_asking", "Active compatible listings should appear separately under Current Asking-Price Range when no verified sold evidence exists.");
   const preliminaryOutlierSourceRecords = {
     partialComparables: [
-      priceRecord({ url: "https://example.com/prelim-6", canonicalUrl: "https://example.com/prelim-6", displayedPrice: "$6.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
-      priceRecord({ url: "https://example.com/prelim-18", canonicalUrl: "https://example.com/prelim-18", displayedPrice: "$18.00", priceType: "Estimated/Guide Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
-      priceRecord({ url: "https://example.com/prelim-22", canonicalUrl: "https://example.com/prelim-22", displayedPrice: "$22.00", priceType: "Reference Price", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-6", canonicalUrl: "https://example.com/prelim-6", displayedPrice: "$6.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-18", canonicalUrl: "https://example.com/prelim-18", displayedPrice: "$18.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
+      priceRecord({ url: "https://example.com/prelim-22", canonicalUrl: "https://example.com/prelim-22", displayedPrice: "$22.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
       priceRecord({ url: "https://example.com/prelim-30", canonicalUrl: "https://example.com/prelim-30", displayedPrice: "$30.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial" }),
-      priceRecord({ url: "https://example.com/prelim-1155", canonicalUrl: "https://example.com/prelim-1155", title: "Georgia Bulldogs Coca-Cola collector tray rare signed premium variant", displayedPrice: "$1,155.00", priceType: "Estimated/Guide Price", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Signed premium variant; not the submitted ordinary tray." })
+      priceRecord({ url: "https://example.com/prelim-1155", canonicalUrl: "https://example.com/prelim-1155", title: "Georgia Bulldogs Coca-Cola collector tray rare signed premium variant", displayedPrice: "$1,155.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Signed premium variant; not the submitted ordinary tray." })
     ]
   };
   const preliminaryOutlierEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(preliminaryOutlierSourceRecords);
-  assert(preliminaryOutlierEvidence.primaryRangeType === "preliminary_reference", "Weak/partial/reference prices should stay in the Preliminary Reference Range bucket.");
+  assert(preliminaryOutlierEvidence.primaryRangeType === "preliminary_reference", "Partial active asking prices should stay in the Preliminary Reference Range bucket.");
   assert(preliminaryOutlierEvidence.low === 6 && preliminaryOutlierEvidence.high === 30, "Primary preliminary range should use the central cluster instead of the isolated high outlier.");
   assert(preliminaryOutlierEvidence.rawHigh === 1155, "Raw outlier price should remain visible in diagnostic evidence.");
   assert(preliminaryOutlierEvidence.outlierRecords.some((record) => /\$1,155/.test(record.displayedPrice)), "Excluded outlier should be preserved for Technical Search Details.");
@@ -1836,9 +1872,173 @@ try {
   assert(validPlanRecords.every((record) => /tray/i.test(record.query)), "Broader valid queries should retain the concrete product noun.");
   const recoveryQueries = validPlanRecords.filter((record) => /recovery/i.test(record.searchPass || ""));
   assert(recoveryQueries.length > 0, "Recovery query passes should be available when compatible priced evidence is scarce.");
-  assert(recoveryQueries.some((record) => record.searchPass === "marketplace_domain_recovery" && /site:ebay\.com/i.test(record.query) && !/\bOR\b/.test(record.query)), "Recovery should include separate marketplace-domain site searches, not only one OR query.");
+  assert(recoveryQueries.some((record) => /collectible_exact_source_recovery|marketplace_domain_recovery/i.test(record.searchPass) && /\bsite:[a-z0-9.-]+/i.test(record.query) && !/\bOR\b/.test(record.query)), "Recovery should include separate source-domain site searches, not only one OR query.");
   assert(recoveryQueries.some((record) => record.searchPass === "price_oriented_recovery"), "Recovery should include price-oriented searches.");
   assert(recoveryQueries.some((record) => record.searchPass === "shopping_general_recovery"), "Recovery should include shopping/general web searches.");
+
+  const collectibleIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
+    purchase_context: "antique_mall",
+    asking_price: "$10",
+    purchase_intent: "personal_use",
+    item_condition: "used",
+    buyer_notes: "vintage Coca-Cola Georgia Bulldogs tray"
+  });
+  const collectibleIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch(identityFor("georgia"), collectibleIntake);
+  const collectibleRoute = __queryIntegrityTestHooks.routeMarketSources(collectibleIdentity, collectibleIntake, "vintage advertising collectible auction");
+  const collectibleContext = __queryIntegrityTestHooks.buildSearchQueryContext(
+    collectibleIdentity,
+    collectibleRoute,
+    "vintage advertising collectible auction HOW 'BOUT THEM DAWGS 1980 NATIONAL CHAMPIONS Vince Dooley",
+    collectibleIntake
+  );
+  const secondaryTargets = __queryIntegrityTestHooks.buildSecondaryMarketAuctionTargets(collectibleContext, 8).map((target) => target.domain);
+  assert(secondaryTargets.includes("ebay.com") && secondaryTargets.includes("liveauctioneers.com") && secondaryTargets.includes("hibid.com"), "Collectible routing should use a data-driven secondary-market and auction registry.");
+  const collectibleLadder = __queryIntegrityTestHooks.buildCollectibleAttributeSearchLadder(collectibleContext);
+  assert(collectibleLadder.some((query) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS/i.test(query)), "Collectible exact-search ladder should preserve visible slogans and event wording.");
+  const collectiblePlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: __queryIntegrityTestHooks.buildLiveSearchQueries(
+      collectibleIdentity,
+      collectibleRoute,
+      "vintage Coca-Cola Georgia Bulldogs collector tray 1980 University of Georgia National Champions Vince Dooley",
+      collectibleIntake
+    ),
+    sourceRoute: collectibleRoute,
+    identity: collectibleIdentity,
+    buyerIntake: collectibleIntake,
+    notes: "vintage Coca-Cola Georgia Bulldogs collector tray 1980 University of Georgia National Champions Vince Dooley"
+  });
+  const collectibleAttempted = collectiblePlan
+    .map((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record))
+    .filter((record) => record.attempted);
+  assert(collectibleAttempted.length <= 12, "Collectible Serper plan should remain within the existing bounded general provider-call budget.");
+  assert(collectibleAttempted.some((record) => record.searchPass === "collectible_exact_source_recovery"), "Collectible exact source recovery should be executable, not display-only.");
+  assert(collectibleAttempted.some((record) => /site:liveauctioneers\.com|site:hibid\.com|site:invaluable\.com/i.test(record.query)), "Collectible recovery should include bounded auction-domain site queries.");
+  assert(__queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls === 28, "Retail provider-call ceiling must remain 28.");
+
+  const collectibleQueryRecord = {
+    query: "\"HOW 'BOUT THEM DAWGS\" Coca-Cola Georgia Bulldogs collector tray site:liveauctioneers.com",
+    searchPass: "collectible_exact_source_recovery",
+    searchType: "organic_web",
+    providerEndpoint: "serper_search",
+    marketplaceDomains: ["liveauctioneers.com"]
+  };
+  const rawAuctionRecords = __queryIntegrityTestHooks.parseSerperResponse({
+    organic: [
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray current bid",
+        link: "https://www.liveauctioneers.com/item/exact-current-bid",
+        snippet: "Current bid $15.00 for HOW 'BOUT THEM DAWGS 1980 NATIONAL CHAMPIONS Coca-Cola collector tray with Vince Dooley wording.",
+        position: 1
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray opening bid",
+        link: "https://hibid.com/lot/exact-opening-bid",
+        snippet: "Opening bid $10.00 for exact collector tray with 1980 NATIONAL CHAMPIONS and Vince Dooley wording.",
+        position: 2
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray auction estimate",
+        link: "https://www.invaluable.com/auction-lot/exact-estimate",
+        snippet: "Auction estimate $40.00 to $60.00 for exact Coca-Cola Georgia Bulldogs 1980 NATIONAL CHAMPIONS collector tray.",
+        position: 3
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray auction result",
+        link: "https://www.auctionzip.com/auction-lot/exact-sold-result",
+        snippet: "Sold for $32.00. Price realized for exact 1980 NATIONAL CHAMPIONS Coca-Cola tray with Vince Dooley wording.",
+        position: 4
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray closed unsold",
+        link: "https://www.liveauctioneers.com/item/exact-unsold",
+        snippet: "Closed unsold listing. Not sold at $20.00 for exact collector tray with 1980 NATIONAL CHAMPIONS wording.",
+        position: 5
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray active listing",
+        link: "https://www.mercari.com/us/item/exact-price-not-shown/",
+        snippet: "Active listing for exact tray with 1980 NATIONAL CHAMPIONS and Vince Dooley wording. Price not shown.",
+        position: 6
+      },
+      {
+        title: "HOW 'BOUT THEM DAWGS Georgia Coca-Cola collector tray Buy It Now",
+        link: "https://www.ebay.com/itm/exact-buy-it-now",
+        snippet: "Buy It Now $25.00 for exact 1980 NATIONAL CHAMPIONS Coca-Cola collector tray with Vince Dooley wording. Active listing.",
+        position: 7
+      },
+      {
+        title: "Different 1981 Georgia Bulldogs Coca-Cola serving tray",
+        link: "https://www.ebay.com/itm/different-1981-tray",
+        snippet: "Different design active asking price $29.99.",
+        position: 8
+      }
+    ],
+    shopping: [],
+    relatedSearches: []
+  }, collectibleQueryRecord).records;
+  const normalizedAuctionRecords = __queryIntegrityTestHooks.normalizeSerperCandidateRecords(rawAuctionRecords, collectibleIdentity, collectibleContext);
+  const auctionRecordFor = (pattern) => normalizedAuctionRecords.find((record) => pattern.test(record.url));
+  const liveAuctionBid = auctionRecordFor(/exact-current-bid/);
+  const hibidOpeningBid = auctionRecordFor(/exact-opening-bid/);
+  const invaluableEstimate = auctionRecordFor(/exact-estimate/);
+  const auctionZipSold = auctionRecordFor(/exact-sold-result/);
+  const liveAuctionUnsold = auctionRecordFor(/exact-unsold/);
+  const mercariNoPrice = auctionRecordFor(/exact-price-not-shown/);
+  const ebayBuyItNow = auctionRecordFor(/exact-buy-it-now/);
+  const differentDesign = auctionRecordFor(/different-1981-tray/);
+  assert(liveAuctionBid?.identityMatchStrength === "Exact" && liveAuctionBid.retained !== false, "Auction origin must not reject an exact design/object match.");
+  assert(liveAuctionBid.priceEvidenceType === "Auction Current Bid", "Current auction bid must remain a current bid.");
+  assert(hibidOpeningBid.priceEvidenceType === "Auction Opening Bid", "Opening bid must remain an opening bid.");
+  assert(invaluableEstimate.priceEvidenceType === "Auction Estimate", "Auction estimate must remain an estimate.");
+  assert(auctionZipSold.priceTypeLabel === "Verified Sold", "Confirmed auction sale must be the only auction price type promoted as verified sold.");
+  assert(liveAuctionUnsold.priceEvidenceType === "Closed Unsold Listing", "Closed unsold listing must not become sold or active asking evidence.");
+  assert(mercariNoPrice.priceEvidenceType === "Active Listing", "Exact active listing with no visible price should keep active-listing status.");
+  assert(ebayBuyItNow.priceEvidenceType === "Buy It Now" && ebayBuyItNow.priceTypeLabel === "Buy It Now", "Explicit Buy It Now must remain Buy It Now through parsing and normalization.");
+  assert(__queryIntegrityTestHooks.classifySerperPriceEvidence({ title: "Exact tray active listing", snippet: "Active listing price $19.99.", displayedPriceText: "$19.99", parsedPrice: 19.99, domain: "ebay.com" }) === "Active Asking", "Generic active listings without explicit Buy It Now evidence should remain Active Asking.");
+  assert(__queryIntegrityTestHooks.classifySerperPriceEvidence({ title: "Exact tray current bid", snippet: "Current bid $15.00 with Buy It Now unavailable.", displayedPriceText: "$15.00", parsedPrice: 15, domain: "hibid.com" }) === "Auction Current Bid", "Buy It Now wording must not overwrite current bid evidence.");
+  assert(__queryIntegrityTestHooks.classifySerperPriceEvidence({ title: "Exact tray auction estimate", snippet: "Auction estimate $40.00 to $60.00; Buy It Now not shown.", displayedPriceText: "$40.00", parsedPrice: 40, domain: "invaluable.com" }) === "Auction Estimate", "Buy It Now wording must not overwrite auction estimate evidence.");
+  assert(__queryIntegrityTestHooks.classifySerperPriceEvidence({ title: "Exact tray sold result", snippet: "Sold for $32.00. Buy It Now listing ended.", displayedPriceText: "$32.00", parsedPrice: 32, domain: "auctionzip.com" }) === "Confirmed Sold", "Buy It Now wording must not overwrite verified sold evidence.");
+  assert(__queryIntegrityTestHooks.classifySerperPriceEvidence({ title: "Exact tray closed unsold", snippet: "Closed unsold listing. Buy It Now $20.00 was not sold.", displayedPriceText: "$20.00", parsedPrice: 20, domain: "liveauctioneers.com" }) === "Closed Unsold Listing", "Buy It Now wording must not overwrite closed-unsold evidence.");
+  assert(__queryIntegrityTestHooks.isRelatedDesignOnlyRecord(differentDesign), "Different designs should be marked as related-only evidence.");
+
+  const auctionBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords);
+  const collectiblePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    strongComparables: auctionBuckets.strongComparables,
+    partialComparables: auctionBuckets.partialComparables,
+    itemIdentificationEvidence: auctionBuckets.itemIdentificationEvidence,
+    referenceResults: auctionBuckets.referenceResults
+  }, 10, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
+  assert(collectiblePrices.some((record) => /liveauctioneers\.com\/item\/exact-current-bid/i.test(record.url) && record.priceType === "Auction Current Bid"), "Exact auction current bid should reach the primary compact evidence list.");
+  assert(collectiblePrices.some((record) => /ebay\.com\/itm\/exact-buy-it-now/i.test(record.url) && record.priceType === "Buy It Now"), "Exact Buy It Now listing should reach the primary compact evidence list.");
+  assert(collectiblePrices.some((record) => /mercari\.com\/us\/item\/exact-price-not-shown/i.test(record.url) && record.priceType === "Active Listing" && !Number.isFinite(record.itemPriceAmount)), "Exact active listing without visible price should remain showable.");
+  assert(!collectiblePrices.some((record) => /different-1981-tray/i.test(record.url)), "Different designs cannot replace exact design evidence in the primary list.");
+
+  const noSoldBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords.filter((record) => !/auctionzip\.com/i.test(record.url)));
+  const noSoldEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+    strongComparables: noSoldBuckets.strongComparables,
+    partialComparables: noSoldBuckets.partialComparables,
+    referenceResults: noSoldBuckets.referenceResults
+  });
+  assert(noSoldEvidence.hasVerifiedSoldEvidence === false, "No verified sold evidence should be reported when only Buy It Now, current bids, opening bids, estimates, unsold listings, or no-price listings survive.");
+  assert(noSoldEvidence.primaryRangeType !== "verified_market", "Auction bids and estimates cannot establish a verified market range.");
+  assert(noSoldEvidence.pricedRecords.some((record) => record.normalizedPriceType === "Buy It Now" && record.evidenceBucket === "current_asking"), "Buy It Now may support asking-price comparison while staying outside verified-market evidence.");
+  const exactNoPriceAndRelated = normalizedAuctionRecords.filter((record) => /exact-price-not-shown|different-1981-tray/i.test(record.url));
+  const relatedOnlyBuckets = __queryIntegrityTestHooks.bucketSerperRecords(exactNoPriceAndRelated);
+  const relatedOnlyEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+    strongComparables: relatedOnlyBuckets.strongComparables,
+    partialComparables: relatedOnlyBuckets.partialComparables,
+    referenceResults: relatedOnlyBuckets.referenceResults
+  });
+  assert(relatedOnlyEvidence.pricedRecordCount === 0 && !relatedOnlyEvidence.primaryRangeType, "Related items cannot create a range when the exact current listing lacks sold-price evidence.");
+  assert(__queryIntegrityTestHooks.shouldRunCollectibleExactRecovery(collectibleContext, [differentDesign]), "Exact-result recovery should trigger when only different designs survive.");
+  assert(__queryIntegrityTestHooks.shouldRunCollectibleExactRecovery(collectibleContext, [{ ...liveAuctionBid, retained: false, identityMatchStrength: "Rejected" }]), "Exact-result recovery should trigger when exact raw candidates are suppressed before the customer list.");
+  const noSoldPrices = collectiblePrices.filter((record) => !/auctionzip\.com/i.test(record.url));
+  const exactNotice = __queryIntegrityTestHooks.buildConsumerPricingSummary({
+    priceEvidence: noSoldEvidence,
+    searchCompleted: true,
+    pricesFound: noSoldPrices
+  });
+  assert(/An exact current listing was found at .* for .*active asking price, Buy It Now listing, or auction bid, not a confirmed market value/i.test(exactNotice), "Exact active listing notice should distinguish Buy It Now/listing/bid evidence from confirmed market value.");
 
   const holiday = await runScenario("holiday");
   assert(holiday.report.analysisId === "analysis-test-holiday", "Holiday analysis id should round-trip.");

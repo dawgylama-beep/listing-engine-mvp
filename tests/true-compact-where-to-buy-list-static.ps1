@@ -41,7 +41,8 @@ function Function-Block($Text, $Start, $End) {
 
 $listRenderer = Function-Block $app "function renderPricesFound" "function renderPriceFoundCard"
 $rowRenderer = Function-Block $app "function renderPriceFoundCard" "function formatPriceFoundQuantity"
-$currentRetailBlock = Function-Block $app "if (isCurrentRetailOnlyReport(report)) {" 'appendConsumerCompactSection(details, "Evidence Summary"'
+$consumerRenderer = Function-Block $app "function renderConsumerCompactSummary(report, workflow)" "function buildUnifiedCustomerEvidenceList"
+$currentRetailBlock = Function-Block $consumerRenderer "if (isCurrentRetailOnlyReport(report)) {" 'appendConsumerCompactSection(details, "Evidence Summary"'
 $stylesBlock = Function-Block $styles ".prices-found-block" ".ask-panel"
 $primaryRetailBlock = Function-Block $currentRetailBlock 'appendConsumerCompactSection(details, "Current Retail Price Assessment"' "appendConsumerPriceAnalysisDisclosure"
 
