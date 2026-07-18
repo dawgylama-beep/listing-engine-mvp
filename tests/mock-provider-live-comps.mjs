@@ -1827,6 +1827,95 @@ try {
   assert(!JSON.stringify(zero.report.productOrConditionRisks || []).includes("Older Model"), "Ordinary collectible zero-result risk list should suppress Older Model.");
   assert(!JSON.stringify(zero.report.betterValueConsiderations || []).includes("Wait for a similar item"), "Buy should not automatically recommend waiting without concrete risk support.");
 
+  const onlinePlan = __queryIntegrityTestHooks.buildSerperSearchPlan({
+    searchQueries: __queryIntegrityTestHooks.buildLiveSearchQueries(genericRetailIdentity, __queryIntegrityTestHooks.routeMarketSources(genericRetailIdentity, genericRetailIntake, ""), "ordinary household cleaner 12 count", genericRetailIntake),
+    sourceRoute: __queryIntegrityTestHooks.routeMarketSources(genericRetailIdentity, genericRetailIntake, ""),
+    identity: genericRetailIdentity,
+    buyerIntake: genericRetailIntake,
+    notes: "ordinary household cleaner 12 count"
+  });
+  const onlineAttempted = onlinePlan
+    .filter((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted)
+    .filter((record) => record.retailStage === "stage_5_online_retail");
+  assert(onlineAttempted.length > 0, "Online retail registry stage should produce executable current-retail queries.");
+  assert(onlineAttempted.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.onlineRetail, "Online retail registry queries must remain within the bounded online budget.");
+  assert(onlinePlan.filter((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted).length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls, "Retail plan must stay within the global provider-call budget after online coverage is added.");
+  assert(__queryIntegrityTestHooks.buildOnlineRetailSearchTargets(retailContext).some((target) => target.domain === "amazon.com"), "Amazon should be one data-driven online registry target for ordinary current retail products.");
+
+  const amazonMarketplaceOffer = retailRecord({
+    title: "Household Cleaner 12 Count",
+    domain: "amazon.com",
+    source: "Amazon",
+    url: "https://www.amazon.com/household-cleaner-12",
+    displayedPriceText: "$7.99",
+    parsedPrice: 7.99,
+    searchPass: "stage_5_online_retail",
+    query: "household cleaner 12 count current price online site:amazon.com",
+    seller: "Helpful Supply Co",
+    rawText: "Current price $7.99. In stock. Sold by Helpful Supply Co. Subscribe & Save coupon Prime member price. Shipping not shown.",
+    snippet: "Current price $7.99. In stock. Sold by Helpful Supply Co. Subscribe & Save coupon Prime member price."
+  });
+  const targetOnlineOffer = retailRecord({
+    title: "Household Cleaner 12 Count",
+    domain: "target.com",
+    source: "Target",
+    url: "https://www.target.com/store/10001/household-cleaner-12",
+    displayedPriceText: "$8.49",
+    parsedPrice: 8.49,
+    searchPass: "stage_5_online_retail",
+    query: "household cleaner 12 count current price online site:target.com",
+    rawText: "Current price $8.49. In stock. Free shipping.",
+    snippet: "Current price $8.49. In stock. Free shipping."
+  });
+  const nearbyOffer = retailRecord({
+    title: "Household Cleaner 12 Count",
+    domain: "target.com",
+    source: "Target",
+    url: "https://www.target.com/p/household-cleaner-12",
+    displayedPriceText: "$8.99",
+    parsedPrice: 8.99,
+    searchPass: "stage_6_local_retail",
+    query: "household cleaner near 10001 12 count current price",
+    storeAddress: "123 Main St, New York, NY 10001",
+    rawText: "Current price $8.99. Pickup available at 123 Main St, New York, NY 10001.",
+    snippet: "Current price $8.99. Pickup available."
+  });
+  const onlineWhereToBuy = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [amazonMarketplaceOffer, targetOnlineOffer, nearbyOffer],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 9, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
+  const amazonWhereToBuy = onlineWhereToBuy.find((record) => /amazon/i.test(record.retailerDisplayName || ""));
+  const targetWhereToBuy = onlineWhereToBuy.find((record) => /target/i.test(record.retailerDisplayName || "") && record.purchaseChannel === "Online");
+  const nearbyWhereToBuy = onlineWhereToBuy.find((record) => /Nearby/i.test(record.purchaseChannel || ""));
+  assert(amazonWhereToBuy, "Supported Amazon offers can enter Where to Buy.");
+  assert(targetWhereToBuy, "Other online retailers should enter Where to Buy through the same online-retail architecture.");
+  assert(nearbyWhereToBuy, "Nearby and online results should appear in one compact Where to Buy list.");
+  assert(onlineWhereToBuy.some((record) => record.purchaseChannel === "Online") && onlineWhereToBuy.some((record) => /Nearby/i.test(record.purchaseChannel || "")), "Purchase channel should be clearly labeled for online and nearby rows.");
+  assert(amazonWhereToBuy.retailOfferPlatform === "Amazon" && amazonWhereToBuy.retailOfferSeller === "Helpful Supply Co", "Marketplace platform and actual seller must remain distinct.");
+  assert(/Third-party seller on Amazon/i.test(amazonWhereToBuy.retailOfferSellerType), "Third-party seller evidence must not be flattened into Amazon first-party evidence.");
+  assert(/Subscribe-and-save|Coupon|Membership-only/i.test(amazonWhereToBuy.retailOfferConditionDisclosure), "Conditional online pricing should be disclosed on the price record.");
+  assert(amazonWhereToBuy.shipping === "Not shown" && amazonWhereToBuy.deliveredCost === "Not established" && amazonWhereToBuy.deliveredCostAmount === null, "Unknown online shipping must not be treated as free shipping or delivered cost.");
+  assert(targetWhereToBuy.shipping === "Free" && targetWhereToBuy.deliveredCost === "$8.49", "Explicit free shipping can establish delivered cost for an online offer.");
+  assert(amazonWhereToBuy.purchaseChannel === "Online" && !/Nearby/i.test(amazonWhereToBuy.purchaseChannel), "Online item prices must not be implied to apply at a nearby physical store.");
+  const bestOnlineDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound([amazonWhereToBuy, targetWhereToBuy]);
+  assert(/target\.com/.test(bestOnlineDelivered.url) && bestOnlineDelivered.priceContextLabel === "Lowest Known Delivered Cost Found", "Online item price cannot establish best delivered cost without supported shipping.");
+  const noAmazonWhereToBuy = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [targetOnlineOffer],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 9, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
+  assert(!noAmazonWhereToBuy.some((record) => /amazon/i.test(`${record.retailerDisplayName} ${record.url}`)), "Amazon must not be fabricated or guaranteed when no supported Amazon result exists.");
+  const searchProviderOnlineAssessment = __queryIntegrityTestHooks.buildRetailEvidenceAssessments([retailRecord({
+    title: "Household Cleaner 12 Count",
+    domain: "google.com",
+    source: "Google",
+    url: "https://www.google.com/search?q=household-cleaner-12",
+    displayedPriceText: "$1.99",
+    parsedPrice: 1.99,
+    searchPass: "stage_5_online_retail",
+    snippet: "Current price $1.99."
+  })], retailContext)[0];
+  assert(searchProviderOnlineAssessment.retailerDisplayName === "Retailer not identified" && searchProviderOnlineAssessment.retailPriceDecisionEligibility === false, "Search-provider pages must not become online retailers or retail decision evidence.");
+
   console.log("Mock provider live comps checks OK.");
 } finally {
   if (originalFetch) {

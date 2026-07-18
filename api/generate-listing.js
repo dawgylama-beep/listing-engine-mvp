@@ -1773,14 +1773,33 @@ function getSerperApiKey() {
 }
 
 const retailSerperBudgetAllocation = Object.freeze({
-  maxProviderCalls: 19,
+  maxProviderCalls: 23,
   exactIdentity: 4,
   exactProductReduced: 3,
   compatibleAlternatives: 4,
   retailerSpecific: 5,
+  onlineRetail: 4,
   shoppingGeneral: 2,
   localRetail: 1
 });
+
+const onlineRetailerRegistry = Object.freeze([
+  { key: "amazon", name: "Amazon", domain: "amazon.com", marketplacePlatform: true, categories: ["general"] },
+  { key: "walmart", name: "Walmart", domain: "walmart.com", marketplacePlatform: true, categories: ["general", "grocery", "household", "office"] },
+  { key: "target", name: "Target", domain: "target.com", marketplacePlatform: false, categories: ["general", "grocery", "household", "office"] },
+  { key: "staples", name: "Staples", domain: "staples.com", marketplacePlatform: false, categories: ["office", "stationery", "school"] },
+  { key: "office_depot", name: "Office Depot", domain: "officedepot.com", marketplacePlatform: false, categories: ["office", "stationery", "school"] },
+  { key: "best_buy", name: "Best Buy", domain: "bestbuy.com", marketplacePlatform: false, categories: ["electronics"] },
+  { key: "newegg", name: "Newegg", domain: "newegg.com", marketplacePlatform: true, categories: ["electronics"] },
+  { key: "home_depot", name: "Home Depot", domain: "homedepot.com", marketplacePlatform: true, categories: ["hardware", "home", "tool", "appliance"] },
+  { key: "lowes", name: "Lowe's", domain: "lowes.com", marketplacePlatform: false, categories: ["hardware", "home", "tool", "appliance"] },
+  { key: "kroger", name: "Kroger", domain: "kroger.com", marketplacePlatform: false, categories: ["grocery", "household"] },
+  { key: "walgreens", name: "Walgreens", domain: "walgreens.com", marketplacePlatform: false, categories: ["personal_care", "household"] },
+  { key: "cvs", name: "CVS", domain: "cvs.com", marketplacePlatform: false, categories: ["personal_care", "household"] },
+  { key: "michaels", name: "Michaels", domain: "michaels.com", marketplacePlatform: false, categories: ["craft", "office", "home"] },
+  { key: "chewy", name: "Chewy", domain: "chewy.com", marketplacePlatform: false, categories: ["pet"] },
+  { key: "manufacturer_direct", name: "Manufacturer/direct store", domain: "", marketplacePlatform: false, categories: ["manufacturer_direct"] }
+]);
 
 async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = new Date().toISOString();
@@ -2076,10 +2095,12 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
       queryRecord,
       title: item.title,
       url,
-      snippet: [item.source, item.delivery, item.rating ? `Rating ${item.rating}` : ""].filter(Boolean).join(" | "),
+      snippet: [item.source, item.seller ? `Seller: ${item.seller}` : "", item.delivery, item.rating ? `Rating ${item.rating}` : "", item.extensions].filter(Boolean).join(" | "),
       displayedPriceText: item.price || extractDisplayedPrice([item.title, item.source].join(" ")),
       sourceType: "shopping",
       merchantName: item.source,
+      seller: item.seller,
+      offerCondition: item.offerCondition || item.promotion,
       position: item.position || index + 1,
       delivery: item.delivery,
       imageUrl: item.imageUrl,
@@ -2113,7 +2134,7 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   };
 }
 
-function createSerperProviderRecord({ provider, queryRecord, title, url, snippet, displayedPriceText, sourceType, position, date = "", delivery = "", imageUrl = "", rating = "", ratingCount = "", merchantName = "" }) {
+function createSerperProviderRecord({ provider, queryRecord, title, url, snippet, displayedPriceText, sourceType, position, date = "", delivery = "", imageUrl = "", rating = "", ratingCount = "", merchantName = "", seller = "", offerCondition = "" }) {
   const canonicalUrl = canonicalizeComparableUrl(url);
   return {
     provider,
@@ -2128,6 +2149,8 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
     domain: hostnameFromUrl(canonicalUrl),
     snippet: cleanText(snippet),
     merchantName: cleanText(merchantName),
+    seller: cleanText(seller),
+    offerCondition: cleanText(offerCondition),
     displayedPriceText: normalizeMoneyLabelText(cleanText(displayedPriceText)),
     parsedPrice: parseDisplayedPrice(displayedPriceText),
     currency: displayedPriceText ? "$" : "",
@@ -2642,6 +2665,7 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
     stage_2_exact_product_reduced: retailSerperBudgetAllocation.exactProductReduced,
     stage_3_compatible_alternatives: retailSerperBudgetAllocation.compatibleAlternatives,
     stage_4_retailer_specific: retailSerperBudgetAllocation.retailerSpecific,
+    stage_5_online_retail: retailSerperBudgetAllocation.onlineRetail,
     stage_5_shopping_general: retailSerperBudgetAllocation.shoppingGeneral,
     stage_6_local_retail: retailSerperBudgetAllocation.localRetail
   };
@@ -2763,6 +2787,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const submittedQuantity = getRetailSubmittedPackageQuantity(context);
   const compatibleCounts = getRetailCompatiblePackageCounts(submittedQuantity);
   const retailers = buildRetailerSpecificSearchTargets(context);
+  const onlineRetailers = buildOnlineRetailSearchTargets(context);
   const location = context.locationZip || cleanText(context.locationArea);
 
   const add = ({ query, rawCandidate = query, searchPass, retailStage, retailStageLabel, retailBudgetBucket, candidateOrigin, marketplaceDomains = [] }) => {
@@ -2783,6 +2808,7 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const stage2 = "stage_2_exact_product_reduced";
   const stage3 = "stage_3_compatible_alternatives";
   const stage4 = "stage_4_retailer_specific";
+  const stage5Online = "stage_5_online_retail";
   const stage5 = "stage_5_shopping_general";
   const stage6 = "stage_6_local_retail";
 
@@ -2844,6 +2870,26 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
       retailStageLabel: "Stage 4 - Retailer-specific alternatives",
       retailBudgetBucket: "retailerSpecific",
       candidateOrigin: retailerDomain ? "retail_domain_constrained_retailer_query" : "retail_separate_retailer_query",
+      marketplaceDomains: retailerDomain ? [retailerDomain] : []
+    });
+  }
+
+  for (const retailer of onlineRetailers) {
+    const retailerName = cleanText(retailer.name);
+    const retailerDomain = cleanText(retailer.domain);
+    const countText = compatibleCounts[0]
+      ? `${compatibleCounts[0]} count`
+      : fallbackIdentity.quantity;
+    const baseQuery = retailerDomain
+      ? compactWords([productFamily, closure, feature, countText, "current price online"])
+      : compactWords([retailerName, fallbackIdentity.brand, productFamily, closure, feature, countText, "official store price"]);
+    add({
+      query: retailerDomain ? buildSerperSingleMarketplaceQuery(baseQuery, retailerDomain) : baseQuery,
+      searchPass: stage5Online,
+      retailStage: stage5Online,
+      retailStageLabel: "Stage 5 - Online retail coverage",
+      retailBudgetBucket: "onlineRetail",
+      candidateOrigin: retailerDomain ? "online_retailer_registry_domain_query" : "online_retailer_registry_direct_query",
       marketplaceDomains: retailerDomain ? [retailerDomain] : []
     });
   }
@@ -3047,6 +3093,83 @@ function buildRetailerSpecificSearchTargets(context = {}) {
     name,
     domain: getRetailerDomainForStore(name)
   })).filter((target) => target.name);
+}
+
+function buildOnlineRetailSearchTargets(context = {}) {
+  const categoryTags = detectOnlineRetailCategoryTags(context);
+  const namedDomain = getRetailerDomainForStore(firstKnown(context.retailerOrMarketplaceName, context.storeName));
+  const namedTarget = namedDomain
+    ? onlineRetailerRegistry.find((target) => target.domain === namedDomain)
+      || { key: `named_${namedDomain}`, name: formatRetailerNameFromDomain(namedDomain) || firstKnown(context.retailerOrMarketplaceName, context.storeName), domain: namedDomain, categories: ["named"] }
+    : null;
+  const selected = [];
+  const add = (target) => {
+    if (!target) return;
+    if (target.key === "manufacturer_direct" && !firstKnown(context.brand, context.visualBrand, context.manufacturer)) {
+      return;
+    }
+    const signature = cleanText(target.domain || target.key || target.name).toLowerCase();
+    if (!signature || selected.some((item) => cleanText(item.domain || item.key || item.name).toLowerCase() === signature)) {
+      return;
+    }
+    selected.push(target);
+  };
+
+  add(namedTarget);
+  onlineRetailerRegistry
+    .filter((target) => target.categories.includes("general"))
+    .forEach(add);
+  onlineRetailerRegistry
+    .filter((target) => target.categories.some((category) => categoryTags.includes(category)))
+    .forEach(add);
+  add(onlineRetailerRegistry.find((target) => target.key === "manufacturer_direct"));
+
+  return selected.slice(0, retailSerperBudgetAllocation.onlineRetail);
+}
+
+function detectOnlineRetailCategoryTags(context = {}) {
+  const text = normalizeComparableText([
+    context.productTitle,
+    context.exactProductIdentity,
+    context.subjectIdentity,
+    context.itemType,
+    context.categoryPhrase,
+    context.notesText,
+    context.labelText
+  ].join(" "));
+  const tags = [];
+  const add = (tag) => addUnique(tags, tag);
+  if (/\b(?:office|stationery|paper|envelopes?|printer|ink|toner|desk|school|labels?)\b/.test(text)) {
+    add("office");
+    add("stationery");
+  }
+  if (/\b(?:electronics?|computer|laptop|tablet|phone|camera|charger|battery|keyboard|monitor|router)\b/.test(text)) {
+    add("electronics");
+  }
+  if (/\b(?:cleaners?|cleaning|detergents?|laundry|dish|trash|storage|household|paper\s+towels?|toilet\s+paper)\b/.test(text)) {
+    add("household");
+  }
+  if (/\b(?:grocery|food|snacks?|cereal|coffee|tea|pasta|beverage|soda|water)\b/.test(text)) {
+    add("grocery");
+  }
+  if (/\b(?:shampoo|conditioner|body\s+wash|toothpaste|deodorants?|lotion|soap|personal\s+care|toiletry)\b/.test(text)) {
+    add("personal_care");
+  }
+  if (/\b(?:tool|drill|saw|wrench|screwdriver|hardware|paint|lumber|appliance|filter)\b/.test(text)) {
+    add("hardware");
+    add("tool");
+    add("appliance");
+  }
+  if (/\b(?:craft|art\s+supply|yarn|paintbrush|scrapbook|marker|canvas)\b/.test(text)) {
+    add("craft");
+  }
+  if (/\b(?:pet|dog|cat|litter|leash|treats?|kibble)\b/.test(text)) {
+    add("pet");
+  }
+  if (/\b(?:home|decor|furniture|lamp|storage)\b/.test(text)) {
+    add("home");
+  }
+  return tags;
 }
 
 function buildSerperRecoverySearchQueries(context = {}, marketplaceDomains = []) {
@@ -3423,7 +3546,7 @@ function hasCurrentRetailAlternativeQueryAnchor(query, context = {}, options = {
   }
   const text = normalizeComparableText(query);
   const stageText = cleanText(`${options.searchPass || ""} ${options.retailStage || ""}`);
-  const recoveryStage = /stage_3_compatible_alternatives|stage_4_retailer_specific|stage_5_shopping_general|stage_6_local_retail|compatible|retailer|shopping|local|recovery/i.test(stageText);
+  const recoveryStage = /stage_3_compatible_alternatives|stage_4_retailer_specific|stage_5_online_retail|stage_5_shopping_general|stage_6_local_retail|compatible|retailer|online|shopping|local|recovery/i.test(stageText);
   if (!recoveryStage) {
     return false;
   }
@@ -3437,7 +3560,12 @@ function hasCurrentRetailAlternativeQueryAnchor(query, context = {}, options = {
     fallbackIdentity.importantFeature
   ].map(normalizeComparableText).filter(Boolean);
   const hasRetailProductNoun = hasQueryItemNoun(text, context);
-  const hasCurrentRetailSignal = /\b(?:current|retail|shopping|price|package|pack|count|ct|store|walmart|target|staples|office depot|amazon|kroger|pickup|delivery)\b/i.test(text);
+  const registryNames = onlineRetailerRegistry
+    .flatMap((target) => [target.name, target.domain])
+    .map(normalizeComparableText)
+    .filter(Boolean);
+  const hasCurrentRetailSignal = /\b(?:current|retail|online|shopping|price|package|pack|count|ct|store|walmart|target|staples|office depot|amazon|kroger|pickup|delivery)\b/i.test(text)
+    || registryNames.some((name) => containsNormalizedPhrase(text, name));
   const hasCompatibilitySignal = /\b(?:security|business|strip|seal|self|peel|gummed|envelope|envelopes|stationery)\b/i.test(text)
     || /\b\d{1,5}\s*(?:count|ct|pack|pk|envelopes?|units?)\b/i.test(text)
     || fallbackSignals.some((signal) => signal && containsNormalizedPhrase(text, signal));
@@ -4905,6 +5033,17 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const locationDeniedManualZip = /permission-denied|denied/i.test(`${locationState} ${context.locationPermission} ${context.locationMode}`) && Boolean(context.locationZip);
   const locationUnavailable = /position-unavailable|timeout|unsupported|insecure-context|reverse-geocode-failed|skipped/i.test(locationState);
   const locationContext = context.locationZip || cleanText(context.locationArea);
+  const onlineRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_5_online_retail");
+  const onlineRetailAttempted = onlineRetailRequests.some((record) => record.attempted);
+  const onlineRetailSucceeded = onlineRetailRequests.some((record) => record.succeeded);
+  const onlineRetailCandidateAssessments = currentRetailAcceptedAssessments.filter((assessment) => assessment.searchStage === "stage_5_online_retail" || assessment.purchaseChannel === "Online");
+  const onlineRetailCustomerEligibleAssessments = onlineRetailCandidateAssessments.filter((assessment) => assessment.customerPriceCardEligibility);
+  const onlineRetailReturnedCount = onlineRetailRequests.reduce((sum, record) => sum + Number(record.returnedResultCount || record.providerSourceCount || 0), 0);
+  const onlineRetailSearchStatus = onlineRetailAttempted
+    ? onlineRetailSucceeded
+      ? `Online retail coverage executed; ${onlineRetailReturnedCount} provider source${onlineRetailReturnedCount === 1 ? "" : "s"} returned and ${onlineRetailCustomerEligibleAssessments.length} online retail candidate${onlineRetailCustomerEligibleAssessments.length === 1 ? "" : "s"} reached customer price eligibility.`
+      : "Online retail coverage was attempted, but no online retail request succeeded."
+    : "Online retail coverage was planned only if registry queries survived preflight; no online retail provider request was attempted.";
   const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
   const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
   const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
@@ -4938,13 +5077,16 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     retailProviderCallBudget: retailSerperBudgetAllocation,
     retailRecoveryTrigger: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? stage1AcceptedCount < 3
-        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, Shopping, and location-aware recovery stages were included within the bounded retail budget.`
+        ? `Stage 1 produced ${stage1AcceptedCount} usable current retail record${stage1AcceptedCount === 1 ? "" : "s"}; reduced-product, compatible-alternative, retailer-specific, online-retail, Shopping, and location-aware recovery stages were included within the bounded retail budget.`
         : "Stage 1 produced at least three usable current retail records; recovery records may still appear only if already inside the bounded staged plan."
       : "",
     retailStagesPlanned,
     retailStagesAttempted,
     retailQueriesPlanned,
     retailQueriesExecuted,
+    onlineRetailQueriesAttempted: onlineRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
+    onlineRetailSearchStatus,
+    onlineRetailProviderCallsUsed: onlineRetailRequests.filter((record) => record.attempted).length,
     localRetailQueriesAttempted: localRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
     locationAwareRetailSearchStatus,
     shoppingExecutionStatus,
@@ -4986,6 +5128,11 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       searchProvider: cleanText(assessment.searchProvider),
       sourceLinkStatus: assessment.sourceUrl ? "Source link available in result card" : "",
       displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
+      purchaseChannel: cleanText(assessment.purchaseChannel),
+      retailOfferPlatform: cleanText(assessment.retailOfferPlatform),
+      retailOfferSeller: cleanText(assessment.retailOfferSeller),
+      retailOfferSellerType: cleanText(assessment.retailOfferSellerType),
+      retailOfferConditionDisclosure: cleanText(assessment.retailOfferConditionDisclosure),
       retailEvidenceLabel: `${assessment.customerEvidenceTierLabel} source-screening candidate`,
       customerPriceCardEligibility: assessment.customerPriceCardEligibility ? "Yes" : "No",
       retailPriceDecisionEligibility: assessment.retailPriceDecisionEligibility ? "Yes" : "No",
@@ -5000,6 +5147,7 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 4),
       sourceLinkStatus: assessment.sourceUrl ? "Source link withheld from technical text" : "",
       displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
+      purchaseChannel: cleanText(assessment.purchaseChannel),
       reason: assessment.hardRejectionReason || assessment.finalPromotionReason || "Did not pass shared current-retail evidence assessment."
     })).slice(0, 12),
     referenceSecondaryEvidenceExcludedFromRetailDecision: retailRejectedAssessments
@@ -7010,6 +7158,142 @@ function deriveRetailerAttribution(record = {}, context = {}) {
     retailerAttributionEvidence: evidence,
     transactionalRetailerEvidence
   };
+}
+
+function deriveRetailOfferDetails(record = {}, retailerAttribution = {}) {
+  const platform = cleanText(retailerAttribution.retailerDisplayName) || formatRetailerNameFromDomain(retailerAttribution.retailerDomain);
+  const sellerName = extractRetailSellerName(record);
+  const platformDomain = cleanText(retailerAttribution.retailerDomain || hostnameFromUrl(retailerAttribution.destinationUrl));
+  const marketplacePlatform = isMarketplaceRetailerPlatform(platform, platformDomain);
+  const sellerType = sellerName
+    ? retailerNamesMatch(sellerName, platform)
+      ? "First-party offer"
+      : `Third-party seller on ${platform || "retail platform"}`
+    : marketplacePlatform
+      ? "Seller not shown"
+      : "";
+  const conditions = extractRetailOfferConditions(record);
+  const limitations = [];
+
+  if (marketplacePlatform && !sellerName) {
+    limitations.push("Seller was not shown by the search result; verify seller before relying on the price.");
+  }
+  limitations.push(...conditions);
+
+  return {
+    retailOfferPlatform: platform,
+    retailOfferSeller: sellerName,
+    retailOfferSellerType: sellerType,
+    retailOfferConditionDisclosure: conditions.join(" "),
+    retailOfferLimitations: limitations
+  };
+}
+
+function extractRetailSellerName(record = {}) {
+  const explicit = cleanRetailMerchantName(firstKnown(
+    record.actualSeller,
+    record.sellerName,
+    record.seller,
+    record.offerSeller,
+    record.soldBy
+  ));
+  if (explicit) {
+    return explicit;
+  }
+  const text = cleanText([
+    record.rawText,
+    record.snippet,
+    record.description,
+    record.delivery
+  ].join(" "));
+  const soldByMatch = text.match(/\b(?:sold\s+by|seller)\s*:?\s*([^|.;,\n\r]{2,80})/i);
+  if (soldByMatch) {
+    return cleanRetailMerchantName(soldByMatch[1]);
+  }
+  const shipsAndSoldMatch = text.match(/\bships\s+from\s+[^|.;,\n\r]{2,80}\s+and\s+sold\s+by\s+([^|.;,\n\r]{2,80})/i);
+  return shipsAndSoldMatch ? cleanRetailMerchantName(shipsAndSoldMatch[1]) : "";
+}
+
+function isMarketplaceRetailerPlatform(platform = "", domain = "") {
+  const platformText = normalizeComparableText([platform, domain].join(" "));
+  const registryMatch = onlineRetailerRegistry.find((target) => {
+    const targetDomain = normalizeComparableText(target.domain);
+    return targetDomain && platformText.includes(targetDomain.replace(/\./g, " "));
+  });
+  return Boolean(registryMatch?.marketplacePlatform)
+    || /\b(?:marketplace|amazon|walmart|newegg|home\s+depot)\b/i.test(platformText);
+}
+
+function retailerNamesMatch(left = "", right = "") {
+  const normalize = (value) => normalizeComparableText(value)
+    .replace(/\b(?:com|inc|llc|marketplace|store|stores|shop|shopping|the)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && b && (a === b || a.includes(b) || b.includes(a)));
+}
+
+function extractRetailOfferConditions(record = {}) {
+  const text = normalizeComparableText([
+    record.priceCondition,
+    record.offerCondition,
+    record.promotion,
+    record.rawText,
+    record.snippet,
+    record.title,
+    record.delivery
+  ].join(" "));
+  const conditions = [];
+  if (/\bsubscribe\s*(?:&|and)?\s*save|subscription\s+price|auto[-\s]?deliver/i.test(text)) {
+    conditions.push("Subscribe-and-save or subscription pricing was visible; do not treat it as an unconditional one-time price.");
+  }
+  if (/\b(?:coupon|with\s+coupon|clip\s+coupon|after\s+coupon|promo\s+code|code\s+[a-z0-9]+)\b/i.test(text)) {
+    conditions.push("Coupon or promo-dependent pricing was visible; verify the condition before relying on the price.");
+  }
+  if (/\b(?:prime[-\s]?only|prime\s+member|member\s+price|membership\s+price|club\s+price|plus\s+membership)\b/i.test(text)) {
+    conditions.push("Membership-only pricing was visible; do not treat it as universally available.");
+  }
+  if (/\b(?:selected\s+variant|price\s+varies|choose\s+(?:size|color|quantity)|variant\s+price|from\s+\$)\b/i.test(text)) {
+    conditions.push("Variant-specific pricing was visible; confirm the selected package quantity and variant at the retailer.");
+  }
+  return [...new Set(conditions)].slice(0, 4);
+}
+
+function classifyRetailPurchaseChannel(record = {}, retailerAttribution = {}) {
+  const hasLocalSignal = record.searchPass === "stage_6_local_retail"
+    || /\bnear\b/i.test(record.query || "")
+    || Boolean(extractRetailAddressText(record));
+  const destinationDomain = cleanText(retailerAttribution.retailerDomain || hostnameFromUrl(retailerAttribution.destinationUrl));
+  const hasOnlineDestination = Boolean(
+    retailerAttribution.destinationUrl
+      && /^https?:\/\//i.test(retailerAttribution.destinationUrl)
+      && destinationDomain
+      && !isSearchProviderDomain(destinationDomain)
+  );
+  if (hasLocalSignal && hasOnlineDestination) {
+    return "Nearby/online retailer";
+  }
+  if (hasLocalSignal) {
+    return "Nearby retailer";
+  }
+  return "Online";
+}
+
+function extractRetailAddressText(record = {}) {
+  const raw = firstKnown(
+    record.nearbyAddress,
+    record.storeAddress,
+    record.locationAddress,
+    record.retailerAddress,
+    record.pickupAddress,
+    record.address
+  );
+  const address = cleanText(raw);
+  if (!address || /^https?:\/\//i.test(address) || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(address)) {
+    return "";
+  }
+  return address;
 }
 
 function getSearchBarcodeDigits(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
@@ -9446,6 +9730,10 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     rawText
   };
   const card = buildPriceFoundRecord(base, askingPriceNumber);
+  const assessmentShippingAmount = Number.isFinite(assessment.shippingAmount) ? assessment.shippingAmount : null;
+  const assessmentDeliveredCostAmount = Number.isFinite(amount) && assessment.deliveredCostSupported && Number.isFinite(assessmentShippingAmount)
+    ? Math.round((amount + assessmentShippingAmount) * 100) / 100
+    : null;
   return {
     ...card,
     priceType: "Current Retail Price",
@@ -9462,9 +9750,15 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     searchProvider: assessment.searchProvider,
     sourceEvidenceType: assessment.sourceEvidenceType,
     onlineLocalStatus: assessment.onlineLocalStatus,
+    purchaseChannel: assessment.purchaseChannel,
     namedStoreMatchStatus: assessment.namedStoreMatchStatus,
     retailerConfidenceLevel: assessment.retailerConfidenceLevel,
     retailerAttributionEvidence: normalizeStringArray(assessment.retailerAttributionEvidence, 8),
+    retailOfferPlatform: assessment.retailOfferPlatform,
+    retailOfferSeller: assessment.retailOfferSeller,
+    retailOfferSellerType: assessment.retailOfferSellerType,
+    retailOfferConditionDisclosure: assessment.retailOfferConditionDisclosure,
+    retailOfferLimitations: normalizeStringArray(assessment.retailOfferLimitations, 6),
     confidenceDowngradeReasons: normalizeStringArray(assessment.confidenceDowngradeReasons, 8),
     transactionalRetailerEvidence: Boolean(assessment.transactionalRetailerEvidence),
     retailPriceDecisionEligibility: Boolean(assessment.retailPriceDecisionEligibility),
@@ -9476,7 +9770,13 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     unitPrice: Number.isFinite(unitPriceAmount) ? formatUnitMoney(unitPriceAmount) : "",
     unitPriceAmount: Number.isFinite(unitPriceAmount) ? unitPriceAmount : null,
     unitPriceEligibility: assessment.unitPriceEligibility,
-    shippingStatus: assessment.shippingStatus,
+    shipping: assessment.shippingLabel || card.shipping,
+    shippingAmount: Number.isFinite(assessmentShippingAmount) ? assessmentShippingAmount : card.shippingAmount,
+    shippingStatus: assessment.shippingStatus || card.shippingStatus,
+    shippingDisclosure: assessment.shippingDisclosure || card.shippingDisclosure,
+    deliveredCost: Number.isFinite(assessmentDeliveredCostAmount) ? formatSourceMoney(assessmentDeliveredCostAmount) : card.deliveredCost,
+    deliveredCostAmount: Number.isFinite(assessmentDeliveredCostAmount) ? assessmentDeliveredCostAmount : card.deliveredCostAmount,
+    deliveredCostStatus: Number.isFinite(assessmentDeliveredCostAmount) ? "established" : card.deliveredCostStatus,
     targetProductFamily: assessment.targetProductFamily,
     candidateProductFamily: assessment.candidateProductFamily,
     positiveCompatibilityEvidence: normalizeStringArray(assessment.positiveCompatibilityEvidence, 8),
@@ -9489,6 +9789,9 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
 
 function buildRetailAssessmentPriceLimitation(assessment = {}) {
   const limits = normalizeStringArray(assessment.confidenceDowngradeReasons, 8);
+  for (const limitation of normalizeStringArray(assessment.retailOfferLimitations, 6)) {
+    limits.push(limitation);
+  }
   if (assessment.unitPriceEligibility !== "eligible") {
     limits.push("Unit price is shown only when package quantity is supported.");
   }
@@ -9927,7 +10230,8 @@ function isOrdinaryCurrentRetailProduct({ buyerIntake = normalizeBuyerIntake({})
 }
 
 function isRetailForbiddenSecondaryEvidenceText(value = "") {
-  return /\b(?:sold|completed|ended listing|historical|auction|bid|hammer price|price realized|worthpoint|picclick|ebay sold|etsy vintage|mercari sold|collector value|collectible value|resale value|thrift|flea market|estate sale|active resale|used marketplace|pre[-\s]?owned|secondhand)\b/i.test(cleanText(value));
+  const text = cleanText(value).replace(/\bsold\s+by\b/gi, "seller ");
+  return /\b(?:sold(?!\s+by)|completed|ended listing|historical|auction|bid|hammer price|price realized|worthpoint|picclick|ebay sold|etsy vintage|mercari sold|collector value|collectible value|resale value|thrift|flea market|estate sale|active resale|used marketplace|pre[-\s]?owned|secondhand)\b/i.test(text);
 }
 
 function stripRetailSecondaryMarketQueryTerms(query = "") {
@@ -10088,6 +10392,12 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
   const sourceText = [
     record.source,
     record.merchantName,
+    record.seller,
+    record.sellerName,
+    record.actualSeller,
+    record.offerCondition,
+    record.priceCondition,
+    record.promotion,
     record.domain,
     record.title,
     record.snippet,
@@ -10167,6 +10477,8 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     record.conciseLimitation
   ].join(" "));
   const shipping = extractShippingEvidence(record);
+  const offerDetails = deriveRetailOfferDetails(record, retailerAttribution);
+  const purchaseChannel = classifyRetailPurchaseChannel(record, retailerAttribution);
   const availabilityStatus = unavailable
     ? "Unavailable or stale"
     : /\b(?:in stock|available now|add to cart|pickup|delivery)\b/i.test(sourceText)
@@ -10179,6 +10491,7 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     packageCompatibility,
     packageQuantity,
     shipping,
+    offerDetails,
     availabilityStatus,
     priceOrigin
   });
@@ -10209,10 +10522,16 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     searchProvider: retailerAttribution.searchProvider,
     sourceEvidenceType: retailerAttribution.sourceEvidenceType,
     onlineLocalStatus: retailerAttribution.onlineLocalStatus,
+    purchaseChannel,
     namedStoreMatchStatus: retailerAttribution.namedStoreMatchStatus,
     retailerConfidenceLevel: retailerAttribution.retailerConfidenceLevel,
     retailerAttributionEvidence: retailerAttribution.retailerAttributionEvidence,
     transactionalRetailerEvidence: retailerAttribution.transactionalRetailerEvidence,
+    retailOfferPlatform: offerDetails.retailOfferPlatform,
+    retailOfferSeller: offerDetails.retailOfferSeller,
+    retailOfferSellerType: offerDetails.retailOfferSellerType,
+    retailOfferConditionDisclosure: offerDetails.retailOfferConditionDisclosure,
+    retailOfferLimitations: offerDetails.retailOfferLimitations,
     exactProductStatus: tier.exact ? "exact_product" : tier.rank <= 4 ? "compatible_or_functional_alternative" : "category_context",
     productTypeCompatibility: productFamilyCompatibility.finalOutcome === "contradicted" || record.itemTypeCompatible === false
       ? "incompatible"
@@ -10236,6 +10555,10 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     currentListingEvidence: hasCurrentListingEvidence ? "current_listing_signal_present" : "not_current_listing_supported",
     availabilityStatus,
     shippingStatus: shipping.status,
+    shippingLabel: shipping.label,
+    shippingAmount: Number.isFinite(shipping.amount) ? shipping.amount : null,
+    shippingDisclosure: shipping.disclosure,
+    deliveredCostSupported: Boolean(shipping.deliveredCostSupported),
     localRelevance: record.searchPass === "stage_6_local_retail" || /\bnear\b/i.test(record.query || "") ? "local_stage_or_query" : "not_local_specific",
     secondaryMarketStatus: secondaryMarket ? "secondary_or_reference_evidence" : "not_secondary_market",
     hardRejectionReason,
@@ -10305,7 +10628,7 @@ function classifyRetailEvidenceTier({ record = {}, packageCompatibility = {}, ha
   return { id: "tier_5", rank: 5, label: "Broader category reference", exact: false };
 }
 
-function buildRetailAssessmentDowngrades({ record = {}, context = {}, packageCompatibility = {}, packageQuantity = null, shipping = {}, availabilityStatus = "", priceOrigin = "" } = {}) {
+function buildRetailAssessmentDowngrades({ record = {}, context = {}, packageCompatibility = {}, packageQuantity = null, shipping = {}, offerDetails = {}, availabilityStatus = "", priceOrigin = "" } = {}) {
   const reasons = [];
   if (!/Exact Retail Match/i.test(packageCompatibility.label)) {
     reasons.push("not an exact product/package match");
@@ -10329,6 +10652,9 @@ function buildRetailAssessmentDowngrades({ record = {}, context = {}, packageCom
   if (/Visible search result price text|Parsed search result price/i.test(priceOrigin)) {
     reasons.push("price came from search-result evidence, not structured retailer page data");
   }
+  for (const limitation of normalizeStringArray(offerDetails.retailOfferLimitations, 6)) {
+    reasons.push(limitation);
+  }
   return [...new Set(reasons.map(cleanText).filter(Boolean))].slice(0, 8);
 }
 
@@ -10349,10 +10675,16 @@ function sanitizeRetailEvidenceAssessment(assessment = {}) {
     searchProvider: cleanText(assessment.searchProvider),
     sourceEvidenceType: cleanText(assessment.sourceEvidenceType),
     onlineLocalStatus: cleanText(assessment.onlineLocalStatus),
+    purchaseChannel: cleanText(assessment.purchaseChannel),
     namedStoreMatchStatus: cleanText(assessment.namedStoreMatchStatus),
     retailerConfidenceLevel: cleanText(assessment.retailerConfidenceLevel),
     retailerAttributionEvidence: normalizeStringArray(assessment.retailerAttributionEvidence, 8),
     transactionalRetailerEvidence: Boolean(assessment.transactionalRetailerEvidence),
+    retailOfferPlatform: cleanText(assessment.retailOfferPlatform),
+    retailOfferSeller: cleanText(assessment.retailOfferSeller),
+    retailOfferSellerType: cleanText(assessment.retailOfferSellerType),
+    retailOfferConditionDisclosure: cleanText(assessment.retailOfferConditionDisclosure),
+    retailOfferLimitations: normalizeStringArray(assessment.retailOfferLimitations, 6),
     exactProductStatus: cleanText(assessment.exactProductStatus),
     productTypeCompatibility: cleanText(assessment.productTypeCompatibility),
     targetProductFamily: cleanText(assessment.targetProductFamily),
@@ -10374,6 +10706,10 @@ function sanitizeRetailEvidenceAssessment(assessment = {}) {
     currentListingEvidence: cleanText(assessment.currentListingEvidence),
     availabilityStatus: cleanText(assessment.availabilityStatus),
     shippingStatus: cleanText(assessment.shippingStatus),
+    shippingLabel: cleanText(assessment.shippingLabel),
+    shippingAmount: Number.isFinite(assessment.shippingAmount) ? assessment.shippingAmount : null,
+    shippingDisclosure: cleanText(assessment.shippingDisclosure),
+    deliveredCostSupported: Boolean(assessment.deliveredCostSupported),
     localRelevance: cleanText(assessment.localRelevance),
     secondaryMarketStatus: cleanText(assessment.secondaryMarketStatus),
     hardRejectionReason: cleanText(assessment.hardRejectionReason),
@@ -15784,6 +16120,9 @@ export const __queryIntegrityTestHooks = {
   buildRetailSerperSearchPlan,
   buildRetailSearchDiagnostics,
   retailSerperBudgetAllocation,
+  onlineRetailerRegistry,
+  buildOnlineRetailSearchTargets,
+  detectOnlineRetailCategoryTags,
   finalizeSearchQueryCandidate,
   findUnsupportedQueryTerms,
   buildSerperSearchPlan,
@@ -15831,6 +16170,7 @@ export const __queryIntegrityTestHooks = {
   classifyRetailPackageCompatibility,
   assessRetailProductFamilyCompatibility,
   deriveRetailerAttribution,
+  deriveRetailOfferDetails,
   unwrapRetailDestinationUrl,
   isRetailPriceDecisionEligibleRecord,
   buildRetailEvidenceAssessments,

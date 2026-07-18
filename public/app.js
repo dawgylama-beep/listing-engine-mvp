@@ -356,7 +356,7 @@ const workflowConfigs = {
     loadingMessage: "Searching comparable items for personal-use value...",
     activeLabel: "Analyzing...",
     defaultLabel: "Analyze Buying for Myself",
-    workflowHelper: "Fair-price guidance, comparisons, and a clear buying recommendation.",
+    workflowHelper: "Add the store price and location. We’ll compare current alternatives and show where else a price was found.",
     platformNote: "Optional. Leave blank unless a marketplace context matters.",
     notesNote: "Optional. Add label wording, flaws, seller comments, measurements, or personal-use concerns.",
     buyerEyebrow: "Purchase details",
@@ -387,7 +387,7 @@ const workflowConfigs = {
     loadingMessage: "Searching comparable items for resale potential...",
     activeLabel: "Analyzing...",
     defaultLabel: "Analyze Buying to Resell",
-    workflowHelper: "Margin, resale price, platform fit, risk, and profit guidance.",
+    workflowHelper: "Add your purchase price. We’ll estimate resale potential, likely costs, and risk.",
     platformNote: "Optional. Select where you may resell if you already know the target platform.",
     notesNote: "Optional. Add flaws, seller comments, transport costs, shipping issues, or resale concerns.",
     buyerEyebrow: "Acquisition details",
@@ -419,7 +419,7 @@ const workflowConfigs = {
     loadingMessage: "Searching comparable items for owner value...",
     activeLabel: "Valuing...",
     defaultLabel: "Value My Item",
-    workflowHelper: "Identify what you have and estimate its supported market value.",
+    workflowHelper: "Add photos and any known details. We’ll estimate its value using appropriate market evidence.",
     platformNote: "Optional. Select a likely venue only if it matters to value.",
     notesNote: "Optional. Add provenance, ownership notes, flaws, measurements, or what you already know.",
     buyerEyebrow: "Ownership details",
@@ -450,7 +450,7 @@ const workflowConfigs = {
     loadingMessage: "Researching seller pricing and listing support...",
     activeLabel: "Creating...",
     defaultLabel: "Create Selling Plan and Listing",
-    workflowHelper: "Set a selling price and create a seller-ready listing.",
+    workflowHelper: "Add condition and selling details. We’ll recommend pricing and help prepare the listing.",
     platformNote: "Optional. Select your preferred marketplace when useful.",
     notesNote: "Optional. Add ownership notes, flaws, measurements, accessories, and what a buyer should know.",
     buyerEyebrow: "Selling details",
@@ -808,7 +808,9 @@ function applyWorkflowState({ clearOutput = false, abortRequests = false } = {})
 
 function syncWorkflowFormState(config) {
   form.dataset.workflow = config.workflow;
-  workflowHelper.textContent = config.workflowHelper;
+  if (workflowHelper.textContent !== config.workflowHelper) {
+    workflowHelper.textContent = config.workflowHelper;
+  }
   platformNote.textContent = config.platformNote;
   notesNote.textContent = config.notesNote;
   platformInput.required = Boolean(config.platformRequired);
@@ -2268,6 +2270,9 @@ function renderSearchDiagnostics(diagnostics) {
     ["Retail Stages Attempted", diagnostics.retailStagesAttempted],
     ["Retail Queries Planned", diagnostics.retailQueriesPlanned],
     ["Retail Queries Executed", diagnostics.retailQueriesExecuted],
+    ["Online Retail Search Status", diagnostics.onlineRetailSearchStatus],
+    ["Online Retail Queries Attempted", diagnostics.onlineRetailQueriesAttempted],
+    ["Online Retail Provider Calls Used", diagnostics.onlineRetailProviderCallsUsed],
     ["Location-Aware Retail Search Status", diagnostics.locationAwareRetailSearchStatus],
     ["Local Retail Queries Attempted", diagnostics.localRetailQueriesAttempted],
     ["Shopping Execution Status", diagnostics.shoppingExecutionStatus],
@@ -2988,6 +2993,26 @@ function formatExecutiveSummary(report, workflow) {
   ].filter(Boolean).join("\n");
 }
 
+function formatConsumerCompactSummaryText(report, workflow) {
+  if (!isCurrentRetailOnlyReport(report)) {
+    return formatExecutiveSummary(report, workflow);
+  }
+
+  const whereToBuy = formatPricesFoundListText(report.pricesFound);
+  const sections = [
+    ["Retail Purchase Decision", firstNonEmpty(report.retailPurchaseDecision, report.recommendation, "Current Retail Price Not Verified")],
+    ["Current Retail Price Assessment", report.currentRetailPriceAssessment],
+    ["Where to Buy", whereToBuy || report.noCompatiblePricesFound || "Current Retail Price: Not verified."],
+    ["Availability", whereToBuy ? "Prices were found online. Check the retailer for current availability." : ""],
+    ["Next Best Action", getConsumerRetailNextBestAction(report)]
+  ];
+
+  return sections
+    .filter(([, value]) => normalizeDisplayValue(value))
+    .map(([label, value]) => `${label}\n${value}`)
+    .join("\n\n");
+}
+
 function hasVisualRecognition(report) {
   return Boolean(report.visualSubject || report.visualRecognitionSummary || report.visualRecognitionEvidence);
 }
@@ -3472,7 +3497,7 @@ function renderConsumerCompactSummary(report, workflow) {
   copyButton.className = "copy-button summary-copy";
   copyButton.type = "button";
   copyButton.textContent = "Copy Summary";
-  copyButton.addEventListener("click", () => copyText(formatExecutiveSummary(report, workflow), copyButton));
+  copyButton.addEventListener("click", () => copyText(formatConsumerCompactSummaryText(report, workflow), copyButton));
 
   if (isCurrentRetailOnlyReport(report)) {
     appendConsumerCompactSection(details, "Retail Purchase Decision", firstNonEmpty(
@@ -3480,50 +3505,12 @@ function renderConsumerCompactSummary(report, workflow) {
       report.recommendation,
       "Current Retail Price Not Verified"
     ));
-    appendConsumerCompactSection(details, "Asking / Store Price", firstNonEmpty(report.askingStorePrice, report.askingPrice));
     appendConsumerCompactSection(details, "Current Retail Price Assessment", report.currentRetailPriceAssessment);
-    appendConsumerCompactSection(details, "Named Store Result", report.namedStoreResult);
-
-    if (report.bestCurrentRetailAlternative && typeof report.bestCurrentRetailAlternative === "object") {
-      const bestSection = document.createElement("section");
-      bestSection.className = "consumer-compact-section price-context-section";
-      const bestTitle = document.createElement("h4");
-      bestTitle.textContent = report.bestCurrentRetailAlternative.priceContextLabel || "Best Current Retail Alternative";
-      bestSection.appendChild(bestTitle);
-      if (report.bestCurrentRetailAlternative.priceContextSummary) {
-        const summary = document.createElement("p");
-        summary.textContent = report.bestCurrentRetailAlternative.priceContextSummary;
-        bestSection.appendChild(summary);
-      }
-      bestSection.appendChild(renderPriceFoundCard(report.bestCurrentRetailAlternative));
-      details.appendChild(bestSection);
-    }
-
-    if (normalizeArray(report.otherCurrentRetailPrices).length) {
-      const otherSection = document.createElement("section");
-      otherSection.className = "consumer-compact-section price-context-section";
-      const otherTitle = document.createElement("h4");
-      otherTitle.textContent = "Other Current Retail Prices";
-      otherSection.appendChild(otherTitle);
-      otherSection.appendChild(renderPricesFound(report.otherCurrentRetailPrices));
-      details.appendChild(otherSection);
-    }
-
-    appendConsumerCompactSection(details, "Package and Unit Price Comparison", firstNonEmpty(report.packageUnitPriceComparison, report.packageUnitPriceContext));
-    appendConsumerCompactSection(details, "Local Availability Context", firstNonEmpty(report.localAvailabilityContext, report.localStoreContext));
-    appendConsumerCompactSection(details, "Price Confidence", firstNonEmpty(report.pricingConfidence, report.priceConfidence));
-    appendConsumerCompactSection(details, "Retail Price Limit", report.retailPriceLimit);
-    appendConsumerCompactSection(details, "Next Best Action", firstNonEmpty(
-      report.bestNextStep,
-      report.whatToVerifyBeforeBuying,
-      report.additionalInformationNeeded,
-      "Confirm package count, current store price, taxes, and pickup or delivery terms before acting."
-    ));
 
     const pricesSection = document.createElement("section");
     pricesSection.className = "consumer-compact-section";
     const pricesTitle = document.createElement("h4");
-    pricesTitle.textContent = "Current Retail Prices Found";
+    pricesTitle.textContent = "Where to Buy";
     pricesSection.appendChild(pricesTitle);
     if (normalizeArray(report.pricesFound).length) {
       pricesSection.appendChild(renderPricesFound(report.pricesFound));
@@ -3533,6 +3520,9 @@ function renderConsumerCompactSummary(report, workflow) {
       pricesSection.appendChild(empty);
     }
     details.appendChild(pricesSection);
+
+    appendConsumerCompactSection(details, "Next Best Action", getConsumerRetailNextBestAction(report));
+    appendConsumerPriceAnalysisDisclosure(details, report);
 
     card.append(details, copyButton);
     return card;
@@ -3567,7 +3557,7 @@ function renderConsumerCompactSummary(report, workflow) {
       summary.textContent = report.bestCompatiblePriceFound.priceContextSummary;
       bestSection.appendChild(summary);
     }
-    bestSection.appendChild(renderPriceFoundCard(report.bestCompatiblePriceFound));
+    bestSection.appendChild(renderPricesFound([report.bestCompatiblePriceFound], { showBestBadge: true, showAvailabilityDisclaimer: false }));
     details.appendChild(bestSection);
   }
 
@@ -3581,7 +3571,7 @@ function renderConsumerCompactSummary(report, workflow) {
     const otherTitle = document.createElement("h4");
     otherTitle.textContent = "Other Compatible Prices Found";
     otherSection.appendChild(otherTitle);
-    otherSection.appendChild(renderPricesFound(report.otherCompatiblePricesFound));
+    otherSection.appendChild(renderPricesFound(report.otherCompatiblePricesFound, { showBestBadge: false, showAvailabilityDisclaimer: false }));
     details.appendChild(otherSection);
   }
 
@@ -3622,6 +3612,45 @@ function appendConsumerCompactSection(wrapper, title, value) {
   heading.textContent = title;
   section.append(heading, renderValue(value));
   wrapper.appendChild(section);
+}
+
+function appendConsumerPriceAnalysisDisclosure(wrapper, report = {}) {
+  const analysisItems = [
+    ["Asking / Store Price", firstNonEmpty(report.askingStorePrice, report.askingPrice)],
+    ["Named Store Result", report.namedStoreResult],
+    ["Package and Unit Price Comparison", firstNonEmpty(report.packageUnitPriceComparison, report.packageUnitPriceContext)],
+    ["Local Availability Context", firstNonEmpty(report.localAvailabilityContext, report.localStoreContext)],
+    ["Price Confidence", firstNonEmpty(report.pricingConfidence, report.priceConfidence)],
+    ["Retail Price Limit", report.retailPriceLimit]
+  ].filter(([title, value]) => shouldRenderSection(title, value));
+
+  if (!analysisItems.length) {
+    return;
+  }
+
+  const disclosure = document.createElement("details");
+  disclosure.className = "consumer-price-analysis technical-details-disclosure";
+  const summary = document.createElement("summary");
+  summary.className = "technical-details-summary";
+  summary.textContent = "Price analysis";
+  const body = document.createElement("div");
+  body.className = "consumer-price-analysis-body";
+
+  for (const [title, value] of analysisItems) {
+    appendConsumerCompactSection(body, title, value);
+  }
+
+  disclosure.append(summary, body);
+  wrapper.appendChild(disclosure);
+}
+
+function getConsumerRetailNextBestAction(report = {}) {
+  return firstNonEmpty(
+    report.bestNextStep,
+    report.whatToVerifyBeforeBuying,
+    report.additionalInformationNeeded,
+    "Confirm package count, current price, taxes, and pickup or delivery terms before acting."
+  );
 }
 
 function getValueRatingModifier(value) {
@@ -3699,10 +3728,10 @@ function renderValue(value) {
   return paragraph;
 }
 
-function renderPricesFound(value) {
+function renderPricesFound(value, options = {}) {
   const records = normalizeArray(value).filter((item) => item && typeof item === "object");
   const wrapper = document.createElement("div");
-  wrapper.className = "prices-found-list";
+  wrapper.className = "prices-found-block";
 
   if (!records.length) {
     const empty = document.createElement("p");
@@ -3711,102 +3740,93 @@ function renderPricesFound(value) {
     return wrapper;
   }
 
-  for (const item of records) {
-    wrapper.appendChild(renderPriceFoundCard(item));
+  const list = document.createElement("ul");
+  list.className = "prices-found-list compact-price-list";
+  records.forEach((item, index) => {
+    list.appendChild(renderPriceFoundCard(item, { isBestPrice: options.showBestBadge !== false && index === 0 }));
+  });
+
+  const disclaimer = document.createElement("p");
+  disclaimer.className = "prices-found-disclaimer";
+  disclaimer.textContent = "Prices were found online. Check the retailer for current availability.";
+  wrapper.appendChild(list);
+  if (options.showAvailabilityDisclaimer !== false) {
+    wrapper.appendChild(disclaimer);
   }
 
   return wrapper;
 }
 
-function renderPriceFoundCard(item) {
-  const card = document.createElement("article");
-  card.className = "price-found-card";
+function renderPriceFoundCard(item, options = {}) {
+  const card = document.createElement("li");
+  card.className = "price-found-row";
   const retailerName = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
   const retailerUnknown = /retailer not identified|^source$/i.test(retailerName);
   const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
   const matchLabel = getPriceFoundMatchLabel(item);
   const addressText = getPriceFoundAddress(item);
+  const purchaseChannel = getPriceFoundPurchaseChannel(item, addressText);
+  const unitPriceText = formatPriceFoundUnitPrice(item);
   const directionsUrl = getPriceFoundDirectionsUrl(item, addressText);
 
-  const header = document.createElement("div");
-  header.className = "price-found-header";
-  const titleGroup = document.createElement("div");
-  titleGroup.className = "price-found-title-group";
-  const title = document.createElement("h5");
-  title.textContent = item.title || "Source listing";
+  const primary = document.createElement("div");
+  primary.className = "price-found-primary";
   const source = document.createElement("p");
   source.className = "price-found-source";
-  source.textContent = `Found at ${retailerUnknown ? "Retailer not identified" : retailerName} — ${priceText}`;
-  titleGroup.append(source);
-  header.append(titleGroup);
-
-  const amounts = document.createElement("dl");
-  amounts.className = "price-found-amounts";
-  const quantityText = item.packageQuantity
-    ? `${item.packageQuantity} units${item.unitPrice ? ` · ${item.unitPrice} each` : ""}`
-    : "Not shown";
-  [
-    ["Price", item.itemPrice],
-    ["Quantity / unit", quantityText],
-    ["Availability", item.listingStatus || "Availability unconfirmed"]
-  ].forEach(([label, detail]) => appendDefinitionRow(amounts, label, detail));
-
-  const meta = document.createElement("dl");
-  meta.className = "price-found-visible-meta";
-  [
-    ["Match", item.matchQuality || item.priceTypeLabel],
-    ["Difference", item.knownDifferences || item.priceContextSummary || "No material difference shown"],
-    ["Limit", item.conciseLimitation]
-  ].forEach(([label, detail]) => appendDefinitionRow(meta, label, detail));
-
-  const comparison = document.createElement("p");
-  comparison.className = "price-found-comparison";
-  comparison.textContent = item.comparisonToYourPrice || item.conciseLimitation || "";
+  source.textContent = `${retailerUnknown ? "Retailer not identified" : retailerName} — ${priceText}`;
+  primary.appendChild(source);
+  if (options.isBestPrice) {
+    const badge = document.createElement("span");
+    badge.className = "best-price-badge";
+    badge.textContent = "Best price";
+    primary.appendChild(badge);
+  }
 
   const quantity = document.createElement("p");
-  quantity.className = "price-found-quantity";
-  quantity.textContent = `Quantity: ${formatPriceFoundQuantity(item)}`;
+  quantity.className = "price-found-meta-line";
+  const quantityParts = [formatPriceFoundQuantity(item)];
+  if (unitPriceText) {
+    quantityParts.push(unitPriceText);
+  }
+  quantityParts.push(purchaseChannel);
+  quantity.textContent = quantityParts.join(" · ");
 
-  const unitPrice = document.createElement("p");
-  unitPrice.className = "price-found-unit-price";
-  unitPrice.textContent = item.unitPrice ? `Unit price: ${item.unitPrice}` : "";
-
-  const match = document.createElement("p");
-  match.className = "price-found-match";
-  match.textContent = matchLabel;
-
+  const title = document.createElement("p");
   title.className = "price-found-product-title";
+  title.textContent = item.title || "";
 
   const address = document.createElement("p");
   address.className = "price-found-address";
-  address.textContent = addressText ? `Nearby address: ${addressText}` : "";
-
-  const checkNote = document.createElement("p");
-  checkNote.className = "price-found-check-note";
-  checkNote.textContent = "Check with this location for price and availability.";
+  address.textContent = addressText;
 
   const details = document.createElement("details");
   details.className = "price-found-details";
   const summary = document.createElement("summary");
   summary.textContent = "Details";
   const detailList = document.createElement("dl");
-  detailList.className = "price-found-visible-meta";
+  detailList.className = "price-found-details-list";
   [
+    ["Purchase channel", purchaseChannel],
     ["Product title", item.title],
     ["Retailer domain", item.retailerDomain],
     ["Product listing", item.url],
     ["Destination URL", item.destinationUrl],
     ["Search provider", item.searchProvider],
     ["Evidence type", item.sourceEvidenceType],
+    ["Platform / retailer", item.retailOfferPlatform || item.retailerDisplayName],
+    ["Seller", item.retailOfferSeller],
+    ["Seller type", item.retailOfferSellerType],
+    ["Offer conditions", item.retailOfferConditionDisclosure],
     ["Evidence tier", item.retailEvidenceTierLabel || item.retailEvidenceTier || item.priceTypeLabel],
-    ["Match label", matchLabel],
-    ["Compatibility analysis", item.priceContextSummary],
+    ["Matching explanation", item.priceContextSummary || matchLabel],
     ["Product family", [item.targetProductFamily, item.candidateProductFamily].filter(Boolean).join(" / ")],
     ["Positive compatibility evidence", normalizeDisplayValue(item.positiveCompatibilityEvidence)],
     ["Contradictory evidence", normalizeDisplayValue(item.contradictoryEvidence)],
+    ["Limitations", item.conciseLimitation],
+    ["Full limitations", item.conciseLimitation],
     ["Differences", item.knownDifferences],
     ["Retailer confidence", item.retailerConfidenceLevel],
-    ["Confidence reasoning", normalizeDisplayValue(item.confidenceDowngradeReasons)],
+    ["Confidence", normalizeDisplayValue(item.confidenceDowngradeReasons)],
     ["Attribution evidence", normalizeDisplayValue(item.retailerAttributionEvidence)],
     ["Availability/status from source", item.listingStatus],
     ["Shipping", item.shipping || "Not shown"],
@@ -3815,21 +3835,12 @@ function renderPriceFoundCard(item) {
     ["Named-store match", item.namedStoreMatchStatus],
     ["Decision eligible", item.retailPriceDecisionEligibility === false ? "No" : item.retailPriceDecisionEligibility === true ? "Yes" : ""],
     ["Comparison to your price", item.comparisonToYourPrice],
-    ["Full limitations", item.conciseLimitation],
     ["Full note", item.priceContextSummary]
   ].forEach(([label, detail]) => appendDefinitionRow(detailList, label, detail));
   details.append(summary, detailList);
 
-  const defaultNodes = [
-    header,
-    quantity,
-    ...(item.unitPrice ? [unitPrice] : []),
-    match,
-    title,
-    ...(addressText ? [address] : []),
-    checkNote,
-    details
-  ];
+  const actionRow = document.createElement("div");
+  actionRow.className = "price-found-actions";
   const actionUrl = directionsUrl || item.url;
   if (actionUrl) {
     const link = document.createElement("a");
@@ -3837,11 +3848,18 @@ function renderPriceFoundCard(item) {
     link.href = actionUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = directionsUrl ? "Get Directions" : retailerUnknown ? "View Listing" : `View at ${retailerName}`;
-    card.append(...defaultNodes, link);
-  } else {
-    card.append(...defaultNodes);
+    link.textContent = directionsUrl ? "Directions" : retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+    actionRow.appendChild(link);
   }
+  actionRow.appendChild(details);
+
+  card.append(
+    primary,
+    quantity,
+    ...(title.textContent ? [title] : []),
+    ...(addressText ? [address] : []),
+    actionRow
+  );
 
   return card;
 }
@@ -3858,8 +3876,29 @@ function formatPriceFoundQuantity(item = {}) {
   return cleaned;
 }
 
+function formatPriceFoundUnitPrice(item = {}) {
+  const value = normalizeDisplayValue(firstNonEmpty(item.unitPrice, item.unitPriceLabel));
+  if (!value) {
+    return "";
+  }
+  return /\b(each|per|unit|count|ct|oz|lb|pack|sheet|piece|pc)\b|\/\w+/i.test(value)
+    ? value
+    : `${value} each`;
+}
+
 function getPriceFoundMatchLabel(item = {}) {
   return firstNonEmpty(item.priceContextLabel, item.priceTypeLabel, item.matchQuality, item.priceType, "Current retail price");
+}
+
+function getPriceFoundPurchaseChannel(item = {}, addressText = "") {
+  const channel = firstNonEmpty(item.purchaseChannel, item.onlineLocalStatus);
+  if (/nearby\/online/i.test(channel)) {
+    return "Nearby/online";
+  }
+  if (/nearby|local|location/i.test(channel) || addressText) {
+    return "Nearby retailer";
+  }
+  return "Online";
 }
 
 function getPriceFoundAddress(item = {}) {
@@ -4517,11 +4556,7 @@ function formatSearchDiagnosticsText(diagnostics) {
 
 function formatSection(label, value) {
   if (isPriceFoundSectionLabel(label)) {
-    const body = Array.isArray(value)
-      ? value.map(formatPriceFoundRecordText).join("\n")
-      : value && typeof value === "object"
-        ? formatPriceFoundRecordText(value)
-        : value;
+    const body = formatPricesFoundListText(value, { showBestBadge: !/^Other/i.test(label) });
     return `${label}\n${body || ""}`;
   }
 
@@ -4534,33 +4569,33 @@ function formatSection(label, value) {
 }
 
 function isPriceFoundSectionLabel(label = "") {
-  return /^(Best Compatible Price Found|Other Compatible Prices Found|Prices Found|Best Current Retail Alternative|Other Current Retail Prices|Current Retail Prices Found)$/i.test(label);
+  return /^(Best Compatible Price Found|Other Compatible Prices Found|Prices Found|Best Current Retail Alternative|Other Current Retail Prices|Current Retail Prices Found|Where to Buy)$/i.test(label);
 }
 
-function formatPriceFoundRecordText(item = {}) {
+function formatPricesFoundListText(value, options = {}) {
+  const records = normalizeArray(value).filter((item) => item && typeof item === "object");
+  if (!records.length) {
+    return typeof value === "string" ? value : "";
+  }
+  return records
+    .map((item, index) => formatPriceFoundRecordText(item, { isBestPrice: options.showBestBadge !== false && index === 0 }))
+    .join("\n\n");
+}
+
+function formatPriceFoundRecordText(item = {}, options = {}) {
   const retailer = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
   const retailerUnknown = /retailer not identified|^source$/i.test(retailer);
   const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
-  const matchLabel = getPriceFoundMatchLabel(item);
   const addressText = getPriceFoundAddress(item);
+  const purchaseChannel = getPriceFoundPurchaseChannel(item, addressText);
+  const unitPriceText = formatPriceFoundUnitPrice(item);
   const directionsUrl = getPriceFoundDirectionsUrl(item, addressText);
-  const actionLabel = directionsUrl ? "Get Directions" : retailerUnknown ? "View Listing" : `View at ${retailer}`;
-  const fields = [
-    ["Quantity", formatPriceFoundQuantity(item)],
-    ["Unit price", item.unitPrice],
-    ["Match", matchLabel],
-    ["Nearby address", addressText],
-    ["Next step", "Check with this location for price and availability."],
-    ["Shipping", item.shipping || "Not shown"],
-    ["Delivered cost", item.deliveredCost || "Not established"],
-    ["Retailer domain", item.retailerDomain],
-    ["Search provider", item.searchProvider],
-    [actionLabel, directionsUrl || item.url]
-  ]
-    .filter(([, value]) => value)
-    .map(([key, value]) => `${key}: ${value}`);
-  const title = item.title ? ` | Product: ${item.title}` : "";
-  return `- Found at ${retailerUnknown ? "Retailer not identified" : retailer} — ${priceText}${fields.length ? ` | ${fields.join(" | ")}` : ""}${title}`;
+  const actionLabel = directionsUrl ? "Directions" : retailerUnknown ? "View Listing" : `View at ${retailer}`;
+  const actionUrl = directionsUrl || item.url;
+  const primary = `${retailerUnknown ? "Retailer not identified" : retailer} — ${priceText}${options.isBestPrice ? " [Best price]" : ""}`;
+  const meta = [formatPriceFoundQuantity(item), unitPriceText, purchaseChannel].filter(Boolean).join(" · ");
+  const action = `${actionLabel}${actionUrl ? `: ${actionUrl}` : ""}   Details`;
+  return [primary, meta, addressText, action].filter(Boolean).join("\n");
 }
 
 function formatResearchRecordText(item) {

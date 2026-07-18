@@ -14,10 +14,10 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.8"; Text = $index; Pattern = "Version 1.11.8" },
-  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
-  @{ Name = "Server version is 1.11.8"; Text = $server; Pattern = '$AppVersion = "1.11.8"' },
-  @{ Name = "Roadmap documents 1.11.8"; Text = $roadmap; Pattern = "Version 1.11.8 (Completed)" },
+  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
+  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
+  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
+  @{ Name = "Roadmap documents 1.11.9"; Text = $roadmap; Pattern = "Version 1.11.9 (Completed)" },
   @{ Name = "API finalizes canonical identity before routing"; Text = $api; Pattern = "finalizeIdentityForResearch(extractedIdentity, intake)" },
   @{ Name = "API blocks unresolved conflict before live search"; Text = $api; Pattern = "identityConfirmationRequired" },
   @{ Name = "Canonical identity has field status metadata"; Text = $api; Pattern = "createCanonicalField" },

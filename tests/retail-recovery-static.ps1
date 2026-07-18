@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.8"; Text = $index; Pattern = "Version 1.11.8" },
-  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
-  @{ Name = "Server version is 1.11.8"; Text = $server; Pattern = '$AppVersion = "1.11.8"' },
+  @{ Name = "Visible app version is 1.11.9"; Text = $index; Pattern = "Version 1.11.9" },
+  @{ Name = "Package version is 1.11.9"; Text = $package; Pattern = '"version": "1.11.9"' },
+  @{ Name = "Server version is 1.11.9"; Text = $server; Pattern = '$AppVersion = "1.11.9"' },
   @{ Name = "Roadmap documents retail recovery"; Text = $roadmap; Pattern = "Retail evidence recovery now distinguishes" },
   @{ Name = "Exact retail match label exists"; Text = $api; Pattern = "Exact Retail Match" },
   @{ Name = "Strong retail alternative label exists"; Text = $api; Pattern = "Strong Retail Alternative" },
@@ -56,7 +56,7 @@ $checks = @(
   @{ Name = "Exact UPC remains first priority"; Text = $api; Pattern = "queries.push(barcode);" },
   @{ Name = "Forbidden secondary evidence remains blocked"; Text = $api; Pattern = "function isRetailForbiddenSecondaryEvidenceText" },
   @{ Name = "Server prompt uses new retail labels"; Text = $server; Pattern = "Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch" },
-  @{ Name = "Frontend can display current retail prices"; Text = $app; Pattern = "Current Retail Prices Found" },
+  @{ Name = "Frontend can display unified Where to Buy prices"; Text = $app; Pattern = "Where to Buy" },
   @{ Name = "Frontend preserves retail label display"; Text = $app; Pattern = "getPriceFoundMatchLabel(item)" }
 )
 

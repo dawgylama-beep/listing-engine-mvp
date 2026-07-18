@@ -435,6 +435,18 @@
 - Regression tests cover compact where-to-buy ordering, explicit unknown quantity, address placement, safe availability copy, Details-only extended explanations, final action placement, readable retailer contrast, preserved 1.11.7 retailer attribution behavior, and $5.50 precision
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.9 (Completed)
+- Ordinary current-retail searches now include one bounded online-retail coverage stage driven by a reusable retailer registry, covering Amazon, Walmart, Target, Staples, Office Depot, manufacturer/direct stores, and category-relevant transactional retailers without product-, UPC-, SKU-, ZIP-, or retailer-specific decision exceptions
+- The retail provider-call budget remains bounded and execution-truth diagnostics now separately report online-retail queries planned/attempted, online provider calls used, returned source counts, Shopping endpoint execution, local-retail execution, and customer-price eligibility
+- Where to Buy now renders as one compact true list for supported nearby and online current-retail options, with each row limited to retailer, price, quantity, supported unit price, purchase channel, supported address, compact action, and collapsed Details
+- Intake now starts with one compact three-step instruction box, followed by purpose choices and one live-updated purpose-specific guidance line, with the old buried walkthrough removed to avoid repeated instructions
+- Amazon and other marketplace-style offers now preserve platform/retailer, actual seller when visible, first-party versus third-party seller status, package quantity/variant, conditional coupon/subscription/membership pricing, shipping support, delivered-cost support, and availability limitations inside Details
+- Unknown shipping remains Not shown / delivered cost not established, and lower online item prices cannot be presented as the best delivered deal unless shipping is explicitly supported
+- Row-level availability claims were removed; the list now uses one shared "Prices were found online. Check the retailer for current availability." disclaimer, and online prices are not implied to apply at a nearby physical store
+- Regression tests cover Amazon entry without guarantees, other online retailers through the same architecture, unified online/nearby Where to Buy display, true compact mobile rows, purchase-channel labels, seller/platform separation, conditional pricing disclosure, unknown-shipping handling, delivered-cost ranking, search-provider exclusion, bounded online queries, and preserved current-retail/secondary-market safeguards
+- Provider-call impact: current-retail Serper budget increases from 19 to 23 maximum planned provider calls, adding up to 4 online-retail registry queries while preserving exact, compatible, retailer-specific, Shopping, and local-retail stage caps
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings
