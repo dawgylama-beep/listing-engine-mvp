@@ -11,10 +11,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.7"; Text = $index; Pattern = "Version 1.11.7" },
-  @{ Name = "Package version is 1.11.7"; Text = $package; Pattern = '"version": "1.11.7"' },
-  @{ Name = "Server version is 1.11.7"; Text = $server; Pattern = '$AppVersion = "1.11.7"' },
-  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.11.7 (Completed)" },
+  @{ Name = "Visible app version is 1.11.8"; Text = $index; Pattern = "Version 1.11.8" },
+  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
+  @{ Name = "Server version is 1.11.8"; Text = $server; Pattern = '$AppVersion = "1.11.8"' },
+  @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.11.8 (Completed)" },
   @{ Name = "Photo library input keeps multiple attribute"; Text = $index; Pattern = 'id="photos" class="visually-hidden-file" name="photos" type="file" accept="image/*" multiple' },
   @{ Name = "Camera input remains camera capture"; Text = $index; Pattern = 'id="camera-photo" class="visually-hidden-file" type="file" accept="image/*" capture="environment"' },
   @{ Name = "Shared selected photo state exists"; Text = $app; Pattern = "let selectedPhotoFiles = [];" },

@@ -3723,6 +3723,10 @@ function renderPriceFoundCard(item) {
   card.className = "price-found-card";
   const retailerName = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
   const retailerUnknown = /retailer not identified|^source$/i.test(retailerName);
+  const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
+  const matchLabel = getPriceFoundMatchLabel(item);
+  const addressText = getPriceFoundAddress(item);
+  const directionsUrl = getPriceFoundDirectionsUrl(item, addressText);
 
   const header = document.createElement("div");
   header.className = "price-found-header";
@@ -3732,12 +3736,9 @@ function renderPriceFoundCard(item) {
   title.textContent = item.title || "Source listing";
   const source = document.createElement("p");
   source.className = "price-found-source";
-  source.textContent = `Where to buy: ${retailerUnknown ? "Retailer not identified" : retailerName}`;
-  titleGroup.append(title, source);
-  const badge = document.createElement("span");
-  badge.className = "price-type-badge";
-  badge.textContent = item.priceContextLabel || item.priceTypeLabel || item.priceType || "Unknown Price Type";
-  header.append(titleGroup, badge);
+  source.textContent = `Found at ${retailerUnknown ? "Retailer not identified" : retailerName} — ${priceText}`;
+  titleGroup.append(source);
+  header.append(titleGroup);
 
   const amounts = document.createElement("dl");
   amounts.className = "price-found-amounts";
@@ -3762,6 +3763,28 @@ function renderPriceFoundCard(item) {
   comparison.className = "price-found-comparison";
   comparison.textContent = item.comparisonToYourPrice || item.conciseLimitation || "";
 
+  const quantity = document.createElement("p");
+  quantity.className = "price-found-quantity";
+  quantity.textContent = `Quantity: ${formatPriceFoundQuantity(item)}`;
+
+  const unitPrice = document.createElement("p");
+  unitPrice.className = "price-found-unit-price";
+  unitPrice.textContent = item.unitPrice ? `Unit price: ${item.unitPrice}` : "";
+
+  const match = document.createElement("p");
+  match.className = "price-found-match";
+  match.textContent = matchLabel;
+
+  title.className = "price-found-product-title";
+
+  const address = document.createElement("p");
+  address.className = "price-found-address";
+  address.textContent = addressText ? `Nearby address: ${addressText}` : "";
+
+  const checkNote = document.createElement("p");
+  checkNote.className = "price-found-check-note";
+  checkNote.textContent = "Check with this location for price and availability.";
+
   const details = document.createElement("details");
   details.className = "price-found-details";
   const summary = document.createElement("summary");
@@ -3769,34 +3792,101 @@ function renderPriceFoundCard(item) {
   const detailList = document.createElement("dl");
   detailList.className = "price-found-visible-meta";
   [
+    ["Product title", item.title],
     ["Retailer domain", item.retailerDomain],
+    ["Product listing", item.url],
+    ["Destination URL", item.destinationUrl],
     ["Search provider", item.searchProvider],
     ["Evidence type", item.sourceEvidenceType],
+    ["Evidence tier", item.retailEvidenceTierLabel || item.retailEvidenceTier || item.priceTypeLabel],
+    ["Match label", matchLabel],
+    ["Compatibility analysis", item.priceContextSummary],
+    ["Product family", [item.targetProductFamily, item.candidateProductFamily].filter(Boolean).join(" / ")],
+    ["Positive compatibility evidence", normalizeDisplayValue(item.positiveCompatibilityEvidence)],
+    ["Contradictory evidence", normalizeDisplayValue(item.contradictoryEvidence)],
+    ["Differences", item.knownDifferences],
     ["Retailer confidence", item.retailerConfidenceLevel],
+    ["Confidence reasoning", normalizeDisplayValue(item.confidenceDowngradeReasons)],
     ["Attribution evidence", normalizeDisplayValue(item.retailerAttributionEvidence)],
+    ["Availability/status from source", item.listingStatus],
     ["Shipping", item.shipping || "Not shown"],
     ["Delivered cost", item.deliveredCost || "Not established"],
     ["Shipping note", item.shippingDisclosure],
     ["Named-store match", item.namedStoreMatchStatus],
     ["Decision eligible", item.retailPriceDecisionEligibility === false ? "No" : item.retailPriceDecisionEligibility === true ? "Yes" : ""],
-    ["Downgrades", normalizeDisplayValue(item.confidenceDowngradeReasons)],
+    ["Comparison to your price", item.comparisonToYourPrice],
+    ["Full limitations", item.conciseLimitation],
     ["Full note", item.priceContextSummary]
   ].forEach(([label, detail]) => appendDefinitionRow(detailList, label, detail));
   details.append(summary, detailList);
 
-  if (item.url) {
+  const defaultNodes = [
+    header,
+    quantity,
+    ...(item.unitPrice ? [unitPrice] : []),
+    match,
+    title,
+    ...(addressText ? [address] : []),
+    checkNote,
+    details
+  ];
+  const actionUrl = directionsUrl || item.url;
+  if (actionUrl) {
     const link = document.createElement("a");
     link.className = "source-result-link price-found-action";
-    link.href = item.url;
+    link.href = actionUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = retailerUnknown ? "View source" : `View at ${retailerName}`;
-    card.append(header, amounts, meta, comparison, details, link);
+    link.textContent = directionsUrl ? "Get Directions" : retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+    card.append(...defaultNodes, link);
   } else {
-    card.append(header, amounts, meta, comparison, details);
+    card.append(...defaultNodes);
   }
 
   return card;
+}
+
+function formatPriceFoundQuantity(item = {}) {
+  const raw = firstNonEmpty(item.packageQuantityLabel, item.packageQuantity, item.quantity, item.unitCount);
+  if (!raw) {
+    return "Not shown";
+  }
+  const cleaned = String(raw).replace(/\b(\d+)-count\b/gi, "$1 count").trim();
+  if (/^\d+(?:\.\d+)?$/.test(cleaned)) {
+    return `${cleaned} count`;
+  }
+  return cleaned;
+}
+
+function getPriceFoundMatchLabel(item = {}) {
+  return firstNonEmpty(item.priceContextLabel, item.priceTypeLabel, item.matchQuality, item.priceType, "Current retail price");
+}
+
+function getPriceFoundAddress(item = {}) {
+  const raw = firstNonEmpty(
+    item.nearbyAddress,
+    item.storeAddress,
+    item.locationAddress,
+    item.retailerAddress,
+    item.pickupAddress,
+    item.address
+  );
+  const address = normalizeDisplayValue(raw);
+  if (!address || /^https?:\/\//i.test(address) || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(address)) {
+    return "";
+  }
+  return address;
+}
+
+function getPriceFoundDirectionsUrl(item = {}, addressText = "") {
+  const explicitUrl = firstNonEmpty(item.directionsUrl, item.directionsURL, item.mapUrl, item.mapsUrl, item.googleMapsUrl);
+  if (/^https?:\/\//i.test(explicitUrl)) {
+    return explicitUrl;
+  }
+  if (!item.url && addressText) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
+  }
+  return "";
 }
 
 function appendDefinitionRow(list, label, detail) {
@@ -4449,26 +4539,28 @@ function isPriceFoundSectionLabel(label = "") {
 
 function formatPriceFoundRecordText(item = {}) {
   const retailer = item.retailerDisplayName || item.source || item.marketplace || "Retailer not identified";
+  const retailerUnknown = /retailer not identified|^source$/i.test(retailer);
+  const priceText = firstNonEmpty(item.itemPrice, item.displayedPrice, item.price, "Price not shown");
+  const matchLabel = getPriceFoundMatchLabel(item);
+  const addressText = getPriceFoundAddress(item);
+  const directionsUrl = getPriceFoundDirectionsUrl(item, addressText);
+  const actionLabel = directionsUrl ? "Get Directions" : retailerUnknown ? "View Listing" : `View at ${retailer}`;
   const fields = [
-    ["Where to buy", retailer],
-    ["Retailer domain", item.retailerDomain],
-    ["Item price", item.itemPrice],
-    ["Package quantity", item.packageQuantity],
+    ["Quantity", formatPriceFoundQuantity(item)],
     ["Unit price", item.unitPrice],
+    ["Match", matchLabel],
+    ["Nearby address", addressText],
+    ["Next step", "Check with this location for price and availability."],
     ["Shipping", item.shipping || "Not shown"],
     ["Delivered cost", item.deliveredCost || "Not established"],
-    ["Match type", item.matchQuality || item.priceTypeLabel],
-    ["Availability", item.listingStatus],
-    ["Important difference", item.knownDifferences || item.priceContextSummary],
-    ["Limitation", item.conciseLimitation],
+    ["Retailer domain", item.retailerDomain],
     ["Search provider", item.searchProvider],
-    ["Open source", item.url]
+    [actionLabel, directionsUrl || item.url]
   ]
     .filter(([, value]) => value)
     .map(([key, value]) => `${key}: ${value}`);
-  const title = item.priceContextLabel || item.title || "Compatible price";
-  const context = item.priceContextSummary ? ` | ${item.priceContextSummary}` : "";
-  return `- ${title}${context}${fields.length ? ` | ${fields.join(" | ")}` : ""}`;
+  const title = item.title ? ` | Product: ${item.title}` : "";
+  return `- Found at ${retailerUnknown ? "Retailer not identified" : retailer} — ${priceText}${fields.length ? ` | ${fields.join(" | ")}` : ""}${title}`;
 }
 
 function formatResearchRecordText(item) {

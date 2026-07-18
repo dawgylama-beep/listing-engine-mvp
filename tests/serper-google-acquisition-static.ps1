@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.7"; Text = $index; Pattern = "Version 1.11.7" },
-  @{ Name = "Package version is 1.11.7"; Text = $package; Pattern = '"version": "1.11.7"' },
-  @{ Name = "Server version is 1.11.7"; Text = $server; Pattern = '$AppVersion = "1.11.7"' },
-  @{ Name = "Roadmap documents 1.11.7"; Text = $roadmap; Pattern = "Version 1.11.7 (Completed)" },
+  @{ Name = "Visible app version is 1.11.8"; Text = $index; Pattern = "Version 1.11.8" },
+  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
+  @{ Name = "Server version is 1.11.8"; Text = $server; Pattern = '$AppVersion = "1.11.8"' },
+  @{ Name = "Roadmap documents 1.11.8"; Text = $roadmap; Pattern = "Version 1.11.8 (Completed)" },
   @{ Name = "API reads SERPER_API_KEY server-side"; Text = $api; Pattern = "process.env.SERPER_API_KEY" },
   @{ Name = "API uses Serper host"; Text = $api; Pattern = "https://google.serper.dev/" },
   @{ Name = "API selects Serper search endpoint"; Text = $api; Pattern = 'searchType === "shopping" ? "shopping" : "search"' },

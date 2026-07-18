@@ -9,8 +9,8 @@ $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content -LiteralPath (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Package version is 1.11.7"; Text = $package; Pattern = '"version": "1.11.7"' },
-  @{ Name = "Roadmap documents 1.11.7"; Text = $roadmap; Pattern = "Version 1.11.7 (Completed)" },
+  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
+  @{ Name = "Roadmap documents 1.11.8"; Text = $roadmap; Pattern = "Version 1.11.8 (Completed)" },
   @{ Name = "UPC validation helper exists"; Text = $api; Pattern = "function validateRetailBarcodeCandidate" },
   @{ Name = "Barcode check digit helper exists"; Text = $api; Pattern = "function computeRetailBarcodeCheckDigit" },
   @{ Name = "Barcode integrity helper exists"; Text = $api; Pattern = "function buildBarcodeIntegrity" },

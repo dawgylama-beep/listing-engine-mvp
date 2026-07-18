@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.7"; Text = $index; Pattern = "Version 1.11.7" },
-  @{ Name = "Package version is 1.11.7"; Text = $package; Pattern = '"version": "1.11.7"' },
-  @{ Name = "Server version is 1.11.7"; Text = $server; Pattern = '$AppVersion = "1.11.7"' },
-  @{ Name = "Roadmap documents Version 1.11.7"; Text = $roadmap; Pattern = "Version 1.11.7 (Completed)" },
+  @{ Name = "Visible app version is 1.11.8"; Text = $index; Pattern = "Version 1.11.8" },
+  @{ Name = "Package version is 1.11.8"; Text = $package; Pattern = '"version": "1.11.8"' },
+  @{ Name = "Server version is 1.11.8"; Text = $server; Pattern = '$AppVersion = "1.11.8"' },
+  @{ Name = "Roadmap documents Version 1.11.8"; Text = $roadmap; Pattern = "Version 1.11.8 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
   @{ Name = "Current retail only mode exists"; Text = $api; Pattern = "current-retail-only" },
@@ -49,7 +49,7 @@ $checks = @(
   @{ Name = "Retail compact report uses current price assessment"; Text = $app; Pattern = "Current Retail Price Assessment" },
   @{ Name = "Retail compact report uses named store result"; Text = $app; Pattern = "Named Store Result" },
   @{ Name = "Retail compact report uses retail prices found"; Text = $app; Pattern = "Current Retail Prices Found" },
-  @{ Name = "Retail price card uses retail label"; Text = $app; Pattern = "item.priceTypeLabel || item.priceType" },
+  @{ Name = "Retail price card uses compact retail match label"; Text = $app; Pattern = "getPriceFoundMatchLabel(item)" },
   @{ Name = "Technical details display retail evidence mode"; Text = $app; Pattern = '["Retail Evidence Mode", diagnostics.retailEvidenceMode]' },
   @{ Name = "Server prompt includes retail-only mode"; Text = $server; Pattern = "Retail Evidence Mode: current-retail-only" },
   @{ Name = "Server prompt blocks offer ladder"; Text = $server; Pattern = "do not show Opening Offer, negotiation target, offer ladder" }

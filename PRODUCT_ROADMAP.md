@@ -426,6 +426,15 @@
 - Regression tests cover retailer attribution, provider-versus-seller separation, redirect unwrapping, explicit unknown retailer display, unknown-retailer price-guidance exclusion, product-family mismatch rejection, negative-title evidence, recalculated best/limit guidance, readable source contrast, compressed cards, and preserved 1.11.6 retail/location safeguards
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.8 (Completed)
+- Customer-visible retail result cards now lead with a plain "Found at [Retailer] - [Price]" buying line, followed immediately by quantity, optional unit price, one short match label, product title, optional nearby address, and a clear check-with-location availability note
+- Unknown package quantity now displays as "Quantity: Not shown" in the default customer card and copied report text, while supported numeric quantities display as count wording
+- Nearby address and directions support are presentation-only: addresses appear lower in the card when already supported by the record, and the default copy avoids claiming that the nearby location has the item in stock
+- Extended compatibility, evidence-tier, shipping, confidence, limitation, and difference details remain inside each card's collapsed Details section
+- Card actions remain a single final action: "View at [Retailer]", "Get Directions" when an explicit directions target is supported, or "View Listing" when the retailer is unknown
+- Regression tests cover compact where-to-buy ordering, explicit unknown quantity, address placement, safe availability copy, Details-only extended explanations, final action placement, readable retailer contrast, preserved 1.11.7 retailer attribution behavior, and $5.50 precision
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 2.0
 - User accounts
 - Saved listings
