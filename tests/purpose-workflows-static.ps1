@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
-  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
-  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
+  @{ Name = "Visible app version is 1.11.14"; Text = $index; Pattern = "Version 1.11.14" },
+  @{ Name = "Package version is 1.11.14"; Text = $package; Pattern = '"version": "1.11.14"' },
+  @{ Name = "Server version is 1.11.14"; Text = $server; Pattern = '$AppVersion = "1.11.14"' },
   @{ Name = "Roadmap documents four-purpose model"; Text = $roadmap; Pattern = "Buying for Myself, Buying to Resell, Value Something I Own, and Sell Something I Own" },
   @{ Name = "Purpose legend is generic"; Text = $index; Pattern = "<legend>Purpose</legend>" },
   @{ Name = "Buying for Myself radio exists"; Text = $index; Pattern = "<strong>Buying for Myself</strong>" },

@@ -13,10 +13,10 @@ $package = Get-Content -LiteralPath (Join-Path $Root "package.json") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
-  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
-  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
-  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
+  @{ Name = "Visible app version is 1.11.14"; Text = $index; Pattern = "Version 1.11.14" },
+  @{ Name = "Package version is 1.11.14"; Text = $package; Pattern = '"version": "1.11.14"' },
+  @{ Name = "Server version is 1.11.14"; Text = $server; Pattern = '$AppVersion = "1.11.14"' },
+  @{ Name = "Roadmap documents 1.11.14"; Text = $roadmap; Pattern = "Version 1.11.14 (Completed)" },
   @{ Name = "API has query-bound live-search payload"; Text = $api; Pattern = "function createQueryBoundLiveSearchPayload" },
   @{ Name = "API builds prioritized query records"; Text = $api; Pattern = "function buildPrioritizedQueryRecords" },
   @{ Name = "API records provider request records"; Text = $api; Pattern = "providerRequestRecords" },

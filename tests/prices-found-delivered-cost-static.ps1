@@ -14,10 +14,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
-  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
-  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
-  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
+  @{ Name = "Visible app version is 1.11.14"; Text = $index; Pattern = "Version 1.11.14" },
+  @{ Name = "Package version is 1.11.14"; Text = $package; Pattern = '"version": "1.11.14"' },
+  @{ Name = "Server version is 1.11.14"; Text = $server; Pattern = '$AppVersion = "1.11.14"' },
+  @{ Name = "Roadmap documents 1.11.14"; Text = $roadmap; Pattern = "Version 1.11.14 (Completed)" },
   @{ Name = "Consumer sections include Best Compatible Price Found"; Text = $app; Pattern = '["bestCompatiblePriceFound", "Best Compatible Price Found"]' },
   @{ Name = "Consumer sections include Other Compatible Prices Found"; Text = $app; Pattern = '["otherCompatiblePricesFound", "Other Compatible Prices Found"]' },
   @{ Name = "Consumer sections include Price Spectrum Summary"; Text = $app; Pattern = '["priceSpectrumSummary", "Price Spectrum Summary"]' },

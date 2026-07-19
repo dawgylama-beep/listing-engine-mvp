@@ -13,10 +13,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
-  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
-  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
-  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
+  @{ Name = "Visible app version is 1.11.14"; Text = $index; Pattern = "Version 1.11.14" },
+  @{ Name = "Package version is 1.11.14"; Text = $package; Pattern = '"version": "1.11.14"' },
+  @{ Name = "Server version is 1.11.14"; Text = $server; Pattern = '$AppVersion = "1.11.14"' },
+  @{ Name = "Roadmap documents 1.11.14"; Text = $roadmap; Pattern = "Version 1.11.14 (Completed)" },
   @{ Name = "API builds weighted price evidence"; Text = $api; Pattern = "function buildWeightedPriceEvidenceRecord" },
   @{ Name = "API builds price evidence buckets"; Text = $api; Pattern = "function buildPriceEvidenceBuckets" },
   @{ Name = "API selects strongest available bucket"; Text = $api; Pattern = "function selectPrimaryPriceEvidenceBucket" },
@@ -27,7 +27,7 @@ $checks = @(
   @{ Name = "API labels current asking range"; Text = $api; Pattern = "Current Asking-Price Range" },
   @{ Name = "API labels preliminary reference range"; Text = $api; Pattern = "Preliminary Reference Range" },
   @{ Name = "API explains outliers not used"; Text = $api; Pattern = "not used to set the primary range" },
-  @{ Name = "API gates Exceptional Value behind strong evidence"; Text = $api; Pattern = 'ratio <= consumerDecisionThresholds.exceptionalMaxRatio && (hasVerifiedSoldEvidence || priceEvidence.activeExactStrongCount >= 2)' },
+  @{ Name = "API gates Exceptional Value behind verified sold evidence"; Text = $api; Pattern = 'ratio <= consumerDecisionThresholds.exceptionalMaxRatio && hasVerifiedSoldEvidence' },
   @{ Name = "API has low-cost cautious badge"; Text = $api; Pattern = "Low-Cost Cautious Buy" },
   @{ Name = "API has limited-evidence badge"; Text = $api; Pattern = "Promising Price - Limited Evidence" },
   @{ Name = "API has reasonable personal-use badge"; Text = $api; Pattern = "Reasonable Personal-Use Buy" },

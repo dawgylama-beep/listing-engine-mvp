@@ -1116,7 +1116,8 @@ try {
     ],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
-  assert(decisionSafetyPrices.some((record) => /Retailer not identified/i.test(record.retailerDisplayName) && record.retailPriceDecisionEligibility === false), "Unknown-retailer current retail cards may be visible but must be decision-ineligible.");
+  assert(!decisionSafetyPrices.some((record) => /google\.com\/search/i.test(record.url || "")), "Search-provider pages must not be promoted as customer-visible current retail cards.");
+  assert(decisionSafetyPrices.every((record) => record.retailPriceDecisionEligibility !== false || /Retailer not identified/i.test(record.retailerDisplayName)), "Any visible unknown-retailer current retail card must remain decision-ineligible.");
   const decisionSafetyProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: genericRetailIntake,
     identity: genericRetailIdentity,

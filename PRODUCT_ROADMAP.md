@@ -485,6 +485,20 @@
 - Provider-call impact: no retail or collectible call ceiling was raised for this release; the existing current-retail 28-call ceiling and non-retail 12-call ceiling remain unchanged
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.11.14 (Completed)
+- Retail qualification now uses a source-backed candidate-object firewall, separating same-object exact products and compatible alternatives from accessories, associated consumables, category/search pages, articles, retailer home pages, and wrong products before customer pricing, retail limits, recommendations, or best-price logic can use them
+- Current-retail identity checks no longer treat query wording, submitted-item wording appended to raw text, AI compatibility commentary, or retailer category labels as proof of candidate identity; source-backed titles, snippets, structured data, URLs, and safely extracted page evidence are required
+- Exact retailer product pages with supported identity but no initial price can trigger bounded direct product-page enrichment inside the existing Stage 7 retail budget, with public-domain allowlisting, SSRF protection, redirect validation, timeout, response-size, and content-type limits
+- Named-store reporting now distinguishes an exact product page found without usable price from an exact product not found, and exact diagnostics require real source-backed exact identity evidence
+- Package-count extraction ignores identifier artifacts such as product IDs so unrelated numeric IDs cannot become package quantities
+- Collectible qualification now rejects generic marketplace/classified category pages, articles, different designs, mirrors, and related-only references from pricing while preserving exact sold, completed-auction, active asking, and non-pricing archive/reference evidence in their proper lanes
+- Collectible source allocation now reserves bounded non-retail search capacity for exact identity, sold/completed, completed-auction, active/BIN, specialty-dealer, and archive/reference routes while keeping recovery execution truth within the unchanged 12-call ceiling
+- Cross-source dedupe now collapses mirrored/syndicated marketplace offers by supported item IDs, original URLs, lot IDs, seller/title/price/image signatures, and mirror references so one underlying offer cannot count twice
+- Pricing safety now requires qualified verified sold or completed-sale support before active asking evidence can justify Exceptional Value, market-value language, or maximum/walk-away prices above the entered asking price
+- Regression tests add executable generic retail and collectible live-evidence qualification fixtures that pass provider-shaped records through production normalization, qualification, dedupe, pricing, diagnostics, and output preparation paths
+- Provider-call impact: the current-retail ceiling remains 28 external requests, including bounded direct exact-page enrichment; the non-retail collectible ceiling remains 12 executable Serper calls with source allocation and recovery diversity reserved inside that cap
+- Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
+
 ## Version 1.11.12 (Completed)
 - Design-driven collectible searches now build a bounded exact-attribute ladder from visible wording, slogans, brand/licensed marks, object type, artwork/design clues, color/material/shape features, production marks, dimensions, item codes, dates, and strongest supported attribute combinations
 - Secondary-market and auction recovery now uses a data-driven registry for marketplace, auction, archive, and specialty-dealer domains, including eBay, Mercari, Etsy, LiveAuctioneers, HiBid, Invaluable, AuctionZip, WorthPoint, PicClick, Ruby Lane, and Chairish without product-, brand-, SKU-, UPC-, ZIP-, or fixture-specific production exceptions

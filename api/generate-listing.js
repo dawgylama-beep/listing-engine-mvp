@@ -1993,7 +1993,9 @@ function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRec
   if (visibleRetailers > 1 && !finalEvidenceLimited) {
     return false;
   }
-  const attemptedRecovery = providerRequestRecords.some((record) => record.retailStage === "stage_7_limited_result_recovery" && record.attempted);
+  const attemptedRecovery = providerRequestRecords.some((record) => record.retailStage === "stage_7_limited_result_recovery"
+    && record.attempted
+    && !/direct_product_page_fetch/i.test(record.providerEndpoint || ""));
   if (attemptedRecovery) {
     return false;
   }
@@ -2126,10 +2128,17 @@ async function executeLimitedResultRetailRecovery({
   rawProviderRecords = [],
   currentRecords = []
 } = {}) {
-  const assessments = buildRetailEvidenceAssessments(currentRecords, context);
-  const customerEvidenceSnapshot = buildFinalRetailCustomerEvidenceSnapshot(currentRecords, context, assessments);
-  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: currentRecords, assessments, customerEvidenceSnapshot })) {
-    return currentRecords;
+  let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
+    context,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    currentRecords
+  });
+  const assessments = buildRetailEvidenceAssessments(recordsForRecovery, context);
+  const customerEvidenceSnapshot = buildFinalRetailCustomerEvidenceSnapshot(recordsForRecovery, context, assessments);
+  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: recordsForRecovery, assessments, customerEvidenceSnapshot })) {
+    return recordsForRecovery;
   }
   const plannedQueries = finalizeLimitedResultRetailRecoveryQueries(
     context,
@@ -2142,7 +2151,7 @@ async function executeLimitedResultRetailRecovery({
       priority: providerRequestRecords.length + index + 1
     }));
   if (!plannedQueries.length) {
-    return currentRecords;
+    return recordsForRecovery;
   }
   const recoveryRequestRecords = plannedQueries.map((queryRecord) => createSerperRequestRecord(queryRecord));
   providerRequestRecords.push(...recoveryRequestRecords);
@@ -2223,9 +2232,321 @@ async function executeLimitedResultRetailRecovery({
     }
   }));
   return dedupeSerperCandidateRecords(
-    normalizeSerperCandidateRecords(rawProviderRecords, identity, context),
+    [
+      ...recordsForRecovery,
+      ...normalizeSerperCandidateRecords(rawProviderRecords, identity, context)
+    ],
     context
   );
+}
+
+async function executeExactRetailPageDirectEnrichment({
+  context = {},
+  providerRequestRecords = [],
+  providerResponseSummaries = [],
+  providerErrors = [],
+  currentRecords = []
+} = {}) {
+  if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
+    return currentRecords;
+  }
+  const attemptedCount = providerRequestRecords.filter((record) => record.attempted).length;
+  const remainingBudget = Math.max(0, retailSerperBudgetAllocation.maxProviderCalls - attemptedCount);
+  if (!remainingBudget) {
+    return currentRecords;
+  }
+  const candidates = currentRecords
+    .filter((record) => isLikelyExactRetailProductPage(record, context))
+    .filter((record) => !Number.isFinite(getVisibleItemPriceAmount(record)))
+    .filter((record) => isApprovedRetailProductPageFetchUrl(record.destinationUrl || record.url || record.canonicalUrl, context, record))
+    .slice(0, Math.min(2, remainingBudget));
+  if (!candidates.length) {
+    return currentRecords;
+  }
+  const byKey = new Map(currentRecords.map((record) => [canonicalizeComparableUrl(record.url || record.canonicalUrl) || cleanText(record.url), record]));
+  let priority = providerRequestRecords.length + 1;
+  for (const record of candidates) {
+    const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
+    priority += 1;
+    providerRequestRecords.push(requestRecord);
+    try {
+      const result = await requestBoundedRetailProductPage(record.destinationUrl || record.url || record.canonicalUrl, context, record);
+      requestRecord.attempted = true;
+      requestRecord.succeeded = true;
+      requestRecord.statusCode = result.statusCode;
+      requestRecord.elapsedMilliseconds = result.elapsedMs;
+      requestRecord.providerSourceCount = result.sourceEvidenceText ? 1 : 0;
+      requestRecord.rawResultCount = requestRecord.providerSourceCount;
+      requestRecord.parsedResultCount = requestRecord.providerSourceCount;
+      requestRecord.normalizedResultCount = requestRecord.providerSourceCount;
+      requestRecord.returnedResultCount = requestRecord.providerSourceCount;
+      requestRecord.sourceURLsReturned = [result.finalUrl].filter(Boolean);
+      requestRecord.domainsReturned = summarizeSourceLabels([hostnameFromUrl(result.finalUrl)]);
+      requestRecord.failureStage = result.sourceEvidenceText ? "none" : "exact_page_no_supported_price";
+      providerResponseSummaries.push(createDirectProductPageFetchResponseSummary(requestRecord));
+      if (result.sourceEvidenceText) {
+        const enriched = enrichExactRetailPageRecord({
+          ...record,
+          url: result.finalUrl || record.url,
+          canonicalUrl: canonicalizeComparableUrl(result.finalUrl || record.url),
+          pageHtml: result.html,
+          sourceEvidenceText: result.sourceEvidenceText
+        }, context);
+        const key = canonicalizeComparableUrl(enriched.url || enriched.canonicalUrl) || cleanText(enriched.url);
+        byKey.set(key, enriched);
+      }
+    } catch (error) {
+      const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
+      requestRecord.attempted = true;
+      requestRecord.succeeded = false;
+      requestRecord.errorCode = cleanText(error.code || "direct_product_page_fetch_failed");
+      requestRecord.failureStage = requestRecord.errorCode;
+      providerErrors.push({
+        category: requestRecord.errorCode,
+        code: requestRecord.errorCode,
+        message,
+        query: requestRecord.query,
+        priority: requestRecord.priority
+      });
+      providerResponseSummaries.push({
+        ...createDirectProductPageFetchResponseSummary(requestRecord),
+        errorCode: requestRecord.errorCode,
+        errorMessage: message
+      });
+    }
+  }
+  return dedupeSerperCandidateRecords([...byKey.values()], context);
+}
+
+function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
+  const url = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  return {
+    query: url,
+    priority,
+    searchPass: "exact_retail_page_enrichment",
+    retailStage: "stage_7_limited_result_recovery",
+    retailStageLabel: "Stage 7 - Exact retailer product-page enrichment",
+    retailBudgetBucket: "limitedResultRecovery",
+    searchType: "product_page_fetch",
+    providerEndpoint: "direct_product_page_fetch",
+    generatedStatus: "generated",
+    plannedStatus: "planned",
+    sourceRoute: [],
+    marketplaceDomainsRequested: [hostnameFromUrl(url)].filter(Boolean),
+    allowedDomainsRequested: [hostnameFromUrl(url)].filter(Boolean),
+    rawCandidate: url,
+    candidateOrigin: "exact_retail_page_no_price_enrichment",
+    normalizedCandidate: url,
+    finalQuery: url,
+    validationPassed: true,
+    validationFailureReason: "",
+    provider: "Direct product page fetch",
+    providerKey: "direct_product_page_fetch",
+    attempted: true,
+    succeeded: false,
+    providerSourceCount: 0,
+    organicResultCount: 0,
+    shoppingResultCount: 0,
+    knowledgeGraphResultCount: 0,
+    rawResultCount: 0,
+    parsedResultCount: 0,
+    normalizedResultCount: 0,
+    retainedResultCount: 0,
+    returnedResultCount: 0,
+    qualifiedResultCount: 0,
+    domainsReturned: [],
+    sourceURLsReturned: [],
+    errorCode: "",
+    failureStage: "direct_product_page_fetch_pending"
+  };
+}
+
+function createDirectProductPageFetchResponseSummary(requestRecord = {}) {
+  return {
+    query: requestRecord.query,
+    priority: requestRecord.priority,
+    searchPass: requestRecord.searchPass,
+    retailStage: requestRecord.retailStage,
+    retailStageLabel: requestRecord.retailStageLabel,
+    retailBudgetBucket: requestRecord.retailBudgetBucket,
+    searchType: requestRecord.searchType,
+    providerEndpoint: requestRecord.providerEndpoint,
+    provider: requestRecord.provider,
+    providerKey: requestRecord.providerKey,
+    marketplaceDomainsRequested: requestRecord.marketplaceDomainsRequested,
+    allowedDomainsRequested: requestRecord.allowedDomainsRequested,
+    rawCandidate: requestRecord.rawCandidate,
+    candidateOrigin: requestRecord.candidateOrigin,
+    normalizedCandidate: requestRecord.normalizedCandidate,
+    finalQuery: requestRecord.finalQuery,
+    validationPassed: true,
+    validationFailureReason: "",
+    statusCode: requestRecord.statusCode || null,
+    providerSourceCount: requestRecord.providerSourceCount || 0,
+    returnedResultCount: requestRecord.returnedResultCount || 0,
+    organicResultCount: 0,
+    shoppingResultCount: 0,
+    knowledgeGraphResultCount: 0,
+    parsedCandidateCount: requestRecord.parsedResultCount || 0,
+    retainedResultCount: requestRecord.retainedResultCount || 0,
+    qualifiedResultCount: requestRecord.qualifiedResultCount || 0,
+    sourceURLsReturned: requestRecord.sourceURLsReturned || [],
+    domainsReturned: requestRecord.domainsReturned || [],
+    failureStage: requestRecord.failureStage
+  };
+}
+
+function isApprovedRetailProductPageFetchUrl(url = "", context = {}, record = {}) {
+  const raw = unwrapRetailDestinationUrl(url) || cleanText(url);
+  if (!isPublicHttpUrl(raw) || isLikelyCategoryOrSearchPageUrl(raw) || !isLikelyRetailProductPageUrl(raw)) {
+    return false;
+  }
+  const domain = hostnameFromUrl(raw);
+  if (!domain || isSearchProviderDomain(domain) || isPrivateHostname(domain)) {
+    return false;
+  }
+  const approvedDomains = getApprovedRetailProductPageFetchDomains(context);
+  if (approvedDomains.some((approved) => domain === approved || domain.endsWith(`.${approved}`))) {
+    return true;
+  }
+  return hasEquivalentBarcodeIdentity(record, context);
+}
+
+function getApprovedRetailProductPageFetchDomains(context = {}) {
+  return [
+    ...onlineRetailerRegistry.map((retailer) => retailer.domain),
+    ...retailAggregatorPlatformRegistry.map((platform) => platform.domain),
+    context.retailerDomain,
+    getRetailerDomainForStore(context.storeName || context.retailerOrMarketplaceName)
+  ]
+    .map((domain) => cleanText(domain).replace(/^www\./i, "").toLowerCase())
+    .filter(Boolean);
+}
+
+function isPublicHttpUrl(url = "") {
+  try {
+    const parsed = new URL(cleanText(url));
+    if (!/^https?:$/i.test(parsed.protocol) || parsed.username || parsed.password) {
+      return false;
+    }
+    return !isPrivateHostname(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isPrivateHostname(hostname = "") {
+  const host = cleanText(hostname).replace(/^\[|\]$/g, "").toLowerCase();
+  if (!host) {
+    return true;
+  }
+  if (/^(?:localhost|0|0\.0\.0\.0)$/.test(host) || host.endsWith(".local") || host.endsWith(".internal")) {
+    return true;
+  }
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+    return isPrivateIpv4Address(host);
+  }
+  if (host === "::1" || /^f[cd][0-9a-f]{2}:/i.test(host) || /^fe80:/i.test(host)) {
+    return true;
+  }
+  return false;
+}
+
+function isPrivateIpv4Address(host = "") {
+  const octets = host.split(".").map((part) => Number(part));
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return true;
+  }
+  const [a, b] = octets;
+  return a === 10
+    || a === 127
+    || a === 0
+    || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168);
+}
+
+async function requestBoundedRetailProductPage(url = "", context = {}, record = {}, redirectDepth = 0) {
+  const finalCandidate = unwrapRetailDestinationUrl(url) || cleanText(url);
+  if (!isApprovedRetailProductPageFetchUrl(finalCandidate, context, record)) {
+    throw Object.assign(new Error("Direct product-page URL was not approved for enrichment."), { code: "direct_fetch_url_not_approved" });
+  }
+  if (redirectDepth > 3) {
+    throw Object.assign(new Error("Direct product-page redirect limit exceeded."), { code: "direct_fetch_redirect_limit" });
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(finalCandidate, {
+      method: "GET",
+      redirect: "manual",
+      headers: {
+        "Accept": "text/html,application/xhtml+xml"
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (response.status >= 300 && response.status < 400) {
+      const location = cleanText(response.headers.get("location"));
+      const nextUrl = location ? new URL(location, finalCandidate).toString() : "";
+      if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
+        throw Object.assign(new Error("Direct product-page redirect target was not approved."), { code: "direct_fetch_redirect_not_approved" });
+      }
+      return requestBoundedRetailProductPage(nextUrl, context, record, redirectDepth + 1);
+    }
+    if (!response.ok) {
+      throw Object.assign(new Error(`Direct product-page fetch returned HTTP ${response.status}.`), { code: "direct_fetch_http_error", statusCode: response.status });
+    }
+    const contentType = cleanText(response.headers.get("content-type"));
+    if (contentType && !/\b(?:text\/html|application\/xhtml\+xml)\b/i.test(contentType)) {
+      throw Object.assign(new Error("Direct product-page fetch did not return HTML."), { code: "direct_fetch_non_html" });
+    }
+    const html = await readBoundedResponseText(response, 250000);
+    const evidence = extractDirectRetailProductPageEvidence({ pageHtml: html }, context);
+    return {
+      finalUrl: response.url || finalCandidate,
+      statusCode: response.status,
+      elapsedMs: Date.now() - startedAt,
+      html,
+      sourceEvidenceText: evidence.sourceEvidenceText
+    };
+  } catch (error) {
+    clearTimeout(timeout);
+    if (error.name === "AbortError") {
+      throw Object.assign(new Error("Direct product-page fetch timed out."), { code: "direct_fetch_timeout" });
+    }
+    throw error;
+  }
+}
+
+async function readBoundedResponseText(response, maxBytes = 250000) {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
+  }
+  if (!response.body || typeof response.body.getReader !== "function") {
+    const text = await response.text();
+    if (text.length > maxBytes) {
+      throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
+    }
+    return text;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let output = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
+    }
+    output += decoder.decode(value, { stream: true });
+  }
+  output += decoder.decode();
+  return output;
 }
 
 function createSerperRequestRecord(queryRecord) {
@@ -2521,7 +2842,10 @@ function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
 function dedupeSerperCandidateRecords(records = [], context = {}) {
   const byUrl = new Map();
   for (const record of records) {
-    const key = buildEquivalentRetailPageDedupeKey(record, context) || record.canonicalUrl || record.url;
+    const key = buildEquivalentRetailPageDedupeKey(record, context)
+      || buildUnderlyingOfferDedupeKey(record)
+      || record.canonicalUrl
+      || record.url;
     const existing = byUrl.get(key);
     if (!existing) {
       byUrl.set(key, {
@@ -2845,6 +3169,11 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   const recoveryCandidates = buildSerperRecoverySearchQueries(context, marketplaceDomains)
     .map((record) => buildCandidate(record))
     .filter((record) => record.query || record.rawCandidate);
+  const collectibleAllocationCandidates = isCollectibleSearchContext(context)
+    ? buildCollectibleSourceAllocationSearchQueries(context, marketplaceDomains)
+      .map((record) => buildCandidate(record))
+      .filter((record) => record.query || record.rawCandidate)
+    : [];
   const validRecords = [];
   const rejectedRecords = [];
   const signatureIndexes = new Map();
@@ -2903,9 +3232,10 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     .slice(0, 24);
   const modelSearchCandidatesToValidate = highPriorityCandidates
     .filter((record) => record.candidateOrigin === "model_search_query");
+  const hasCollectibleAllocationPlan = collectibleAllocationCandidates.length > 0;
 
   initialHighPriorityCandidates.forEach((record) => {
-    addRecord({ ...record, maxValidRecords: 4 });
+    addRecord({ ...record, maxValidRecords: hasCollectibleAllocationPlan ? 3 : 4 });
   });
 
   if (marketplaceDomains.length && validRecords.length < 6) {
@@ -2920,11 +3250,16 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     addRecord({ query: siteQuery, rawCandidate: seedRecord?.rawCandidate || seedQuery, candidateOrigin: "marketplace_domain_composition", searchPass: "marketplace_site_google", marketplaceDomains });
   }
 
+  for (const record of collectibleAllocationCandidates.slice(0, hasCollectibleAllocationPlan ? 2 : 4)) {
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: hasCollectibleAllocationPlan ? 6 : 8 });
+  }
+
   modelSearchCandidatesToValidate.forEach((record) => {
-    addRecord({ ...record, maxValidRecords: 10 });
+    addRecord({ ...record, maxValidRecords: hasCollectibleAllocationPlan ? 8 : 10 });
   });
 
-  for (const record of recoveryCandidates.filter((item) => item.searchPass === "collectible_exact_source_recovery").slice(0, 2)) {
+  for (const record of recoveryCandidates.filter((item) => item.searchPass === "collectible_exact_source_recovery").slice(0, hasCollectibleAllocationPlan ? 1 : 2)) {
     if (validRecords.length >= 12) break;
     addRecord({ ...record, maxValidRecords: 12 });
   }
@@ -3294,7 +3629,9 @@ function deriveRetailProductFamily(context = {}) {
     context.notesText
   ].join(" "));
   if (/\bsecurity\b/.test(text) && /\benvelopes?\b/.test(text)) return "security envelopes";
+  if (/\bprivacy\b/.test(text) && /\bmailers?\b/.test(text)) return "privacy mailers";
   if (/\benvelopes?\b/.test(text)) return "envelopes";
+  if (/\bmailers?\b/.test(text)) return "mailers";
   if (/\bstationery\b/.test(text)) return "stationery";
   return cleanSearchQuery(firstKnown(context.itemType, context.categoryPhrase, context.productTitle, context.subjectIdentity), 6);
 }
@@ -3416,7 +3753,7 @@ function retailSizeTokensCompatible(submittedSize = "", candidateSize = "") {
 function detectRetailProductCategoryConflict(submittedText = "", candidateText = "") {
   const submitted = normalizeComparableText(submittedText);
   const candidate = normalizeComparableText(candidateText);
-  const submittedIsEnvelope = /\benvelopes?\b/.test(submitted);
+  const submittedIsEnvelope = /\b(?:envelopes?|mailers?)\b/.test(submitted);
   if (submittedIsEnvelope) {
     if (/\b(?:shipping\s+labels?|address\s+labels?|labels?|label\s+maker|stationery\s+kit|note\s+cards?|cardstock|paper\s+clips?|file\s+folders?)\b/.test(candidate)) {
       return "wrong product category";
@@ -4265,11 +4602,108 @@ function isLikelyRetailProductPageUrl(url = "") {
   try {
     const parsed = new URL(url);
     const path = parsed.pathname.toLowerCase();
+    if (isLikelyCategoryOrSearchPageUrl(url)) {
+      return false;
+    }
     return /\/(?:p|ip|product|products|item|sku|shop|store)\//i.test(path)
       || /(?:product|sku|upc|gtin|item)/i.test(parsed.search);
   } catch {
     return false;
   }
+}
+
+function isLikelyCategoryOrSearchPageUrl(url = "") {
+  const raw = cleanText(url);
+  if (!/^https?:\/\//i.test(raw)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(raw);
+    const domain = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = parsed.pathname.toLowerCase().replace(/\/+$/, "");
+    const search = parsed.search.toLowerCase();
+    if (isSearchProviderDomain(domain)) {
+      return true;
+    }
+    if (/\/(?:p|ip|product|products|itm|item|sku|dp)\//i.test(`${path}/`)) {
+      return false;
+    }
+    if (/\/(?:search|s|c|category|categories|browse|catalog|collections?|department|departments?|results?|for-sale|classifieds)(?:\/|$)/i.test(`${path}/`)) {
+      return true;
+    }
+    if (/(?:^|[?&])(?:q|query|k|keyword|keywords|search|searchTerm|searchterm|Ntt|term)=/i.test(search)) {
+      return true;
+    }
+    if (/craigslist\.org$/i.test(domain) && /\/search(?:\/|$)/i.test(path)) {
+      return true;
+    }
+    if (/ebay\.com$/i.test(domain) && /\/(?:sch|b)\//i.test(path)) {
+      return true;
+    }
+    if (/amazon\.com$/i.test(domain) && /^\/s$/i.test(path)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function isLikelyCategoryOrSearchPageRecord(record = {}) {
+  const url = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl) || record.url || record.canonicalUrl;
+  if (isLikelyCategoryOrSearchPageUrl(url)) {
+    return true;
+  }
+  const text = normalizeComparableText([
+    record.title,
+    record.snippet,
+    shouldUseRawTextForCandidateIdentity(record) ? record.rawText : ""
+  ].join(" "));
+  return /\b(?:search results?|category page|shop by category|browse all|results for|related searches?|classifieds for sale|items for sale|starting at|from many items)\b/i.test(text);
+}
+
+function shouldUseRawTextForCandidateIdentity(record = {}) {
+  const raw = cleanText(record.rawText);
+  if (!raw) {
+    return false;
+  }
+  if (/\b(?:submitted item|submitted product|user entered|buyer entered|source query|search query|searched for|ai note|katherine'?s eye|compatibility analysis|match explanation)\b/i.test(raw)) {
+    return false;
+  }
+  if (record.query || record.searchPass || record.retailStage) {
+    return Boolean(
+      record.rawTextSource === "direct_product_page_html"
+      || record.sourceEvidenceText
+      || record.pageExtractedText
+      || record.productPageText
+      || record.exactRetailPageEvidence?.enrichmentMode === "direct_product_page_html"
+    );
+  }
+  return true;
+}
+
+function buildCandidateSourceBackedIdentityText(record = {}, { includeUrl = false, includeRaw = true } = {}) {
+  const rawIdentityText = includeRaw && shouldUseRawTextForCandidateIdentity(record)
+    ? record.rawText
+    : "";
+  return [
+    record.title,
+    record.productTitle,
+    record.productName,
+    record.name,
+    record.snippet,
+    record.description,
+    record.category,
+    record.sourceType,
+    record.domain,
+    includeUrl ? record.url : "",
+    includeUrl ? record.canonicalUrl : "",
+    record.sourceEvidenceText,
+    record.pageExtractedText,
+    record.productPageText,
+    record.exactRetailPageEvidence?.sourceEvidenceText,
+    rawIdentityText
+  ].filter(Boolean).join(" ");
 }
 
 function isLikelyExactRetailProductPage(record = {}, context = {}) {
@@ -4284,9 +4718,7 @@ function isLikelyExactRetailProductPage(record = {}, context = {}) {
     return true;
   }
   const text = normalizeComparableText([
-    record.title,
-    record.snippet,
-    record.rawText,
+    buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true }),
     destinationUrl
   ].join(" "));
   const fallbackIdentity = buildRetailAttributeFallbackIdentity(context);
@@ -4304,22 +4736,22 @@ function isLikelyExactRetailProductPage(record = {}, context = {}) {
 
 function extractExactRetailPageEvidence(record = {}, context = {}) {
   const destinationUrl = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  const pageEvidence = extractDirectRetailProductPageEvidence(record, context);
   const barcodeIdentitiesFound = extractSupportedBarcodeIdentitySetFromText([
-    record.title,
-    record.snippet,
-    record.rawText,
+    buildCandidateSourceBackedIdentityText(record, { includeUrl: false, includeRaw: true }),
+    pageEvidence.sourceEvidenceText,
     destinationUrl
   ].join(" "));
   const matchingBarcodeIdentities = normalizeStringArray(context.barcodeIdentitySet, 24)
     .filter((identityCode) => barcodeIdentitiesFound.includes(identityCode));
   const packageQuantity = extractPackQuantityNumber([
-    record.title,
-    record.snippet,
-    record.rawText
+    buildCandidateSourceBackedIdentityText(record, { includeUrl: false, includeRaw: true }),
+    pageEvidence.sourceEvidenceText
   ].join(" "));
   const availabilityText = cleanText([
     record.snippet,
-    record.rawText,
+    shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
+    pageEvidence.availabilityText,
     record.delivery
   ].join(" ")).match(/\b(?:in stock|out of stock|available|unavailable|pickup|delivery|add to cart)[^|.;]{0,80}/i)?.[0] || "";
   return {
@@ -4327,9 +4759,11 @@ function extractExactRetailPageEvidence(record = {}, context = {}) {
     retailerDomain: hostnameFromUrl(destinationUrl),
     normalizedBarcodeIdentitiesFound: barcodeIdentitiesFound,
     matchingBarcodeIdentities,
-    packageQuantity: Number.isFinite(packageQuantity) ? packageQuantity : null,
-    availabilityText: cleanText(availabilityText),
-    enrichmentMode: "search_result_metadata_only"
+    packageQuantity: Number.isFinite(pageEvidence.packageQuantity) ? pageEvidence.packageQuantity : Number.isFinite(packageQuantity) ? packageQuantity : null,
+    availabilityText: cleanText(pageEvidence.availabilityText || availabilityText),
+    priceAmount: Number.isFinite(pageEvidence.priceAmount) ? pageEvidence.priceAmount : null,
+    sourceEvidenceText: cleanText(pageEvidence.sourceEvidenceText),
+    enrichmentMode: pageEvidence.sourceEvidenceText ? "direct_product_page_html" : "search_result_metadata_only"
   };
 }
 
@@ -4339,20 +4773,25 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
   }
   const evidence = extractExactRetailPageEvidence(record, context);
   const pagePrice = parseDisplayedPrice([
+    Number.isFinite(evidence.priceAmount) ? formatSourceMoney(evidence.priceAmount) : "",
     record.displayedPriceText,
     record.price,
     record.snippet,
-    record.rawText,
+    shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
+    evidence.sourceEvidenceText,
     record.title
   ].join(" "));
   const displayedPriceText = record.displayedPriceText || (Number.isFinite(pagePrice) ? formatSourceMoney(pagePrice) : "");
   const packageText = Number.isFinite(evidence.packageQuantity) ? `${evidence.packageQuantity} count` : "";
   const rawText = [
-    record.rawText,
+    shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
+    evidence.sourceEvidenceText,
     evidence.matchingBarcodeIdentities.length ? `Equivalent UPC/GTIN identity: ${evidence.matchingBarcodeIdentities.join(", ")}` : "",
     packageText ? `Supported package quantity: ${packageText}` : "",
     evidence.availabilityText ? `Availability wording: ${evidence.availabilityText}` : "",
-    "Exact retailer product page recovery used provider-returned title, snippet, URL, and structured fields only; live page fetch was not performed unless separately permitted."
+    evidence.enrichmentMode === "direct_product_page_html"
+      ? "Exact retailer product page recovery used bounded product-page evidence."
+      : "Exact retailer product page recovery used provider-returned title, snippet, URL, and structured fields only; direct page fetch was not used or did not return usable evidence."
   ].filter(Boolean).join(" | ");
   return {
     ...record,
@@ -4365,9 +4804,92 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
     priceEvidenceType: Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
     exactRetailPage: true,
     exactRetailPageEvidence: evidence,
-    exactPageRecoveryStatus: "exact_retailer_page_enriched_from_provider_metadata",
-    rawText
+    exactPageRecoveryStatus: evidence.enrichmentMode === "direct_product_page_html"
+      ? "exact_retailer_page_enriched_from_direct_product_page"
+      : "exact_retailer_page_enriched_from_provider_metadata",
+    exactPageRecoveryMode: evidence.enrichmentMode,
+    sourceEvidenceText: evidence.sourceEvidenceText || record.sourceEvidenceText,
+    rawText,
+    rawTextSource: evidence.enrichmentMode
   };
+}
+
+function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
+  const html = cleanText(record.pageHtml || record.productPageHtml || record.html || "");
+  if (!html) {
+    return {
+      sourceEvidenceText: "",
+      priceAmount: null,
+      packageQuantity: null,
+      availabilityText: ""
+    };
+  }
+  const sourceText = cleanText(stripHtmlForEvidenceText(html)).slice(0, 2000);
+  const structuredText = cleanText([
+    ...extractHtmlAttributeValues(html, /<meta\b[^>]*(?:property|name)=["'](?:product:price:amount|og:price:amount|twitter:data1|price)["'][^>]*content=["']([^"']+)["'][^>]*>/gi),
+    ...extractHtmlAttributeValues(html, /<[^>]+\bitemprop=["']price["'][^>]*\bcontent=["']([^"']+)["'][^>]*>/gi),
+    ...extractHtmlAttributeValues(html, /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+  ].join(" "));
+  const priceAmount = parseDisplayedPrice([structuredText, sourceText].join(" ")) || extractStructuredRetailPriceAmount([structuredText, sourceText].join(" "));
+  const packageQuantity = extractPackQuantityNumber(sourceText);
+  const availabilityText = cleanText([structuredText, sourceText].join(" ")).match(/\b(?:in stock|out of stock|available|unavailable|pickup|delivery|add to cart)[^|.;]{0,80}/i)?.[0] || "";
+  const barcodeHits = extractSupportedBarcodeIdentitySetFromText([structuredText, sourceText].join(" "));
+  const matchingBarcode = normalizeStringArray(context.barcodeIdentitySet, 24).some((identityCode) => barcodeHits.includes(identityCode));
+  const submittedFamily = normalizeComparableText(deriveRetailProductFamily(context));
+  const pageSupportsObject = matchingBarcode
+    || (submittedFamily && containsNormalizedPhrase(normalizeComparableText(sourceText), submittedFamily));
+  return {
+    sourceEvidenceText: pageSupportsObject ? sourceText : "",
+    priceAmount: pageSupportsObject && Number.isFinite(priceAmount) ? priceAmount : null,
+    packageQuantity: pageSupportsObject && Number.isFinite(packageQuantity) ? packageQuantity : null,
+    availabilityText: pageSupportsObject ? availabilityText : ""
+  };
+}
+
+function extractStructuredRetailPriceAmount(value = "") {
+  const text = cleanText(value);
+  const patterns = [
+    /"price"\s*:\s*"?(\d{1,5}(?:\.\d{1,2})?)"?/i,
+    /\bprice(?:\s*amount)?\s*[:=]\s*"?(\d{1,5}(?:\.\d{1,2})?)"?/i,
+    /^\s*(\d{1,5}(?:\.\d{1,2})?)\s*$/
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const amount = match ? Number(match[1]) : null;
+    if (Number.isFinite(amount) && amount > 0 && amount < 100000) {
+      return amount;
+    }
+  }
+  return null;
+}
+
+function extractHtmlAttributeValues(html = "", pattern) {
+  const values = [];
+  let match;
+  while ((match = pattern.exec(String(html || ""))) !== null) {
+    if (match[1]) {
+      values.push(match[1]);
+    }
+  }
+  return values;
+}
+
+function stripHtmlForEvidenceText(html = "") {
+  return decodeBasicHtmlEntities(String(html || "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " "));
+}
+
+function decodeBasicHtmlEntities(value = "") {
+  return String(value || "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
 }
 
 function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
@@ -4509,13 +5031,8 @@ function hasCurrentRetailAlternativeSourceSupport(record = {}, context = {}, ite
     return false;
   }
   const text = normalizeComparableText([
-    record.title,
-    record.snippet,
-    record.domain,
-    record.url,
-    record.query,
-    record.searchPass,
-    record.displayedPriceText
+    buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true }),
+    record.domain
   ].join(" "));
   if (!text || isRetailForbiddenSecondaryEvidenceText(text)) {
     return false;
@@ -4597,7 +5114,7 @@ function itemTypeTokens(itemType) {
     ["bag", /bag|purse|handbag|tote|wallet/],
     ["watch", /watch|wristwatch/],
     ["phone", /phone|smartphone|iphone|android/],
-    ["envelope", /envelope|stationery|security envelope|peel[- ]?and[- ]?seal|gummed/]
+    ["envelope", /envelope|mailers?|security envelope|privacy mailers?|peel[- ]?and[- ]?seal|gummed/]
   ];
   for (const [token, pattern] of groups) {
     if (pattern.test(text)) tokens.push(token);
@@ -4632,7 +5149,12 @@ const comparableItemTypeDefinitions = [
   { key: "hat", label: "hat or cap", priority: 104, patterns: [/\bhats?\b/i, /\bcaps?\b/i] },
   { key: "dress", label: "dress or gown", priority: 104, patterns: [/\bdresses?\b/i, /\bgowns?\b/i] },
   { key: "shoe", label: "shoe or boot", priority: 104, patterns: [/\bshoes?\b/i, /\bboots?\b/i, /\bsneakers?\b/i] },
-  { key: "envelope_box", label: "boxed envelopes or stationery", priority: 110, patterns: [/\benvelopes?\b/i, /\bstationery\b/i, /\bsecurity\s+envelopes?\b/i, /\bpeel[- ]?and[- ]?seal\b/i, /\bgummed\s+envelopes?\b/i] },
+  { key: "envelope_accessory", label: "envelope accessory or moistener", priority: 124, patterns: [/\benvelope\s+(?:moistener|sealer|opener|sponge|accessor(?:y|ies))\b/i, /\b(?:moistener|sealer|opener|sponge)\s+(?:for\s+)?envelopes?\b/i] },
+  { key: "postage_stamp", label: "postage stamps", priority: 124, patterns: [/\bpostage\s+stamps?\b/i, /\bforever\s+stamps?\b/i, /\bstamps?\s+(?:booklet|sheet|roll)\b/i] },
+  { key: "stationery_paper", label: "stationery, paper, labels, or writing supply", priority: 119, patterns: [/\bstationery\b/i, /\b(?:printer|copy|cardstock|loose[- ]leaf|notebook)\s+paper\b/i, /\bpaper\s+(?:clips?|sheets?|pads?)\b/i, /\b(?:shipping|address|mailing)\s+labels?\b/i, /\blabel\s+makers?\b/i, /\b(?:pens?|pencils?|markers?)\b/i, /\bnote\s+cards?\b/i, /\bfile\s+folders?\b/i] },
+  { key: "shelf", label: "shelf or storage fixture", priority: 119, patterns: [/\bshelves?\b/i, /\bfloating\s+shelves?\b/i, /\bstorage\s+racks?\b/i] },
+  { key: "mouthwash", label: "mouthwash or oral-care product", priority: 119, patterns: [/\bmouthwash\b/i, /\boral\s+rinse\b/i] },
+  { key: "envelope_box", label: "boxed envelope package", priority: 110, patterns: [/\b(?:security|privacy|business|self[- ]?seal|peel[- ]?and[- ]?seal|gummed)?\s*(?:envelopes?|mailers?)\b/i, /\b(?:box|pack|package|carton)\s+of\s+\d{1,5}\s+(?:envelopes?|mailers?)\b/i, /\b\d{1,5}\s*[- ]?(?:count|ct|pack|pk)\s+(?:security\s+|privacy\s+|business\s+)?(?:envelopes?|mailers?)\b/i] },
   { key: "bag", label: "bag, purse, or tote", priority: 104, patterns: [/\bbags?\b/i, /\bpurses?\b/i, /\bhandbags?\b/i, /\btotes?\b/i] },
   { key: "wallet", label: "wallet", priority: 104, patterns: [/\bwallets?\b/i] },
   { key: "watch", label: "watch", priority: 104, patterns: [/\bwatches?\b/i, /\bwristwatches?\b/i] },
@@ -4653,7 +5175,7 @@ const comparableItemTypeDefinitions = [
 
 function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, context = {}) {
   const submittedText = buildSubmittedItemTypeText(identity, context);
-  const candidateText = buildCandidateItemTypeText(record);
+  const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
   const submitted = detectCanonicalComparableItemType(submittedText);
   const titleUrlCandidate = detectCanonicalComparableItemType([record.title, record.url, record.canonicalUrl].filter(Boolean).join(" "));
   const candidate = titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
@@ -4723,7 +5245,7 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
 
 function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buyerIntake = normalizeBuyerIntake({}), context = {}) {
   const submittedText = buildSubmittedRetailProductFamilyText(identity, buyerIntake, context);
-  const candidateText = buildCandidateItemTypeText(record);
+  const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
   const titleText = cleanText(record.title);
   const submitted = detectCanonicalComparableItemType(submittedText);
   const titleCandidate = detectCanonicalComparableItemType(titleText);
@@ -4896,7 +5418,7 @@ function detectComparablePackScope(submittedText, candidateText, context = {}) {
   const candidateQuantity = extractPackQuantityNumber(candidateText);
   const submittedTextNormalized = normalizeComparableText(submittedText);
   const candidateTextNormalized = normalizeComparableText(candidateText);
-  const sameProductFamily = /\benvelopes?\b/.test(submittedTextNormalized) && /\benvelopes?\b/.test(candidateTextNormalized);
+  const sameProductFamily = /\b(?:envelopes?|mailers?)\b/.test(submittedTextNormalized) && /\b(?:envelopes?|mailers?)\b/.test(candidateTextNormalized);
 
   if (!Number.isFinite(submittedQuantity) || !Number.isFinite(candidateQuantity)) {
     return {
@@ -4949,6 +5471,7 @@ function extractPackQuantityEvidence(value, source = "") {
     if (!Number.isFinite(amount) || amount <= 1) continue;
     if (isQuantityMatchDecimalOrDimensionArtifact(text, match)) continue;
     if (isEnvelopeSizePhraseNotQuantity(text, match)) continue;
+    if (isQuantityMatchIdentifierArtifact(text, match)) continue;
     return {
       quantity: amount,
       text: cleanText(match[0]),
@@ -4988,6 +5511,23 @@ function isEnvelopeSizePhraseNotQuantity(text = "", match = []) {
   return Number.isFinite(amount)
     && amount <= 10
     && new RegExp(`\\b${escapeRegExp(token)}\\s+envelopes?\\s+\\d{1,3}(?:\\.\\d+)?\\s*(?:x|by)\\b`, "i").test(nearby);
+}
+
+function isQuantityMatchIdentifierArtifact(text = "", match = []) {
+  const token = cleanText(match[1]);
+  if (!token) return false;
+  const start = match.index + match[0].indexOf(token);
+  const before = text.slice(Math.max(0, start - 32), start);
+  const after = text.slice(start + token.length, start + token.length + 32);
+  if (/\b(?:sku|upc|gtin|ean|asin|item|product|model|lot|listing|id|pid|ref)\s*(?:number|no\.?|#|id|code)?\s*[:#-]?\s*$/i.test(before)) {
+    return true;
+  }
+  if (/^\s*(?:id|sku|upc|gtin|ean|asin|item|product|model|lot|listing|number|no\.?)\b/i.test(after)) {
+    return true;
+  }
+  const nearby = `${before}${token}${after}`;
+  return new RegExp(`\\b(?:sku|upc|gtin|ean|asin|item|product|model|lot|listing|id|pid|ref)\\s*(?:number|no\\.?|#|id|code)?\\s*[:#-]?\\s*${escapeRegExp(token)}\\b`, "i").test(nearby)
+    && !new RegExp(`\\b${escapeRegExp(token)}\\s*(?:count|ct|pack|pk|piece|pc|pcs|sheets?|envelopes?|units?)\\b`, "i").test(nearby.replace(before, ""));
 }
 
 function extractPackQuantityNumber(value) {
@@ -5551,6 +6091,12 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     allowedDomainsRequested: collectMarketplaceDomainsRequested(providerRequestRecords),
     secondaryMarketAuctionDomainsRequested: buildSecondaryMarketAuctionTargets(context, 8).map((target) => target.domain),
     collectibleSearchLadder: buildCollectibleAttributeSearchLadder(context).slice(0, 8),
+    collectibleSourceAllocationPlan: buildCollectibleSourceAllocationSearchQueries(context, buildSecondaryMarketAuctionTargets(context, 5).map((target) => target.domain)).map((record) => ({
+      searchPass: cleanText(record.searchPass),
+      candidateOrigin: cleanText(record.candidateOrigin),
+      query: cleanText(record.query),
+      domains: normalizeStringArray(record.marketplaceDomains, 4)
+    })).slice(0, 8),
     collectibleExactRecoveryPassesAttempted: [...new Set(providerRequestRecords
       .filter((record) => record.attempted && /collectible_exact_source_recovery/i.test(record.searchPass || ""))
       .map((record) => record.searchPass))],
@@ -6234,6 +6780,99 @@ function buildCollectibleExactSourceRecoveryQueries(context = {}, marketplaceDom
     });
   }
   return records;
+}
+
+function buildCollectibleConcreteObjectSearchTerm(context = {}) {
+  const candidates = [
+    context.itemType,
+    context.categoryPhrase,
+    context.visualCategory,
+    context.visualSubject,
+    context.productTitle,
+    context.subjectIdentity,
+    context.visualFeatures
+  ];
+  for (const candidate of candidates) {
+    const cleaned = normalizeTokenString(candidate)
+      .replace(/\b(?:unknown|not\s+verified|unverified|not\s+visible|n\/a|none)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) continue;
+    const match = cleaned.match(/\b(?:collector'?s?\s+tray|collectible\s+tray|commemorative\s+tray|serving\s+tray|tray|plate|plaque|sign|tin|figurine|ornament|mug|jar|canister|bottle|poster|print|program|card|ticket|coin|medal|patch|badge|doll|toy|jersey|shirt|cap|hat|vase|bowl|clock|lamp|ashtray)\b/i);
+    if (match) {
+      return cleanSearchQuery(match[0].replace(/collector'?s?/i, "collector"), 3);
+    }
+  }
+  return "";
+}
+
+function ensureCollectibleQueryIncludesConcreteObject(base = "", context = {}) {
+  const queryBase = cleanSearchQuery(base, 12);
+  const objectTerm = buildCollectibleConcreteObjectSearchTerm(context);
+  if (!queryBase || !objectTerm) {
+    return queryBase;
+  }
+  const objectWords = normalizeTokenString(objectTerm)
+    .split(/\s+/)
+    .filter((word) => word.length >= 3 && !/^(collector|collectible|commemorative|serving)$/i.test(word));
+  if (objectWords.some((word) => new RegExp(`\\b${escapeRegExp(word)}s?\\b`, "i").test(queryBase))) {
+    return queryBase;
+  }
+  return compactWords([objectTerm, queryBase]);
+}
+
+function buildCollectibleSourceAllocationSearchQueries(context = {}, marketplaceDomains = []) {
+  if (!isCollectibleSearchContext(context)) {
+    return [];
+  }
+  const bases = buildCollectibleAttributeSearchLadder(context).slice(0, 3);
+  const fallbackBase = compactWords([context.productTitle, context.brand, context.visualOrganization, context.itemType]);
+  const exactBase = bases[0] || fallbackBase;
+  const targets = buildSecondaryMarketAuctionTargets(context, 12);
+  const byFamily = (family) => targets.filter((target) => target.sourceFamily === family);
+  const marketplaceTargets = mergeStringArrays(
+    marketplaceDomains,
+    byFamily("marketplace").map((target) => target.domain),
+    4
+  );
+  const auctionTargets = byFamily("auction").map((target) => target.domain);
+  const dealerTargets = byFamily("specialty_dealer").map((target) => target.domain);
+  const archiveTargets = byFamily("archive").map((target) => target.domain);
+  const records = [];
+  const add = ({ base = exactBase, domain = "", terms = "", origin = "", pass = "" }) => {
+    const sourceBackedBase = ensureCollectibleQueryIncludesConcreteObject(base, context);
+    const queryBase = compactWords([sourceBackedBase, terms]);
+    if (!queryBase) return;
+    records.push({
+      query: domain ? buildSerperSingleMarketplaceQuery(queryBase, domain) : queryBase,
+      rawCandidate: queryBase,
+      candidateOrigin: origin,
+      searchPass: pass,
+      marketplaceDomains: domain ? [domain] : []
+    });
+  };
+
+  add({ base: exactBase, terms: "sold completed", origin: "collectible_allocation_exact_sold", pass: "collectible_exact_sold_completed" });
+  if (marketplaceTargets[0]) {
+    add({ base: exactBase, domain: marketplaceTargets[0], terms: "sold completed", origin: "collectible_allocation_marketplace_sold", pass: "collectible_exact_sold_completed" });
+  }
+  if (auctionTargets[0]) {
+    add({ base: bases[1] || exactBase, domain: auctionTargets[0], terms: "completed auction lot price realized", origin: "collectible_allocation_auction_completed", pass: "collectible_exact_auction_completed" });
+  }
+  if (marketplaceTargets[1] || marketplaceTargets[0]) {
+    add({ base: bases[1] || exactBase, domain: marketplaceTargets[1] || marketplaceTargets[0], terms: "buy it now active listing", origin: "collectible_allocation_active_bin", pass: "collectible_exact_active_bin" });
+  }
+  if (auctionTargets[1] || auctionTargets[0]) {
+    add({ base: bases[2] || exactBase, domain: auctionTargets[1] || auctionTargets[0], terms: "current bid opening bid", origin: "collectible_allocation_auction_live", pass: "collectible_exact_auction_current" });
+  }
+  if (dealerTargets[0]) {
+    add({ base: exactBase, domain: dealerTargets[0], terms: "for sale price", origin: "collectible_allocation_specialty_dealer", pass: "collectible_specialty_dealer" });
+  }
+  if (archiveTargets[0]) {
+    add({ base: exactBase, domain: archiveTargets[0], terms: "archive sold reference", origin: "collectible_allocation_archive", pass: "collectible_archive_reference" });
+  }
+
+  return records.slice(0, 8);
 }
 
 function buildCollectiblePriceTypeRecoveryTerms(context = {}) {
@@ -7715,13 +8354,9 @@ function hasEquivalentBarcodeIdentity(record = {}, context = {}) {
     return false;
   }
   const candidateIdentities = extractSupportedBarcodeIdentitySetFromText([
-    record.title,
-    record.snippet,
-    record.rawText,
-    record.displayedPriceText,
+    buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true }),
     record.url,
-    record.canonicalUrl,
-    record.query
+    record.canonicalUrl
   ].join(" "));
   return barcodeIdentitySetsIntersect(submittedIdentities, candidateIdentities);
 }
@@ -7755,6 +8390,15 @@ function extractBarcodeDigitCandidatesFromText(value = "") {
   let match = matcher.exec(text);
   while (match) {
     const digits = normalizeBarcodeDigits(match[0]);
+    const after = text.slice(match.index + match[0].length, match.index + match[0].length + 18);
+    if (digits.length > 12 && /^\s*(?:count|ct|pack|pk|units?|envelopes?)\b/i.test(after)) {
+      const truncatedUpc = digits.slice(0, 12);
+      if (validateRetailBarcodeCandidate(truncatedUpc).valid) {
+        addUnique(candidates, truncatedUpc);
+        match = matcher.exec(text);
+        continue;
+      }
+    }
     if (digits && [8, 12, 13, 14].includes(digits.length)) {
       addUnique(candidates, digits);
     }
@@ -8945,11 +9589,29 @@ function buildHighPriorityExactQueries(context) {
     .map((item) => cleanSearchQuery(item, 8))
     .filter((item) => isDistinctiveSearchPhrase(item) && (item.split(/\s+/).length <= 6 || /['&]|\b(?:18|19|20)\d{2}\b|champion|national/i.test(item)))
     .slice(0, 8);
-  const sloganLikePhrases = context.distinctivePhrases.filter((phrase) => /['&]|slogan|motto|catchphrase/i.test(phrase)).slice(0, 3);
+  const visibleWordSlogans = mergeStringArrays(
+    normalizeStringArray(context.visibleWords, 12),
+    extractSloganLikeSearchPhrases([
+      context.visibleEvidence,
+      context.labelText,
+      context.notesText
+    ].flat().join(" ")),
+    8
+  )
+    .map((item) => cleanSearchQuery(item, 7))
+    .filter((item) => isDistinctiveSearchPhrase(item) && /['&]|slogan|motto|catchphrase/i.test(item) && !/\b\w+'s\b/i.test(item))
+    .slice(0, 3);
+  const sloganLikePhrases = mergeStringArrays(
+    visibleWordSlogans,
+    context.distinctivePhrases.filter((phrase) => /['&]|slogan|motto|catchphrase/i.test(phrase)),
+    4
+  );
   const primaryPhrases = mergeStringArrays(exactVisibleEntries, context.distinctivePhrases.slice(0, 7), sloganLikePhrases, 14);
 
+  for (const phrase of visibleWordSlogans.slice(0, 1)) {
+    queries.push(compactWords([quoteSearchPhrase(phrase), brand, itemType]));
+  }
   queries.push(...buildDiverseSearchIntentQueries(context));
-  queries.push(...buildCollectibleAttributeSearchLadder(context));
 
   if (context.retailStoreContext || context.onlineRetailerContext) {
     queries.push(...buildRetailContextSearchQueries(context));
@@ -8986,8 +9648,32 @@ function buildHighPriorityExactQueries(context) {
   queries.push(compactWords([brand, organization, context.productTitle, itemType]));
   queries.push(compactWords([context.exactProductIdentity || context.productTitle, brand, itemType]));
   queries.push(compactWords([context.labelText, context.itemCode || context.model || context.ageEra]));
+  queries.push(...buildCollectibleAttributeSearchLadder(context));
 
   return queries;
+}
+
+function extractSloganLikeSearchPhrases(value = "") {
+  const text = cleanText(value);
+  if (!text) {
+    return [];
+  }
+  const words = text.split(/\s+/).filter(Boolean);
+  const phrases = [];
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    if (!/['\u2019&]/.test(word)) {
+      continue;
+    }
+    const start = Math.max(0, index - 1);
+    const end = Math.min(words.length, index + 3);
+    const phrase = cleanText(words.slice(start, end).join(" "))
+      .replace(/^[^A-Za-z0-9'"]+|[^A-Za-z0-9'"]+$/g, "");
+    if (phrase.split(/\s+/).length >= 3 && phrase.length <= 80) {
+      addUnique(phrases, phrase);
+    }
+  }
+  return phrases;
 }
 
 function buildDiverseSearchIntentQueries(context) {
@@ -9032,6 +9718,7 @@ function selectExactVisiblePhrase(context) {
     context.distinctivePhrases,
     context.eventPhrases,
     context.visibleEvidence,
+    context.visibleWords,
     24
   );
   return candidates
@@ -10552,13 +11239,13 @@ function isSocialOrEditorialSourceRecord(record = {}) {
   if (isFacebookMarketplaceRecord(record)) {
     return false;
   }
-  return /\b(?:facebook|instagram|reddit|pinterest|tiktok|youtube|blogspot|wordpress|blog|forum|message\s*board|collector\s+discussion|discussion\s+thread|social\s+post)\b/i.test(text)
+  return /\b(?:facebook|instagram|reddit|pinterest|tiktok|youtube|blogspot|wordpress|blog|forum|message\s*board|collector\s+discussion|discussion\s+thread|social\s+post|article|news|history|museum|wiki|wikipedia)\b/i.test(text)
     || /(?:facebook|instagram|reddit|pinterest|tiktok|youtube|blogspot|wordpress)\.com/i.test(text);
 }
 
 function hasNonTransactionalContentSignals(record = {}) {
   const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
-  return /\b(?:i\s+found|look\s+what\s+i\s+found|thrift\s+haul|at\s+the\s+thrift|thrifted|haul|my\s+finds?|picked\s+(?:this|these|it|them)\s+up|estate\s+sale\s+find|flea\s+market\s+find|collector\s+discussion|discussion\s+thread|blog\s+post|forum\s+post|photo\s+post|social\s+post|shared\s+post|price\s+guide|guide\s+only|reference\s+only)\b/i.test(text);
+  return /\b(?:i\s+found|look\s+what\s+i\s+found|thrift\s+haul|at\s+the\s+thrift|thrifted|haul|my\s+finds?|picked\s+(?:this|these|it|them)\s+up|estate\s+sale\s+find|flea\s+market\s+find|collector\s+discussion|discussion\s+thread|blog\s+post|forum\s+post|photo\s+post|social\s+post|shared\s+post|price\s+guide|guide\s+only|reference\s+only|category\s+page|search\s+results?|results\s+for|browse\s+all|items\s+for\s+sale|classifieds\s+for\s+sale)\b/i.test(text);
 }
 
 function detectBulkLotQuantity(record = {}) {
@@ -10600,6 +11287,9 @@ function isBulkLotReferenceWithoutUnitPrice(record = {}) {
 
 function isNonTransactionalContentRecord(record = {}) {
   if (isBulkLotReferenceWithoutUnitPrice(record)) {
+    return true;
+  }
+  if (isLikelyCategoryOrSearchPageRecord(record)) {
     return true;
   }
   if (isSocialOrEditorialSourceRecord(record)) {
@@ -10900,7 +11590,8 @@ function selectDiversePriceFoundRecords(records = [], limit = 8) {
 function dedupeResearchRecordsByListing(records = []) {
   const byListing = new Map();
   for (const record of records) {
-    const key = canonicalizeComparableUrl(record.canonicalUrl || record.url)
+    const key = buildUnderlyingOfferDedupeKey(record)
+      || canonicalizeComparableUrl(record.canonicalUrl || record.url)
       || `${cleanText(record.title)}|${cleanText(record.source)}|${cleanText(record.displayedPrice || record.price)}`.toLowerCase();
     if (!key) {
       continue;
@@ -11295,12 +11986,79 @@ function priceContextKey(record = {}) {
   if (exactRetailKey) {
     return exactRetailKey;
   }
+  const underlyingOfferKey = buildUnderlyingOfferDedupeKey(record);
+  if (underlyingOfferKey) {
+    return underlyingOfferKey;
+  }
   return canonicalizeComparableUrl(record.canonicalUrl || record.url)
     || `${cleanText(record.title)}|${cleanText(record.source)}|${cleanText(record.itemPrice)}`.toLowerCase();
 }
 
+function buildUnderlyingOfferDedupeKey(record = {}) {
+  if (!record || typeof record !== "object" || record.retailEvidenceTier) {
+    return "";
+  }
+  const text = normalizeComparableText(buildComparableEvidenceText(record, { includeSystemLabels: false }));
+  const url = cleanText(record.canonicalUrl || record.url);
+  const urlId = extractMarketplaceOfferIdFromUrl(url);
+  if (urlId) {
+    return `underlying-offer:${urlId}`;
+  }
+  const textId = extractMarketplaceOfferIdFromText(text);
+  if (textId) {
+    return `underlying-offer:${textId}`;
+  }
+  const seller = extractComparableSellerIdentity(record);
+  const title = normalizeComparableText(record.title).replace(/\b(?:mirror|cached|picclick|worthpoint|listing)\b/g, " ").replace(/\s+/g, " ").trim();
+  const amount = moneyAmountToCents(getVisibleItemPriceAmount(record));
+  if (title && amount && seller) {
+    return `underlying-offer:${seller}:${title}:${amount}`;
+  }
+  return "";
+}
+
+function extractMarketplaceOfferIdFromUrl(url = "") {
+  const raw = cleanText(url);
+  if (!/^https?:\/\//i.test(raw)) {
+    return "";
+  }
+  try {
+    const parsed = new URL(raw);
+    const path = parsed.pathname;
+    const pathMatch = path.match(/\/(?:itm|item|items|listing|listings|marketplace\/item|lot|lots)\/([a-z0-9-]*\d{5,}[a-z0-9-]*)/i)
+      || path.match(/\/(\d{5,})(?:[/?#]|$)/i);
+    if (pathMatch) {
+      return pathMatch[1].toLowerCase();
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function extractMarketplaceOfferIdFromText(text = "") {
+  const raw = cleanText(text);
+  const originalUrl = raw.match(/https?:\/\/[^\s),;]+/i)?.[0] || "";
+  const originalUrlId = extractMarketplaceOfferIdFromUrl(originalUrl);
+  if (originalUrlId) {
+    return originalUrlId;
+  }
+  const match = raw.match(/\b(?:original\s+)?(?:marketplace|auction|listing|item|lot)\s*(?:item\s*)?(?:id|#|number|no\.?)?\s*[:#-]?\s*([a-z0-9-]*\d{5,}[a-z0-9-]*)\b/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function extractComparableSellerIdentity(record = {}) {
+  const explicit = cleanText(firstKnown(record.seller, record.sellerName, record.actualSeller, record.sourceSeller));
+  if (explicit) {
+    return normalizeComparableText(explicit);
+  }
+  const text = cleanText([record.rawText, record.snippet, record.description].join(" "));
+  const match = text.match(/\b(?:seller|sold\s+by|dealer)\s*[:=-]\s*([A-Za-z0-9&' -]{2,60})(?=\s*(?:[|.;,]|$))/i);
+  return normalizeComparableText(match?.[1] || "");
+}
+
 function buildEquivalentCustomerRetailOfferKey(record = {}) {
-  if (!record.retailEvidenceTier || !/exact/i.test(record.matchQuality || record.priceContextLabel || record.retailEvidenceTierLabel || "")) {
+  if (!record.retailEvidenceTier) {
     return "";
   }
   const identities = normalizeStringArray(record.exactPageMatchedBarcodeIdentities, 12)
@@ -11313,13 +12071,24 @@ function buildEquivalentCustomerRetailOfferKey(record = {}) {
       record.originalSourceUrl,
       record.url
     ].join(" ")));
-  const primaryIdentity = identities[0] || "";
+  const primaryIdentity = selectCanonicalRetailOfferBarcodeIdentity(identities);
   if (!primaryIdentity || !Number.isFinite(record.itemPriceAmount)) {
     return "";
   }
   const retailerName = cleanText(record.retailerDisplayName || record.source).replace(/\s+via\s+.+$/i, "");
   const quantity = Number.isFinite(record.packageQuantity) ? record.packageQuantity : "";
   return cleanText(`retail-offer:${retailerName.toLowerCase()}:${primaryIdentity}:${quantity}:${moneyAmountToCents(record.itemPriceAmount)}`);
+}
+
+function selectCanonicalRetailOfferBarcodeIdentity(identities = []) {
+  const candidates = normalizeStringArray(identities, 24)
+    .flatMap((identity) => buildBarcodeIdentitySet(identity))
+    .map((identity) => cleanText(identity))
+    .filter(Boolean);
+  if (!candidates.length) {
+    return "";
+  }
+  return [...new Set(candidates)].sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
 }
 
 function isAggregatorCustomerEvidenceRecord(record = {}) {
@@ -11428,10 +12197,9 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
     buyerIntake.item_name,
     buyerIntake.buyer_notes
   ]);
+  const candidateSourceText = buildCandidateSourceBackedIdentityText(record, { includeUrl: false, includeRaw: true });
   const candidateQuantity = extractBestPackQuantityNumber([
-    record.title,
-    record.rawText,
-    record.snippet,
+    candidateSourceText,
     record.conciseLimitation
   ]);
   const submittedText = cleanText([
@@ -11442,13 +12210,11 @@ function classifyRetailPackageCompatibility(record = {}, identity = {}, buyerInt
     buyerIntake.buyer_notes
   ].join(" ")).toLowerCase();
   const candidateText = cleanText([
-    record.title,
-    record.rawText,
-    record.snippet
+    candidateSourceText
   ].join(" ")).toLowerCase();
   const text = cleanText([submittedText, candidateText].join(" ")).toLowerCase();
-  const submittedIsEnvelope = /\benvelopes?\b/.test(submittedText);
-  const candidateIsEnvelope = /\benvelopes?\b/.test(candidateText);
+  const submittedIsEnvelope = /\b(?:envelopes?|mailers?)\b/.test(submittedText);
+  const candidateIsEnvelope = /\b(?:envelopes?|mailers?)\b/.test(candidateText);
   const submittedNeedsSecurity = submittedIsEnvelope && /\b(?:security|privacy|confidential|inside\s+security|security\s+tint)\b/.test(submittedText);
   const candidateHasSecurity = /\b(?:security|privacy|confidential|inside\s+security|security\s+tint)\b/.test(candidateText);
   const submittedBrand = cleanText(firstKnown(identity.brand, identity.manufacturer, buyerIntake.known_brand));
@@ -11635,6 +12401,7 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
   });
   const packageCompatibility = classifyRetailPackageCompatibility(record, fakeIdentity, fakeIntake);
   const productFamilyCompatibility = assessRetailProductFamilyCompatibility(record, fakeIdentity, fakeIntake, context);
+  const candidateObject = classifyRetailCandidateObject(record, context, packageCompatibility, productFamilyCompatibility);
   const priceTypeLabel = normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record);
   const hasCurrentListingEvidence = /Active Asking|Buy It Now|Shopping Offer|Current Retail Price/i.test(priceTypeLabel)
     || /\b(?:in stock|pickup|delivery|add to cart|current price|shopping offer|buy it now|retail price|store price)\b/i.test(sourceText);
@@ -11654,6 +12421,7 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     unavailable,
     itemTypeRejected,
     nonTransactional,
+    candidateObject,
     packageCompatibility,
     productFamilyCompatibility,
     priceTypeLabel
@@ -11734,6 +12502,10 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     positiveCompatibilityEvidence: productFamilyCompatibility.positiveCompatibilityEvidence,
     contradictoryEvidence: productFamilyCompatibility.contradictoryEvidence,
     productFamilyCompatibilityOutcome: productFamilyCompatibility.finalOutcome,
+    candidateObjectClassification: candidateObject.classification,
+    candidateObjectLabel: candidateObject.label,
+    candidateObjectReason: candidateObject.reason,
+    validOfferClassification: candidateObject.offerClassification,
     functionalCompatibility: packageCompatibility.label,
     knownSpecificationDifferences: packageCompatibility.reason,
     priceAmount,
@@ -11774,11 +12546,21 @@ function buildRetailAssessmentHardRejectionReason({
   unavailable = false,
   itemTypeRejected = false,
   nonTransactional = false,
+  candidateObject = {},
   packageCompatibility = {},
   productFamilyCompatibility = {},
   priceTypeLabel = ""
 } = {}) {
   if (!sourceUsable) return "No usable source URL was supplied.";
+  if (candidateObject.offerClassification === "category_search_page") {
+    return "Category or search results page is not a specific current retail offer.";
+  }
+  if (candidateObject.offerClassification === "search_provider_page") {
+    return "Search-provider pages cannot be treated as retailer offers.";
+  }
+  if (candidateObject.classification && !/same_object_exact_product|same_object_compatible_alternative/i.test(candidateObject.classification)) {
+    return candidateObject.reason || "Candidate is not the same functional product object.";
+  }
   if (secondaryMarket) return "Used, sold, auction, secondary-market, guide, or reference evidence cannot be a current retail price.";
   if (!Number.isFinite(priceAmount) || priceAmount <= 0) return "No supported current price was parsed.";
   if (/Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional Reference|Bulk\/Lot Reference/i.test(priceTypeLabel)) {
@@ -11799,12 +12581,170 @@ function buildRetailAssessmentHardRejectionReason({
   return "";
 }
 
+function classifyRetailCandidateObject(record = {}, context = {}, packageCompatibility = {}, productFamilyCompatibility = {}) {
+  const offerClassification = classifySpecificOfferPage(record);
+  if (offerClassification !== "specific_offer") {
+    return {
+      classification: offerClassification === "search_provider_page" ? "category_search_page" : offerClassification,
+      label: offerClassification === "search_provider_page" ? "Search provider page" : "Category/search page",
+      offerClassification,
+      reason: offerClassification === "search_provider_page"
+        ? "Search provider result pages are not retailer product offers."
+        : "Search, category, directory, or result-list pages are not item-specific retail offers."
+    };
+  }
+
+  const text = normalizeComparableText(buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true }));
+  const submittedText = normalizeComparableText([
+    context.productTitle,
+    context.exactProductIdentity,
+    context.subjectIdentity,
+    context.itemType,
+    context.categoryPhrase,
+    context.notesText
+  ].join(" "));
+  const submittedEnvelope = /\b(?:envelopes?|mailers?)\b/.test(submittedText);
+  const candidateEnvelope = /\b(?:envelopes?|mailers?)\b/.test(text);
+  const exactIdentity = isRetailExactIdentitySupported(record, context);
+
+  if (submittedEnvelope) {
+    if (/\b(?:envelope\s+)?(?:moistener|sealer|opener|sponge)\b/i.test(text) && !/\b\d{1,5}\s*[- ]?(?:count|ct|pack|pk)\s+envelopes?\b/i.test(text)) {
+      return {
+        classification: "accessory",
+        label: "Accessory",
+        offerClassification,
+        reason: "Envelope accessories such as moisteners, sealers, openers, or sponges are not envelope packages."
+      };
+    }
+    if (/\b(?:postage|forever)\s+stamps?\b|\bstamps?\s+(?:booklet|sheet|roll)\b/i.test(text)) {
+      return {
+        classification: "consumable_used_with_target",
+        label: "Consumable used with target",
+        offerClassification,
+        reason: "Postage stamps are consumables used with envelopes, not the envelope package itself."
+      };
+    }
+    if (!candidateEnvelope) {
+      if (/\b(?:stationery|paper|labels?|pencils?|pens?|shelves?|mouthwash|oral\s+rinse|folders?|cards?)\b/i.test(text)) {
+        return {
+          classification: "wrong_product",
+          label: "Wrong product",
+          offerClassification,
+          reason: "The candidate identifies a different office or retail product, not the submitted envelope package."
+        };
+      }
+      return {
+        classification: "related_product",
+        label: "Related product",
+        offerClassification,
+        reason: "The candidate does not affirmatively identify an envelope package."
+      };
+    }
+  }
+
+  if (productFamilyCompatibility.finalOutcome === "contradicted" || packageCompatibility.status === "materially_incompatible") {
+    return {
+      classification: "wrong_product",
+      label: "Wrong product",
+      offerClassification,
+      reason: productFamilyCompatibility.rejectionReason || packageCompatibility.reason || "Candidate product evidence is materially incompatible."
+    };
+  }
+
+  if (exactIdentity || packageCompatibility.status === "exact_package_match") {
+    return {
+      classification: "same_object_exact_product",
+      label: "Same object - exact product",
+      offerClassification,
+      reason: exactIdentity
+        ? "Equivalent UPC/GTIN or exact retailer page identity supports the same product."
+        : packageCompatibility.reason || "Exact product/package support was visible."
+    };
+  }
+
+  if (productFamilyCompatibility.finalOutcome === "compatible"
+    || /strong_retail_alternative|quantity_unknown_functional_replacement|unit_price_only/i.test(packageCompatibility.status)) {
+    return {
+      classification: "same_object_compatible_alternative",
+      label: "Same object - compatible alternative",
+      offerClassification,
+      reason: packageCompatibility.reason || "Candidate identifies the same functional product object as a compatible current retail alternative."
+    };
+  }
+
+  return {
+    classification: "related_product",
+    label: "Related product",
+    offerClassification,
+    reason: "Candidate did not provide enough source-backed object evidence to qualify as the same product or a compatible alternative."
+  };
+}
+
+function classifySpecificOfferPage(record = {}) {
+  const domain = hostnameFromUrl(record.destinationUrl || record.url || record.canonicalUrl || record.domain);
+  if (isSearchProviderDomain(domain)) {
+    return "search_provider_page";
+  }
+  if (isLikelyCategoryOrSearchPageRecord(record)) {
+    return "category_search_page";
+  }
+  if (record.sourceType === "shopping") {
+    return "specific_offer";
+  }
+  const url = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl) || record.url || record.canonicalUrl;
+  if (isLikelyRetailProductPageUrl(url) || isLikelyItemSpecificMarketplaceUrl(url)) {
+    return "specific_offer";
+  }
+  const text = normalizeComparableText(buildCandidateSourceBackedIdentityText(record, { includeUrl: false, includeRaw: true }));
+  if (/\b(?:add to cart|buy now|in stock|current price|retail price|sold by|seller|item id|listing id|lot\s*#?\s*\d+)\b/i.test(text)) {
+    return "specific_offer";
+  }
+  return "category_search_page";
+}
+
+function isRetailExactIdentitySupported(record = {}, context = {}) {
+  const exactEvidence = record.exactRetailPageEvidence || {};
+  return hasEquivalentBarcodeIdentity(record, context)
+    || normalizeStringArray(exactEvidence.matchingBarcodeIdentities, 24).length > 0;
+}
+
+function isLikelyItemSpecificMarketplaceUrl(url = "") {
+  const raw = cleanText(url);
+  if (!/^https?:\/\//i.test(raw) || isLikelyCategoryOrSearchPageUrl(raw)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(raw);
+    const domain = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    if (/\/(?:itm|item|listing|listings|marketplace\/item|shop\/listing|product|products|lot|lots)\//i.test(path)) {
+      return true;
+    }
+    if (/ebay\.com$/i.test(domain) && /\/itm\//i.test(path)) {
+      return true;
+    }
+    if (/facebook\.com$/i.test(domain) && /\/marketplace\/item\//i.test(path)) {
+      return true;
+    }
+    if (/craigslist\.org$/i.test(domain) && /\/d\/.+\/\d+\.html$/i.test(path)) {
+      return true;
+    }
+    if (/etsy\.com$/i.test(domain) && /\/listing\/\d+/i.test(path)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 function classifyRetailEvidenceTier({ record = {}, packageCompatibility = {}, hardRejectionReason = "" } = {}) {
   if (hardRejectionReason || packageCompatibility.label === "Retail Category Context") {
     return { id: "tier_5", rank: 5, label: "Broader category reference", exact: false };
   }
+  const exactPageHasIdentity = normalizeStringArray(record.exactRetailPageEvidence?.matchingBarcodeIdentities, 24).length > 0;
   const identityText = cleanText([record.matchQuality, record.classification, record.identityMatchStrength].join(" "));
-  const exactProduct = record.exactRetailPage === true || /exact/i.test(identityText) || packageCompatibility.label === "Exact Retail Match";
+  const exactProduct = exactPageHasIdentity || packageCompatibility.label === "Exact Retail Match" || (/exact/i.test(identityText) && packageCompatibility.status === "exact_package_match");
   if (packageCompatibility.status === "exact_package_match") {
     return { id: "tier_1", rank: 1, label: "Exact product and exact package", exact: true };
   }
@@ -11896,6 +12836,10 @@ function sanitizeRetailEvidenceAssessment(assessment = {}) {
     positiveCompatibilityEvidence: normalizeStringArray(assessment.positiveCompatibilityEvidence, 8),
     contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 8),
     productFamilyCompatibilityOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
+    candidateObjectClassification: cleanText(assessment.candidateObjectClassification),
+    candidateObjectLabel: cleanText(assessment.candidateObjectLabel),
+    candidateObjectReason: cleanText(assessment.candidateObjectReason),
+    validOfferClassification: cleanText(assessment.validOfferClassification),
     functionalCompatibility: cleanText(assessment.functionalCompatibility),
     knownSpecificationDifferences: cleanText(assessment.knownSpecificationDifferences),
     priceAmount: Number.isFinite(assessment.priceAmount) ? assessment.priceAmount : null,
@@ -12132,6 +13076,11 @@ function buildNamedStoreRetailResult({ storeName = "", namedStorePrices = [], li
     const exact = /exact/i.test(first.matchQuality || first.priceContextLabel || "");
     return `${exact ? "Exact product price found" : "Compatible product price found"} at ${store}: ${first.itemPrice || "price shown"}${first.url ? " (source-backed)." : "."}`;
   }
+  const exactNoPriceRecords = normalizeArray(liveSearch.providerSourceRecords)
+    .filter((record) => isNamedStoreExactNoPriceIdentityRecord(record, storeName));
+  if (exactNoPriceRecords.length) {
+    return `${store} exact product page found, but no source-backed ${store} price was visible in the captured evidence.`;
+  }
   const attempted = normalizeStringArray(liveSearch.queriesActuallySent || liveSearch.searchQueries, 24)
     .some((query) => storeName && cleanText(query).toLowerCase().includes(storeName.toLowerCase()));
   if (storeName && attempted && searchCompleted) {
@@ -12141,6 +13090,26 @@ function buildNamedStoreRetailResult({ storeName = "", namedStorePrices = [], li
     return `${store} price unavailable. No source-backed ${store} price was found in the current search.`;
   }
   return `${store} availability not confirmed. No source-backed ${store} price was found in the current search.`;
+}
+
+function isNamedStoreExactNoPriceIdentityRecord(record = {}, storeName = "") {
+  if (!record || typeof record !== "object") {
+    return false;
+  }
+  const store = cleanText(storeName).toLowerCase();
+  const storeMatches = !store || [
+    record.source,
+    record.merchantName,
+    record.seller,
+    record.domain,
+    record.title,
+    record.url,
+    record.rawText
+  ].join(" ").toLowerCase().includes(store.split(/\s+/)[0]);
+  const hasExactIdentity = record.exactRetailPage === true
+    || normalizeStringArray(record.exactRetailPageEvidence?.matchingBarcodeIdentities, 24).length > 0
+    || /exact/i.test(record.identityMatchStrength || record.classification || record.matchQuality || "");
+  return Boolean(storeMatches && hasExactIdentity && !Number.isFinite(getVisibleItemPriceAmount(record)));
 }
 
 function buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, submittedQuantity = null, acceptedPrices = [] } = {}) {
@@ -13815,12 +14784,10 @@ function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, 
       recommendation = ratio <= consumerDecisionThresholds.slightlyOverpricedMaxRatio ? "Negotiate" : "Wait for a Better Price";
       badgeReason = "The price is not clearly favorable once weak evidence and outlier filtering are considered.";
     }
-  } else if (ratio <= consumerDecisionThresholds.exceptionalMaxRatio && (hasVerifiedSoldEvidence || priceEvidence.activeExactStrongCount >= 2)) {
+  } else if (ratio <= consumerDecisionThresholds.exceptionalMaxRatio && hasVerifiedSoldEvidence) {
     valueRating = "Exceptional Value";
     recommendation = "Buy";
-    badgeReason = hasVerifiedSoldEvidence
-      ? "The asking price is materially below qualified verified sold evidence."
-      : "The asking price is materially below multiple active exact/strong asking-price records.";
+    badgeReason = "The asking price is materially below qualified verified sold evidence.";
   } else if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
     valueRating = hasVerifiedSoldEvidence ? "Good Value" : "Promising Price - Limited Evidence";
     recommendation = "Buy";
@@ -14686,7 +15653,7 @@ function buildMaximumPriceEvidenceProfile(priceEvidence = {}) {
   const hasConsistentStrongCluster = hasQualifiedExactStrongEvidence
     && primaryRangeRecordCount >= 2
     && primaryRangeType !== "preliminary_reference";
-  const hasMarketMaximumSupport = hasQualifiedExactStrongEvidence || hasConsistentStrongCluster;
+  const hasMarketMaximumSupport = hasVerifiedSoldSupport || (hasConsistentStrongCluster && primaryRangeType === "verified_market");
 
   return {
     verifiedSoldCount,
@@ -14730,7 +15697,7 @@ function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, pr
     return {
       established: false,
       maxPrice: null,
-      explanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found."
+      explanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found."
     };
   }
 
@@ -14739,13 +15706,13 @@ function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, pr
       return {
         established: true,
         maxPrice: roundMoney(fallbackCap),
-        explanation: "The maximum is capped near the target because available pricing evidence is weak. No reliable higher market ceiling could be established without verified sold or active exact/strong comparable prices. Personal enjoyment may justify paying more, but the market-supported maximum is not established beyond this cautious ceiling."
+        explanation: "The maximum is capped near the target because available pricing evidence is weak. No reliable higher market ceiling could be established without qualified verified sold or completed-sale evidence. Personal enjoyment may justify paying more, but the market-supported maximum is not established beyond this cautious ceiling."
       };
     }
     return {
       established: false,
       maxPrice: null,
-      explanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found. Weak, partial, guide, auction, estimated, or reference prices may provide context only."
+      explanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found. Active asking, weak, partial, guide, auction, estimated, or reference prices may provide context only."
     };
   }
 
@@ -14760,11 +15727,11 @@ function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, pr
     }
   }
   if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 && maxPrice > askingPriceNumber * 3) {
-    if (!profile.hasVerifiedSoldSupport && !profile.hasActiveExactStrongSupport) {
+    if (!profile.hasVerifiedSoldSupport) {
       maxPrice = askingPriceNumber * 3;
-      explanations.push("The maximum was capped because a price above 3x the current asking price requires verified sold or active exact/strong support.");
+      explanations.push("The maximum was capped because a price above 3x the current asking price requires verified sold or completed-sale support.");
     } else {
-      explanations.push("A maximum above 3x the current asking price is supported by verified sold or active exact/strong evidence.");
+      explanations.push("A maximum above 3x the current asking price is supported by verified sold or completed-sale evidence.");
     }
   }
   if (lowConfidence && !profile.hasVerifiedSoldSupport && profile.activeExactStrongCount < 2) {
@@ -14787,13 +15754,13 @@ function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, pr
     maxPrice: roundMoney(maxPrice),
     explanation: explanations.length
       ? explanations.join(" ")
-      : "Maximum Recommended Price is tied to verified sold or active exact/strong comparable support, not weak reference prices."
+      : "Maximum Recommended Price is tied to verified sold or completed-sale comparable support, not weak reference or active asking prices."
   };
 }
 
 function shouldCapMaximumAtAskingForLimitedEvidence(priceEvidence = {}) {
   const profile = buildMaximumPriceEvidenceProfile(priceEvidence);
-  return !profile.hasVerifiedSoldSupport && profile.activeExactStrongCount < 2;
+  return !profile.hasVerifiedSoldSupport;
 }
 
 function enforceBuyerNegotiationAskingCeiling({ askingPriceNumber, openingOffer, targetPrice, maxPrice = null, maximumExplanation = "", priceEvidence = {} } = {}) {
@@ -14812,7 +15779,7 @@ function enforceBuyerNegotiationAskingCeiling({ askingPriceNumber, openingOffer,
 
   if (Number.isFinite(nextMax) && nextMax > askingPriceNumber && shouldCapMaximumAtAskingForLimitedEvidence(priceEvidence)) {
     nextMax = askingPriceNumber;
-    addExplanation("The maximum was capped at the entered asking price because a higher walk-away price requires verified sold evidence or at least two active exact/strong current listings.");
+    addExplanation("The maximum was capped at the entered asking price because a higher walk-away price requires verified sold or completed-sale evidence.");
   }
   if (Number.isFinite(nextMax) && Number.isFinite(nextTarget) && nextTarget > nextMax) {
     nextTarget = nextMax;
@@ -14845,7 +15812,7 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
       openingOffer: "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
       targetPurchasePrice: "Not supported yet - evidence is too weak for a responsible target price.",
       maximumRecommendedPrice: "Not supported yet - do not set a maximum from weak evidence.",
-      maximumRecommendedPriceExplanation: "No reliable maximum could be established because no verified sold or active exact/strong comparable prices were found.",
+      maximumRecommendedPriceExplanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found.",
       openingOfferAmount: null,
       targetPurchasePriceAmount: null,
       maximumRecommendedPriceAmount: null,
@@ -17441,6 +18408,7 @@ export const __queryIntegrityTestHooks = {
   isCollectibleSearchContext,
   buildCollectibleAttributeSearchLadder,
   buildSecondaryMarketAuctionTargets,
+  buildCollectibleSourceAllocationSearchQueries,
   buildCollectiblePriceTypeRecoveryTerms,
   buildCollectibleExactSourceRecoveryQueries,
   shouldRunCollectibleExactRecovery,
