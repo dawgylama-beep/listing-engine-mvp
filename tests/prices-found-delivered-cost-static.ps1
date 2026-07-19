@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -14,10 +14,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
-  @{ Name = "Server version is 1.11.12"; Text = $server; Pattern = '$AppVersion = "1.11.12"' },
-  @{ Name = "Roadmap documents 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
+  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
+  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
   @{ Name = "Consumer sections include Best Compatible Price Found"; Text = $app; Pattern = '["bestCompatiblePriceFound", "Best Compatible Price Found"]' },
   @{ Name = "Consumer sections include Other Compatible Prices Found"; Text = $app; Pattern = '["otherCompatiblePricesFound", "Other Compatible Prices Found"]' },
   @{ Name = "Consumer sections include Price Spectrum Summary"; Text = $app; Pattern = '["priceSpectrumSummary", "Price Spectrum Summary"]' },
@@ -25,12 +25,12 @@ $checks = @(
   @{ Name = "Prices Found is prominent in why group"; Text = $app; Pattern = '"pricesFound",' },
   @{ Name = "Frontend has Prices Found renderer"; Text = $app; Pattern = "function renderPricesFound" },
   @{ Name = "Frontend has compact price card renderer"; Text = $app; Pattern = "function renderPriceFoundCard" },
-  @{ Name = "Frontend renders retailer/source and item price in one compact lead line"; Text = $app; Pattern = 'source.textContent = `${retailerUnknown ? "Retailer not identified" : displaySourceName}' },
+  @{ Name = "Frontend renders retailer/source and item price in one compact lead line"; Text = $app; Pattern = 'source.textContent = (retailerUnknown ? "Retailer not identified" : displaySourceName) +' },
   @{ Name = "Frontend renders compact quantity metadata immediately after lead line"; Text = $app; Pattern = 'const quantityParts = getPriceFoundMetaParts(item, purchaseChannel, unitPriceText);' },
   @{ Name = "Frontend renders purchase channel through metadata helper"; Text = $app; Pattern = "function getPriceFoundMetaParts" },
   @{ Name = "Frontend renders shipping in details"; Text = $app; Pattern = '["Shipping", item.shipping || "Not shown"]' },
   @{ Name = "Frontend renders delivered cost in details"; Text = $app; Pattern = '["Delivered cost", item.deliveredCost || "Not established"]' },
-  @{ Name = "Frontend uses one list-level availability copy"; Text = $app; Pattern = "Prices were found online. Check the retailer for current availability." },
+  @{ Name = "Frontend uses one list-level availability copy"; Text = $app; Pattern = "Prices and availability can change. Check the retailer before purchasing." },
   @{ Name = "Frontend keeps matching explanation in Details"; Text = $app; Pattern = '["Matching explanation", item.priceContextSummary || matchLabel]' },
   @{ Name = "Frontend renders full limitations in details"; Text = $app; Pattern = '["Full limitations", item.conciseLimitation]' },
   @{ Name = "Frontend hides full source URL behind compact action"; Text = $app; Pattern = "function getPriceFoundActionLabel" },

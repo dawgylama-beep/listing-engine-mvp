@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
-  @{ Name = "Server version is 1.11.12"; Text = $server; Pattern = '$AppVersion = "1.11.12"' },
-  @{ Name = "Roadmap documents Version 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
+  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
+  @{ Name = "Roadmap documents Version 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
   @{ Name = "Purpose heading is plain"; Text = $index; Pattern = "<legend>Purpose</legend>" },
   @{ Name = "Personal-use submit label matches help"; Text = $index; Pattern = "Analyze Purchase" },
   @{ Name = "Resale submit label matches help"; Text = $app; Pattern = 'defaultLabel: "Analyze Resale"' },

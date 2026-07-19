@@ -2123,7 +2123,7 @@ function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
   const text = String(value || "");
   if (!text) return text;
   const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|comparable evidence appears useful enough/i.test(text);
-  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|â€“|â€”)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
+  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
   const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
   const amounts = extractMoneyAmountsFromText(text);
   const askingCents = moneyToCents(askingAmount);
@@ -2572,6 +2572,8 @@ function renderSearchDiagnostics(diagnostics) {
     ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
+    ["Actual Acquisition Providers", diagnostics.actualAcquisitionProviders],
+    ["Source Category Execution", diagnostics.sourceCategoryExecutionMode],
     ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
     ["Canonical Product Identity", diagnostics.canonicalProductIdentity],
     ["Finalized Search Identity", diagnostics.finalizedSearchIdentity],
@@ -2622,6 +2624,9 @@ function renderSearchDiagnostics(diagnostics) {
     ["Exact Retail Pages Found", diagnostics.exactRetailPagesFound],
     ["Returned Retailer Domains", diagnostics.returnedRetailerDomains],
     ["Customer-Visible Count By Retailer", diagnostics.customerVisibleCountByRetailer],
+    ["Final Customer Evidence Count", diagnostics.finalCustomerEvidenceCount],
+    ["Final Exact Customer Evidence Count", diagnostics.finalExactCustomerEvidenceCount],
+    ["Final Customer-Visible Count By Retailer", diagnostics.finalCustomerVisibleCountByRetailer],
     ["Limited-Result Recovery Ran", diagnostics.limitedResultRecoveryPassRan],
     ["Limited-Result Recovery Queries Attempted", diagnostics.limitedResultRecoveryQueriesAttempted],
     ["Limited-Result Recovery Provider Calls Used", diagnostics.limitedResultRecoveryProviderCallsUsed],
@@ -4132,7 +4137,7 @@ function renderPricesFound(value, options = {}) {
 
   const disclaimer = document.createElement("p");
   disclaimer.className = "prices-found-disclaimer";
-  disclaimer.textContent = "Prices were found online. Check the retailer for current availability.";
+  disclaimer.textContent = "Prices and availability can change. Check the retailer before purchasing.";
   wrapper.appendChild(list);
   if (options.showAvailabilityDisclaimer !== false) {
     wrapper.appendChild(disclaimer);
@@ -4174,7 +4179,7 @@ function renderPriceFoundCard(item, options = {}) {
   primary.className = "price-found-primary";
   const source = document.createElement("p");
   source.className = "price-found-source";
-  source.textContent = `${retailerUnknown ? "Retailer not identified" : displaySourceName} — ${priceText}`;
+  source.textContent = (retailerUnknown ? "Retailer not identified" : displaySourceName) + " — " + priceText;
   primary.appendChild(source);
   if (options.isBestPrice) {
     const badge = document.createElement("span");
@@ -4294,6 +4299,23 @@ function getPriceFoundMatchLabel(item = {}) {
   return firstNonEmpty(item.priceContextLabel, item.priceTypeLabel, item.matchQuality, item.priceType, "Current retail price");
 }
 
+function getCompactPriceFoundMatchLabel(item = {}) {
+  const text = [item.priceContextLabel, item.priceTypeLabel, item.matchQuality, item.classification, item.identityMatchStrength, item.retailEvidenceTierLabel].join(" ");
+  if (/exact/i.test(text)) {
+    return "Exact match";
+  }
+  if (/unit[- ]?price/i.test(text)) {
+    return "Unit-price comparable";
+  }
+  if (/compatible|alternative|strong|same product type|functionally equivalent/i.test(text)) {
+    return "Compatible alternative";
+  }
+  if (/related|reference/i.test(text)) {
+    return "Related reference";
+  }
+  return "Current price";
+}
+
 function getPriceFoundDisplaySourceName(item = {}, fallback = "") {
   const source = firstNonEmpty(item.retailerDisplayName, item.source, item.marketplace, fallback, "Retailer not identified");
   const domain = String(firstNonEmpty(item.retailerDomain, item.source, item.marketplace, item.url, fallback)).toLowerCase();
@@ -4332,7 +4354,7 @@ function getPriceFoundMetaParts(item = {}, purchaseChannel = "", unitPriceText =
         : "Related item - not used for pricing";
     return [match, formatSecondaryMarketPriceType(item)].filter(Boolean);
   }
-  const quantityParts = [formatPriceFoundQuantity(item)];
+  const quantityParts = [formatPriceFoundQuantity(item), getCompactPriceFoundMatchLabel(item)];
   if (unitPriceText) {
     quantityParts.push(unitPriceText);
   }
@@ -4342,6 +4364,7 @@ function getPriceFoundMetaParts(item = {}, purchaseChannel = "", unitPriceText =
 
 function formatSecondaryMarketPriceType(item = {}) {
   const type = firstNonEmpty(item.priceTypeLabel, item.priceType, item.listingStatus);
+  if (/Completed Auction/i.test(type)) return "Completed auction result";
   if (/Verified Sold/i.test(type)) return "Verified sold result";
   if (/Auction Current Bid/i.test(type)) return "Current auction bid";
   if (/Auction Opening Bid/i.test(type)) return "Auction opening bid";
@@ -4368,7 +4391,7 @@ function getPriceFoundActionLabel(item = {}, { directionsUrl = "", retailerUnkno
   if (/Auction Current Bid|Auction Opening Bid|Auction Estimate/i.test(type) || /liveauctioneers\.com|hibid\.com|invaluable\.com|auctionzip\.com/i.test(sourceText)) {
     return "View auction";
   }
-  return retailerUnknown ? "View Listing" : `View at ${retailerName}`;
+  return "View source";
 }
 
 function getPriceFoundPurchaseChannel(item = {}, addressText = "") {
@@ -4981,6 +5004,8 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
     ["Search Provider Used", diagnostics.searchProviderUsed || diagnostics.sourcesActuallyQueried],
+    ["Actual Acquisition Providers", diagnostics.actualAcquisitionProviders],
+    ["Source Category Execution", diagnostics.sourceCategoryExecutionMode],
     ["Source Categories Targeted", diagnostics.sourceCategoriesTargeted || diagnostics.sourcesRequested],
     ["Allowed Domains Requested", diagnostics.allowedDomainsRequested],
     ["Secondary/Auction Domains Requested", diagnostics.secondaryMarketAuctionDomainsRequested],
@@ -5008,6 +5033,9 @@ function formatSearchDiagnosticsText(diagnostics) {
     ["Exact Retail Pages Found", diagnostics.exactRetailPagesFound],
     ["Returned Retailer Domains", diagnostics.returnedRetailerDomains],
     ["Customer-Visible Count By Retailer", diagnostics.customerVisibleCountByRetailer],
+    ["Final Customer Evidence Count", diagnostics.finalCustomerEvidenceCount],
+    ["Final Exact Customer Evidence Count", diagnostics.finalExactCustomerEvidenceCount],
+    ["Final Customer-Visible Count By Retailer", diagnostics.finalCustomerVisibleCountByRetailer],
     ["Limited-Result Recovery Ran", diagnostics.limitedResultRecoveryPassRan],
     ["Limited-Result Recovery Queries Attempted", diagnostics.limitedResultRecoveryQueriesAttempted],
     ["Limited-Result Recovery Provider Calls Used", diagnostics.limitedResultRecoveryProviderCallsUsed],
@@ -5117,7 +5145,7 @@ function formatPriceFoundRecordText(item = {}, options = {}) {
     retailerName: displaySourceName
   });
   const actionUrl = directionsUrl || item.url;
-  const primary = `${retailerUnknown ? "Retailer not identified" : displaySourceName} — ${priceText}${options.isBestPrice ? " [Best price]" : ""}`;
+  const primary = (retailerUnknown ? "Retailer not identified" : displaySourceName) + " — " + priceText + (options.isBestPrice ? " [Best price]" : "");
   const meta = getPriceFoundMetaParts(item, purchaseChannel, unitPriceText).filter(Boolean).join(" · ");
   const action = `${actionLabel}${actionUrl ? `: ${actionUrl}` : ""}   Details`;
   return [primary, meta, addressText, action].filter(Boolean).join("\n");

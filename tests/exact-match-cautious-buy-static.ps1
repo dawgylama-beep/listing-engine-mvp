@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $api = Get-Content -LiteralPath (Join-Path $Root "api/generate-listing.js") -Raw
@@ -9,10 +9,10 @@ $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
-  @{ Name = "Server version is 1.11.12"; Text = $server; Pattern = '$AppVersion = "1.11.12"' },
-  @{ Name = "Roadmap documents 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
+  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
+  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
   @{ Name = "API has high priority exact query builder"; Text = $api; Pattern = "function buildHighPriorityExactQueries" },
   @{ Name = "API scores query specificity"; Text = $api; Pattern = "function scoreSearchQuerySpecificity" },
   @{ Name = "API preserves visible search evidence"; Text = $api; Pattern = "function collectVisibleSearchEvidence" },

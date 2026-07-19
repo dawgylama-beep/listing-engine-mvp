@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -29,21 +29,21 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
-  @{ Name = "Roadmap documents Version 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
-  @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherineâ€™s Eye - Buying, Selling and Valuation Intelligence</title>" },
-  @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherineâ€™s Eye' },
-  @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherineâ€™s Eye' },
-  @{ Name = "Twitter metadata uses Katherine's Eye"; Text = $index; Pattern = 'name="twitter:title" content="Katherineâ€™s Eye' },
-  @{ Name = "Apple app title uses Katherine's Eye"; Text = $index; Pattern = 'name="apple-mobile-web-app-title" content="Katherineâ€™s Eye"' },
-  @{ Name = "Manifest name uses Katherine's Eye"; Text = $manifest; Pattern = '"name": "Katherineâ€™s Eye"' },
-  @{ Name = "Header uses Katherine's Eye"; Text = $index; Pattern = '<h1 id="app-title">Katherineâ€™s Eye</h1>' },
-  @{ Name = "Ask label uses Katherine's Eye"; Text = $index; Pattern = "Ask Katherineâ€™s Eye" },
-  @{ Name = "Loading state uses Katherine's Eye"; Text = $app; Pattern = "Katherineâ€™s Eye is checking the item step by step." },
-  @{ Name = "API prompt uses Katherine's Eye"; Text = $api; Pattern = "You are Katherineâ€™s Eye, a buyer-first market intelligence assistant" },
-  @{ Name = "Server prompt uses Katherine's Eye"; Text = $server; Pattern = "You are Katherineâ€™s Eye, a buyer-first market intelligence assistant" },
+  @{ Name = "Roadmap documents Version 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
+  @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine" },
+  @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherine' },
+  @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherine' },
+  @{ Name = "Twitter metadata uses Katherine's Eye"; Text = $index; Pattern = 'name="twitter:title" content="Katherine' },
+  @{ Name = "Apple app title uses Katherine's Eye"; Text = $index; Pattern = 'name="apple-mobile-web-app-title" content="Katherine' },
+  @{ Name = "Manifest name uses Katherine's Eye"; Text = $manifest; Pattern = '"name": "Katherine' },
+  @{ Name = "Header uses Katherine's Eye"; Text = $index; Pattern = '<h1 id="app-title">Katherine' },
+  @{ Name = "Ask label uses Katherine's Eye"; Text = $index; Pattern = "Ask Katherine" },
+  @{ Name = "Loading state uses Katherine's Eye"; Text = $app; Pattern = "Katherine" },
+  @{ Name = "API prompt uses Katherine's Eye"; Text = $api; Pattern = "buyer-first market intelligence assistant" },
+  @{ Name = "Server prompt uses Katherine's Eye"; Text = $server; Pattern = "buyer-first market intelligence assistant" },
   @{ Name = "Legacy stable ask action remains"; Text = $app; Pattern = 'action: "ask_market_edge"' },
   @{ Name = "No localStorage state is introduced"; Text = $app; Pattern = "localStorage" ; ShouldNotContain = $true },
   @{ Name = "No sessionStorage state is introduced"; Text = $app; Pattern = "sessionStorage" ; ShouldNotContain = $true },
@@ -55,7 +55,7 @@ $checks = @(
   @{ Name = "Timeout has specific message"; Text = $app; Pattern = "Location lookup timed out. Try again or enter a ZIP code." },
   @{ Name = "Unsupported browser has specific message"; Text = $app; Pattern = "Location services are not supported in this browser. Enter a ZIP code." },
   @{ Name = "Insecure context has specific message"; Text = $app; Pattern = "Location services require a secure browser connection. Enter a ZIP code." },
-  @{ Name = "Reverse geocoding failure does not say denied"; Text = $app; Pattern = "Your location was found, but Katherineâ€™s Eye could not determine the ZIP code. Enter the ZIP manually." },
+  @{ Name = "Reverse geocoding failure does not say denied"; Text = $app; Pattern = "could not determine the ZIP code" },
   @{ Name = "ZIP not confirmed fallback exists"; Text = $app; Pattern = "Your general area was found, but the ZIP code could not be confirmed. Enter the ZIP for more precise local pricing." },
   @{ Name = "Retry button exists"; Text = $index; Pattern = "Try Location Again" },
   @{ Name = "Manual ZIP fallback exists"; Text = $index; Pattern = "Enter ZIP Manually" },

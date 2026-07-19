@@ -27,10 +27,10 @@ function Require-NotRegex($Name, $Text, $Pattern) {
 }
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
-  @{ Name = "Server version is 1.11.12"; Text = $server; Pattern = '$AppVersion = "1.11.12"' },
-  @{ Name = "Roadmap documents 1.11.12"; Text = $roadmap; Pattern = "Version 1.11.12 (Completed)" },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
+  @{ Name = "Server version is 1.11.13"; Text = $server; Pattern = '$AppVersion = "1.11.13"' },
+  @{ Name = "Roadmap documents 1.11.13"; Text = $roadmap; Pattern = "Version 1.11.13 (Completed)" },
   @{ Name = "Secondary-market auction registry exists"; Text = $api; Pattern = "const secondaryMarketAuctionRegistry = Object.freeze" },
   @{ Name = "Registry includes eBay"; Text = $api; Pattern = 'domain: "ebay.com"' },
   @{ Name = "Registry includes Mercari"; Text = $api; Pattern = 'domain: "mercari.com"' },

@@ -48,7 +48,7 @@ Require-Contains "Platform and seller are in card details" $app '["Platform / re
 Require-Contains "Seller type is in card details" $app '["Seller type", item.retailOfferSellerType]'
 Require-Contains "Offer conditions are in card details" $app '["Offer conditions", item.retailOfferConditionDisclosure]'
 Require-Contains "Address is address-gated" $app "...(addressText ? [address] : [])"
-Require-Contains "One list-level availability note exists" $app 'disclaimer.textContent = "Prices were found online. Check the retailer for current availability.";'
+Require-Contains "One list-level availability note exists" $app 'disclaimer.textContent = "Prices and availability can change. Check the retailer before purchasing.";'
 Require-Contains "Text export uses compact price-list formatter" $app "function formatPricesFoundListText"
 Require-Contains "Text export includes purchase channel" $app "purchaseChannel"
 Require-Contains "Offer details helper exists" $api "function deriveRetailOfferDetails"

@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -41,8 +41,8 @@ $checks = @(
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
   @{ Name = "Server has research visibility fields"; Text = $server; Pattern = "function Set-ResearchVisibilityFields" },
   @{ Name = "Server blocks preliminary range without supporting records"; Text = $server; Pattern = "Get-ReferenceSupportingResearchResultCount" },
-  @{ Name = "Visible app version is 1.11.12"; Text = $index; Pattern = "Version 1.11.12" },
-  @{ Name = "Package version is 1.11.12"; Text = $package; Pattern = '"version": "1.11.12"' },
+  @{ Name = "Visible app version is 1.11.13"; Text = $index; Pattern = "Version 1.11.13" },
+  @{ Name = "Package version is 1.11.13"; Text = $package; Pattern = '"version": "1.11.13"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }
 )
 

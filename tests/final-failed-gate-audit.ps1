@@ -12,10 +12,10 @@ if ($node) {
 }
 
 if (-not (Test-Path -LiteralPath $nodePath)) {
-  throw "Node.js is required for mock provider live comps checks and was not found."
+  throw "Node.js is required for final failed-gate audit checks and was not found."
 }
 
-& $nodePath (Join-Path $PSScriptRoot "mock-provider-live-comps.mjs")
+& $nodePath (Join-Path $PSScriptRoot "final-failed-gate-audit.mjs")
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
