@@ -11,10 +11,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.11.14"; Text = $index; Pattern = "Version 1.11.14" },
-  @{ Name = "Package version is 1.11.14"; Text = $package; Pattern = '"version": "1.11.14"' },
-  @{ Name = "Server version is 1.11.14"; Text = $server; Pattern = '$AppVersion = "1.11.14"' },
-  @{ Name = "Roadmap documents 1.11.14"; Text = $roadmap; Pattern = "Version 1.11.14 (Completed)" },
+  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
+  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
+  @{ Name = "Server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
+  @{ Name = "Roadmap documents 1.12.0"; Text = $roadmap; Pattern = "Version 1.12.0 (Completed)" },
   @{ Name = "Submission stage constants exist"; Text = $app; Pattern = "const submissionStages = Object.freeze" },
   @{ Name = "Photo read stage exists"; Text = $app; Pattern = 'PHOTO_READ: "photo_read"' },
   @{ Name = "Image process stage exists"; Text = $app; Pattern = 'IMAGE_PROCESS: "image_process"' },
@@ -47,7 +47,7 @@ foreach ($check in $checks) {
   }
 }
 
-$handleSubmit = [regex]::Match($app, "async function handleSubmit\(event\) \{(?<body>[\s\S]*?)\n\}\n\nfunction getSelectedWorkflow")
+$handleSubmit = [regex]::Match($app, "async function handleSubmit\(event\) \{(?<body>[\s\S]*?)\r?\n\}\r?\n\r?\nfunction getSelectedWorkflow")
 if (-not $handleSubmit.Success) {
   $failed += "handleSubmit should be inspectable"
 } else {
@@ -92,7 +92,7 @@ if (-not $resizeImage.Success) {
   }
 }
 
-$friendly = [regex]::Match($app, "function getFriendlyErrorMessage\(error, config, submissionState = \{\}\) \{(?<body>[\s\S]*?)\n\}\n\nfunction toggleFeedbackPanel")
+$friendly = [regex]::Match($app, "function getFriendlyErrorMessage\(error, config, submissionState = \{\}\) \{(?<body>[\s\S]*?)\r?\n\}\r?\n\r?\nfunction toggleFeedbackPanel")
 if (-not $friendly.Success) {
   $failed += "getFriendlyErrorMessage should be inspectable"
 } else {

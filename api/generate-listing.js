@@ -1,3 +1,11 @@
+import {
+  assembleFinalEvidence,
+  buildCompactEvidenceList,
+  deriveDecision as deriveFinalEvidenceDecision,
+  deriveRange as deriveFinalEvidenceRange,
+  diagnosticsFromFinalEvidence
+} from "../lib/evidence/index.js";
+
 const listingSchema = {
   type: "object",
   additionalProperties: false,
@@ -11527,25 +11535,68 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     ...normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence"),
     ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
   ];
-  const byListing = new Map();
-
+  const legacyByListing = new Map();
   for (const record of candidateRecords) {
     const alreadyPromotedRetailCard = Boolean(record.retailEvidenceTier && record.itemPriceAmount);
-    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record)) {
-      continue;
-    }
-    const enriched = alreadyPromotedRetailCard ? record : buildPriceFoundRecord(record, askingPriceNumber);
+    const preserveNoPriceIdentity = isNoPriceIdentityReference(record) && !Number.isFinite(getVisibleItemPriceAmount(record));
+    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record) && !preserveNoPriceIdentity) continue;
+    const enriched = alreadyPromotedRetailCard || preserveNoPriceIdentity
+      ? { ...record }
+      : buildPriceFoundRecord(record, askingPriceNumber);
+    const urlKey = canonicalizeComparableUrl(enriched.url) || cleanText(enriched.url);
+    if (excluded.has(urlKey)) continue;
     const key = priceContextKey(enriched);
-    if (excluded.has(canonicalizeComparableUrl(enriched.url) || cleanText(enriched.url))) {
-      continue;
-    }
-    const existing = byListing.get(key);
+    const existing = legacyByListing.get(key);
     if (!existing || shouldPreferCustomerEvidenceRecord(enriched, existing)) {
-      byListing.set(key, enriched);
+      legacyByListing.set(key, enriched);
     }
   }
-
-  return selectDiversePriceFoundRecords([...byListing.values()].sort(comparePriceFoundRecords), 8);
+  const legacyEligibleRecords = [...legacyByListing.values()]
+    .map((enriched) => {
+      const sourceRecordId = cleanText(
+        enriched.sourceRecordId
+        || enriched.providerRecordId
+        || enriched.originalSourceUrl
+        || enriched.originalUrl
+        || enriched.url
+        || enriched.destinationUrl
+      );
+      const parsedPrice = getVisibleItemPriceAmount(enriched);
+      return {
+        ...enriched,
+        prequalified: true,
+        sourceRecordId,
+        originalUrl: enriched.originalUrl || enriched.originalSourceUrl || enriched.url,
+        destinationUrl: enriched.destinationUrl || enriched.url,
+        retailer: enriched.retailerDisplayName || enriched.source,
+        marketplace: enriched.marketplace || enriched.source,
+        acquisitionProvider: enriched.searchProvider || liveSearch.searchProviderUsed,
+        sourceDomain: enriched.retailerDomain || hostnameFromUrl(enriched.destinationUrl || enriched.url),
+        price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
+        quantity: enriched.packageQuantity,
+        exactIdentity: /exact|tier_1/i.test(cleanText(enriched.identityMatchStrength || enriched.classification || enriched.retailEvidenceTier)),
+        pageType: "product_or_listing"
+      };
+    })
+    .filter((record) => !excluded.has(canonicalizeComparableUrl(record.destinationUrl || record.url) || cleanText(record.destinationUrl || record.url)));
+  const target = {
+    upc: firstKnown(identity.upcBarcode, identity.upc, identity.barcode, buyerIntake.known_upc),
+    quantity: null,
+    dimensions: "",
+    packageType: "",
+    designAttributes: []
+  };
+  const finalized = assembleFinalEvidence(legacyEligibleRecords, target, { displayLimit: 8 });
+  const compactRecords = buildCompactEvidenceList(finalized, askingPriceNumber);
+  liveSearch.finalizedEvidence = finalized.all;
+  liveSearch.finalEvidenceCounts = finalized.counts;
+  liveSearch.finalEvidenceDiagnostics = diagnosticsFromFinalEvidence(finalized, liveSearch.providerRequestRecords || []);
+  liveSearch.finalEvidenceRange = deriveFinalEvidenceRange(finalized);
+  liveSearch.finalEvidenceDecision = deriveFinalEvidenceDecision(finalized, {
+    askingPrice: askingPriceNumber,
+    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal"
+  });
+  return compactRecords;
 }
 
 function priceFoundRetailerKey(record = {}) {

@@ -514,6 +514,23 @@
 - Provider-call impact: the current-retail 28-call ceiling remains unchanged; collectible recovery is bounded inside the existing non-retail Serper plan, which remains capped at 12 planned executable calls with up to 2 exact source-recovery records inside that cap
 - Remaining limitation: validation uses mocked/static provider coverage only; no live Serper, OpenAI, browser geolocation, reverse-geocoding service, deployment, or paid-provider acceptance call was run for this release
 
+## Version 1.12.0 (Completed)
+- Introduced reusable evidence modules for normalized identifier identity, field-level provenance, normalization/final assembly, product and design matching, page eligibility, dimension/package/quantity compatibility, price-type and range eligibility, source identity, underlying-offer deduplication, decision/recovery consistency, final-list diagnostics, and compact evidence presentation
+- Removed authoritative customer-list assembly, final range derivation, final evidence counts, recovery state, diagnostic sampling, and compact record shaping from the monolithic API path; `api/generate-listing.js` now adapts already-qualified provider records into the shared finalizer instead of independently assembling customer evidence
+- Every finalized record carries field provenance tied to its source record and URL; unsupported cross-record title/price/URL associations are omitted, acquisition provider remains separate from retailer/marketplace/domain identity, and cross-retailer offers are not merged merely because they identify the same product
+- Exact product or same-design pages remain eligible identity evidence when price is unavailable, while exact priced evidence remains a separate count and range lane
+- UPC/EAN/GTIN normalization covers valid check-digit forms and zero-padded retailer URL identifiers, including retailer catalog identifiers whose normalized body corresponds to the submitted UPC
+- Exact pages acquired during later stages are eligible for the same bounded enrichment path as other computed-exact pages; provider/direct-page accounting remains derived from attempted and successful request records
+- Current-retail evidence is finalized without generic valuation-outlier removal; only source, object, product, dimensions, package, page type, availability, association, and underlying-offer rules can remove an offer
+- Customer evidence, exact/compatible/source counts, price ranges, decision eligibility, recommendation inputs, recovery state, and diagnostics now share one authoritative finalized evidence list; debug sampling occurs only after full-list decisions and counts
+- Deterministic Office Works envelope coverage verifies exact Kroger no-price preservation, normalized barcode URL matching, truthful Kroger attribution, compatible 40/45-count alternatives, Target low-price preservation, #10 dimension compatibility, wrong-size/object rejection, provenance isolation, diagnostic parity, and compact one-list output
+- Deterministic licensed championship collectible-tray coverage verifies combined design identity, exact marketplace/auction no-price preservation, category-page rejection, unrelated-design exclusion, price-type preservation, range suppression without qualified exact/same-design pricing, cautious personal-use guidance, and maximum-price protection
+- The four existing purposes remain supported: Buying for Myself, Buying to Resell, Value Something I Own, and Sell Something I Own; shopping evaluation and the original listing-generation behavior needed by the later Sell It experience are preserved
+- Remaining migration work: move provider acquisition adapters and more legacy qualification helpers into the shared modules, retire redundant legacy comparable/report fields after compatibility consumers migrate, and make the PowerShell local server consume the shared serialized contract without adding a second evidence engine
+- Later interface plan: simplify the customer experience around Buy It, Value It, and Sell It while preserving shopping evaluation; define a universal `ListingDraft`, then add a marketplace connector layer with eBay-first draft creation and final customer review before any publishing action
+- Marketplace authorization and publishing are explicitly not implemented in Version 1.12.0
+- Provider-call impact: the current-retail ceiling remains 28 calls and the non-retail/collectible ceiling remains 12 calls; no live or paid provider search was used for acceptance
+
 ## Version 2.0
 - User accounts
 - Saved listings
