@@ -343,8 +343,8 @@ function testCollectibleExactSourceAcquisitionAndOrdering() {
     searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
   }, 10, { identity, buyerIntake });
 
-  assertEqual(prices[0].priceType, "Completed Auction", "Exact sold/completed auction evidence should lead active asking evidence for collectibles.");
-  assert(prices.some((record) => record.priceType === "Auction Current Bid"), "Auction exact current bid should reach the primary compact evidence list.");
+  assertEqual(prices[0].priceType, "Completed auction", "Exact sold/completed auction evidence should lead active asking evidence for collectibles.");
+  assert(prices.some((record) => record.priceType === "Current bid"), "Auction exact current bid should reach the primary compact evidence list with the canonical price type.");
 }
 
 function testCollectibleIdentityFirewallAndPriceTypes() {

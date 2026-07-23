@@ -256,12 +256,12 @@ function buildCollectibleFixture() {
   return { buyerIntake, identity, route, context };
 }
 
-function collectibleRecord({ title, url, source, price, priceType = "Active Asking", classification = "Exact Match", rawExtra = "" } = {}) {
+function collectibleRecord({ title, url, source, marketplace = source, price, priceType = "Active Asking", classification = "Exact Match", rawExtra = "" } = {}) {
   const priceText = money(price);
   return {
     title,
     source,
-    marketplace: source,
+    marketplace,
     url,
     canonicalUrl: url,
     domain: hooks.unwrapRetailDestinationUrl(url).replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""),
@@ -306,6 +306,7 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
   const activeOriginal = collectibleRecord({
     title: "Riverton Rockets 1997 Victory Classic metal tray",
     source: "Marketplace Example",
+    marketplace: "market.example",
     url: "https://market.example/itm/777888999",
     price: 24,
     priceType: "Active Asking",
@@ -314,6 +315,7 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
   const mirror = collectibleRecord({
     title: "Riverton Rockets 1997 Victory Classic metal tray",
     source: "Mirror Example",
+    marketplace: "market.example",
     url: "https://mirror.example/riverton-rockets-victory-classic-tray.html",
     price: 24,
     priceType: "Active Asking",

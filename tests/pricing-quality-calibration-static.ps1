@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -13,10 +13,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
-  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
-  @{ Name = "Server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
-  @{ Name = "Roadmap documents 1.12.0"; Text = $roadmap; Pattern = "Version 1.12.0 (Completed)" },
+  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
+  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
+  @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API builds weighted price evidence"; Text = $api; Pattern = "function buildWeightedPriceEvidenceRecord" },
   @{ Name = "API builds price evidence buckets"; Text = $api; Pattern = "function buildPriceEvidenceBuckets" },
   @{ Name = "API selects strongest available bucket"; Text = $api; Pattern = "function selectPrimaryPriceEvidenceBucket" },

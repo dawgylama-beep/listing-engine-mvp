@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -12,10 +12,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
-  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
-  @{ Name = "Server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
-  @{ Name = "Roadmap documents Version 1.12.0"; Text = $roadmap; Pattern = "Version 1.12.0 (Completed)" },
+  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
+  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
+  @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
   @{ Name = "Current retail only mode exists"; Text = $api; Pattern = "current-retail-only" },
@@ -88,7 +88,7 @@ if ($api -notmatch 'retailEvidenceProfile\.currentRetailOnly[\s\S]{0,900}estimat
   $failed += "Current retail reports must not expose Estimated Fair Market Value"
 }
 
-if ($api -notmatch "retailEvidenceProfile\.currentRetailOnly[\s\S]{0,900}recommendedOffer: retailEvidenceProfile\.currentRetailOnly \? \[\]") {
+if ($api -notmatch "recommendedOffer: retailEvidenceProfile\.currentRetailOnly \|\| insufficientCollectibleMarketEvidence \? \[\]") {
   $failed += "Current retail reports must not expose Recommended Offer"
 }
 

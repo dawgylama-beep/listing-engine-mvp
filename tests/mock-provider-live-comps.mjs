@@ -873,7 +873,7 @@ try {
     providerSourceRecords: [localEnvelopeRecord],
     searchDiagnostics: localEnvelopeDiagnostics
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
-  assert(promotedLocalEnvelopePrices.length === 1 && /Compatible Alternative Price|Exact Product Price/i.test(promotedLocalEnvelopePrices[0].priceContextLabel), "Eligible local-stage current retail evidence should reach customer Prices Found.");
+  assert(promotedLocalEnvelopePrices.length === 1 && /Compatible alternative|Exact item/i.test(promotedLocalEnvelopePrices[0].priceContextLabel), "Eligible local-stage current retail evidence should reach customer Prices Found with the canonical match label.");
 
   const genericRetailIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
@@ -953,7 +953,7 @@ try {
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
   assert(/kroger/i.test(exactAndCompatiblePrices[0]?.retailerDisplayName || "") && exactAndCompatiblePrices[0].itemPrice === "$2.99", "Exact retailer product price should outrank a cheaper compatible alternative in Where to Buy.");
-  assert(/Exact Product Price|Exact Retail Match/i.test(exactAndCompatiblePrices[0].priceContextLabel), "Exact retailer product page promotion should reach exact price context.");
+  assert(/Exact item/i.test(exactAndCompatiblePrices[0].priceContextLabel), "Exact retailer product page promotion should reach the canonical exact-item context.");
   assert(exactAndCompatiblePrices.some((record) => /45-count and 50-count packages.*unit-price comparison/i.test(record.knownDifferences || record.priceContextSummary || "")), "Package-count differences should remain disclosed for compatible alternatives.");
   assert(/Availability unconfirmed/i.test(exactAndCompatiblePrices[0].listingStatus || ""), "Availability must not be inferred solely from a visible price.");
   const finalRetailSnapshot = __queryIntegrityTestHooks.buildFinalRetailCustomerEvidenceSnapshot([enrichedOfficeWorksExactPage], officeWorksContext);
@@ -1090,7 +1090,7 @@ try {
   }, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
   assert(promotedGenericPrices.some((record) => /Shopping Household Cleaner/i.test(record.title)), "Shopping-stage priced records should promote to customer prices.");
   assert(promotedGenericPrices.some((record) => /Local Household Cleaner/i.test(record.title)), "Local-stage priced records should promote to customer prices.");
-  assert(promotedGenericPrices.every((record) => record.priceType === "Current Retail Price"), "Promoted ordinary retail cards should be labeled as current retail prices.");
+  assert(promotedGenericPrices.every((record) => record.priceType === "Current retail price"), "Promoted ordinary retail cards should use the canonical current-retail price type.");
   assert(promotedGenericPrices.every((record) => record.retailerDisplayName), "Every promoted retail card should carry a retailer display name.");
   const directExactHouseholdOffer = enrichedOfficeWorksExactPage;
   const aggregatorExactHouseholdOffer = __queryIntegrityTestHooks.enrichExactRetailPageRecord(retailRecord({
@@ -1539,7 +1539,7 @@ try {
   const spectrumSummary = __queryIntegrityTestHooks.buildPriceSpectrumSummary(deliveredRanking);
   assert(/unknown shipping|not shown/i.test(spectrumSummary) && /Known delivered costs ranged/i.test(spectrumSummary), "Price spectrum summary should separate item prices from known delivered costs and unknown shipping.");
   const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
-  assert(auctionBid[0].priceType === "Auction Current Bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
+  assert(auctionBid[0].priceType === "Current bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
   const noPriceExactBuckets = __queryIntegrityTestHooks.bucketSerperRecords([{
     title: "WorthPoint Georgia Bulldogs Coca-Cola collector tray reference",
     domain: "worthpoint.com",
@@ -1585,10 +1585,10 @@ try {
   assert(mixedPrices.filter((item) => /duplicate/.test(item.url)).length === 1, "Duplicate canonical-equivalent listing URLs should count once.");
   assert(!JSON.stringify(mixedPrices).includes("bottle") && !JSON.stringify(mixedPrices).includes("unknown-type"), "Mismatched and unknown item types must not appear in Prices Found.");
   assert(JSON.stringify(mixedPrices).includes("partial-compatible"), "Partial but product-type-compatible priced listings may appear in Prices Found.");
-  assert(!JSON.stringify(mixedPrices).includes("no-price"), "Records without usable price evidence must not appear in Prices Found.");
+  assert(mixedPrices.some((item) => /no-price/.test(item.url) && item.displayedPrice === "Price unavailable"), "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable.");
   const priceEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(mixedSourceRecords);
-  assert(priceEvidence.pricedRecords.length === mixedPrices.length, "Preliminary range should count compatible priced records only.");
-  assert(mixedPrices.every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
+  assert(priceEvidence.pricedRecords.length === mixedPrices.filter((item) => Number(item.price) > 0).length, "Preliminary range should count compatible priced records only.");
+  assert(mixedPrices.filter((item) => Number(item.price) > 0).every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
   assert(priceEvidence.primaryRangeType === "current_asking", "Active compatible listings should appear separately under Current Asking-Price Range when no verified sold evidence exists.");
   const preliminaryOutlierSourceRecords = {
     partialComparables: [
@@ -1812,7 +1812,7 @@ try {
       })
     ]
   }, 10);
-  assert(soldOnlyPrices.length === 1 && soldOnlyPrices[0].priceType === "Verified Sold", "Qualified historical sold evidence may remain visible as historical context.");
+  assert(soldOnlyPrices.length === 1 && soldOnlyPrices[0].priceType === "Verified sold", "Qualified historical sold evidence may remain visible as historical context.");
   assert(__queryIntegrityTestHooks.buildBestCompatiblePriceFound(soldOnlyPrices) === null, "Historical sold evidence alone must not become Best Compatible Price Found.");
   assert(/No compatible current purchasing option with a confirmed delivered cost/i.test(__queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary(soldOnlyPrices)), "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found.");
   const weakInsideRangeEvidence = {
@@ -2080,9 +2080,9 @@ try {
     itemIdentificationEvidence: auctionBuckets.itemIdentificationEvidence,
     referenceResults: auctionBuckets.referenceResults
   }, 10, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
-  assert(collectiblePrices.some((record) => /liveauctioneers\.com\/item\/exact-current-bid/i.test(record.url) && record.priceType === "Auction Current Bid"), "Exact auction current bid should reach the primary compact evidence list.");
+  assert(collectiblePrices.some((record) => /liveauctioneers\.com\/item\/exact-current-bid/i.test(record.url) && record.priceType === "Current bid"), "Exact auction current bid should reach the primary compact evidence list.");
   assert(collectiblePrices.some((record) => /ebay\.com\/itm\/exact-buy-it-now/i.test(record.url) && record.priceType === "Buy It Now"), "Exact Buy It Now listing should reach the primary compact evidence list.");
-  assert(collectiblePrices.some((record) => /mercari\.com\/us\/item\/exact-price-not-shown/i.test(record.url) && record.priceType === "Active Listing" && !Number.isFinite(record.itemPriceAmount)), "Exact active listing without visible price should remain showable.");
+  assert(collectiblePrices.some((record) => /mercari\.com\/us\/item\/exact-price-not-shown/i.test(record.url) && record.priceType === "Price unavailable" && !Number.isFinite(record.itemPriceAmount)), "Exact active listing without visible price should remain showable.");
   assert(!collectiblePrices.some((record) => /different-1981-tray/i.test(record.url)), "Different designs cannot replace exact design evidence in the primary list.");
 
   const noSoldBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords.filter((record) => !/auctionzip\.com/i.test(record.url)));

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -14,10 +14,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
-  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
-  @{ Name = "Server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
-  @{ Name = "Roadmap documents 1.12.0"; Text = $roadmap; Pattern = "Version 1.12.0 (Completed)" },
+  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
+  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
+  @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Consumer sections include Best Compatible Price Found"; Text = $app; Pattern = '["bestCompatiblePriceFound", "Best Compatible Price Found"]' },
   @{ Name = "Consumer sections include Other Compatible Prices Found"; Text = $app; Pattern = '["otherCompatiblePricesFound", "Other Compatible Prices Found"]' },
   @{ Name = "Consumer sections include Price Spectrum Summary"; Text = $app; Pattern = '["priceSpectrumSummary", "Price Spectrum Summary"]' },
@@ -78,7 +78,7 @@ $checks = @(
   @{ Name = "Mock test covers duplicate URL dedupe"; Text = $mock; Pattern = "Duplicate canonical-equivalent listing URLs should count once." },
   @{ Name = "Mock test excludes mismatched and unknown types"; Text = $mock; Pattern = "Mismatched and unknown item types must not appear in Prices Found." },
   @{ Name = "Mock test covers partial compatible price"; Text = $mock; Pattern = "Partial but product-type-compatible priced listings may appear in Prices Found." },
-  @{ Name = "Mock test excludes records without price"; Text = $mock; Pattern = "Records without usable price evidence must not appear in Prices Found." },
+  @{ Name = "Mock test preserves exact no-price references"; Text = $mock; Pattern = "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable." },
   @{ Name = "Mock test covers preliminary inclusion consistency"; Text = $mock; Pattern = "included in preliminary range without influencing verified market value." },
   @{ Name = "Mock test covers active listings cannot drive verified range"; Text = $mock; Pattern = "Active listings cannot drive Verified Market Range" },
   @{ Name = "Mock test covers conditional buy"; Text = $mock; Pattern = "Buy must become conditional." },

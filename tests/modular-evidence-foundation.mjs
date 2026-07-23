@@ -122,8 +122,8 @@ const twoRetailers = dedupeUnderlyingOffers([
 assert.equal(twoRetailers.length, 2, "same product at different retailers is not one underlying offer");
 
 const duplicateMarketplace = dedupeUnderlyingOffers([
-  record({ marketplace: "eBay", marketplaceItemId: "123", originalUrl: "https://ebay.com/itm/123", title: "Listing mirror" }),
-  record({ marketplace: "eBay", marketplaceItemId: "123", originalUrl: "https://picclick.com/mirror/123", title: "Original listing", price: 20 })
+  record({ marketplace: "eBay", marketplaceItemId: "123", originalMarketplaceDomain: "ebay.com", originalUrl: "https://ebay.com/itm/123", title: "Listing mirror" }),
+  record({ marketplace: "eBay", marketplaceItemId: "123", originalMarketplaceDomain: "ebay.com", originalUrl: "https://picclick.com/mirror/123", title: "Original listing", price: 20 })
 ]);
 assert.equal(duplicateMarketplace.length, 1, "one underlying marketplace offer appears once");
 assert.equal(duplicateMarketplace[0].price, 20);
@@ -191,13 +191,15 @@ assert.equal(collectibleFinal.counts.final, 2, "only same-design records survive
 assert.equal(collectibleFinal.counts.exactWithoutPrice, 1, "exact active no-price listing survives");
 assert.equal(collectibleFinal.all.some((item) => /Generic/.test(item.title)), false);
 assert.equal(collectibleFinal.all.some((item) => /Etsy|Collectors Weekly/.test(item.marketplace)), false);
-assert.equal(deriveRange(collectibleFinal).low, 24, "only qualified same-design pricing sets the range");
+assert.equal(deriveRange(collectibleFinal).established, false, "one qualified offer cannot establish a range");
+assert.equal(deriveRange(collectibleFinal).singleObservation.price, 24, "one qualified offer remains a truthful observation");
 
 const noPricedCollectible = assembleFinalEvidence([collectibleRecords[0]], collectibleTarget);
 assert.equal(deriveRange(noPricedCollectible).established, false, "exact identity without price cannot create a numerical range");
 const cautious = deriveDecision(noPricedCollectible, { askingPrice: 10, purpose: "personal" });
-assert.equal(cautious.recommendation, "Promising, value unconfirmed");
-assert.equal(cautious.maximumPrice, 10, "maximum cannot exceed asking without transaction evidence");
+assert.equal(cautious.recommendation, "Need More Info");
+assert.equal(cautious.badge, "Market Evidence Insufficient");
+assert.equal(cautious.maximumPrice, null, "entered budget is not a market-backed maximum");
 
 for (const priceType of [
   "Verified sold", "Completed auction", "Active asking price", "Buy It Now", "Current bid",

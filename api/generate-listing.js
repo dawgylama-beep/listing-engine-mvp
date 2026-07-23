@@ -11535,23 +11535,22 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     ...normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence"),
     ...normalizeResearchRecordArray(liveSearch.referenceResults, "referenceResults")
   ];
-  const legacyByListing = new Map();
+  const legacyCandidates = [];
   for (const record of candidateRecords) {
     const alreadyPromotedRetailCard = Boolean(record.retailEvidenceTier && record.itemPriceAmount);
     const preserveNoPriceIdentity = isNoPriceIdentityReference(record) && !Number.isFinite(getVisibleItemPriceAmount(record));
-    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record) && !preserveNoPriceIdentity) continue;
-    const enriched = alreadyPromotedRetailCard || preserveNoPriceIdentity
+    const preserveExactAuctionContext = /exact/i.test(cleanText(record.identityMatchStrength || record.classification || record.matchQuality))
+      && /current bid|opening bid|auction estimate|closed unsold/i.test(cleanText(record.priceType || record.priceEvidenceType));
+    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record) && !preserveNoPriceIdentity && !preserveExactAuctionContext) continue;
+    const enriched = alreadyPromotedRetailCard || preserveNoPriceIdentity || preserveExactAuctionContext
       ? { ...record }
       : buildPriceFoundRecord(record, askingPriceNumber);
     const urlKey = canonicalizeComparableUrl(enriched.url) || cleanText(enriched.url);
-    if (excluded.has(urlKey)) continue;
-    const key = priceContextKey(enriched);
-    const existing = legacyByListing.get(key);
-    if (!existing || shouldPreferCustomerEvidenceRecord(enriched, existing)) {
-      legacyByListing.set(key, enriched);
-    }
+    const currentRetail = /current retail/i.test(cleanText(enriched.priceType || enriched.priceEvidenceType));
+    if (excluded.has(urlKey) && !currentRetail) continue;
+    legacyCandidates.push(enriched);
   }
-  const legacyEligibleRecords = [...legacyByListing.values()]
+  const legacyEligibleRecords = legacyCandidates
     .map((enriched) => {
       const sourceRecordId = cleanText(
         enriched.sourceRecordId
@@ -11571,10 +11570,25 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
         retailer: enriched.retailerDisplayName || enriched.source,
         marketplace: enriched.marketplace || enriched.source,
         acquisitionProvider: enriched.searchProvider || liveSearch.searchProviderUsed,
+        sourceQuality: cleanText(
+          enriched.sourceQuality
+          || enriched.observationQuality
+          || enriched.sourceEvidenceType
+          || (/direct|page[_ -]?verified/i.test(cleanText(enriched.evidencePath || enriched.exactPageRecoveryMode))
+            ? "direct_product_page"
+            : "search_snippet")
+        ),
+        observedAt: enriched.observedAt || enriched.evidenceTimestamp || enriched.fetchedAt,
         sourceDomain: enriched.retailerDomain || hostnameFromUrl(enriched.destinationUrl || enriched.url),
         price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
         quantity: enriched.packageQuantity,
-        exactIdentity: /exact|tier_1/i.test(cleanText(enriched.identityMatchStrength || enriched.classification || enriched.retailEvidenceTier)),
+        exactIdentity: /exact|tier_1/i.test(cleanText(
+          enriched.identityMatchStrength
+          || enriched.classification
+          || enriched.matchQuality
+          || enriched.priceContextLabel
+          || enriched.retailEvidenceTier
+        )),
         pageType: "product_or_listing"
       };
     })
@@ -11589,13 +11603,24 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
   const finalized = assembleFinalEvidence(legacyEligibleRecords, target, { displayLimit: 8 });
   const compactRecords = buildCompactEvidenceList(finalized, askingPriceNumber);
   liveSearch.finalizedEvidence = finalized.all;
+  liveSearch.finalRejectedEvidence = finalized.rejected;
   liveSearch.finalEvidenceCounts = finalized.counts;
   liveSearch.finalEvidenceDiagnostics = diagnosticsFromFinalEvidence(finalized, liveSearch.providerRequestRecords || []);
   liveSearch.finalEvidenceRange = deriveFinalEvidenceRange(finalized);
   liveSearch.finalEvidenceDecision = deriveFinalEvidenceDecision(finalized, {
     askingPrice: askingPriceNumber,
-    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal"
+    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal",
+    mode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible"
   });
+  liveSearch.searchDiagnostics = {
+    ...(liveSearch.searchDiagnostics || {}),
+    ...liveSearch.finalEvidenceDiagnostics,
+    finalCustomerEvidenceCount: liveSearch.finalEvidenceDiagnostics.customerEligibleEvidenceCount,
+    finalExactCustomerEvidenceCount: finalized.counts.exact,
+    finalizedCustomerRecordIds: finalized.finalizedCustomerRecordIds,
+    displayedCustomerRecordIds: finalized.displayedRecordIds
+  };
+  liveSearch.diagnostics = liveSearch.searchDiagnostics;
   return compactRecords;
 }
 
@@ -12978,13 +13003,25 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const currentRetailOnly = isCurrentRetailOnlyMode(retailEvidenceMode);
   const storeName = getRetailStoreName(buyerIntake);
   const allPrices = normalizeArray(pricesFound).filter((item) => item && typeof item === "object");
-  const acceptedPrices = currentRetailOnly
+  const hasAuthoritativeFinalEvidence = Array.isArray(liveSearch.finalizedEvidence);
+  const acceptedPrices = currentRetailOnly && !hasAuthoritativeFinalEvidence
     ? allPrices.filter((record) => isQualifiedCurrentRetailPriceFoundRecord(record, identity, buyerIntake))
     : allPrices;
-  const excludedPrices = currentRetailOnly
+  const excludedPrices = currentRetailOnly && !hasAuthoritativeFinalEvidence
     ? allPrices.filter((record) => !acceptedPrices.includes(record))
     : [];
   const acceptedWithRetailLabels = acceptedPrices.map((record) => {
+    if (hasAuthoritativeFinalEvidence) {
+      return {
+        ...record,
+        priceTypeLabel: record.matchQuality,
+        priceContextLabel: record.matchQuality,
+        priceContextSummary: record.qualification?.rejectionReason || "",
+        retailPackageCompatibility: record.qualification?.quantityCompatible === false
+          ? "incompatible"
+          : record.exactIdentity ? "exact_package_match" : "compatible"
+      };
+    }
     const packageCompatibility = classifyRetailPackageCompatibility(record, identity, buyerIntake);
     const exactLabel = /exact/i.test(record.matchQuality || "") ? "Exact Retail Match" : packageCompatibility.label;
     const label = packageCompatibility.status === "exact_package_match" ? exactLabel : packageCompatibility.label;
@@ -12997,7 +13034,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
       retailPackageCompatibility: packageCompatibility.status
     };
   });
-  const decisionEligiblePrices = currentRetailOnly
+  const decisionEligiblePrices = currentRetailOnly && hasAuthoritativeFinalEvidence
+    ? acceptedWithRetailLabels.filter((record) => record.decisionEligible)
+    : currentRetailOnly
     ? acceptedWithRetailLabels.filter((record) => isRetailPriceDecisionEligibleRecord(record, identity, buyerIntake))
     : acceptedWithRetailLabels;
   const nonDecisionRetailPrices = currentRetailOnly
@@ -13010,9 +13049,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
     record.url,
     record.rawText
   ].join(" ").toLowerCase().includes(storeName.toLowerCase().split(/\s+/)[0]));
-  const exactRetailVisible = acceptedWithRetailLabels.filter((record) => /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
-  const exactRetail = decisionEligiblePrices.filter((record) => /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
-  const strongRetail = decisionEligiblePrices.filter((record) => /exact|strong/i.test(record.matchQuality || record.priceContextLabel || ""));
+  const exactRetailVisible = acceptedWithRetailLabels.filter((record) => record.canonicalMatchQuality === "Exact" || /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
+  const exactRetail = decisionEligiblePrices.filter((record) => record.canonicalMatchQuality === "Exact" || /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
+  const strongRetail = decisionEligiblePrices.filter((record) => /^(Exact|Strong compatible)$/i.test(record.canonicalMatchQuality || "") || /exact|strong/i.test(record.matchQuality || record.priceContextLabel || ""));
   const sorted = decisionEligiblePrices.slice().sort(compareCompatiblePriceContext);
   const visibleSorted = acceptedWithRetailLabels.slice().sort(compareCompatiblePriceContext);
   const amounts = sorted.map((record) => record.itemPriceAmount).filter(Number.isFinite).sort((a, b) => a - b);
@@ -14274,6 +14313,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identity,
     buyerIntake
   });
+  const authoritativeRange = liveSearch.finalEvidenceRange || {};
+  const authoritativeDecision = liveSearch.finalEvidenceDecision || {};
   const retailEvidenceProfile = buildRetailEvidenceProfile({
     buyerIntake,
     identity,
@@ -14285,6 +14326,9 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const customerFacingPricesFound = retailEvidenceProfile.currentRetailOnly
     ? retailEvidenceProfile.acceptedPrices
     : pricesFound;
+  const insufficientCollectibleMarketEvidence = !retailEvidenceProfile.currentRetailOnly
+    && authoritativeDecision.transactionEvidence === false
+    && !authoritativeRange.established;
   const retainedVisibleResultCount = Number(liveSearch.searchDiagnostics?.retainedVisibleResultCount || liveSearch.visibleResearchResultCount || 0);
   const fairValueNumber = retailEvidenceProfile.currentRetailOnly
     ? null
@@ -14301,6 +14345,11 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identity,
     priceEvidence
   });
+  if (insufficientCollectibleMarketEvidence) {
+    decision.valueRating = "Market Evidence Insufficient";
+    decision.badgeReason = "No qualified sold range was available and fewer than two independent range-eligible offers were found.";
+    decision.cautiousBuyExplanation = "Exact identity evidence does not establish market value. Treat the entered price only as the buyer's personal budget.";
+  }
   const retailCalibration = buildRetailDecisionCalibration({
     decision,
     buyerIntake,
@@ -14333,6 +14382,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     : buildOtherCompatiblePricesFound(customerFacingPricesFound, bestCompatiblePriceFound);
   const priceSpectrumSummary = retailEvidenceProfile.currentRetailOnly
     ? buildRetailCurrentPriceSpectrumSummary(retailEvidenceProfile)
+    : insufficientCollectibleMarketEvidence && authoritativeRange.singleObservation
+      ? `One ${cleanText(authoritativeRange.singleObservation.priceType).toLowerCase()} observed: ${formatMoney(authoritativeRange.singleObservation.price)}. No market range was established.`
     : buildPriceSpectrumSummary(customerFacingPricesFound);
   const currentPurchaseOptionSummary = retailEvidenceProfile.currentRetailOnly
     ? retailEvidenceProfile.currentRetailPriceAssessment
@@ -14395,17 +14446,17 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     pricesFound: customerFacingPricesFound,
     noCompatiblePricesFound: customerFacingPricesFound.length ? "" : retailEvidenceProfile.currentRetailOnly ? "Current Retail Price: Not verified. No qualified current retail prices were found." : "No compatible source-backed prices were found.",
     verifiedMarketRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.verifiedMarketRange,
-    currentAskingPriceRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.currentAskingPriceRange,
+    currentAskingPriceRange: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : priceEvidence.currentAskingPriceRange,
     preliminaryReferenceRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.primaryRangeType === "preliminary_reference"
       ? cleanText(report.preliminaryReferenceRange) || buildConsumerPreliminaryReferenceRange(priceEvidence, conditionProfile)
       : priceEvidence.preliminaryReferenceRange,
     referenceRangeBasis: retailEvidenceProfile.currentRetailOnly ? "" : cleanText(report.referenceRangeBasis) || priceEvidence.referenceRangeBasis || researchVisibility.referenceRangeBasis,
-    valuationEvidenceState: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "current_retail" : "retail_unverified") : priceEvidence.primaryRangeType === "verified_market" ? "supported" : priceEvidence.primaryRangeType === "current_asking" ? "current_asking" : priceEvidence.primaryRangeType ? "preliminary" : "insufficient",
-    valuationEvidenceLabel: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "Current Retail Price Assessment" : "Current Retail Price Not Verified") : priceEvidence.primaryRangeLabel || "Fair Value Not Established",
-    valuationEvidenceExplanation: retailEvidenceProfile.currentRetailOnly ? "Retail evidence is isolated to current retail records only." : buildConsumerValuationEvidenceExplanation(priceEvidence),
-    priceRangeAnalysis: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildConsumerPriceRangeAnalysis(priceEvidence),
+    valuationEvidenceState: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "current_retail" : "retail_unverified") : insufficientCollectibleMarketEvidence ? "insufficient" : priceEvidence.primaryRangeType === "verified_market" ? "supported" : priceEvidence.primaryRangeType === "current_asking" ? "current_asking" : priceEvidence.primaryRangeType ? "preliminary" : "insufficient",
+    valuationEvidenceLabel: retailEvidenceProfile.currentRetailOnly ? (customerFacingPricesFound.length ? "Current Retail Price Assessment" : "Current Retail Price Not Verified") : insufficientCollectibleMarketEvidence ? "Market Evidence Insufficient" : priceEvidence.primaryRangeLabel || "Fair Value Not Established",
+    valuationEvidenceExplanation: retailEvidenceProfile.currentRetailOnly ? "Retail evidence is isolated to current retail records only." : insufficientCollectibleMarketEvidence ? "Exact identity evidence was found, but no qualified sold range and fewer than two independent range-eligible offers were available." : buildConsumerValuationEvidenceExplanation(priceEvidence),
+    priceRangeAnalysis: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : insufficientCollectibleMarketEvidence ? priceSpectrumSummary : buildConsumerPriceRangeAnalysis(priceEvidence),
     pricingOutliersExcluded: priceEvidence.outlierRecords,
-    customerPricingSummary: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted, pricesFound: customerFacingPricesFound }),
+    customerPricingSummary: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : insufficientCollectibleMarketEvidence ? `${buildExactCurrentListingNotice(customerFacingPricesFound, priceEvidence)} ${priceSpectrumSummary}`.trim() : buildConsumerPricingSummary({ priceEvidence, decision, searchCompleted, pricesFound: customerFacingPricesFound }),
     priceBasis: ensurePrefix(report.priceBasis, retailEvidenceProfile.currentRetailOnly ? "Retail Evidence Mode: current-retail-only. Pricing basis uses qualified current retail evidence only." : priceEvidence.priceBasis || "Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence."),
     estimatedFairMarketValue: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.primaryRangeType === "verified_market" ? priceEvidence.verifiedMarketRange : buildConsumerFairMarketValueText(report.estimatedFairMarketValue, {
       fairValueNumber,
@@ -14415,19 +14466,19 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       fairValueNumber,
       reliableCompsFound
     }),
-    valueRating: decision.valueRating,
-    recommendation: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPurchaseDecision : retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
-    buyerDecisionConfidence: retailCalibration.buyerDecisionConfidence || report.buyerDecisionConfidence,
+    valueRating: insufficientCollectibleMarketEvidence ? authoritativeDecision.badge || "Market Evidence Insufficient" : decision.valueRating,
+    recommendation: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPurchaseDecision : insufficientCollectibleMarketEvidence ? authoritativeDecision.recommendation || "Need More Info" : retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
+    buyerDecisionConfidence: insufficientCollectibleMarketEvidence ? "Low - exact identity evidence does not establish market value; no qualified sold range was available." : retailCalibration.buyerDecisionConfidence || report.buyerDecisionConfidence,
     bestNextStep: retailCalibration.bestNextStep || report.bestNextStep,
     consumerDownsideRisk: decision.downsideRisk.summary,
     cautiousBuyExplanation: retailEvidenceProfile.currentRetailOnly ? "" : decision.cautiousBuyExplanation,
-    recommendedOffer: retailEvidenceProfile.currentRetailOnly ? [] : offer.recommendedOffer,
-    openingOffer: retailEvidenceProfile.currentRetailOnly ? "" : offer.openingOffer,
-    targetPurchasePrice: retailEvidenceProfile.currentRetailOnly ? "" : offer.targetPurchasePrice,
-    maximumRecommendedPrice: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPriceLimit : offer.maximumRecommendedPrice,
-    maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : offer.maximumRecommendedPriceExplanation,
-    walkAwayPrice: retailEvidenceProfile.currentRetailOnly ? "" : offer.walkAwayPrice,
-    negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? "" : buildConsumerNegotiationGuidance(report.negotiationGuidance, {
+    recommendedOffer: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? [] : offer.recommendedOffer,
+    openingOffer: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.openingOffer,
+    targetPurchasePrice: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.targetPurchasePrice,
+    maximumRecommendedPrice: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPriceLimit : insufficientCollectibleMarketEvidence ? "" : offer.maximumRecommendedPrice,
+    maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ? (Number.isFinite(askingPriceNumber) ? `${formatMoney(askingPriceNumber)} is the buyer's entered budget, not a market-supported maximum.` : "No market-supported maximum was established.") : offer.maximumRecommendedPriceExplanation,
+    walkAwayPrice: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.walkAwayPrice,
+    negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ? authoritativeDecision.negotiationGuidance : buildConsumerNegotiationGuidance(report.negotiationGuidance, {
       decision,
       offer,
       reliableCompsFound,

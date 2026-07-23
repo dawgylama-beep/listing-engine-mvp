@@ -531,6 +531,17 @@
 - Marketplace authorization and publishing are explicitly not implemented in Version 1.12.0
 - Provider-call impact: the current-retail ceiling remains 28 calls and the non-retail/collectible ceiling remains 12 calls; no live or paid provider search was used for acceptance
 
+## Version 1.12.1 (Completed)
+- Final evidence assembly now runs after recovery and enrichment and exposes one authoritative accepted list plus pure customer, display, price-bearing, range, and decision views
+- Customer output and diagnostics share finalized record IDs and canonical match classifications, with separate accepted, eligible, displayed, range, decision, priced, and diagnostic-only rejected counts
+- Same-offer deduplication now preserves field provenance, prefers uniquely higher-quality direct-page prices over search snippets, and retains unresolved exact pages as Price unavailable with conflict diagnostics
+- Exact and strong item-specific no-price pages remain customer eligible, while category, history, generic social, unrelated-form, bulk, and non-transactional records stay diagnostic-only
+- Numerical market ranges require at least two independent eligible offers; one asking record is reported as one observation and cannot create a bargain badge or market-backed negotiation figures
+- Retail decisions consume the finalized evidence views, preserve exact no-price identity pages, retain qualified current-retail prices, and cannot call an entered price competitive when a lower qualified offer exists
+- Deterministic fixtures cover post-recovery ID parity, normalized retailer identifiers, same-offer price conflicts, exact collectible pages, count semantics, display truncation, and underlying-offer deduplication
+- Buying for Myself, Buying to Resell, Value Something I Own, Sell Something I Own, and future Sell It listing-generation foundations remain intact
+- Provider-call impact: the current-retail ceiling remains 28 calls and the non-retail/collectible ceiling remains 12 calls; validation used no live or paid provider searches
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -17,9 +17,9 @@ $package = Get-Content -LiteralPath $packagePath -Raw
 $server = Get-Content -LiteralPath $serverPath -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
-  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
-  @{ Name = "Local server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
+  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
+  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Local server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
   @{ Name = "Feedback button exists"; Text = $index; Pattern = 'id="feedback-button"' },
   @{ Name = "Feedback panel exists"; Text = $index; Pattern = 'id="feedback-panel"' },
   @{ Name = "Photo controls explain camera and library"; Text = $index; Pattern = "Choose from Library" },

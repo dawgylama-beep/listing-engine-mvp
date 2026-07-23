@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -13,10 +13,10 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.0"; Text = $index; Pattern = "Version 1.12.0" },
-  @{ Name = "Package version is 1.12.0"; Text = $package; Pattern = '"version": "1.12.0"' },
-  @{ Name = "Server version is 1.12.0"; Text = $server; Pattern = '$AppVersion = "1.12.0"' },
-  @{ Name = "Roadmap documents 1.12.0"; Text = $roadmap; Pattern = "Version 1.12.0 (Completed)" },
+  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
+  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
+  @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API builds maximum evidence profile"; Text = $api; Pattern = "function buildMaximumPriceEvidenceProfile" },
   @{ Name = "API builds maximum policy"; Text = $api; Pattern = "function buildMaximumRecommendedPricePolicy" },
   @{ Name = "API passes price evidence to offer builder"; Text = $api; Pattern = "priceEvidence" },
@@ -25,7 +25,7 @@ $checks = @(
   @{ Name = "API blocks weak reference maximum"; Text = $api; Pattern = "Active asking, weak, partial, guide, auction, estimated, or reference prices may provide context only." },
   @{ Name = "API guards 2x target"; Text = $api; Pattern = "a price above 2x the target requires qualified exact/strong evidence" },
   @{ Name = "API guards 3x asking"; Text = $api; Pattern = "a price above 3x the current asking price requires verified sold or completed-sale support" },
-  @{ Name = "API includes maximum explanation in non-retail report"; Text = $api; Pattern = 'maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : offer.maximumRecommendedPriceExplanation' },
+  @{ Name = "API includes maximum explanation in non-retail report"; Text = $api; Pattern = 'maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ?' },
   @{ Name = "Frontend has maximum guard section"; Text = $app; Pattern = '["maximumRecommendedPriceExplanation", "Maximum Price Guard"]' },
   @{ Name = "Frontend compact report shows maximum guard"; Text = $app; Pattern = 'appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation)' },
   @{ Name = "Mock test blocks $135 max"; Text = $mock; Pattern = 'cannot produce a $135 maximum' },
