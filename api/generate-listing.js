@@ -1,8 +1,39 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   buildCompactEvidenceList,
   createRecoveryAssessment,
   createFinalEvidenceResult
 } from "../lib/evidence/index.js";
+
+const analysisAdapterContext = new AsyncLocalStorage();
+
+const productionAnalysisAdapters = Object.freeze({
+  getOpenAIApiKey: () => process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY,
+  getOpenAIModel: () => process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  getSerperApiKey: () => process.env.SERPER_API_KEY || "",
+  requestOpenAIJson: (args) => requestOpenAIJsonNetwork(args),
+  requestSerperSearch: (args) => requestSerperSearchNetwork(args),
+  requestBoundedRetailProductPage: (...args) => requestBoundedRetailProductPageNetwork(...args),
+  nowMilliseconds: () => Date.now(),
+  nowIso: () => new Date().toISOString(),
+  createAnalysisId: () => `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  onFinalEvidenceResult: () => {}
+});
+
+function currentAnalysisAdapters() {
+  return analysisAdapterContext.getStore() || productionAnalysisAdapters;
+}
+
+export function createGenerateListingHandler(adapters = {}) {
+  const resolvedAdapters = Object.freeze({
+    ...productionAnalysisAdapters,
+    ...adapters
+  });
+  return (req, res) => analysisAdapterContext.run(
+    resolvedAdapters,
+    () => handleGenerateListingRequest(req, res)
+  );
+}
 
 const listingSchema = {
   type: "object",
@@ -832,7 +863,7 @@ const consumerDecisionThresholds = {
   activeListingReferenceMaxCount: 6
 };
 
-export default async function handler(req, res) {
+async function handleGenerateListingRequest(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed." });
   }
@@ -856,7 +887,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Upload at least one item photo." });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+    const apiKey = currentAnalysisAdapters().getOpenAIApiKey();
 
     if (!apiKey) {
       return res.status(500).json({
@@ -878,12 +909,13 @@ export default async function handler(req, res) {
 
     const report = await generateReportWithOpenAI({
       apiKey,
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: currentAnalysisAdapters().getOpenAIModel(),
       platform,
       notes,
       photos: safePhotos,
       reportType,
-      buyerIntake
+      buyerIntake,
+      analysisId
     });
 
     const safeReport = sanitizeClientVisiblePayload({
@@ -910,6 +942,8 @@ export default async function handler(req, res) {
     });
   }
 }
+
+export default createGenerateListingHandler();
 
 async function handleAskMarketEdge({ body, res }) {
   if (JSON.stringify(body || {}).length > 180000) {
@@ -939,7 +973,7 @@ async function handleAskMarketEdge({ body, res }) {
     return res.status(400).json({ error: "Ask Katherine’s Eye needs a completed item report first." });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
+  const apiKey = currentAnalysisAdapters().getOpenAIApiKey();
 
   if (!apiKey) {
     return res.status(500).json({
@@ -952,7 +986,7 @@ async function handleAskMarketEdge({ body, res }) {
   const scenario = buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, currentItemContext });
   const answer = await generateAskMarketEdgeAnswer({
     apiKey,
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: currentAnalysisAdapters().getOpenAIModel(),
     sessionId,
     workflow,
     buyerIntent,
@@ -1140,7 +1174,27 @@ function sanitizeAskValue(value, depth) {
 }
 
 function createServerAnalysisId() {
-  return `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return currentAnalysisAdapters().createAnalysisId();
+}
+
+function currentTimeMilliseconds() {
+  return currentAnalysisAdapters().nowMilliseconds();
+}
+
+function currentTimeIso() {
+  return currentAnalysisAdapters().nowIso();
+}
+
+function requestOpenAIJson(args) {
+  return currentAnalysisAdapters().requestOpenAIJson(args);
+}
+
+function requestSerperSearch(args) {
+  return currentAnalysisAdapters().requestSerperSearch(args);
+}
+
+function requestBoundedRetailProductPage(...args) {
+  return currentAnalysisAdapters().requestBoundedRetailProductPage(...args);
 }
 
 function sanitizeClientVisiblePayload(value, key = "") {
@@ -1281,15 +1335,15 @@ function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, cu
   return `At ${formatMoney(proposedPrice)}, use reseller margin caution because the current report does not contain a clear numeric maximum buy price.`;
 }
 
-async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake }) {
+async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake, analysisId }) {
   if (reportType === "marketValue") {
-    return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake });
+    return generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake, analysisId });
   }
 
-  return generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake });
+  return generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake, analysisId });
 }
 
-async function generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
+async function generateListingWithResearch({ apiKey, model, platform, notes, photos, buyerIntake, analysisId }) {
   const sellerIntake = normalizeBuyerIntake({
     ...(buyerIntake || {}),
     purchase_context: "owned_item",
@@ -1303,7 +1357,8 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     notes,
     photos,
     buyerIntake: sellerIntake,
-    researchPurpose: "listing"
+    researchPurpose: "listing",
+    analysisId
   });
   const report = await generateFinalListingReport({ apiKey, model, platform, notes, research });
 
@@ -1363,7 +1418,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
   return (await requestOpenAIJson({ apiKey, payload })).json;
 }
 
-async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake }) {
+async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake, analysisId }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
   const research = await runResearchPipeline({
     apiKey,
@@ -1372,7 +1427,8 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
     notes,
     photos,
     buyerIntake: intake,
-    researchPurpose: "buyer_decision"
+    researchPurpose: "buyer_decision",
+    analysisId
   });
 
   const { identity, sourceRoute, searchQueries, liveSearch } = research;
@@ -1398,7 +1454,7 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
   return enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform);
 }
 
-async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose }) {
+async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
   const visualRecognition = await recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake: intake });
   const extractedIdentity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake, visualRecognition });
@@ -1421,6 +1477,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     buyerIntake: intake,
     researchPurpose
   });
+  liveSearch.analysisId = analysisId;
 
   return { visualRecognition, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
 }
@@ -1560,8 +1617,8 @@ async function executeLiveComparableSearch(args) {
 }
 
 async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
-  const searchStartedAt = new Date().toISOString();
-  const requestStartedAtMs = Date.now();
+  const searchStartedAt = currentTimeIso();
+  const requestStartedAtMs = currentTimeMilliseconds();
   const queriesPrioritized = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const providerRequestRecords = [];
   const providerResponseSummaries = [];
@@ -1739,7 +1796,7 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
       providerRequestRecords,
       providerResponseSummaries,
       searchStartedAt,
-      elapsedMs: Date.now() - requestStartedAtMs,
+      elapsedMs: currentTimeMilliseconds() - requestStartedAtMs,
       includeSourcesRequested,
       includeFallbackReason,
       searchControlsFallbackReason,
@@ -1764,7 +1821,7 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
     providerErrors,
     providerSourceRecords,
     safeRawResultSummaries,
-    elapsedMs: Date.now() - requestStartedAtMs,
+    elapsedMs: currentTimeMilliseconds() - requestStartedAtMs,
     statusCode: providerResponseSummaries.find((item) => item.statusCode)?.statusCode || null,
     includeSourcesRequested,
     includeFallbackReason,
@@ -1775,7 +1832,7 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
 }
 
 function getSerperApiKey() {
-  return cleanText(process.env.SERPER_API_KEY || "");
+  return cleanText(currentAnalysisAdapters().getSerperApiKey());
 }
 
 const retailSerperBudgetAllocation = Object.freeze({
@@ -1827,8 +1884,8 @@ const secondaryMarketAuctionRegistry = Object.freeze([
 ]);
 
 async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
-  const searchStartedAt = new Date().toISOString();
-  const requestStartedAtMs = Date.now();
+  const searchStartedAt = currentTimeIso();
+  const requestStartedAtMs = currentTimeMilliseconds();
   const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const providerRequestRecords = queriesPrioritized.map((queryRecord) => createSerperRequestRecord(queryRecord));
   const providerResponseSummaries = [];
@@ -1850,6 +1907,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
       const response = await requestSerperSearch({
         apiKey: serperApiKey,
         query: queryRecord.query,
+        queryRecord,
         searchType: queryRecord.searchType || "organic_web",
         prevalidated: queryRecord.validationPassed !== false,
         timeoutMs: 7000,
@@ -1914,7 +1972,7 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
   }));
 
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
-  const elapsedMs = Date.now() - requestStartedAtMs;
+  const elapsedMs = currentTimeMilliseconds() - requestStartedAtMs;
   if (!successfulRecords.length) {
     return buildSerperUnavailableLiveSearchResult({
       error: providerErrors[0] || createSerperRequestError({ category: "serper_provider_error", message: "Serper Google Search failed before source results could be retrieved." }),
@@ -2159,6 +2217,7 @@ async function executeLimitedResultRetailRecovery({
       const response = await requestSerperSearch({
         apiKey: serperApiKey,
         query: queryRecord.query,
+        queryRecord,
         searchType: queryRecord.searchType || "organic_web",
         prevalidated: queryRecord.validationPassed !== false,
         timeoutMs: 7000,
@@ -2456,7 +2515,7 @@ function isPrivateIpv4Address(host = "") {
     || (a === 192 && b === 168);
 }
 
-async function requestBoundedRetailProductPage(url = "", context = {}, record = {}, redirectDepth = 0) {
+async function requestBoundedRetailProductPageNetwork(url = "", context = {}, record = {}, redirectDepth = 0) {
   const finalCandidate = unwrapRetailDestinationUrl(url) || cleanText(url);
   if (!isApprovedRetailProductPageFetchUrl(finalCandidate, context, record)) {
     throw Object.assign(new Error("Direct product-page URL was not approved for enrichment."), { code: "direct_fetch_url_not_approved" });
@@ -2466,7 +2525,7 @@ async function requestBoundedRetailProductPage(url = "", context = {}, record = 
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
-  const startedAt = Date.now();
+  const startedAt = currentTimeMilliseconds();
   try {
     const response = await fetch(finalCandidate, {
       method: "GET",
@@ -2483,7 +2542,7 @@ async function requestBoundedRetailProductPage(url = "", context = {}, record = 
       if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
         throw Object.assign(new Error("Direct product-page redirect target was not approved."), { code: "direct_fetch_redirect_not_approved" });
       }
-      return requestBoundedRetailProductPage(nextUrl, context, record, redirectDepth + 1);
+      return requestBoundedRetailProductPageNetwork(nextUrl, context, record, redirectDepth + 1);
     }
     if (!response.ok) {
       throw Object.assign(new Error(`Direct product-page fetch returned HTTP ${response.status}.`), { code: "direct_fetch_http_error", statusCode: response.status });
@@ -2497,7 +2556,7 @@ async function requestBoundedRetailProductPage(url = "", context = {}, record = 
     return {
       finalUrl: response.url || finalCandidate,
       statusCode: response.status,
-      elapsedMs: Date.now() - startedAt,
+      elapsedMs: currentTimeMilliseconds() - startedAt,
       html,
       sourceEvidenceText: evidence.sourceEvidenceText
     };
@@ -2619,7 +2678,7 @@ function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestR
   };
 }
 
-async function requestSerperSearch({ apiKey, query, searchType = "organic_web", prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
+async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic_web", prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
   const safeQuery = cleanSerperQuery(query);
   const endpointPath = searchType === "shopping" ? "shopping" : "search";
   const validation = prevalidated
@@ -2633,7 +2692,7 @@ async function requestSerperSearch({ apiKey, query, searchType = "organic_web", 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const startedAt = Date.now();
+    const startedAt = currentTimeMilliseconds();
     try {
       const response = await fetch(`https://google.serper.dev/${endpointPath}`, {
         method: "POST",
@@ -2660,7 +2719,7 @@ async function requestSerperSearch({ apiKey, query, searchType = "organic_web", 
           message: summarizeSerperErrorMessage(data, response.status)
         });
       }
-      return { json: data, statusCode: response.status, elapsedMs: Date.now() - startedAt };
+      return { json: data, statusCode: response.status, elapsedMs: currentTimeMilliseconds() - startedAt };
     } catch (error) {
       clearTimeout(timeout);
       lastError = error.name === "AbortError"
@@ -2976,7 +3035,7 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     sourcesSearched: ["Serper Google Search"],
     sourcesReturned: domainsActuallyReturned,
     searchStartedAt,
-    searchCompletedAt: new Date().toISOString(),
+    searchCompletedAt: currentTimeIso(),
     webSearchExecuted: true,
     citations: records.map((record) => ({ url: record.url, title: record.title })),
     diagnostics: {
@@ -3055,7 +3114,7 @@ function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQuer
     sourcesSearched: [],
     sourcesReturned: [],
     searchStartedAt,
-    searchCompletedAt: new Date().toISOString(),
+    searchCompletedAt: currentTimeIso(),
     webSearchExecuted: false,
     citations: [],
     diagnostics: {
@@ -7265,7 +7324,7 @@ function createResponsesPayload({ model, systemText, userContent, schemaName, sc
   };
 }
 
-async function requestOpenAIJson({ apiKey, payload }) {
+async function requestOpenAIJsonNetwork({ apiKey, payload }) {
   const controller = new AbortController();
   let timedOut = false;
   const timeout = setTimeout(() => {
@@ -9880,7 +9939,7 @@ function normalizeLiveSearchResult({ result, responseData, identity = {}, buyerI
     sourcesSearched,
     sourcesReturned: domainsActuallyReturned,
     searchStartedAt,
-    searchCompletedAt: new Date().toISOString(),
+    searchCompletedAt: currentTimeIso(),
     webSearchExecuted,
     citations,
     diagnostics: {
@@ -9962,7 +10021,7 @@ function buildUnavailableLiveSearchResult({ error, sourceRoute, searchQueries, q
     sourcesSearched: [],
     sourcesReturned: [],
     searchStartedAt,
-    searchCompletedAt: new Date().toISOString(),
+    searchCompletedAt: currentTimeIso(),
     webSearchExecuted: false,
     citations: [],
     diagnostics: {
@@ -11599,6 +11658,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     askingPrice: askingPriceNumber,
     purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal"
   });
+  currentAnalysisAdapters().onFinalEvidenceResult(finalEvidenceResult);
   const compactRecords = buildCompactEvidenceList(finalEvidenceResult, askingPriceNumber);
   liveSearch.finalEvidenceResult = finalEvidenceResult;
   liveSearch.finalizedEvidence = finalEvidenceResult.acceptedRecords;
