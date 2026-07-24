@@ -956,8 +956,12 @@ try {
   assert(/Exact item/i.test(exactAndCompatiblePrices[0].priceContextLabel), "Exact retailer product page promotion should reach the canonical exact-item context.");
   assert(exactAndCompatiblePrices.some((record) => /45-count and 50-count packages.*unit-price comparison/i.test(record.knownDifferences || record.priceContextSummary || "")), "Package-count differences should remain disclosed for compatible alternatives.");
   assert(/Availability unconfirmed/i.test(exactAndCompatiblePrices[0].listingStatus || ""), "Availability must not be inferred solely from a visible price.");
-  const finalRetailSnapshot = __queryIntegrityTestHooks.buildFinalRetailCustomerEvidenceSnapshot([enrichedOfficeWorksExactPage], officeWorksContext);
-  assert(finalRetailSnapshot.customerVisibleEvidenceCount === 1 && finalRetailSnapshot.exactCustomerEvidenceCount === 1, "Limited-result recovery must inspect the finalized customer-visible retail list, not raw candidate counts.");
+  const recoveryAssessment = __queryIntegrityTestHooks.createRecoveryAssessment({
+    assessments: __queryIntegrityTestHooks.buildRetailEvidenceAssessments([enrichedOfficeWorksExactPage], officeWorksContext),
+    providerRequestRecords: officeWorksRequestRecords,
+    maxProviderCalls: __queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls
+  });
+  assert(recoveryAssessment.preliminaryUsableRecordCount === 1 && recoveryAssessment.preliminaryExactRecordCount === 1, "Limited-result recovery must inspect preliminary qualified acquisition evidence, not raw candidate counts.");
   const duplicateExactPages = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
     enrichedOfficeWorksExactPage,
     {
@@ -971,7 +975,7 @@ try {
     context: officeWorksContext,
     providerRequestRecords: officeWorksRequestRecords,
     records: [enrichedOfficeWorksExactPage],
-    customerEvidenceSnapshot: finalRetailSnapshot
+    recoveryAssessment
   }), "One-result recovery should trigger when only one customer-visible retailer survives and data-driven retailer targets remain.");
   const limitedRecoveryQueries = __queryIntegrityTestHooks.buildLimitedResultRetailRecoveryQueries(officeWorksContext, officeWorksRequestRecords, [enrichedOfficeWorksExactPage]);
   assert(limitedRecoveryQueries.length > 0 && limitedRecoveryQueries.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.limitedResultRecovery, "Limited-result recovery queries must remain bounded.");

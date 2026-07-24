@@ -29,8 +29,8 @@ function Require-NotRegex($Name, $Text, $Pattern) {
   }
 }
 
-Require-Contains "Final retail evidence snapshot exists" $api "function buildFinalRetailCustomerEvidenceSnapshot"
-Require-Contains "Limited recovery can use final customer snapshot" $api "customerEvidenceSnapshot"
+Require-NotRegex "Early final retail evidence snapshot is deleted" $api "buildFinalRetailCustomerEvidenceSnapshot"
+Require-Contains "Limited recovery uses preliminary assessment" $api "recoveryAssessment"
 Require-Contains "Actual acquisition providers are diagnosed" $api "actualAcquisitionProviders"
 Require-Contains "Source category execution truth is diagnosed" $api "source_categories_are_query_strategies_not_separate_search_engines"
 Require-Contains "Final customer evidence count is diagnosed" $api "finalCustomerEvidenceCount"
@@ -46,7 +46,7 @@ Require-Contains "Compact match label exists" $app "function getCompactPriceFoun
 Require-Contains "Stock-safe list disclaimer exists" $app "Prices and availability can change. Check the retailer before purchasing."
 Require-Contains "Generic compact action exists" $app 'return "View source";'
 
-Require-Contains "Mock covers final-list recovery" $mock "Limited-result recovery must inspect the finalized customer-visible retail list"
+Require-Contains "Mock covers preliminary recovery assessment" $mock "Limited-result recovery must inspect preliminary qualified acquisition evidence"
 Require-Contains "Mock covers 4.12 mailing dimensions" $mock "Visible 4.12-inch envelope dimensions should compare as mailing size"
 Require-Contains "Mock covers aggregator merchant attribution" $mock "Target via Instacart"
 Require-Contains "Mock covers direct retailer dedupe" $mock "Equivalent direct retailer evidence should replace aggregator duplicates"

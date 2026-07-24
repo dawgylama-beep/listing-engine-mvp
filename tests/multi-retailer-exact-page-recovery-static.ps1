@@ -50,7 +50,7 @@ Require-Contains "Limited-result recovery budget exists" $api "limitedResultReco
 Require-Contains "Diagnostics expose normalized barcode identities" $api "normalizedBarcodeIdentities"
 Require-Contains "Diagnostics expose exact retail pages" $api "exactRetailPagesFound"
 Require-Contains "Diagnostics expose returned retailer domains" $api "returnedRetailerDomains"
-Require-Contains "Diagnostics expose visible counts by retailer" $api "customerVisibleCountByRetailer"
+Require-Contains "Diagnostics expose preliminary source-screened counts by retailer" $api "preliminarySourceScreenedCountByRetailer"
 Require-Contains "Frontend displays normalized barcode identities" $app "Normalized Barcode Identities"
 Require-Contains "Frontend displays exact retail pages" $app "Exact Retail Pages Found"
 Require-Contains "Frontend displays limited recovery status" $app "Limited-Result Recovery Ran"

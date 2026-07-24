@@ -1,9 +1,7 @@
 import {
-  assembleFinalEvidence,
   buildCompactEvidenceList,
-  deriveDecision as deriveFinalEvidenceDecision,
-  deriveRange as deriveFinalEvidenceRange,
-  diagnosticsFromFinalEvidence
+  createRecoveryAssessment,
+  createFinalEvidenceResult
 } from "../lib/evidence/index.js";
 
 const listingSchema = {
@@ -1969,36 +1967,16 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
   });
 }
 
-function buildFinalRetailCustomerEvidenceSnapshot(records = [], context = {}, assessments = null) {
-  const evidenceAssessments = assessments || buildRetailEvidenceAssessments(records, context);
-  const priceRecords = evidenceAssessments
-    .filter((assessment) => assessment && assessment.customerPriceCardEligibility)
-    .filter((assessment) => !/^tier_5$/i.test(assessment.customerEvidenceTier || ""))
-    .map((assessment) => buildRetailAssessmentPriceFoundRecord(assessment, null))
-    .filter(Boolean);
-  const finalRecords = selectDiversePriceFoundRecords(priceRecords.sort(comparePriceFoundRecords), 8);
-  const visibleRetailerDomains = new Set(finalRecords
-    .map((record) => cleanText(record.retailerDomain || hostnameFromUrl(record.destinationUrl || record.url)).toLowerCase())
-    .filter(Boolean));
-  return {
-    assessments: evidenceAssessments,
-    finalRecords,
-    customerVisibleEvidenceCount: finalRecords.length,
-    exactCustomerEvidenceCount: finalRecords.filter((record) => /tier_1|tier_2/i.test(record.retailEvidenceTier || "") || /exact/i.test(record.matchQuality || record.priceContextLabel || "")).length,
-    visibleRetailerDomains
-  };
-}
-
-function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRecords = [], records = [], assessments = null, customerEvidenceSnapshot = null } = {}) {
+function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRecords = [], records = [], assessments = null, recoveryAssessment = null } = {}) {
   if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
     return false;
   }
-  const evidenceSnapshot = customerEvidenceSnapshot || buildFinalRetailCustomerEvidenceSnapshot(records, context, assessments);
-  const visibleRetailerDomains = evidenceSnapshot.visibleRetailerDomains;
-  const visibleRetailers = visibleRetailerDomains.size;
-  const exactCustomerEvidenceCount = Number(evidenceSnapshot.exactCustomerEvidenceCount || 0);
-  const finalEvidenceLimited = evidenceSnapshot.customerVisibleEvidenceCount <= 1 || exactCustomerEvidenceCount === 0;
-  if (visibleRetailers > 1 && !finalEvidenceLimited) {
+  const preliminary = recoveryAssessment || createRecoveryAssessment({
+    assessments: assessments || buildRetailEvidenceAssessments(records, context),
+    providerRequestRecords,
+    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
+  });
+  if (preliminary.preliminaryRetailerCount > 1 && !preliminary.preliminaryEvidenceInsufficient) {
     return false;
   }
   const attemptedRecovery = providerRequestRecords.some((record) => record.retailStage === "stage_7_limited_result_recovery"
@@ -2014,10 +1992,10 @@ function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRec
   );
   const remainingTarget = dataDrivenTargets.some((target) => {
     const domain = cleanText(target.domain || getRetailerDomainForStore(target.name)).toLowerCase();
-    return domain && !visibleRetailerDomains.has(domain);
+    return domain && !preliminary.preliminaryRetailerDomains.has(domain);
   });
   const retailerStagesAttempted = providerRequestRecords.some((record) => record.attempted && /stage_4_retailer_specific|stage_5_online_retail|stage_5_shopping_general/i.test(record.retailStage || ""));
-  return Boolean(remainingTarget && finalEvidenceLimited && (returnedRetailProductPages || retailerStagesAttempted || records.length));
+  return Boolean(remainingTarget && preliminary.preliminaryEvidenceInsufficient && preliminary.remainingSearchBudget > 0 && (returnedRetailProductPages || retailerStagesAttempted || records.length));
 }
 
 function mergeRetailTargetRecords(...groups) {
@@ -2144,8 +2122,12 @@ async function executeLimitedResultRetailRecovery({
     currentRecords
   });
   const assessments = buildRetailEvidenceAssessments(recordsForRecovery, context);
-  const customerEvidenceSnapshot = buildFinalRetailCustomerEvidenceSnapshot(recordsForRecovery, context, assessments);
-  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: recordsForRecovery, assessments, customerEvidenceSnapshot })) {
+  const recoveryAssessment = createRecoveryAssessment({
+    assessments,
+    providerRequestRecords,
+    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
+  });
+  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: recordsForRecovery, assessments, recoveryAssessment })) {
     return recordsForRecovery;
   }
   const plannedQueries = finalizeLimitedResultRetailRecoveryQueries(
@@ -6197,7 +6179,11 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     : normalizeStringArray(searchQueries, 24).map((query) => ({ query, validationPassed: true }));
   const suppressedQueryRecords = allQueryRecords.filter((record) => /retail_forbidden_secondary_market_terms/i.test(record.validationFailureReason || "") || isRetailForbiddenSecondaryEvidenceText(record.rawCandidate || record.query));
   const retailEvidenceAssessments = buildRetailEvidenceAssessments(records, context);
-  const finalRetailEvidenceSnapshot = buildFinalRetailCustomerEvidenceSnapshot(records, context, retailEvidenceAssessments);
+  const recoveryAssessment = createRecoveryAssessment({
+    assessments: retailEvidenceAssessments,
+    providerRequestRecords,
+    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
+  });
   const currentRetailAcceptedAssessments = retailEvidenceAssessments.filter((assessment) => assessment.sourceScreeningPassed);
   const currentRetailAccepted = currentRetailAcceptedAssessments.map((assessment) => assessment.record);
   const retailRejectedAssessments = retailEvidenceAssessments.filter((assessment) => !assessment.sourceScreeningPassed);
@@ -6206,13 +6192,8 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const returnedRetailerDomains = summarizeSourceLabels(retailEvidenceAssessments
     .map((assessment) => assessment.retailerDomain || assessment.sourceDomain)
     .filter((domain) => domain && !isSearchProviderDomain(domain)));
-  const customerVisibleCountByRetailer = currentRetailAcceptedAssessments.reduce((summary, assessment) => {
+  const preliminarySourceScreenedCountByRetailer = currentRetailAcceptedAssessments.reduce((summary, assessment) => {
     const key = cleanText(assessment.retailerDisplayName || assessment.retailerDomain || "Retailer not identified");
-    if (key) summary[key] = (summary[key] || 0) + 1;
-    return summary;
-  }, {});
-  const finalCustomerVisibleCountByRetailer = finalRetailEvidenceSnapshot.finalRecords.reduce((summary, record) => {
-    const key = cleanText(record.retailerDisplayName || record.retailerDomain || "Retailer not identified");
     if (key) summary[key] = (summary[key] || 0) + 1;
     return summary;
   }, {});
@@ -6269,7 +6250,7 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
   const limitedResultRecoveryRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_7_limited_result_recovery");
   const limitedResultRecoveryAttempted = limitedResultRecoveryRequests.some((record) => record.attempted);
   const limitedResultRecoveryReturnedCount = limitedResultRecoveryRequests.reduce((sum, record) => sum + Number(record.returnedResultCount || record.providerSourceCount || 0), 0);
-  const visibleRetailerCount = Object.keys(customerVisibleCountByRetailer).filter((key) => !/retailer not identified/i.test(key)).length;
+  const visibleRetailerCount = Object.keys(preliminarySourceScreenedCountByRetailer).filter((key) => !/retailer not identified/i.test(key)).length;
   const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
   const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
   const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
@@ -6324,17 +6305,25 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       promotion: cleanText(assessment.finalPromotionReason)
     })).slice(0, 12),
     returnedRetailerDomains,
-    customerVisibleCountByRetailer,
-    finalCustomerEvidenceCount: finalRetailEvidenceSnapshot.customerVisibleEvidenceCount,
-    finalExactCustomerEvidenceCount: finalRetailEvidenceSnapshot.exactCustomerEvidenceCount,
-    finalCustomerVisibleCountByRetailer,
+    preliminarySourceScreenedCountByRetailer,
+    recoveryAssessment: {
+      recoveryNeeded: recoveryAssessment.preliminaryEvidenceInsufficient,
+      recoveryReason: recoveryAssessment.preliminaryEvidenceInsufficient
+        ? "Preliminary acquisition evidence was limited or lacked an exact record."
+        : "Preliminary acquisition evidence was sufficient for bounded recovery purposes.",
+      preliminaryUsableRecordCount: recoveryAssessment.preliminaryUsableRecordCount,
+      preliminaryExactRecordCount: recoveryAssessment.preliminaryExactRecordCount,
+      preliminaryCompatibleRecordCount: recoveryAssessment.preliminaryCompatibleRecordCount,
+      preliminaryRetailerCount: recoveryAssessment.preliminaryRetailerCount,
+      remainingSearchBudget: recoveryAssessment.remainingSearchBudget
+    },
     limitedResultRecoveryPassRan: limitedResultRecoveryAttempted ? "Yes" : "No",
     limitedResultRecoveryQueriesAttempted: limitedResultRecoveryRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
     limitedResultRecoveryProviderCallsUsed: limitedResultRecoveryRequests.filter((record) => record.attempted).length,
     limitedResultRecoverySourcesReturned: limitedResultRecoveryReturnedCount,
     limitedResultRecoveryReason: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? limitedResultRecoveryAttempted
-        ? `Limited-result recovery ran because the finalized customer list had ${finalRetailEvidenceSnapshot.customerVisibleEvidenceCount} useful row${finalRetailEvidenceSnapshot.customerVisibleEvidenceCount === 1 ? "" : "s"} across ${visibleRetailerCount} retailer${visibleRetailerCount === 1 ? "" : "s"} before recovery and data-driven retailer targets remained.`
+        ? `Limited-result recovery ran because preliminary acquisition had ${recoveryAssessment.preliminaryUsableRecordCount} usable record${recoveryAssessment.preliminaryUsableRecordCount === 1 ? "" : "s"} across ${visibleRetailerCount} retailer${visibleRetailerCount === 1 ? "" : "s"} and data-driven retailer targets remained.`
         : "Limited-result recovery did not run because multiple customer-visible retailers were already present, no remaining data-driven retailer target was available, or current-retail mode was not active."
       : "",
     onlineRetailQueriesAttempted: onlineRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
@@ -11600,25 +11589,31 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { e
     packageType: "",
     designAttributes: []
   };
-  const finalized = assembleFinalEvidence(legacyEligibleRecords, target, { displayLimit: 8 });
-  const compactRecords = buildCompactEvidenceList(finalized, askingPriceNumber);
-  liveSearch.finalizedEvidence = finalized.all;
-  liveSearch.finalRejectedEvidence = finalized.rejected;
-  liveSearch.finalEvidenceCounts = finalized.counts;
-  liveSearch.finalEvidenceDiagnostics = diagnosticsFromFinalEvidence(finalized, liveSearch.providerRequestRecords || []);
-  liveSearch.finalEvidenceRange = deriveFinalEvidenceRange(finalized);
-  liveSearch.finalEvidenceDecision = deriveFinalEvidenceDecision(finalized, {
+  const finalEvidenceResult = createFinalEvidenceResult({
+    analysisId: cleanText(liveSearch.analysisId),
+    analysisMode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible",
+    targetIdentity: target,
+    observations: legacyEligibleRecords,
+    providerRequests: liveSearch.providerRequestRecords || [],
+    displayLimit: 8,
     askingPrice: askingPriceNumber,
-    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal",
-    mode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible"
+    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal"
   });
+  const compactRecords = buildCompactEvidenceList(finalEvidenceResult, askingPriceNumber);
+  liveSearch.finalEvidenceResult = finalEvidenceResult;
+  liveSearch.finalizedEvidence = finalEvidenceResult.acceptedRecords;
+  liveSearch.finalRejectedEvidence = finalEvidenceResult.rejectedRecords;
+  liveSearch.finalEvidenceCounts = finalEvidenceResult.counts;
+  liveSearch.finalEvidenceDiagnostics = finalEvidenceResult.diagnostics;
+  liveSearch.finalEvidenceRange = finalEvidenceResult.range;
+  liveSearch.finalEvidenceDecision = finalEvidenceResult.decision;
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,
     finalCustomerEvidenceCount: liveSearch.finalEvidenceDiagnostics.customerEligibleEvidenceCount,
-    finalExactCustomerEvidenceCount: finalized.counts.exact,
-    finalizedCustomerRecordIds: finalized.finalizedCustomerRecordIds,
-    displayedCustomerRecordIds: finalized.displayedRecordIds
+    finalExactCustomerEvidenceCount: finalEvidenceResult.views.exactMatchIds.length,
+    finalizedCustomerRecordIds: finalEvidenceResult.views.customerEligibleIds,
+    displayedCustomerRecordIds: finalEvidenceResult.views.displayedIds
   };
   liveSearch.diagnostics = liveSearch.searchDiagnostics;
   return compactRecords;
@@ -18517,7 +18512,7 @@ export const __queryIntegrityTestHooks = {
   isExactSecondaryMarketEvidenceRecord,
   isRelatedDesignOnlyRecord,
   buildOnlineRetailSearchTargets,
-  buildFinalRetailCustomerEvidenceSnapshot,
+  createRecoveryAssessment,
   buildLimitedResultRetailRecoveryQueries,
   shouldRunLimitedResultRetailRecovery,
   isLikelyExactRetailProductPage,

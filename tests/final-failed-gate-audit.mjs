@@ -188,16 +188,21 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
     providerSourceRecords: recordsBeforeRecovery,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity, buyerIntake });
-  const initialSnapshot = hooks.buildFinalRetailCustomerEvidenceSnapshot(recordsBeforeRecovery, context);
+  const providerRequestRecords = [{ retailStage: "stage_5_online_retail", attempted: true, succeeded: true }];
+  const recoveryAssessment = hooks.createRecoveryAssessment({
+    assessments: hooks.buildRetailEvidenceAssessments(recordsBeforeRecovery, context),
+    providerRequestRecords,
+    maxProviderCalls: hooks.retailSerperBudgetAllocation.maxProviderCalls
+  });
 
   assert(initialPrices.length >= 2, "Compatible alternatives must remain visible before exact recovery.");
-  assertEqual(initialSnapshot.exactCustomerEvidenceCount, 0, "The finalized pre-recovery list must have zero exact priced rows.");
+  assertEqual(recoveryAssessment.preliminaryExactRecordCount, 0, "Preliminary acquisition must have zero exact priced rows.");
   assert(hooks.shouldRunLimitedResultRetailRecovery({
     context,
-    providerRequestRecords: [{ retailStage: "stage_5_online_retail", attempted: true, succeeded: true }],
+    providerRequestRecords,
     records: recordsBeforeRecovery,
-    customerEvidenceSnapshot: initialSnapshot
-  }), "Limited-result recovery must inspect the finalized customer-visible retail list and run when exact evidence is absent.");
+    recoveryAssessment
+  }), "Limited-result recovery must use preliminary acquisition sufficiency and run when exact evidence is absent.");
 
   const recoveredExact = hooks.enrichExactRetailPageRecord(retailRecord({
     title: "Cedarline Privacy Mailers 48 Count - DirectRetail",

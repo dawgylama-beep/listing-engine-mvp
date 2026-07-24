@@ -178,14 +178,19 @@ function testRetailObjectFirewallAndExactPageTruth() {
   assertNotMatches(profile.namedStoreResult, /exact product not found/i, "Named-store summary must not say exact product was not found when an exact no-price page was recovered.");
   assertEqual(hooks.extractPackQuantityNumber("Office product id 639 count placeholder; Harbor Office security envelopes"), null, "Identifier-like 639 count wording must not become a supported package quantity.");
 
-  const snapshot = hooks.buildFinalRetailCustomerEvidenceSnapshot(records, context, assessments);
-  assertEqual(snapshot.exactCustomerEvidenceCount, 0, "Exact no-price identity pages must not count as exact priced customer rows.");
+  const providerRequestRecords = [{ retailStage: "stage_5_online_retail", attempted: true, succeeded: true }];
+  const recoveryAssessment = hooks.createRecoveryAssessment({
+    assessments,
+    providerRequestRecords,
+    maxProviderCalls: hooks.retailSerperBudgetAllocation.maxProviderCalls
+  });
+  assertEqual(recoveryAssessment.preliminaryExactRecordCount, 0, "Exact no-price identity pages must not count as preliminary exact priced rows.");
   assert(hooks.shouldRunLimitedResultRetailRecovery({
     context,
-    providerRequestRecords: [{ retailStage: "stage_5_online_retail", attempted: true, succeeded: true }],
+    providerRequestRecords,
     records,
     assessments,
-    customerEvidenceSnapshot: snapshot
+    recoveryAssessment
   }), "Limited-result recovery should run when only compatible priced rows survive and no exact priced row exists.");
 }
 
