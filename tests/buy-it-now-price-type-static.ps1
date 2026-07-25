@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
@@ -36,7 +37,6 @@ function Function-Block($Text, $Start, $End) {
 $classifyBlock = Function-Block $api "function classifySerperPriceEvidence" "function buildSerperRejectionReason"
 $normalizeBlock = Function-Block $api "function normalizePriceTypeLabel" "function getVisibleItemPriceAmount"
 $sortBlock = Function-Block $api "function priceFoundSortRank" "function retailEvidenceTierRank"
-$bucketBlock = Function-Block $api "function classifyPriceEvidenceBucket" "function isQualifiedVerifiedSoldPriceEvidence"
 $listingStatusBlock = Function-Block $api "function inferPriceFoundListingStatus" "function buildPriceFoundLimitation"
 $limitationBlock = Function-Block $api "function buildPriceFoundLimitation" "function buildPriceFoundComparison"
 $actionBlock = Function-Block $app "function formatSecondaryMarketPriceType" "function getPriceFoundPurchaseChannel"
@@ -48,7 +48,7 @@ Require-Contains "Classifier returns distinct Buy It Now" $classifyBlock 'return
 Require-Contains "Normalizer returns distinct Buy It Now" $normalizeBlock 'return "Buy It Now";'
 Require-Contains "Buy It Now is current-purchasable when eligible" $api "Active Asking|Buy It Now|Shopping Offer|Current Retail Price"
 Require-Contains "Buy It Now sorts with current asking evidence" $sortBlock "Active Asking|Buy It Now|Current Retail Price|Shopping Offer"
-Require-Contains "Buy It Now can support asking comparison" $bucketBlock "Active Asking|Buy It Now"
+Require-Contains "Buy It Now can support canonical asking comparison" $range '"Active asking price", "Buy It Now"'
 Require-Contains "Buy It Now status remains listing status, not sold" $listingStatusBlock "Buy It Now listing price - current availability not independently confirmed"
 Require-Contains "Buy It Now limitation rejects confirmed market value" $limitationBlock "Buy It Now listing price; this is not verified sold evidence or confirmed market value."
 Require-Contains "Customer evidence formats Buy It Now label" $actionBlock 'if (/Buy It Now/i.test(type)) return "Buy It Now";'
@@ -56,7 +56,7 @@ Require-Contains "Buy It Now action remains listing action" $actionBlock 'if (/B
 Require-Order "Frontend Buy It Now outranks generic active listing label" $actionBlock 'if (/Buy It Now/i.test(type)) return "Buy It Now";' 'if (/Price Unavailable|Active Listing/i.test(type)) return "Active listing";'
 Require-Contains "Mock proves Buy It Now end to end" $mock "Explicit Buy It Now must remain Buy It Now through parsing and normalization."
 Require-Contains "Mock proves Buy It Now reaches compact list" $mock "Exact Buy It Now listing should reach the primary compact evidence list."
-Require-Contains "Mock proves Buy It Now is not verified market" $mock "Buy It Now may support asking-price comparison while staying outside verified-market evidence."
+Require-Contains "Mock proves Buy It Now is not verified market" $mock "Buy It Now may support the canonical active-asking group while staying outside verified-market evidence."
 Require-Contains "Mock proves generic active listing stays generic" $mock "Generic active listings without explicit Buy It Now evidence should remain Active Asking."
 Require-Contains "Mock proves Buy It Now does not overwrite bid" $mock "Buy It Now wording must not overwrite current bid evidence."
 Require-Contains "Mock proves Buy It Now does not overwrite estimate" $mock "Buy It Now wording must not overwrite auction estimate evidence."

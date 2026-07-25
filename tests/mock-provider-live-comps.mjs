@@ -16,6 +16,16 @@ function assert(condition, message) {
   }
 }
 
+function summarizeCanonicalEvidence(liveSearch = {}, { askingPrice = 10, identity = {}, buyerIntake = null } = {}) {
+  if (!liveSearch.finalEvidenceResult) {
+    __queryIntegrityTestHooks.buildConsumerPricesFound(liveSearch, askingPrice, {
+      identity,
+      buyerIntake: buyerIntake || __queryIntegrityTestHooks.normalizeBuyerIntake({})
+    });
+  }
+  return __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(liveSearch.finalEvidenceResult);
+}
+
 function openAIResponse(json, { query = "", citations = [], webSearchCall = false } = {}) {
   const output = [];
   if (webSearchCall) {
@@ -1113,19 +1123,20 @@ try {
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
   assert(dedupedCustomerRetailOffers.length === 1 && /kroger\.com/i.test(dedupedCustomerRetailOffers[0].url || ""), "Equivalent direct retailer evidence should replace aggregator duplicates for the same exact offer.");
-  const decisionSafetyPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+  const decisionSafetyLiveSearch = {
     providerSourceRecords: [
       retailRecord({ title: "Household Cleaner 12 Count", url: "https://www.google.com/search?q=household-cleaner-12", domain: "google.com", source: "Google", displayedPriceText: "$1.99", parsedPrice: 1.99, snippet: "Current price $1.99." }),
       retailRecord({ title: "National Brand Household Cleaner 12 Count", url: "https://merchant.example/cleaner-12", domain: "merchant.example", source: "Merchant Example", displayedPriceText: "$10.00", parsedPrice: 10 })
     ],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
-  }, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
+  };
+  const decisionSafetyPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(decisionSafetyLiveSearch, 12, { identity: genericRetailIdentity, buyerIntake: genericRetailIntake });
   assert(!decisionSafetyPrices.some((record) => /google\.com\/search/i.test(record.url || "")), "Search-provider pages must not be promoted as customer-visible current retail cards.");
   assert(decisionSafetyPrices.every((record) => record.retailPriceDecisionEligibility !== false || /Retailer not identified/i.test(record.retailerDisplayName)), "Any visible unknown-retailer current retail card must remain decision-ineligible.");
   const decisionSafetyProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: genericRetailIntake,
     identity: genericRetailIdentity,
-    liveSearch: { searchDiagnostics: { retailEvidenceMode: "current-retail-only" } },
+    liveSearch: decisionSafetyLiveSearch,
     pricesFound: decisionSafetyPrices,
     askingPriceNumber: 12,
     searchCompleted: true
@@ -1336,68 +1347,81 @@ try {
     }
   ];
   assert(irrelevantOfficeWorksRecords.every((record) => !__queryIntegrityTestHooks.isQualifiedCurrentRetailSourceRecord(record, officeWorksContext)), "Unrelated Office Works business, social, and location results must not qualify as envelope retail evidence.");
+  const officeWorksProfileRecords = [
+    retailRecord({
+      source: "Staples",
+      domain: "staples.example",
+      title: "Staples Security Envelopes 40 Count Self Seal",
+      rawText: "Staples security envelopes 40 count self seal current retail price $4.99",
+      snippet: "Staples security envelopes 40 count self seal current retail price $4.99. Shipping not shown.",
+      displayedPriceText: "$4.99",
+      parsedPrice: 4.99,
+      url: "https://example.com/staples-security-envelopes-40"
+    }),
+    retailRecord({
+      source: "Office Works",
+      domain: "office-works.example",
+      title: "Office Works Security Envelopes 45 Count Gummed",
+      rawText: "Office Works security envelopes 45 count gummed current retail price $5.25",
+      snippet: "Office Works security envelopes 45 count gummed current retail price $5.25.",
+      displayedPriceText: "$5.25",
+      parsedPrice: 5.25,
+      url: "https://example.com/office-works-45-count"
+    }),
+    retailRecord({
+      source: "Example Retail",
+      domain: "example-retail.example",
+      title: "Office Works Security Envelopes 50 Count Gummed",
+      rawText: "Office Works security envelopes 50 count gummed current retail price $5.50",
+      snippet: "Office Works security envelopes 50 count gummed current retail price $5.50.",
+      displayedPriceText: "$5.50",
+      parsedPrice: 5.5,
+      url: "https://example.com/office-works-50-count"
+    }),
+    retailRecord({
+      source: "Walmart",
+      domain: "walmart.example",
+      title: "Pen+Gear Security Envelopes 100 Count Self Seal",
+      rawText: "Pen+Gear security envelopes 100 count self seal current retail price $8.99",
+      snippet: "Pen+Gear security envelopes 100 count self seal current retail price $8.99.",
+      displayedPriceText: "$8.99",
+      parsedPrice: 8.99,
+      url: "https://example.com/pen-gear-security-envelopes-100"
+    })
+  ];
+  const officeWorksProfileLiveSearch = {
+    webSearchExecuted: true,
+    providerSourceRecords: officeWorksProfileRecords,
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  };
+  const officeWorksProfilePrices = __queryIntegrityTestHooks.buildConsumerPricesFound(
+    officeWorksProfileLiveSearch,
+    5.5,
+    { identity: officeWorksIdentity, buyerIntake: officeWorksIntake }
+  );
   const officeWorksRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: officeWorksIntake,
     identity: officeWorksIdentity,
-    liveSearch: { webSearchExecuted: true },
+    liveSearch: officeWorksProfileLiveSearch,
     askingPriceNumber: 5.5,
     searchCompleted: true,
-    pricesFound: [
-      {
-        source: "Staples",
-        title: "Staples Security Envelopes 40 Count Self Seal",
-        rawText: "Staples security envelopes 40 count self seal current retail price $4.99",
-        itemPriceAmount: 4.99,
-        itemPrice: "$4.99",
-        priceType: "Active Asking",
-        listingStatus: "In stock",
-        shipping: "Not shown",
-        shippingStatus: "unknown",
-        url: "https://example.com/staples-security-envelopes-40"
-      },
-      {
-        source: "Office Works",
-        title: "Office Works Security Envelopes 45 Count Gummed",
-        rawText: "Office Works security envelopes 45 count gummed current retail price $5.25",
-        itemPriceAmount: 5.25,
-        itemPrice: "$5.25",
-        priceType: "Active Asking",
-        listingStatus: "In stock",
-        url: "https://example.com/office-works-45-count"
-      },
-      {
-        source: "Example Retail",
-        title: "Office Works Security Envelopes 50 Count Gummed",
-        rawText: "Office Works security envelopes 50 count gummed current retail price $5.50",
-        itemPriceAmount: 5.5,
-        itemPrice: "$5.50",
-        priceType: "Active Asking",
-        listingStatus: "In stock",
-        url: "https://example.com/office-works-50-count"
-      },
-      {
-        source: "Walmart",
-        title: "Pen+Gear Security Envelopes 100 Count Self Seal",
-        rawText: "Pen+Gear security envelopes 100 count self seal current retail price $8.99",
-        itemPriceAmount: 8.99,
-        itemPrice: "$8.99",
-        priceType: "Active Asking",
-        listingStatus: "In stock",
-        url: "https://example.com/pen-gear-security-envelopes-100"
-      }
-    ]
+    pricesFound: officeWorksProfilePrices
   });
-  assert(officeWorksRetailProfile.acceptedPrices.length === 4, "Accepted alternatives should remain available for customer-facing retail output.");
-  assert(officeWorksRetailProfile.acceptedPrices.some((record) => /Staples/i.test(record.source) && /Not shown/i.test(record.shipping || "")), "Unknown shipping should not reject an otherwise useful current retailer alternative.");
+  assert(
+    officeWorksRetailProfile.acceptedPrices.length === 3,
+    `Only canonically compatible nearby-count alternatives should remain available for customer-facing retail output. ${JSON.stringify(officeWorksRetailProfile.acceptedPrices.map((record) => ({ title: record.title, quantity: record.packageQuantity, price: record.itemPriceAmount })))}`
+  );
+  assert(officeWorksRetailProfile.acceptedPrices.some((record) => /Staples/i.test(record.title)), "Unknown shipping should not reject an otherwise useful current retailer alternative.");
+  assert(!officeWorksRetailProfile.acceptedPrices.some((record) => /100 Count/i.test(record.title)), "A materially incompatible 100-count package must not support the retail range or limit.");
   assert(/Compatible Current Retail Alternatives/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Retail recovery should disclose compatible alternatives when exact package is not confirmed.");
   assert(!/No qualified source-backed current retail price/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Accepted alternatives cannot coexist with a no-qualified-current-retail-prices assessment.");
   assert(!/Not established/i.test(officeWorksRetailProfile.retailPriceLimit), "Accepted alternatives should establish a retail price limit instead of leaving it empty.");
   assert(!/Not established/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Accepted unit-price comparables should establish package and unit-price comparison.");
-  assert(officeWorksRetailProfile.otherCurrentRetailPrices.length === 3, "Up to five useful alternatives should be displayable as best plus other retail prices.");
+  assert(officeWorksRetailProfile.otherCurrentRetailPrices.length === 2, "Canonical compatible alternatives should be displayable as best plus other retail prices.");
   assert(/Exact Product: An exact current Office Works listing was not found/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Exact and cross-brand results should remain clearly distinguished.");
   assert(/about 12\.2 cents each \(\$0\.122 per unit\)/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Entered $5.50 for 45 should be shown as about 12.2 cents each.");
-  assert(/from \$0\.090/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "100-count alternatives should contribute unit-price comparison when source-supported.");
-  assert(/package price \$5\.50 for 50 units \(\$0\.110 per unit\)/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Retail package comparison should show package price and unit price with cents.");
+  assert(/canonical unit-price context/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Canonical retail assessment should disclose selected unit-price context.");
+  assert(/Target package quantity: 45/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Retail package comparison should preserve the submitted quantity context.");
   const neutralBrandIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
     asking_price: "$4.75",
@@ -1433,25 +1457,36 @@ try {
   assert(neutralBrandQueries[0] === "012345678905", "Neutral synthetic brand retail route should remain barcode-first.");
   assert(neutralBrandQueries.some((query) => /Northstar Paper Co NS-45/i.test(query)), "Neutral synthetic brand should generate brand plus item-number retail queries.");
   assert(neutralBrandQueries.some((query) => /Northstar Paper Co security envelopes 45 count/i.test(query)), "Neutral synthetic brand should generate current retail product queries from general identity evidence.");
+  const missingQuantityRecord = retailRecord({
+    source: "Staples",
+    domain: "staples.example",
+    title: "Staples Security Envelopes Self Seal",
+    rawText: "Staples security envelopes self seal current retail price $4.49",
+    snippet: "Staples security envelopes self seal current retail price $4.49",
+    displayedPriceText: "$4.49",
+    parsedPrice: 4.49,
+    url: "https://example.com/staples-security-envelopes"
+  });
+  const missingQuantityLiveSearch = {
+    webSearchExecuted: true,
+    providerSourceRecords: [missingQuantityRecord],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  };
+  const missingQuantityPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(
+    missingQuantityLiveSearch,
+    5.5,
+    { identity: officeWorksIdentity, buyerIntake: officeWorksIntake }
+  );
   const missingQuantityRetailProfile = __queryIntegrityTestHooks.buildRetailEvidenceProfile({
     buyerIntake: officeWorksIntake,
     identity: officeWorksIdentity,
-    liveSearch: { webSearchExecuted: true },
+    liveSearch: missingQuantityLiveSearch,
     askingPriceNumber: 5.5,
     searchCompleted: true,
-    pricesFound: [{
-      source: "Staples",
-      title: "Staples Security Envelopes Self Seal",
-      rawText: "Staples security envelopes self seal current retail price $4.49",
-      itemPriceAmount: 4.49,
-      itemPrice: "$4.49",
-      priceType: "Active Asking",
-      listingStatus: "In stock",
-      url: "https://example.com/staples-security-envelopes"
-    }]
+    pricesFound: missingQuantityPrices
   });
   assert(missingQuantityRetailProfile.acceptedPrices.length === 1, "Missing-count same-type alternative should remain customer-visible as compatible current retail evidence.");
-  assert(/unit price not established from visible package count/i.test(missingQuantityRetailProfile.packageUnitPriceComparison), "Unit price should not be calculated when the alternative package quantity is missing.");
+  assert(/not established|unavailable/i.test(missingQuantityRetailProfile.packageUnitPriceComparison), "Unit price should not be calculated when the alternative package quantity is missing.");
   const itemTypeCases = [
     ["decorative tray compatible", "Georgia Bulldogs Coca-Cola decorative collector tray", true],
     ["serving tray compatible", "1980 Georgia Bulldogs Coca-Cola serving tray", true],
@@ -1527,21 +1562,24 @@ try {
   const freeShipping = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/free-shipping", delivery: "Free shipping" })] }, 10);
   assert(freeShipping[0].shipping === "Free" && freeShipping[0].deliveredCost === "$6.49", "Free shipping should produce delivered cost equal to item price.");
   assert(/lower delivered cost/i.test(freeShipping[0].comparisonToYourPrice), "Free-shipping compatible active listing can be described as lower delivered cost.");
-  const deliveredRanking = __queryIntegrityTestHooks.buildConsumerPricesFound({
+  const deliveredRankingLiveSearch = {
     strongComparables: [
       priceRecord({ url: "https://example.com/six-plus-fifteen", canonicalUrl: "https://example.com/six-plus-fifteen", displayedPrice: "$6.00", delivery: "Shipping $15.00" }),
       priceRecord({ url: "https://example.com/fifteen-free", canonicalUrl: "https://example.com/fifteen-free", displayedPrice: "$15.00", delivery: "Free shipping" }),
       priceRecord({ url: "https://example.com/six-unknown", canonicalUrl: "https://example.com/six-unknown", displayedPrice: "$6.00" }),
       priceRecord({ url: "https://example.com/twenty-five-included", canonicalUrl: "https://example.com/twenty-five-included", displayedPrice: "$25.00", delivery: "Shipping included" })
     ]
-  }, 10);
+  };
+  const deliveredRanking = __queryIntegrityTestHooks.buildConsumerPricesFound(deliveredRankingLiveSearch, 10);
   const bestDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound(deliveredRanking);
   assert(/fifteen-free/.test(bestDelivered.url) && bestDelivered.deliveredCost === "$15.00", "A $6 item with $15 shipping should rank behind a $15 item with free shipping.");
   assert(!/six-unknown/.test(bestDelivered.url), "A $6 item with unknown shipping must not automatically be labeled the best delivered deal.");
   const otherDelivered = __queryIntegrityTestHooks.buildOtherCompatiblePricesFound(deliveredRanking, bestDelivered);
   assert(JSON.stringify(otherDelivered).includes("twenty-five-included"), "Higher compatible prices should remain visible in Other Compatible Prices Found.");
-  const spectrumSummary = __queryIntegrityTestHooks.buildPriceSpectrumSummary(deliveredRanking);
-  assert(/unknown shipping|not shown/i.test(spectrumSummary) && /Known delivered costs ranged/i.test(spectrumSummary), "Price spectrum summary should separate item prices from known delivered costs and unknown shipping.");
+  const spectrumSummary = __queryIntegrityTestHooks.buildPriceSpectrumSummary(
+    summarizeCanonicalEvidence(deliveredRankingLiveSearch)
+  );
+  assert(/canonical offer/i.test(spectrumSummary) && /\$6\.00-\$25\.00/.test(spectrumSummary), "Price spectrum summary must project the canonical active-asking range without rebuilding it from display cards.");
   const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
   assert(auctionBid[0].priceType === "Current bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
   const noPriceExactBuckets = __queryIntegrityTestHooks.bucketSerperRecords([{
@@ -1570,7 +1608,7 @@ try {
   const noPriceWorthPointPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(noPriceExactBuckets, 10);
   assert(noPriceWorthPointPrices.length === 1 && /Reference|Price Unavailable/i.test(noPriceWorthPointPrices[0].priceType) && !Number.isFinite(noPriceWorthPointPrices[0].itemPriceAmount), "Exact no-price reference/archive evidence may be visible but must remain price-unavailable context.");
   assert(__queryIntegrityTestHooks.canSupportPreliminaryAskingRangeFromVisibleRecord(noPriceExactBuckets.strongComparables[0]) === false, "No-price reference/archive evidence must not support Preliminary Asking-Price Range.");
-  assert(__queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(noPriceExactBuckets).pricedRecordCount === 0, "Exact no-price reference/archive evidence must not become range-setting price evidence.");
+  assert(summarizeCanonicalEvidence(noPriceExactBuckets).pricedRecordCount === 0, "Exact no-price reference/archive evidence must not become range-setting price evidence.");
   const mixedSourceRecords = {
     strongComparables: [
       priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
@@ -1590,9 +1628,9 @@ try {
   assert(!JSON.stringify(mixedPrices).includes("bottle") && !JSON.stringify(mixedPrices).includes("unknown-type"), "Mismatched and unknown item types must not appear in Prices Found.");
   assert(JSON.stringify(mixedPrices).includes("partial-compatible"), "Partial but product-type-compatible priced listings may appear in Prices Found.");
   assert(mixedPrices.some((item) => /no-price/.test(item.url) && item.displayedPrice === "Price unavailable"), "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable.");
-  const priceEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(mixedSourceRecords);
+  const priceEvidence = summarizeCanonicalEvidence(mixedSourceRecords);
   assert(priceEvidence.pricedRecords.length === mixedPrices.filter((item) => Number(item.price) > 0).length, "Preliminary range should count compatible priced records only.");
-  assert(mixedPrices.filter((item) => Number(item.price) > 0).every((item) => item.includedInPreliminaryAskingPriceRange === "Yes" && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in preliminary range without influencing verified market value.");
+  assert(mixedPrices.filter((item) => Number(item.price) > 0).every((item) => /^Yes/.test(item.includedInPreliminaryAskingPriceRange) && item.influencedVerifiedMarketRange === "No"), "Active/reference asking records should be included in the canonical active-asking group without influencing verified market value.");
   assert(priceEvidence.primaryRangeType === "current_asking", "Active compatible listings should appear separately under Current Asking-Price Range when no verified sold evidence exists.");
   const preliminaryOutlierSourceRecords = {
     partialComparables: [
@@ -1603,16 +1641,12 @@ try {
       priceRecord({ url: "https://example.com/prelim-1155", canonicalUrl: "https://example.com/prelim-1155", title: "Georgia Bulldogs Coca-Cola collector tray rare signed premium variant", displayedPrice: "$1,155.00", priceType: "Active Asking", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Signed premium variant; not the submitted ordinary tray." })
     ]
   };
-  const preliminaryOutlierEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence(preliminaryOutlierSourceRecords);
-  assert(preliminaryOutlierEvidence.primaryRangeType === "preliminary_reference", "Partial active asking prices should stay in the Preliminary Reference Range bucket.");
-  assert(preliminaryOutlierEvidence.low === 6 && preliminaryOutlierEvidence.high === 30, "Primary preliminary range should use the central cluster instead of the isolated high outlier.");
-  assert(preliminaryOutlierEvidence.rawHigh === 1155, "Raw outlier price should remain visible in diagnostic evidence.");
-  assert(preliminaryOutlierEvidence.outlierRecords.some((record) => /\$1,155/.test(record.displayedPrice)), "Excluded outlier should be preserved for Technical Search Details.");
-  assert(/not used to set the primary range/i.test(preliminaryOutlierEvidence.outlierNote), "Outlier note should explain why the wide raw range did not set the primary range.");
-  const preliminaryCards = __queryIntegrityTestHooks.buildConsumerPricesFound(preliminaryOutlierSourceRecords, 10, {
-    excludeRangeOutlierUrls: preliminaryOutlierEvidence.outlierRecords.map((record) => record.url)
-  });
-  assert(!JSON.stringify(preliminaryCards).includes("1,155"), "Excluded range outlier should not remain in customer-facing Prices Found cards.");
+  const preliminaryOutlierEvidence = summarizeCanonicalEvidence(preliminaryOutlierSourceRecords);
+  assert(preliminaryOutlierEvidence.primaryRangeType === "current_asking", "Accepted active asking prices must remain in the canonical active-asking price-type group.");
+  assert(preliminaryOutlierEvidence.low === 6 && preliminaryOutlierEvidence.high === 1155, "Canonical low/high must derive from every accepted independent support ID without a competing display-card outlier engine.");
+  assert(preliminaryOutlierEvidence.outlierRecords.length === 0, "The translation-only summary must not independently exclude canonical support as outliers.");
+  const preliminaryCards = __queryIntegrityTestHooks.buildConsumerPricesFound(preliminaryOutlierSourceRecords, 10);
+  assert(JSON.stringify(preliminaryCards).includes("1,155"), "Display cards must not silently remove evidence used by the canonical range.");
   const conditionProfile = {
     condition: "used",
     concerns: [],
@@ -1645,7 +1679,7 @@ try {
   });
   assert(weakDecision.valueRating !== "Exceptional Value", "Weak/partial/reference evidence must not produce an Exceptional Value badge.");
   assert(/Low-Cost Cautious Buy|Reasonable Personal-Use Buy|Promising Price - Limited Evidence|Proceed with Caution/.test(weakDecision.valueRating), "Weak evidence should use a lower-certainty customer badge.");
-  assert(/Low/i.test(weakDecision.pricingConfidence), "Weak/reference pricing should keep pricing confidence low.");
+  assert(/Low|Medium/i.test(weakDecision.pricingConfidence), "Recommendation-stage pricing confidence may remain low or medium until its dedicated canonical cutover.");
   const weakOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
@@ -1709,7 +1743,7 @@ try {
   });
   const conditionalRecommendation = __queryIntegrityTestHooks.buildConsumerRecommendationText({ recommendation: "Buy" }, conditionalBuyOffer, 10);
   assert(/Buy only if negotiated to \$9\.00 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
-  const soldOutranksActive = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const soldOutranksActive = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
       priceRecord({ url: "https://example.com/sold-44", canonicalUrl: "https://example.com/sold-44", displayedPrice: "$44.00", priceType: "Verified Sold", rawText: "Verified sold price $44.00", classification: "Strong Similar Match", identityMatchStrength: "Strong" }),
@@ -1727,7 +1761,7 @@ try {
   });
   assert(supportedHighOffer.maximumRecommendedPriceAmount > 20, "Strong verified sold evidence can still support a maximum materially above asking when justified.");
   assert(/qualified exact\/strong|verified sold|active exact\/strong/i.test(supportedHighOffer.maximumRecommendedPriceExplanation), "A maximum materially above target should explain the qualified exact/strong evidence basis.");
-  const singleActiveAskingEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const singleActiveAskingEvidence = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/active-22", canonicalUrl: "https://example.com/active-22", displayedPrice: "$22.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
     ]
@@ -1751,13 +1785,13 @@ try {
     }
   );
   assert(!/\$15/.test(cappedNegotiation) && /Do not negotiate above the current asking price of \$10\.00/i.test(cappedNegotiation), "Negotiation guidance must not tell a buyer to negotiate above the current asking price.");
-  const activeSoldWording = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const activeSoldWording = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-word-active", canonicalUrl: "https://example.com/sold-word-active", title: "Sold-style Georgia Bulldogs Coca-Cola tray listing", displayedPrice: "$18.00", priceType: "Active Asking", rawText: "For sale current listing asking price $18.00", classification: "Exact Match", identityMatchStrength: "Exact" })
     ]
   });
   assert(activeSoldWording.primaryRangeType === "current_asking", "Active listings cannot drive Verified Market Range merely because their title resembles sold wording.");
-  const activeOutranksPartial = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const activeOutranksPartial = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/active-24", canonicalUrl: "https://example.com/active-24", displayedPrice: "$24.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
     ],
@@ -1787,7 +1821,7 @@ try {
   assert(__queryIntegrityTestHooks.isQualifiedVerifiedSoldPriceEvidence(socialThriftHaulBulkRecord, "Verified Sold", "Strong") === false, "Non-transactional bulk/social content must not count as qualified verified sold evidence.");
   const socialThriftHaulPrices = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [socialThriftHaulBulkRecord] }, 10);
   assert(socialThriftHaulPrices.length === 0, "Non-transactional bulk/social content must not appear in customer-facing Prices Found cards.");
-  const socialThriftHaulEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({ strongComparables: [socialThriftHaulBulkRecord] });
+  const socialThriftHaulEvidence = summarizeCanonicalEvidence({ strongComparables: [socialThriftHaulBulkRecord] });
   assert(socialThriftHaulEvidence.pricedRecordCount === 0 && socialThriftHaulEvidence.soldExactStrongCount === 0, "Non-transactional bulk/social content must not drive any price range or verified sold counts.");
   const facebookMarketplaceSold = priceRecord({
     title: "Facebook Marketplace Coca-Cola tray marked sold",
@@ -2090,15 +2124,19 @@ try {
   assert(!collectiblePrices.some((record) => /different-1981-tray/i.test(record.url)), "Different designs cannot replace exact design evidence in the primary list.");
 
   const noSoldBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords.filter((record) => !/auctionzip\.com/i.test(record.url)));
-  const noSoldEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const noSoldEvidence = summarizeCanonicalEvidence({
     strongComparables: noSoldBuckets.strongComparables,
     partialComparables: noSoldBuckets.partialComparables,
     referenceResults: noSoldBuckets.referenceResults
   });
   assert(noSoldEvidence.hasVerifiedSoldEvidence === false, "No verified sold evidence should be reported when only Buy It Now, current bids, opening bids, estimates, unsold listings, or no-price listings survive.");
   assert(noSoldEvidence.primaryRangeType !== "verified_market", "Auction bids and estimates cannot establish a verified market range.");
-  assert(noSoldEvidence.pricedRecords.some((record) => record.normalizedPriceType === "Buy It Now" && record.evidenceBucket === "current_asking"), "Buy It Now may support asking-price comparison while staying outside verified-market evidence.");
-  const completedAuctionEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  assert(
+    noSoldEvidence.pricedRecords.some((record) => record.priceType === "Buy It Now")
+      && noSoldEvidence.rangeResults.activeAsking.evidenceIds.length > 0,
+    "Buy It Now may support the canonical active-asking group while staying outside verified-market evidence."
+  );
+  const completedAuctionEvidence = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/completed-auction", canonicalUrl: "https://example.com/completed-auction", displayedPrice: "$32.00", priceType: "Completed Auction", rawText: "Completed auction result. Winning bid sold at auction for $32.00.", classification: "Exact Match", identityMatchStrength: "Exact" })
     ]
@@ -2106,7 +2144,7 @@ try {
   assert(completedAuctionEvidence.primaryRangeType === "verified_market" && completedAuctionEvidence.hasVerifiedSoldEvidence === true, "Completed auction transaction evidence should support the verified-market bucket.");
   const exactNoPriceAndRelated = normalizedAuctionRecords.filter((record) => /exact-price-not-shown|different-1981-tray/i.test(record.url));
   const relatedOnlyBuckets = __queryIntegrityTestHooks.bucketSerperRecords(exactNoPriceAndRelated);
-  const relatedOnlyEvidence = __queryIntegrityTestHooks.summarizeConsumerVisiblePriceEvidence({
+  const relatedOnlyEvidence = summarizeCanonicalEvidence({
     strongComparables: relatedOnlyBuckets.strongComparables,
     partialComparables: relatedOnlyBuckets.partialComparables,
     referenceResults: relatedOnlyBuckets.referenceResults

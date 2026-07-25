@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$dedupe = Get-Content (Join-Path $Root "lib/evidence/dedupe.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
@@ -59,7 +60,7 @@ $checks = @(
   @{ Name = "API audits verified sold evidence"; Text = $api; Pattern = "function isQualifiedVerifiedSoldPriceEvidence" },
   @{ Name = "API blocks mismatched product forms from Prices Found"; Text = $api; Pattern = "itemTypeCompatibilityStatus" },
   @{ Name = "API excludes weak/rejected from Prices Found"; Text = $api; Pattern = '/weak|rejected/i.test(record.classification || record.evidenceRole || "")' },
-  @{ Name = "API dedupes preliminary range listings"; Text = $api; Pattern = "dedupeResearchRecordsByListing(records.filter" },
+  @{ Name = "Canonical finalizer dedupes underlying offers before range derivation"; Text = $dedupe; Pattern = "export function dedupeUnderlyingOffers" },
   @{ Name = "API labels verified sold separately only with proof"; Text = $api; Pattern = 'return hasExplicitSoldTransactionProof(record) ? "Verified Sold" : "Reference Price";' },
   @{ Name = "API labels active asking separately"; Text = $api; Pattern = 'return "Active Asking";' },
   @{ Name = "API labels auction current bid separately"; Text = $api; Pattern = 'return "Auction Current Bid";' },
@@ -79,11 +80,11 @@ $checks = @(
   @{ Name = "Mock test excludes mismatched and unknown types"; Text = $mock; Pattern = "Mismatched and unknown item types must not appear in Prices Found." },
   @{ Name = "Mock test covers partial compatible price"; Text = $mock; Pattern = "Partial but product-type-compatible priced listings may appear in Prices Found." },
   @{ Name = "Mock test preserves exact no-price references"; Text = $mock; Pattern = "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable." },
-  @{ Name = "Mock test covers preliminary inclusion consistency"; Text = $mock; Pattern = "included in preliminary range without influencing verified market value." },
+  @{ Name = "Mock test covers canonical active-asking inclusion consistency"; Text = $mock; Pattern = "included in the canonical active-asking group without influencing verified market value." },
   @{ Name = "Mock test covers active listings cannot drive verified range"; Text = $mock; Pattern = "Active listings cannot drive Verified Market Range" },
   @{ Name = "Mock test covers conditional buy"; Text = $mock; Pattern = "Buy must become conditional." },
   @{ Name = "Mock test covers target below max"; Text = $mock; Pattern = "Target purchase amount should not exceed the maximum recommended amount." },
-  @{ Name = "Mock test covers technical outlier preservation"; Text = $mock; Pattern = "Excluded outlier should be preserved for Technical Search Details." }
+  @{ Name = "Mock test prevents display-card range exclusion"; Text = $mock; Pattern = "Display cards must not silently remove evidence used by the canonical range." }
 )
 
 $failed = @()

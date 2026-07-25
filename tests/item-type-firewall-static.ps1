@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
@@ -27,7 +28,7 @@ $checks = @(
   @{ Name = "Evidence role receives compatibility"; Text = $api; Pattern = 'function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {})' },
   @{ Name = "Non-valuation influence reason exists"; Text = $api; Pattern = "function buildNonValuationInfluenceReason" },
   @{ Name = "Legacy comparable strings require valuation-compatible records"; Text = $api; Pattern = "canInfluenceValuationFromVisibleRecord(record)" },
-  @{ Name = "Consumer price evidence uses valuation-compatible records"; Text = $api; Pattern = "const exactOrStrongRecords = records.filter((record) => canInfluenceValuationFromVisibleRecord(record));" },
+  @{ Name = "Canonical range consumes only finalized range-eligible records"; Text = $range; Pattern = "finalized.rangeEligible" },
   @{ Name = "Visible source records carry submitted item type"; Text = $api; Pattern = "submittedItemType" },
   @{ Name = "Visible source records carry candidate item type"; Text = $api; Pattern = "candidateItemType" },
   @{ Name = "Visible source records carry item type compatibility"; Text = $api; Pattern = "itemTypeCompatibilityStatus" },

@@ -153,18 +153,16 @@ function testRetailObjectFirewallAndExactPageTruth() {
   });
   const records = normalizeRetail([exactNoPrice, accessory, stamps, categoryPage, compatible], identity, context);
   const assessments = hooks.buildRetailEvidenceAssessments(records, context);
-  const prices = hooks.buildConsumerPricesFound({
+  const liveSearch = {
     providerSourceRecords: records,
+    queriesActuallySent: records.map((record) => record.query),
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
-  }, 5.5, { identity, buyerIntake });
+  };
+  const prices = hooks.buildConsumerPricesFound(liveSearch, 5.5, { identity, buyerIntake });
   const profile = hooks.buildRetailEvidenceProfile({
     buyerIntake,
     identity,
-    liveSearch: {
-      providerSourceRecords: records,
-      queriesActuallySent: records.map((record) => record.query),
-      searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
-    },
+    liveSearch,
     pricesFound: prices,
     askingPriceNumber: 5.5,
     searchCompleted: true
@@ -339,7 +337,7 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
     strongComparables: [genericClassified, eventArticle, activeOriginal, mirror, differentDesign]
   };
   const prices = hooks.buildConsumerPricesFound(liveSearch, 10, { identity, buyerIntake });
-  const evidence = hooks.summarizeConsumerVisiblePriceEvidence(liveSearch);
+  const evidence = hooks.summarizeConsumerVisiblePriceEvidence(liveSearch.finalEvidenceResult);
   const conditionProfile = {
     condition: "used",
     concerns: [],

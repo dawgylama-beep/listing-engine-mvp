@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
@@ -17,16 +18,16 @@ $checks = @(
   @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
   @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
-  @{ Name = "API builds weighted price evidence"; Text = $api; Pattern = "function buildWeightedPriceEvidenceRecord" },
-  @{ Name = "API builds price evidence buckets"; Text = $api; Pattern = "function buildPriceEvidenceBuckets" },
-  @{ Name = "API selects strongest available bucket"; Text = $api; Pattern = "function selectPrimaryPriceEvidenceBucket" },
-  @{ Name = "API analyzes central price cluster"; Text = $api; Pattern = "function analyzePriceEvidenceCluster" },
-  @{ Name = "API records quartiles for outlier detection"; Text = $api; Pattern = "function quartileAmount" },
+  @{ Name = "Canonical range groups current retail separately"; Text = $range; Pattern = 'key: "current_retail"' },
+  @{ Name = "Canonical range groups active asking separately"; Text = $range; Pattern = 'key: "active_asking"' },
+  @{ Name = "Canonical range groups verified sold separately"; Text = $range; Pattern = 'key: "verified_sold"' },
+  @{ Name = "Canonical range requires two independent offers"; Text = $range; Pattern = "CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS = 2" },
+  @{ Name = "Canonical range uses underlying offer IDs"; Text = $range; Pattern = "underlyingOfferIds" },
   @{ Name = "API preserves outlier diagnostic records"; Text = $api; Pattern = "pricingOutliersExcluded" },
   @{ Name = "API labels verified market range"; Text = $api; Pattern = "Verified Market Range" },
   @{ Name = "API labels current asking range"; Text = $api; Pattern = "Current Asking-Price Range" },
   @{ Name = "API labels preliminary reference range"; Text = $api; Pattern = "Preliminary Reference Range" },
-  @{ Name = "API explains outliers not used"; Text = $api; Pattern = "not used to set the primary range" },
+  @{ Name = "API no longer contains legacy statistical range engine"; Text = $api; Pattern = "function summarizeConsumerVisiblePriceEvidence(finalEvidenceResult = {})" },
   @{ Name = "API gates Exceptional Value behind verified sold evidence"; Text = $api; Pattern = 'ratio <= consumerDecisionThresholds.exceptionalMaxRatio && hasVerifiedSoldEvidence' },
   @{ Name = "API has low-cost cautious badge"; Text = $api; Pattern = "Low-Cost Cautious Buy" },
   @{ Name = "API has limited-evidence badge"; Text = $api; Pattern = "Promising Price - Limited Evidence" },
@@ -40,8 +41,8 @@ $checks = @(
   @{ Name = "Frontend renders price range analysis"; Text = $app; Pattern = '["priceRangeAnalysis", "Price Range Analysis"]' },
   @{ Name = "Frontend renders customer pricing summary"; Text = $app; Pattern = '["customerPricingSummary", "Customer Pricing Summary"]' },
   @{ Name = "Frontend technical details include excluded outliers"; Text = $app; Pattern = '["Pricing Outliers Excluded", report.pricingOutliersExcluded]' },
-  @{ Name = "Mock test covers central cluster excluding outlier"; Text = $mock; Pattern = "Primary preliminary range should use the central cluster instead of the isolated high outlier." },
-  @{ Name = "Mock test covers technical preservation of outlier"; Text = $mock; Pattern = "Excluded outlier should be preserved for Technical Search Details." },
+  @{ Name = "Mock proves canonical low/high uses canonical support"; Text = $mock; Pattern = "Canonical low/high must derive from every accepted independent support ID" },
+  @{ Name = "Mock proves translation does not exclude support"; Text = $mock; Pattern = "translation-only summary must not independently exclude canonical support as outliers" },
   @{ Name = "Mock test blocks Exceptional Value with weak evidence"; Text = $mock; Pattern = "Weak/partial/reference evidence must not produce an Exceptional Value badge." },
   @{ Name = "Mock test proves sold outranks active"; Text = $mock; Pattern = "Verified sold exact/strong evidence should outrank active asking evidence." },
   @{ Name = "Mock test proves active exact outranks partial"; Text = $mock; Pattern = "Active exact/strong asking evidence should outrank partial/reference prices when sold evidence is absent." },

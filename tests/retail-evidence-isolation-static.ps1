@@ -24,7 +24,7 @@ $checks = @(
   @{ Name = "Serper validation rejects forbidden retail terms"; Text = $api; Pattern = "retail_forbidden_secondary_market_terms" },
   @{ Name = "Retail current price profile exists"; Text = $api; Pattern = "function buildRetailEvidenceProfile" },
   @{ Name = "Retail decision firewall exists"; Text = $api; Pattern = "function applyCurrentRetailDecisionFirewall" },
-  @{ Name = "Retail firewall clears preliminary range"; Text = $api; Pattern = 'preliminaryReferenceRange: retailEvidenceProfile.currentRetailOnly ? ""' },
+  @{ Name = "Retail firewall clears preliminary range"; Text = $api; Pattern = 'preliminaryReferenceRange: ""' },
   @{ Name = "Retail firewall clears recommended offer"; Text = $api; Pattern = "recommendedOffer: []" },
   @{ Name = "Retail firewall clears negotiation guidance"; Text = $api; Pattern = 'negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? ""' },
   @{ Name = "Retail price limit not established exists"; Text = $api; Pattern = "Retail Price Limit: Not established" },
@@ -84,7 +84,7 @@ if ($api -notmatch "isCurrentRetailOnlyMode\(context\.retailEvidenceMode\).*isRe
   $failed += "Current-retail-only mode must block sold/auction/reference query terms before provider execution"
 }
 
-if ($api -notmatch 'retailEvidenceProfile\.currentRetailOnly[\s\S]{0,900}estimatedFairMarketValue: retailEvidenceProfile\.currentRetailOnly \? ""') {
+if ($api -notmatch 'function applyCurrentRetailDecisionFirewall[\s\S]*?estimatedFairMarketValue: ""') {
   $failed += "Current retail reports must not expose Estimated Fair Market Value"
 }
 

@@ -184,10 +184,11 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
     quantity: 50
   });
   const recordsBeforeRecovery = [noPriceExact, compatibleOne, compatibleTwo];
-  const initialPrices = hooks.buildConsumerPricesFound({
+  const initialLiveSearch = {
     providerSourceRecords: recordsBeforeRecovery,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
-  }, 5.5, { identity, buyerIntake });
+  };
+  const initialPrices = hooks.buildConsumerPricesFound(initialLiveSearch, 5.5, { identity, buyerIntake });
   const providerRequestRecords = [{ retailStage: "stage_5_online_retail", attempted: true, succeeded: true }];
   const recoveryAssessment = hooks.createRecoveryAssessment({
     assessments: hooks.buildRetailEvidenceAssessments(recordsBeforeRecovery, context),
@@ -215,14 +216,15 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
     stage: "stage_7_limited_result_recovery"
   }), context);
   const deduped = hooks.dedupeSerperCandidateRecords([...recordsBeforeRecovery, recoveredExact], context);
-  const finalPrices = hooks.buildConsumerPricesFound({
+  const finalLiveSearch = {
     providerSourceRecords: deduped,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
-  }, 5.5, { identity, buyerIntake });
+  };
+  const finalPrices = hooks.buildConsumerPricesFound(finalLiveSearch, 5.5, { identity, buyerIntake });
   const retailProfile = hooks.buildRetailEvidenceProfile({
     buyerIntake,
     identity,
-    liveSearch: { providerSourceRecords: deduped, searchDiagnostics: { retailEvidenceMode: "current-retail-only" } },
+    liveSearch: finalLiveSearch,
     pricesFound: finalPrices,
     askingPriceNumber: 5.5,
     searchCompleted: true
@@ -410,15 +412,16 @@ function testBuyerDecisionAndDiagnosticTruth() {
     priceType: "Verified Sold",
     rawExtra: "Sold for $75. Confirmed sold."
   });
+  const soldLiveSearch = {
+    strongComparables: [expensiveSold],
+    searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
+  };
   const report = {
     buyerPurpose: "Buying to Resell",
     askingPrice: "$10",
-    pricesFound: hooks.buildConsumerPricesFound({
-      strongComparables: [expensiveSold],
-      searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
-    }, 10, { identity, buyerIntake })
+    pricesFound: hooks.buildConsumerPricesFound(soldLiveSearch, 10, { identity, buyerIntake })
   };
-  const summary = hooks.summarizeConsumerVisiblePriceEvidence(report.pricesFound);
+  const summary = hooks.summarizeConsumerVisiblePriceEvidence(soldLiveSearch.finalEvidenceResult);
   const decision = { valueRating: "Exceptional Value", recommendation: "Buy" };
   const offer = hooks.buildConsumerOffer({
     askingPriceNumber: 10,
