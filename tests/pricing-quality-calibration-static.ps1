@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
 $decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
+$offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
@@ -34,7 +35,7 @@ $checks = @(
   @{ Name = "Canonical no-price badge is insufficient"; Text = $decisions; Pattern = "market_evidence_insufficient" },
   @{ Name = "Canonical lower-offer badge exists"; Text = $decisions; Pattern = "lower_qualified_offer_found" },
   @{ Name = "Canonical above-range badge exists"; Text = $decisions; Pattern = "above_supported_price" },
-  @{ Name = "API makes opening offer below asking"; Text = $api; Pattern = "function roundOpeningOfferBelowAsking" },
+  @{ Name = "Canonical offer rounds opening below target"; Text = $offer; Pattern = "function roundOpeningOffer" },
   @{ Name = "Frontend renders verified market range"; Text = $app; Pattern = '["verifiedMarketRange", "Verified Market Range"]' },
   @{ Name = "Frontend renders current asking range"; Text = $app; Pattern = '["currentAskingPriceRange", "Current Asking-Price Range"]' },
   @{ Name = "Frontend handles current asking valuation state"; Text = $app; Pattern = 'classified.state === "current_asking"' },
@@ -47,7 +48,7 @@ $checks = @(
   @{ Name = "Mock test blocks Exceptional Value with weak evidence"; Text = $mock; Pattern = "Weak asking evidence must not produce an Exceptional Value badge." },
   @{ Name = "Mock test proves sold outranks active"; Text = $mock; Pattern = "Verified sold exact/strong evidence should outrank active asking evidence." },
   @{ Name = "Mock test proves active exact outranks partial"; Text = $mock; Pattern = "Active exact/strong asking evidence should outrank partial/reference prices when sold evidence is absent." },
-  @{ Name = "Mock test proves opening offer differs from target"; Text = $mock; Pattern = "Opening offer should not equal the target purchase price" }
+  @{ Name = "Mock test proves opening offer differs from target"; Text = $mock; Pattern = "Opening offer should stay below the target" }
 )
 
 $failed = @()

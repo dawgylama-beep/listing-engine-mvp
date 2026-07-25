@@ -207,10 +207,10 @@ const collectibleDecision = deriveDecision(collectible, { askingPrice: 10, purpo
 assert.equal(collectibleDecision.recommendation, "Need More Information");
 assert.equal(collectibleDecision.confidence, "Low");
 assert.equal(collectibleDecision.badge, "Asking-Price Context Only");
-assert.equal(collectibleDecision.openingOffer, null);
-assert.equal(collectibleDecision.targetPrice, null);
-assert.equal(collectibleDecision.maximumPrice, null);
-assert.match(collectibleDecision.negotiationGuidance, /outside the canonical decision contract/i);
+assert.equal(collectibleDecision.openingOffer, undefined);
+assert.equal(collectibleDecision.targetPrice, undefined);
+assert.equal(collectibleDecision.maximumPrice, undefined);
+assert.equal(collectibleDecision.negotiationGuidance, undefined);
 
 const collectibleDiagnostics = diagnosticsFromFinalEvidence(collectible);
 assert.equal(collectibleDiagnostics.customerEligibleEvidenceCount, 3);

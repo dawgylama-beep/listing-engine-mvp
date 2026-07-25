@@ -99,7 +99,7 @@ function retailRecord({ title, retailer, domain, url, price = null, quantity = 5
 
 function buildCollectibleFixture() {
   const buyerIntake = hooks.normalizeBuyerIntake({
-    purchase_context: "resale",
+    purchase_context: "private_seller",
     purchase_intent: "resale",
     item_name: "Riverton Rockets 1997 Victory Classic metal sign",
     asking_price: "10",
@@ -412,8 +412,16 @@ function testBuyerDecisionAndDiagnosticTruth() {
     priceType: "Verified Sold",
     rawExtra: "Sold for $75. Confirmed sold."
   });
+  const secondExpensiveSold = collectibleRecord({
+    title: "Riverton Rockets 1997 Victory Classic metal sign verified sold second source",
+    url: "https://archive.example/riverton-rockets-1997-victory-classic-sign",
+    source: "Archive Example",
+    price: 72,
+    priceType: "Verified Sold",
+    rawExtra: "Sold for $72. Confirmed sold."
+  });
   const soldLiveSearch = {
-    strongComparables: [expensiveSold],
+    strongComparables: [expensiveSold, secondExpensiveSold],
     searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
   };
   const report = {
@@ -421,25 +429,12 @@ function testBuyerDecisionAndDiagnosticTruth() {
     askingPrice: "$10",
     pricesFound: hooks.buildConsumerPricesFound(soldLiveSearch, 10, { identity, buyerIntake })
   };
-  const summary = hooks.summarizeConsumerVisiblePriceEvidence(soldLiveSearch.finalEvidenceResult);
-  const decision = { valueRating: "Exceptional Value", recommendation: "Buy" };
-  const offer = hooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 75,
-    decision,
-    conditionProfile: { hasHardRisk: false, hasModerateRisk: false },
-    priceEvidence: summary
-  });
-  const guidance = hooks.buildConsumerNegotiationGuidance("", {
-    decision,
-    offer,
-    reliableCompsFound: true,
-    askingPriceNumber: 10,
-    fairValueNumber: 75
-  });
+  const offer = soldLiveSearch.finalEvidenceResult.buyerOfferResult;
+  const guidance = offer.guidanceSummary;
 
-  assert(offer.openingOfferAmount <= 10, "Opening offer must never exceed asking price.");
-  assert(offer.targetPurchasePriceAmount <= 10, "Target negotiation price must never exceed asking price.");
+  assert(offer.openingOffer <= 10, "Opening offer must never exceed asking price.");
+  assert(offer.targetPrice <= 10, "Target negotiation price must never exceed asking price.");
+  assert(offer.targetPrice <= offer.maximumPrice, "Canonical resale target must not exceed its evidence-supported maximum.");
   assertNotMatches(guidance, /negotiate (?:up|above)|raise .*offer/i, "Guidance must never advise negotiating upward.");
 
   const diagnostics = hooks.buildSerperSearchDiagnostics({

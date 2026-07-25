@@ -5,8 +5,11 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
+$validator = Get-Content (Join-Path $Root "lib/evidence/validate.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
+$offerTest = Get-Content (Join-Path $Root "tests/canonical-buyer-offer.test.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
 $server = Get-Content (Join-Path $Root "server.ps1") -Raw
@@ -17,21 +20,21 @@ $checks = @(
   @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
   @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
-  @{ Name = "API builds maximum evidence profile"; Text = $api; Pattern = "function buildMaximumPriceEvidenceProfile" },
-  @{ Name = "API builds maximum policy"; Text = $api; Pattern = "function buildMaximumRecommendedPricePolicy" },
-  @{ Name = "API passes price evidence to offer builder"; Text = $api; Pattern = "priceEvidence" },
-  @{ Name = "API caps weak evidence near target"; Text = $api; Pattern = "The maximum is capped near the target because available pricing evidence is weak." },
-  @{ Name = "API can mark maximum not established"; Text = $api; Pattern = "Maximum Recommended Price: Not established" },
-  @{ Name = "API blocks weak reference maximum"; Text = $api; Pattern = "Active asking, weak, partial, guide, auction, estimated, or reference prices may provide context only." },
-  @{ Name = "API guards 2x target"; Text = $api; Pattern = "a price above 2x the target requires qualified exact/strong evidence" },
-  @{ Name = "API guards 3x asking"; Text = $api; Pattern = "a price above 3x the current asking price requires verified sold or completed-sale support" },
-  @{ Name = "API includes maximum explanation in non-retail report"; Text = $api; Pattern = 'maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ?' },
+  @{ Name = "Canonical buyer-offer authority exists"; Text = $offer; Pattern = "export function deriveCanonicalBuyerOfferResult" },
+  @{ Name = "Canonical offer uses decision-eligible records"; Text = $offer; Pattern = "finalized.decisionEligible" },
+  @{ Name = "Canonical offer requires established range"; Text = $offer; Pattern = 'rangeResult.status !== "established"' },
+  @{ Name = "One asking price remains context only"; Text = $offer; Pattern = '"asking_price_context_only"' },
+  @{ Name = "Canonical offer can mark evidence insufficient"; Text = $offer; Pattern = '"insufficient_evidence"' },
+  @{ Name = "Canonical offer isolates active asking basis"; Text = $offer; Pattern = '"active_asking_range"' },
+  @{ Name = "Canonical offer isolates verified sold basis"; Text = $offer; Pattern = '"verified_sold_range"' },
+  @{ Name = "API projects canonical maximum explanation"; Text = $api; Pattern = "maximumRecommendedPriceExplanation: maximumPriceNote" },
+  @{ Name = "Validator requires ordered offer figures"; Text = $validator; Pattern = "buyerOfferResult openingOffer is greater than targetPrice" },
   @{ Name = "Frontend has maximum guard section"; Text = $app; Pattern = '["maximumRecommendedPriceExplanation", "Maximum Price Guard"]' },
   @{ Name = "Frontend compact report shows maximum guard"; Text = $app; Pattern = 'appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation)' },
-  @{ Name = "Mock test blocks $135 max"; Text = $mock; Pattern = 'cannot produce a $135 maximum' },
-  @{ Name = "Mock test blocks $5-$600 weak reference max"; Text = $mock; Pattern = 'Weak/reference prices ranging from $5-$600 cannot establish or inflate the maximum price.' },
-  @{ Name = "Mock test covers max not established"; Text = $mock; Pattern = 'Maximum Recommended Price: Not established' },
-  @{ Name = "Mock test covers high max with verified evidence"; Text = $mock; Pattern = 'Strong verified sold evidence can still support a maximum materially above asking when justified.' },
+  @{ Name = "Mock test blocks single-ask numerical guidance"; Text = $mock; Pattern = 'A single active asking listing cannot create numerical buyer guidance.' },
+  @{ Name = "Canonical test blocks no-evidence numerical guidance"; Text = $offerTest; Pattern = 'no priced evidence keeps identity support separate and produces explicit insufficiency' },
+  @{ Name = "Canonical test covers insufficient status"; Text = $offerTest; Pattern = 'assert.equal(offer.status, "insufficient_evidence")' },
+  @{ Name = "Mock test covers high max with verified evidence"; Text = $mock; Pattern = 'Strong verified sold evidence can support a maximum above the current target when justified.' },
   @{ Name = "Mock test preserves delivered-cost behavior"; Text = $mock; Pattern = 'Delivered cost should equal item price plus explicit shipping.' }
 )
 

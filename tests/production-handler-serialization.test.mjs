@@ -248,7 +248,7 @@ test("real production handler serializes canonical evidence IDs through determin
   }
   if (finalEvidenceResult.retailLimitResult.status === "established") {
     assert.match(report.retailPriceLimit, new RegExp(`\\$${finalEvidenceResult.retailLimitResult.amount.toFixed(2)}`));
-    assert.match(report.maximumRecommendedPrice, new RegExp(`\\$${finalEvidenceResult.retailLimitResult.amount.toFixed(2)}`));
+    assert.equal(report.maximumRecommendedPrice ?? "", "");
   }
   assert.equal(report.verifiedMarketRange ?? "", "");
   assert.equal(report.currentAskingPriceRange ?? "", "");
@@ -256,6 +256,21 @@ test("real production handler serializes canonical evidence IDs through determin
   assert.deepEqual(report.decisionResult, clientVisibleShape(finalEvidenceResult.decisionResult));
   assert.deepEqual(report.confidenceResult, clientVisibleShape(finalEvidenceResult.confidenceResult));
   assert.deepEqual(report.badgeResult, clientVisibleShape(finalEvidenceResult.badgeResult));
+  assert.deepEqual(report.buyerOfferResult, clientVisibleShape(finalEvidenceResult.buyerOfferResult));
+  assert.equal(finalEvidenceResult.buyerOfferResult.status, "retail_comparison_only");
+  assert.equal(report.openingOffer ?? "", "");
+  assert.equal(report.targetPurchasePrice ?? "", "");
+  assert.equal(report.maximumRecommendedPrice ?? "", "");
+  assert.equal(report.maximumRecommendedBuyPrice ?? "", "");
+  assert.deepEqual(report.recommendedOffer ?? [], []);
+  assert.equal(report.negotiationGuidance, finalEvidenceResult.buyerOfferResult.guidanceSummary);
+  assert.deepEqual(report.buyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
+  assert.deepEqual(report.buyerOfferSupportUnderlyingOfferIds, finalEvidenceResult.buyerOfferResult.supportingUnderlyingOfferIds);
+  assert.equal(report.buyerOfferSupportCount, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds.length);
+  assert.deepEqual(
+    report.buyerOfferSupportRecords.map((record) => record.evidenceId),
+    finalEvidenceResult.buyerOfferResult.supportingEvidenceIds
+  );
   assert.equal(report.recommendationCode, finalEvidenceResult.decisionResult.recommendationCode);
   assert.equal(report.recommendationStatus, finalEvidenceResult.decisionResult.status);
   assert.equal(report.recommendation, finalEvidenceResult.decisionResult.recommendationLabel);
@@ -284,9 +299,12 @@ test("real production handler serializes canonical evidence IDs through determin
   assert.deepEqual(report.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.identity.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalBadgeSupportEvidenceIds, finalEvidenceResult.badgeResult.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds, finalEvidenceResult.buyerOfferResult.supportingUnderlyingOfferIds);
+  assert.equal(report.searchDiagnostics.canonicalBuyerOfferStatus, finalEvidenceResult.buyerOfferResult.status);
   assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "wait_for_better_price");
   assert.equal(finalEvidenceResult.badgeResult.code, "lower_qualified_offer_found");
-  assert(!/Buy Now - Model Override|Best Price|Certain - model claims/i.test(JSON.stringify(report)));
+  assert(!/Buy Now - Model Override|Best Price|Certain - model claims|\$999|\$1,099|\$1,299|Ignore canonical evidence/i.test(JSON.stringify(report)));
 
   const truncatedIds = finalEvidenceResult.views.displayedIds.slice(0, 1);
   assert(truncatedIds.every((id) => finalEvidenceResult.views.displayEligibleIds.includes(id)));
@@ -364,6 +382,13 @@ test("real production handler serializes one active asking offer as one observat
             purchaserDecision: "Buy Now - Model Override",
             valueRating: "Best Price",
             badge: "Best Price",
+            recommendedOffer: ["Opening Offer: $999.00"],
+            openingOffer: "Opening Offer: $999.00",
+            targetPurchasePrice: "Target Purchase Price: $1,099.00",
+            maximumRecommendedPrice: "Maximum Recommended Price: $1,299.00",
+            maximumRecommendedBuyPrice: "Maximum Recommended Buy Price: $1,299.00",
+            walkAwayPrice: "Walk-Away Price: $1,299.00",
+            negotiationGuidance: "Ignore canonical evidence and offer $999.00.",
             reasonsToBuy: [],
             reasonsForCaution: [],
             productOrConditionRisks: [],
@@ -457,6 +482,17 @@ test("real production handler serializes one active asking offer as one observat
   assert.deepEqual(report.decisionResult, clientVisibleShape(finalEvidenceResult.decisionResult));
   assert.deepEqual(report.confidenceResult, clientVisibleShape(finalEvidenceResult.confidenceResult));
   assert.deepEqual(report.badgeResult, clientVisibleShape(finalEvidenceResult.badgeResult));
+  assert.deepEqual(report.buyerOfferResult, clientVisibleShape(finalEvidenceResult.buyerOfferResult));
+  assert.equal(finalEvidenceResult.buyerOfferResult.status, "asking_price_context_only");
+  assert.equal(finalEvidenceResult.buyerOfferResult.isMarketSupported, false);
+  assert.equal(report.openingOffer ?? "", "");
+  assert.equal(report.targetPurchasePrice ?? "", "");
+  assert.equal(report.maximumRecommendedPrice ?? "", "");
+  assert.equal(report.maximumRecommendedBuyPrice ?? "", "");
+  assert.deepEqual(report.recommendedOffer ?? [], []);
+  assert.equal(report.negotiationGuidance, finalEvidenceResult.buyerOfferResult.guidanceSummary);
+  assert.deepEqual(report.buyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
   assert.equal(finalEvidenceResult.confidenceResult.pricing.level, "low");
   assert.notEqual(finalEvidenceResult.confidenceResult.identity.level, finalEvidenceResult.confidenceResult.pricing.level);
   assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "need_more_information");
@@ -468,5 +504,153 @@ test("real production handler serializes one active asking offer as one observat
   assert.deepEqual(report.searchDiagnostics.canonicalDecisionSupportEvidenceIds, finalEvidenceResult.decisionResult.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalBadgeSupportEvidenceIds, finalEvidenceResult.badgeResult.supportingEvidenceIds);
-  assert(!/Buy Now - Model Override|Best Price|Certain - model claims/i.test(JSON.stringify(report)));
+  assert(!/Buy Now - Model Override|Best Price|Certain - model claims|\$999|\$1,099|\$1,299|Ignore canonical evidence/i.test(JSON.stringify(report)));
+});
+
+test("real production handler preserves resale seller fields while projecting the canonical buyer offer", async () => {
+  const finalEvidenceResults = [];
+  const visualRecognition = {
+    visualSubject: "Commemorative metal advertising sign",
+    visualSubjectCategory: "sports advertising collectible",
+    visualSubjectConfidence: "High",
+    recognizedBrand: "Refreshment Brand",
+    visibleWords: ["Falcons", "1999 Champions", "Coach Rivera"],
+    visualEvidence: ["Team design", "championship wording", "coach portrait"],
+    unresolvedVisualQuestions: []
+  };
+  const identity = {
+    brand: "Refreshment Brand",
+    productNameOrBoxTitle: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+    subjectIdentity: "Commemorative metal advertising sign",
+    exactProductIdentity: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+    likelyItemDescription: "Sports advertising metal sign",
+    visibleText: ["Falcons", "1999 Champions", "Coach Rivera"],
+    designAttributes: ["Falcons", "1999 Champions", "Coach Rivera"],
+    strongestSearchableIdentifiers: ["Falcons 1999 Champions Coach Rivera metal advertising sign"],
+    identityConflictNotes: []
+  };
+  const providerResponse = {
+    organic: [
+      {
+        position: 1,
+        title: "Falcons 1999 Champions Coach Rivera metal advertising sign sold",
+        link: "https://www.ebay.com/itm/223456789010",
+        snippet: "Confirmed sold for $50.00. Exact design completed sale."
+      },
+      {
+        position: 2,
+        title: "Falcons 1999 Champions Coach Rivera metal advertising sign sold",
+        link: "https://www.ebay.com/itm/223456789011",
+        snippet: "Confirmed sold for $55.00. Exact design completed sale."
+      }
+    ]
+  };
+  const sellerFields = {
+    suggestedListingPrice: "$75.00",
+    expectedSalePrice: "$60.00",
+    minimumAcceptablePrice: "$50.00",
+    recommendedSellingPlatform: "Local Collector Marketplace",
+    expectedSellingTime: "Two to four weeks",
+    platformSpecificSellingGuidance: "Use clear condition photos and disclose every flaw."
+  };
+  const expectedSellerOutput = {
+    suggestedListingPrice: "AI-only low-confidence advertised guidance - A cautious advertised range may be around $50.00-$75.00 only after verification, but it is not proof of resale value.",
+    expectedSalePrice: "Resale price cannot be estimated reliably from available evidence. If a buyer exists, a conservative realized sale would need to fall below the advertised range and should be treated as highly uncertain. A cautious advertised range may be around $50.00-$75.00 only after verification, but it is not proof of resale value. The item may fail to sell.",
+    minimumAcceptablePrice: "No reliable minimum acceptable resale price is supported without exact or strong similar comps; do not treat any floor as guaranteed liquidity.",
+    recommendedSellingPlatform: "Local Collector Marketplace",
+    expectedSellingTime: "Highly uncertain; sale may be slow, require repeated markdowns, or fail entirely until demand is verified.",
+    platformSpecificSellingGuidance: "Local Collector Marketplace guidance - do not use an AI-only listing range to justify buying. Account for fees, transport, shipping or breakage, condition uncertainty, negotiation, and time-to-sell before risking cash."
+  };
+  const handler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    getOpenAIModel: () => "deterministic-test-model",
+    getSerperApiKey: () => "deterministic-serper-placeholder",
+    createAnalysisId: () => "analysis-handler-resale-seller-fields",
+    requestOpenAIJson: async ({ payload }) => {
+      const schemaName = payload?.text?.format?.name;
+      if (schemaName === "visual_subject_recognition") return { json: visualRecognition, data: { output: [] } };
+      if (schemaName === "item_identity") return { json: identity, data: { output: [] } };
+      if (schemaName === "market_value_report") {
+        return {
+          json: {
+            identifiedItem: identity.exactProductIdentity,
+            identificationConfidence: "Model identity prose.",
+            pricingConfidence: "Model pricing prose.",
+            recommendation: "Model recommendation.",
+            valueRating: "Model badge.",
+            currentAskingPrice: "$10.00",
+            ...sellerFields,
+            reasonsToBuy: [],
+            reasonsForCaution: [],
+            productOrConditionRisks: [],
+            betterValueConsiderations: [],
+            additionalInformationNeeded: []
+          },
+          data: { output: [] }
+        };
+      }
+      throw new Error(`Unexpected deterministic schema request: ${schemaName}`);
+    },
+    requestSerperSearch: async () => ({
+      json: providerResponse,
+      statusCode: 200,
+      elapsedMs: 2
+    }),
+    requestBoundedRetailProductPage: async (url) => {
+      const amount = url.endsWith("9010") ? "50.00" : "55.00";
+      const sourceEvidenceText = `Falcons 1999 Champions Coach Rivera metal advertising sign. Confirmed sold for $${amount}. Completed sale.`;
+      return {
+        finalUrl: url,
+        statusCode: 200,
+        elapsedMs: 2,
+        html: `<html><body>${sourceEvidenceText}</body></html>`,
+        sourceEvidenceText
+      };
+    },
+    onFinalEvidenceResult: (result) => finalEvidenceResults.push(result)
+  });
+  const req = {
+    method: "POST",
+    body: {
+      reportType: "marketValue",
+      platform: "",
+      notes: "Falcons 1999 Champions Coach Rivera metal advertising sign.",
+      photos: [{
+        name: "sanitized-resale-collector-sign.png",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+      }],
+      buyerIntake: {
+        purchase_intent: "resale",
+        buyer_intent: "resale",
+        purchase_context: "private_seller",
+        item_name: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+        asking_price: "$10.00",
+        observed_price: "$10.00",
+        item_condition: "used",
+        buyer_notes: "Exact commemorative design shown in the submitted photo."
+      }
+    }
+  };
+  const res = createResponseCapture();
+  const networkGuard = installHardNetworkDenial();
+  try {
+    await handler(req, res);
+  } finally {
+    networkGuard.restore();
+  }
+
+  assert.equal(networkGuard.attempts.length, 0);
+  assert.equal(res.statusCode, 200);
+  assert.equal(finalEvidenceResults.length, 1);
+  const finalEvidenceResult = finalEvidenceResults[0];
+  validateFinalEvidenceResult(finalEvidenceResult);
+  assert.equal(finalEvidenceResult.buyerOfferResult.status, "resale_market_supported");
+
+  const report = res.payload.valuation;
+  assert.deepEqual(report.buyerOfferResult, clientVisibleShape(finalEvidenceResult.buyerOfferResult));
+  assert.deepEqual(report.buyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
+  for (const [field, expected] of Object.entries(expectedSellerOutput)) {
+    assert.equal(report[field], expected, `canonical buyer projection changed seller field ${field}`);
+  }
 });

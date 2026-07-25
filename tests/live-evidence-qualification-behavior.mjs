@@ -338,29 +338,8 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
   };
   const prices = hooks.buildConsumerPricesFound(liveSearch, 10, { identity, buyerIntake });
   const evidence = hooks.summarizeConsumerVisiblePriceEvidence(liveSearch.finalEvidenceResult);
-  const conditionProfile = {
-    condition: "used",
-    concerns: [],
-    isUnknown: false,
-    hasHardRisk: false,
-    hasModerateRisk: false,
-    missingParts: false,
-    repairRisk: false,
-    risks: []
-  };
   const canonical = liveSearch.finalEvidenceResult;
-  const decision = {
-    ...canonical.decision,
-    valueRating: canonical.badgeResult.label,
-    pricingConfidence: canonical.confidenceResult.pricing.level
-  };
-  const offer = hooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: evidence.referenceCenter,
-    decision,
-    conditionProfile,
-    priceEvidence: evidence
-  });
+  const offer = canonical.buyerOfferResult;
 
   assertEqual(prices.length, 1, "Only the original active item-specific offer should remain customer-visible after category/article/reject/mirror filtering.");
   assert(/market\.example\/itm\/777888999/i.test(prices[0].url), "The surviving collectible row should be the original item-specific listing.");
@@ -370,7 +349,10 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
   assertEqual(canonical.confidenceResult.pricing.level, "low", "Active asking alone must keep canonical pricing confidence low.");
   assertEqual(canonical.badgeResult.code, "asking_price_context_only", "Active asking alone must use a neutral asking-price-context badge.");
   assertEqual(canonical.decisionResult.recommendationCode, "need_more_information", "One active ask must not create a market-supported purchase recommendation.");
-  assert(offer.maximumRecommendedPriceAmount === 10 || offer.maximumRecommendedPriceAmount === null, "Active asking without sold evidence must not set a buyer maximum above the entered asking price.");
+  assertEqual(offer.status, "asking_price_context_only", "One active asking offer must remain context-only in the canonical buyer-offer result.");
+  assertEqual(offer.openingOffer, null, "One active asking offer must not set an opening offer.");
+  assertEqual(offer.targetPrice, null, "One active asking offer must not set a target purchase price.");
+  assertEqual(offer.maximumPrice, null, "One active asking offer must not set a buyer maximum.");
 }
 
 function testSearchBudgetsRemainBounded() {

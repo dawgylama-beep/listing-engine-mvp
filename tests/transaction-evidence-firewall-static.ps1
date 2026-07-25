@@ -8,6 +8,7 @@ $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
+$offerTest = Get-Content (Join-Path $Root "tests/canonical-buyer-offer.test.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
 $server = Get-Content (Join-Path $Root "server.ps1") -Raw
@@ -39,8 +40,8 @@ $checks = @(
   @{ Name = "Mock covers no verified sold count for social bulk"; Text = $mock; Pattern = "must not drive any price range or verified sold counts" },
   @{ Name = "Mock covers Marketplace sold exception"; Text = $mock; Pattern = "Facebook Marketplace can qualify only when marketplace context and explicit sold/completed status are present." },
   @{ Name = "Mock covers historical sold is not best current deal"; Text = $mock; Pattern = "Historical sold evidence alone must not become Best Compatible Price Found." },
-  @{ Name = "Mock covers weak context without favorable market recommendation"; Text = $mock; Pattern = "must not create a favorable market-supported recommendation" },
-  @{ Name = 'Mock covers target/max not weak $6 center'; Text = $mock; Pattern = 'not the weak $6 center' }
+  @{ Name = "Canonical test covers no-priced insufficiency"; Text = $offerTest; Pattern = "no priced evidence keeps identity support separate and produces explicit insufficiency" },
+  @{ Name = "Canonical test covers rejected-evidence firewall"; Text = $offerTest; Pattern = "rejected and diagnostic-only evidence cannot influence canonical buyer guidance" }
 )
 
 $failed = @()

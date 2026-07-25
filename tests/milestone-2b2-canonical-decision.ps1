@@ -9,10 +9,12 @@ $apiPath = Join-Path $root "api\generate-listing.js"
 $decisionPath = Join-Path $root "lib\evidence\decisions.js"
 $resultPath = Join-Path $root "lib\evidence\result.js"
 $validatorPath = Join-Path $root "lib\evidence\validate.js"
+$offerPath = Join-Path $root "lib\evidence\offer.js"
 $apiSource = Get-Content -Raw $apiPath
 $decisionSource = Get-Content -Raw $decisionPath
 $resultSource = Get-Content -Raw $resultPath
 $validatorSource = Get-Content -Raw $validatorPath
+$offerSource = Get-Content -Raw $offerPath
 
 function Require-Count([string]$label, [string]$source, [string]$pattern, [int]$expected) {
   $count = ([regex]::Matches($source, $pattern)).Count
@@ -45,10 +47,9 @@ if ($validatorSource -notmatch "diagnostic canonicalDecisionSupportEvidenceIds d
 if (($apiSource | Select-String -Pattern "return applyCanonicalDecisionProjection\(" -AllMatches).Matches.Count -ne 2) {
   throw "Both buyer report paths must finish with canonical response projection."
 }
-if ($apiSource -notmatch "function buildConsumerOffer\s*\(" -or
-    $apiSource -notmatch "function buildConsumerNegotiationGuidance\s*\(" -or
-    $apiSource -notmatch "function buildMaximumRecommendedPricePolicy\s*\(") {
-  throw "Numerical negotiation policy must remain present and outside this milestone."
+if ($apiSource -match "function buildConsumerOffer\s*\(|function buildConsumerNegotiationGuidance\s*\(|function buildMaximumRecommendedPricePolicy\s*\(" -or
+    $offerSource -notmatch "export function deriveCanonicalBuyerOfferResult\s*\(") {
+  throw "Post-2B-2 negotiation policy must have exactly one canonical buyer-offer authority."
 }
 if ($apiSource -notmatch "maxProviderCalls:\s*28" -or
     $apiSource -notmatch "providerCallBudget =[\s\S]*?: 12;") {
@@ -79,5 +80,5 @@ if ($LASTEXITCODE -ne 0) {
 Write-Output "Milestone 2B-2 canonical recommendation, confidence, and badge tests passed."
 Write-Output "Structural authority and model-override firewall checks passed."
 Write-Output "public/app.js and server.ps1 remain unchanged."
-Write-Output "Numerical negotiation remains outside this milestone."
+Write-Output "Later canonical buyer-offer cutover remains compatible with Milestone 2B-2."
 Write-Output "Provider credentials were removed from the test process."

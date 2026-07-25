@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
+$offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
@@ -26,8 +27,8 @@ $checks = @(
   @{ Name = "Retail current price profile exists"; Text = $api; Pattern = "function buildRetailEvidenceProfile" },
   @{ Name = "Retail decision firewall exists"; Text = $api; Pattern = "function applyCurrentRetailDecisionFirewall" },
   @{ Name = "Retail firewall clears preliminary range"; Text = $api; Pattern = 'preliminaryReferenceRange: ""' },
-  @{ Name = "Retail firewall clears recommended offer"; Text = $api; Pattern = "recommendedOffer: []" },
-  @{ Name = "Retail firewall clears negotiation guidance"; Text = $api; Pattern = 'negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? ""' },
+  @{ Name = "Canonical retail offer is comparison only"; Text = $offer; Pattern = '"retail_comparison_only"' },
+  @{ Name = "Retail guidance projects from canonical offer"; Text = $api; Pattern = "negotiationGuidance: maximumPriceNote" },
   @{ Name = "Retail price limit not established exists"; Text = $api; Pattern = "Retail Price Limit: Not established" },
   @{ Name = "Current retail price not verified exists"; Text = $api; Pattern = "Current Retail Price: Not verified" },
   @{ Name = "Canonical price-not-verified decision remains insufficient"; Text = $decisions; Pattern = "canonical_pricing_support_insufficient" },
@@ -89,12 +90,12 @@ if ($api -notmatch 'function applyCurrentRetailDecisionFirewall[\s\S]*?estimated
   $failed += "Current retail reports must not expose Estimated Fair Market Value"
 }
 
-if ($api -notmatch "recommendedOffer: retailEvidenceProfile\.currentRetailOnly \|\| insufficientCollectibleMarketEvidence \? \[\]") {
-  $failed += "Current retail reports must not expose Recommended Offer"
+if ($api -notmatch "maximumRecommendedPrice && maximumPriceNote") {
+  $failed += "Current retail reports must not serialize a Recommended Offer without canonical numerical guidance"
 }
 
-if ($api -notmatch 'retailEvidenceProfile\.currentRetailOnly[\s\S]{0,900}maximumRecommendedPriceExplanation: retailEvidenceProfile\.currentRetailOnly \? ""') {
-  $failed += "Current retail reports must not expose Maximum Price Guard"
+if ($api -notmatch "maximumRecommendedPriceExplanation: maximumPriceNote") {
+  $failed += "Current retail maximum-price note must project from canonical comparison guidance"
 }
 
 if ($failed.Count -gt 0) {

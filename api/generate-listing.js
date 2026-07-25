@@ -851,7 +851,6 @@ const allowedConditionConcerns = new Set([
 ]);
 
 const consumerDecisionThresholds = {
-  goodMaxRatio: 0.9,
   fairMaxRatio: 1.08,
   lowDollarCautiousBuyMax: 25,
   modestDollarCautiousBuyMax: 75
@@ -1277,56 +1276,22 @@ function buildAskScenario({ answerType, proposedPrice, workflow, buyerIntent, cu
   }
 
   const report = currentItemContext.currentReport || {};
-  const classified = report.valuationEvidenceState
-    ? {
-        state: cleanText(report.valuationEvidenceState),
-        range: extractValuationEvidenceRange(report)
-      }
-    : classifyValuationEvidence({ report });
-  const fairRange = extractMoneyRange([
-    report.preliminaryReferenceRange,
-    report.fairValueNotEstablished,
-    report.estimatedFairMarketValue,
-    report.fairPriceRange,
-    report.aiOnlyRoughValueRange,
-    report.expectedSalePrice,
-    report.suggestedListingPrice,
-    report.maximumRecommendedBuyPrice
-  ].flat().join(" "));
-
-  if (!fairRange) {
-    return `Scenario price ${formatMoney(proposedPrice)} was parsed, but the current report does not contain enough numeric value evidence for a deterministic recalculation.`;
+  const buyerOfferResult = report.buyerOfferResult || {};
+  if (buyerOfferResult.status === "retail_comparison_only") {
+    return `Scenario price ${formatMoney(proposedPrice)} was parsed. Ordinary retail guidance remains comparison-only; no opening offer, negotiation target, or buyer maximum was recalculated. ${cleanText(buyerOfferResult.guidanceSummary)}`;
   }
-
-  if (classified.state !== "supported") {
-    const rangeText = classified.range || formatMoneyRange(fairRange[0], fairRange[1]);
-    if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
-      return `At ${formatMoney(proposedPrice)}, compare the scenario only to the current preliminary reference range of ${rangeText}. The price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
-    }
-    return `At ${formatMoney(proposedPrice)}, use reseller caution because the available range is preliminary reference evidence only (${rangeText}), not verified fair market value or confirmed sold-comps support.`;
+  const ceiling = Number(buyerOfferResult.maximumPrice);
+  if (!Number.isFinite(ceiling) || ceiling <= 0) {
+    return `Scenario price ${formatMoney(proposedPrice)} was parsed, but the canonical buyer-offer result does not support a numerical maximum. ${cleanText(buyerOfferResult.guidanceSummary) || "More qualified pricing evidence is required."}`;
   }
-
-  const midpoint = (fairRange[0] + fairRange[1]) / 2;
-  const ratio = proposedPrice / midpoint;
-  if (workflow === "personal_use" || isPersonalUseIntent(buyerIntent)) {
-    if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
-      return `At ${formatMoney(proposedPrice)}, the price is below the current fair-value midpoint of about ${formatMoney(midpoint)} and leans Good Value/Fair Price for personal use if condition assumptions still hold.`;
-    }
-    if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
-      return `At ${formatMoney(proposedPrice)}, the price is close to the current fair-value midpoint of about ${formatMoney(midpoint)} and leans Fair Price for personal use if condition assumptions still hold.`;
-    }
-    return `At ${formatMoney(proposedPrice)}, the price is above the current fair-value midpoint of about ${formatMoney(midpoint)} and should lean Negotiate/Pass unless condition, completeness, or fit improves.`;
-  }
-
-  const maxBuy = extractMoneyRange(String(report.maximumRecommendedBuyPrice || ""));
-  if (maxBuy) {
-    const ceiling = maxBuy[1];
-    return proposedPrice <= ceiling
-      ? `At ${formatMoney(proposedPrice)}, the scenario is at or below the current max-buy guidance of about ${formatMoney(ceiling)} before added resale costs.`
-      : `At ${formatMoney(proposedPrice)}, the scenario is above the current max-buy guidance of about ${formatMoney(ceiling)} and likely weakens resale margin.`;
-  }
-
-  return `At ${formatMoney(proposedPrice)}, use reseller margin caution because the current report does not contain a clear numeric maximum buy price.`;
+  const basis = buyerOfferResult.basisCode === "active_asking_range"
+    ? "canonical asking-market guidance, not verified market value"
+    : buyerOfferResult.basisCode === "verified_sold_range"
+      ? "canonical verified-sold guidance"
+      : "the canonical buyer guardrail";
+  return proposedPrice <= ceiling
+    ? `At ${formatMoney(proposedPrice)}, the scenario is at or below the existing maximum of ${formatMoney(ceiling)} from ${basis}. No new market search or offer calculation occurred.`
+    : `At ${formatMoney(proposedPrice)}, the scenario is above the existing maximum of ${formatMoney(ceiling)} from ${basis}. No new market search or offer calculation occurred.`;
 }
 
 async function generateReportWithOpenAI({ apiKey, model, platform, notes, photos, reportType, buyerIntake, analysisId }) {
@@ -11657,6 +11622,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
       : isResaleIntent(purchaseIntent)
         ? "resale"
         : "personal";
+  const offerConditionProfile = getConsumerConditionProfile(buyerIntake, identity);
   const finalEvidenceResult = createFinalEvidenceResult({
     analysisId: cleanText(liveSearch.analysisId),
     analysisMode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible",
@@ -11670,6 +11636,19 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
       purchaseContext: buyerIntake.purchase_context,
       condition: buyerIntake.item_condition,
       conditionConcerns: normalizeStringArray(buyerIntake.condition_concerns, 16),
+      conditionRiskLevel: offerConditionProfile.hasHardRisk
+        ? "hard"
+        : offerConditionProfile.hasModerateRisk
+          ? "moderate"
+          : "ordinary",
+      purchaseIntent,
+      hasIdentifier: Boolean(firstKnown(
+        target.upc,
+        target.sku,
+        target.model,
+        target.brand,
+        target.productName
+      )),
       knownShippingAmount: buyerIntake.known_shipping_amount,
       availabilityContext: cleanText(liveSearch.searchDiagnostics?.locationAwareRetailSearchStatus)
     }
@@ -11689,6 +11668,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   liveSearch.finalEvidenceDecisionResult = finalEvidenceResult.decisionResult;
   liveSearch.finalEvidenceConfidenceResult = finalEvidenceResult.confidenceResult;
   liveSearch.finalEvidenceBadgeResult = finalEvidenceResult.badgeResult;
+  liveSearch.finalEvidenceBuyerOfferResult = finalEvidenceResult.buyerOfferResult;
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,
@@ -11715,7 +11695,15 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     canonicalPricingConfidenceSupportUnderlyingOfferIds: finalEvidenceResult.confidenceResult.pricing.supportingUnderlyingOfferIds,
     canonicalBadgeCode: finalEvidenceResult.badgeResult.code,
     canonicalBadgeSupportEvidenceIds: finalEvidenceResult.badgeResult.supportingEvidenceIds,
-    canonicalBadgeSupportUnderlyingOfferIds: finalEvidenceResult.badgeResult.supportingUnderlyingOfferIds
+    canonicalBadgeSupportUnderlyingOfferIds: finalEvidenceResult.badgeResult.supportingUnderlyingOfferIds,
+    canonicalBuyerOfferApplicability: finalEvidenceResult.buyerOfferResult.applicability,
+    canonicalBuyerOfferStatus: finalEvidenceResult.buyerOfferResult.status,
+    canonicalBuyerOfferBasisCode: finalEvidenceResult.buyerOfferResult.basisCode,
+    canonicalBuyerOfferGuidanceCode: finalEvidenceResult.buyerOfferResult.guidanceCode,
+    canonicalBuyerOfferUserEnteredPriceRole: finalEvidenceResult.buyerOfferResult.userEnteredPriceRole,
+    canonicalBuyerOfferSupportEvidenceIds: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds,
+    canonicalBuyerOfferSupportUnderlyingOfferIds: finalEvidenceResult.buyerOfferResult.supportingUnderlyingOfferIds,
+    canonicalBuyerOfferSupportCount: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds.length
   };
   liveSearch.diagnostics = liveSearch.searchDiagnostics;
   return compactRecords;
@@ -13359,10 +13347,70 @@ function formatCanonicalConfidenceResult(confidence = {}, label = "Confidence") 
   return `${displayLevel} - ${label} uses ${supportCount} canonical supporting evidence record${supportCount === 1 ? "" : "s"}.${rationale ? ` Basis: ${rationale}.` : ""}${weakening ? ` Limits: ${weakening}` : ""}`.trim();
 }
 
+function applyCanonicalBuyerOfferProjection(report = {}, finalEvidenceResult = {}) {
+  const buyerOfferResult = finalEvidenceResult.buyerOfferResult || {};
+  const openingOffer = Number.isFinite(buyerOfferResult.openingOffer)
+    ? `Opening Offer: ${formatMoney(buyerOfferResult.openingOffer)}`
+    : "";
+  const targetPurchasePrice = Number.isFinite(buyerOfferResult.targetPrice)
+    ? `Target Purchase Price: ${formatMoney(buyerOfferResult.targetPrice)}`
+    : "";
+  const maximumRecommendedPrice = Number.isFinite(buyerOfferResult.maximumPrice)
+    ? `Maximum Recommended Price: ${formatMoney(buyerOfferResult.maximumPrice)}`
+    : "";
+  const maximumPriceNote = cleanText(buyerOfferResult.guidanceSummary);
+  const recommendedOffer = [
+    openingOffer,
+    targetPurchasePrice,
+    maximumRecommendedPrice,
+    maximumRecommendedPrice && maximumPriceNote ? `Maximum Price Note: ${maximumPriceNote}` : ""
+  ].filter(Boolean);
+  const supportEvidenceIds = normalizeStringArray(buyerOfferResult.supportingEvidenceIds, 64);
+  const supportUnderlyingOfferIds = normalizeStringArray(buyerOfferResult.supportingUnderlyingOfferIds, 64);
+  const recordsByEvidenceId = new Map(
+    normalizeArray(finalEvidenceResult.records)
+      .map((record) => [record.evidenceId, record])
+  );
+  const supportRecords = supportEvidenceIds
+    .map((evidenceId) => recordsByEvidenceId.get(evidenceId))
+    .filter(Boolean);
+  return {
+    ...report,
+    buyerOfferResult,
+    recommendedOffer,
+    openingOffer,
+    targetPurchasePrice,
+    maximumRecommendedPrice,
+    maximumRecommendedBuyPrice: maximumRecommendedPrice,
+    maximumRecommendedPriceExplanation: maximumPriceNote,
+    walkAwayPrice: Number.isFinite(buyerOfferResult.maximumPrice)
+      ? `Walk-Away Price: ${formatMoney(buyerOfferResult.maximumPrice)}`
+      : "",
+    negotiationGuidance: maximumPriceNote,
+    buyerPurchaseGuardrail: maximumPriceNote,
+    buyerOfferSupportEvidenceIds: supportEvidenceIds,
+    buyerOfferSupportUnderlyingOfferIds: supportUnderlyingOfferIds,
+    buyerOfferSupportCount: supportEvidenceIds.length,
+    buyerOfferSupportRecords: supportRecords,
+    searchDiagnostics: {
+      ...(report.searchDiagnostics || {}),
+      canonicalBuyerOfferApplicability: buyerOfferResult.applicability,
+      canonicalBuyerOfferStatus: buyerOfferResult.status,
+      canonicalBuyerOfferBasisCode: buyerOfferResult.basisCode,
+      canonicalBuyerOfferGuidanceCode: buyerOfferResult.guidanceCode,
+      canonicalBuyerOfferUserEnteredPriceRole: buyerOfferResult.userEnteredPriceRole,
+      canonicalBuyerOfferSupportEvidenceIds: supportEvidenceIds,
+      canonicalBuyerOfferSupportUnderlyingOfferIds: supportUnderlyingOfferIds,
+      canonicalBuyerOfferSupportCount: supportEvidenceIds.length
+    }
+  };
+}
+
 function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {}, { workflow = "buyer" } = {}) {
   const decisionResult = finalEvidenceResult.decisionResult || {};
   const confidenceResult = finalEvidenceResult.confidenceResult || {};
   const badgeResult = finalEvidenceResult.badgeResult || {};
+  const buyerOfferResult = finalEvidenceResult.buyerOfferResult || {};
   const identityConfidence = formatCanonicalConfidenceResult(confidenceResult.identity, "Identity confidence");
   const pricingConfidence = formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing confidence");
   const recommendation = cleanText(decisionResult.recommendationLabel || "Need More Information");
@@ -13395,7 +13443,15 @@ function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {},
     canonicalPricingConfidenceSupportUnderlyingOfferIds: pricingSupportUnderlyingOfferIds,
     canonicalBadgeCode: badgeResult.code,
     canonicalBadgeSupportEvidenceIds: badgeSupportEvidenceIds,
-    canonicalBadgeSupportUnderlyingOfferIds: badgeSupportUnderlyingOfferIds
+    canonicalBadgeSupportUnderlyingOfferIds: badgeSupportUnderlyingOfferIds,
+    canonicalBuyerOfferApplicability: buyerOfferResult.applicability,
+    canonicalBuyerOfferStatus: buyerOfferResult.status,
+    canonicalBuyerOfferBasisCode: buyerOfferResult.basisCode,
+    canonicalBuyerOfferGuidanceCode: buyerOfferResult.guidanceCode,
+    canonicalBuyerOfferUserEnteredPriceRole: buyerOfferResult.userEnteredPriceRole,
+    canonicalBuyerOfferSupportEvidenceIds: normalizeStringArray(buyerOfferResult.supportingEvidenceIds, 64),
+    canonicalBuyerOfferSupportUnderlyingOfferIds: normalizeStringArray(buyerOfferResult.supportingUnderlyingOfferIds, 64),
+    canonicalBuyerOfferSupportCount: normalizeStringArray(buyerOfferResult.supportingEvidenceIds, 64).length
   };
   const projection = {
     ...report,
@@ -13433,7 +13489,7 @@ function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {},
   projection.recommendation = recommendation;
   projection.retailPurchaseDecision = recommendation;
   projection.purchaserDecision = decisionSummary;
-  return projection;
+  return applyCanonicalBuyerOfferProjection(projection, finalEvidenceResult);
 }
 
 function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
@@ -13506,14 +13562,6 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
     bestNextStep: profile.nextBestAction || report.bestNextStep,
     consumerDownsideRisk: report.consumerDownsideRisk,
     cautiousBuyExplanation: "",
-    recommendedOffer: [],
-    openingOffer: "",
-    targetPurchasePrice: "",
-    maximumRecommendedPrice: profile.retailPriceLimit,
-    maximumRecommendedBuyPrice: profile.retailPriceLimit,
-    maximumRecommendedPriceExplanation: "",
-    walkAwayPrice: "",
-    negotiationGuidance: "",
     reasonsToBuy: hasRetailEvidence ? normalizeFlexibleArray(report.reasonsToBuy, 4, []) : [],
     reasonsForCaution: mergeStringArrays(
       hasRetailEvidence ? report.reasonsForCaution : [],
@@ -14053,15 +14101,6 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     consumerDownsideRisk: askingPriceText
       ? `Limited-dollar exposure can be considered from the user's asking price (${askingPriceText}) only. No market comparison was established.`
       : "No asking price was available for a downside-only personal-use assessment.",
-    recommendedOffer: [],
-    openingOffer: "Not source-supported - no market value was established.",
-    targetPurchasePrice: "Not source-supported - no market value was established.",
-    maximumRecommendedPrice: "Not source-supported - no market value was established.",
-    maximumRecommendedBuyPrice: "Not source-supported - no market value was established.",
-    walkAwayPrice: "No market-based walk-away price is supported without visible comparable evidence.",
-    negotiationGuidance: askingPriceText
-      ? `Only the user's asking price (${askingPriceText}) is visible. Any personal-use decision should be based on limited financial exposure, condition, and whether the buyer likes the item; not on an established market value.`
-      : "No market-based negotiation guidance is supported without visible comparable evidence.",
     reasonsForCaution: mergeStringArrays(
       sanitized.reasonsForCaution,
       ["No visible source-backed comparable evidence was retained.", "Market value was not established."],
@@ -14283,6 +14322,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const canonicalDecisionResult = finalEvidenceResult.decisionResult || {};
   const canonicalConfidenceResult = finalEvidenceResult.confidenceResult || {};
   const canonicalBadgeResult = finalEvidenceResult.badgeResult || {};
+  const canonicalBuyerOfferResult = finalEvidenceResult.buyerOfferResult || {};
   const priceEvidence = summarizeConsumerVisiblePriceEvidence(finalEvidenceResult);
   const resaleGuidance = buildResalePricingGuidance(report, {
     buyerIntake,
@@ -14316,6 +14356,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     searchCompleted,
     liveComparableSearchStatus,
     pricesFound,
+    buyerOfferResult: canonicalBuyerOfferResult,
     purchaserDecision: canonicalDecisionResult.summary,
     rangeResult: canonicalRange,
     rangeResults: canonicalRangeResults,
@@ -14376,15 +14417,11 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     currentPriceAssessment: canonicalDecisionResult.summary,
     priceConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
     aiOnlyRoughValueRange,
-    maximumRecommendedBuyPrice: buildMaximumRecommendedBuyPrice(report.maximumRecommendedBuyPrice, {
-      buyerIntake,
-      reliableCompsFound,
-      resaleGuidance
-    }),
     resalePotential: buildResalePotential(report.resalePotential, {
       buyerIntake,
       reliableCompsFound,
-      resaleGuidance
+      resaleGuidance,
+      buyerOfferResult: canonicalBuyerOfferResult
     }),
     searchQueriesUsed: buildSearchQueriesUsed(liveSearch),
     priceBasis: ensurePrefix(report.priceBasis, basis)
@@ -14433,7 +14470,6 @@ function applyOwnerValueReportModel(report = {}, buyerIntake = normalizeBuyerInt
     buyerTypeFit: firstKnown(report.buyerTypeFit, "Owner valuation / possible sale"),
     currentAskingPrice: "Not required - this workflow values an item already owned.",
     currentPriceAssessment: stripOwnerBuyingLanguage(firstKnown(report.currentPriceAssessment, valueEvidence)),
-    maximumRecommendedBuyPrice: "",
     betterPriceCheckNeeded: stripOwnerBuyingLanguage(firstKnown(report.betterPriceCheckNeeded, `Additional value check depends on stronger identity, condition, completeness, and source-backed comparable evidence.${ownerLocation}`)),
     whatToVerifyBeforeBuying: nextVerification,
     buyerDecisionConfidence: report.buyerDecisionConfidence,
@@ -14526,13 +14562,6 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     cautiousBuyExplanation: "",
     evidenceWarning: normalizeStringArray(authoritativeDecisionResult.insufficiencyReasons, 8).join(" ")
   };
-  const offer = buildConsumerOffer({
-    askingPriceNumber,
-    fairValueNumber,
-    decision,
-    conditionProfile,
-    priceEvidence
-  });
   const basis = reliableCompsFound
     ? "Pricing uses source-backed comparable or reference results that passed filtering."
     : searchCompleted
@@ -14640,19 +14669,6 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     bestNextStep: report.bestNextStep,
     consumerDownsideRisk: decision.downsideRisk.summary,
     cautiousBuyExplanation: retailEvidenceProfile.currentRetailOnly ? "" : decision.cautiousBuyExplanation,
-    recommendedOffer: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? [] : offer.recommendedOffer,
-    openingOffer: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.openingOffer,
-    targetPurchasePrice: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.targetPurchasePrice,
-    maximumRecommendedPrice: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPriceLimit : insufficientCollectibleMarketEvidence ? "" : offer.maximumRecommendedPrice,
-    maximumRecommendedPriceExplanation: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ? (Number.isFinite(askingPriceNumber) ? `${formatMoney(askingPriceNumber)} is the buyer's entered budget, not a market-supported maximum.` : "No market-supported maximum was established.") : offer.maximumRecommendedPriceExplanation,
-    walkAwayPrice: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : offer.walkAwayPrice,
-    negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? "" : insufficientCollectibleMarketEvidence ? authoritativeDecision.negotiationGuidance : buildConsumerNegotiationGuidance(report.negotiationGuidance, {
-      decision,
-      offer,
-      reliableCompsFound,
-      askingPriceNumber,
-      fairValueNumber
-    }),
     reasonsToBuy: authoritativeDecisionResult.recommendationCode === "consider_purchase"
       ? ["Canonical price evidence supports a cautious purchase if the item also fits the buyer's condition and use requirements."]
       : [],
@@ -14839,30 +14855,6 @@ function formatUnitCents(value) {
   }
   const cents = amount * 100;
   return `${cents.toFixed(cents < 10 ? 2 : 1).replace(/\.0+$/, "").replace(/(\.\d)0$/, "$1")} cents`;
-}
-
-function isLowDollarAskingInsideWeakPreliminaryRange({ askingPriceNumber, priceEvidence = {}, conditionProfile = {}, downsideRisk = {} } = {}) {
-  if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0 || askingPriceNumber > 50) {
-    return false;
-  }
-  if (cleanText(priceEvidence.primaryRangeType) !== "preliminary_reference") {
-    return false;
-  }
-  if (Number(priceEvidence.soldExactStrongCount || 0) > 0 || Number(priceEvidence.activeExactStrongCount || 0) > 0) {
-    return false;
-  }
-  const low = Number(priceEvidence.low);
-  const high = Number(priceEvidence.high);
-  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high < low) {
-    return false;
-  }
-  if (askingPriceNumber < low || askingPriceNumber > high) {
-    return false;
-  }
-  if (conditionProfile.hasHardRisk || Array.isArray(downsideRisk.hardFactors) && downsideRisk.hardFactors.length) {
-    return false;
-  }
-  return true;
 }
 
 function summarizeConsumerVisiblePriceEvidence(finalEvidenceResult = {}) {
@@ -15266,387 +15258,6 @@ function getConsumerConditionProfile(buyerIntake, identity = {}) {
   };
 }
 
-function buildMaximumPriceEvidenceProfile(priceEvidence = {}) {
-  const verifiedSoldCount = Number(priceEvidence.soldExactStrongCount || priceEvidence.primaryVerifiedSoldCount || 0);
-  const activeExactStrongCount = Number(priceEvidence.activeExactStrongCount || priceEvidence.primaryActiveAskingCount || 0);
-  const primaryRangeType = cleanText(priceEvidence.primaryRangeType);
-  const primaryRangeRecordCount = Number(priceEvidence.primaryRangeRecordCount || 0);
-  const primaryPreliminaryReferenceCount = Number(priceEvidence.primaryPreliminaryReferenceCount || 0);
-  const weakerRecordCount = Math.max(0, Number(priceEvidence.pricedRecordCount || 0) - verifiedSoldCount - activeExactStrongCount);
-  const hasVerifiedSoldSupport = verifiedSoldCount > 0;
-  const hasActiveExactStrongSupport = activeExactStrongCount > 0;
-  const hasQualifiedExactStrongEvidence = hasVerifiedSoldSupport || hasActiveExactStrongSupport;
-  const hasConsistentStrongCluster = hasQualifiedExactStrongEvidence
-    && primaryRangeRecordCount >= 2
-    && primaryRangeType !== "preliminary_reference";
-  const hasMarketMaximumSupport = hasVerifiedSoldSupport || (hasConsistentStrongCluster && primaryRangeType === "verified_market");
-
-  return {
-    verifiedSoldCount,
-    activeExactStrongCount,
-    primaryRangeType,
-    primaryRangeRecordCount,
-    primaryPreliminaryReferenceCount,
-    weakerRecordCount,
-    hasVerifiedSoldSupport,
-    hasActiveExactStrongSupport,
-    hasQualifiedExactStrongEvidence,
-    hasMarketMaximumSupport,
-    weakReferenceOnly: !hasMarketMaximumSupport && (primaryRangeType === "preliminary_reference" || weakerRecordCount > 0)
-  };
-}
-
-function isLowConfidenceDecision(decision = {}, priceEvidence = {}) {
-  const text = cleanText([
-    decision.pricingConfidence,
-    decision.buyerDecisionConfidence,
-    decision.valueRating,
-    decision.badgeReason,
-    decision.evidenceWarning,
-    priceEvidence.primaryRangeLabel,
-    priceEvidence.priceBasis
-  ].join(" "));
-  return /\b(low|limited|weak|preliminary|insufficient|reference|partial|guide|auction)\b/i.test(text);
-}
-
-function buildMaximumRecommendedPricePolicy({ askingPriceNumber, targetPrice, proposedMaxPrice, decision = {}, priceEvidence = {} } = {}) {
-  const profile = buildMaximumPriceEvidenceProfile(priceEvidence);
-  const lowConfidence = isLowConfidenceDecision(decision, priceEvidence);
-  const lowDollarAsking = Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 && askingPriceNumber <= 50;
-  const fallbackCap = Number.isFinite(targetPrice)
-    ? targetPrice
-    : Number.isFinite(askingPriceNumber)
-      ? askingPriceNumber
-      : null;
-
-  if (!Number.isFinite(proposedMaxPrice) || proposedMaxPrice <= 0) {
-    return {
-      established: false,
-      maxPrice: null,
-      explanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found."
-    };
-  }
-
-  if (!profile.hasMarketMaximumSupport) {
-    if (lowDollarAsking && Number.isFinite(fallbackCap) && fallbackCap > 0) {
-      return {
-        established: true,
-        maxPrice: roundMoney(fallbackCap),
-        explanation: "The maximum is capped near the target because available pricing evidence is weak. No reliable higher market ceiling could be established without qualified verified sold or completed-sale evidence. Personal enjoyment may justify paying more, but the market-supported maximum is not established beyond this cautious ceiling."
-      };
-    }
-    return {
-      established: false,
-      maxPrice: null,
-      explanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found. Active asking, weak, partial, guide, auction, estimated, or reference prices may provide context only."
-    };
-  }
-
-  let maxPrice = proposedMaxPrice;
-  const explanations = [];
-  if (Number.isFinite(targetPrice) && targetPrice > 0 && maxPrice > targetPrice * 2) {
-    if (!profile.hasQualifiedExactStrongEvidence) {
-      maxPrice = targetPrice * 2;
-      explanations.push("The maximum was capped because a price above 2x the target requires qualified exact/strong evidence.");
-    } else {
-      explanations.push("A maximum above 2x the target is allowed only because qualified exact/strong price evidence is available.");
-    }
-  }
-  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 && maxPrice > askingPriceNumber * 3) {
-    if (!profile.hasVerifiedSoldSupport) {
-      maxPrice = askingPriceNumber * 3;
-      explanations.push("The maximum was capped because a price above 3x the current asking price requires verified sold or completed-sale support.");
-    } else {
-      explanations.push("A maximum above 3x the current asking price is supported by verified sold or completed-sale evidence.");
-    }
-  }
-  if (lowConfidence && !profile.hasVerifiedSoldSupport && profile.activeExactStrongCount < 2) {
-    const lowConfidenceCap = Math.max(
-      Number.isFinite(targetPrice) && targetPrice > 0 ? targetPrice * 2 : 0,
-      Number.isFinite(askingPriceNumber) && askingPriceNumber > 0 ? askingPriceNumber * 3 : 0
-    );
-    if (lowConfidenceCap > 0 && maxPrice > lowConfidenceCap) {
-      maxPrice = lowConfidenceCap;
-      explanations.push("Low pricing confidence capped the maximum so it cannot run far above the asking or target price.");
-    }
-  }
-  if (Number.isFinite(targetPrice) && targetPrice > 0 && maxPrice < targetPrice) {
-    maxPrice = targetPrice;
-    explanations.push("The maximum was raised only enough to stay consistent with the target purchase price.");
-  }
-
-  return {
-    established: true,
-    maxPrice: roundMoney(maxPrice),
-    explanation: explanations.length
-      ? explanations.join(" ")
-      : "Maximum Recommended Price is tied to verified sold or completed-sale comparable support, not weak reference or active asking prices."
-  };
-}
-
-function shouldCapMaximumAtAskingForLimitedEvidence(priceEvidence = {}) {
-  const profile = buildMaximumPriceEvidenceProfile(priceEvidence);
-  return !profile.hasVerifiedSoldSupport;
-}
-
-function enforceBuyerNegotiationAskingCeiling({ askingPriceNumber, openingOffer, targetPrice, maxPrice = null, maximumExplanation = "", priceEvidence = {} } = {}) {
-  if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0) {
-    return { openingOffer, targetPrice, maxPrice, maximumExplanation };
-  }
-  let nextTarget = Number.isFinite(targetPrice) ? Math.min(targetPrice, askingPriceNumber) : targetPrice;
-  let nextOpening = Number.isFinite(openingOffer) ? Math.min(openingOffer, askingPriceNumber) : openingOffer;
-  let nextMax = maxPrice;
-  let explanation = cleanText(maximumExplanation);
-  const addExplanation = (text) => {
-    if (!explanation.includes(text)) {
-      explanation = [explanation, text].filter(Boolean).join(" ");
-    }
-  };
-
-  if (Number.isFinite(nextMax) && nextMax > askingPriceNumber && shouldCapMaximumAtAskingForLimitedEvidence(priceEvidence)) {
-    nextMax = askingPriceNumber;
-    addExplanation("The maximum was capped at the entered asking price because a higher walk-away price requires verified sold or completed-sale evidence.");
-  }
-  if (Number.isFinite(nextMax) && Number.isFinite(nextTarget) && nextTarget > nextMax) {
-    nextTarget = nextMax;
-  }
-  if (Number.isFinite(nextOpening) && Number.isFinite(nextTarget) && nextOpening > nextTarget) {
-    nextOpening = nextTarget;
-  }
-  if (Number.isFinite(nextOpening) && nextOpening >= askingPriceNumber && askingPriceNumber > 1) {
-    nextOpening = Math.max(1, askingPriceNumber <= 25 ? Math.floor(askingPriceNumber - 1) : roundMoney(askingPriceNumber * 0.9));
-  }
-  if (Number.isFinite(nextTarget) && nextTarget > askingPriceNumber) {
-    nextTarget = askingPriceNumber;
-  }
-  return {
-    openingOffer: roundMoney(nextOpening),
-    targetPrice: roundMoney(nextTarget),
-    maxPrice: Number.isFinite(nextMax) ? roundMoney(nextMax) : nextMax,
-    maximumExplanation: explanation
-  };
-}
-
-function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, conditionProfile, priceEvidence = {} }) {
-  const unsupported = decision.valueRating === "Insufficient Evidence"
-    || !Number.isFinite(askingPriceNumber)
-    || !Number.isFinite(fairValueNumber)
-    || fairValueNumber <= 0;
-
-  if (unsupported) {
-    return {
-      openingOffer: "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
-      targetPurchasePrice: "Not supported yet - evidence is too weak for a responsible target price.",
-      maximumRecommendedPrice: "Not supported yet - do not set a maximum from weak evidence.",
-      maximumRecommendedPriceExplanation: "No reliable maximum could be established because no qualified verified sold or completed-sale comparable prices were found.",
-      openingOfferAmount: null,
-      targetPurchasePriceAmount: null,
-      maximumRecommendedPriceAmount: null,
-      walkAwayPrice: "Not enough evidence for a precise walk-away price.",
-      recommendedOffer: [
-        "Opening Offer: Not supported yet.",
-        "Target Purchase Price: Not supported yet.",
-        "Maximum Recommended Price: Not supported yet."
-      ]
-    };
-  }
-
-  const conditionMultiplier = conditionProfile.hasHardRisk ? 0.84 : conditionProfile.hasModerateRisk ? 0.94 : 1.04;
-  let maxPrice = roundMoney(fairValueNumber * conditionMultiplier);
-  let targetPrice = roundMoney(Math.min(askingPriceNumber, maxPrice));
-  let openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.88 });
-  const weakRangePersonalBuy = isLowDollarAskingInsideWeakPreliminaryRange({
-    askingPriceNumber,
-    priceEvidence,
-    conditionProfile,
-    downsideRisk: decision.downsideRisk || {}
-  });
-
-  if (askingPriceNumber <= fairValueNumber * consumerDecisionThresholds.goodMaxRatio) {
-    targetPrice = roundMoney(askingPriceNumber);
-    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: decision.valueRating === "Exceptional Value" ? 0.92 : 0.82 });
-    maxPrice = roundMoney(Math.max(targetPrice, Math.min(fairValueNumber * 1.03, maxPrice)));
-  } else if (askingPriceNumber > fairValueNumber * consumerDecisionThresholds.fairMaxRatio) {
-    targetPrice = roundMoney(Math.min(maxPrice, fairValueNumber * 0.96));
-    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.86 });
-  }
-
-  if (weakRangePersonalBuy) {
-    targetPrice = roundMoney(askingPriceNumber);
-    openingOffer = roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor: 0.82 });
-    maxPrice = roundMoney(Math.max(maxPrice, targetPrice));
-  }
-
-  if (openingOffer > targetPrice) {
-    openingOffer = targetPrice;
-  }
-  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 1 && openingOffer >= askingPriceNumber && /Negotiate|Buy|Promising|Cautious|Reasonable/i.test([decision.recommendation, decision.valueRating].join(" "))) {
-    openingOffer = Math.max(1, askingPriceNumber <= 25 ? Math.floor(askingPriceNumber - 1) : roundMoney(askingPriceNumber * 0.9));
-  }
-  if (targetPrice > maxPrice) {
-    targetPrice = maxPrice;
-  }
-
-  const maximumPolicy = buildMaximumRecommendedPricePolicy({
-    askingPriceNumber,
-    targetPrice,
-    proposedMaxPrice: maxPrice,
-    decision,
-    priceEvidence
-  });
-
-  if (!maximumPolicy.established) {
-    const capped = enforceBuyerNegotiationAskingCeiling({
-      askingPriceNumber,
-      openingOffer,
-      targetPrice,
-      maxPrice: null,
-      maximumExplanation: maximumPolicy.explanation,
-      priceEvidence
-    });
-    openingOffer = capped.openingOffer;
-    targetPrice = capped.targetPrice;
-    if (openingOffer > targetPrice) {
-      openingOffer = targetPrice;
-    }
-    if (openingOffer >= targetPrice && targetPrice > 1) {
-      openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
-    }
-    const openingOfferText = `Opening Offer: ${formatMoney(openingOffer)}`;
-    const targetPurchasePrice = `Target Purchase Price: ${formatMoney(targetPrice)}`;
-    const maximumRecommendedPrice = "Maximum Recommended Price: Not established";
-    const maximumRecommendedPriceExplanation = maximumPolicy.explanation;
-    return {
-      openingOffer: openingOfferText,
-      targetPurchasePrice,
-      maximumRecommendedPrice,
-      maximumRecommendedPriceExplanation,
-      openingOfferAmount: openingOffer,
-      targetPurchasePriceAmount: targetPrice,
-      maximumRecommendedPriceAmount: null,
-      walkAwayPrice: `Walk-Away Price: Not established. ${maximumRecommendedPriceExplanation}`,
-      recommendedOffer: [
-        openingOfferText,
-        targetPurchasePrice,
-        maximumRecommendedPrice,
-        `Maximum Price Note: ${maximumRecommendedPriceExplanation}`
-      ]
-    };
-  }
-
-  maxPrice = maximumPolicy.maxPrice;
-  const capped = enforceBuyerNegotiationAskingCeiling({
-    askingPriceNumber,
-    openingOffer,
-    targetPrice,
-    maxPrice,
-    maximumExplanation: maximumPolicy.explanation,
-    priceEvidence
-  });
-  openingOffer = capped.openingOffer;
-  targetPrice = capped.targetPrice;
-  maxPrice = capped.maxPrice;
-  const maximumRecommendedPriceExplanation = capped.maximumExplanation;
-  if (targetPrice > maxPrice) {
-    targetPrice = maxPrice;
-  }
-  if (openingOffer >= targetPrice && targetPrice > 1) {
-    openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
-  }
-  if (targetPrice > maxPrice) {
-    targetPrice = maxPrice;
-  }
-  if (openingOffer > targetPrice) {
-    openingOffer = Math.max(1, targetPrice <= 25 ? Math.floor(targetPrice - 1) : roundMoney(targetPrice * 0.9));
-  }
-
-  const openingOfferText = `Opening Offer: ${formatMoney(openingOffer)}`;
-  const targetPurchasePrice = `Target Purchase Price: ${formatMoney(targetPrice)}`;
-  const maximumRecommendedPrice = `Maximum Recommended Price: ${formatMoney(maxPrice)}`;
-
-  return {
-    openingOffer: openingOfferText,
-    targetPurchasePrice,
-    maximumRecommendedPrice,
-    maximumRecommendedPriceExplanation,
-    openingOfferAmount: openingOffer,
-    targetPurchasePriceAmount: targetPrice,
-    maximumRecommendedPriceAmount: maxPrice,
-    walkAwayPrice: `Walk-Away Price: ${formatMoney(maxPrice)} for personal use unless condition, accessories, warranty, return protection, or exact model evidence improves.`,
-    recommendedOffer: [openingOfferText, targetPurchasePrice, maximumRecommendedPrice, `Maximum Price Note: ${maximumRecommendedPriceExplanation}`]
-  };
-}
-
-function roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor = 0.88 } = {}) {
-  const base = Number.isFinite(targetPrice) ? targetPrice : askingPriceNumber;
-  if (!Number.isFinite(base) || base <= 1) {
-    return 1;
-  }
-  let rounded = base <= 25
-    ? Math.max(1, Math.floor(base * factor))
-    : roundMoney(Math.max(1, base * factor));
-  if (Number.isFinite(askingPriceNumber) && askingPriceNumber > 1 && rounded >= askingPriceNumber) {
-    rounded = askingPriceNumber <= 25
-      ? Math.max(1, Math.floor(askingPriceNumber - 1))
-      : roundMoney(askingPriceNumber * 0.9);
-  }
-  return rounded;
-}
-
-function buildAskingCeilingNegotiationText({ askingPriceNumber, offer = {}, reliableCompsFound = false } = {}) {
-  if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0) {
-    return "";
-  }
-  const opening = Number.isFinite(offer.openingOfferAmount)
-    ? offer.openingOfferAmount
-    : extractFirstMoneyAmount(offer.openingOffer);
-  const target = Number.isFinite(offer.targetPurchasePriceAmount)
-    ? offer.targetPurchasePriceAmount
-    : extractFirstMoneyAmount(offer.targetPurchasePrice);
-  const openingText = Number.isFinite(opening) ? formatMoney(Math.min(opening, askingPriceNumber)) : "below the asking price";
-  const targetText = Number.isFinite(target) ? formatMoney(Math.min(target, askingPriceNumber)) : formatMoney(askingPriceNumber);
-  const evidenceText = reliableCompsFound
-    ? "Keep any counteroffer at or below the current asking price unless the seller lowers the price or new evidence changes the comparison."
-    : "This is cautious personal-use negotiation, not a verified market-value claim.";
-  return `Start at ${openingText}; aim for ${targetText} or less. Do not negotiate above the current asking price of ${formatMoney(askingPriceNumber)}. ${evidenceText}`;
-}
-
-function negotiationTextViolatesAskingCeiling(text = "", askingPriceNumber = null) {
-  if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0 || !text) {
-    return false;
-  }
-  const amounts = extractMoneyAmounts(text);
-  const hasAmountAboveAsking = amounts.some((amount) => Number.isFinite(amount) && amount > askingPriceNumber + 0.004);
-  const upwardLanguage = /\b(?:negotiate|counter|offer|move|work|go|towards?|toward|up)\b[^.]{0,80}\b(?:up|higher|above|towards?|toward)\b/i.test(text);
-  return hasAmountAboveAsking && upwardLanguage;
-}
-
-function buildConsumerNegotiationGuidance(value, { decision, offer, reliableCompsFound, askingPriceNumber, fairValueNumber }) {
-  const text = cleanText(value);
-  const ceilingText = buildAskingCeilingNegotiationText({ askingPriceNumber, offer, reliableCompsFound });
-  if (negotiationTextViolatesAskingCeiling(text, askingPriceNumber)) {
-    return ceilingText;
-  }
-  const maxPrice = Number.isFinite(offer.maximumRecommendedPriceAmount)
-    ? offer.maximumRecommendedPriceAmount
-    : extractFirstMoneyAmount(offer.maximumRecommendedPrice);
-  if (Number.isFinite(askingPriceNumber) && Number.isFinite(maxPrice) && maxPrice < askingPriceNumber && /buy/i.test(decision.recommendation || "")) {
-    const conditionalText = `Buy only if negotiated to ${formatMoney(maxPrice)} or below. The current asking price is ${formatMoney(askingPriceNumber)}, so the deal is conditional rather than an unconditional Buy.`;
-    return [conditionalText, text].filter(Boolean).join(" ");
-  }
-  if (!reliableCompsFound || decision.valueRating === "Insufficient Evidence") {
-    if (decision.valueRating !== "Insufficient Evidence" && Array.isArray(offer.recommendedOffer) && offer.recommendedOffer.length) {
-      return text || ceilingText || `Use this as cautious personal-use negotiation, not a verified market claim. ${offer.openingOffer}; ${offer.targetPurchasePrice}; keep the maximum tied to the central supported range and condition.`;
-    }
-    return text || "Do not negotiate from a precise market claim yet. First verify the exact item, condition, included parts, and a reliable comparable price.";
-  }
-
-  if (Number.isFinite(askingPriceNumber) && Number.isFinite(fairValueNumber) && askingPriceNumber <= fairValueNumber * consumerDecisionThresholds.goodMaxRatio) {
-    return text || `The current price appears within or below the supported fair range, so aggressive negotiation may not be justified. ${offer.targetPurchasePrice}`;
-  }
-
-  return text || `Use the supported fair-value range and condition issues to make a calm offer. ${offer.openingOffer}; ${offer.targetPurchasePrice}; do not exceed ${offer.maximumRecommendedPrice.replace("Maximum Recommended Price: ", "")} unless inspection improves confidence.`;
-}
 
 function buildConsumerAdditionalInfoNeeded(value, { reliableCompsFound, buyerIntake, identity, conditionProfile }) {
   const needed = normalizeFlexibleArray(value, 8, []);
@@ -15752,7 +15363,7 @@ function mergeStringArrays(...args) {
   return merged.slice(0, maxItems);
 }
 
-function buildBuyerRiskAssessment({ report, buyerIntake, identity, reliableCompsFound, searchCompleted, liveComparableSearchStatus, resaleGuidance, purchaserDecision }) {
+function buildBuyerRiskAssessment({ report, buyerIntake, identity, reliableCompsFound, searchCompleted, liveComparableSearchStatus, resaleGuidance, buyerOfferResult = {}, purchaserDecision }) {
   let evidenceScore = reliableCompsFound ? 22 : searchCompleted ? 58 : 64;
   let exposureScore = 32;
   const factors = [];
@@ -15799,7 +15410,13 @@ function buildBuyerRiskAssessment({ report, buyerIntake, identity, reliableComps
     addUnique(actions, action);
   }
 
-  const priceRisk = getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleGuidance });
+  const priceRisk = getPriceExposureRisk({
+    report,
+    buyerIntake,
+    reliableCompsFound,
+    resaleGuidance,
+    buyerOfferResult
+  });
   exposureScore += priceRisk.scoreAdjustment;
   for (const factor of priceRisk.factors) {
     addUnique(factors, factor);
@@ -15948,7 +15565,7 @@ function getConditionRisk(buyerIntake, identity = {}) {
   return result;
 }
 
-function getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleGuidance }) {
+function getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleGuidance, buyerOfferResult = {} }) {
   const result = {
     scoreAdjustment: 0,
     factors: [],
@@ -15990,7 +15607,9 @@ function getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleG
 
   if (isResaleIntent(buyerIntake.purchase_intent)) {
     if (!reliableCompsFound) {
-      const ceiling = resaleGuidance.speculativeBuyCeiling;
+      const ceiling = Number.isFinite(buyerOfferResult.maximumPrice)
+        ? buyerOfferResult.maximumPrice
+        : null;
       if (askingPrice <= 0) {
         result.limitedDownside = true;
         if (lowPriceCanReduceRisk) {
@@ -16013,15 +15632,15 @@ function getPriceExposureRisk({ report, buyerIntake, reliableCompsFound, resaleG
         result.limitedDownside = askingPrice <= 25;
         if (lowPriceCanReduceRisk) {
           result.scoreAdjustment -= askingPrice <= 25 ? 14 : 6;
-          result.factors.push(askingPrice <= 25 ? "Low purchase price limits downside" : "Asking price stays below low-confidence ceiling");
-          result.actions.push("Keep any offer at or below the low-confidence speculative ceiling.");
+          result.factors.push(askingPrice <= 25 ? "Low purchase price limits downside" : "Asking price stays below the canonical buyer maximum");
+          result.actions.push("Keep any offer at or below the canonical buyer maximum.");
         } else {
-          result.factors.push("Speculative ceiling is offset by added downside");
+          result.factors.push("Canonical buyer maximum is offset by added downside");
         }
       } else if (Number.isFinite(ceiling)) {
         const spreadPenalty = Math.min(28, 12 + Math.ceil(((askingPrice - ceiling) / Math.max(ceiling, 1)) * 12));
         result.scoreAdjustment += Math.max(12, spreadPenalty);
-        result.factors.push("Asking price exceeds low-confidence speculative ceiling");
+        result.factors.push("Asking price exceeds the canonical buyer maximum");
         result.actions.push("Pass unless the seller accepts a substantially lower offer.");
       } else {
         if (lowPriceCanReduceRisk && askingPrice <= 25) {
@@ -16228,10 +15847,6 @@ function buildResalePricingGuidance(report, { buyerIntake, identity, platform, s
 }
 
 function buildLowConfidenceResaleGuidance({ report, buyerIntake, recommendedSellingPlatform, moneyRange }) {
-  const speculativeBuyCeiling = calculateSpeculativeBuyCeiling({ moneyRange, buyerIntake });
-  const speculativeOfferText = speculativeBuyCeiling
-    ? `A low-confidence speculative offer should stay around ${formatSpeculativeOfferRange(speculativeBuyCeiling)} or lower after inspection.`
-    : "No responsible speculative offer can be calculated until stronger identity, condition, and demand evidence is available.";
   const cautiousAdvertisedRange = moneyRange
     ? `A cautious advertised range may be around ${formatMoneyRange(roundMoney(moneyRange[0]), roundMoney(moneyRange[1]))} only after verification, but it is not proof of resale value.`
     : "Resale price cannot be estimated reliably from available evidence.";
@@ -16245,53 +15860,10 @@ function buildLowConfidenceResaleGuidance({ report, buyerIntake, recommendedSell
     expectedSalePrice: `Resale price cannot be estimated reliably from available evidence. ${expectedSaleRange} The item may fail to sell.`,
     minimumAcceptablePrice: "No reliable minimum acceptable resale price is supported without exact or strong similar comps; do not treat any floor as guaranteed liquidity.",
     expectedSellingTime: "Highly uncertain; sale may be slow, require repeated markdowns, or fail entirely until demand is verified.",
-    platformSpecificSellingGuidance: `${recommendedSellingPlatform || "Resale"} guidance - do not use an AI-only listing range to justify buying. ${speculativeOfferText} Account for fees, transport, shipping or breakage, condition uncertainty, negotiation, and time-to-sell before risking cash.`,
-    speculativeBuyCeiling,
-    speculativeOfferText
+    platformSpecificSellingGuidance: `${recommendedSellingPlatform || "Resale"} guidance - do not use an AI-only listing range to justify buying. Account for fees, transport, shipping or breakage, condition uncertainty, negotiation, and time-to-sell before risking cash.`
   };
 }
 
-function calculateSpeculativeBuyCeiling({ moneyRange, buyerIntake }) {
-  if (!moneyRange) {
-    return null;
-  }
-
-  const conservativeSale = Math.min(...moneyRange);
-  if (!Number.isFinite(conservativeSale) || conservativeSale <= 0) {
-    return null;
-  }
-
-  const context = cleanText(buyerIntake.purchase_context).toLowerCase();
-  const platformIntent = cleanText(buyerIntake.purchase_intent).toLowerCase();
-  const condition = cleanText(buyerIntake.item_condition).toLowerCase();
-  const concerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns : [];
-  const localPurchase = /facebook|private|flea|estate|thrift|consignment|antique|local/.test(context);
-  const damagedOrUntested = /damaged|missing|untested|unknown/.test(condition) || concerns.some((item) => /damage|missing|cracks|not_working|untested|incomplete|authenticity|odor/.test(item));
-  const hasIdentifier = [
-    buyerIntake.item_name,
-    buyerIntake.known_brand,
-    buyerIntake.known_manufacturer,
-    buyerIntake.known_model,
-    buyerIntake.known_sku,
-    buyerIntake.known_upc
-  ].some(hasKnownValue);
-
-  const sellingCostRate = localPurchase ? 0.1 : 0.18;
-  const conditionAllowance = damagedOrUntested ? 0.18 : 0.08;
-  const identityAllowance = hasIdentifier ? 0.06 : 0.14;
-  const uncertaintyAllowance = 0.16 + Math.min(0.12, concerns.length * 0.03) + identityAllowance;
-  const requiredProfit = Math.max(conservativeSale <= 35 ? 8 : 10, conservativeSale * (platformIntent === "both" ? 0.14 : 0.16));
-  const riskAdjustedNet = conservativeSale * Math.max(0.2, 1 - sellingCostRate - conditionAllowance - uncertaintyAllowance);
-  const ceiling = roundMoney(riskAdjustedNet - requiredProfit);
-
-  return ceiling > 0 ? ceiling : null;
-}
-
-function formatSpeculativeOfferRange(ceiling) {
-  const high = roundMoney(ceiling);
-  const low = roundMoney(Math.max(1, high * 0.7));
-  return formatMoneyRange(low, high);
-}
 
 function labelResalePriceGuidance(value, fallback, reliableCompsFound) {
   const text = cleanText(value || fallback);
@@ -16398,28 +15970,8 @@ function buildCurrentAskingPrice(buyerIntake, identity = {}) {
   return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously.";
 }
 
-function buildMaximumRecommendedBuyPrice(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
-  const text = cleanText(value);
-  if (reliableCompsFound) {
-    return text;
-  }
 
-  if (!hasKnownValue(buyerIntake.asking_price)) {
-    return "Need More Info - Current asking price is required before a maximum recommended buy price can be trusted.";
-  }
-
-  if (isResaleIntent(buyerIntake.purchase_intent)) {
-    if (resaleGuidance.speculativeBuyCeiling) {
-      return `Low-confidence speculative ceiling: ${formatMoney(resaleGuidance.speculativeBuyCeiling)} or less. This ceiling uses conservative realized-sale logic and subtracts selling costs, transport or shipping risk, condition risk, identity risk, uncertainty, and required profit. It is not a confident buy price.`;
-    }
-
-    return "No reliable maximum buy price can be recommended because source-backed comps, demand, and realized resale value are not strong enough.";
-  }
-
-  return ensurePrefix(text, "Low confidence - Buy only if personal utility justifies the price; market value is not source-supported.");
-}
-
-function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
+function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGuidance, buyerOfferResult = {} }) {
   const text = cleanText(value);
   if (!isResaleIntent(buyerIntake.purchase_intent)) {
     return text || "Resale is not the main reason to buy.";
@@ -16429,7 +15981,7 @@ function buildResalePotential(value, { buyerIntake, reliableCompsFound, resaleGu
     return text;
   }
 
-  return `Low-confidence speculative resale only - demand is unverified, the item may not sell, and an advertised listing price is not the same as realized value. ${resaleGuidance.speculativeOfferText || "Need stronger comps before risking resale capital."}`;
+  return `Low-confidence speculative resale only - demand is unverified, the item may not sell, and an advertised listing price is not the same as realized value. ${cleanText(buyerOfferResult.guidanceSummary) || "Need stronger canonical sold evidence before risking resale capital."}`;
 }
 
 function buildItemIdentification(identity = {}) {
@@ -17913,9 +17465,6 @@ export const __queryIntegrityTestHooks = {
   buildCurrentPurchaseOptionSummary,
   summarizeConsumerVisiblePriceEvidence,
   buildConsumerPricingSummary,
-  buildConsumerOffer,
-  buildMaximumRecommendedPricePolicy,
-  buildMaximumPriceEvidenceProfile,
   extractShippingEvidence,
   normalizePriceTypeLabel,
   isQualifiedVerifiedSoldPriceEvidence,
@@ -17923,7 +17472,6 @@ export const __queryIntegrityTestHooks = {
   isBulkLotReferenceWithoutUnitPrice,
   hasExplicitSoldTransactionProof,
   isCurrentPurchasablePriceFoundRecord,
-  buildConsumerNegotiationGuidance,
   classifyRetailPackageCompatibility,
   retailSizeTokensCompatible,
   assessRetailProductFamilyCompatibility,

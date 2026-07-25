@@ -1628,139 +1628,41 @@ try {
   assert(preliminaryOutlierEvidence.outlierRecords.length === 0, "The translation-only summary must not independently exclude canonical support as outliers.");
   const preliminaryCards = __queryIntegrityTestHooks.buildConsumerPricesFound(preliminaryOutlierSourceRecords, 10);
   assert(JSON.stringify(preliminaryCards).includes("1,155"), "Display cards must not silently remove evidence used by the canonical range.");
-  const conditionProfile = {
-    condition: "used",
-    concerns: [],
-    isUnknown: false,
-    hasHardRisk: false,
-    hasModerateRisk: false,
-    missingParts: false,
-    repairRisk: false,
-    risks: []
-  };
-  const buyerIntake = {
-    purchase_context: "antique_mall",
-    asking_price: "$10",
-    purchase_intent: "personal_use",
-    item_condition: "used",
-    item_name: "Georgia Bulldogs Coca-Cola tray",
-    known_brand: "Coca-Cola",
-    buyer_notes: "HOW 'BOUT THEM DAWGS 1980 NATIONAL CHAMPIONS Vince Dooley"
-  };
   const weakCanonical = preliminaryOutlierSourceRecords.finalEvidenceResult;
-  const weakDecision = {
-    ...weakCanonical.decision,
-    valueRating: weakCanonical.badgeResult.label,
-    pricingConfidence: weakCanonical.confidenceResult.pricing.level
-  };
   assert(weakCanonical.badgeResult.code === "pricing_support_limited", "Active asking evidence without verified sales must use a neutral canonical badge.");
   assert(weakCanonical.confidenceResult.pricing.level === "medium", "Multiple independent active asks may produce medium canonical pricing confidence.");
   assert(weakCanonical.badgeResult.label !== "Exceptional Value", "Weak asking evidence must not produce an Exceptional Value badge.");
-  const weakOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
-    decision: weakDecision,
-    conditionProfile,
-    priceEvidence: preliminaryOutlierEvidence
-  });
-  assert(weakOffer.openingOffer !== weakOffer.targetPurchasePrice, "Opening offer should not equal the target purchase price for a negotiable low-dollar buy.");
-  assert(/\$[1-9]/.test(weakOffer.openingOffer) && /\$10/.test(weakOffer.targetPurchasePrice), "Opening offer should be below the $10 target asking price when negotiation is reasonable.");
-  assert(weakOffer.openingOfferAmount < weakOffer.targetPurchasePriceAmount, "Opening offer amount should stay below target amount when negotiation is reasonable.");
-  assert(weakOffer.targetPurchasePriceAmount <= weakOffer.maximumRecommendedPriceAmount, "Target purchase amount should not exceed the maximum recommended amount.");
-  assert(weakOffer.maximumRecommendedPriceAmount === 10, "Asking $10, target $10, low confidence, no sold evidence, and no active exact/strong evidence cannot produce a $135 maximum.");
-  assert(/capped near the target because available pricing evidence is weak/i.test(weakOffer.maximumRecommendedPriceExplanation), "Customer-facing explanation should state why the weak-evidence maximum was capped.");
-  const weakWideReferenceEvidence = {
-    primaryRangeType: "preliminary_reference",
-    primaryRangeLabel: "Preliminary Reference Range",
-    referenceCenter: 135,
-    primaryRangeRecordCount: 4,
-    pricedRecordCount: 6,
-    primaryPreliminaryReferenceCount: 4,
-    soldExactStrongCount: 0,
-    activeExactStrongCount: 0,
-    excludedOutlierCount: 2,
-    outlierRecords: [
-      { displayedPrice: "$5.00", rangeExclusionReason: "low weak reference outlier" },
-      { displayedPrice: "$600.00", rangeExclusionReason: "high weak reference outlier" }
-    ],
-    priceBasis: "Weak, partial, guide, auction, and reference price context only."
-  };
-  const weakWideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 135,
-    decision: { valueRating: "Promising Price - Limited Evidence", recommendation: "Buy", pricingConfidence: "Low" },
-    conditionProfile,
-    priceEvidence: weakWideReferenceEvidence
-  });
-  assert(weakWideOffer.maximumRecommendedPriceAmount === 10, "Weak/reference prices ranging from $5-$600 cannot establish or inflate the maximum price.");
-  assert(!/\$135|\$600/.test(weakWideOffer.maximumRecommendedPrice), "Excluded outliers and weak reference centers must not appear as the maximum recommended price.");
-  const noMaximumOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 85,
-    fairValueNumber: 220,
-    decision: { valueRating: "Proceed with Caution", recommendation: "Negotiate", pricingConfidence: "Low" },
-    conditionProfile,
-    priceEvidence: weakWideReferenceEvidence
-  });
-  assert(noMaximumOffer.maximumRecommendedPriceAmount === null && /Not established/i.test(noMaximumOffer.maximumRecommendedPrice), "Weak/reference evidence alone should use Maximum Recommended Price: Not established when a low-dollar cautious cap is not defensible.");
-  const conditionalBuyOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 8.6,
-    decision: { valueRating: "Good Value", recommendation: "Buy" },
-    conditionProfile,
-    priceEvidence: {
-      primaryRangeType: "verified_market",
-      primaryRangeLabel: "Verified Market Range",
-      soldExactStrongCount: 1,
-      activeExactStrongCount: 0,
-      primaryRangeRecordCount: 1,
-      pricedRecordCount: 1,
-      hasVerifiedSoldEvidence: true
-    }
-  });
-  assert(conditionalBuyOffer.maximumRecommendedPriceAmount < 10, "The existing numerical offer engine must keep a supported maximum below the entered price when its own evidence policy requires it.");
+  const weakOffer = weakCanonical.buyerOfferResult;
+  assert(weakOffer.status === "asking_market_guidance", "Multiple independent active asks may produce only canonical asking-market guidance.");
+  assert(weakOffer.basisCode === "active_asking_range", "Active-ask guidance must expose an active-asking basis.");
+  assert(weakOffer.openingOffer < weakOffer.targetPrice, "Opening offer should stay below the target when canonical asking-market guidance is supported.");
+  assert(weakOffer.targetPrice <= weakOffer.maximumPrice, "Canonical buyer-offer figures must remain ordered.");
+  assert(/not (?:a )?verified market value/i.test(weakOffer.guidanceSummary), "Active-asking guidance must explicitly disclaim verified market value.");
   assert(typeof __queryIntegrityTestHooks.buildConsumerRecommendationText === "undefined", "The superseded recommendation override helper must remain deleted.");
-  const soldOutranksActive = summarizeCanonicalEvidence({
+  const soldOutranksActiveSource = {
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
       priceRecord({ url: "https://example.com/sold-44", canonicalUrl: "https://example.com/sold-44", displayedPrice: "$44.00", priceType: "Verified Sold", rawText: "Verified sold price $44.00", classification: "Strong Similar Match", identityMatchStrength: "Strong" }),
       priceRecord({ url: "https://example.com/active-15", canonicalUrl: "https://example.com/active-15", displayedPrice: "$15.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
     ]
-  });
+  };
+  const soldOutranksActive = summarizeCanonicalEvidence(soldOutranksActiveSource);
   assert(soldOutranksActive.primaryRangeType === "verified_market", "Verified sold exact/strong evidence should outrank active asking evidence.");
   assert(/\$40\.00-\$44\.00/.test(soldOutranksActive.verifiedMarketRange), "Verified Market Range should be based on sold exact/strong prices.");
-  const supportedHighOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 44,
-    decision: { valueRating: "Exceptional Value", recommendation: "Buy", pricingConfidence: "Medium" },
-    conditionProfile,
-    priceEvidence: soldOutranksActive
-  });
-  assert(supportedHighOffer.maximumRecommendedPriceAmount > 20, "Strong verified sold evidence can still support a maximum materially above asking when justified.");
-  assert(/qualified exact\/strong|verified sold|active exact\/strong/i.test(supportedHighOffer.maximumRecommendedPriceExplanation), "A maximum materially above target should explain the qualified exact/strong evidence basis.");
-  const singleActiveAskingEvidence = summarizeCanonicalEvidence({
+  const supportedHighOffer = soldOutranksActiveSource.finalEvidenceResult.buyerOfferResult;
+  assert(supportedHighOffer.status === "market_supported", "Multiple verified sold records may support canonical numerical guidance.");
+  assert(supportedHighOffer.maximumPrice > supportedHighOffer.targetPrice, "Strong verified sold evidence can support a maximum above the current target when justified.");
+  assert(/verified[- ]sold/i.test(supportedHighOffer.guidanceSummary), "Market-supported guidance should explain its verified-sold basis.");
+  const singleActiveAskingSource = {
     strongComparables: [
       priceRecord({ url: "https://example.com/active-22", canonicalUrl: "https://example.com/active-22", displayedPrice: "$22.00", priceType: "Active Asking", classification: "Exact Match", identityMatchStrength: "Exact" })
     ]
-  });
-  const singleActiveOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 22,
-    decision: { valueRating: "Good Value", recommendation: "Buy", pricingConfidence: "Medium" },
-    conditionProfile,
-    priceEvidence: singleActiveAskingEvidence
-  });
-  assert(singleActiveOffer.maximumRecommendedPriceAmount === 10 && singleActiveOffer.targetPurchasePriceAmount <= 10, "A single active asking listing cannot raise the buyer maximum above the entered asking price.");
-  const cappedNegotiation = __queryIntegrityTestHooks.buildConsumerNegotiationGuidance(
-    "Negotiate up toward $15 if needed.",
-    {
-      decision: { valueRating: "Good Value", recommendation: "Buy", pricingConfidence: "Medium" },
-      offer: singleActiveOffer,
-      reliableCompsFound: false,
-      askingPriceNumber: 10,
-      fairValueNumber: 22
-    }
-  );
-  assert(!/\$15/.test(cappedNegotiation) && /Do not negotiate above the current asking price of \$10\.00/i.test(cappedNegotiation), "Negotiation guidance must not tell a buyer to negotiate above the current asking price.");
+  };
+  summarizeCanonicalEvidence(singleActiveAskingSource);
+  const singleActiveOffer = singleActiveAskingSource.finalEvidenceResult.buyerOfferResult;
+  assert(singleActiveOffer.status === "asking_price_context_only", "A single active asking listing must remain context only.");
+  assert(singleActiveOffer.openingOffer === null && singleActiveOffer.targetPrice === null && singleActiveOffer.maximumPrice === null, "A single active asking listing cannot create numerical buyer guidance.");
+  assert(!/negotiate (?:up|above)|raise .*offer/i.test(singleActiveOffer.guidanceSummary), "Canonical guidance must not tell a buyer to negotiate upward.");
   const activeSoldWording = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-word-active", canonicalUrl: "https://example.com/sold-word-active", title: "Sold-style Georgia Bulldogs Coca-Cola tray listing", displayedPrice: "$18.00", priceType: "Active Asking", rawText: "For sale current listing asking price $18.00", classification: "Exact Match", identityMatchStrength: "Exact" })
@@ -1829,40 +1731,6 @@ try {
   assert(soldOnlyPrices.length === 1 && soldOnlyPrices[0].priceType === "Verified sold", "Qualified historical sold evidence may remain visible as historical context.");
   assert(__queryIntegrityTestHooks.buildBestCompatiblePriceFound(soldOnlyPrices) === null, "Historical sold evidence alone must not become Best Compatible Price Found.");
   assert(/No compatible current purchasing option with a confirmed delivered cost/i.test(__queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary(soldOnlyPrices)), "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found.");
-  const weakInsideRangeEvidence = {
-    primaryRangeType: "preliminary_reference",
-    primaryRangeLabel: "Preliminary Reference Range",
-    low: 5,
-    high: 20,
-    referenceCenter: 6,
-    primaryRangeRecordCount: 3,
-    pricedRecordCount: 3,
-    primaryPreliminaryReferenceCount: 3,
-    soldExactStrongCount: 0,
-    activeExactStrongCount: 0,
-    hasVerifiedSoldEvidence: false,
-    hasStrongPriceEvidence: false,
-    priceBasis: "Weak, partial, guide, auction, and reference price context only."
-  };
-  const weakInsideDecision = {
-    valueRating: "Pricing Support Limited",
-    recommendation: "Need More Information",
-    pricingConfidence: "Low",
-    riskFlags: [],
-    downsideRisk: { summary: "Pricing support is limited." },
-    cautiousBuyExplanation: ""
-  };
-  assert(weakInsideDecision.valueRating === "Pricing Support Limited", "Weak preliminary context must use a neutral value label in the negotiation compatibility fixture.");
-  assert(!/Buy|Best|Bargain/i.test(weakInsideDecision.recommendation), "Weak/reference evidence must not create a favorable market-supported recommendation.");
-  const weakInsideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
-    askingPriceNumber: 10,
-    fairValueNumber: 6,
-    decision: weakInsideDecision,
-    conditionProfile,
-    priceEvidence: weakInsideRangeEvidence
-  });
-  assert(/\$10/.test(weakInsideOffer.targetPurchasePrice) && weakInsideOffer.maximumRecommendedPriceAmount === 10, "Weak in-range personal buy should keep target and maximum at the low-dollar asking price, not the weak $6 center.");
-  assert(weakInsideOffer.openingOfferAmount < weakInsideOffer.targetPurchasePriceAmount, "Weak in-range personal buy should still support negotiation below asking.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
   const malformedCandidates = [

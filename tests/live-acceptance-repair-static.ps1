@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $productionText = @(
@@ -40,8 +41,8 @@ Require-Contains "Equivalent customer offer key exists" $api "function buildEqui
 Require-Contains "Direct retailer preference exists" $api "function shouldPreferCustomerEvidenceRecord"
 Require-Contains "Mailing dimensions compatibility exists" $api "function retailSizeTokensCompatible"
 Require-Contains "Completed auction evidence is classified" $api "Completed Auction"
-Require-Contains "Buyer maximum asking ceiling exists" $api "function enforceBuyerNegotiationAskingCeiling"
-Require-Contains "Negotiation ceiling sanitizer exists" $api "function negotiationTextViolatesAskingCeiling"
+Require-Contains "Canonical buyer-offer authority exists" $offer "export function deriveCanonicalBuyerOfferResult"
+Require-Contains "Canonical one-asking-price firewall exists" $offer '"asking_price_context_only"'
 Require-Contains "Compact match label exists" $app "function getCompactPriceFoundMatchLabel"
 Require-Contains "Stock-safe list disclaimer exists" $app "Prices and availability can change. Check the retailer before purchasing."
 Require-Contains "Generic compact action exists" $app 'return "View source";'
@@ -51,7 +52,7 @@ Require-Contains "Mock covers 4.12 mailing dimensions" $mock "Visible 4.12-inch 
 Require-Contains "Mock covers aggregator merchant attribution" $mock "Target via Instacart"
 Require-Contains "Mock covers direct retailer dedupe" $mock "Equivalent direct retailer evidence should replace aggregator duplicates"
 Require-Contains "Mock covers completed auction market evidence" $mock "Completed auction transaction evidence should support the verified-market bucket"
-Require-Contains "Mock covers buyer asking ceiling" $mock "A single active asking listing cannot raise the buyer maximum above the entered asking price"
+Require-Contains "Mock covers buyer asking ceiling" $mock "A single active asking listing cannot create numerical buyer guidance."
 Require-Contains "Mock preserves exact entered price" $mock '$5.50'
 
 Require-NotRegex "Production does not contain exact Office Works acceptance phrase" $productionText "Office Works Security Envelopes"

@@ -6,6 +6,8 @@ $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $dedupe = Get-Content (Join-Path $Root "lib/evidence/dedupe.js") -Raw
+$offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
+$offerTest = Get-Content (Join-Path $Root "tests/canonical-buyer-offer.test.mjs") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
@@ -56,7 +58,7 @@ $checks = @(
   @{ Name = "API compares delivered cost to user price"; Text = $api; Pattern = "delivered cost is higher after shipping" },
   @{ Name = "API warns lower unknown-shipping item may not be best total cost"; Text = $api; Pattern = "may not be the lowest total cost because shipping was not shown" },
   @{ Name = "API ranks known delivered cost before unknown shipping"; Text = $api; Pattern = "return aHasDelivered ? -1 : 1" },
-  @{ Name = "API enforces conditional buy when max below asking"; Text = $api; Pattern = "Buy only if negotiated to" },
+  @{ Name = "Canonical offer clamps maximum to supported range"; Text = $offer; Pattern = "Math.min(rangeResult.high" },
   @{ Name = "API audits verified sold evidence"; Text = $api; Pattern = "function isQualifiedVerifiedSoldPriceEvidence" },
   @{ Name = "API blocks mismatched product forms from Prices Found"; Text = $api; Pattern = "itemTypeCompatibilityStatus" },
   @{ Name = "API excludes weak/rejected from Prices Found"; Text = $api; Pattern = '/weak|rejected/i.test(record.classification || record.evidenceRole || "")' },
@@ -82,8 +84,8 @@ $checks = @(
   @{ Name = "Mock test preserves exact no-price references"; Text = $mock; Pattern = "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable." },
   @{ Name = "Mock test covers canonical active-asking inclusion consistency"; Text = $mock; Pattern = "included in the canonical active-asking group without influencing verified market value." },
   @{ Name = "Mock test covers active listings cannot drive verified range"; Text = $mock; Pattern = "Active listings cannot drive Verified Market Range" },
-  @{ Name = "Mock test covers maximum below entered price"; Text = $mock; Pattern = "maximum below the entered price" },
-  @{ Name = "Mock test covers target below max"; Text = $mock; Pattern = "Target purchase amount should not exceed the maximum recommended amount." },
+  @{ Name = "Canonical test covers maximum within supported range"; Text = $offerTest; Pattern = "assert(offer.maximumPrice <= result.rangeResult.high)" },
+  @{ Name = "Canonical test covers target below max"; Text = $offerTest; Pattern = "assert(offer.targetPrice <= offer.maximumPrice)" },
   @{ Name = "Mock test prevents display-card range exclusion"; Text = $mock; Pattern = "Display cards must not silently remove evidence used by the canonical range." }
 )
 

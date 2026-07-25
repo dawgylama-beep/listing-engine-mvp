@@ -199,7 +199,7 @@ assert.equal(deriveRange(noPricedCollectible).established, false, "exact identit
 const cautious = deriveDecision(noPricedCollectible, { askingPrice: 10, purpose: "personal" });
 assert.equal(cautious.recommendation, "Need More Information");
 assert.equal(cautious.badge, "Market Evidence Insufficient");
-assert.equal(cautious.maximumPrice, null, "entered budget is not a market-backed maximum");
+assert.equal(cautious.maximumPrice, undefined, "the canonical decision helper does not independently calculate a buyer maximum");
 
 for (const priceType of [
   "Verified sold", "Completed auction", "Active asking price", "Buy It Now", "Current bid",
