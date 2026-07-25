@@ -204,13 +204,13 @@ const oneAskingRange = deriveRange(collectible);
 assert.equal(oneAskingRange.established, false);
 assert.equal(oneAskingRange.singleObservation.price, 22.8);
 const collectibleDecision = deriveDecision(collectible, { askingPrice: 10, purpose: "personal" });
-assert.equal(collectibleDecision.recommendation, "Need More Info");
+assert.equal(collectibleDecision.recommendation, "Need More Information");
 assert.equal(collectibleDecision.confidence, "Low");
-assert.equal(collectibleDecision.badge, "Market Evidence Insufficient");
+assert.equal(collectibleDecision.badge, "Asking-Price Context Only");
 assert.equal(collectibleDecision.openingOffer, null);
 assert.equal(collectibleDecision.targetPrice, null);
 assert.equal(collectibleDecision.maximumPrice, null);
-assert.match(collectibleDecision.negotiationGuidance, /unavailable/i);
+assert.match(collectibleDecision.negotiationGuidance, /outside the canonical decision contract/i);
 
 const collectibleDiagnostics = diagnosticsFromFinalEvidence(collectible);
 assert.equal(collectibleDiagnostics.customerEligibleEvidenceCount, 3);

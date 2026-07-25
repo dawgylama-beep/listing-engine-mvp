@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content -LiteralPath (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content -LiteralPath (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $app = Get-Content -LiteralPath (Join-Path $Root "public/app.js") -Raw
 $styles = Get-Content -LiteralPath (Join-Path $Root "public/styles.css") -Raw
@@ -38,7 +39,7 @@ $checks = @(
   @{ Name = "API suppresses unsupported Older Model"; Text = $api; Pattern = "function isOlderModelRiskSupported" },
   @{ Name = "API suppresses unsupported No Warranty"; Text = $api; Pattern = "function isNoWarrantyRiskSupported" },
   @{ Name = "API narrows No Return Protection"; Text = $api; Pattern = "function isNoReturnProtectionSupported" },
-  @{ Name = "API cleans unsupported wait guidance"; Text = $api; Pattern = "function sanitizeBetterValueConsiderations" },
+  @{ Name = "Canonical decision limits wait guidance to supported contradiction"; Text = $decisions; Pattern = "entered_price_above_canonical_retail_limit" },
   @{ Name = "Frontend sends analysis id"; Text = $app; Pattern = "analysisId: request.analysisId" },
   @{ Name = "Frontend stores analysis id in session"; Text = $app; Pattern = "analysisId: firstNonEmpty(report.analysisId, analysisId)" },
   @{ Name = "Frontend clears item session before run"; Text = $app; Pattern = "clearItemSession({ abortAsk: true })" },

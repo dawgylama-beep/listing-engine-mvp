@@ -82,7 +82,7 @@ $checks = @(
   @{ Name = "Mock test preserves exact no-price references"; Text = $mock; Pattern = "Exact identity/reference pages without usable price evidence must remain visible as Price unavailable." },
   @{ Name = "Mock test covers canonical active-asking inclusion consistency"; Text = $mock; Pattern = "included in the canonical active-asking group without influencing verified market value." },
   @{ Name = "Mock test covers active listings cannot drive verified range"; Text = $mock; Pattern = "Active listings cannot drive Verified Market Range" },
-  @{ Name = "Mock test covers conditional buy"; Text = $mock; Pattern = "Buy must become conditional." },
+  @{ Name = "Mock test covers maximum below entered price"; Text = $mock; Pattern = "maximum below the entered price" },
   @{ Name = "Mock test covers target below max"; Text = $mock; Pattern = "Target purchase amount should not exceed the maximum recommended amount." },
   @{ Name = "Mock test prevents display-card range exclusion"; Text = $mock; Pattern = "Display cards must not silently remove evidence used by the canonical range." }
 )

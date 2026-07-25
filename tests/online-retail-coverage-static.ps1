@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
@@ -75,10 +76,9 @@ Require-Contains "Mock covers search-provider exclusion" $mock "Search-provider 
 Require-Contains "Mock covers bounded online queries" $mock "Online retail registry queries must remain within the bounded online budget."
 
 $decisionBlocks = @(
-  Function-Block $api "function buildRetailEvidenceProfile" "function buildRetailPurchaseDecisionFromPrices",
-  Function-Block $api "function buildRetailPurchaseDecisionFromPrices" "function buildRetailPriceLimitFromPrices",
-  Function-Block $api "function buildRetailPriceLimitFromPrices" "function buildRetailPackageUnitPriceComparison",
-  Function-Block $api "function isRetailPriceDecisionEligibleRecord" "function isQualifiedCurrentRetailSourceRecord"
+  Function-Block $api "function buildRetailEvidenceProfile" "function formatCanonicalConfidenceResult",
+  Function-Block $api "function isRetailPriceDecisionEligibleRecord" "function isQualifiedCurrentRetailSourceRecord",
+  $decisions
 )
 
 foreach ($block in $decisionBlocks) {

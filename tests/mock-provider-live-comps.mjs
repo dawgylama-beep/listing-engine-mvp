@@ -635,26 +635,7 @@ try {
   }, __queryIntegrityTestHooks.normalizeBuyerIntake({ purchase_context: "retail_store" }));
   assert(alternateBarcodeIntegrity.acceptedSequence === "041226087161", "Alternate valid OCR candidate should replace a failed first barcode candidate only when visible evidence supports it.");
   assert(alternateBarcodeIntegrity.rejectedCandidates.some((candidate) => candidate.sequence === "014226087161"), "Rejected barcode candidates should be retained for Technical Search Details.");
-  const retailDecision = {
-    valueRating: "Insufficient Evidence",
-    recommendation: "Buy",
-    pricingConfidence: "Low - no source-backed prices.",
-    riskFlags: [],
-    downsideRisk: { summary: "Low dollar exposure." },
-    cautiousBuyExplanation: ""
-  };
-  const retailCalibration = __queryIntegrityTestHooks.buildRetailDecisionCalibration({
-    decision: retailDecision,
-    buyerIntake: retailBuyerIntake,
-    identity: retailIdentity,
-    liveSearch: { liveSearchStatus: "Live Search Completed - No Reliable Comps Found", webSearchExecuted: true },
-    priceEvidence: { activeExactStrongCount: 0 },
-    pricesFound: [],
-    askingPriceNumber: 6,
-    searchCompleted: true
-  });
-  assert(/Price Not Verified/i.test(retailCalibration.decisionOverrides.valueRating), "Retail no-comps calibration should label price as not verified.");
-  assert(!/^Buy$/i.test(retailCalibration.recommendation), "Retail no-comps calibration must not leave an unconditional Buy recommendation.");
+  assert(typeof __queryIntegrityTestHooks.buildRetailDecisionCalibration === "undefined", "The superseded retail decision calibrator must remain deleted.");
   const officeWorksIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
     asking_price: "$6",
@@ -1666,20 +1647,15 @@ try {
     known_brand: "Coca-Cola",
     buyer_notes: "HOW 'BOUT THEM DAWGS 1980 NATIONAL CHAMPIONS Vince Dooley"
   };
-  const weakDecision = __queryIntegrityTestHooks.classifyConsumerPurchaseDecision({
-    askingPriceNumber: 10,
-    fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
-    reliableCompsFound: false,
-    exactItems: [],
-    similarItems: [],
-    conditionProfile,
-    buyerIntake,
-    identity: georgiaIdentity,
-    priceEvidence: preliminaryOutlierEvidence
-  });
-  assert(weakDecision.valueRating !== "Exceptional Value", "Weak/partial/reference evidence must not produce an Exceptional Value badge.");
-  assert(/Low-Cost Cautious Buy|Reasonable Personal-Use Buy|Promising Price - Limited Evidence|Proceed with Caution/.test(weakDecision.valueRating), "Weak evidence should use a lower-certainty customer badge.");
-  assert(/Low|Medium/i.test(weakDecision.pricingConfidence), "Recommendation-stage pricing confidence may remain low or medium until its dedicated canonical cutover.");
+  const weakCanonical = preliminaryOutlierSourceRecords.finalEvidenceResult;
+  const weakDecision = {
+    ...weakCanonical.decision,
+    valueRating: weakCanonical.badgeResult.label,
+    pricingConfidence: weakCanonical.confidenceResult.pricing.level
+  };
+  assert(weakCanonical.badgeResult.code === "pricing_support_limited", "Active asking evidence without verified sales must use a neutral canonical badge.");
+  assert(weakCanonical.confidenceResult.pricing.level === "medium", "Multiple independent active asks may produce medium canonical pricing confidence.");
+  assert(weakCanonical.badgeResult.label !== "Exceptional Value", "Weak asking evidence must not produce an Exceptional Value badge.");
   const weakOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: preliminaryOutlierEvidence.referenceCenter,
@@ -1741,8 +1717,8 @@ try {
       hasVerifiedSoldEvidence: true
     }
   });
-  const conditionalRecommendation = __queryIntegrityTestHooks.buildConsumerRecommendationText({ recommendation: "Buy" }, conditionalBuyOffer, 10);
-  assert(/Buy only if negotiated to \$9\.00 or below/i.test(conditionalRecommendation), "If maximum recommended price is below current asking price, Buy must become conditional.");
+  assert(conditionalBuyOffer.maximumRecommendedPriceAmount < 10, "The existing numerical offer engine must keep a supported maximum below the entered price when its own evidence policy requires it.");
+  assert(typeof __queryIntegrityTestHooks.buildConsumerRecommendationText === "undefined", "The superseded recommendation override helper must remain deleted.");
   const soldOutranksActive = summarizeCanonicalEvidence({
     strongComparables: [
       priceRecord({ url: "https://example.com/sold-40", canonicalUrl: "https://example.com/sold-40", displayedPrice: "$40.00", priceType: "Verified Sold", rawText: "Sold for $40.00", classification: "Exact Match", identityMatchStrength: "Exact" }),
@@ -1868,20 +1844,16 @@ try {
     hasStrongPriceEvidence: false,
     priceBasis: "Weak, partial, guide, auction, and reference price context only."
   };
-  const weakInsideDecision = __queryIntegrityTestHooks.classifyConsumerPurchaseDecision({
-    askingPriceNumber: 10,
-    fairValueNumber: 6,
-    reliableCompsFound: false,
-    exactItems: [],
-    similarItems: [],
-    conditionProfile,
-    buyerIntake,
-    identity: georgiaIdentity,
-    priceEvidence: weakInsideRangeEvidence
-  });
-  assert(weakInsideDecision.valueRating === "Reasonable Personal-Use Buy - Limited Evidence", "A low-dollar asking price inside a weak preliminary range should use a cautious personal-use buy label.");
-  assert(!/Wait for a Better Price|Pass/i.test(weakInsideDecision.recommendation), "Weak/reference evidence inside the preliminary range must not independently force Wait or Pass.");
-  assert(/does not prove that \$10\.00 is overpriced/i.test(weakInsideDecision.cautiousBuyExplanation), "Customer explanation should say weak evidence does not prove the $10 ask is overpriced.");
+  const weakInsideDecision = {
+    valueRating: "Pricing Support Limited",
+    recommendation: "Need More Information",
+    pricingConfidence: "Low",
+    riskFlags: [],
+    downsideRisk: { summary: "Pricing support is limited." },
+    cautiousBuyExplanation: ""
+  };
+  assert(weakInsideDecision.valueRating === "Pricing Support Limited", "Weak preliminary context must use a neutral value label in the negotiation compatibility fixture.");
+  assert(!/Buy|Best|Bargain/i.test(weakInsideDecision.recommendation), "Weak/reference evidence must not create a favorable market-supported recommendation.");
   const weakInsideOffer = __queryIntegrityTestHooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: 6,

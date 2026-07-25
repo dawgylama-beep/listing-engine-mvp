@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content -LiteralPath (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content -LiteralPath (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content -LiteralPath (Join-Path $Root "public/app.js") -Raw
 $styles = Get-Content -LiteralPath (Join-Path $Root "public/styles.css") -Raw
 $index = Get-Content -LiteralPath (Join-Path $Root "public/index.html") -Raw
@@ -40,7 +41,7 @@ $checks = @(
   @{ Name = "API retains source-producing query"; Text = $api; Pattern = "query: cleanText(queryRecord.query)" },
   @{ Name = "API removes unsupported limited edition wording"; Text = $api; Pattern = "removeUnsupportedQueryDescriptors" },
   @{ Name = "API preserves zero-evidence guard"; Text = $api; Pattern = "function applyZeroEvidenceGuard" },
-  @{ Name = "API suppresses unsupported wait guidance"; Text = $api; Pattern = "function sanitizeBetterValueConsiderations" },
+  @{ Name = "Canonical decision restricts wait guidance to supported contradictions"; Text = $decisions; Pattern = "entered_price_above_canonical_retail_limit" },
   @{ Name = "Frontend renders one report root"; Text = $app; Pattern = 'reportRoot.className = "report-root"' },
   @{ Name = "Frontend replaces previous report before rendering"; Text = $app; Pattern = "results.replaceChildren(reportRoot);" },
   @{ Name = "Frontend renders end marker function"; Text = $app; Pattern = "function renderEndOfReportMarker" },

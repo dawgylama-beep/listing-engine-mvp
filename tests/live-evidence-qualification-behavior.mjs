@@ -348,17 +348,12 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
     repairRisk: false,
     risks: []
   };
-  const decision = hooks.classifyConsumerPurchaseDecision({
-    askingPriceNumber: 10,
-    fairValueNumber: evidence.referenceCenter,
-    reliableCompsFound: evidence.hasStrongPriceEvidence,
-    exactItems: prices.filter((record) => /exact/i.test(record.matchQuality || "")),
-    similarItems: prices.filter((record) => /strong/i.test(record.matchQuality || "")),
-    conditionProfile,
-    buyerIntake,
-    identity,
-    priceEvidence: evidence
-  });
+  const canonical = liveSearch.finalEvidenceResult;
+  const decision = {
+    ...canonical.decision,
+    valueRating: canonical.badgeResult.label,
+    pricingConfidence: canonical.confidenceResult.pricing.level
+  };
   const offer = hooks.buildConsumerOffer({
     askingPriceNumber: 10,
     fairValueNumber: evidence.referenceCenter,
@@ -372,7 +367,9 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
   assertEqual(evidence.pricedRecordCount, 1, "Mirror and generic pages must not add extra pricing observations.");
   assertEqual(evidence.primaryRangeType, "current_asking", "Single qualified active asking evidence should be labeled current asking, not verified market.");
   assertEqual(evidence.hasVerifiedSoldEvidence, false, "Different-design sold evidence must not count as verified sold support.");
-  assert(decision.valueRating !== "Exceptional Value", "Active asking alone must not produce Exceptional Value.");
+  assertEqual(canonical.confidenceResult.pricing.level, "low", "Active asking alone must keep canonical pricing confidence low.");
+  assertEqual(canonical.badgeResult.code, "asking_price_context_only", "Active asking alone must use a neutral asking-price-context badge.");
+  assertEqual(canonical.decisionResult.recommendationCode, "need_more_information", "One active ask must not create a market-supported purchase recommendation.");
   assert(offer.maximumRecommendedPriceAmount === 10 || offer.maximumRecommendedPriceAmount === null, "Active asking without sold evidence must not set a buyer maximum above the entered asking price.");
 }
 

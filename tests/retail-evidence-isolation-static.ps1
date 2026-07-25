@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
@@ -29,7 +30,7 @@ $checks = @(
   @{ Name = "Retail firewall clears negotiation guidance"; Text = $api; Pattern = 'negotiationGuidance: retailEvidenceProfile.currentRetailOnly ? ""' },
   @{ Name = "Retail price limit not established exists"; Text = $api; Pattern = "Retail Price Limit: Not established" },
   @{ Name = "Current retail price not verified exists"; Text = $api; Pattern = "Current Retail Price: Not verified" },
-  @{ Name = "Low-risk price-not-verified decision exists"; Text = $api; Pattern = "Low-Risk Purchase - Price Not Verified" },
+  @{ Name = "Canonical price-not-verified decision remains insufficient"; Text = $decisions; Pattern = "canonical_pricing_support_insufficient" },
   @{ Name = "Retail assessment label exists"; Text = $api; Pattern = "Current Retail Price Assessment" },
   @{ Name = "No personal enjoyment retail path"; Text = $api; Pattern = "personal-enjoyment exception" },
   @{ Name = "Retail package compatibility helper exists"; Text = $api; Pattern = "function classifyRetailPackageCompatibility" },

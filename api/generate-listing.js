@@ -851,16 +851,10 @@ const allowedConditionConcerns = new Set([
 ]);
 
 const consumerDecisionThresholds = {
-  exceptionalMaxRatio: 0.72,
   goodMaxRatio: 0.9,
   fairMaxRatio: 1.08,
-  slightlyOverpricedMaxRatio: 1.22,
-  overpricedMaxRatio: 1.45,
-  conditionRiskDowngradeCount: 2,
   lowDollarCautiousBuyMax: 25,
-  modestDollarCautiousBuyMax: 75,
-  cautiousBuyMaxRatio: 0.78,
-  activeListingReferenceMaxCount: 6
+  modestDollarCautiousBuyMax: 75
 };
 
 async function handleGenerateListingRequest(req, res) {
@@ -11638,6 +11632,10 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     });
   const target = {
     upc: firstKnown(identity.upcBarcode, identity.upc, identity.barcode, buyerIntake.known_upc),
+    sku: firstKnown(identity.sku, identity.SKU, identity.itemNumber, buyerIntake.known_sku),
+    model: firstKnown(identity.model, identity.modelNumber, buyerIntake.known_model),
+    brand: firstKnown(identity.brand, identity.manufacturer, buyerIntake.known_brand, buyerIntake.known_manufacturer),
+    productName: firstKnown(identity.exactProductIdentity, identity.productNameOrBoxTitle, buyerIntake.item_name),
     quantity: extractPackQuantityNumber([
       identity.packageQuantity,
       identity.unitCount,
@@ -11648,8 +11646,17 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     ].join(" ")),
     dimensions: firstKnown(identity.dimensions, identity.sizeDimensions, buyerIntake.size_dimensions),
     packageType: firstKnown(identity.packageType, identity.productForm),
-    designAttributes: normalizeStringArray(identity.designAttributes, 16)
+    designAttributes: normalizeStringArray(identity.designAttributes, 16),
+    identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 16)
   };
+  const purchaseIntent = cleanText(buyerIntake.purchase_intent);
+  const purpose = isOwnerValueIntent(purchaseIntent)
+    ? "owner_value"
+    : /seller_listing/i.test(purchaseIntent)
+      ? "seller_listing"
+      : isResaleIntent(purchaseIntent)
+        ? "resale"
+        : "personal";
   const finalEvidenceResult = createFinalEvidenceResult({
     analysisId: cleanText(liveSearch.analysisId),
     analysisMode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible",
@@ -11658,7 +11665,14 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     providerRequests: liveSearch.providerRequestRecords || [],
     displayLimit: 8,
     askingPrice: askingPriceNumber,
-    purpose: /resell/i.test(cleanText(buyerIntake.buyer_intent)) ? "resale" : "personal"
+    purpose,
+    decisionContext: {
+      purchaseContext: buyerIntake.purchase_context,
+      condition: buyerIntake.item_condition,
+      conditionConcerns: normalizeStringArray(buyerIntake.condition_concerns, 16),
+      knownShippingAmount: buyerIntake.known_shipping_amount,
+      availabilityContext: cleanText(liveSearch.searchDiagnostics?.locationAwareRetailSearchStatus)
+    }
   });
   currentAnalysisAdapters().onFinalEvidenceResult(finalEvidenceResult);
   const compactRecords = buildCompactEvidenceList(finalEvidenceResult, askingPriceNumber);
@@ -11672,6 +11686,9 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   liveSearch.finalEvidenceRangeResults = finalEvidenceResult.rangeResults;
   liveSearch.finalEvidenceRetailLimitResult = finalEvidenceResult.retailLimitResult;
   liveSearch.finalEvidenceDecision = finalEvidenceResult.decision;
+  liveSearch.finalEvidenceDecisionResult = finalEvidenceResult.decisionResult;
+  liveSearch.finalEvidenceConfidenceResult = finalEvidenceResult.confidenceResult;
+  liveSearch.finalEvidenceBadgeResult = finalEvidenceResult.badgeResult;
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,
@@ -11684,7 +11701,21 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     canonicalRangeSupportUnderlyingOfferIds: finalEvidenceResult.rangeResult.underlyingOfferIds,
     canonicalRetailLimitStatus: finalEvidenceResult.retailLimitResult.status,
     canonicalRetailLimitSupportEvidenceIds: finalEvidenceResult.retailLimitResult.evidenceIds,
-    canonicalRetailLimitSupportUnderlyingOfferIds: finalEvidenceResult.retailLimitResult.underlyingOfferIds
+    canonicalRetailLimitSupportUnderlyingOfferIds: finalEvidenceResult.retailLimitResult.underlyingOfferIds,
+    canonicalDecisionStatus: finalEvidenceResult.decisionResult.status,
+    canonicalRecommendationCode: finalEvidenceResult.decisionResult.recommendationCode,
+    canonicalDecisionSupportEvidenceIds: finalEvidenceResult.decisionResult.supportingEvidenceIds,
+    canonicalDecisionSupportUnderlyingOfferIds: finalEvidenceResult.decisionResult.supportingUnderlyingOfferIds,
+    canonicalIdentityConfidence: finalEvidenceResult.confidenceResult.identity.level,
+    canonicalIdentityConfidenceLevel: finalEvidenceResult.confidenceResult.identity.level,
+    canonicalIdentityConfidenceSupportEvidenceIds: finalEvidenceResult.confidenceResult.identity.supportingEvidenceIds,
+    canonicalIdentityConfidenceSupportUnderlyingOfferIds: finalEvidenceResult.confidenceResult.identity.supportingUnderlyingOfferIds,
+    canonicalPricingConfidenceLevel: finalEvidenceResult.confidenceResult.pricing.level,
+    canonicalPricingConfidenceSupportEvidenceIds: finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds,
+    canonicalPricingConfidenceSupportUnderlyingOfferIds: finalEvidenceResult.confidenceResult.pricing.supportingUnderlyingOfferIds,
+    canonicalBadgeCode: finalEvidenceResult.badgeResult.code,
+    canonicalBadgeSupportEvidenceIds: finalEvidenceResult.badgeResult.supportingEvidenceIds,
+    canonicalBadgeSupportUnderlyingOfferIds: finalEvidenceResult.badgeResult.supportingUnderlyingOfferIds
   };
   liveSearch.diagnostics = liveSearch.searchDiagnostics;
   return compactRecords;
@@ -13042,6 +13073,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const currentRetailOnly = isCurrentRetailOnlyMode(retailEvidenceMode);
   const storeName = getRetailStoreName(buyerIntake);
   const finalEvidenceResult = liveSearch.finalEvidenceResult || null;
+  const decisionResult = finalEvidenceResult?.decisionResult || {};
+  const confidenceResult = finalEvidenceResult?.confidenceResult || {};
+  const badgeResult = finalEvidenceResult?.badgeResult || {};
   const rangeResult = finalEvidenceResult?.rangeResult?.priceType === "current_retail"
     ? finalEvidenceResult.rangeResult
     : finalEvidenceResult?.rangeResults?.currentRetail || {
@@ -13149,13 +13183,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
     searchCompleted,
     currentRetailOnly
   });
-  const retailPurchaseDecision = !currentRetailOnly
-    ? ""
-    : decisionSupportRecords.length
-      ? buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, submittedQuantity, acceptedPrices: decisionSupportRecords })
-      : acceptedWithRetailLabels.length
-        ? "Price not verified - retailer attribution or product compatibility was insufficient"
-        : "Price not verified - no compatible alternatives found";
+  const retailPurchaseDecision = currentRetailOnly
+    ? cleanText(decisionResult.recommendationLabel || decisionResult.summary)
+    : "";
   const retailPriceLimit = currentRetailOnly
     ? formatCanonicalRetailLimit(retailLimitResult)
     : "";
@@ -13166,6 +13196,9 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
     currentRetailOnly,
     rangeResult,
     retailLimitResult,
+    decisionResult,
+    confidenceResult,
+    badgeResult,
     storeName,
     acceptedPrices: acceptedWithRetailLabels,
     decisionEligiblePrices,
@@ -13187,9 +13220,7 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
     askingStorePrice: Number.isFinite(askingPriceNumber)
       ? `Store/asking price entered: ${askingText}.`
       : buildConsumerAskingPriceText(buyerIntake, identity),
-    priceConfidence: canonicalRetailCount
-      ? ensureConfidenceLayer("", canonicalRetailCount >= 2 ? "Medium" : "Low", "Only qualified canonical current retail price evidence was used. Verify package size, taxes, pickup/delivery, and availability.")
-      : forceLowConfidence("", "No qualified current retail price was verified; retail decision is based only on entered price, item identity, and low-dollar exposure."),
+    priceConfidence: formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing"),
     nextBestAction: canonicalRetailCount
       ? "Confirm exact package count, local availability, taxes, and pickup or delivery terms before purchasing."
       : "Confirm the shelf/app price at the named store, check the UPC/package count, and compare against a current retailer result before calling this a deal.",
@@ -13241,37 +13272,6 @@ function isNamedStoreExactNoPriceIdentityRecord(record = {}, storeName = "") {
     || normalizeStringArray(record.exactRetailPageEvidence?.matchingBarcodeIdentities, 24).length > 0
     || /exact/i.test(record.identityMatchStrength || record.classification || record.matchQuality || "");
   return Boolean(storeMatches && hasExactIdentity && !Number.isFinite(getVisibleItemPriceAmount(record)));
-}
-
-function buildRetailPurchaseDecisionFromPrices({ askingPriceNumber, submittedQuantity = null, acceptedPrices = [] } = {}) {
-  if (!Number.isFinite(askingPriceNumber) || !acceptedPrices.length) {
-    return "Price not verified - no compatible alternatives found";
-  }
-  const amounts = acceptedPrices.map((record) => Number.isFinite(record.deliveredCostAmount) ? record.deliveredCostAmount : record.itemPriceAmount).filter(Number.isFinite);
-  if (!amounts.length) {
-    return "Price not verified - no compatible alternatives found";
-  }
-  const unitAmounts = acceptedPrices.map((record) => {
-    const quantity = extractBestPackQuantityNumber([record.title, record.rawText, record.conciseLimitation].join(" "));
-    return Number.isFinite(record.itemPriceAmount) && Number.isFinite(quantity) && quantity > 0
-      ? record.itemPriceAmount / quantity
-      : null;
-  }).filter(Number.isFinite);
-  const lowest = Math.min(...amounts);
-  const highest = Math.max(...amounts);
-  if (askingPriceNumber <= lowest) {
-    return "Competitive with current alternatives";
-  }
-  if (askingPriceNumber <= highest * 1.1) {
-    return "Reasonable compared with similar products";
-  }
-  if (Number.isFinite(submittedQuantity) && unitAmounts.length) {
-    const submittedUnit = askingPriceNumber / submittedQuantity;
-    if (askingPriceNumber <= highest && submittedUnit > Math.max(...unitAmounts) * 1.1) {
-      return "Low package price but higher unit price";
-    }
-  }
-  return "Higher than comparable packages";
 }
 
 function formatCanonicalRetailLimit(retailLimitResult = {}) {
@@ -13346,18 +13346,108 @@ function buildRetailCurrentPriceSpectrumSummary(profile = {}) {
   return `Current retail price spectrum: not established. ${cleanText(rangeResult.insufficiencyReason) || "No canonical current retail price support was available."}`;
 }
 
+function formatCanonicalConfidenceResult(confidence = {}, label = "Confidence") {
+  const level = cleanText(confidence.level || "insufficient").toLowerCase();
+  const displayLevel = level === "insufficient"
+    ? "Insufficient"
+    : `${level.slice(0, 1).toUpperCase()}${level.slice(1)}`;
+  const rationale = normalizeStringArray(confidence.rationaleCodes, 12)
+    .map((code) => code.replace(/_/g, " "))
+    .join("; ");
+  const weakening = normalizeStringArray(confidence.weakeningFactors, 8).join(" ");
+  const supportCount = normalizeStringArray(confidence.supportingEvidenceIds, 64).length;
+  return `${displayLevel} - ${label} uses ${supportCount} canonical supporting evidence record${supportCount === 1 ? "" : "s"}.${rationale ? ` Basis: ${rationale}.` : ""}${weakening ? ` Limits: ${weakening}` : ""}`.trim();
+}
+
+function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {}, { workflow = "buyer" } = {}) {
+  const decisionResult = finalEvidenceResult.decisionResult || {};
+  const confidenceResult = finalEvidenceResult.confidenceResult || {};
+  const badgeResult = finalEvidenceResult.badgeResult || {};
+  const identityConfidence = formatCanonicalConfidenceResult(confidenceResult.identity, "Identity confidence");
+  const pricingConfidence = formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing confidence");
+  const recommendation = cleanText(decisionResult.recommendationLabel || "Need More Information");
+  const decisionSummary = cleanText(decisionResult.summary || recommendation);
+  const decisionSupportEvidenceIds = normalizeStringArray(decisionResult.supportingEvidenceIds, 64);
+  const decisionSupportUnderlyingOfferIds = normalizeStringArray(decisionResult.supportingUnderlyingOfferIds, 64);
+  const identitySupportEvidenceIds = normalizeStringArray(confidenceResult.identity?.supportingEvidenceIds, 64);
+  const identitySupportUnderlyingOfferIds = normalizeStringArray(confidenceResult.identity?.supportingUnderlyingOfferIds, 64);
+  const pricingSupportEvidenceIds = normalizeStringArray(confidenceResult.pricing?.supportingEvidenceIds, 64);
+  const pricingSupportUnderlyingOfferIds = normalizeStringArray(confidenceResult.pricing?.supportingUnderlyingOfferIds, 64);
+  const badgeSupportEvidenceIds = normalizeStringArray(badgeResult.supportingEvidenceIds, 64);
+  const badgeSupportUnderlyingOfferIds = normalizeStringArray(badgeResult.supportingUnderlyingOfferIds, 64);
+  const canonicalCautions = [
+    ...normalizeStringArray(decisionResult.insufficiencyReasons, 8),
+    ...normalizeStringArray(decisionResult.contradictions, 8).map((code) => code.replace(/_/g, " ")),
+    ...normalizeStringArray(confidenceResult.pricing?.weakeningFactors, 8)
+  ];
+  const searchDiagnostics = {
+    ...(report.searchDiagnostics || {}),
+    canonicalDecisionStatus: decisionResult.status,
+    canonicalRecommendationCode: decisionResult.recommendationCode,
+    canonicalDecisionSupportEvidenceIds: decisionSupportEvidenceIds,
+    canonicalDecisionSupportUnderlyingOfferIds: decisionSupportUnderlyingOfferIds,
+    canonicalIdentityConfidence: confidenceResult.identity?.level,
+    canonicalIdentityConfidenceLevel: confidenceResult.identity?.level,
+    canonicalIdentityConfidenceSupportEvidenceIds: identitySupportEvidenceIds,
+    canonicalIdentityConfidenceSupportUnderlyingOfferIds: identitySupportUnderlyingOfferIds,
+    canonicalPricingConfidenceLevel: confidenceResult.pricing?.level,
+    canonicalPricingConfidenceSupportEvidenceIds: pricingSupportEvidenceIds,
+    canonicalPricingConfidenceSupportUnderlyingOfferIds: pricingSupportUnderlyingOfferIds,
+    canonicalBadgeCode: badgeResult.code,
+    canonicalBadgeSupportEvidenceIds: badgeSupportEvidenceIds,
+    canonicalBadgeSupportUnderlyingOfferIds: badgeSupportUnderlyingOfferIds
+  };
+  const projection = {
+    ...report,
+    decisionResult,
+    confidenceResult,
+    badgeResult,
+    recommendationCode: decisionResult.recommendationCode,
+    recommendationStatus: decisionResult.status,
+    recommendationRationale: decisionSummary,
+    decisionSupportEvidenceIds,
+    decisionSupportUnderlyingOfferIds,
+    decisionSupportCount: decisionSupportEvidenceIds.length,
+    identityConfidenceSupportEvidenceIds: identitySupportEvidenceIds,
+    identityConfidenceSupportUnderlyingOfferIds: identitySupportUnderlyingOfferIds,
+    pricingConfidenceSupportEvidenceIds: pricingSupportEvidenceIds,
+    pricingConfidenceSupportUnderlyingOfferIds: pricingSupportUnderlyingOfferIds,
+    badgeSupportEvidenceIds,
+    badgeSupportUnderlyingOfferIds,
+    identificationConfidence: identityConfidence,
+    itemIdentificationConfidence: identityConfidence,
+    pricingConfidence,
+    priceConfidence: pricingConfidence,
+    liveCompConfidence: pricingConfidence,
+    valuationConfidence: pricingConfidence,
+    buyerDecisionConfidence: pricingConfidence,
+    valueRating: cleanText(badgeResult.label || "Market Evidence Insufficient"),
+    badge: cleanText(badgeResult.label || "Market Evidence Insufficient"),
+    customerBadge: cleanText(badgeResult.label || "Market Evidence Insufficient"),
+    currentPriceAssessment: decisionSummary,
+    pricingRationale: decisionSummary,
+    reasonsToBuy: decisionResult.recommendationCode === "consider_purchase" ? [decisionSummary] : [],
+    reasonsForCaution: mergeStringArrays(report.reasonsForCaution, canonicalCautions, 8),
+    searchDiagnostics
+  };
+  projection.recommendation = recommendation;
+  projection.retailPurchaseDecision = recommendation;
+  projection.purchaserDecision = decisionSummary;
+  return projection;
+}
+
 function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
   if (!profile.currentRetailOnly) {
     return report;
   }
   const acceptedPrices = normalizeArray(profile.acceptedPrices);
-  const hasRetailEvidence = profile.rangeResult?.status !== "insufficient"
-    || profile.retailLimitResult?.status === "established";
+  const decisionResult = profile.decisionResult || {};
+  const confidenceResult = profile.confidenceResult || {};
+  const badgeResult = profile.badgeResult || {};
+  const hasRetailEvidence = normalizeArray(decisionResult.supportingEvidenceIds).length > 0;
   const forbiddenNotice = "Retail Evidence Mode: current-retail-only. Customer-facing retail price guidance uses only qualified current retail evidence; secondary-market, auction, sold, historical, guide, and reference prices are excluded from the retail decision.";
-  const valueRating = hasRetailEvidence
-    ? report.valueRating
-    : "Price Not Verified - Low Financial Risk";
-  const recommendation = profile.retailPurchaseDecision || (hasRetailEvidence ? report.recommendation : "Low-Risk Purchase - Price Not Verified");
+  const valueRating = cleanText(badgeResult.label || "Market Evidence Insufficient");
+  const recommendation = cleanText(decisionResult.recommendationLabel || "Need More Information");
   const priceAssessment = profile.currentRetailPriceAssessment || "Current Retail Price: Not verified.";
 
   return {
@@ -13380,7 +13470,7 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
     retailPriceLimitSupportingUnderlyingOfferIds: profile.retailLimitResult?.underlyingOfferIds || [],
     retailPriceLimit: profile.retailPriceLimit,
     priceConfidence: profile.priceConfidence || report.priceConfidence,
-    pricingConfidence: profile.priceConfidence || report.pricingConfidence,
+    pricingConfidence: formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing confidence"),
     liveComparableSearchStatus: report.liveComparableSearchStatus,
     pricesFound: acceptedPrices,
     noCompatiblePricesFound: acceptedPrices.length
@@ -13412,9 +13502,7 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
     fairValueNotEstablished: hasRetailEvidence ? "" : "Current Retail Price: Not verified",
     valueRating,
     recommendation,
-    buyerDecisionConfidence: hasRetailEvidence
-      ? ensureConfidenceLayer(report.buyerDecisionConfidence, "Medium", "Current retail evidence was retained; verify store availability and package/unit match.")
-      : "Low - current retail price was not verified with source-backed current retail evidence.",
+    buyerDecisionConfidence: formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing confidence"),
     bestNextStep: profile.nextBestAction || report.bestNextStep,
     consumerDownsideRisk: report.consumerDownsideRisk,
     cautiousBuyExplanation: "",
@@ -13893,9 +13981,6 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
     normalized.estimatedFairMarketValue = "";
     normalized.estimatedMarketValue = "";
     normalized.fairPriceRange = [];
-    normalized.valueRating = /insufficient evidence/i.test(cleanText(normalized.valueRating))
-      ? "Insufficient Evidence"
-      : normalized.valueRating;
     normalized.whatThisMeans = buildWeakEvidenceMeaningText({ report: normalized, classified });
     normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
     normalized.priceBasis = ensurePrefix(normalized.priceBasis, `${classified.label} only - active asking prices, weak partial results, guide prices, or AI reasoning are not confirmed fair market value. `);
@@ -13908,8 +13993,6 @@ function applyValuationEvidenceLabels(report, { reliableCompsFound = false, sear
   normalized.estimatedFairMarketValue = "";
   normalized.estimatedMarketValue = "";
   normalized.fairPriceRange = [];
-  normalized.valueRating = "Insufficient Evidence";
-  normalized.recommendation = cleanText(normalized.recommendation) || "Need More Information";
   normalized.whatThisMeans = "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.";
   normalized.bestNextStep = buildBestNextEvidenceStep(normalized);
   normalized.priceBasis = ensurePrefix(normalized.priceBasis, "Fair value not established - available evidence is too weak for a defensible dollar range. ");
@@ -13958,7 +14041,6 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     recommendedListingPrice: null,
     suggestedOfferRange: null,
     fairValueNotEstablished: "Fair Value: Not established",
-    valueRating: isRetailReport ? "Price Not Verified - Low Financial Risk" : "Insufficient Evidence",
     whatThisMeans: isRetailReport ? retailLowDownsideText : "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
     priceBasis: isRetailReport
       ? "Price not verified - the current search did not return compatible source-backed current retail prices."
@@ -13967,9 +14049,7 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
       ? `Price Not Verified - ${retailLowDownsideText}`
       : "Insufficient evidence - no source-backed market comparison is supported.",
     pricingRationale: isRetailReport ? retailLowDownsideText : safeLowDownsideText,
-    cautiousBuyExplanation: shouldAllowZeroEvidencePersonalBuy(report, askingPriceText) && !isRetailReport
-      ? safeLowDownsideText
-      : "",
+    cautiousBuyExplanation: "",
     consumerDownsideRisk: askingPriceText
       ? `Limited-dollar exposure can be considered from the user's asking price (${askingPriceText}) only. No market comparison was established.`
       : "No asking price was available for a downside-only personal-use assessment.",
@@ -13995,29 +14075,10 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
   };
 
   if (isRetailReport) {
-    guarded.recommendation = cleanText(report.recommendation) && !/^buy$/i.test(cleanText(report.recommendation))
-      ? report.recommendation
-      : "Low-Risk Purchase - Limited Evidence";
-    guarded.reasonsToBuy = [];
     guarded.bestNextStep = cleanText(report.bestNextStep) || "Upload a closer barcode photo, enter the UPC manually, and confirm the store, ZIP code, and package count.";
-  } else if (shouldAllowZeroEvidencePersonalBuy(report, askingPriceText)) {
-    guarded.recommendation = cleanText(report.recommendation) && !/need more information/i.test(report.recommendation)
-      ? report.recommendation
-      : "Buy";
-    guarded.reasonsToBuy = [safeLowDownsideText];
-  } else if (!cleanText(guarded.recommendation)) {
-    guarded.recommendation = "Need More Information";
   }
 
   return guarded;
-}
-
-function shouldAllowZeroEvidencePersonalBuy(report, askingPriceText) {
-  const amount = extractFirstMoneyAmount(askingPriceText);
-  return /personal_use/i.test(cleanText(report.buyerIntent || report.purchase_intent || ""))
-    && Number.isFinite(amount)
-    && amount <= consumerDecisionThresholds.lowDollarCautiousBuyMax
-    && !/repair|missing|not working|for parts|unsafe|authenticity/i.test([report.productOrConditionRisks, report.riskFlags].flat().join(" "));
 }
 
 function buildZeroEvidenceLowDownsideText(askingPriceText) {
@@ -14210,7 +14271,6 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
       : liveSearch.liveSearchStatus;
   const displayedExactItems = reliableCompsFound ? exactItems : [];
   const displayedSimilarItems = reliableCompsFound ? similarItems : [];
-  const hasAskingPrice = hasKnownValue(buyerIntake.asking_price);
   const askingPriceNumber = getConsumerAskingPriceNumber(buyerIntake, identity);
   const pricesFound = buildConsumerPricesFound(liveSearch, askingPriceNumber, {
     identity,
@@ -14220,6 +14280,9 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const canonicalRange = finalEvidenceResult.rangeResult || {};
   const canonicalRangeResults = finalEvidenceResult.rangeResults || {};
   const canonicalRetailLimit = finalEvidenceResult.retailLimitResult || {};
+  const canonicalDecisionResult = finalEvidenceResult.decisionResult || {};
+  const canonicalConfidenceResult = finalEvidenceResult.confidenceResult || {};
+  const canonicalBadgeResult = finalEvidenceResult.badgeResult || {};
   const priceEvidence = summarizeConsumerVisiblePriceEvidence(finalEvidenceResult);
   const resaleGuidance = buildResalePricingGuidance(report, {
     buyerIntake,
@@ -14245,11 +14308,6 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
   const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
-  const guardedPurchaserDecision = guardBuyerDecision(report.purchaserDecision, {
-    reliableCompsFound,
-    buyerIntake,
-    resaleGuidance
-  });
   const buyerRisk = buildBuyerRiskAssessment({
     report,
     buyerIntake,
@@ -14258,6 +14316,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     searchCompleted,
     liveComparableSearchStatus,
     pricesFound,
+    purchaserDecision: canonicalDecisionResult.summary,
     rangeResult: canonicalRange,
     rangeResults: canonicalRangeResults,
     retailLimitResult: canonicalRetailLimit,
@@ -14276,13 +14335,18 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
       : "",
     fairPriceRange: buildCanonicalFairPriceRange(canonicalRange),
     resaleGuidance,
-    purchaserDecision: guardedPurchaserDecision
+    purchaserDecision: canonicalDecisionResult.summary
   });
-  const alignedPurchaserDecision = alignDecisionWithRisk(guardedPurchaserDecision, buyerRisk, buyerIntake);
 
   const normalizedReport = {
     ...report,
-    purchaserDecision: alignedPurchaserDecision,
+    decisionResult: canonicalDecisionResult,
+    confidenceResult: canonicalConfidenceResult,
+    badgeResult: canonicalBadgeResult,
+    purchaserDecision: canonicalDecisionResult.summary,
+    recommendationCode: canonicalDecisionResult.recommendationCode,
+    valueRating: canonicalBadgeResult.label,
+    badge: canonicalBadgeResult.label,
     buyer_risk_score: buyerRisk.score,
     buyer_risk_level: buyerRisk.level,
     buyer_risk_summary: buyerRisk.summary,
@@ -14297,18 +14361,10 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     ...researchVisibility,
     ...visualFields,
     ...identityFields,
-    itemIdentificationConfidence: ensureConfidenceLayer(report.itemIdentificationConfidence, "Medium", "Item identity is based on the submitted photos and notes; verify missing maker, model, tag, condition, or barcode details."),
-    liveCompConfidence: reliableCompsFound
-      ? ensureConfidenceLayer(report.liveCompConfidence, "Medium", "Source-backed comparable items were found, but match quality still depends on condition and exact item details.")
-      : forceLowConfidence(report.liveCompConfidence, "No source-backed exact or strong similar comps are available for this report."),
-    valuationConfidence: reliableCompsFound
-      ? ensureConfidenceLayer(report.valuationConfidence, "Medium", "Source-backed comps support the estimate, but condition and local demand can still shift value.")
-      : forceLowConfidence(report.valuationConfidence, "The value range is AI-only market reasoning because reliable live comps were not available."),
-    buyerDecisionConfidence: buildBuyerDecisionConfidence(report.buyerDecisionConfidence, {
-      reliableCompsFound,
-      hasAskingPrice,
-      buyerRisk
-    }),
+    itemIdentificationConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.identity, "Identity confidence"),
+    liveCompConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
+    valuationConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
+    buyerDecisionConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
     currentAskingPrice: buildCurrentAskingPrice(buyerIntake, identity),
     suggestedListingPrice: resaleGuidance.suggestedListingPrice,
     expectedSalePrice: resaleGuidance.expectedSalePrice,
@@ -14317,14 +14373,8 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     expectedSellingTime: resaleGuidance.expectedSellingTime,
     platformSpecificSellingGuidance: resaleGuidance.platformSpecificSellingGuidance,
     itemIdentification: buildItemIdentification(identity),
-    currentPriceAssessment: buildCurrentPriceAssessment(report.currentPriceAssessment, {
-      buyerIntake,
-      reliableCompsFound,
-      resaleGuidance
-    }),
-    priceConfidence: reliableCompsFound
-      ? ensureConfidenceLayer(report.priceConfidence, "Medium", "Source-backed comps support pricing direction, but condition and local demand still matter.")
-      : forceLowConfidence(report.priceConfidence, "No reliable source-backed comps support the price estimate."),
+    currentPriceAssessment: canonicalDecisionResult.summary,
+    priceConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
     aiOnlyRoughValueRange,
     maximumRecommendedBuyPrice: buildMaximumRecommendedBuyPrice(report.maximumRecommendedBuyPrice, {
       buyerIntake,
@@ -14346,9 +14396,12 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     workflow: "market_value",
     canonicalRangeResult: canonicalRange
   });
-  return isOwnerValueIntent(buyerIntake.purchase_intent)
+  const purposeReport = isOwnerValueIntent(buyerIntake.purchase_intent)
     ? applyOwnerValueReportModel(labeledReport, buyerIntake, identity, platform, { reliableCompsFound, searchCompleted })
     : labeledReport;
+  return applyCanonicalDecisionProjection(purposeReport, finalEvidenceResult, {
+    workflow: isOwnerValueIntent(buyerIntake.purchase_intent) ? "owner_value" : "buyer"
+  });
 }
 
 function applyOwnerValueReportModel(report = {}, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "", context = {}) {
@@ -14373,23 +14426,17 @@ function applyOwnerValueReportModel(report = {}, buyerIntake = normalizeBuyerInt
     report.missingDetails,
     "Verify exact identifiers, condition, completeness, dimensions, and any maker, model, label, barcode, signature, or authenticity clues before relying on a final value."
   );
-  const confidenceBasis = context.reliableCompsFound
-    ? "Source-backed comparable evidence is available, but condition, completeness, and venue still affect realized value."
-    : context.searchCompleted
-      ? "Search completed without reliable exact or strong similar comps; treat the value as preliminary."
-      : "Live search did not complete; treat the value as low-confidence and AI-assisted.";
-
   return {
     ...report,
     buyerIntent: "owner_value",
-    purchaserDecision: `Owner Value Assessment - ${stripOwnerBuyingLanguage(valueEvidence)}`,
+    purchaserDecision: report.purchaserDecision,
     buyerTypeFit: firstKnown(report.buyerTypeFit, "Owner valuation / possible sale"),
     currentAskingPrice: "Not required - this workflow values an item already owned.",
     currentPriceAssessment: stripOwnerBuyingLanguage(firstKnown(report.currentPriceAssessment, valueEvidence)),
     maximumRecommendedBuyPrice: "",
     betterPriceCheckNeeded: stripOwnerBuyingLanguage(firstKnown(report.betterPriceCheckNeeded, `Additional value check depends on stronger identity, condition, completeness, and source-backed comparable evidence.${ownerLocation}`)),
     whatToVerifyBeforeBuying: nextVerification,
-    buyerDecisionConfidence: ensureConfidenceLayer(report.buyerDecisionConfidence, "Low", confidenceBasis),
+    buyerDecisionConfidence: report.buyerDecisionConfidence,
     recommendedSellingPlatform: sellingVenue,
     searchDiagnostics: {
       ...(report.searchDiagnostics || {}),
@@ -14432,7 +14479,10 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const authoritativeRange = finalEvidenceResult.rangeResult || {};
   const authoritativeRangeResults = finalEvidenceResult.rangeResults || {};
   const authoritativeRetailLimit = finalEvidenceResult.retailLimitResult || {};
-  const authoritativeDecision = liveSearch.finalEvidenceDecision || {};
+  const authoritativeDecision = finalEvidenceResult.decision || {};
+  const authoritativeDecisionResult = finalEvidenceResult.decisionResult || {};
+  const authoritativeConfidenceResult = finalEvidenceResult.confidenceResult || {};
+  const authoritativeBadgeResult = finalEvidenceResult.badgeResult || {};
   const retailEvidenceProfile = buildRetailEvidenceProfile({
     buyerIntake,
     identity,
@@ -14452,33 +14502,30 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ? null
     : priceEvidence.referenceCenter || (retainedVisibleResultCount ? extractConsumerFairValueNumber(report) : null);
   const conditionProfile = getConsumerConditionProfile(buyerIntake, identity);
-  const decision = classifyConsumerPurchaseDecision({
+  const riskFlags = buildConsumerRiskFlags({
     askingPriceNumber,
     fairValueNumber,
     reliableCompsFound,
-    exactItems,
-    similarItems,
     conditionProfile,
     buyerIntake,
-    identity,
-    priceEvidence
+    identity
   });
-  if (insufficientCollectibleMarketEvidence) {
-    decision.valueRating = "Market Evidence Insufficient";
-    decision.badgeReason = "No qualified sold range was available and fewer than two independent range-eligible offers were found.";
-    decision.cautiousBuyExplanation = "Exact identity evidence does not establish market value. Treat the entered price only as the buyer's personal budget.";
-  }
-  const retailCalibration = buildRetailDecisionCalibration({
-    decision,
-    buyerIntake,
-    identity,
-    liveSearch,
-    priceEvidence,
-    pricesFound: customerFacingPricesFound,
+  const downsideRisk = calculateConsumerDownsideRisk({
     askingPriceNumber,
-    searchCompleted
+    fairValueNumber,
+    conditionProfile,
+    buyerIntake
   });
-  Object.assign(decision, retailCalibration.decisionOverrides);
+  const decision = {
+    valueRating: authoritativeBadgeResult.label || "Market Evidence Insufficient",
+    recommendation: authoritativeDecisionResult.recommendationLabel || "Need More Information",
+    badgeReason: authoritativeDecisionResult.summary || "",
+    pricingConfidence: formatCanonicalConfidenceResult(authoritativeConfidenceResult.pricing, "Pricing confidence"),
+    riskFlags,
+    downsideRisk,
+    cautiousBuyExplanation: "",
+    evidenceWarning: normalizeStringArray(authoritativeDecisionResult.insufficiencyReasons, 8).join(" ")
+  };
   const offer = buildConsumerOffer({
     askingPriceNumber,
     fairValueNumber,
@@ -14521,10 +14568,12 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ),
     { buyerIntake, identity }
   ).slice(0, 8);
-  const betterValueConsiderations = sanitizeBetterValueConsiderations(
-    normalizeFlexibleArray(report.betterValueConsiderations, 8, buildConsumerBetterValueConsiderations(decision, conditionProfile)),
-    { decision, conditionProfile }
-  );
+  const betterValueConsiderations = authoritativeDecisionResult.recommendationCode === "wait_for_better_price"
+    || authoritativeDecisionResult.recommendationCode === "pass"
+      ? ["Consider a lower qualified offer or wait for stronger canonical price support."]
+      : conditionProfile.hasHardRisk || conditionProfile.isUnknown
+        ? ["A similar item with clearer condition, included accessories, or return protection may be the better value."]
+        : [];
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
   const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus });
@@ -14541,7 +14590,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     purchaseContextSummary: buildPurchaseContextSummary(buyerIntake),
     retailEvidenceMode: retailEvidenceProfile.retailEvidenceMode,
     retailRouteClassification: retailEvidenceProfile.retailRouteClassification,
-    retailPurchaseDecision: retailEvidenceProfile.retailPurchaseDecision,
+    retailPurchaseDecision: authoritativeDecisionResult.recommendationLabel,
     askingStorePrice: retailEvidenceProfile.askingStorePrice,
     currentRetailPriceAssessment: retailEvidenceProfile.currentRetailPriceAssessment,
     namedStoreResult: retailEvidenceProfile.namedStoreResult,
@@ -14585,10 +14634,10 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     fairPriceRange: retailEvidenceProfile.currentRetailOnly
       ? []
       : buildCanonicalFairPriceRange(authoritativeRange),
-    valueRating: insufficientCollectibleMarketEvidence ? authoritativeDecision.badge || "Market Evidence Insufficient" : decision.valueRating,
-    recommendation: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.retailPurchaseDecision : insufficientCollectibleMarketEvidence ? authoritativeDecision.recommendation || "Need More Info" : retailCalibration.recommendation || buildConsumerRecommendationText(decision, offer, askingPriceNumber),
-    buyerDecisionConfidence: insufficientCollectibleMarketEvidence ? "Low - exact identity evidence does not establish market value; no qualified sold range was available." : retailCalibration.buyerDecisionConfidence || report.buyerDecisionConfidence,
-    bestNextStep: retailCalibration.bestNextStep || report.bestNextStep,
+    valueRating: authoritativeBadgeResult.label || "Market Evidence Insufficient",
+    recommendation: authoritativeDecisionResult.recommendationLabel || "Need More Information",
+    buyerDecisionConfidence: formatCanonicalConfidenceResult(authoritativeConfidenceResult.pricing, "Pricing confidence"),
+    bestNextStep: report.bestNextStep,
     consumerDownsideRisk: decision.downsideRisk.summary,
     cautiousBuyExplanation: retailEvidenceProfile.currentRetailOnly ? "" : decision.cautiousBuyExplanation,
     recommendedOffer: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? [] : offer.recommendedOffer,
@@ -14604,18 +14653,18 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       askingPriceNumber,
       fairValueNumber
     }),
-    reasonsToBuy: decision.valueRating === "Insufficient Evidence"
-      ? normalizeFlexibleArray(report.reasonsToBuy, 8, [])
-      : normalizeFlexibleArray(report.reasonsToBuy, 8, buildConsumerReasonsToBuy(decision, reliableCompsFound)),
+    reasonsToBuy: authoritativeDecisionResult.recommendationCode === "consider_purchase"
+      ? ["Canonical price evidence supports a cautious purchase if the item also fits the buyer's condition and use requirements."]
+      : [],
     reasonsForCaution: cautionItems,
     productOrConditionRisks: productRisks,
     riskFlags: decision.riskFlags,
     betterValueConsiderations,
     researchResults,
     comparableQuality,
-    currentPriceAssessment: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : retailCalibration.currentPriceAssessment || report.currentPriceAssessment,
-    pricingConfidence: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.priceConfidence : retailCalibration.pricingConfidence || decision.pricingConfidence,
-    pricingRationale: ensurePrefix(report.pricingRationale, `${retailCalibration.pricingRationalePrefix || basis} ${priceEvidence.primaryEvidenceSummary || ""} ${priceEvidence.outlierNote || ""} ${pricesFoundSummary} ${decision.cautiousBuyExplanation || ""}`),
+    currentPriceAssessment: authoritativeDecisionResult.summary,
+    pricingConfidence: formatCanonicalConfidenceResult(authoritativeConfidenceResult.pricing, "Pricing confidence"),
+    pricingRationale: authoritativeDecisionResult.summary,
     additionalInformationNeeded: buildConsumerAdditionalInfoNeeded(report.additionalInformationNeeded, {
       reliableCompsFound,
       buyerIntake,
@@ -14635,7 +14684,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     workflow: "personal_use",
     canonicalRangeResult: authoritativeRange
   });
-  return applyCurrentRetailDecisionFirewall(guardedReport, retailEvidenceProfile);
+  const retailGuardedReport = applyCurrentRetailDecisionFirewall(guardedReport, retailEvidenceProfile);
+  return applyCanonicalDecisionProjection(retailGuardedReport, finalEvidenceResult, { workflow: "personal_use" });
 }
 
 function buildPurchaseContextSummary(buyerIntake = normalizeBuyerIntake({})) {
@@ -14791,82 +14841,6 @@ function formatUnitCents(value) {
   return `${cents.toFixed(cents < 10 ? 2 : 1).replace(/\.0+$/, "").replace(/(\.\d)0$/, "$1")} cents`;
 }
 
-function buildRetailDecisionCalibration({ decision, buyerIntake, identity, liveSearch, priceEvidence, pricesFound, askingPriceNumber, searchCompleted } = {}) {
-  if (!isRetailStorePurchaseContext(buyerIntake.purchase_context)) {
-    return {
-      decisionOverrides: {},
-      recommendation: "",
-      currentPriceAssessment: "",
-      buyerDecisionConfidence: "",
-      bestNextStep: "",
-      pricingConfidence: "",
-      pricingRationalePrefix: ""
-    };
-  }
-
-  const currentRetailPrices = normalizeArray(pricesFound).filter(isCurrentPurchasablePriceFoundRecord);
-  const hasCurrentRetailComparison = currentRetailPrices.length > 0 || Number(priceEvidence.activeExactStrongCount || 0) > 0;
-  const lowFinancialRisk = Number.isFinite(askingPriceNumber) && askingPriceNumber <= consumerDecisionThresholds.lowDollarCautiousBuyMax;
-  if (hasCurrentRetailComparison) {
-    const label = lowFinancialRisk ? "Good Retail Price" : "Reasonable Retail Price";
-    return {
-      decisionOverrides: {
-        valueRating: label,
-        recommendation: decision.recommendation === "Buy" ? "Buy If It Fits Your Needs" : decision.recommendation,
-        pricingConfidence: ensureConfidenceLayer(decision.pricingConfidence, "Medium", "Current retail source-backed price evidence was retained; verify package size, quantity, and store terms.")
-      },
-      recommendation: decision.recommendation === "Buy" ? "Buy If It Fits Your Needs" : "",
-      currentPriceAssessment: `${label} - current retail comparison evidence was retained. Check package size, quantity, shipping/delivery, and return policy before relying on the comparison.`,
-      buyerDecisionConfidence: "Medium - retail price comparison evidence was retained, but package size, availability, and local pickup must remain source-backed.",
-      bestNextStep: "",
-      pricingConfidence: "",
-      pricingRationalePrefix: "Retail purchase basis - current retail price evidence was retained and package compatibility still matters.",
-      searchCompleted
-    };
-  }
-
-  const barcodeDigits = getSearchBarcodeDigits(identity, buyerIntake);
-  const missingActions = [];
-  if (!barcodeDigits) {
-    missingActions.push("Upload a closer barcode photo or enter the UPC manually.");
-  }
-  if (!getRetailStoreName(buyerIntake)) {
-    missingActions.push("Add the store name.");
-  }
-  if (!normalizeZipCode(buyerIntake.location_zip) && !cleanText(buyerIntake.location_area) && !/browser_location_(zip|general_area)|manual_zip|location_skipped/.test(buyerIntake.location_mode || "")) {
-    missingActions.push("Enter your ZIP code.");
-  }
-  if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount)) {
-    missingActions.push("Confirm the package size and count.");
-  }
-  const bestNextStep = missingActions[0] || "Confirm the exact UPC, package count, and current store shelf price.";
-  const valueRating = lowFinancialRisk
-    ? "Price Not Verified - Low Financial Risk"
-    : "Price Not Verified";
-  const recommendation = lowFinancialRisk
-    ? "Low-Risk Purchase - Limited Evidence"
-    : "Need More Information";
-  const explanation = Number.isFinite(askingPriceNumber)
-    ? `${formatMoney(askingPriceNumber)} was not verified against compatible source-backed current retail prices. Financial exposure may be limited, but Katherine’s Eye did not confirm this is a good deal.`
-    : "The current retail price was not verified because no compatible source-backed current retail price passed filtering.";
-
-  return {
-    decisionOverrides: {
-      valueRating,
-      recommendation,
-      pricingConfidence: forceLowConfidence("", explanation),
-      cautiousBuyExplanation: explanation,
-      evidenceWarning: "Retail price was not verified; decision is conditional and low-certainty."
-    },
-    recommendation,
-    currentPriceAssessment: `${valueRating} - ${explanation}`,
-    buyerDecisionConfidence: "Low - current retail price was not verified with source-backed compatible prices.",
-    bestNextStep,
-    pricingConfidence: forceLowConfidence("", explanation),
-    pricingRationalePrefix: `Retail purchase basis - ${explanation}`
-  };
-}
-
 function isLowDollarAskingInsideWeakPreliminaryRange({ askingPriceNumber, priceEvidence = {}, conditionProfile = {}, downsideRisk = {} } = {}) {
   if (!Number.isFinite(askingPriceNumber) || askingPriceNumber <= 0 || askingPriceNumber > 50) {
     return false;
@@ -14889,224 +14863,6 @@ function isLowDollarAskingInsideWeakPreliminaryRange({ askingPriceNumber, priceE
     return false;
   }
   return true;
-}
-
-function buildWeakRangePersonalBuyExplanation(askingPriceNumber) {
-  const asking = Number.isFinite(askingPriceNumber) ? formatMoney(askingPriceNumber) : "the asking price";
-  return `Reliable sold or active exact-match prices were not found. The asking price falls within the preliminary reference range, so the item may still be reasonable for personal use. Negotiating is worthwhile, but the available evidence does not prove that ${asking} is overpriced.`;
-}
-
-function classifyConsumerPurchaseDecision({ askingPriceNumber, fairValueNumber, reliableCompsFound, exactItems, similarItems, conditionProfile, buyerIntake, identity, priceEvidence = {} }) {
-  const riskFlags = buildConsumerRiskFlags({
-    askingPriceNumber,
-    fairValueNumber,
-    reliableCompsFound,
-    conditionProfile,
-    buyerIntake,
-    identity
-  });
-  const hasAskingPrice = Number.isFinite(askingPriceNumber);
-  const hasFairValue = Number.isFinite(fairValueNumber) && fairValueNumber > 0;
-  const hasExactIdentityEvidence = priceEvidence.exactOrStrongCount > 0 || exactItems.length > 0;
-  const hasReliableEvidence = reliableCompsFound && (hasExactIdentityEvidence || similarItems.length > 0);
-  const hasStrongPriceEvidence = priceEvidence.hasStrongPriceEvidence === true;
-  const hasVerifiedSoldEvidence = priceEvidence.hasVerifiedSoldEvidence === true;
-  const downsideRisk = calculateConsumerDownsideRisk({
-    askingPriceNumber,
-    fairValueNumber,
-    conditionProfile,
-    buyerIntake
-  });
-  const cautiousBuy = isCautiousConsumerBuySupported({
-    askingPriceNumber,
-    fairValueNumber,
-    hasExactIdentityEvidence,
-    priceEvidence,
-    conditionProfile,
-    downsideRisk
-  });
-  const weakRangePersonalBuy = isLowDollarAskingInsideWeakPreliminaryRange({
-    askingPriceNumber,
-    priceEvidence,
-    conditionProfile,
-    downsideRisk
-  });
-  const clearIdentity = hasClearConsumerIdentity(identity);
-  const zeroEvidenceLowDownsideBuy = hasAskingPrice
-    && !hasFairValue
-    && downsideRisk.lowDollarExposure
-    && clearIdentity
-    && !conditionProfile.hasHardRisk
-    && !downsideRisk.hardFactors.length;
-  const limitedEvidencePersonalBuy = hasAskingPrice
-    && hasFairValue
-    && priceEvidence.pricedRecordCount > 0
-    && (downsideRisk.lowDollarExposure || downsideRisk.modestDollarExposure)
-    && !conditionProfile.hasHardRisk
-    && !downsideRisk.hardFactors.length;
-
-  if (zeroEvidenceLowDownsideBuy) {
-    return {
-      valueRating: "Insufficient Evidence",
-      recommendation: "Buy",
-      pricingConfidence: forceLowConfidence("", "Market value is not established because no visible structured comparable evidence was retained. The recommendation is based only on limited dollar exposure and item clarity."),
-      riskFlags,
-      downsideRisk,
-      cautiousBuyExplanation: buildZeroEvidenceLowDownsideText(formatMoney(askingPriceNumber)),
-      evidenceWarning: "Valuation evidence is insufficient; this is a low-dollar personal-use decision, not a market-value conclusion."
-    };
-  }
-
-  if (weakRangePersonalBuy) {
-    const explanation = buildWeakRangePersonalBuyExplanation(askingPriceNumber);
-    return {
-      valueRating: "Reasonable Personal-Use Buy - Limited Evidence",
-      recommendation: "Buy If It Fits Your Needs",
-      badgeReason: "The asking price is inside the preliminary reference range, but no qualified sold or active exact/strong prices established fair market value.",
-      pricingConfidence: forceLowConfidence("", explanation),
-      riskFlags,
-      downsideRisk,
-      cautiousBuyExplanation: explanation,
-      evidenceWarning: "Weak/reference evidence should support cautious personal-use judgment only; it does not prove a precise market value or that the current asking price is overpriced."
-    };
-  }
-
-  if (!hasAskingPrice || !hasFairValue || (!hasReliableEvidence && !cautiousBuy && !limitedEvidencePersonalBuy)) {
-    return {
-      valueRating: "Insufficient Evidence",
-      recommendation: "Need More Information",
-      pricingConfidence: forceLowConfidence("", buildConsumerLowConfidenceReason({ hasAskingPrice, hasFairValue, hasReliableEvidence })),
-      riskFlags,
-      downsideRisk,
-      cautiousBuyExplanation: "",
-      evidenceWarning: "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
-    };
-  }
-
-  const ratio = askingPriceNumber / fairValueNumber;
-  let valueRating = "Poor Value";
-  let recommendation = "Pass";
-  let badgeReason = "The asking price was compared to the strongest available source-backed price bucket.";
-
-  if (!hasStrongPriceEvidence) {
-    if (ratio <= consumerDecisionThresholds.goodMaxRatio && downsideRisk.lowDollarExposure) {
-      valueRating = "Low-Cost Cautious Buy";
-      recommendation = "Buy If It Fits Your Needs";
-      badgeReason = "No verified sold or active exact/strong price evidence was available, but the asking price is low and favorable to the central preliminary cluster.";
-    } else if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
-      valueRating = "Promising Price - Limited Evidence";
-      recommendation = "Buy If It Fits Your Needs";
-      badgeReason = "The price appears favorable to preliminary evidence, but the range is driven by weak, partial, guide, auction, or reference prices.";
-    } else if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
-      valueRating = "Reasonable Personal-Use Buy";
-      recommendation = "Buy If It Fits Your Needs";
-      badgeReason = "The price is near the central preliminary range, but evidence quality is limited.";
-    } else {
-      valueRating = "Proceed with Caution";
-      recommendation = ratio <= consumerDecisionThresholds.slightlyOverpricedMaxRatio ? "Negotiate" : "Wait for a Better Price";
-      badgeReason = "The price is not clearly favorable once weak evidence and outlier filtering are considered.";
-    }
-  } else if (ratio <= consumerDecisionThresholds.exceptionalMaxRatio && hasVerifiedSoldEvidence) {
-    valueRating = "Exceptional Value";
-    recommendation = "Buy";
-    badgeReason = "The asking price is materially below qualified verified sold evidence.";
-  } else if (ratio <= consumerDecisionThresholds.goodMaxRatio) {
-    valueRating = hasVerifiedSoldEvidence ? "Good Value" : "Promising Price - Limited Evidence";
-    recommendation = "Buy";
-    badgeReason = hasVerifiedSoldEvidence
-      ? "The asking price is below qualified sold evidence."
-      : "The asking price is below active exact/strong evidence, but no qualified sold range was available.";
-  } else if (ratio <= consumerDecisionThresholds.fairMaxRatio) {
-    valueRating = "Fair Price";
-    recommendation = "Buy If It Fits Your Needs";
-    badgeReason = "The asking price is near the strongest available central range.";
-  } else if (ratio <= consumerDecisionThresholds.slightlyOverpricedMaxRatio) {
-    valueRating = "Slightly Overpriced";
-    recommendation = "Negotiate";
-    badgeReason = "The asking price is above the strongest available central range.";
-  } else if (ratio <= consumerDecisionThresholds.overpricedMaxRatio) {
-    valueRating = "Overpriced";
-    recommendation = "Wait for a Better Price";
-    badgeReason = "The asking price is materially above the strongest available central range.";
-  }
-
-  if (cautiousBuy && (recommendation === "Pass" || recommendation === "Need More Information" || recommendation === "Wait for a Better Price" || recommendation === "Negotiate")) {
-    valueRating = priceEvidence.hasVerifiedSoldEvidence ? "Good Value" : "Low-Cost Cautious Buy";
-    recommendation = "Buy If It Fits Your Needs";
-    badgeReason = priceEvidence.hasVerifiedSoldEvidence
-      ? "Low downside and sold evidence support a cautious buy."
-      : "Low downside supports a cautious personal-use buy, but sold evidence is not available.";
-  }
-
-  if (conditionProfile.hasHardRisk) {
-    if (valueRating === "Exceptional Value" || valueRating === "Good Value") {
-      valueRating = "Fair Price";
-    }
-    if (recommendation === "Buy") {
-      recommendation = "Negotiate";
-    }
-  } else if (conditionProfile.hasModerateRisk && recommendation === "Buy" && !cautiousBuy) {
-    recommendation = "Buy If It Fits Your Needs";
-  }
-
-  if (conditionProfile.isUnknown && !downsideRisk.lowDollarExposure && (recommendation === "Buy" || recommendation === "Buy If It Fits Your Needs")) {
-    recommendation = "Need More Information";
-    if (valueRating === "Exceptional Value" || valueRating === "Good Value") {
-      valueRating = "Insufficient Evidence";
-    }
-  }
-
-  if (riskFlags.filter((flag) => flag !== "No Return Protection").length >= consumerDecisionThresholds.conditionRiskDowngradeCount && recommendation === "Buy") {
-    recommendation = "Buy If It Fits Your Needs";
-  }
-
-  return {
-    valueRating,
-    recommendation,
-    badgeReason,
-    pricingConfidence: !hasStrongPriceEvidence
-      ? forceLowConfidence("", "Pricing uses a central preliminary cluster from weak, partial, guide, auction, or reference evidence; no verified sold or active exact/strong range was available.")
-      : cautiousBuy
-      ? ensureConfidenceLayer("", "Medium", "Exact or strong visible source-backed identity evidence and limited dollar downside support a cautious personal-use Buy; active asking prices are not confirmed sold prices.")
-      : hasVerifiedSoldEvidence
-        ? ensureConfidenceLayer("", "Medium", "Qualified verified sold exact/strong evidence supports the price direction, but condition and buyer fit still matter.")
-      : exactItems.length || priceEvidence.exactOrStrongCount
-        ? ensureConfidenceLayer("", "Medium", "Exact or likely exact source-backed evidence supports the price direction, but condition and buyer fit still matter.")
-        : ensureConfidenceLayer("", "Medium", "Strong similar source-backed evidence supports the price direction, but exact model, condition, and accessories can shift value."),
-    riskFlags,
-    downsideRisk,
-    cautiousBuyExplanation: cautiousBuy ? buildCautiousBuyExplanation({
-      askingPriceNumber,
-      fairValueNumber,
-      priceEvidence,
-      conditionProfile,
-      downsideRisk
-    }) : "",
-    evidenceWarning: cautiousBuy
-      ? "Buy recommendation is cautious because the strongest price evidence may be active asking prices rather than confirmed sold prices."
-      : ""
-  };
-}
-
-function deriveConsumerDecision(args) {
-  return classifyConsumerPurchaseDecision(args);
-}
-
-function hasClearConsumerIdentity(identity = {}) {
-  const evidence = [
-    identity.subjectIdentity,
-    identity.exactProductIdentity,
-    identity.productNameOrBoxTitle,
-    identity.frontBoxWording,
-    identity.backLabelWording,
-    identity.brand,
-    identity.teamName,
-    identity.schoolName,
-    identity.visualSubject,
-    identity.likelyItemDescription,
-    ...(Array.isArray(identity.visibleText) ? identity.visibleText : [])
-  ].filter(hasKnownValue);
-  return evidence.length >= 3 && !normalizeStringArray(identity.identityConflictNotes, 4).length;
 }
 
 function summarizeConsumerVisiblePriceEvidence(finalEvidenceResult = {}) {
@@ -15262,34 +15018,6 @@ function calculateConsumerDownsideRisk({ askingPriceNumber, fairValueNumber, con
   };
 }
 
-function isCautiousConsumerBuySupported({ askingPriceNumber, fairValueNumber, hasExactIdentityEvidence, priceEvidence, conditionProfile, downsideRisk }) {
-  if (!Number.isFinite(askingPriceNumber) || !Number.isFinite(fairValueNumber) || fairValueNumber <= 0) {
-    return false;
-  }
-  if (!hasExactIdentityEvidence || !priceEvidence.pricedRecords?.length) {
-    return false;
-  }
-  if (conditionProfile.hasHardRisk || downsideRisk.hardFactors.length) {
-    return false;
-  }
-  const belowVisibleLow = Number.isFinite(priceEvidence.low) && askingPriceNumber < priceEvidence.low;
-  const favorableRatio = askingPriceNumber / fairValueNumber <= consumerDecisionThresholds.cautiousBuyMaxRatio;
-  return (downsideRisk.lowDollarExposure || downsideRisk.modestDollarExposure) && (belowVisibleLow || favorableRatio);
-}
-
-function buildCautiousBuyExplanation({ askingPriceNumber, fairValueNumber, priceEvidence, conditionProfile, downsideRisk }) {
-  const range = Number.isFinite(priceEvidence.low) && Number.isFinite(priceEvidence.high)
-    ? `${formatMoney(priceEvidence.low)}-${formatMoney(priceEvidence.high)}`
-    : "the visible compatible listing range";
-  const priceTypeText = priceEvidence.soldCount
-    ? `${priceEvidence.soldCount} sold result${priceEvidence.soldCount === 1 ? "" : "s"} plus ${priceEvidence.activeCount} active asking result${priceEvidence.activeCount === 1 ? "" : "s"}`
-    : `${priceEvidence.activeCount} active asking result${priceEvidence.activeCount === 1 ? "" : "s"} and no confirmed sold-price result`;
-  const conditionText = conditionProfile.hasModerateRisk
-    ? "Visible/entered wear or used condition lowers confidence and should keep the value estimate below clean examples."
-    : "No major condition adjustment was triggered by the current intake.";
-  return `Cautious Buy logic - The ${formatMoney(askingPriceNumber)} asking price is below the visible compatible reference center of about ${formatMoney(fairValueNumber)} and below or favorable to ${range}. Evidence is ${priceTypeText}, so this is a cautious personal-use Buy rather than a high-confidence fair-market-value call. ${conditionText} ${downsideRisk.summary}`;
-}
-
 function buildConsumerPricingSummary({ priceEvidence = {}, decision = {}, searchCompleted = false, pricesFound = [] } = {}) {
   const exactCurrentListingNotice = buildExactCurrentListingNotice(pricesFound, priceEvidence);
   if (!priceEvidence.pricedRecords?.length) {
@@ -15442,33 +15170,6 @@ function sanitizeConsumerRiskList(items, { buyerIntake, identity }) {
   });
 }
 
-function sanitizeBetterValueConsiderations(items, { decision, conditionProfile }) {
-  const values = normalizeStringArray(items, 8);
-  const recommendation = cleanText(decision.recommendation);
-  const purchasePositive = /^buy\b/i.test(recommendation)
-    || /^cautious buy\b/i.test(recommendation)
-    || /^low-risk purchase\b/i.test(recommendation)
-    || /^low risk purchase\b/i.test(recommendation);
-  if (!purchasePositive) {
-    return values;
-  }
-
-  const riskText = [
-    conditionProfile.risks,
-    decision.riskFlags,
-    decision.downsideRisk?.hardFactors,
-    decision.downsideRisk?.moderateFactors
-  ].flat().map(cleanText).join(" ").toLowerCase();
-  const hasConcreteWaitRisk = /missing|repair|authenticity|price above|compatibility|damage|incomplete/.test(riskText);
-
-  return values.filter((item) => {
-    if (!/\b(wait|similar item|another item|better value may be available|cleaner comparable|open-box|refurbished|comparable model)\b/i.test(item)) {
-      return true;
-    }
-    return hasConcreteWaitRisk;
-  });
-}
-
 function isOrdinaryVintageCollectibleContext({ buyerIntake, identity }) {
   const text = buildConsumerRiskContextText({ buyerIntake, identity });
   return /vintage|collectible|memorabilia|commemorative|souvenir|advertising|promotional|sports|team|school|mascot|licensed|collector'?s?\s+(?:tray|plate)|serving tray|plaque|tin|sign|ceramic|canister|cookie jar|holiday|christmas|santa|seasonal|antique/.test(text)
@@ -15563,21 +15264,6 @@ function getConsumerConditionProfile(buyerIntake, identity = {}) {
     repairRisk,
     risks
   };
-}
-
-function buildConsumerLowConfidenceReason({ hasAskingPrice, hasFairValue, hasReliableEvidence }) {
-  const reasons = [];
-  if (!hasAskingPrice) {
-    reasons.push("no current asking price was provided");
-  }
-  if (!hasFairValue) {
-    reasons.push("no evidence-backed fair value could be extracted");
-  }
-  if (!hasReliableEvidence) {
-    reasons.push("no source-backed exact or strong similar comps passed filtering");
-  }
-
-  return `Consumer value rating is insufficient because ${reasons.join(", ")}.`;
 }
 
 function buildMaximumPriceEvidenceProfile(priceEvidence = {}) {
@@ -15891,16 +15577,6 @@ function buildConsumerOffer({ askingPriceNumber, fairValueNumber, decision, cond
   };
 }
 
-function buildConsumerRecommendationText(decision = {}, offer = {}, askingPriceNumber = null) {
-  const maxPrice = Number.isFinite(offer.maximumRecommendedPriceAmount)
-    ? offer.maximumRecommendedPriceAmount
-    : extractFirstMoneyAmount(offer.maximumRecommendedPrice);
-  if (Number.isFinite(askingPriceNumber) && Number.isFinite(maxPrice) && maxPrice < askingPriceNumber && /buy/i.test(decision.recommendation || "")) {
-    return `Buy only if negotiated to ${formatMoney(maxPrice)} or below.`;
-  }
-  return decision.recommendation;
-}
-
 function roundOpeningOfferBelowAsking({ askingPriceNumber, targetPrice, factor = 0.88 } = {}) {
   const base = Number.isFinite(targetPrice) ? targetPrice : askingPriceNumber;
   if (!Number.isFinite(base) || base <= 1) {
@@ -15970,32 +15646,6 @@ function buildConsumerNegotiationGuidance(value, { decision, offer, reliableComp
   }
 
   return text || `Use the supported fair-value range and condition issues to make a calm offer. ${offer.openingOffer}; ${offer.targetPurchasePrice}; do not exceed ${offer.maximumRecommendedPrice.replace("Maximum Recommended Price: ", "")} unless inspection improves confidence.`;
-}
-
-function buildConsumerReasonsToBuy(decision, reliableCompsFound) {
-  if (!reliableCompsFound) {
-    return [];
-  }
-  if (decision.valueRating === "Exceptional Value" || decision.valueRating === "Good Value") {
-    return ["Asking price appears below the supported fair-value estimate if condition and identity check out."];
-  }
-  if (decision.valueRating === "Fair Price") {
-    return ["Asking price appears within the supported fair range for personal use."];
-  }
-  return [];
-}
-
-function buildConsumerBetterValueConsiderations(decision, conditionProfile) {
-  if (decision.valueRating === "Overpriced" || decision.valueRating === "Poor Value") {
-    return ["Consider waiting for a lower price, a better-condition example, open-box/refurbished options, or a comparable model with clearer evidence."];
-  }
-  if (decision.valueRating === "Slightly Overpriced") {
-    return ["A better value may be available if the seller negotiates closer to the target purchase price or if a cleaner comparable appears."];
-  }
-  if (conditionProfile.hasHardRisk || conditionProfile.isUnknown) {
-    return ["A similar item with clearer condition, included accessories, or return protection may be the better value even at a similar price."];
-  }
-  return [];
 }
 
 function buildConsumerAdditionalInfoNeeded(value, { reliableCompsFound, buyerIntake, identity, conditionProfile }) {
@@ -16484,32 +16134,6 @@ function getLiquidityRisk({ report, identity = {}, resaleGuidance = {} }) {
   return result;
 }
 
-function alignDecisionWithRisk(decision, buyerRisk, buyerIntake) {
-  const text = cleanText(decision || "Need More Info - Buyer decision requires more item details.");
-  const detail = stripDecisionLabel(text) || "Risk must be reduced before buying.";
-
-  if (buyerRisk.score >= 75 && isBuyOrNegotiateDecision(text)) {
-    if (!hasKnownValue(buyerIntake.asking_price)) {
-      return `Need More Info - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}) because the purchase decision is incomplete. ${detail}`;
-    }
-    return `Pass - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}), so buying at the current price would put too much downside risk on the buyer. ${detail}`;
-  }
-
-  if (buyerRisk.score >= 50 && isDirectBuyDecision(text)) {
-    return `Need More Info - Buyer Risk Score is ${buyerRisk.score} (${buyerRisk.level}), so a direct Buy recommendation would be too aggressive without reducing risk. ${detail}`;
-  }
-
-  if (buyerRisk.score <= 49 && buyerRisk.limitedDownside && /^Pass\b/i.test(text)) {
-    return `Buy Here - Speculative Buy only at this very low price. Valuation remains uncertain, resale is not guaranteed, and this decision depends on limited dollar exposure; added transport, storage, repair, safety, disposal, or condition costs would change the decision. ${detail}`;
-  }
-
-  return text;
-}
-
-function isBuyOrNegotiateDecision(value) {
-  return /^(Buy Here|Buy\b|Strong Buy|Cautious Buy|Speculative Buy|Buy with Conditions|Negotiate)\b/i.test(cleanText(value));
-}
-
 function isDirectBuyDecision(value) {
   return /^(Buy Here|Buy\b|Strong Buy|Cautious Buy|Speculative Buy|Buy with Conditions)\b/i.test(cleanText(value));
 }
@@ -16544,22 +16168,6 @@ function addUnique(list, value) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
-}
-
-function buildBuyerDecisionConfidence(value, { reliableCompsFound, hasAskingPrice, buyerRisk }) {
-  if (!hasAskingPrice) {
-    return forceLowConfidence(value, "No current asking price was provided, so the buy decision cannot be fully assessed.");
-  }
-
-  if (reliableCompsFound) {
-    return ensureConfidenceLayer(value, "Medium", "The recommendation uses source-backed comps plus item details, but final confidence depends on condition and authenticity checks.");
-  }
-
-  if (buyerRisk?.limitedDownside && !buyerRisk?.hardDownside && buyerRisk.score <= 49) {
-    return forceMediumConfidence(value, "Buyer decision confidence is moderate only because the current price limits dollar exposure. Item identification, live comp, and valuation confidence remain low; resale is not guaranteed and added costs could change the decision.");
-  }
-
-  return forceLowConfidence(value, "The buyer decision should be conservative because live comp support is missing.");
 }
 
 function buildResalePlatformContext(platform, buyerIntake = normalizeBuyerIntake({})) {
@@ -16788,29 +16396,6 @@ function buildCurrentAskingPrice(buyerIntake, identity = {}) {
   }
 
   return "Not provided - current asking price is needed for a confident buy decision, but resale-price guidance can still be estimated cautiously.";
-}
-
-function buildCurrentPriceAssessment(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
-  const text = cleanText(value);
-  if (reliableCompsFound) {
-    return text;
-  }
-
-  if (!hasKnownValue(buyerIntake.asking_price)) {
-    return ensurePrefix(text, "Unknown - Current price assessment requires the current asking price.");
-  }
-
-  if (isResaleIntent(buyerIntake.purchase_intent)) {
-    const askingPrice = buyerIntake.parsed_asking_price;
-    const ceiling = resaleGuidance.speculativeBuyCeiling;
-    if (Number.isFinite(askingPrice) && Number.isFinite(ceiling) && askingPrice <= ceiling && askingPrice <= 25) {
-      return `Low-confidence speculative - ${formatMoney(askingPrice)} may limit downside, but demand and realized resale value are unverified.`;
-    }
-
-    return `High risk - Current asking price is not supported by reliable exact or strong similar comps. ${resaleGuidance.speculativeOfferText || "Need more evidence before considering any offer."}`;
-  }
-
-  return ensurePrefix(text, "Unknown - Market support is low because reliable comps are missing.");
 }
 
 function buildMaximumRecommendedBuyPrice(value, { buyerIntake, reliableCompsFound, resaleGuidance }) {
@@ -17178,43 +16763,6 @@ function buildAiOnlyRoughValueRange(report) {
   return ensurePrefix(valueRange, "AI-Only Rough Value Range - ");
 }
 
-function guardBuyerDecision(value, { reliableCompsFound, buyerIntake, resaleGuidance }) {
-  const text = cleanText(value || "Need More Info - Buyer decision requires more item details.");
-  if (reliableCompsFound) {
-    return text;
-  }
-
-  if (!hasKnownValue(buyerIntake.asking_price)) {
-    return `Need More Info - Current asking price is missing, and reliable source-backed comps are not available. ${stripDecisionLabel(text)}`;
-  }
-
-  if (isResaleIntent(buyerIntake.purchase_intent)) {
-    const askingPrice = buyerIntake.parsed_asking_price;
-    const ceiling = resaleGuidance.speculativeBuyCeiling;
-    const exposureProfile = getDownsideExposureProfile({ buyerIntake, resaleGuidance });
-    const lowDollarSpeculation = Number.isFinite(askingPrice)
-      && askingPrice <= 25
-      && (askingPrice <= 10 || (Number.isFinite(ceiling) && askingPrice <= ceiling))
-      && !exposureProfile.hardFactors.length
-      && !exposureProfile.hasHighAddedCost;
-    if (lowDollarSpeculation) {
-      return `Buy Here - Speculative Buy only at this very low price. Valuation remains uncertain, resale is not guaranteed, low price limits dollar exposure, and added transport, storage, repair, safety, disposal, or condition costs would change the decision. Do not extrapolate a high resale value from this Buy decision.`;
-    }
-
-    return `Pass - At the current asking price, reliable comps do not support a resale purchase. ${resaleGuidance.speculativeOfferText || "Need more information before considering a lower speculative offer."} ${stripDecisionLabel(text)}`;
-  }
-
-  if (/^buy here\b/i.test(text)) {
-    return `Need More Info - Live source-backed comps are not available, so a Buy Here recommendation would be too confident unless personal-use value clearly justifies the price. ${stripDecisionLabel(text)}`;
-  }
-
-  return text;
-}
-
-function stripDecisionLabel(value) {
-  return cleanText(value).replace(/^(Buy Here|Buy|Strong Buy|Cautious Buy|Speculative Buy|Buy with Conditions|Negotiate|Buy Elsewhere|Wait|Pass|Need More Info)\s*[-:]\s*/i, "").trim();
-}
-
 function ensureConfidenceLayer(value, fallbackLabel, fallbackReason) {
   const text = cleanText(value);
   if (/^(high|medium|low)\b/i.test(text)) {
@@ -17229,13 +16777,6 @@ function forceLowConfidence(value, reason) {
   const suffix = text.replace(/^(high|medium|low)\s*[-:]\s*/i, "");
   const detail = suffix || "Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.";
   return `Low - ${reason} ${detail}`.trim();
-}
-
-function forceMediumConfidence(value, reason) {
-  const text = cleanText(value);
-  const suffix = text.replace(/^(high|medium|low)\s*[-:]\s*/i, "");
-  const detail = suffix || "Supports: very low current asking price and limited dollar exposure. Weakens: missing source-backed comparable evidence. Improve by verifying exact identity, condition, demand, and added costs.";
-  return `Medium - ${reason} ${detail}`.trim();
 }
 
 function buildSearchCoverage(liveSearch) {
@@ -18373,10 +17914,8 @@ export const __queryIntegrityTestHooks = {
   summarizeConsumerVisiblePriceEvidence,
   buildConsumerPricingSummary,
   buildConsumerOffer,
-  buildConsumerRecommendationText,
   buildMaximumRecommendedPricePolicy,
   buildMaximumPriceEvidenceProfile,
-  classifyConsumerPurchaseDecision,
   extractShippingEvidence,
   normalizePriceTypeLabel,
   isQualifiedVerifiedSoldPriceEvidence,
@@ -18384,7 +17923,6 @@ export const __queryIntegrityTestHooks = {
   isBulkLotReferenceWithoutUnitPrice,
   hasExplicitSoldTransactionProof,
   isCurrentPurchasablePriceFoundRecord,
-  buildRetailDecisionCalibration,
   buildConsumerNegotiationGuidance,
   classifyRetailPackageCompatibility,
   retailSizeTokensCompatible,

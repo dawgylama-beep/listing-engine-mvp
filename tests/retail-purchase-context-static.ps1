@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
@@ -55,9 +56,9 @@ $checks = @(
   @{ Name = "Retail diagnostics include location mode"; Text = $api; Pattern = "locationModeUsed" },
   @{ Name = "Retail diagnostics include named-store query results"; Text = $api; Pattern = "namedStoreQueryResults" },
   @{ Name = "Retail diagnostics do not store coordinates"; Text = $app; Pattern = "Precise coordinates are not stored or displayed" },
-  @{ Name = "Retail decision calibrator exists"; Text = $api; Pattern = "function buildRetailDecisionCalibration" },
-  @{ Name = "Retail no-comps decision is conditional"; Text = $api; Pattern = "Low-Risk Purchase - Limited Evidence" },
-  @{ Name = "Retail price not verified label exists"; Text = $api; Pattern = "Price Not Verified - Low Financial Risk" },
+  @{ Name = "Canonical retail contradiction exists"; Text = $decisions; Pattern = "lower_qualified_offer_materially_undercuts" },
+  @{ Name = "Canonical retail comparison badge exists"; Text = $decisions; Pattern = "qualified_retail_comparison" },
+  @{ Name = "Canonical insufficient-evidence badge exists"; Text = $decisions; Pattern = "Market Evidence Insufficient" },
   @{ Name = "Next best action asks retail missing identifiers"; Text = $api; Pattern = "Upload a closer barcode photo or enter the UPC manually." },
   @{ Name = "Mock test checks UPC first"; Text = $mock; Pattern = "Readable UPC should be the first-priority retail search identifier." },
   @{ Name = "Mock test checks store plus UPC"; Text = $mock; Pattern = "Store name plus UPC should be generated as a separate retail query." },

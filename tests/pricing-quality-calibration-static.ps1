@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
+$decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
@@ -28,11 +29,11 @@ $checks = @(
   @{ Name = "API labels current asking range"; Text = $api; Pattern = "Current Asking-Price Range" },
   @{ Name = "API labels preliminary reference range"; Text = $api; Pattern = "Preliminary Reference Range" },
   @{ Name = "API no longer contains legacy statistical range engine"; Text = $api; Pattern = "function summarizeConsumerVisiblePriceEvidence(finalEvidenceResult = {})" },
-  @{ Name = "API gates Exceptional Value behind verified sold evidence"; Text = $api; Pattern = 'ratio <= consumerDecisionThresholds.exceptionalMaxRatio && hasVerifiedSoldEvidence' },
-  @{ Name = "API has low-cost cautious badge"; Text = $api; Pattern = "Low-Cost Cautious Buy" },
-  @{ Name = "API has limited-evidence badge"; Text = $api; Pattern = "Promising Price - Limited Evidence" },
-  @{ Name = "API has reasonable personal-use badge"; Text = $api; Pattern = "Reasonable Personal-Use Buy" },
-  @{ Name = "API has proceed with caution badge"; Text = $api; Pattern = "Proceed with Caution" },
+  @{ Name = "Canonical supported-value badge requires multiple verified sales"; Text = $decisions; Pattern = "multiple_verified_sales_support_price" },
+  @{ Name = "Canonical low-confidence badge remains neutral"; Text = $decisions; Pattern = "pricing_support_limited" },
+  @{ Name = "Canonical no-price badge is insufficient"; Text = $decisions; Pattern = "market_evidence_insufficient" },
+  @{ Name = "Canonical lower-offer badge exists"; Text = $decisions; Pattern = "lower_qualified_offer_found" },
+  @{ Name = "Canonical above-range badge exists"; Text = $decisions; Pattern = "above_supported_price" },
   @{ Name = "API makes opening offer below asking"; Text = $api; Pattern = "function roundOpeningOfferBelowAsking" },
   @{ Name = "Frontend renders verified market range"; Text = $app; Pattern = '["verifiedMarketRange", "Verified Market Range"]' },
   @{ Name = "Frontend renders current asking range"; Text = $app; Pattern = '["currentAskingPriceRange", "Current Asking-Price Range"]' },
@@ -43,7 +44,7 @@ $checks = @(
   @{ Name = "Frontend technical details include excluded outliers"; Text = $app; Pattern = '["Pricing Outliers Excluded", report.pricingOutliersExcluded]' },
   @{ Name = "Mock proves canonical low/high uses canonical support"; Text = $mock; Pattern = "Canonical low/high must derive from every accepted independent support ID" },
   @{ Name = "Mock proves translation does not exclude support"; Text = $mock; Pattern = "translation-only summary must not independently exclude canonical support as outliers" },
-  @{ Name = "Mock test blocks Exceptional Value with weak evidence"; Text = $mock; Pattern = "Weak/partial/reference evidence must not produce an Exceptional Value badge." },
+  @{ Name = "Mock test blocks Exceptional Value with weak evidence"; Text = $mock; Pattern = "Weak asking evidence must not produce an Exceptional Value badge." },
   @{ Name = "Mock test proves sold outranks active"; Text = $mock; Pattern = "Verified sold exact/strong evidence should outrank active asking evidence." },
   @{ Name = "Mock test proves active exact outranks partial"; Text = $mock; Pattern = "Active exact/strong asking evidence should outrank partial/reference prices when sold evidence is absent." },
   @{ Name = "Mock test proves opening offer differs from target"; Text = $mock; Pattern = "Opening offer should not equal the target purchase price" }

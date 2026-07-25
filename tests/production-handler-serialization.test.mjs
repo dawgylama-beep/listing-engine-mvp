@@ -61,6 +61,20 @@ function collectSerializedEvidenceIds(report = {}) {
   return ids;
 }
 
+function clientVisibleShape(value) {
+  if (Array.isArray(value)) {
+    return value.map(clientVisibleShape).filter((item) => item !== null && item !== "");
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, item]) => [key, clientVisibleShape(item)])
+        .filter(([, item]) => item !== null && item !== "")
+    );
+  }
+  return value;
+}
+
 test("real production handler serializes canonical evidence IDs through deterministic adapters", async () => {
   const trace = {
     openAISchemas: [],
@@ -239,6 +253,40 @@ test("real production handler serializes canonical evidence IDs through determin
   assert.equal(report.verifiedMarketRange ?? "", "");
   assert.equal(report.currentAskingPriceRange ?? "", "");
   assert.equal(report.preliminaryReferenceRange ?? "", "");
+  assert.deepEqual(report.decisionResult, clientVisibleShape(finalEvidenceResult.decisionResult));
+  assert.deepEqual(report.confidenceResult, clientVisibleShape(finalEvidenceResult.confidenceResult));
+  assert.deepEqual(report.badgeResult, clientVisibleShape(finalEvidenceResult.badgeResult));
+  assert.equal(report.recommendationCode, finalEvidenceResult.decisionResult.recommendationCode);
+  assert.equal(report.recommendationStatus, finalEvidenceResult.decisionResult.status);
+  assert.equal(report.recommendation, finalEvidenceResult.decisionResult.recommendationLabel);
+  assert.equal(report.retailPurchaseDecision, finalEvidenceResult.decisionResult.recommendationLabel);
+  assert.equal(report.purchaserDecision, finalEvidenceResult.decisionResult.summary);
+  assert.equal(report.recommendationRationale, finalEvidenceResult.decisionResult.summary);
+  assert.equal(report.valueRating, finalEvidenceResult.badgeResult.label);
+  assert.equal(report.badge, finalEvidenceResult.badgeResult.label);
+  assert.equal(report.customerBadge, finalEvidenceResult.badgeResult.label);
+  assert.equal(report.identificationConfidence, report.itemIdentificationConfidence);
+  assert.equal(report.pricingConfidence, report.priceConfidence);
+  assert.equal(report.pricingConfidence, report.liveCompConfidence);
+  assert.equal(report.pricingConfidence, report.valuationConfidence);
+  assert.equal(report.pricingConfidence, report.buyerDecisionConfidence);
+  assert.deepEqual(report.decisionSupportEvidenceIds, finalEvidenceResult.decisionResult.supportingEvidenceIds);
+  assert.deepEqual(report.decisionSupportUnderlyingOfferIds, finalEvidenceResult.decisionResult.supportingUnderlyingOfferIds);
+  assert.equal(report.decisionSupportCount, finalEvidenceResult.decisionResult.supportingEvidenceIds.length);
+  assert.deepEqual(report.pricingConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds);
+  assert.deepEqual(report.pricingConfidenceSupportUnderlyingOfferIds, finalEvidenceResult.confidenceResult.pricing.supportingUnderlyingOfferIds);
+  assert.deepEqual(report.identityConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.identity.supportingEvidenceIds);
+  assert.deepEqual(report.identityConfidenceSupportUnderlyingOfferIds, finalEvidenceResult.confidenceResult.identity.supportingUnderlyingOfferIds);
+  assert.deepEqual(report.badgeSupportEvidenceIds, finalEvidenceResult.badgeResult.supportingEvidenceIds);
+  assert.deepEqual(report.badgeSupportUnderlyingOfferIds, finalEvidenceResult.badgeResult.supportingUnderlyingOfferIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalDecisionSupportEvidenceIds, finalEvidenceResult.decisionResult.supportingEvidenceIds);
+  assert.equal(report.searchDiagnostics.canonicalIdentityConfidence, finalEvidenceResult.confidenceResult.identity.level);
+  assert.deepEqual(report.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.identity.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBadgeSupportEvidenceIds, finalEvidenceResult.badgeResult.supportingEvidenceIds);
+  assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "wait_for_better_price");
+  assert.equal(finalEvidenceResult.badgeResult.code, "lower_qualified_offer_found");
+  assert(!/Buy Now - Model Override|Best Price|Certain - model claims/i.test(JSON.stringify(report)));
 
   const truncatedIds = finalEvidenceResult.views.displayedIds.slice(0, 1);
   assert(truncatedIds.every((id) => finalEvidenceResult.views.displayEligibleIds.includes(id)));
@@ -307,7 +355,15 @@ test("real production handler serializes one active asking offer as one observat
         return {
           json: {
             identifiedItem: identity.exactProductIdentity,
-            identificationConfidence: "High - exact design wording is visible.",
+            identificationConfidence: "Certain - model claims exact design.",
+            itemIdentificationConfidence: "Certain - model claims exact design.",
+            pricingConfidence: "Certain - model claims complete market support.",
+            buyerDecisionConfidence: "Certain - model claims complete market support.",
+            recommendation: "Buy Now - Model Override",
+            retailPurchaseDecision: "Buy Now - Model Override",
+            purchaserDecision: "Buy Now - Model Override",
+            valueRating: "Best Price",
+            badge: "Best Price",
             reasonsToBuy: [],
             reasonsForCaution: [],
             productOrConditionRisks: [],
@@ -348,6 +404,7 @@ test("real production handler serializes one active asking offer as one observat
         buyer_intent: "personal_use",
         purchase_context: "private_seller",
         item_name: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+        asking_price: "$10.00",
         observed_price: "$10.00",
         buyer_notes: "Exact commemorative design shown in the submitted photo."
       }
@@ -397,4 +454,19 @@ test("real production handler serializes one active asking offer as one observat
   assert.deepEqual(report.fairPriceRange ?? [], []);
   assert.match(report.priceSpectrumSummary, /one (?:active asking price|buy it now) observed/i);
   assert.match(report.priceSpectrumSummary, /no numerical market range was established/i);
+  assert.deepEqual(report.decisionResult, clientVisibleShape(finalEvidenceResult.decisionResult));
+  assert.deepEqual(report.confidenceResult, clientVisibleShape(finalEvidenceResult.confidenceResult));
+  assert.deepEqual(report.badgeResult, clientVisibleShape(finalEvidenceResult.badgeResult));
+  assert.equal(finalEvidenceResult.confidenceResult.pricing.level, "low");
+  assert.notEqual(finalEvidenceResult.confidenceResult.identity.level, finalEvidenceResult.confidenceResult.pricing.level);
+  assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "need_more_information");
+  assert.equal(finalEvidenceResult.badgeResult.code, "asking_price_context_only");
+  assert.equal(report.recommendation, finalEvidenceResult.decisionResult.recommendationLabel);
+  assert.equal(report.purchaserDecision, finalEvidenceResult.decisionResult.summary);
+  assert.equal(report.valueRating, finalEvidenceResult.badgeResult.label);
+  assert.equal(report.badge, finalEvidenceResult.badgeResult.label);
+  assert.deepEqual(report.searchDiagnostics.canonicalDecisionSupportEvidenceIds, finalEvidenceResult.decisionResult.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds, finalEvidenceResult.confidenceResult.pricing.supportingEvidenceIds);
+  assert.deepEqual(report.searchDiagnostics.canonicalBadgeSupportEvidenceIds, finalEvidenceResult.badgeResult.supportingEvidenceIds);
+  assert(!/Buy Now - Model Override|Best Price|Certain - model claims/i.test(JSON.stringify(report)));
 });

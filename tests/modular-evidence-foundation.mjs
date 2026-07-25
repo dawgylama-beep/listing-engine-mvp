@@ -197,7 +197,7 @@ assert.equal(deriveRange(collectibleFinal).singleObservation.price, 24, "one qua
 const noPricedCollectible = assembleFinalEvidence([collectibleRecords[0]], collectibleTarget);
 assert.equal(deriveRange(noPricedCollectible).established, false, "exact identity without price cannot create a numerical range");
 const cautious = deriveDecision(noPricedCollectible, { askingPrice: 10, purpose: "personal" });
-assert.equal(cautious.recommendation, "Need More Info");
+assert.equal(cautious.recommendation, "Need More Information");
 assert.equal(cautious.badge, "Market Evidence Insufficient");
 assert.equal(cautious.maximumPrice, null, "entered budget is not a market-backed maximum");
 

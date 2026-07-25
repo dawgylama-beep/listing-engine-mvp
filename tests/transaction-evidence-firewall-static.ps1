@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
+$decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
@@ -30,15 +31,15 @@ $checks = @(
   @{ Name = "API limits best compatible price to current purchasable records"; Text = $api; Pattern = "function isCurrentPurchasablePriceFoundRecord" },
   @{ Name = "API uses precise lowest delivered-cost label"; Text = $api; Pattern = "Lowest Known Delivered Cost Found" },
   @{ Name = "API uses precise lowest item-price label"; Text = $api; Pattern = "Lowest Current Visible Item Price Found" },
-  @{ Name = "API adds weak in-range personal-use branch"; Text = $api; Pattern = "Reasonable Personal-Use Buy - Limited Evidence" },
-  @{ Name = "API explains $10 not proven overpriced"; Text = $api; Pattern = "does not prove that" },
+  @{ Name = "Canonical one-observation rule prevents market validation"; Text = $decisions; Pattern = "one_observed_price_is_not_market_value" },
+  @{ Name = "Canonical weak-price summary does not claim market validation"; Text = $decisions; Pattern = "pricing evidence is insufficient for a market-supported purchase recommendation" },
   @{ Name = "Frontend includes current purchase option section"; Text = $app; Pattern = '["currentPurchaseOptionSummary", "Current Purchase Option Summary"]' },
   @{ Name = "Frontend compact summary shows current option summary"; Text = $app; Pattern = 'appendConsumerCompactSection(details, "Current Purchase Option Summary", report.currentPurchaseOptionSummary)' },
   @{ Name = "Mock covers Facebook thrift-haul bulk failure"; Text = $mock; Pattern = 'I FOUND 14 vintage Coca-Cola trays at the thrift for $4.99' },
   @{ Name = "Mock covers no verified sold count for social bulk"; Text = $mock; Pattern = "must not drive any price range or verified sold counts" },
   @{ Name = "Mock covers Marketplace sold exception"; Text = $mock; Pattern = "Facebook Marketplace can qualify only when marketplace context and explicit sold/completed status are present." },
   @{ Name = "Mock covers historical sold is not best current deal"; Text = $mock; Pattern = "Historical sold evidence alone must not become Best Compatible Price Found." },
-  @{ Name = "Mock covers weak in-range not Wait or Pass"; Text = $mock; Pattern = "must not independently force Wait or Pass" },
+  @{ Name = "Mock covers weak context without favorable market recommendation"; Text = $mock; Pattern = "must not create a favorable market-supported recommendation" },
   @{ Name = 'Mock covers target/max not weak $6 center'; Text = $mock; Pattern = 'not the weak $6 center' }
 )
 
