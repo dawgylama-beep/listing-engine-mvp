@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import {
   assembleFinalEvidence,
-  buildCompactEvidenceList,
   buildFieldProvenance,
   buildIdentifierEquivalenceSet,
+  createFinalEvidenceResult,
   dedupeUnderlyingOffers,
   deriveDecision,
   deriveRange,
@@ -227,10 +227,15 @@ assert.equal(diagnostics.diagnosticSample.length, 50);
 assert.equal(diagnostics.providerCallsAttempted, 2);
 assert.equal(diagnostics.providerCallsSucceeded, 1);
 
-const compact = buildCompactEvidenceList(envelopeFinal, 5.5);
-assert.equal(compact.length, envelopeFinal.display.length);
-assert.equal(compact[0].displayedPrice, "Price unavailable");
-assert.equal(compact[0].priceContextLabel, "Exact item");
-assert.equal(compact[1].unitPrice, "$0.066 each");
+const envelopeResult = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity: envelopeTarget,
+  observations: envelopeRecords,
+  askingPrice: 5.5
+});
+assert.equal(envelopeResult.customerEvidence.length, envelopeFinal.display.length);
+assert.equal(envelopeResult.customerEvidence[0].customerPriceLabel, "Price unavailable");
+assert.equal(envelopeResult.customerEvidence[0].canonicalMatchLabel, "Exact");
+assert.equal(envelopeResult.customerEvidence[1].unitPrice, "$0.066 each");
 
 console.log("PASS modular evidence foundation deterministic acceptance");

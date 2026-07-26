@@ -28,7 +28,7 @@ Require-Count "Canonical buyer-offer authority" $offerSource "export function de
 Require-Count "Production finalizer invocation" $apiSource "createFinalEvidenceResult\s*\(" 1
 Require-Count "Canonical buyer-offer projection" $apiSource "function applyCanonicalBuyerOfferProjection\s*\(" 1
 Require-Count "Canonical decision projection" $apiSource "function applyCanonicalDecisionProjection\s*\(" 1
-Require-Count "Canonical buyer response completion" $apiSource "return applyCanonicalDecisionProjection\(" 2
+Require-Count "Canonical buyer and seller response completion" $apiSource "return applyCanonicalDecisionProjection\(" 3
 
 $legacyBuyerAuthorities = @(
   "function buildConsumerOffer\s*\(",
@@ -80,7 +80,6 @@ if ($apiSource -notmatch "function buildListingOfferRange\s*\(" -or
   throw "Seller listing-price strategy must remain present and outside Milestone 2B-3."
 }
 foreach ($sellerFunction in @(
-  "enforceListingResearchHonesty",
   "buildListingOfferRange",
   "buildResalePricingGuidance",
   "buildFallbackSellPriceGuidance"
@@ -91,6 +90,11 @@ foreach ($sellerFunction in @(
   if (-not $currentMatch.Success -or -not $headMatch.Success -or $currentMatch.Value -cne $headMatch.Value) {
     throw "Seller-only function changed during Milestone 2B-3: $sellerFunction"
   }
+}
+if ($apiSource -notmatch "function enforceListingResearchHonesty[\s\S]*?workflow:\s*`"seller_listing`"" -or
+    $apiSource -notmatch "optimizedListingTitle:\s*title" -or
+    $apiSource -notmatch "listingDescription:\s*description") {
+  throw "Seller listing output must retain its fields while receiving canonical evidence projection."
 }
 if ($apiSource -notmatch "maxProviderCalls:\s*28" -or
     $apiSource -notmatch "providerCallBudget =[\s\S]*?: 12;") {
@@ -104,9 +108,6 @@ if (($addedProductionLines -join "`n") -cmatch "Office Works|Kroger|Target 45|Co
 }
 if (($addedProductionLines -join "`n") -match "NODE_ENV|fixtureMode|mockItem|testOnly") {
   throw "Test-only production condition was added."
-}
-if ((git -C $root diff --name-only -- public/app.js).Count -ne 0) {
-  throw "public/app.js changed during Milestone 2B-3."
 }
 if ((git -C $root diff --name-only -- server.ps1).Count -ne 0) {
   throw "server.ps1 changed during Milestone 2B-3."
@@ -125,6 +126,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Output "Milestone 2B-3 canonical buyer-offer and negotiation tests passed."
 Write-Output "One buyer-offer authority and translation-only response projection verified."
-Write-Output "Seller listing strategy, public/app.js, and server.ps1 remain unchanged."
+Write-Output "Seller listing strategy and server.ps1 remain unchanged; the later canonical customer-evidence cutover remains compatible."
 Write-Output "Provider credentials were removed from the test process."
 Write-Output "Unexpected network attempts: 0."

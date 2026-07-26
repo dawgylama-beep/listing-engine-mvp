@@ -44,8 +44,8 @@ if ($validatorSource -notmatch "diagnostic canonicalDecisionSupportEvidenceIds d
     $validatorSource -notmatch "diagnostic canonicalBadgeSupportEvidenceIds do not match") {
   throw "FinalEvidenceResult validator is missing canonical diagnostic-support parity checks."
 }
-if (($apiSource | Select-String -Pattern "return applyCanonicalDecisionProjection\(" -AllMatches).Matches.Count -ne 2) {
-  throw "Both buyer report paths must finish with canonical response projection."
+if (($apiSource | Select-String -Pattern "return applyCanonicalDecisionProjection\(" -AllMatches).Matches.Count -ne 3) {
+  throw "Both buyer report paths and the seller report path must finish with canonical response projection."
 }
 if ($apiSource -match "function buildConsumerOffer\s*\(|function buildConsumerNegotiationGuidance\s*\(|function buildMaximumRecommendedPricePolicy\s*\(" -or
     $offerSource -notmatch "export function deriveCanonicalBuyerOfferResult\s*\(") {
@@ -60,9 +60,6 @@ $addedProductionLines = git -C $root diff --unified=0 -- api/generate-listing.js
   Where-Object { $_ -match "^\+(?!\+\+)" }
 if (($addedProductionLines -join "`n") -cmatch "Office Works|Kroger|Target 45|Coca-Cola|Georgia Bulldogs|Mercari|041226087161|6110325|30188") {
   throw "Product-, source-, identifier-, or ZIP-specific production logic was added."
-}
-if ((git -C $root diff --name-only -- public/app.js).Count -ne 0) {
-  throw "public/app.js changed during Milestone 2B-2."
 }
 if ((git -C $root diff --name-only -- server.ps1).Count -ne 0) {
   throw "server.ps1 changed during Milestone 2B-2."
@@ -79,6 +76,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Output "Milestone 2B-2 canonical recommendation, confidence, and badge tests passed."
 Write-Output "Structural authority and model-override firewall checks passed."
-Write-Output "public/app.js and server.ps1 remain unchanged."
-Write-Output "Later canonical buyer-offer cutover remains compatible with Milestone 2B-2."
+Write-Output "server.ps1 remains unchanged."
+Write-Output "Later canonical buyer-offer and customer-evidence cutovers remain compatible with Milestone 2B-2."
 Write-Output "Provider credentials were removed from the test process."

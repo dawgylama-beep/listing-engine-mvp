@@ -864,7 +864,7 @@ try {
     providerSourceRecords: [localEnvelopeRecord],
     searchDiagnostics: localEnvelopeDiagnostics
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
-  assert(promotedLocalEnvelopePrices.length === 1 && /Compatible alternative|Exact item/i.test(promotedLocalEnvelopePrices[0].priceContextLabel), "Eligible local-stage current retail evidence should reach customer Prices Found with the canonical match label.");
+  assert(promotedLocalEnvelopePrices.length === 1 && /^(?:Exact|Strong compatible|Compatible)$/.test(promotedLocalEnvelopePrices[0].canonicalMatchLabel), "Eligible local-stage current retail evidence should reach canonical customerEvidence with the finalized match label.");
 
   const genericRetailIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "retail_store",
@@ -944,7 +944,7 @@ try {
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
   assert(/kroger/i.test(exactAndCompatiblePrices[0]?.retailerDisplayName || "") && exactAndCompatiblePrices[0].itemPrice === "$2.99", "Exact retailer product price should outrank a cheaper compatible alternative in Where to Buy.");
-  assert(/Exact item/i.test(exactAndCompatiblePrices[0].priceContextLabel), "Exact retailer product page promotion should reach the canonical exact-item context.");
+  assert(exactAndCompatiblePrices[0].canonicalMatchLabel === "Exact", "Exact retailer product page promotion should reach canonical customerEvidence as Exact.");
   assert(exactAndCompatiblePrices.some((record) => /45-count and 50-count packages.*unit-price comparison/i.test(record.knownDifferences || record.priceContextSummary || "")), "Package-count differences should remain disclosed for compatible alternatives.");
   assert(/Availability unconfirmed/i.test(exactAndCompatiblePrices[0].listingStatus || ""), "Availability must not be inferred solely from a visible price.");
   const recoveryAssessment = __queryIntegrityTestHooks.createRecoveryAssessment({
@@ -1122,7 +1122,7 @@ try {
     askingPriceNumber: 12,
     searchCompleted: true
   });
-  assert(decisionSafetyProfile.bestCurrentRetailAlternative?.itemPriceAmount === 10, "Best Current Retail Alternative must ignore unknown-retailer prices.");
+  assert(decisionSafetyProfile.decisionEligiblePrices.some((record) => record.itemPriceAmount === 10), "Qualified current-retail decision evidence should preserve the known-retailer price.");
   assert(!/1\.99/.test(decisionSafetyProfile.retailPriceLimit), "Retail Price Limit must not be established by unknown-retailer evidence.");
   const richerDuplicate = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
     retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "", parsedPrice: null, snippet: "No visible price." }),
@@ -1398,7 +1398,7 @@ try {
   assert(!/No qualified source-backed current retail price/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Accepted alternatives cannot coexist with a no-qualified-current-retail-prices assessment.");
   assert(!/Not established/i.test(officeWorksRetailProfile.retailPriceLimit), "Accepted alternatives should establish a retail price limit instead of leaving it empty.");
   assert(!/Not established/i.test(officeWorksRetailProfile.packageUnitPriceComparison), "Accepted unit-price comparables should establish package and unit-price comparison.");
-  assert(officeWorksRetailProfile.otherCurrentRetailPrices.length === 2, "Canonical compatible alternatives should be displayable as best plus other retail prices.");
+  assert(officeWorksRetailProfile.acceptedPrices.length === officeWorksProfilePrices.length, "Canonical compatible alternatives should remain available without first/remainder aliases.");
   assert(/Exact Product: An exact current Office Works listing was not found/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Exact and cross-brand results should remain clearly distinguished.");
   assert(/about 12\.2 cents each \(\$0\.122 per unit\)/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Entered $5.50 for 45 should be shown as about 12.2 cents each.");
   assert(/canonical unit-price context/i.test(officeWorksRetailProfile.currentRetailPriceAssessment), "Canonical retail assessment should disclose selected unit-price context.");
@@ -1552,11 +1552,10 @@ try {
     ]
   };
   const deliveredRanking = __queryIntegrityTestHooks.buildConsumerPricesFound(deliveredRankingLiveSearch, 10);
-  const bestDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound(deliveredRanking);
-  assert(/fifteen-free/.test(bestDelivered.url) && bestDelivered.deliveredCost === "$15.00", "A $6 item with $15 shipping should rank behind a $15 item with free shipping.");
-  assert(!/six-unknown/.test(bestDelivered.url), "A $6 item with unknown shipping must not automatically be labeled the best delivered deal.");
-  const otherDelivered = __queryIntegrityTestHooks.buildOtherCompatiblePricesFound(deliveredRanking, bestDelivered);
-  assert(JSON.stringify(otherDelivered).includes("twenty-five-included"), "Higher compatible prices should remain visible in Other Compatible Prices Found.");
+  const deliveredOptionSummary = __queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary(deliveredRanking);
+  assert(/\$15\.00/.test(deliveredOptionSummary), "A $6 item with $15 shipping should not displace a $15 item with free shipping in the confirmed delivered-cost summary.");
+  assert(!/\$6\.00/.test(deliveredOptionSummary), "A $6 item with unknown shipping must not automatically become the confirmed delivered-cost option.");
+  assert(JSON.stringify(deliveredRanking).includes("twenty-five-included"), "Higher compatible prices should remain visible in canonical customerEvidence.");
   const spectrumSummary = __queryIntegrityTestHooks.buildPriceSpectrumSummary(
     summarizeCanonicalEvidence(deliveredRankingLiveSearch)
   );
@@ -1594,14 +1593,14 @@ try {
     strongComparables: [
       priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
       priceRecord({ url: "https://example.com/duplicate?utm_source=b", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
-      priceRecord({ url: "https://example.com/bottle", title: "Georgia Bulldogs Coca-Cola bottle", candidateItemType: "bottle", itemTypeCompatible: false, itemTypeCompatibilityStatus: "item_type_mismatch" }),
-      priceRecord({ url: "https://example.com/unknown-type", title: "Georgia Bulldogs Coca-Cola memorabilia", candidateItemType: "", itemTypeCompatible: false, itemTypeCompatibilityStatus: "candidate_type_unknown" })
+      priceRecord({ url: "https://example.com/bottle", canonicalUrl: "https://example.com/bottle", title: "Georgia Bulldogs Coca-Cola bottle", candidateItemType: "bottle", itemTypeCompatible: false, itemTypeCompatibilityStatus: "item_type_mismatch" }),
+      priceRecord({ url: "https://example.com/unknown-type", canonicalUrl: "https://example.com/unknown-type", title: "Georgia Bulldogs Coca-Cola memorabilia", candidateItemType: "", itemTypeCompatible: false, itemTypeCompatibilityStatus: "candidate_type_unknown" })
     ],
     partialComparables: [
-      priceRecord({ url: "https://example.com/partial-compatible", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Same tray form but exact year is unclear." })
+      priceRecord({ url: "https://example.com/partial-compatible", canonicalUrl: "https://example.com/partial-compatible", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Same tray form but exact year is unclear." })
     ],
     referenceResults: [
-      priceRecord({ url: "https://example.com/no-price", displayedPrice: "", price: "", priceType: "Reference Without Price" })
+      priceRecord({ url: "https://example.com/no-price", canonicalUrl: "https://example.com/no-price", displayedPrice: "", price: "", priceType: "Reference Without Price" })
     ]
   };
   const mixedPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(mixedSourceRecords, 10);
@@ -1627,7 +1626,7 @@ try {
   assert(preliminaryOutlierEvidence.low === 6 && preliminaryOutlierEvidence.high === 1155, "Canonical low/high must derive from every accepted independent support ID without a competing display-card outlier engine.");
   assert(preliminaryOutlierEvidence.outlierRecords.length === 0, "The translation-only summary must not independently exclude canonical support as outliers.");
   const preliminaryCards = __queryIntegrityTestHooks.buildConsumerPricesFound(preliminaryOutlierSourceRecords, 10);
-  assert(JSON.stringify(preliminaryCards).includes("1,155"), "Display cards must not silently remove evidence used by the canonical range.");
+  assert(preliminaryCards.some((record) => record.canonicalPrice === 1155 && record.rangeEligible), "Display cards must not silently remove evidence used by the canonical range.");
   const weakCanonical = preliminaryOutlierSourceRecords.finalEvidenceResult;
   assert(weakCanonical.badgeResult.code === "pricing_support_limited", "Active asking evidence without verified sales must use a neutral canonical badge.");
   assert(weakCanonical.confidenceResult.pricing.level === "medium", "Multiple independent active asks may produce medium canonical pricing confidence.");
@@ -1729,7 +1728,6 @@ try {
     ]
   }, 10);
   assert(soldOnlyPrices.length === 1 && soldOnlyPrices[0].priceType === "Verified sold", "Qualified historical sold evidence may remain visible as historical context.");
-  assert(__queryIntegrityTestHooks.buildBestCompatiblePriceFound(soldOnlyPrices) === null, "Historical sold evidence alone must not become Best Compatible Price Found.");
   assert(/No compatible current purchasing option with a confirmed delivered cost/i.test(__queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary(soldOnlyPrices)), "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found.");
   const parsedList = __queryIntegrityTestHooks.parseListLikeSearchPhrases("['GEORGIA', '1980 NATIONAL CHAMPIONS', 'Official Bulldogs']");
   assert(parsedList.includes("GEORGIA") && parsedList.includes("1980 NATIONAL CHAMPIONS") && parsedList.includes("Official Bulldogs"), "Serialized list-like visible phrases should become clean individual phrases.");
@@ -2138,8 +2136,8 @@ try {
   assert(amazonWhereToBuy.shipping === "Not shown" && amazonWhereToBuy.deliveredCost === "Not established" && amazonWhereToBuy.deliveredCostAmount === null, "Unknown online shipping must not be treated as free shipping or delivered cost.");
   assert(targetWhereToBuy.shipping === "Free" && targetWhereToBuy.deliveredCost === "$8.49", "Explicit free shipping can establish delivered cost for an online offer.");
   assert(amazonWhereToBuy.purchaseChannel === "Online" && !/Nearby/i.test(amazonWhereToBuy.purchaseChannel), "Online item prices must not be implied to apply at a nearby physical store.");
-  const bestOnlineDelivered = __queryIntegrityTestHooks.buildBestCompatiblePriceFound([amazonWhereToBuy, targetWhereToBuy]);
-  assert(/target\.com/.test(bestOnlineDelivered.url) && bestOnlineDelivered.priceContextLabel === "Lowest Known Delivered Cost Found", "Online item price cannot establish best delivered cost without supported shipping.");
+  const onlineDeliveredSummary = __queryIntegrityTestHooks.buildCurrentPurchaseOptionSummary([amazonWhereToBuy, targetWhereToBuy]);
+  assert(/\$8\.49/.test(onlineDeliveredSummary), "Online item price cannot establish the confirmed delivered-cost summary without supported shipping.");
   const noAmazonWhereToBuy = __queryIntegrityTestHooks.buildConsumerPricesFound({
     providerSourceRecords: [targetOnlineOffer],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }

@@ -57,7 +57,7 @@ $checks = @(
   @{ Name = "Forbidden secondary evidence remains blocked"; Text = $api; Pattern = "function isRetailForbiddenSecondaryEvidenceText" },
   @{ Name = "Server prompt uses new retail labels"; Text = $server; Pattern = "Exact Retail Match, Strong Retail Alternative, Unit-Price Comparable, Retail Category Context, or Rejected Retail Mismatch" },
   @{ Name = "Frontend can display unified Where to Buy prices"; Text = $app; Pattern = "Where to Buy" },
-  @{ Name = "Frontend preserves retail label display"; Text = $app; Pattern = "getPriceFoundMatchLabel(item)" }
+  @{ Name = "Frontend preserves canonical retail match label display"; Text = $app; Pattern = "item.canonicalMatchLabel" }
 )
 
 $failed = @()

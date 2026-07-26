@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $offer = Get-Content (Join-Path $Root "lib/evidence/offer.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$presentation = Get-Content (Join-Path $Root "public/customer-evidence.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $productionText = @(
   $api
@@ -43,9 +44,9 @@ Require-Contains "Mailing dimensions compatibility exists" $api "function retail
 Require-Contains "Completed auction evidence is classified" $api "Completed Auction"
 Require-Contains "Canonical buyer-offer authority exists" $offer "export function deriveCanonicalBuyerOfferResult"
 Require-Contains "Canonical one-asking-price firewall exists" $offer '"asking_price_context_only"'
-Require-Contains "Compact match label exists" $app "function getCompactPriceFoundMatchLabel"
-Require-Contains "Stock-safe list disclaimer exists" $app "Prices and availability can change. Check the retailer before purchasing."
-Require-Contains "Generic compact action exists" $app 'return "View source";'
+Require-Contains "Canonical match label reaches the presentation model" $presentation "canonicalMatchLabel"
+Require-Contains "Stock-safe neutral list disclaimer exists" $app "Source details, prices, and availability can change. Check the source before acting."
+Require-Contains "Generic compact action exists" $app 'link.textContent = "View source";'
 
 Require-Contains "Mock covers preliminary recovery assessment" $mock "Limited-result recovery must inspect preliminary qualified acquisition evidence"
 Require-Contains "Mock covers 4.12 mailing dimensions" $mock "Visible 4.12-inch envelope dimensions should compare as mailing size"

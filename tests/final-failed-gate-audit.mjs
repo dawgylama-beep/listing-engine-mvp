@@ -472,6 +472,7 @@ function testBuyerDecisionAndDiagnosticTruth() {
 
 function testCompactRendererContractAndProductionGeneralization() {
   const app = readFileSync(path.join(root, "public/app.js"), "utf8");
+  const customerEvidenceModel = readFileSync(path.join(root, "public/customer-evidence.js"), "utf8");
   const api = readFileSync(path.join(root, "api/generate-listing.js"), "utf8");
   const productionText = [
     api,
@@ -487,8 +488,10 @@ function testCompactRendererContractAndProductionGeneralization() {
     : "";
 
   assertIncludes(app, 'list.className = "prices-found-list compact-price-list";', "One compact Where to Buy list container must render customer-visible rows.");
-  assertIncludes(app, "buildUnifiedCustomerEvidenceList(report)", "All workflows must route customer price evidence through the unified normalized collection.");
-  assertIncludes(app, "Prices and availability can change. Check the retailer before purchasing.", "A single shared availability disclaimer must appear below the compact list.");
+  assertIncludes(app, "return builder(report.customerEvidence, report.customerEvidenceSummary);", "All workflows must route customer price evidence through the canonical contract.");
+  assertIncludes(customerEvidenceModel, "function buildCustomerEvidenceViewModel", "The actual browser presentation model must remain pure and shared.");
+  assertNotMatches(app, /buildUnifiedCustomerEvidenceList|getPriceFoundDedupeKey|isPriceFoundBestBadgeEligible/, "Frontend evidence reconstruction authorities must remain deleted.");
+  assertIncludes(app, "Source details, prices, and availability can change. Check the source before acting.", "A single shared neutral availability disclaimer must appear below the compact list.");
   assertNotMatches(compactSummary, /Best Compatible Price Found|Other Compatible Prices Found/, "Legacy best/other visible sections must not return to the primary report.");
   assertNotMatches(productionText, /Office Works Security Envelopes|041226087161|6110325|30188|Georgia Bulldogs Coca-Cola|HOW '?BOUT THEM DAWGS|georgia-coca-cola-tray|office-works-strip-and-seal-security-envelopes/i, "Production code must not contain acceptance-item or exact-source routing literals.");
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   assembleFinalEvidence,
-  buildCompactEvidenceList,
+  createFinalEvidenceResult,
   deriveDecision,
   deriveRange,
   diagnosticsFromFinalEvidence,
@@ -75,9 +75,15 @@ const postRecovery = assembleFinalEvidence([...stageOne, ...recovered], retailTa
 const postRecoveryIds = postRecovery.finalizedCustomerRecordIds;
 const postRecoveryDiagnostics = diagnosticsFromFinalEvidence(postRecovery);
 const postRecoveryDecision = deriveDecision(postRecovery, { askingPrice: 5.5, mode: "retail" });
+const postRecoveryResult = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity: retailTarget,
+  observations: [...stageOne, ...recovered],
+  askingPrice: 5.5
+});
 assert.deepEqual(postRecoveryDiagnostics.finalizedCustomerRecordIds, postRecoveryIds);
 assert.deepEqual(postRecoveryDecision.finalizedCustomerRecordIds, postRecoveryIds);
-assert.deepEqual(buildCompactEvidenceList(postRecovery).map((record) => record.evidenceId), postRecovery.displayedRecordIds);
+assert.deepEqual(postRecoveryResult.customerEvidence.map((record) => record.evidenceId), postRecoveryResult.views.displayedIds);
 assert.equal(postRecoveryDecision.exactProductFound, true);
 assert.equal(postRecovery.all.some((record) => record.retailer === "Retailer B" && record.price === 2.99), true);
 assert.equal(postRecovery.all.some((record) => record.sourceRecordId === "wrong-size"), false);

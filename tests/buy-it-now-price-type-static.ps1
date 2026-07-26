@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $range = Get-Content (Join-Path $Root "lib/evidence/range.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$presentation = Get-Content (Join-Path $Root "public/customer-evidence.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $failed = @()
@@ -39,7 +40,6 @@ $normalizeBlock = Function-Block $api "function normalizePriceTypeLabel" "functi
 $sortBlock = Function-Block $api "function priceFoundSortRank" "function retailEvidenceTierRank"
 $listingStatusBlock = Function-Block $api "function inferPriceFoundListingStatus" "function buildPriceFoundLimitation"
 $limitationBlock = Function-Block $api "function buildPriceFoundLimitation" "function buildPriceFoundComparison"
-$actionBlock = Function-Block $app "function formatSecondaryMarketPriceType" "function getPriceFoundPurchaseChannel"
 
 Require-Contains "Explicit Buy It Now detector exists" $api "function hasExplicitBuyItNowEvidence"
 Require-Contains "Explicit Buy It Now detector is exported to deterministic hooks" $api "hasExplicitBuyItNowEvidence,"
@@ -51,9 +51,9 @@ Require-Contains "Buy It Now sorts with current asking evidence" $sortBlock "Act
 Require-Contains "Buy It Now can support canonical asking comparison" $range '"Active asking price", "Buy It Now"'
 Require-Contains "Buy It Now status remains listing status, not sold" $listingStatusBlock "Buy It Now listing price - current availability not independently confirmed"
 Require-Contains "Buy It Now limitation rejects confirmed market value" $limitationBlock "Buy It Now listing price; this is not verified sold evidence or confirmed market value."
-Require-Contains "Customer evidence formats Buy It Now label" $actionBlock 'if (/Buy It Now/i.test(type)) return "Buy It Now";'
-Require-Contains "Buy It Now action remains listing action" $actionBlock 'if (/Buy It Now/i.test(type))'
-Require-Order "Frontend Buy It Now outranks generic active listing label" $actionBlock 'if (/Buy It Now/i.test(type)) return "Buy It Now";' 'if (/Price Unavailable|Active Listing/i.test(type)) return "Active listing";'
+Require-Contains "Presentation model preserves canonical price type" $presentation "canonicalPriceType"
+Require-Contains "Presentation model copies canonical price type without inference" $presentation "const canonicalPriceType = cleanText(record.canonicalPriceType)"
+Require-Contains "Rendered evidence shows canonical price type" $app "item.canonicalPriceType"
 Require-Contains "Mock proves Buy It Now end to end" $mock "Explicit Buy It Now must remain Buy It Now through parsing and normalization."
 Require-Contains "Mock proves Buy It Now reaches compact list" $mock "Exact Buy It Now listing should reach the primary compact evidence list."
 Require-Contains "Mock proves Buy It Now is not verified market" $mock "Buy It Now may support the canonical active-asking group while staying outside verified-market evidence."

@@ -136,7 +136,7 @@ Require-Count "Only one help panel exists" $index 'id="help-panel"' 1
 
 Require-Contains "Compact Where to Buy renderer remains" $app 'list.className = "prices-found-list compact-price-list";'
 Require-Contains "Compact Where to Buy rows remain" $app 'card.className = "price-found-row";'
-Require-Contains "Where to Buy still renders as unified list" $app 'pricesTitle.textContent = "Where to Buy";'
+Require-Contains "Where to Buy still renders as unified canonical list" $app 'return isCurrentRetailOnlyReport(report) ? "Where to Buy" : "Market Evidence";'
 
 if ($failed.Count -gt 0) {
   Write-Error ("Global help instruction static checks failed:`n- " + ($failed -join "`n- "))

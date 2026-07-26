@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
-  buildCompactEvidenceList,
   createRecoveryAssessment,
-  createFinalEvidenceResult
+  createFinalEvidenceResult,
+  validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
@@ -10931,7 +10931,13 @@ function extractRejectionReason(text, classification) {
 }
 
 function enforceListingResearchHonesty(report, research, platform) {
-  const { identity, liveSearch } = research;
+  const { identity, liveSearch, buyerIntake = normalizeBuyerIntake({}) } = research;
+  buildConsumerPricesFound(
+    liveSearch,
+    getConsumerAskingPriceNumber(buyerIntake, identity),
+    { identity, buyerIntake }
+  );
+  const finalEvidenceResult = liveSearch.finalEvidenceResult || {};
   const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const comparableItemsFound = sourceBackedCompsFound ? liveSearch.comparableItemsFound : [];
   const { hasReliableMatch } = splitComparableItems(comparableItemsFound);
@@ -10981,10 +10987,13 @@ function enforceListingResearchHonesty(report, research, platform) {
     priceStrategy: ensurePrefix(report.priceStrategy, listingBasis)
   };
 
-  return applyValuationEvidenceLabels(normalizedReport, {
+  const evidenceLabeledReport = applyValuationEvidenceLabels(normalizedReport, {
     reliableCompsFound: reliableResearchFound,
     searchCompleted: Boolean(liveSearch.webSearchExecuted),
     workflow: "listing"
+  });
+  return applyCanonicalDecisionProjection(evidenceLabeledReport, finalEvidenceResult, {
+    workflow: "seller_listing"
   });
 }
 
@@ -11654,8 +11663,11 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     }
   });
   currentAnalysisAdapters().onFinalEvidenceResult(finalEvidenceResult);
-  const compactRecords = buildCompactEvidenceList(finalEvidenceResult, askingPriceNumber);
+  const customerEvidence = finalEvidenceResult.customerEvidence;
+  const customerEvidenceSummary = finalEvidenceResult.customerEvidenceSummary;
   liveSearch.finalEvidenceResult = finalEvidenceResult;
+  liveSearch.customerEvidence = customerEvidence;
+  liveSearch.customerEvidenceSummary = customerEvidenceSummary;
   liveSearch.finalizedEvidence = finalEvidenceResult.acceptedRecords;
   liveSearch.finalRejectedEvidence = finalEvidenceResult.rejectedRecords;
   liveSearch.finalEvidenceCounts = finalEvidenceResult.counts;
@@ -11672,10 +11684,15 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,
-    finalCustomerEvidenceCount: liveSearch.finalEvidenceDiagnostics.customerEligibleEvidenceCount,
-    finalExactCustomerEvidenceCount: finalEvidenceResult.views.exactMatchIds.length,
+    finalCustomerEvidenceCount: customerEvidenceSummary.counts.displayed,
+    finalExactCustomerEvidenceCount: customerEvidenceSummary.displayedCountByMatchClass.Exact || 0,
     finalizedCustomerRecordIds: finalEvidenceResult.views.customerEligibleIds,
     displayedCustomerRecordIds: finalEvidenceResult.views.displayedIds,
+    canonicalCustomerEvidenceIds: customerEvidenceSummary.displayedIds,
+    canonicalCustomerEvidenceCount: customerEvidenceSummary.counts.displayed,
+    canonicalDisplayedCountByRetailer: customerEvidenceSummary.displayedCountByRetailer,
+    canonicalDisplayedCountByPriceType: customerEvidenceSummary.displayedCountByPriceType,
+    canonicalDisplayedCountByMatchClass: customerEvidenceSummary.displayedCountByMatchClass,
     canonicalRangeStatus: finalEvidenceResult.rangeResult.status,
     canonicalRangeSupportEvidenceIds: finalEvidenceResult.rangeResult.evidenceIds,
     canonicalRangeSupportUnderlyingOfferIds: finalEvidenceResult.rangeResult.underlyingOfferIds,
@@ -11706,46 +11723,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     canonicalBuyerOfferSupportCount: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds.length
   };
   liveSearch.diagnostics = liveSearch.searchDiagnostics;
-  return compactRecords;
-}
-
-function priceFoundRetailerKey(record = {}) {
-  const destinationUrl = cleanText(record.destinationUrl || record.url || record.canonicalUrl);
-  const domain = cleanText(record.retailerDomain || hostnameFromUrl(destinationUrl)).toLowerCase();
-  const name = cleanText(record.retailerDisplayName || record.source || record.marketplace).toLowerCase();
-  return domain || name;
-}
-
-function selectDiversePriceFoundRecords(records = [], limit = 8) {
-  const sorted = normalizeArray(records)
-    .filter((record) => record && typeof record === "object")
-    .slice()
-    .sort(comparePriceFoundRecords);
-  const selected = [];
-  const seenRetailers = new Set();
-  const add = (record) => {
-    const key = priceContextKey(record);
-    if (!key || selected.some((item) => priceContextKey(item) === key)) {
-      return false;
-    }
-    selected.push(record);
-    return true;
-  };
-  for (const record of sorted) {
-    if (selected.length >= limit) break;
-    const retailerKey = priceFoundRetailerKey(record);
-    if (!retailerKey || seenRetailers.has(retailerKey)) {
-      continue;
-    }
-    if (add(record)) {
-      seenRetailers.add(retailerKey);
-    }
-  }
-  for (const record of sorted) {
-    if (selected.length >= limit) break;
-    add(record);
-  }
-  return selected.slice(0, limit);
+  return customerEvidence;
 }
 
 function isPriceFoundEligible(record = {}) {
@@ -13124,8 +13102,6 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const exactRetailVisible = acceptedWithRetailLabels.filter((record) => record.canonicalMatchQuality === "Exact" || /exact/i.test(record.matchQuality || record.priceContextLabel || ""));
   const exactRetail = decisionSupportRecords.filter((record) => record.canonicalMatchQuality === "Exact");
   const strongRetail = decisionSupportRecords.filter((record) => /^(Exact|Strong compatible)$/i.test(record.canonicalMatchQuality || ""));
-  const sorted = decisionEligiblePrices.slice().sort(compareCompatiblePriceContext);
-  const visibleSorted = acceptedWithRetailLabels.slice().sort(compareCompatiblePriceContext);
   const canonicalRetailCount = Number(rangeResult.independentOfferCount || 0);
   const submittedQuantity = extractPackQuantityNumber([
     identity.packageQuantity,
@@ -13147,13 +13123,6 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
   const askingUnitText = Number.isFinite(askingPriceNumber) && Number.isFinite(submittedQuantity) && submittedQuantity > 0
     ? ` Your price is ${askingText} for ${submittedQuantity} ${retailUnitName}${submittedQuantity === 1 ? "" : "s"}, or about ${formatUnitCents(askingPriceNumber / submittedQuantity)} each (${formatUnitMoney(askingPriceNumber / submittedQuantity)} per ${retailUnitName}).`
     : "";
-  const best = sorted[0] ? annotatePriceContextRecord(
-    sorted[0],
-    "Best Current Retail Alternative",
-    sorted[0].deliveredCostAmount
-      ? `Lowest supported delivered cost found: ${sorted[0].deliveredCost}. Taxes may apply.`
-      : "Lowest qualified current retail item price found. Shipping, pickup, taxes, or availability may still need source confirmation."
-  ) : null;
   const noRetailPrice = "Current Retail Price: Not verified";
   const priceAssessment = !currentRetailOnly
     ? ""
@@ -13197,10 +13166,6 @@ function buildRetailEvidenceProfile({ buyerIntake = normalizeBuyerIntake({}), id
     strongRetailCount: strongRetail.length,
     currentRetailPriceAssessment: priceAssessment,
     namedStoreResult,
-    bestCurrentRetailAlternative: best,
-    otherCurrentRetailPrices: best
-      ? visibleSorted.filter((record) => priceContextKey(record) !== priceContextKey(best)).slice(0, 4)
-      : visibleSorted.slice(0, 4),
     packageUnitPriceComparison: buildCanonicalRetailUnitPriceContext(retailLimitResult),
     localAvailabilityContext: buildRetailLocalAvailabilityContext(buyerIntake, liveSearch),
     retailPurchaseDecision,
@@ -13489,7 +13454,39 @@ function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {},
   projection.recommendation = recommendation;
   projection.retailPurchaseDecision = recommendation;
   projection.purchaserDecision = decisionSummary;
-  return applyCanonicalBuyerOfferProjection(projection, finalEvidenceResult);
+  return applyCanonicalCustomerEvidenceProjection(
+    applyCanonicalBuyerOfferProjection(projection, finalEvidenceResult),
+    finalEvidenceResult
+  );
+}
+
+function applyCanonicalCustomerEvidenceProjection(report = {}, finalEvidenceResult = {}) {
+  const customerEvidence = normalizeArray(finalEvidenceResult.customerEvidence);
+  const customerEvidenceSummary = finalEvidenceResult.customerEvidenceSummary || {
+    displayedIds: [],
+    counts: { displayed: 0 },
+    displayedCountByRetailer: {},
+    displayedCountByPriceType: {},
+    displayedCountByMatchClass: {}
+  };
+  // Deprecated API compatibility projection only. Browser evidence, diagnostics,
+  // and every business decision remain authoritative from the canonical contract.
+  const projection = {
+    ...report,
+    customerEvidence,
+    customerEvidenceSummary,
+    pricesFound: customerEvidence,
+    searchDiagnostics: {
+      ...(report.searchDiagnostics || {}),
+      canonicalCustomerEvidenceIds: customerEvidenceSummary.displayedIds,
+      canonicalCustomerEvidenceCount: customerEvidenceSummary.counts?.displayed || 0,
+      canonicalDisplayedCountByRetailer: customerEvidenceSummary.displayedCountByRetailer,
+      canonicalDisplayedCountByPriceType: customerEvidenceSummary.displayedCountByPriceType,
+      canonicalDisplayedCountByMatchClass: customerEvidenceSummary.displayedCountByMatchClass
+    }
+  };
+  validateCustomerEvidenceCompatibilityProjection(customerEvidence, projection);
+  return projection;
 }
 
 function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
@@ -13514,8 +13511,6 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
     askingStorePrice: profile.askingStorePrice,
     currentRetailPriceAssessment: priceAssessment,
     namedStoreResult: profile.namedStoreResult,
-    bestCurrentRetailAlternative: profile.bestCurrentRetailAlternative,
-    otherCurrentRetailPrices: profile.otherCurrentRetailPrices,
     packageUnitPriceComparison: profile.packageUnitPriceComparison,
     localAvailabilityContext: profile.localAvailabilityContext,
     rangeResult: profile.rangeResult,
@@ -13528,12 +13523,9 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
     priceConfidence: profile.priceConfidence || report.priceConfidence,
     pricingConfidence: formatCanonicalConfidenceResult(confidenceResult.pricing, "Pricing confidence"),
     liveComparableSearchStatus: report.liveComparableSearchStatus,
-    pricesFound: acceptedPrices,
     noCompatiblePricesFound: acceptedPrices.length
       ? ""
       : "Current Retail Price: Not verified. No qualified current retail prices were found.",
-    bestCompatiblePriceFound: profile.bestCurrentRetailAlternative,
-    otherCompatiblePricesFound: profile.otherCurrentRetailPrices,
     currentPurchaseOptionSummary: profile.currentRetailPriceAssessment,
     priceSpectrumSummary: buildRetailCurrentPriceSpectrumSummary(profile),
     retailPriceContext: profile.currentRetailPriceAssessment,
@@ -13587,32 +13579,6 @@ function applyCurrentRetailDecisionFirewall(report = {}, profile = {}) {
   };
 }
 
-function buildBestCompatiblePriceFound(pricesFound = []) {
-  const records = pricesFound
-    .filter((item) => Number.isFinite(item.itemPriceAmount))
-    .filter(isCurrentPurchasablePriceFoundRecord);
-  if (!records.length) {
-    return null;
-  }
-  const knownDelivered = records
-    .filter((item) => Number.isFinite(item.deliveredCostAmount))
-    .sort(compareCompatiblePriceContext);
-  if (knownDelivered.length) {
-    const best = knownDelivered[0];
-    return annotatePriceContextRecord(
-      best,
-      "Lowest Known Delivered Cost Found",
-      `Lowest supported delivered cost found: ${best.deliveredCost}. Taxes may apply.`
-    );
-  }
-  const lowestItem = records.slice().sort((a, b) => (a.itemPriceAmount || 0) - (b.itemPriceAmount || 0))[0];
-  return annotatePriceContextRecord(
-    lowestItem,
-    "Lowest Current Visible Item Price Found",
-    "Shipping was not shown for this current active item price, so it is not established as the lowest delivered cost."
-  );
-}
-
 function buildCurrentPurchaseOptionSummary(pricesFound = []) {
   const currentOptions = pricesFound.filter(isCurrentPurchasablePriceFoundRecord);
   const knownDelivered = currentOptions.filter((item) => Number.isFinite(item.deliveredCostAmount));
@@ -13629,31 +13595,6 @@ function buildCurrentPurchaseOptionSummary(pricesFound = []) {
   return "No compatible current purchasing option with a confirmed delivered cost was found.";
 }
 
-function buildOtherCompatiblePricesFound(pricesFound = [], best = null) {
-  const bestKey = best ? priceContextKey(best) : "";
-  const candidates = pricesFound
-    .filter((item) => Number.isFinite(item.itemPriceAmount) && priceContextKey(item) !== bestKey)
-    .slice()
-    .sort(compareCompatiblePriceContext);
-  if (!candidates.length) {
-    return [];
-  }
-  const selected = [];
-  const add = (record) => {
-    if (!record) return;
-    const key = priceContextKey(record);
-    if (!key || selected.some((item) => priceContextKey(item) === key)) return;
-    selected.push(annotatePriceContextRecord(record, "Other compatible price found", "Useful compatible price context shown for comparison."));
-  };
-  add(candidates[0]);
-  add(candidates[Math.floor(candidates.length / 2)]);
-  add(candidates[candidates.length - 1]);
-  add(candidates.find((item) => /Verified Sold/i.test(item.priceType)));
-  add(candidates.find((item) => /Active Asking|Buy It Now/i.test(item.priceType) && Number.isFinite(item.deliveredCostAmount)));
-  add(candidates.find((item) => item.shippingStatus === "unknown"));
-  return selected.slice(0, 4);
-}
-
 function buildPriceSpectrumSummary(priceEvidence = {}) {
   const rangeResult = priceEvidence.rangeResult || {};
   if (rangeResult.status === "established") {
@@ -13663,23 +13604,6 @@ function buildPriceSpectrumSummary(priceEvidence = {}) {
     return `One ${cleanText(rangeResult.observedPriceType).toLowerCase()} observed: ${formatMoney(rangeResult.observedPrice)}. No numerical market range was established.`;
   }
   return cleanText(rangeResult.insufficiencyReason) || "No compatible source-backed prices established a canonical market range.";
-}
-
-function buildPricesFoundSummary(pricesFound = [], askingPriceNumber = null) {
-  if (!pricesFound.length) {
-    return "No compatible source-backed visible prices were available for the prominent Prices Found section.";
-  }
-  const knownDelivered = pricesFound.filter((item) => Number.isFinite(item.deliveredCostAmount));
-  const lowerDelivered = Number.isFinite(askingPriceNumber)
-    ? knownDelivered.filter((item) => item.deliveredCostAmount < askingPriceNumber)
-    : [];
-  if (lowerDelivered.length) {
-    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; ${lowerDelivered.length} had a lower confirmed delivered cost than the entered purchase price. Active asking prices and Buy It Now listings are not verified sold values.`;
-  }
-  if (Number.isFinite(askingPriceNumber) && knownDelivered.length) {
-    return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found; none with known delivered cost was lower than ${formatMoney(askingPriceNumber)}. Active asking prices and Buy It Now listings are not verified sold values.`;
-  }
-  return `${pricesFound.length} compatible priced source record${pricesFound.length === 1 ? "" : "s"} were found, but at least some delivered costs could not be confirmed because shipping was not shown.`;
 }
 
 function buildListingPriceText(value, reliableResearchFound) {
@@ -14567,13 +14491,6 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     : searchCompleted
       ? "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence."
       : "Live research did not complete. Consumer decision is AI-reasoning-only and low confidence.";
-  const pricesFoundSummary = buildPricesFoundSummary(customerFacingPricesFound, askingPriceNumber);
-  const bestCompatiblePriceFound = retailEvidenceProfile.currentRetailOnly
-    ? retailEvidenceProfile.bestCurrentRetailAlternative
-    : buildBestCompatiblePriceFound(customerFacingPricesFound);
-  const otherCompatiblePricesFound = retailEvidenceProfile.currentRetailOnly
-    ? retailEvidenceProfile.otherCurrentRetailPrices
-    : buildOtherCompatiblePricesFound(customerFacingPricesFound, bestCompatiblePriceFound);
   const priceSpectrumSummary = retailEvidenceProfile.currentRetailOnly
     ? buildRetailCurrentPriceSpectrumSummary(retailEvidenceProfile)
     : buildPriceSpectrumSummary(priceEvidence);
@@ -14623,8 +14540,6 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     askingStorePrice: retailEvidenceProfile.askingStorePrice,
     currentRetailPriceAssessment: retailEvidenceProfile.currentRetailPriceAssessment,
     namedStoreResult: retailEvidenceProfile.namedStoreResult,
-    bestCurrentRetailAlternative: retailEvidenceProfile.bestCurrentRetailAlternative,
-    otherCurrentRetailPrices: retailEvidenceProfile.otherCurrentRetailPrices,
     packageUnitPriceComparison: retailEvidenceProfile.packageUnitPriceComparison,
     localAvailabilityContext: retailEvidenceProfile.localAvailabilityContext,
     retailPriceLimit: retailEvidenceProfile.retailPriceLimit,
@@ -14640,11 +14555,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     retailPriceContext: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.currentRetailPriceAssessment : buildRetailPriceContext(buyerIntake, priceEvidence, customerFacingPricesFound, liveSearch),
     packageUnitPriceContext: retailEvidenceProfile.currentRetailOnly ? retailEvidenceProfile.packageUnitPriceComparison : buildPackageUnitPriceContext(identity, customerFacingPricesFound, liveSearch),
     askingPrice: buildConsumerAskingPriceText(buyerIntake, identity),
-    bestCompatiblePriceFound,
     currentPurchaseOptionSummary,
-    otherCompatiblePricesFound,
     priceSpectrumSummary,
-    pricesFound: customerFacingPricesFound,
     noCompatiblePricesFound: customerFacingPricesFound.length ? "" : retailEvidenceProfile.currentRetailOnly ? "Current Retail Price: Not verified. No qualified current retail prices were found." : "No compatible source-backed prices were found.",
     verifiedMarketRange: retailEvidenceProfile.currentRetailOnly ? "" : priceEvidence.verifiedMarketRange,
     currentAskingPriceRange: retailEvidenceProfile.currentRetailOnly || insufficientCollectibleMarketEvidence ? "" : priceEvidence.currentAskingPriceRange,
@@ -17459,8 +17371,6 @@ export const __queryIntegrityTestHooks = {
   canSupportPreliminaryAskingRangeFromVisibleRecord,
   buildConsumerPricesFound,
   buildEquivalentCustomerRetailOfferKey,
-  buildBestCompatiblePriceFound,
-  buildOtherCompatiblePricesFound,
   buildPriceSpectrumSummary,
   buildCurrentPurchaseOptionSummary,
   summarizeConsumerVisiblePriceEvidence,

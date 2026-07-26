@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $decisions = Get-Content (Join-Path $Root "lib/evidence/decisions.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$presentation = Get-Content (Join-Path $Root "public/customer-evidence.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $failed = @()
@@ -42,15 +43,16 @@ Require-Contains "Online stage uses domain-constrained registry queries" $api "o
 Require-Contains "Online stage is displayed in diagnostics" $app "Online Retail Search Status"
 Require-Contains "Online queries attempted are displayed" $app "Online Retail Queries Attempted"
 Require-Contains "Online provider calls used are displayed" $app "Online Retail Provider Calls Used"
-Require-Contains "Purchase channel helper exists" $app "function getPriceFoundPurchaseChannel"
-Require-Contains "Where to Buy is the unified retail list" $app 'pricesTitle.textContent = "Where to Buy";'
-Require-Contains "Purchase channel appears in card details" $app '["Purchase channel", purchaseChannel]'
-Require-Contains "Platform and seller are in card details" $app '["Platform / retailer", item.retailOfferPlatform || item.retailerDisplayName]'
+Require-Contains "Canonical presentation preserves purchase channel" $presentation "purchaseChannel: cleanText(record.purchaseChannel)"
+Require-Contains "Where to Buy is the unified canonical retail list" $app 'return isCurrentRetailOnlyReport(report) ? "Where to Buy" : "Market Evidence";'
+Require-Contains "Purchase channel appears in card details" $app '["Purchase channel", item.purchaseChannel]'
+Require-Contains "Platform is in card details" $app '["Platform / retailer", item.retailOfferPlatform]'
+Require-Contains "Seller is in card details" $app '["Seller", item.retailOfferSeller]'
 Require-Contains "Seller type is in card details" $app '["Seller type", item.retailOfferSellerType]'
 Require-Contains "Offer conditions are in card details" $app '["Offer conditions", item.retailOfferConditionDisclosure]'
-Require-Contains "Address is address-gated" $app "...(addressText ? [address] : [])"
-Require-Contains "One list-level availability note exists" $app 'disclaimer.textContent = "Prices and availability can change. Check the retailer before purchasing.";'
-Require-Contains "Text export uses compact price-list formatter" $app "function formatPricesFoundListText"
+Require-Contains "Address is emitted only from supported canonical address fields" $app '["Address", supportedAddress]'
+Require-Contains "One neutral list-level availability note exists" $app 'disclaimer.textContent = "Source details, prices, and availability can change. Check the source before acting.";'
+Require-Contains "Text export uses canonical customer-evidence formatter" $app "function formatCustomerEvidenceListText"
 Require-Contains "Text export includes purchase channel" $app "purchaseChannel"
 Require-Contains "Offer details helper exists" $api "function deriveRetailOfferDetails"
 Require-Contains "Seller extraction helper exists" $api "function extractRetailSellerName"
@@ -60,7 +62,7 @@ Require-Contains "Coupon safeguard exists" $api "Coupon or promo-dependent prici
 Require-Contains "Membership safeguard exists" $api "Membership-only pricing was visible"
 Require-Contains "Variant safeguard exists" $api "Variant-specific pricing was visible"
 Require-Contains "Unknown shipping limitation remains intact" $api "Shipping was not shown, so delivered cost cannot be confirmed."
-Require-Contains "Delivered-cost ranking still requires supported shipping" $api "Lowest Known Delivered Cost Found"
+Require-Contains "Delivered-cost summary still requires supported delivered cost" $api "const knownDelivered = currentOptions.filter((item) => Number.isFinite(item.deliveredCostAmount));"
 Require-Contains "Search-provider domain helper remains intact" $api "function isSearchProviderDomain"
 Require-Contains "Search-provider retailer exclusion remains intact" $api "Retailer not identified"
 Require-Contains "Mock covers Amazon entry" $mock "Supported Amazon offers can enter Where to Buy."
@@ -71,7 +73,7 @@ Require-Contains "Mock covers seller/platform separation" $mock "Marketplace pla
 Require-Contains "Mock covers conditional pricing" $mock "Conditional online pricing should be disclosed"
 Require-Contains "Mock covers unknown shipping" $mock "Unknown online shipping must not be treated as free shipping"
 Require-Contains "Mock covers online not local" $mock "Online item prices must not be implied to apply at a nearby physical store."
-Require-Contains "Mock covers best delivered cost" $mock "Online item price cannot establish best delivered cost without supported shipping."
+Require-Contains "Mock covers confirmed delivered cost" $mock "Online item price cannot establish the confirmed delivered-cost summary without supported shipping."
 Require-Contains "Mock covers search-provider exclusion" $mock "Search-provider pages must not become online retailers"
 Require-Contains "Mock covers bounded online queries" $mock "Online retail registry queries must remain within the bounded online budget."
 

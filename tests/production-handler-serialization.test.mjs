@@ -10,7 +10,10 @@ import { validateFinalEvidenceResult } from "../lib/evidence/index.js";
 import { retailRecoveryFixture } from "./fixtures/production-shaped-evidence.mjs";
 import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
 
+await import("../public/customer-evidence.js");
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const { buildCustomerEvidenceViewModel } = globalThis.KatherinesEyeCustomerEvidence;
 
 function createResponseCapture() {
   return {
@@ -47,8 +50,6 @@ function collectSerializedEvidenceIds(report = {}) {
   };
   for (const field of [
     "pricesFound",
-    "otherCompatiblePricesFound",
-    "otherCurrentRetailPrices",
     "strongComparables",
     "partialComparables",
     "itemIdentificationEvidence",
@@ -56,8 +57,6 @@ function collectSerializedEvidenceIds(report = {}) {
   ]) {
     for (const record of Array.isArray(report[field]) ? report[field] : []) add(record);
   }
-  add(report.bestCompatiblePriceFound);
-  add(report.bestCurrentRetailAlternative);
   return ids;
 }
 
@@ -166,6 +165,47 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(finalEvidenceResult.acceptedRecords.some((record) => record.displayedPrice === "Price unavailable"));
 
   const report = res.payload.valuation;
+  const customerEvidenceViewModel = buildCustomerEvidenceViewModel(
+    report.customerEvidence,
+    report.customerEvidenceSummary
+  );
+  assert.equal(customerEvidenceViewModel.status, "ready");
+  assert.deepEqual(
+    customerEvidenceViewModel.cards.map((card) => card.evidenceId),
+    finalEvidenceResult.views.displayedIds
+  );
+  assert.deepEqual(
+    report.customerEvidence.map((record) => record.evidenceId),
+    finalEvidenceResult.views.displayedIds
+  );
+  assert.deepEqual(report.pricesFound, report.customerEvidence);
+  for (const field of [
+    "bestCompatiblePriceFound",
+    "otherCompatiblePricesFound",
+    "bestCurrentRetailAlternative",
+    "otherCurrentRetailPrices"
+  ]) {
+    assert.equal(Object.hasOwn(report, field), false, `${field} must not be serialized`);
+  }
+  assert.equal(report.customerEvidenceSummary.counts.displayed, customerEvidenceViewModel.cards.length);
+  assert.deepEqual(
+    report.searchDiagnostics.canonicalCustomerEvidenceIds,
+    customerEvidenceViewModel.cards.map((card) => card.evidenceId)
+  );
+  assert.deepEqual(
+    report.searchDiagnostics.canonicalDisplayedCountByRetailer,
+    report.customerEvidenceSummary.displayedCountByRetailer
+  );
+  for (const [index, card] of customerEvidenceViewModel.cards.entries()) {
+    const canonical = report.customerEvidence[index];
+    assert.equal(card.title, canonical.title);
+    assert.equal(card.sourceLabel, canonical.sourceLabel);
+    assert.equal(card.destinationUrl, canonical.destinationUrl);
+    assert.equal(card.canonicalPrice, canonical.canonicalPrice ?? null);
+    assert.equal(card.canonicalPriceType, canonical.canonicalPriceType);
+    assert.equal(card.quantity, canonical.quantity ?? null);
+    assert.equal(card.canonicalMatchLabel, canonical.canonicalMatchLabel);
+  }
   assert(
     Number(report.searchDiagnostics?.normalizedCandidateCount || 0) > 0,
     "production provider normalization must produce at least one candidate"
@@ -177,7 +217,7 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(/category|search/i.test(rejectedDiagnosticText), "generic category record must remain in rejection diagnostics");
   const canonicalIds = new Set(finalEvidenceResult.records.map((record) => record.evidenceId));
   const serializedEvidenceIds = collectSerializedEvidenceIds(report);
-  serializedEvidenceIds.forEach((id) => assert(canonicalIds.has(id), `serialized alias contains unknown evidence ID ${id}`));
+  serializedEvidenceIds.forEach((id) => assert(canonicalIds.has(id), `serialized evidence contains unknown evidence ID ${id}`));
   assert.deepEqual(
     [...report.searchDiagnostics.finalizedCustomerRecordIds].sort(),
     [...finalEvidenceResult.views.customerEligibleIds].sort()

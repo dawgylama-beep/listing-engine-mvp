@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$customer = Get-Content (Join-Path $Root "lib/evidence/customer.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $failed = @()
@@ -43,7 +44,8 @@ Require-Contains "Exact page recovery preserves destination URL" $api "destinati
 Require-Contains "Exact page recovery uses provider metadata limitation" $api "search_result_metadata_only"
 Require-Contains "Exact page tier promotion exists" $api "record.exactRetailPage === true"
 Require-Contains "Equivalent retailer page dedupe exists" $api "function buildEquivalentRetailPageDedupeKey"
-Require-Contains "Where to Buy diversity selector exists" $api "function selectDiversePriceFoundRecords"
+Require-Contains "Canonical customer serializer preserves displayed-ID order" $customer "(views.displayedIds || []).map((evidenceId)"
+Require-Contains "Canonical retailer composition uses displayed customer evidence" $customer "summary.displayedCountByRetailer = countBy(customerEvidence"
 Require-Contains "Limited-result recovery trigger exists" $api "function shouldRunLimitedResultRetailRecovery"
 Require-Contains "Limited-result recovery stage exists" $api "stage_7_limited_result_recovery"
 Require-Contains "Limited-result recovery budget exists" $api "limitedResultRecovery: 3"

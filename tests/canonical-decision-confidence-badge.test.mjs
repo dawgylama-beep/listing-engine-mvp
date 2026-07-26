@@ -325,6 +325,13 @@ test("validator reports exact decision, confidence, badge, and diagnostic invari
   unsupportedBadge.badgeResult.label = "Supported Value";
   unsupportedBadge.badgeResult.eligibility = "eligible";
   unsupportedBadge.badgeResult.rationaleCodes = ["multiple_verified_sales_support_price"];
+  unsupportedBadge.customerEvidence.forEach((record) => {
+    if (unsupportedBadge.badgeResult.supportingEvidenceIds.includes(record.evidenceId)) {
+      record.cardBadgeCode = "supported_value";
+      record.cardBadgeLabel = "Supported Value";
+      record.cardBadge = { code: "supported_value", label: "Supported Value" };
+    }
+  });
   assert.throws(
     () => validateFinalEvidenceResult(unsupportedBadge),
     /supported-value badge cannot exist with low or insufficient pricing confidence/

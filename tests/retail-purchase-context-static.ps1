@@ -62,7 +62,7 @@ $checks = @(
   @{ Name = "Next best action asks retail missing identifiers"; Text = $api; Pattern = "Upload a closer barcode photo or enter the UPC manually." },
   @{ Name = "Mock test checks UPC first"; Text = $mock; Pattern = "Readable UPC should be the first-priority retail search identifier." },
   @{ Name = "Mock test checks store plus UPC"; Text = $mock; Pattern = "Store name plus UPC should be generated as a separate retail query." },
-  @{ Name = "Mock test preserves resale route safeguards"; Text = $mock; Pattern = "Historical sold evidence alone must not become Best Compatible Price Found." },
+  @{ Name = "Mock test preserves resale route safeguards"; Text = $mock; Pattern = "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found." },
   @{ Name = "Conditional fields have compact styling"; Text = $styles; Pattern = ".conditional-fields" }
 )
 

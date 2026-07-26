@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
+$presentation = Get-Content (Join-Path $Root "public/customer-evidence.js") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
@@ -56,12 +57,12 @@ $checks = @(
   @{ Name = "Auction context-only records cannot drive value"; Text = $api; Pattern = "this price type is context only and is not a completed sale or active asking-price range" },
   @{ Name = "Exact listing notice exists"; Text = $api; Pattern = "An exact current listing was found at" },
   @{ Name = "Exact listing notice discloses not confirmed market value"; Text = $api; Pattern = "This is an active asking price, Buy It Now listing, or auction bid, not a confirmed market value." },
-  @{ Name = "Frontend formats secondary-market price type"; Text = $app; Pattern = "function formatSecondaryMarketPriceType" },
-  @{ Name = "Frontend keeps source display helper"; Text = $app; Pattern = "function getPriceFoundDisplaySourceName" },
-  @{ Name = "Frontend labels exact item rows"; Text = $app; Pattern = "Exact item" },
-  @{ Name = "Frontend labels related items as not pricing"; Text = $app; Pattern = "Related item - not used for pricing" },
-  @{ Name = "Frontend has auction action"; Text = $app; Pattern = "View auction" },
-  @{ Name = "Frontend has verified-result action"; Text = $app; Pattern = "View result" },
+  @{ Name = "Frontend model preserves canonical price type"; Text = $presentation; Pattern = "const canonicalPriceType = cleanText(record.canonicalPriceType)" },
+  @{ Name = "Frontend model preserves canonical source label"; Text = $presentation; Pattern = "sourceLabel" },
+  @{ Name = "Frontend model preserves canonical match label"; Text = $presentation; Pattern = "canonicalMatchLabel" },
+  @{ Name = "Frontend renderer displays canonical classification"; Text = $app; Pattern = "item.canonicalMatchLabel" },
+  @{ Name = "Frontend renderer displays canonical price type"; Text = $app; Pattern = "item.canonicalPriceType" },
+  @{ Name = "Frontend uses one truthful canonical source action"; Text = $app; Pattern = 'link.textContent = "View source";' },
   @{ Name = "Mock proves exact auction evidence reaches list"; Text = $mock; Pattern = "Exact auction current bid should reach the primary compact evidence list." },
   @{ Name = "Mock proves auction origin does not reject exact"; Text = $mock; Pattern = "Auction origin must not reject an exact design/object match." },
   @{ Name = "Mock proves price type distinction"; Text = $mock; Pattern = "Current auction bid must remain a current bid." },

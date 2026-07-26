@@ -30,8 +30,8 @@ $checks = @(
   @{ Name = "API requires explicit proof for verified sold"; Text = $api; Pattern = "if (!hasExplicitSoldTransactionProof(record))" },
   @{ Name = "API builds current purchase option summary"; Text = $api; Pattern = "function buildCurrentPurchaseOptionSummary" },
   @{ Name = "API limits best compatible price to current purchasable records"; Text = $api; Pattern = "function isCurrentPurchasablePriceFoundRecord" },
-  @{ Name = "API uses precise lowest delivered-cost label"; Text = $api; Pattern = "Lowest Known Delivered Cost Found" },
-  @{ Name = "API uses precise lowest item-price label"; Text = $api; Pattern = "Lowest Current Visible Item Price Found" },
+  @{ Name = "API delivered-cost summary uses only known delivered costs"; Text = $api; Pattern = "const knownDelivered = currentOptions.filter((item) => Number.isFinite(item.deliveredCostAmount));" },
+  @{ Name = "API delivered-cost summary keeps historical evidence out of current deals"; Text = $api; Pattern = "Historical sold and reference prices are not treated as current best deals." },
   @{ Name = "Canonical one-observation rule prevents market validation"; Text = $decisions; Pattern = "one_observed_price_is_not_market_value" },
   @{ Name = "Canonical weak-price summary does not claim market validation"; Text = $decisions; Pattern = "pricing evidence is insufficient for a market-supported purchase recommendation" },
   @{ Name = "Frontend includes current purchase option section"; Text = $app; Pattern = '["currentPurchaseOptionSummary", "Current Purchase Option Summary"]' },
@@ -39,7 +39,7 @@ $checks = @(
   @{ Name = "Mock covers Facebook thrift-haul bulk failure"; Text = $mock; Pattern = 'I FOUND 14 vintage Coca-Cola trays at the thrift for $4.99' },
   @{ Name = "Mock covers no verified sold count for social bulk"; Text = $mock; Pattern = "must not drive any price range or verified sold counts" },
   @{ Name = "Mock covers Marketplace sold exception"; Text = $mock; Pattern = "Facebook Marketplace can qualify only when marketplace context and explicit sold/completed status are present." },
-  @{ Name = "Mock covers historical sold is not best current deal"; Text = $mock; Pattern = "Historical sold evidence alone must not become Best Compatible Price Found." },
+  @{ Name = "Mock covers historical sold is not a current delivered-cost option"; Text = $mock; Pattern = "Historical sold-only evidence should explain that no current confirmed delivered-cost option was found." },
   @{ Name = "Canonical test covers no-priced insufficiency"; Text = $offerTest; Pattern = "no priced evidence keeps identity support separate and produces explicit insufficiency" },
   @{ Name = "Canonical test covers rejected-evidence firewall"; Text = $offerTest; Pattern = "rejected and diagnostic-only evidence cannot influence canonical buyer guidance" }
 )
