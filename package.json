@@ -1,6 +1,7 @@
 {
   "name": "katherines-eye",
   "version": "1.12.1",
+  "packageManager": "npm@11.16.0",
   "private": true,
   "type": "module",
   "description": "Photo-first buying, selling, and valuation intelligence for Katherine’s Eye.",
@@ -9,5 +10,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0"
   }
 }

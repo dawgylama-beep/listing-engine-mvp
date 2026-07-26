@@ -2413,6 +2413,22 @@ summary:focus-visible {
   color: #17211f;
 }
 
+.canonical-evidence-section .price-found-source {
+  color: #10231f;
+}
+
+.canonical-evidence-section .price-found-meta-line {
+  color: #263a35;
+}
+
+.canonical-evidence-section .price-found-product-title {
+  color: #40524d;
+}
+
+.report-root > .canonical-evidence-section h4 {
+  color: #17211f;
+}
+
 .consumer-price-analysis-body {
   display: grid;
   gap: 10px;

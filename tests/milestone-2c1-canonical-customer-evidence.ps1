@@ -7,6 +7,7 @@ $browserModelPath = Join-Path $root "public/customer-evidence.js"
 $customerSerializerPath = Join-Path $root "lib/evidence/customer.js"
 $validationPath = Join-Path $root "lib/evidence/validate.js"
 $indexPath = Join-Path $root "public/index.html"
+$packagePath = Join-Path $root "package.json"
 
 $api = Get-Content -LiteralPath $apiPath -Raw
 $app = Get-Content -LiteralPath $appPath -Raw
@@ -14,6 +15,7 @@ $browserModel = Get-Content -LiteralPath $browserModelPath -Raw
 $customerSerializer = Get-Content -LiteralPath $customerSerializerPath -Raw
 $validation = Get-Content -LiteralPath $validationPath -Raw
 $index = Get-Content -LiteralPath $indexPath -Raw
+$package = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
 
 function Require-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) {
@@ -71,12 +73,17 @@ foreach ($removedAlias in @(
 Require-True ($index -match '<script src="/customer-evidence\.js"></script>\s*<script src="/app\.js"></script>') "Browser presentation model is not loaded before app.js."
 Require-True ($api -match 'maxProviderCalls:\s*28') "Retail provider ceiling changed from 28."
 Require-True ($api -match '\? retailBudget\.maxProviderCalls\s*:\s*12') "Collectible provider ceiling changed from 12."
-Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 52) "Current PowerShell entry-point count is not exactly 52."
+Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 53) "Current PowerShell entry-point count is not exactly 53."
+Require-True ($package.packageManager -ceq "npm@11.16.0") "The approved npm packageManager declaration changed."
+Require-True ($package.devDependencies.'@playwright/test' -ceq "1.62.0") "The exact Milestone 2C-2 Playwright development dependency changed."
+Require-True ($null -eq $package.dependencies -or @($package.dependencies.PSObject.Properties.Name).Count -eq 0) "A production package dependency was added."
+Require-True (@($package.devDependencies.PSObject.Properties).Count -eq 1) "An unrelated direct development dependency was added."
 
 $changed = @(git -C $root diff --name-only)
-Require-True (-not ($changed -contains "public/styles.css")) "public/styles.css changed."
+# Milestone 2C-1 governs canonical evidence selection and rendering authority.
+# Stylesheet accessibility and visual regressions are enforced by the
+# Milestone 2C-2 browser/DOM runner.
 Require-True (-not ($changed -contains "server.ps1")) "server.ps1 changed."
-Require-True (-not ($changed -contains "package.json")) "package.json changed."
 Require-True (-not ($changed -contains "PRODUCT_ROADMAP.md")) "PRODUCT_ROADMAP.md changed."
 
 $productionDiff = (git -C $root diff -- api/generate-listing.js lib/evidence public/app.js public/customer-evidence.js public/index.html) -join "`n"

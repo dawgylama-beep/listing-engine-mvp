@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" role="img" aria-labelledby="title description">
+  <title id="title">Neutral deterministic test object</title>
+  <desc id="description">Simple geometric package used only for local browser form tests.</desc>
+  <rect width="320" height="240" fill="#eef4ef"/>
+  <rect x="52" y="42" width="216" height="156" rx="12" fill="#ffffff" stroke="#0f6a62" stroke-width="8"/>
+  <circle cx="96" cy="94" r="22" fill="#c18a3c"/>
+  <path d="M132 80h92M132 104h70M76 148h168" stroke="#172435" stroke-width="10" stroke-linecap="round"/>
+  <text x="160" y="184" fill="#172435" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">TEST OBJECT</text>
+</svg>
