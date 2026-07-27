@@ -147,6 +147,11 @@ test("real production handler serializes canonical evidence IDs through determin
     "item_identity",
     "consumer_purchase_decision"
   ]);
+  assert.equal(
+    res.payload.valuation.searchDiagnostics.physicalProviderAttemptCount,
+    trace.serperStages.length,
+    "Non-search OpenAI orchestration calls must not consume the comparable-search provider budget."
+  );
   assert(trace.serperStages.some((stage) => stage !== "stage_7_limited_result_recovery"), "preliminary acquisition must execute");
   assert(trace.serperStages.includes("stage_7_limited_result_recovery"), "bounded recovery must execute");
   assert(trace.directPageRequests.length >= 1, "direct-page enrichment must execute");

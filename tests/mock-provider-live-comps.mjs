@@ -957,8 +957,7 @@ try {
     enrichedOfficeWorksExactPage,
     {
       ...enrichedOfficeWorksExactPage,
-      url: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/00041226087161?utm_source=test",
-      canonicalUrl: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/00041226087161"
+      url: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/0041226087161?utm_source=test"
     }
   ], officeWorksContext);
   assert(duplicateExactPages.length === 1, "Equivalent exact retailer-page offers should not duplicate when they are transport-identical observations for the same approved canonical product URL.");
@@ -1103,7 +1102,26 @@ try {
     providerSourceRecords: [aggregatorExactHouseholdOffer, directExactHouseholdOffer],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
-  assert(dedupedCustomerRetailOffers.length === 1 && /kroger\.com/i.test(dedupedCustomerRetailOffers[0].url || ""), "Equivalent direct retailer evidence should replace aggregator duplicates for the same exact offer.");
+  assert(
+    dedupedCustomerRetailOffers.length === 2
+      && dedupedCustomerRetailOffers.some((record) => /kroger\.com/i.test(record.url || ""))
+      && dedupedCustomerRetailOffers.some((record) => /instacart\.com/i.test(record.url || "")),
+    "Retailer, barcode, quantity, and price alone cannot prove that aggregator and direct URLs are one offer."
+  );
+  const duplicateCanonicalDirectOffer = {
+    ...aggregatorExactHouseholdOffer,
+    url: directExactHouseholdOffer.url,
+    canonicalUrl: directExactHouseholdOffer.canonicalUrl,
+    destinationUrl: directExactHouseholdOffer.destinationUrl
+  };
+  const dedupedProvenSameUrlOffers = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    providerSourceRecords: [duplicateCanonicalDirectOffer, directExactHouseholdOffer],
+    searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
+  }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
+  assert(
+    dedupedProvenSameUrlOffers.length === 1 && /kroger\.com/i.test(dedupedProvenSameUrlOffers[0].url || ""),
+    "Equivalent direct retailer evidence should replace aggregator duplicates only when the same canonical offer URL proves identity."
+  );
   const decisionSafetyLiveSearch = {
     providerSourceRecords: [
       retailRecord({ title: "Household Cleaner 12 Count", url: "https://www.google.com/search?q=household-cleaner-12", domain: "google.com", source: "Google", displayedPriceText: "$1.99", parsedPrice: 1.99, snippet: "Current price $1.99." }),

@@ -1547,18 +1547,23 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
 }
 
 async function executeLiveComparableSearch(args) {
+  const context = buildSearchQueryContext(args.identity, args.sourceRoute, args.notes, args.buyerIntake);
+  const providerAttemptBudget = createPhysicalAttemptBudget(
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    "provider_search"
+  );
   const serperApiKey = getSerperApiKey();
   if (serperApiKey) {
-    const serperResult = await executeSerperComparableSearch({ ...args, serperApiKey });
+    const serperResult = await executeSerperComparableSearch({ ...args, serperApiKey, providerAttemptBudget });
     if (!serperResult.shouldUseOpenAIFallback) {
       return serperResult;
     }
 
-    const fallbackResult = await executeOpenAIWebComparableSearch(args);
+    const fallbackResult = await executeOpenAIWebComparableSearch({ ...args, providerAttemptBudget });
     return annotateOpenAIFallbackResult(fallbackResult, serperResult);
   }
 
-  const fallbackResult = await executeOpenAIWebComparableSearch(args);
+  const fallbackResult = await executeOpenAIWebComparableSearch({ ...args, providerAttemptBudget });
   return {
     ...fallbackResult,
     serperConfigured: false,
@@ -1575,9 +1580,26 @@ async function executeLiveComparableSearch(args) {
   };
 }
 
-async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
+async function executeOpenAIWebComparableSearch({
+  apiKey,
+  model,
+  platform,
+  notes,
+  identity,
+  sourceRoute,
+  searchQueries,
+  buyerIntake,
+  researchPurpose = "buyer_decision",
+  providerAttemptBudget,
+  requestAdapter = requestOpenAIJson
+}) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const sharedProviderAttemptBudget = providerAttemptBudget || createPhysicalAttemptBudget(
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    "provider_search"
+  );
   const queriesPrioritized = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const providerRequestRecords = [];
   const providerResponseSummaries = [];
@@ -1600,7 +1622,13 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
       allowedDomainsRequested: queryRecord.allowedDomains,
       allowedDomainsApplied: Boolean(queryRecord.allowedDomains?.length),
       provider: "OpenAI web_search",
-      attempted: true,
+      providerKey: "openai_web_search",
+      providerEndpoint: "openai_web_search",
+      logicalQueryAttempted: false,
+      attempted: false,
+      physicalAttemptCount: 0,
+      physicalRetryAttemptCount: 0,
+      physicalAttempts: [],
       succeeded: false,
       providerSourceCount: 0,
       domainsReturned: [],
@@ -1615,26 +1643,24 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
     providerRequestRecords.push(requestRecord);
 
     try {
-      const payload = createQueryBoundLiveSearchPayload({
-        model,
-        platform,
-        notes,
-        identity,
-        sourceRoute,
-        queryRecord,
-        buyerIntake,
-        researchPurpose,
-        includeSources: includeSourcesRequested,
-        useSearchControls: searchControlsSupported
-      });
-      let response;
-      try {
-        response = await requestOpenAIJson({ apiKey, payload });
-      } catch (error) {
-        if (!isWebSearchOptionCompatibilityError(error)) {
-          throw error;
-        }
-
+      const response = await requestOpenAIComparableSearchWithBudget({
+        requestRecord,
+        attemptBudget: sharedProviderAttemptBudget,
+        apiKey,
+        requestAdapter,
+        buildPayload: () => createQueryBoundLiveSearchPayload({
+          model,
+          platform,
+          notes,
+          identity,
+          sourceRoute,
+          queryRecord,
+          buyerIntake,
+          researchPurpose,
+          includeSources: includeSourcesRequested,
+          useSearchControls: searchControlsSupported
+        }),
+        onCompatibilityError: (error) => {
         if (isIncludeCompatibilityError(error)) {
           includeSourcesRequested = false;
           includeFallbackReason = "Source include was not accepted by the provider; query-bound live search was retried without source-list include.";
@@ -1644,22 +1670,8 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
           searchControlsFallbackReason = "Search controls such as allowed domain filters or search_context_size were not accepted by the provider; the request was retried without those controls.";
         }
         requestRecord.allowedDomainsApplied = searchControlsSupported && Boolean(queryRecord.allowedDomains?.length);
-        response = await requestOpenAIJson({
-          apiKey,
-          payload: createQueryBoundLiveSearchPayload({
-            model,
-            platform,
-            notes,
-            identity,
-            sourceRoute,
-            queryRecord,
-            buyerIntake,
-            researchPurpose,
-            includeSources: includeSourcesRequested,
-            useSearchControls: searchControlsSupported
-          })
-        });
-      }
+        }
+      });
 
       const { json, data, statusCode } = response;
       const citations = collectUrlCitations(data);
@@ -1820,7 +1832,7 @@ function createPhysicalAttemptBudget(maximumAttempts = 0, category = "provider_s
   };
 }
 
-function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false } = {}) {
+function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false, provider = "" } = {}) {
   if (Number(budget.physicalAttemptCount || 0) >= Number(budget.maximumAttempts || 0)) {
     return false;
   }
@@ -1836,10 +1848,24 @@ function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false
     {
       attempt: requestRecord.physicalAttemptCount,
       retry,
-      budgetCategory: cleanText(budget.category)
+      budgetCategory: cleanText(budget.category),
+      provider: cleanText(provider || requestRecord.providerKey || requestRecord.provider),
+      outcome: "started"
     }
   ];
   return true;
+}
+
+function recordPhysicalAttemptOutcome(requestRecord = {}, outcome = "") {
+  const attempts = normalizeArray(requestRecord.physicalAttempts);
+  if (!attempts.length) {
+    return;
+  }
+  attempts[attempts.length - 1] = {
+    ...attempts[attempts.length - 1],
+    outcome: cleanText(outcome || "unknown")
+  };
+  requestRecord.physicalAttempts = attempts;
 }
 
 function buildProviderAttemptAccounting(providerRequestRecords = [], {
@@ -1881,7 +1907,10 @@ async function requestSerperSearchWithBudget({
   requestRecord.logicalQueryAttempted = true;
   let lastError = null;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    if (!consumePhysicalAttempt(attemptBudget, requestRecord, { retry: attempt > 0 })) {
+    if (!consumePhysicalAttempt(attemptBudget, requestRecord, {
+      retry: attempt > 0,
+      provider: "serper_google"
+    })) {
       if (!requestRecord.physicalAttemptCount) {
         requestRecord.attempted = false;
       }
@@ -1892,7 +1921,7 @@ async function requestSerperSearchWithBudget({
       });
     }
     try {
-      return await requestAdapter({
+      const response = await requestAdapter({
         apiKey,
         query: queryRecord.query,
         queryRecord,
@@ -1901,7 +1930,10 @@ async function requestSerperSearchWithBudget({
         timeoutMs: 7000,
         maxRetries: 0
       });
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
+      return response;
     } catch (error) {
+      recordPhysicalAttemptOutcome(requestRecord, "failed");
       lastError = error;
       const diagnostic = classifySerperError(error);
       if (attempt >= maxRetries || [
@@ -1917,6 +1949,52 @@ async function requestSerperSearchWithBudget({
   throw lastError || createSerperRequestError({
     category: "serper_provider_error",
     message: "Serper request failed."
+  });
+}
+
+async function requestOpenAIComparableSearchWithBudget({
+  requestRecord = {},
+  attemptBudget,
+  apiKey,
+  buildPayload,
+  requestAdapter = requestOpenAIJson,
+  onCompatibilityError = () => {}
+} = {}) {
+  requestRecord.logicalQueryAttempted = true;
+  for (let attempt = 0; attempt <= 1; attempt += 1) {
+    const retry = attempt > 0;
+    if (!consumePhysicalAttempt(attemptBudget, requestRecord, {
+      retry,
+      provider: "openai_web_search"
+    })) {
+      if (!requestRecord.physicalAttemptCount) {
+        requestRecord.attempted = false;
+      }
+      throw createOpenAIRequestError({
+        category: "provider_attempt_budget_exhausted",
+        code: "provider_attempt_budget_exhausted",
+        message: "The bounded physical provider-attempt budget was exhausted before another outbound OpenAI web-search request."
+      });
+    }
+    try {
+      const response = await requestAdapter({
+        apiKey,
+        payload: buildPayload({ retry, attempt })
+      });
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
+      return response;
+    } catch (error) {
+      recordPhysicalAttemptOutcome(requestRecord, "failed");
+      if (!retry && isWebSearchOptionCompatibilityError(error)) {
+        onCompatibilityError(error);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw createOpenAIRequestError({
+    category: "provider_error",
+    message: "OpenAI web search failed."
   });
 }
 
@@ -1956,11 +2034,22 @@ const secondaryMarketAuctionRegistry = Object.freeze([
   { key: "chairish", name: "Chairish", domain: "chairish.com", sourceFamily: "specialty_dealer", categories: ["vintage", "decor", "furniture", "art"] }
 ]);
 
-async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
+async function executeSerperComparableSearch({
+  serperApiKey,
+  platform,
+  notes,
+  identity,
+  sourceRoute,
+  searchQueries,
+  buyerIntake,
+  researchPurpose = "buyer_decision",
+  providerAttemptBudget,
+  requestAdapter = requestSerperSearch
+}) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
-  const providerAttemptBudget = createPhysicalAttemptBudget(
+  const sharedProviderAttemptBudget = providerAttemptBudget || createPhysicalAttemptBudget(
     isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
     "provider_search"
   );
@@ -1989,9 +2078,10 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
       const response = await requestSerperSearchWithBudget({
         requestRecord,
         queryRecord,
-        attemptBudget: providerAttemptBudget,
+        attemptBudget: sharedProviderAttemptBudget,
         apiKey: serperApiKey,
-        maxRetries: 1
+        maxRetries: 1,
+        requestAdapter
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
       rawProviderRecords.push(...parsed.records);
@@ -2084,8 +2174,9 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
     providerErrors,
     rawProviderRecords,
     currentRecords: dedupedRecords,
-    providerAttemptBudget,
-    directPageAttemptBudget
+    providerAttemptBudget: sharedProviderAttemptBudget,
+    directPageAttemptBudget,
+    serperRequestAdapter: requestAdapter
   });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
   return normalizeSerperLiveSearchResult({
@@ -2318,7 +2409,9 @@ async function executeLimitedResultRetailRecovery({
   rawProviderRecords = [],
   currentRecords = [],
   providerAttemptBudget = createPhysicalAttemptBudget(retailSerperBudgetAllocation.maxProviderCalls, "provider_search"),
-  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment")
+  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
+  serperRequestAdapter = requestSerperSearch,
+  directPageRequestAdapter = requestBoundedRetailProductPage
 } = {}) {
   let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
     context,
@@ -2326,7 +2419,8 @@ async function executeLimitedResultRetailRecovery({
     providerResponseSummaries,
     providerErrors,
     currentRecords,
-    directPageAttemptBudget
+    directPageAttemptBudget,
+    requestAdapter: directPageRequestAdapter
   });
   const recoveryView = buildCanonicalRecoveryViewForRecords(recordsForRecovery, {
     identity,
@@ -2378,7 +2472,8 @@ async function executeLimitedResultRetailRecovery({
         queryRecord,
         attemptBudget: providerAttemptBudget,
         apiKey: serperApiKey,
-        maxRetries: 1
+        maxRetries: 1,
+        requestAdapter: serperRequestAdapter
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
       rawProviderRecords.push(...parsed.records);
@@ -2458,7 +2553,8 @@ async function executeExactRetailPageDirectEnrichment({
   providerResponseSummaries = [],
   providerErrors = [],
   currentRecords = [],
-  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment")
+  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
+  requestAdapter = requestBoundedRetailProductPage
 } = {}) {
   if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
     return currentRecords;
@@ -2491,7 +2587,9 @@ async function executeExactRetailPageDirectEnrichment({
     priority += 1;
     providerRequestRecords.push(requestRecord);
     requestRecord.logicalQueryAttempted = true;
-    if (!consumePhysicalAttempt(directPageAttemptBudget, requestRecord)) {
+    if (!consumePhysicalAttempt(directPageAttemptBudget, requestRecord, {
+      provider: "direct_product_page_fetch"
+    })) {
       requestRecord.errorCode = "direct_page_attempt_budget_exhausted";
       requestRecord.failureStage = requestRecord.errorCode;
       providerErrors.push({
@@ -2509,7 +2607,7 @@ async function executeExactRetailPageDirectEnrichment({
       break;
     }
     try {
-      const result = await requestBoundedRetailProductPage(
+      const result = await requestAdapter(
         record.destinationUrl || record.url || record.canonicalUrl,
         context,
         record,
@@ -2519,6 +2617,7 @@ async function executeExactRetailPageDirectEnrichment({
           initialAttemptReserved: true
         }
       );
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
       requestRecord.succeeded = true;
       requestRecord.statusCode = result.statusCode;
       requestRecord.elapsedMilliseconds = result.elapsedMs;
@@ -2549,6 +2648,7 @@ async function executeExactRetailPageDirectEnrichment({
         });
       }
     } catch (error) {
+      recordPhysicalAttemptOutcome(requestRecord, "failed");
       const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
       requestRecord.succeeded = false;
       requestRecord.errorCode = cleanText(error.code || "direct_product_page_fetch_failed");
@@ -2731,7 +2831,9 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
     throw Object.assign(new Error("Direct product-page redirect limit exceeded."), { code: "direct_fetch_redirect_limit" });
   }
   if (!attemptState.initialAttemptReserved
-    && !consumePhysicalAttempt(attemptState.attemptBudget, attemptState.requestRecord)) {
+    && !consumePhysicalAttempt(attemptState.attemptBudget, attemptState.requestRecord, {
+      provider: "direct_product_page_fetch"
+    })) {
     throw Object.assign(new Error("Direct product-page physical-attempt budget was exhausted."), { code: "direct_page_attempt_budget_exhausted" });
   }
   const controller = new AbortController();
@@ -2748,6 +2850,7 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
     });
     clearTimeout(timeout);
     if (response.status >= 300 && response.status < 400) {
+      recordPhysicalAttemptOutcome(attemptState.requestRecord, "redirect");
       const location = cleanText(response.headers.get("location"));
       const nextUrl = location ? new URL(location, finalCandidate).toString() : "";
       if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
@@ -3098,40 +3201,47 @@ function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
   return domain && primaryBarcode ? `retail-exact:${domain}:${primaryBarcode}` : "";
 }
 
+function normalizeSerperTransportIdentityValue(value, fieldName = "") {
+  if (value === undefined) return ["undefined"];
+  if (value === null) return ["null"];
+  if (Array.isArray(value)) {
+    return ["array", value.map((item) => normalizeSerperTransportIdentityValue(item, fieldName))];
+  }
+  if (value && typeof value === "object") {
+    return [
+      "object",
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, normalizeSerperTransportIdentityValue(value[key], key)])
+    ];
+  }
+  if (typeof value === "number") {
+    return ["number", Number.isFinite(value) ? value : String(value)];
+  }
+  if (typeof value === "boolean") {
+    return ["boolean", value];
+  }
+  const text = cleanText(value);
+  if (/url$/i.test(fieldName)) {
+    const normalized = canonicalizeComparableUrl(unwrapRetailDestinationUrl(text));
+    return ["url", (normalized || text).toLowerCase()];
+  }
+  return ["string", text.toLowerCase()];
+}
+
 function buildSerperTransportIdentity(record = {}) {
-  const canonicalUrl = canonicalizeComparableUrl(
-    unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl)
-  );
-  if (!canonicalUrl) return "";
-  const materialState = [
-    record.provider,
-    record.sourceType,
-    record.title,
-    record.snippet,
-    record.rawText,
-    record.merchantName,
-    record.retailerDisplayName,
-    record.retailer,
-    record.seller,
-    record.offerCondition,
-    record.condition,
-    record.displayedPriceText,
-    record.displayedPrice,
-    record.price,
-    record.parsedPrice,
-    record.quantity,
-    record.packageQuantity,
-    record.candidatePackQuantity,
-    record.listingStatus,
-    record.availability,
-    record.marketplaceItemId,
-    record.offerId,
-    record.lotId,
-    record.originalUrl,
-    record.destinationUrl,
-    record.imageUrl
-  ].map((value) => cleanText(value).toLowerCase());
-  return `${canonicalUrl}|${JSON.stringify(materialState)}`;
+  if (!record || typeof record !== "object") return "";
+  const queryProvenanceFields = new Set([
+    "query",
+    "searchPass",
+    "queriesFound",
+    "searchPassesFound"
+  ]);
+  const materialState = Object.keys(record)
+    .filter((key) => !queryProvenanceFields.has(key))
+    .sort()
+    .map((key) => [key, normalizeSerperTransportIdentityValue(record[key], key)]);
+  return materialState.length ? JSON.stringify(materialState) : "";
 }
 
 function coalesceIdenticalSerperTransportRecords(records = []) {
@@ -3390,9 +3500,34 @@ function buildSerperUnavailableLiveSearchResult({ error, sourceRoute, searchQuer
 function annotateOpenAIFallbackResult(openaiResult, serperResult) {
   const serperDiagnostics = serperResult.searchDiagnostics || {};
   const openaiDiagnostics = openaiResult.searchDiagnostics || {};
+  const providerRequestRecords = [
+    ...normalizeArray(serperResult.providerRequestRecords),
+    ...normalizeArray(openaiResult.providerRequestRecords)
+  ];
+  const providerResponseSummaries = [
+    ...normalizeArray(serperResult.providerResponseSummaries),
+    ...normalizeArray(openaiResult.providerResponseSummaries)
+  ];
+  const providerCallBudget = Number(
+    serperDiagnostics.providerCallBudget
+    || openaiDiagnostics.providerCallBudget
+    || 12
+  );
+  const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
+    maximumPhysicalProviderAttempts: providerCallBudget,
+    maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
+    rawProviderObservationCount: Number(openaiDiagnostics.rawResultCount || 0)
+      + Number(serperDiagnostics.rawResultCount || 0)
+  });
   return {
     ...openaiResult,
     searchEvidenceSummary: ensurePrefix(openaiResult.searchEvidenceSummary, "Primary Google-result provider unavailable - Serper Google Search could not complete, so OpenAI web_search fallback was used. "),
+    providerRequestRecords,
+    providerResponseSummaries,
+    queriesActuallySent: providerRequestRecords
+      .filter((record) => !/direct_product_page_fetch/i.test(record.providerEndpoint || ""))
+      .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0)
+      .map((record) => record.query),
     serperConfigured: true,
     primarySearchProvider: "serper_google",
     fallbackProviderUsed: true,
@@ -3404,6 +3539,22 @@ function annotateOpenAIFallbackResult(openaiResult, serperResult) {
       primarySearchProvider: "serper_google",
       primaryProviderFailureState: serperResult.primaryProviderFailureState || serperDiagnostics.acquisitionFailureStage || "serper_provider_error",
       fallbackProvider: "OpenAI web_search",
+      actualAcquisitionProviders: [
+        ...new Set(providerRequestRecords
+          .filter((record) => Number(record.physicalAttemptCount || 0) > 0)
+          .map((record) => cleanText(record.provider))
+          .filter(Boolean))
+      ],
+      providerCallsAttempted: providerAccounting.physicalProviderAttemptCount,
+      providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
+      logicalProviderQueryCount: providerAccounting.logicalProviderQueryCount,
+      physicalProviderAttemptCount: providerAccounting.physicalProviderAttemptCount,
+      physicalProviderRetryAttemptCount: providerAccounting.physicalProviderRetryAttemptCount,
+      providerCallBudget,
+      providerCallBudgetRemaining: providerAccounting.remainingPhysicalProviderAttempts,
+      providerCallBudgetStatus: `${providerAccounting.physicalProviderAttemptCount}/${providerCallBudget} provider calls used; ${providerAccounting.remainingPhysicalProviderAttempts} remaining.`,
+      providerRequestRecords: providerRequestRecords.map(sanitizeProviderRequestRecord),
+      providerResponseSummaries: providerResponseSummaries.map(sanitizeProviderResponseSummary),
       serperProviderRequestRecords: serperDiagnostics.providerRequestRecords || [],
       serperProviderResponseSummaries: serperDiagnostics.providerResponseSummaries || []
     }
@@ -6761,19 +6912,22 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       productFamilyOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
       finalPromotionReason: assessment.finalPromotionReason
     })).slice(0, 12),
-    currentRetailCandidatesRejected: retailRejectedAssessments.map((assessment) => ({
-      title: cleanText(assessment.sourceTitle),
-      source: cleanText(assessment.retailerDisplayName || assessment.retailerIdentity || assessment.sourceDomain),
-      retailerDomain: cleanText(assessment.retailerDomain),
-      productFamilyOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
-      exactPageRecoveryStatus: cleanText(assessment.exactPageRecoveryStatus),
-      exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
-      contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 4),
-      sourceLinkStatus: assessment.sourceUrl ? "Source link withheld from technical text" : "",
-      displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
-      purchaseChannel: cleanText(assessment.purchaseChannel),
-      reason: assessment.hardRejectionReason || assessment.finalPromotionReason || "Did not pass shared current-retail evidence assessment."
-    })).slice(0, 12),
+    currentRetailCandidatesRejected: [...new Map(retailRejectedAssessments.map((assessment) => {
+      const summary = {
+        title: cleanText(assessment.sourceTitle),
+        source: cleanText(assessment.retailerDisplayName || assessment.retailerIdentity || assessment.sourceDomain),
+        retailerDomain: cleanText(assessment.retailerDomain),
+        productFamilyOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
+        exactPageRecoveryStatus: cleanText(assessment.exactPageRecoveryStatus),
+        exactPageMatchedBarcodeIdentities: normalizeStringArray(assessment.exactPageMatchedBarcodeIdentities, 12),
+        contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 4),
+        sourceLinkStatus: assessment.sourceUrl ? "Source link withheld from technical text" : "",
+        displayedPrice: cleanText(assessment.record.displayedPrice || assessment.record.displayedPriceText || assessment.record.price),
+        purchaseChannel: cleanText(assessment.purchaseChannel),
+        reason: assessment.hardRejectionReason || assessment.finalPromotionReason || "Did not pass shared current-retail evidence assessment."
+      };
+      return [JSON.stringify(summary), summary];
+    })).values()].slice(0, 12),
     referenceSecondaryEvidenceExcludedFromRetailDecision: retailRejectedAssessments
       .filter((assessment) => assessment.secondaryMarketStatus === "secondary_or_reference_evidence")
       .length,
@@ -10436,6 +10590,14 @@ function buildEmptyResearchBuckets() {
 function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], queriesPrioritized = [], sourceRoute = [], sourcesSearched = [], citations = [], providerSourceRecords = [], webSearchCalls = [], rawResultSummaries = [], bucketedResearch = buildEmptyResearchBuckets(), providerErrors = [], providerRequestRecords = [], providerResponseSummaries = [], liveSearchStatus = "", elapsedMs = 0, searchControlsFallbackReason = "", identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" }) {
   const normalization = bucketedResearch.normalizationDiagnostics || {};
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const providerCallBudget = isCurrentRetailOnlyMode(context.retailEvidenceMode)
+    ? retailSerperBudgetAllocation.maxProviderCalls
+    : 12;
+  const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
+    maximumPhysicalProviderAttempts: providerCallBudget,
+    maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
+    rawProviderObservationCount: providerSourceRecords.length
+  });
   const retailDiagnostics = buildRetailSearchDiagnostics({
     context,
     providerRequestRecords,
@@ -10478,8 +10640,14 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
     sourcesRequested: buildSourcesTargeted(sourceRoute),
     sourcesActuallyQueried: providerRequestRecords.some((record) => record.attempted) ? ["OpenAI web_search"] : [],
     sourceRoute,
-    providerCallsAttempted: providerRequestRecords.filter((record) => record.attempted).length,
+    providerCallsAttempted: providerAccounting.physicalProviderAttemptCount,
     providerCallsSucceeded: providerRequestRecords.filter((record) => record.succeeded).length,
+    logicalProviderQueryCount: providerAccounting.logicalProviderQueryCount,
+    physicalProviderAttemptCount: providerAccounting.physicalProviderAttemptCount,
+    physicalProviderRetryAttemptCount: providerAccounting.physicalProviderRetryAttemptCount,
+    providerCallBudget,
+    providerCallBudgetRemaining: providerAccounting.remainingPhysicalProviderAttempts,
+    providerCallBudgetStatus: `${providerAccounting.physicalProviderAttemptCount}/${providerCallBudget} provider calls used; ${providerAccounting.remainingPhysicalProviderAttempts} remaining.`,
     providerSourceCount,
     domainsActuallyReturned: summarizeSourceLabels(sourceRecords.map((record) => record.domain).filter(Boolean)),
     sourceURLsReturned: [...new Set(sourceRecords.map((record) => record.url).filter(Boolean))].slice(0, 50),
@@ -10620,7 +10788,9 @@ function sanitizeProviderRequestRecord(record = {}) {
     physicalAttempts: normalizeArray(record.physicalAttempts).map((attempt) => ({
       attempt: Number(attempt.attempt || 0),
       retry: Boolean(attempt.retry),
-      budgetCategory: cleanText(attempt.budgetCategory)
+      budgetCategory: cleanText(attempt.budgetCategory),
+      provider: cleanText(attempt.provider),
+      outcome: cleanText(attempt.outcome)
     })),
     succeeded: Boolean(record.succeeded),
     providerSourceCount: Number(record.providerSourceCount || 0),
@@ -12693,23 +12863,27 @@ function buildEquivalentCustomerRetailOfferKey(record = {}) {
   if (!record.retailEvidenceTier) {
     return "";
   }
-  const identities = normalizeStringArray(record.exactPageMatchedBarcodeIdentities, 12)
-    .concat(normalizeStringArray(record.exactPageNormalizedBarcodeIdentitiesFound, 12))
-    .concat(extractSupportedBarcodeIdentitySetFromText([
-      record.title,
-      record.rawText,
-      record.conciseLimitation,
-      record.destinationUrl,
-      record.originalSourceUrl,
-      record.url
-    ].join(" ")));
-  const primaryIdentity = selectCanonicalRetailOfferBarcodeIdentity(identities);
-  if (!primaryIdentity || !Number.isFinite(record.itemPriceAmount)) {
-    return "";
-  }
   const retailerName = cleanText(record.retailerDisplayName || record.source).replace(/\s+via\s+.+$/i, "");
-  const quantity = Number.isFinite(record.packageQuantity) ? record.packageQuantity : "";
-  return cleanText(`retail-offer:${retailerName.toLowerCase()}:${primaryIdentity}:${quantity}:${moneyAmountToCents(record.itemPriceAmount)}`);
+  const sellerName = cleanText(record.seller || record.sellerName || "");
+  const explicitOfferId = cleanText(
+    record.marketplaceItemId
+    || record.offerId
+    || record.listingId
+    || record.retailerOfferId
+    || record.lotId
+  ).toLowerCase();
+  if (explicitOfferId) {
+    return cleanText(`retail-offer-id:${retailerName.toLowerCase()}:${explicitOfferId}`);
+  }
+  const canonicalOfferUrl = canonicalizeComparableUrl(
+    record.canonicalUrl
+    || record.destinationUrl
+    || record.url
+    || record.originalSourceUrl
+  );
+  return canonicalOfferUrl
+    ? cleanText(`retail-offer-url:${retailerName.toLowerCase()}:${sellerName.toLowerCase() || "seller-unspecified"}:${canonicalOfferUrl}`)
+    : "";
 }
 
 function selectCanonicalRetailOfferBarcodeIdentity(identities = []) {
@@ -17890,8 +18064,13 @@ export const __queryIntegrityTestHooks = {
   createSerperRequestRecord,
   createPhysicalAttemptBudget,
   consumePhysicalAttempt,
+  recordPhysicalAttemptOutcome,
   buildProviderAttemptAccounting,
   requestSerperSearchWithBudget,
+  requestOpenAIComparableSearchWithBudget,
+  executeLimitedResultRetailRecovery,
+  executeExactRetailPageDirectEnrichment,
+  requestBoundedRetailProductPageNetwork,
   directPageEnrichmentMaxAttempts,
   evaluateComparableItemTypeCompatibility,
   classifySerperIdentityMatch,

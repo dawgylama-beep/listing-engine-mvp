@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createCanonicalRecoveryView,
-  createFinalEvidenceResult
+  createFinalEvidenceResult,
+  dedupeUnderlyingOffers,
+  underlyingOfferKey
 } from "../lib/evidence/index.js";
 import { __queryIntegrityTestHooks as hooks } from "../api/generate-listing.js";
 
@@ -209,6 +211,143 @@ const transportDifferentRetailer = hooks.coalesceIdenticalSerperTransportRecords
 ]);
 assert.equal(transportDifferentRetailer.length, 2);
 
+for (const [field, changedValue] of [
+  ["dimensions", "6 x 9 inches"],
+  ["designIdentity", "different closure design"],
+  ["shipping", 4.99],
+  ["deliveredCost", 10.49],
+  ["sourceQuality", "direct_product_page"],
+  ["directPageProvenance", "redirected_final_page"],
+  ["condition", "Used"],
+  ["quantity", 50],
+  ["listingStatus", "sold"],
+  ["seller", "Different Seller"],
+  ["price", 6.5]
+]) {
+  const records = hooks.coalesceIdenticalSerperTransportRecords([
+    observation({ sourceQuality: "search_snippet", directPageProvenance: "provider_search" }),
+    observation({ sourceQuality: "search_snippet", directPageProvenance: "provider_search", [field]: changedValue })
+  ]);
+  assert.equal(records.length, 2, `Transport observations differing only in ${field} must remain separate.`);
+}
+const directAndSearchTransport = hooks.coalesceIdenticalSerperTransportRecords([
+  observation({ sourceQuality: "search_snippet", directProductPage: false }),
+  observation({ sourceQuality: "direct_product_page", directProductPage: true })
+]);
+assert.equal(directAndSearchTransport.length, 2, "Direct-page provenance cannot erase the search-result observation.");
+const sameRetailerTransportOffers = hooks.coalesceIdenticalSerperTransportRecords([
+  observation({ destinationUrl: "https://direct.example/product/offer-one", offerId: "offer-one" }),
+  observation({ destinationUrl: "https://direct.example/product/offer-two", offerId: "offer-two" })
+]);
+assert.equal(sameRetailerTransportOffers.length, 2, "Different transport offers at one retailer remain separate.");
+
+const sameRetailerBarcodeDifferentUrls = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "barcode-url-a",
+    destinationUrl: "https://direct.example/product/offer-a"
+  }),
+  observation({
+    sourceRecordId: "barcode-url-b",
+    destinationUrl: "https://direct.example/product/offer-b",
+    price: 6.25
+  })
+]);
+assert.equal(sameRetailerBarcodeDifferentUrls.length, 2, "Retailer plus barcode cannot collapse distinct canonical URLs.");
+assert(sameRetailerBarcodeDifferentUrls.every((record) => !record.priceConflict), "Separate URL offers cannot create a false same-offer price conflict.");
+
+const fallbackOffer = (overrides = {}) => {
+  const record = observation(overrides);
+  delete record.destinationUrl;
+  delete record.url;
+  delete record.canonicalUrl;
+  delete record.originalUrl;
+  return record;
+};
+const sameBarcodeDifferentSellers = dedupeUnderlyingOffers([
+  fallbackOffer({ sourceRecordId: "seller-a", seller: "Seller A" }),
+  fallbackOffer({ sourceRecordId: "seller-b", seller: "Seller B" })
+]);
+assert.equal(sameBarcodeDifferentSellers.length, 2, "Same-retailer/barcode offers from different sellers remain separate.");
+const sameBarcodeDifferentConditions = dedupeUnderlyingOffers([
+  fallbackOffer({ sourceRecordId: "condition-new", condition: "New" }),
+  fallbackOffer({ sourceRecordId: "condition-used", condition: "Used" })
+]);
+assert.equal(sameBarcodeDifferentConditions.length, 2, "Condition differences remain separate without a shared strong listing identity.");
+assert(!underlyingOfferKey(fallbackOffer()).startsWith("retail:"), "Barcode cannot become a product-only retail offer key.");
+
+const sameExplicitListing = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "listing-search",
+    offerId: "shared-listing-123",
+    destinationUrl: "https://market.example/item/shared-listing-123?utm_source=search",
+    retailer: "Market",
+    sourceDomain: "market.example",
+    seller: "Seller One",
+    provider: "Serper Google Search",
+    query: "shared listing search",
+    searchPass: "open_web_exact",
+    sourceQuality: "search_snippet",
+    snippet: ""
+  }),
+  observation({
+    sourceRecordId: "listing-direct",
+    offerId: "shared-listing-123",
+    destinationUrl: "https://market.example/item/shared-listing-123",
+    retailer: "Market",
+    sourceDomain: "market.example",
+    seller: "Seller One",
+    provider: "Direct product page fetch",
+    query: "https://market.example/item/shared-listing-123",
+    searchPass: "exact_retail_page_enrichment",
+    sourceQuality: "direct_product_page",
+    directProductPage: true,
+    snippet: "Verified listing detail from the direct page."
+  })
+]);
+assert.equal(sameExplicitListing.length, 1, "Two representations of the same explicit listing ID count once.");
+assert.equal(sameExplicitListing[0].snippet, "Verified listing detail from the direct page.", "Missing listing detail may be enriched.");
+assert.deepEqual(sameExplicitListing[0].observationIds, ["listing-direct", "listing-search"]);
+assert.deepEqual(sameExplicitListing[0].providersFound, ["Direct product page fetch", "Serper Google Search"]);
+assert.deepEqual(sameExplicitListing[0].searchPassesFound, ["exact_retail_page_enrichment", "open_web_exact"]);
+assert.deepEqual(sameExplicitListing[0].directPageObservationIds, ["listing-direct"]);
+
+const sameCanonicalListingUrl = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "url-search",
+    destinationUrl: "https://direct.example/product/012345678905?utm_source=search",
+    seller: "Direct Retail",
+    provider: "Serper Google Search"
+  }),
+  observation({
+    sourceRecordId: "url-direct",
+    destinationUrl: "https://direct.example/product/012345678905",
+    seller: "Direct Retail",
+    provider: "Direct product page fetch",
+    directProductPage: true
+  })
+]);
+assert.equal(sameCanonicalListingUrl.length, 1, "Search and direct-page observations of one canonical listing count once.");
+
+const provenListingConflict = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "conflict-a",
+    offerId: "conflicting-listing",
+    sourceQuality: "search_snippet",
+    price: 5.5,
+    condition: "New"
+  }),
+  observation({
+    sourceRecordId: "conflict-b",
+    offerId: "conflicting-listing",
+    sourceQuality: "search_snippet",
+    price: 6.5,
+    condition: "Used"
+  })
+]);
+assert.equal(provenListingConflict.length, 1);
+assert.equal(provenListingConflict[0].priceConflict.status, "unresolved", "Conflicting same-listing prices retain deterministic conflict treatment.");
+assert.equal(provenListingConflict[0].materialOfferConflicts.condition.length, 2, "Conflicting same-listing material facts remain available.");
+
 const finalForStableIds = createFinalEvidenceResult({
   analysisMode: "retail",
   targetIdentity,
@@ -219,6 +358,56 @@ assert.deepEqual(
   finalForStableIds.views.acceptedIds.slice().sort(),
   "Recovery-view stable IDs must equal final evidence IDs for unchanged observations."
 );
+
+const correctedOfferObservations = [
+  observation({
+    sourceRecordId: "corrected-offer-a",
+    destinationUrl: "https://direct.example/product/corrected-offer-a"
+  }),
+  observation({
+    sourceRecordId: "corrected-offer-b",
+    destinationUrl: "https://direct.example/product/corrected-offer-b",
+    price: 6.25
+  })
+];
+const correctedRecoveryView = createCanonicalRecoveryView({
+  observations: correctedOfferObservations,
+  targetIdentity
+});
+const correctedFinalResult = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: correctedOfferObservations
+});
+assert.equal(correctedRecoveryView.deduplicatedAcceptedCount, 2);
+assert.equal(correctedRecoveryView.distinctQualifyingRetailerDomains.length, 1);
+assert.equal(correctedRecoveryView.additionalPriceRecoveryNeeded, false, "Recovery sufficiency must count the two distinct offers rather than a false barcode-level duplicate.");
+assert.equal(correctedFinalResult.customerEvidence.length, 2, "Final customer evidence cannot hide distinct same-barcode offers.");
+assert.deepEqual(
+  correctedRecoveryView.acceptedEvidenceIds.slice().sort(),
+  correctedFinalResult.views.acceptedIds.slice().sort(),
+  "Corrected separate-offer IDs remain stable from recovery through finalization."
+);
+const duplicateListingFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: [
+    observation({
+      sourceRecordId: "final-listing-search",
+      offerId: "final-shared-listing",
+      provider: "Serper Google Search",
+      sourceQuality: "search_snippet"
+    }),
+    observation({
+      sourceRecordId: "final-listing-direct",
+      offerId: "final-shared-listing",
+      provider: "Direct product page fetch",
+      sourceQuality: "direct_product_page",
+      directProductPage: true
+    })
+  ]
+});
+assert.equal(duplicateListingFinal.customerEvidence.length, 1, "Final customer evidence shows one proven offer observed through multiple passes.");
 
 const recoveryRequestRecords = [];
 recoveryRequestRecords.canonicalRecoveryDecisionView = exactNoPriceView;
@@ -332,6 +521,147 @@ for (const ceiling of [28, 12]) {
   assert.equal(cappedBudget.physicalAttemptCount, ceiling);
 }
 
+function openAIRequestRecord() {
+  return {
+    query: "Cedarline security envelopes current price",
+    provider: "OpenAI web_search",
+    providerKey: "openai_web_search",
+    providerEndpoint: "openai_web_search",
+    logicalQueryAttempted: false,
+    attempted: false,
+    physicalAttemptCount: 0,
+    physicalRetryAttemptCount: 0,
+    physicalAttempts: []
+  };
+}
+
+const oneOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const oneOpenAIRecord = openAIRequestRecord();
+let oneOpenAIAdapterCalls = 0;
+await hooks.requestOpenAIComparableSearchWithBudget({
+  requestRecord: oneOpenAIRecord,
+  attemptBudget: oneOpenAIBudget,
+  apiKey: "test-only-redacted",
+  buildPayload: () => ({ model: "offline-test" }),
+  requestAdapter: async () => {
+    oneOpenAIAdapterCalls += 1;
+    return { json: {}, data: {}, statusCode: 200 };
+  }
+});
+assert.equal(oneOpenAIAdapterCalls, 1);
+assert.equal(oneOpenAIRecord.logicalQueryAttempted, true);
+assert.equal(oneOpenAIRecord.physicalAttemptCount, 1);
+assert.equal(oneOpenAIRecord.physicalRetryAttemptCount, 0);
+assert.equal(oneOpenAIRecord.physicalAttempts[0].provider, "openai_web_search");
+assert.equal(oneOpenAIRecord.physicalAttempts[0].outcome, "succeeded");
+
+const retryOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const retryOpenAIRecord = openAIRequestRecord();
+let retryOpenAIAdapterCalls = 0;
+await hooks.requestOpenAIComparableSearchWithBudget({
+  requestRecord: retryOpenAIRecord,
+  attemptBudget: retryOpenAIBudget,
+  apiKey: "test-only-redacted",
+  buildPayload: ({ retry }) => ({ retry }),
+  requestAdapter: async () => {
+    retryOpenAIAdapterCalls += 1;
+    if (retryOpenAIAdapterCalls === 1) {
+      throw Object.assign(new Error("unknown parameter include"), {
+        openAIErrorCode: "invalid_include"
+      });
+    }
+    return { json: {}, data: {}, statusCode: 200 };
+  }
+});
+assert.equal(retryOpenAIAdapterCalls, 2);
+assert.equal(retryOpenAIRecord.logicalQueryAttempted, true);
+assert.equal(retryOpenAIRecord.physicalAttemptCount, 2);
+assert.equal(retryOpenAIRecord.physicalRetryAttemptCount, 1);
+assert.deepEqual(retryOpenAIRecord.physicalAttempts.map((attempt) => attempt.outcome), ["failed", "succeeded"]);
+
+for (const ceiling of [28, 12]) {
+  const nearlyExhaustedBudget = hooks.createPhysicalAttemptBudget(ceiling, "provider_search");
+  nearlyExhaustedBudget.physicalAttemptCount = ceiling - 1;
+  const nearlyExhaustedRecord = openAIRequestRecord();
+  let nearlyExhaustedCalls = 0;
+  await assert.rejects(
+    hooks.requestOpenAIComparableSearchWithBudget({
+      requestRecord: nearlyExhaustedRecord,
+      attemptBudget: nearlyExhaustedBudget,
+      apiKey: "test-only-redacted",
+      buildPayload: () => ({ model: "offline-test" }),
+      requestAdapter: async () => {
+        nearlyExhaustedCalls += 1;
+        throw new Error("unsupported include compatibility option");
+      }
+    }),
+    /budget was exhausted/i
+  );
+  assert.equal(nearlyExhaustedCalls, 1, `Only attempt ${ceiling} may reach the OpenAI fallback adapter.`);
+  assert.equal(nearlyExhaustedBudget.physicalAttemptCount, ceiling);
+  assert.equal(nearlyExhaustedRecord.physicalAttemptCount, 1);
+  assert.equal(nearlyExhaustedRecord.physicalRetryAttemptCount, 0, "A denied retry is not a physical attempt.");
+
+  const exhaustedBudget = hooks.createPhysicalAttemptBudget(ceiling, "provider_search");
+  exhaustedBudget.physicalAttemptCount = ceiling;
+  const exhaustedRecord = openAIRequestRecord();
+  let exhaustedCalls = 0;
+  await assert.rejects(
+    hooks.requestOpenAIComparableSearchWithBudget({
+      requestRecord: exhaustedRecord,
+      attemptBudget: exhaustedBudget,
+      apiKey: "test-only-redacted",
+      buildPayload: () => ({ model: "offline-test" }),
+      requestAdapter: async () => {
+        exhaustedCalls += 1;
+        return { json: {}, data: {}, statusCode: 200 };
+      }
+    }),
+    /budget was exhausted/i
+  );
+  assert.equal(exhaustedCalls, 0, `No OpenAI adapter call may occur after the ${ceiling}-attempt ceiling.`);
+  assert.equal(exhaustedBudget.physicalAttemptCount, ceiling, "An exhausted-budget diagnostic cannot increment the physical count.");
+  assert.equal(exhaustedRecord.physicalAttemptCount, 0);
+}
+
+const sharedProviderBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const sharedSerperRecord = hooks.createSerperRequestRecord(retryQuery);
+await hooks.requestSerperSearchWithBudget({
+  requestRecord: sharedSerperRecord,
+  queryRecord: retryQuery,
+  attemptBudget: sharedProviderBudget,
+  apiKey: "test-only-redacted",
+  maxRetries: 0,
+  requestAdapter: async () => ({ json: { organic: [] }, statusCode: 200, elapsedMs: 1 })
+});
+const sharedOpenAIRecord = openAIRequestRecord();
+await hooks.requestOpenAIComparableSearchWithBudget({
+  requestRecord: sharedOpenAIRecord,
+  attemptBudget: sharedProviderBudget,
+  apiKey: "test-only-redacted",
+  buildPayload: () => ({ model: "offline-test" }),
+  requestAdapter: async () => ({ json: {}, data: {}, statusCode: 200 })
+});
+const sharedAccounting = hooks.buildProviderAttemptAccounting(
+  [sharedSerperRecord, sharedOpenAIRecord],
+  { maximumPhysicalProviderAttempts: 28 }
+);
+assert.equal(sharedAccounting.logicalProviderQueryCount, 2);
+assert.equal(sharedAccounting.physicalProviderAttemptCount, 2);
+assert.deepEqual(
+  [sharedSerperRecord, sharedOpenAIRecord].flatMap((record) => record.physicalAttempts.map((attempt) => attempt.provider)),
+  ["serper_google", "openai_web_search"],
+  "Serper and OpenAI fallback attempts must appear in one provider-search accounting universe."
+);
+const unrelatedOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+let unrelatedOpenAICalls = 0;
+await (async () => {
+  unrelatedOpenAICalls += 1;
+  return { purpose: "non-search orchestration" };
+})();
+assert.equal(unrelatedOpenAICalls, 1);
+assert.equal(unrelatedOpenAIBudget.physicalAttemptCount, 0, "Non-search OpenAI orchestration is outside the comparable-search meter.");
+
 const exhaustedProviderBudget = hooks.createPhysicalAttemptBudget(1, "provider_search");
 const exhaustedProviderRecord = hooks.createSerperRequestRecord(retryQuery);
 assert.equal(hooks.consumePhysicalAttempt(exhaustedProviderBudget, exhaustedProviderRecord), true);
@@ -341,6 +671,120 @@ const directRecord = {};
 assert.equal(hooks.consumePhysicalAttempt(exhaustedDirectBudget, directRecord), true);
 assert.equal(hooks.consumePhysicalAttempt(exhaustedDirectBudget, directRecord), true);
 assert.equal(hooks.consumePhysicalAttempt(exhaustedDirectBudget, directRecord), false, "No direct-page attempt may occur after the independent cap is exhausted.");
+
+const productionRecoveryRequestRecords = [];
+const productionRecoveryResponseSummaries = [];
+const productionRecoveryErrors = [];
+const productionProviderBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const productionDirectBudget = hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment");
+let productionDirectAdapterCalls = 0;
+const productionRecoveryQueries = [];
+await hooks.executeLimitedResultRetailRecovery({
+  serperApiKey: "test-only-redacted",
+  context: enrichedContext,
+  identity: enrichedContext,
+  providerRequestRecords: productionRecoveryRequestRecords,
+  providerResponseSummaries: productionRecoveryResponseSummaries,
+  providerErrors: productionRecoveryErrors,
+  rawProviderRecords: [],
+  currentRecords: [
+    observation({
+      sourceRecordId: "production-enrichment-source",
+      retailer: "Target",
+      retailerDomain: "target.com",
+      sourceDomain: "target.com",
+      destinationUrl: "https://www.target.com/p/cedarline-security-envelopes-48",
+      query: "012345678905 Cedarline security envelopes",
+      searchPass: "stage_1_exact_identity",
+      rawText: "Cedarline security envelopes 48 count UPC 012345678905",
+      price: null,
+      parsedPrice: null,
+      displayedPrice: "Price unavailable",
+      priceType: "Price unavailable"
+    })
+  ],
+  providerAttemptBudget: productionProviderBudget,
+  directPageAttemptBudget: productionDirectBudget,
+  directPageRequestAdapter: async (url) => {
+    productionDirectAdapterCalls += 1;
+    return {
+      finalUrl: url,
+      statusCode: 200,
+      elapsedMs: 1,
+      html: "<html><head><title>Cedarline Security Envelopes 48 Count</title></head><body>UPC 012345678905 Price $5.50 In stock</body></html>",
+      sourceEvidenceText: "Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50 In stock"
+    };
+  },
+  serperRequestAdapter: async ({ query }) => {
+    productionRecoveryQueries.push(query);
+    return { json: { organic: [] }, statusCode: 200, elapsedMs: 1 };
+  }
+});
+assert.equal(productionDirectAdapterCalls, 1, "The production enrichment path must invoke its injected direct-page adapter.");
+assert(productionRecoveryQueries.length > 0, "The production path must continue into bounded recovery after one enriched offer.");
+assert(
+  productionRecoveryQueries.every((query) => !/target\.com/i.test(query)),
+  "Recovery targeting must consume the enrichment-produced canonical view and exclude its accepted retailer domain."
+);
+assert.equal(productionDirectBudget.physicalAttemptCount, 1);
+assert.equal(productionProviderBudget.physicalAttemptCount, productionRecoveryQueries.length);
+assert.notEqual(
+  productionDirectBudget,
+  productionProviderBudget,
+  "Direct-page and provider-search attempts must remain in independent budget categories."
+);
+
+const deniedFetch = globalThis.fetch;
+let redirectFetchInvocations = 0;
+globalThis.fetch = async (url) => {
+  redirectFetchInvocations += 1;
+  if (redirectFetchInvocations === 1) {
+    return new Response("", {
+      status: 302,
+      headers: { location: "https://www.target.com/p/final-envelope-page" }
+    });
+  }
+  return new Response("<html><body>Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50</body></html>", {
+    status: 200,
+    headers: { "content-type": "text/html" }
+  });
+};
+const redirectBudget = hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment");
+const redirectRequestRecord = {
+  provider: "Direct product page fetch",
+  providerKey: "direct_product_page_fetch",
+  physicalAttemptCount: 0,
+  physicalRetryAttemptCount: 0,
+  physicalAttempts: []
+};
+const redirectResult = await hooks.requestBoundedRetailProductPageNetwork(
+  "https://www.target.com/p/starting-envelope-page",
+  enrichedContext,
+  enrichedTargetRecord,
+  {
+    attemptBudget: redirectBudget,
+    requestRecord: redirectRequestRecord,
+    initialAttemptReserved: false
+  }
+);
+assert.equal(redirectResult.statusCode, 200);
+assert.equal(redirectFetchInvocations, 2, "One real redirect path consumes exactly two injected fetch invocations.");
+assert.equal(redirectBudget.physicalAttemptCount, 2);
+await assert.rejects(
+  hooks.requestBoundedRetailProductPageNetwork(
+    "https://www.target.com/p/third-envelope-page",
+    enrichedContext,
+    enrichedTargetRecord,
+    {
+      attemptBudget: redirectBudget,
+      requestRecord: redirectRequestRecord,
+      initialAttemptReserved: false
+    }
+  ),
+  /budget was exhausted/i
+);
+assert.equal(redirectFetchInvocations, 2, "A third direct-page fetch cannot occur after the independent ceiling.");
+globalThis.fetch = deniedFetch;
 
 for (const purpose of ["personal", "resale", "owner_value", "seller_listing"]) {
   const purposeResult = createFinalEvidenceResult({
