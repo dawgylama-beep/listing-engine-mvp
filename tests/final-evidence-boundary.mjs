@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createFinalEvidenceResult,
-  createRecoveryAssessment
+  createCanonicalRecoveryView
 } from "../lib/evidence/index.js";
 
 globalThis.fetch = async () => {
@@ -154,13 +154,17 @@ assert.equal(duplicateResult.views.acceptedIds.length, 1, "same offer must final
 assert.equal(duplicateResult.views.displayedIds.length, 1, "same offer must display once");
 assert.equal(duplicateResult.acceptedRecords[0].observationIds.length, 2, "source observations must remain traceable");
 
-const preliminary = createRecoveryAssessment({
-  assessments: [],
-  providerRequestRecords: [{ attempted: true }],
-  maxProviderCalls: 28
+const preliminary = createCanonicalRecoveryView({
+  observations: [],
+  targetIdentity,
+  providerAccounting: {
+    logicalProviderQueryCount: 1,
+    physicalProviderAttemptCount: 1,
+    maximumPhysicalProviderAttempts: 28
+  }
 });
-assert.equal(preliminary.preliminaryEvidenceInsufficient, true);
-assert.equal(preliminary.remainingSearchBudget, 27);
+assert.equal(preliminary.additionalPriceRecoveryNeeded, true);
+assert.equal(preliminary.providerAccounting.remainingPhysicalProviderAttempts, 27);
 const recoveredResult = createFinalEvidenceResult({
   analysisMode: "retail",
   targetIdentity,

@@ -9,3 +9,8 @@ Remove-Item Env:SERPER_API_KEY -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
+
+& node (Join-Path $PSScriptRoot "canonical-recovery-alignment.test.mjs")
+if ($LASTEXITCODE -ne 0) {
+  exit $LASTEXITCODE
+}

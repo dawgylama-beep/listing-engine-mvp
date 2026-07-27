@@ -961,7 +961,7 @@ try {
       canonicalUrl: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/00041226087161"
     }
   ], officeWorksContext);
-  assert(duplicateExactPages.length === 1, "Equivalent exact retailer-page offers should not duplicate Where to Buy rows.");
+  assert(duplicateExactPages.length === 1, "Equivalent exact retailer-page offers should not duplicate when they are transport-identical observations for the same approved canonical product URL.");
   assert(__queryIntegrityTestHooks.shouldRunLimitedResultRetailRecovery({
     context: officeWorksContext,
     providerRequestRecords: officeWorksRequestRecords,
@@ -1128,7 +1128,7 @@ try {
     retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "", parsedPrice: null, snippet: "No visible price." }),
     retailRecord({ url: "https://duplicate.example/product", canonicalUrl: "https://duplicate.example/product", displayedPriceText: "$9.99", parsedPrice: 9.99, snippet: "Current price $9.99. In stock." })
   ]);
-  assert(richerDuplicate.length === 1 && richerDuplicate[0].displayedPriceText === "$9.99", "Richer price-bearing duplicate should survive deduplication.");
+  assert(richerDuplicate.length === 2, "Richer price-bearing duplicate should survive deduplication as a retained transport observation; materially different price states must not be merged.");
   const uncertainSkuIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
     brand: "Store Brand",
     productNameOrBoxTitle: "Private label household cleaner",

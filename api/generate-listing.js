@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
-  createRecoveryAssessment,
+  createCanonicalRecoveryView,
   createFinalEvidenceResult,
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
@@ -1773,7 +1773,10 @@ async function executeOpenAIWebComparableSearch({ apiKey, model, platform, notes
     searchStartedAt,
     sourceRoute,
     searchQueries,
-    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    queriesActuallySent: providerRequestRecords
+      .filter((record) => !/direct_product_page_fetch/i.test(record.providerEndpoint || ""))
+      .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0)
+      .map((record) => record.query),
     queriesPrioritized,
     providerRequestRecords,
     providerResponseSummaries,
@@ -1805,6 +1808,117 @@ const retailSerperBudgetAllocation = Object.freeze({
   localRetail: 1,
   limitedResultRecovery: 3
 });
+
+const directPageEnrichmentMaxAttempts = 2;
+
+function createPhysicalAttemptBudget(maximumAttempts = 0, category = "provider_search") {
+  return {
+    category,
+    maximumAttempts: Math.max(0, Number(maximumAttempts || 0)),
+    physicalAttemptCount: 0,
+    physicalRetryAttemptCount: 0
+  };
+}
+
+function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false } = {}) {
+  if (Number(budget.physicalAttemptCount || 0) >= Number(budget.maximumAttempts || 0)) {
+    return false;
+  }
+  budget.physicalAttemptCount = Number(budget.physicalAttemptCount || 0) + 1;
+  if (retry) {
+    budget.physicalRetryAttemptCount = Number(budget.physicalRetryAttemptCount || 0) + 1;
+  }
+  requestRecord.attempted = true;
+  requestRecord.physicalAttemptCount = Number(requestRecord.physicalAttemptCount || 0) + 1;
+  requestRecord.physicalRetryAttemptCount = Number(requestRecord.physicalRetryAttemptCount || 0) + (retry ? 1 : 0);
+  requestRecord.physicalAttempts = [
+    ...normalizeArray(requestRecord.physicalAttempts),
+    {
+      attempt: requestRecord.physicalAttemptCount,
+      retry,
+      budgetCategory: cleanText(budget.category)
+    }
+  ];
+  return true;
+}
+
+function buildProviderAttemptAccounting(providerRequestRecords = [], {
+  maximumPhysicalProviderAttempts = 0,
+  maximumPhysicalDirectPageAttempts = directPageEnrichmentMaxAttempts,
+  rawProviderObservationCount = 0
+} = {}) {
+  const providerSearchRecords = providerRequestRecords.filter((record) => !/direct_product_page_fetch/i.test(record.providerEndpoint || ""));
+  const directPageRecords = providerRequestRecords.filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || ""));
+  const physicalAttempts = (record) => record.physicalAttemptCount === undefined
+    ? record.attempted ? 1 : 0
+    : Number(record.physicalAttemptCount || 0) || (record.succeeded ? 1 : 0);
+  const physicalProviderAttemptCount = providerSearchRecords.reduce((sum, record) => sum + physicalAttempts(record), 0);
+  return {
+    rawProviderObservationCount,
+    logicalProviderQueryCount: providerSearchRecords.filter((record) => (
+      record.logicalQueryAttempted === undefined ? record.attempted : record.logicalQueryAttempted
+    )).length,
+    physicalProviderAttemptCount,
+    physicalProviderRetryAttemptCount: providerSearchRecords.reduce((sum, record) => sum + Number(record.physicalRetryAttemptCount || 0), 0),
+    maximumPhysicalProviderAttempts,
+    remainingPhysicalProviderAttempts: Math.max(0, maximumPhysicalProviderAttempts - physicalProviderAttemptCount),
+    logicalDirectPageEnrichmentCount: directPageRecords.filter((record) => (
+      record.logicalQueryAttempted === undefined ? record.attempted : record.logicalQueryAttempted
+    )).length,
+    physicalDirectPageAttemptCount: directPageRecords.reduce((sum, record) => sum + physicalAttempts(record), 0),
+    maximumPhysicalDirectPageAttempts
+  };
+}
+
+async function requestSerperSearchWithBudget({
+  requestRecord,
+  queryRecord,
+  attemptBudget,
+  apiKey,
+  maxRetries = 1,
+  requestAdapter = requestSerperSearch
+} = {}) {
+  requestRecord.logicalQueryAttempted = true;
+  let lastError = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    if (!consumePhysicalAttempt(attemptBudget, requestRecord, { retry: attempt > 0 })) {
+      if (!requestRecord.physicalAttemptCount) {
+        requestRecord.attempted = false;
+      }
+      throw createSerperRequestError({
+        category: "provider_attempt_budget_exhausted",
+        code: "provider_attempt_budget_exhausted",
+        message: "The bounded physical provider-attempt budget was exhausted before another outbound request."
+      });
+    }
+    try {
+      return await requestAdapter({
+        apiKey,
+        query: queryRecord.query,
+        queryRecord,
+        searchType: queryRecord.searchType || "organic_web",
+        prevalidated: queryRecord.validationPassed !== false,
+        timeoutMs: 7000,
+        maxRetries: 0
+      });
+    } catch (error) {
+      lastError = error;
+      const diagnostic = classifySerperError(error);
+      if (attempt >= maxRetries || [
+        "invalid_query_preflight",
+        "serper_authentication_failure",
+        "serper_rate_limited",
+        "serper_shopping_unavailable"
+      ].includes(diagnostic.category)) {
+        throw error;
+      }
+    }
+  }
+  throw lastError || createSerperRequestError({
+    category: "serper_provider_error",
+    message: "Serper request failed."
+  });
+}
 
 const onlineRetailerRegistry = Object.freeze([
   { key: "amazon", name: "Amazon", domain: "amazon.com", marketplacePlatform: true, categories: ["general"] },
@@ -1845,6 +1959,15 @@ const secondaryMarketAuctionRegistry = Object.freeze([
 async function executeSerperComparableSearch({ serperApiKey, platform, notes, identity, sourceRoute, searchQueries, buyerIntake, researchPurpose = "buyer_decision" }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
+  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
+  const providerAttemptBudget = createPhysicalAttemptBudget(
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    "provider_search"
+  );
+  const directPageAttemptBudget = createPhysicalAttemptBudget(
+    directPageEnrichmentMaxAttempts,
+    "direct_page_enrichment"
+  );
   const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
   const providerRequestRecords = queriesPrioritized.map((queryRecord) => createSerperRequestRecord(queryRecord));
   const providerResponseSummaries = [];
@@ -1863,13 +1986,11 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
 
   await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }) => {
     try {
-      const response = await requestSerperSearch({
-        apiKey: serperApiKey,
-        query: queryRecord.query,
+      const response = await requestSerperSearchWithBudget({
+        requestRecord,
         queryRecord,
-        searchType: queryRecord.searchType || "organic_web",
-        prevalidated: queryRecord.validationPassed !== false,
-        timeoutMs: 7000,
+        attemptBudget: providerAttemptBudget,
+        apiKey: serperApiKey,
         maxRetries: 1
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
@@ -1949,9 +2070,8 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
     });
   }
 
-  const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context);
-  let dedupedRecords = dedupeSerperCandidateRecords(normalizedRecords, context);
+  let dedupedRecords = coalesceIdenticalSerperTransportRecords(normalizedRecords);
   dedupedRecords = await executeLimitedResultRetailRecovery({
     serperApiKey,
     context,
@@ -1963,7 +2083,9 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
     providerResponseSummaries,
     providerErrors,
     rawProviderRecords,
-    currentRecords: dedupedRecords
+    currentRecords: dedupedRecords,
+    providerAttemptBudget,
+    directPageAttemptBudget
   });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
   return normalizeSerperLiveSearchResult({
@@ -1984,16 +2106,75 @@ async function executeSerperComparableSearch({ serperApiKey, platform, notes, id
   });
 }
 
-function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRecords = [], records = [], assessments = null, recoveryAssessment = null } = {}) {
+function createRecoveryAssessment({
+  assessments = [],
+  records = [],
+  providerRequestRecords = [],
+  maxProviderCalls = retailSerperBudgetAllocation.maxProviderCalls,
+  targetIdentity = {}
+} = {}) {
+  const sourceRecords = normalizeArray(records).length
+    ? normalizeArray(records)
+    : normalizeArray(assessments).map((assessment) => assessment?.record ? ({
+        ...assessment.record,
+        retailer: assessment.retailerDisplayName,
+        retailerDomain: assessment.retailerDomain,
+        quantity: assessment.packageQuantity,
+        exactIdentity: /^tier_1$/i.test(assessment.customerEvidenceTier || "")
+          || /exact/i.test(assessment.packageCompatibilityLabel || ""),
+        pageType: assessment.validOfferClassification === "specific_offer"
+          ? "product_or_listing"
+          : assessment.validOfferClassification,
+        priceType: Number.isFinite(assessment.priceAmount) ? "Current Retail Price" : "Price unavailable"
+      }) : null).filter(Boolean);
+  const canonicalRecoveryView = createCanonicalRecoveryView({
+    observations: buildCanonicalEvidenceObservations(sourceRecords, {
+      identity: targetIdentity,
+      context: targetIdentity,
+      searchProvider: "Serper Google Search"
+    }),
+    targetIdentity: buildCanonicalSubjectIdentity(targetIdentity),
+    providerAccounting: buildProviderAttemptAccounting(providerRequestRecords, {
+      maximumPhysicalProviderAttempts: maxProviderCalls,
+      maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts
+    })
+  });
+  return {
+    canonicalRecoveryView,
+    preliminaryUsableRecordCount: canonicalRecoveryView.priceBearingAcceptedCount,
+    preliminaryExactRecordCount: canonicalRecoveryView.exactPriceBearingAcceptedCount,
+    preliminaryCompatibleRecordCount: Math.max(
+      0,
+      canonicalRecoveryView.priceBearingAcceptedCount - canonicalRecoveryView.exactPriceBearingAcceptedCount
+    ),
+    preliminaryRetailerDomains: new Set(canonicalRecoveryView.distinctQualifyingRetailerDomains),
+    preliminaryRetailerCount: canonicalRecoveryView.distinctQualifyingRetailerCount,
+    preliminaryEvidenceInsufficient: canonicalRecoveryView.additionalPriceRecoveryNeeded,
+    remainingSearchBudget: canonicalRecoveryView.providerAccounting.remainingPhysicalProviderAttempts
+  };
+}
+
+function shouldRunLimitedResultRetailRecovery({
+  context = {},
+  identity = context,
+  buyerIntake = normalizeBuyerIntake({}),
+  providerRequestRecords = [],
+  records = [],
+  recoveryView = null,
+  recoveryAssessment = null
+} = {}) {
   if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
     return false;
   }
-  const preliminary = recoveryAssessment || createRecoveryAssessment({
-    assessments: assessments || buildRetailEvidenceAssessments(records, context),
-    providerRequestRecords,
-    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
+  const canonicalView = recoveryView
+    || recoveryAssessment?.canonicalRecoveryView
+    || buildCanonicalRecoveryViewForRecords(records, {
+      identity,
+      buyerIntake,
+      context,
+      providerRequestRecords
   });
-  if (preliminary.preliminaryRetailerCount > 1 && !preliminary.preliminaryEvidenceInsufficient) {
+  if (canonicalView.distinctQualifyingRetailerCount > 1 && !canonicalView.additionalPriceRecoveryNeeded) {
     return false;
   }
   const attemptedRecovery = providerRequestRecords.some((record) => record.retailStage === "stage_7_limited_result_recovery"
@@ -2002,16 +2183,21 @@ function shouldRunLimitedResultRetailRecovery({ context = {}, providerRequestRec
   if (attemptedRecovery) {
     return false;
   }
-  const returnedRetailProductPages = records.some((record) => isLikelyRetailProductPageUrl(record.destinationUrl || record.url || record.canonicalUrl));
+  const returnedRetailProductPages = canonicalView.additionalPriceRecoveryNeeded
+    || records.some((record) => isLikelyRetailProductPageUrl(record.destinationUrl || record.url || record.canonicalUrl));
   const dataDrivenTargets = mergeRetailTargetRecords(
     buildRetailerSpecificSearchTargets(context),
     buildOnlineRetailSearchTargets(context)
   );
   const remainingTarget = dataDrivenTargets.some((target) => {
     const domain = cleanText(target.domain || getRetailerDomainForStore(target.name)).toLowerCase();
-    return domain && !preliminary.preliminaryRetailerDomains.has(domain);
+    return domain && !canonicalView.distinctQualifyingRetailerDomains.includes(domain);
   });
   const retailerStagesAttempted = providerRequestRecords.some((record) => record.attempted && /stage_4_retailer_specific|stage_5_online_retail|stage_5_shopping_general/i.test(record.retailStage || ""));
+  const preliminary = {
+    preliminaryEvidenceInsufficient: canonicalView.additionalPriceRecoveryNeeded,
+    remainingSearchBudget: canonicalView.providerAccounting.remainingPhysicalProviderAttempts
+  };
   return Boolean(remainingTarget && preliminary.preliminaryEvidenceInsufficient && preliminary.remainingSearchBudget > 0 && (returnedRetailProductPages || retailerStagesAttempted || records.length));
 }
 
@@ -2032,12 +2218,13 @@ function mergeRetailTargetRecords(...groups) {
   return selected;
 }
 
-function buildLimitedResultRetailRecoveryQueries(context = {}, providerRequestRecords = [], records = []) {
-  const assessments = buildRetailEvidenceAssessments(records, context);
-  const visibleDomains = new Set(assessments
-    .filter((assessment) => assessment.customerPriceCardEligibility)
-    .map((assessment) => cleanText(assessment.retailerDomain || hostnameFromUrl(assessment.destinationUrl)).toLowerCase())
-    .filter(Boolean));
+function buildLimitedResultRetailRecoveryQueries(context = {}, providerRequestRecords = [], records = [], recoveryView = null) {
+  const canonicalView = recoveryView || buildCanonicalRecoveryViewForRecords(records, {
+    identity: context,
+    context,
+    providerRequestRecords
+  });
+  const visibleDomains = new Set(canonicalView.distinctQualifyingRetailerDomains);
   const attemptedDomainCounts = new Map();
   for (const record of providerRequestRecords) {
     for (const domain of normalizeStringArray(record.marketplaceDomainsRequested || record.allowedDomainsRequested || record.marketplaceDomains || [], 8)) {
@@ -2129,28 +2316,40 @@ async function executeLimitedResultRetailRecovery({
   providerResponseSummaries = [],
   providerErrors = [],
   rawProviderRecords = [],
-  currentRecords = []
+  currentRecords = [],
+  providerAttemptBudget = createPhysicalAttemptBudget(retailSerperBudgetAllocation.maxProviderCalls, "provider_search"),
+  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment")
 } = {}) {
   let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
     context,
     providerRequestRecords,
     providerResponseSummaries,
     providerErrors,
-    currentRecords
+    currentRecords,
+    directPageAttemptBudget
   });
-  const assessments = buildRetailEvidenceAssessments(recordsForRecovery, context);
-  const recoveryAssessment = createRecoveryAssessment({
-    assessments,
+  const recoveryView = buildCanonicalRecoveryViewForRecords(recordsForRecovery, {
+    identity,
+    buyerIntake,
+    context,
+    providerRequestRecords
+  });
+  providerRequestRecords.canonicalRecoveryDecisionView = recoveryView;
+  if (!shouldRunLimitedResultRetailRecovery({
+    context,
+    identity,
+    buyerIntake,
     providerRequestRecords,
-    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
-  });
-  if (!shouldRunLimitedResultRetailRecovery({ context, providerRequestRecords, records: recordsForRecovery, assessments, recoveryAssessment })) {
+    records: recordsForRecovery,
+    recoveryView
+  })) {
+    providerRequestRecords.canonicalRecoveryStoppingView = recoveryView;
     return recordsForRecovery;
   }
   const plannedQueries = finalizeLimitedResultRetailRecoveryQueries(
     context,
     sourceRoute,
-    buildLimitedResultRetailRecoveryQueries(context, providerRequestRecords, currentRecords)
+    buildLimitedResultRetailRecoveryQueries(context, providerRequestRecords, recordsForRecovery, recoveryView)
   )
     .slice(0, retailSerperBudgetAllocation.limitedResultRecovery)
     .map((record, index) => ({
@@ -2158,6 +2357,7 @@ async function executeLimitedResultRetailRecovery({
       priority: providerRequestRecords.length + index + 1
     }));
   if (!plannedQueries.length) {
+    providerRequestRecords.canonicalRecoveryStoppingView = recoveryView;
     return recordsForRecovery;
   }
   const recoveryRequestRecords = plannedQueries.map((queryRecord) => createSerperRequestRecord(queryRecord));
@@ -2173,13 +2373,11 @@ async function executeLimitedResultRetailRecovery({
     }
     const queryRecord = plannedQueries[index];
     try {
-      const response = await requestSerperSearch({
-        apiKey: serperApiKey,
-        query: queryRecord.query,
+      const response = await requestSerperSearchWithBudget({
+        requestRecord,
         queryRecord,
-        searchType: queryRecord.searchType || "organic_web",
-        prevalidated: queryRecord.validationPassed !== false,
-        timeoutMs: 7000,
+        attemptBudget: providerAttemptBudget,
+        apiKey: serperApiKey,
         maxRetries: 1
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
@@ -2239,13 +2437,19 @@ async function executeLimitedResultRetailRecovery({
       });
     }
   }));
-  return dedupeSerperCandidateRecords(
+  const recoveredRecords = coalesceIdenticalSerperTransportRecords(
     [
       ...recordsForRecovery,
       ...normalizeSerperCandidateRecords(rawProviderRecords, identity, context)
-    ],
-    context
+    ]
   );
+  providerRequestRecords.canonicalRecoveryStoppingView = buildCanonicalRecoveryViewForRecords(recoveredRecords, {
+    identity,
+    buyerIntake,
+    context,
+    providerRequestRecords
+  });
+  return recoveredRecords;
 }
 
 async function executeExactRetailPageDirectEnrichment({
@@ -2253,33 +2457,68 @@ async function executeExactRetailPageDirectEnrichment({
   providerRequestRecords = [],
   providerResponseSummaries = [],
   providerErrors = [],
-  currentRecords = []
+  currentRecords = [],
+  directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment")
 } = {}) {
   if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
     return currentRecords;
   }
-  const attemptedCount = providerRequestRecords.filter((record) => record.attempted).length;
-  const remainingBudget = Math.max(0, retailSerperBudgetAllocation.maxProviderCalls - attemptedCount);
+  const remainingBudget = Math.max(
+    0,
+    Number(directPageAttemptBudget.maximumAttempts || 0) - Number(directPageAttemptBudget.physicalAttemptCount || 0)
+  );
   if (!remainingBudget) {
     return currentRecords;
   }
-  const candidates = currentRecords
-    .filter((record) => isLikelyExactRetailProductPage(record, context))
-    .filter((record) => !Number.isFinite(getVisibleItemPriceAmount(record)))
-    .filter((record) => isApprovedRetailProductPageFetchUrl(record.destinationUrl || record.url || record.canonicalUrl, context, record))
-    .slice(0, Math.min(2, remainingBudget));
+  const candidatesByUrl = new Map();
+  for (const record of currentRecords
+    .filter((candidate) => isLikelyExactRetailProductPage(candidate, context))
+    .filter((candidate) => !Number.isFinite(getVisibleItemPriceAmount(candidate)))
+    .filter((candidate) => isApprovedRetailProductPageFetchUrl(candidate.destinationUrl || candidate.url || candidate.canonicalUrl, context, candidate))) {
+    const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
+    if (url && !candidatesByUrl.has(url)) {
+      candidatesByUrl.set(url, record);
+    }
+  }
+  const candidates = [...candidatesByUrl.entries()].slice(0, remainingBudget);
   if (!candidates.length) {
     return currentRecords;
   }
-  const byKey = new Map(currentRecords.map((record) => [canonicalizeComparableUrl(record.url || record.canonicalUrl) || cleanText(record.url), record]));
+  let enrichedRecords = [...currentRecords];
   let priority = providerRequestRecords.length + 1;
-  for (const record of candidates) {
+  for (const [candidateUrl, record] of candidates) {
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
     priority += 1;
     providerRequestRecords.push(requestRecord);
+    requestRecord.logicalQueryAttempted = true;
+    if (!consumePhysicalAttempt(directPageAttemptBudget, requestRecord)) {
+      requestRecord.errorCode = "direct_page_attempt_budget_exhausted";
+      requestRecord.failureStage = requestRecord.errorCode;
+      providerErrors.push({
+        category: requestRecord.errorCode,
+        code: requestRecord.errorCode,
+        message: "The bounded direct-page physical-attempt budget was exhausted before another fetch.",
+        query: requestRecord.query,
+        priority: requestRecord.priority
+      });
+      providerResponseSummaries.push({
+        ...createDirectProductPageFetchResponseSummary(requestRecord),
+        errorCode: requestRecord.errorCode,
+        errorMessage: "Direct-page fetch was not attempted because its independent budget was exhausted."
+      });
+      break;
+    }
     try {
-      const result = await requestBoundedRetailProductPage(record.destinationUrl || record.url || record.canonicalUrl, context, record);
-      requestRecord.attempted = true;
+      const result = await requestBoundedRetailProductPage(
+        record.destinationUrl || record.url || record.canonicalUrl,
+        context,
+        record,
+        {
+          attemptBudget: directPageAttemptBudget,
+          requestRecord,
+          initialAttemptReserved: true
+        }
+      );
       requestRecord.succeeded = true;
       requestRecord.statusCode = result.statusCode;
       requestRecord.elapsedMilliseconds = result.elapsedMs;
@@ -2293,19 +2532,24 @@ async function executeExactRetailPageDirectEnrichment({
       requestRecord.failureStage = result.sourceEvidenceText ? "none" : "exact_page_no_supported_price";
       providerResponseSummaries.push(createDirectProductPageFetchResponseSummary(requestRecord));
       if (result.sourceEvidenceText) {
-        const enriched = enrichExactRetailPageRecord({
-          ...record,
-          url: result.finalUrl || record.url,
-          canonicalUrl: canonicalizeComparableUrl(result.finalUrl || record.url),
-          pageHtml: result.html,
-          sourceEvidenceText: result.sourceEvidenceText
-        }, context);
-        const key = canonicalizeComparableUrl(enriched.url || enriched.canonicalUrl) || cleanText(enriched.url);
-        byKey.set(key, enriched);
+        enrichedRecords = enrichedRecords.map((observation) => {
+          const observationUrl = canonicalizeComparableUrl(unwrapRetailDestinationUrl(
+            observation.destinationUrl || observation.url || observation.canonicalUrl
+          ));
+          if (observationUrl !== candidateUrl) {
+            return observation;
+          }
+          return enrichExactRetailPageRecord({
+            ...observation,
+            url: result.finalUrl || observation.url,
+            canonicalUrl: canonicalizeComparableUrl(result.finalUrl || observation.url),
+            pageHtml: result.html,
+            sourceEvidenceText: result.sourceEvidenceText
+          }, context);
+        });
       }
     } catch (error) {
       const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
-      requestRecord.attempted = true;
       requestRecord.succeeded = false;
       requestRecord.errorCode = cleanText(error.code || "direct_product_page_fetch_failed");
       requestRecord.failureStage = requestRecord.errorCode;
@@ -2323,7 +2567,7 @@ async function executeExactRetailPageDirectEnrichment({
       });
     }
   }
-  return dedupeSerperCandidateRecords([...byKey.values()], context);
+  return coalesceIdenticalSerperTransportRecords(enrichedRecords);
 }
 
 function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
@@ -2350,7 +2594,11 @@ function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
     validationFailureReason: "",
     provider: "Direct product page fetch",
     providerKey: "direct_product_page_fetch",
-    attempted: true,
+    logicalQueryAttempted: false,
+    attempted: false,
+    physicalAttemptCount: 0,
+    physicalRetryAttemptCount: 0,
+    physicalAttempts: [],
     succeeded: false,
     providerSourceCount: 0,
     organicResultCount: 0,
@@ -2474,13 +2722,17 @@ function isPrivateIpv4Address(host = "") {
     || (a === 192 && b === 168);
 }
 
-async function requestBoundedRetailProductPageNetwork(url = "", context = {}, record = {}, redirectDepth = 0) {
+async function requestBoundedRetailProductPageNetwork(url = "", context = {}, record = {}, attemptState = {}, redirectDepth = 0) {
   const finalCandidate = unwrapRetailDestinationUrl(url) || cleanText(url);
   if (!isApprovedRetailProductPageFetchUrl(finalCandidate, context, record)) {
     throw Object.assign(new Error("Direct product-page URL was not approved for enrichment."), { code: "direct_fetch_url_not_approved" });
   }
   if (redirectDepth > 3) {
     throw Object.assign(new Error("Direct product-page redirect limit exceeded."), { code: "direct_fetch_redirect_limit" });
+  }
+  if (!attemptState.initialAttemptReserved
+    && !consumePhysicalAttempt(attemptState.attemptBudget, attemptState.requestRecord)) {
+    throw Object.assign(new Error("Direct product-page physical-attempt budget was exhausted."), { code: "direct_page_attempt_budget_exhausted" });
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
@@ -2501,7 +2753,10 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
       if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
         throw Object.assign(new Error("Direct product-page redirect target was not approved."), { code: "direct_fetch_redirect_not_approved" });
       }
-      return requestBoundedRetailProductPageNetwork(nextUrl, context, record, redirectDepth + 1);
+      return requestBoundedRetailProductPageNetwork(nextUrl, context, record, {
+        ...attemptState,
+        initialAttemptReserved: false
+      }, redirectDepth + 1);
     }
     if (!response.ok) {
       throw Object.assign(new Error(`Direct product-page fetch returned HTTP ${response.status}.`), { code: "direct_fetch_http_error", statusCode: response.status });
@@ -2581,7 +2836,11 @@ function createSerperRequestRecord(queryRecord) {
     validationFailureReason: cleanText(queryRecord.validationFailureReason),
     provider: "Serper Google Search",
     providerKey: "serper_google",
+    logicalQueryAttempted: false,
     attempted: validationPassed,
+    physicalAttemptCount: 0,
+    physicalRetryAttemptCount: 0,
+    physicalAttempts: [],
     succeeded: false,
     providerSourceCount: 0,
     organicResultCount: 0,
@@ -2637,7 +2896,7 @@ function createSerperPreflightRejectedResponseSummary(queryRecord = {}, requestR
   };
 }
 
-async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic_web", prevalidated = false, timeoutMs = 7000, maxRetries = 1 }) {
+async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic_web", prevalidated = false, timeoutMs = 7000 }) {
   const safeQuery = cleanSerperQuery(query);
   const endpointPath = searchType === "shopping" ? "shopping" : "search";
   const validation = prevalidated
@@ -2647,50 +2906,42 @@ async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic
     throw createSerperRequestError({ category: "invalid_query_preflight", code: validation.reason, message: "Serper query was rejected before provider execution." });
   }
 
-  let lastError = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const startedAt = currentTimeMilliseconds();
-    try {
-      const response = await fetch(`https://google.serper.dev/${endpointPath}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": apiKey
-        },
-        body: JSON.stringify({
-          q: safeQuery,
-          gl: "us",
-          hl: "en",
-          num: 10
-        }),
-        signal: controller.signal
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = currentTimeMilliseconds();
+  try {
+    const response = await fetch(`https://google.serper.dev/${endpointPath}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey
+      },
+      body: JSON.stringify({
+        q: safeQuery,
+        gl: "us",
+        hl: "en",
+        num: 10
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const category = classifySerperStatus(response.status, data, searchType);
+      throw createSerperRequestError({
+        category,
+        statusCode: response.status,
+        code: cleanText(data?.error || data?.code || ""),
+        message: summarizeSerperErrorMessage(data, response.status)
       });
-      clearTimeout(timeout);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const category = classifySerperStatus(response.status, data, searchType);
-        throw createSerperRequestError({
-          category,
-          statusCode: response.status,
-          code: cleanText(data?.error || data?.code || ""),
-          message: summarizeSerperErrorMessage(data, response.status)
-        });
-      }
-      return { json: data, statusCode: response.status, elapsedMs: currentTimeMilliseconds() - startedAt };
-    } catch (error) {
-      clearTimeout(timeout);
-      lastError = error.name === "AbortError"
-        ? createSerperRequestError({ category: "serper_timeout", code: "timeout", message: "Serper request timed out." })
-        : error;
-      const diagnostic = classifySerperError(lastError);
-      if (attempt >= maxRetries || ["serper_authentication_failure", "serper_rate_limited", "serper_shopping_unavailable"].includes(diagnostic.category)) {
-        throw lastError;
-      }
     }
+    return { json: data, statusCode: response.status, elapsedMs: currentTimeMilliseconds() - startedAt };
+  } catch (error) {
+    clearTimeout(timeout);
+    throw error.name === "AbortError"
+      ? createSerperRequestError({ category: "serper_timeout", code: "timeout", message: "Serper request timed out." })
+      : error;
   }
-  throw lastError || createSerperRequestError({ category: "serper_provider_error", message: "Serper request failed." });
 }
 
 function parseSerperResponse(data = {}, queryRecord = {}) {
@@ -2847,16 +3098,57 @@ function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
   return domain && primaryBarcode ? `retail-exact:${domain}:${primaryBarcode}` : "";
 }
 
-function dedupeSerperCandidateRecords(records = [], context = {}) {
-  const byUrl = new Map();
+function buildSerperTransportIdentity(record = {}) {
+  const canonicalUrl = canonicalizeComparableUrl(
+    unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl)
+  );
+  if (!canonicalUrl) return "";
+  const materialState = [
+    record.provider,
+    record.sourceType,
+    record.title,
+    record.snippet,
+    record.rawText,
+    record.merchantName,
+    record.retailerDisplayName,
+    record.retailer,
+    record.seller,
+    record.offerCondition,
+    record.condition,
+    record.displayedPriceText,
+    record.displayedPrice,
+    record.price,
+    record.parsedPrice,
+    record.quantity,
+    record.packageQuantity,
+    record.candidatePackQuantity,
+    record.listingStatus,
+    record.availability,
+    record.marketplaceItemId,
+    record.offerId,
+    record.lotId,
+    record.originalUrl,
+    record.destinationUrl,
+    record.imageUrl
+  ].map((value) => cleanText(value).toLowerCase());
+  return `${canonicalUrl}|${JSON.stringify(materialState)}`;
+}
+
+function coalesceIdenticalSerperTransportRecords(records = []) {
+  const byTransportIdentity = new Map();
   for (const record of records) {
-    const key = buildEquivalentRetailPageDedupeKey(record, context)
-      || buildUnderlyingOfferDedupeKey(record)
-      || record.canonicalUrl
-      || record.url;
-    const existing = byUrl.get(key);
+    const key = buildSerperTransportIdentity(record);
+    if (!key) {
+      byTransportIdentity.set(Symbol("transport-observation"), {
+        ...record,
+        queriesFound: [record.query].filter(Boolean),
+        searchPassesFound: [record.searchPass].filter(Boolean)
+      });
+      continue;
+    }
+    const existing = byTransportIdentity.get(key);
     if (!existing) {
-      byUrl.set(key, {
+      byTransportIdentity.set(key, {
         ...record,
         queriesFound: [record.query].filter(Boolean),
         searchPassesFound: [record.searchPass].filter(Boolean)
@@ -2866,9 +3158,13 @@ function dedupeSerperCandidateRecords(records = [], context = {}) {
     const merged = preferRicherSerperRecord(existing, record);
     merged.queriesFound = mergeStringArrays(existing.queriesFound, [record.query], 8);
     merged.searchPassesFound = mergeStringArrays(existing.searchPassesFound, [record.searchPass], 6);
-    byUrl.set(key, merged);
+    byTransportIdentity.set(key, merged);
   }
-  return [...byUrl.values()];
+  return [...byTransportIdentity.values()];
+}
+
+function dedupeSerperCandidateRecords(records = []) {
+  return coalesceIdenticalSerperTransportRecords(records);
 }
 
 function applySerperRecordAccountingToRequests(providerRequestRecords = [], providerResponseSummaries = [], records = [], context = {}) {
@@ -2968,7 +3264,10 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     sourceRoute,
     searchQueries,
     queriesPrioritized,
-    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    queriesActuallySent: providerRequestRecords
+      .filter((record) => !/direct_product_page_fetch/i.test(record.providerEndpoint || ""))
+      .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0)
+      .map((record) => record.query),
     providerRequestRecords,
     providerResponseSummaries,
     providerSourceRecords: records.slice(0, 50),
@@ -6066,8 +6365,21 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     records,
     searchQueries
   });
-  const providerCallsAttempted = providerRequestRecords.filter((record) => record.attempted).length;
-  const providerCallsSucceeded = providerRequestRecords.filter((record) => record.succeeded).length;
+  const retailBudget = retailSerperBudgetAllocation;
+  const providerCallBudget = isCurrentRetailOnlyMode(context.retailEvidenceMode)
+    ? retailBudget.maxProviderCalls
+    : 12;
+  const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
+    maximumPhysicalProviderAttempts: providerCallBudget,
+    maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
+    rawProviderObservationCount: providerSourceCount
+  });
+  const providerSearchRequests = providerRequestRecords.filter((record) => !/direct_product_page_fetch/i.test(record.providerEndpoint || ""));
+  const queriesActuallySent = providerSearchRequests
+    .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0)
+    .map((record) => record.query);
+  const providerCallsAttempted = providerAccounting.physicalProviderAttemptCount;
+  const providerCallsSucceeded = providerSearchRequests.filter((record) => record.succeeded).length;
   const invalidQueryPreflightCount = providerRequestRecords.filter((record) => record.validationPassed === false || record.failureStage === "invalid_query_preflight").length;
   const organicResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.organicResultCount || 0), 0);
   const shoppingResultCount = providerRequestRecords.reduce((sum, record) => sum + Number(record.shoppingResultCount || 0), 0);
@@ -6076,20 +6388,16 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
   const noPriceIdentityReferenceCount = records.filter((record) => isNoPriceIdentityReference(record)).length;
   const rejectedMismatchCount = records.filter((record) => /Rejected|Weak/i.test(record.identityMatchStrength) || /mismatch|incompatible/i.test(record.rejectionReason || record.itemTypeCompatibilityStatus || "")).length;
   const recoverySearchPassesAttempted = providerRequestRecords
-    .filter((record) => record.attempted && /recovery/i.test(record.searchPass || ""))
+    .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0 && /recovery/i.test(record.searchPass || ""))
     .map((record) => record.searchPass);
   const droppedResultReasons = normalizeDropReasons(records
     .filter((record) => record.rejectionReason)
     .map((record) => record.rejectionReason));
-  const retailBudget = retailSerperBudgetAllocation;
-  const providerCallBudget = isCurrentRetailOnlyMode(context.retailEvidenceMode)
-    ? retailBudget.maxProviderCalls
-    : 12;
   const providerCallBudgetRemaining = Math.max(0, providerCallBudget - providerCallsAttempted);
   return {
     queriesGenerated: searchQueries,
     queriesPrioritized,
-    queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    queriesActuallySent,
     queryTransmissionMode: "query_bound_serper_requests",
     executionLimitation: "Each prioritized query was sent server-side to Serper Google Search. Provider results are source-backed Google result records; only retained exact, strong, partial, or reference records are shown as visible evidence.",
     sourceCategoryExecutionMode: "source_categories_are_query_strategies_not_separate_search_engines",
@@ -6106,7 +6414,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
       domains: normalizeStringArray(record.marketplaceDomains, 4)
     })).slice(0, 8),
     collectibleExactRecoveryPassesAttempted: [...new Set(providerRequestRecords
-      .filter((record) => record.attempted && /collectible_exact_source_recovery/i.test(record.searchPass || ""))
+      .filter((record) => Number(record.physicalAttemptCount ?? (record.attempted ? 1 : 0)) > 0 && /collectible_exact_source_recovery/i.test(record.searchPass || ""))
       .map((record) => record.searchPass))],
     collectibleExactRecoveryStillNeeded: shouldRunCollectibleExactRecovery(context, records),
     exactSecondaryMarketCandidateCount: records.filter((record) => isExactSecondaryMarketEvidenceRecord(record)).length,
@@ -6120,6 +6428,12 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     sourceRoute,
     providerCallsAttempted,
     providerCallsSucceeded,
+    logicalProviderQueryCount: providerAccounting.logicalProviderQueryCount,
+    physicalProviderAttemptCount: providerAccounting.physicalProviderAttemptCount,
+    physicalProviderRetryAttemptCount: providerAccounting.physicalProviderRetryAttemptCount,
+    logicalDirectPageEnrichmentCount: providerAccounting.logicalDirectPageEnrichmentCount,
+    physicalDirectPageAttemptCount: providerAccounting.physicalDirectPageAttemptCount,
+    directPageAttemptBudget: providerAccounting.maximumPhysicalDirectPageAttempts,
     providerCallBudget,
     providerCallBudgetRemaining,
     providerCallBudgetStatus: `${providerCallsAttempted}/${providerCallBudget} provider calls used; ${providerCallBudgetRemaining} remaining.`,
@@ -6155,7 +6469,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
     droppedResultReasons,
     queryResultsSummary: buildQueryResultsSummary({
       searchQueries,
-      queriesActuallySent: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+      queriesActuallySent,
       queryTransmissionMode: "query_bound_serper_requests",
       retainedVisibleResultCount,
       providerErrors,
@@ -6197,10 +6511,17 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     : normalizeStringArray(searchQueries, 24).map((query) => ({ query, validationPassed: true }));
   const suppressedQueryRecords = allQueryRecords.filter((record) => /retail_forbidden_secondary_market_terms/i.test(record.validationFailureReason || "") || isRetailForbiddenSecondaryEvidenceText(record.rawCandidate || record.query));
   const retailEvidenceAssessments = buildRetailEvidenceAssessments(records, context);
-  const recoveryAssessment = createRecoveryAssessment({
-    assessments: retailEvidenceAssessments,
-    providerRequestRecords,
-    maxProviderCalls: retailSerperBudgetAllocation.maxProviderCalls
+  const canonicalRecoveryDecisionView = providerRequestRecords.canonicalRecoveryDecisionView
+    || buildCanonicalRecoveryViewForRecords(records, {
+      identity: context,
+      context,
+      providerRequestRecords
+    });
+  const canonicalRecoveryStoppingView = providerRequestRecords.canonicalRecoveryStoppingView
+    || buildCanonicalRecoveryViewForRecords(records, {
+      identity: context,
+      context,
+      providerRequestRecords
   });
   const currentRetailAcceptedAssessments = retailEvidenceAssessments.filter((assessment) => assessment.sourceScreeningPassed);
   const currentRetailAccepted = currentRetailAcceptedAssessments.map((assessment) => assessment.record);
@@ -6265,10 +6586,14 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
       ? `Online retail coverage executed; ${onlineRetailReturnedCount} provider source${onlineRetailReturnedCount === 1 ? "" : "s"} returned and ${onlineRetailCustomerEligibleAssessments.length} online retail candidate${onlineRetailCustomerEligibleAssessments.length === 1 ? "" : "s"} reached customer price eligibility.`
       : "Online retail coverage was attempted, but no online retail request succeeded."
     : "Online retail coverage was planned only if registry queries survived preflight; no online retail provider request was attempted.";
-  const limitedResultRecoveryRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_7_limited_result_recovery");
+  const limitedResultRecoveryRequests = providerRequestRecords.filter((record) => (
+    record.retailStage === "stage_7_limited_result_recovery"
+    && !/direct_product_page_fetch/i.test(record.providerEndpoint || "")
+  ));
+  const directPageEnrichmentRequests = providerRequestRecords.filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || ""));
   const limitedResultRecoveryAttempted = limitedResultRecoveryRequests.some((record) => record.attempted);
   const limitedResultRecoveryReturnedCount = limitedResultRecoveryRequests.reduce((sum, record) => sum + Number(record.returnedResultCount || record.providerSourceCount || 0), 0);
-  const visibleRetailerCount = Object.keys(preliminarySourceScreenedCountByRetailer).filter((key) => !/retailer not identified/i.test(key)).length;
+  const visibleRetailerCount = canonicalRecoveryDecisionView.distinctQualifyingRetailerCount;
   const localRetailRequests = providerRequestRecords.filter((record) => record.retailStage === "stage_6_local_retail");
   const localRetailAttempted = localRetailRequests.some((record) => record.attempted);
   const localRetailSucceeded = localRetailRequests.some((record) => record.succeeded);
@@ -6295,6 +6620,11 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
         ? `Shopping endpoint attempted; ${shoppingReturnedCount} shopping result${shoppingReturnedCount === 1 ? "" : "s"} returned.`
         : "Shopping endpoint attempted, but no Shopping request succeeded."
     : "Shopping execution unavailable - no dedicated Shopping request was attempted.";
+  const retailProviderAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
+    maximumPhysicalProviderAttempts: retailSerperBudgetAllocation.maxProviderCalls,
+    maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
+    rawProviderObservationCount: records.length
+  });
 
   return {
     retailEvidenceMode,
@@ -6325,25 +6655,52 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     returnedRetailerDomains,
     preliminarySourceScreenedCountByRetailer,
     recoveryAssessment: {
-      recoveryNeeded: recoveryAssessment.preliminaryEvidenceInsufficient,
-      recoveryReason: recoveryAssessment.preliminaryEvidenceInsufficient
-        ? "Preliminary acquisition evidence was limited or lacked an exact record."
-        : "Preliminary acquisition evidence was sufficient for bounded recovery purposes.",
-      preliminaryUsableRecordCount: recoveryAssessment.preliminaryUsableRecordCount,
-      preliminaryExactRecordCount: recoveryAssessment.preliminaryExactRecordCount,
-      preliminaryCompatibleRecordCount: recoveryAssessment.preliminaryCompatibleRecordCount,
-      preliminaryRetailerCount: recoveryAssessment.preliminaryRetailerCount,
-      remainingSearchBudget: recoveryAssessment.remainingSearchBudget
+      recoveryNeeded: canonicalRecoveryDecisionView.additionalPriceRecoveryNeeded,
+      recoveryReason: canonicalRecoveryDecisionView.additionalPriceRecoveryNeeded
+        ? "Canonical-compatible price evidence was limited or lacked an exact price-bearing record."
+        : "Canonical-compatible price evidence was sufficient for bounded recovery purposes.",
+      preliminaryUsableRecordCount: canonicalRecoveryDecisionView.priceBearingAcceptedCount,
+      preliminaryExactRecordCount: canonicalRecoveryDecisionView.exactPriceBearingAcceptedCount,
+      preliminaryCompatibleRecordCount: Math.max(
+        0,
+        canonicalRecoveryDecisionView.priceBearingAcceptedCount - canonicalRecoveryDecisionView.exactPriceBearingAcceptedCount
+      ),
+      preliminaryRetailerCount: canonicalRecoveryDecisionView.distinctQualifyingRetailerCount,
+      remainingSearchBudget: canonicalRecoveryDecisionView.providerAccounting.remainingPhysicalProviderAttempts,
+      acceptedEvidenceIds: canonicalRecoveryDecisionView.acceptedEvidenceIds,
+      rejectedEvidenceIds: canonicalRecoveryDecisionView.rejectedEvidenceIds,
+      rejectedEvidenceReasons: canonicalRecoveryDecisionView.rejectedEvidenceReasons,
+      underlyingOfferIds: canonicalRecoveryDecisionView.underlyingOfferIds,
+      deduplicatedAcceptedCount: canonicalRecoveryDecisionView.deduplicatedAcceptedCount,
+      exactAcceptedCount: canonicalRecoveryDecisionView.exactAcceptedCount,
+      strongAcceptedCount: canonicalRecoveryDecisionView.strongAcceptedCount,
+      priceBearingAcceptedCount: canonicalRecoveryDecisionView.priceBearingAcceptedCount,
+      exactNoPriceEvidenceCount: canonicalRecoveryDecisionView.exactNoPriceEvidenceCount,
+      distinctQualifyingRetailerDomains: canonicalRecoveryDecisionView.distinctQualifyingRetailerDomains,
+      equivalentOfferCount: canonicalRecoveryDecisionView.equivalentOfferCount,
+      recoveryTriggeringSupportIds: canonicalRecoveryDecisionView.recoveryTriggeringSupportIds,
+      recoveryStoppingSupportIds: canonicalRecoveryStoppingView.recoveryStoppingSupportIds,
+      decisionSupportIds: canonicalRecoveryDecisionView.decisionSupportIds,
+      providerAccounting: canonicalRecoveryDecisionView.providerAccounting,
+      stoppingAcceptedEvidenceIds: canonicalRecoveryStoppingView.acceptedEvidenceIds,
+      stoppingRejectedEvidenceIds: canonicalRecoveryStoppingView.rejectedEvidenceIds,
+      stoppingUnderlyingOfferIds: canonicalRecoveryStoppingView.underlyingOfferIds,
+      stoppingDeduplicatedAcceptedCount: canonicalRecoveryStoppingView.deduplicatedAcceptedCount,
+      stoppingPriceBearingAcceptedCount: canonicalRecoveryStoppingView.priceBearingAcceptedCount,
+      stoppingExactNoPriceEvidenceCount: canonicalRecoveryStoppingView.exactNoPriceEvidenceCount
     },
     limitedResultRecoveryPassRan: limitedResultRecoveryAttempted ? "Yes" : "No",
     limitedResultRecoveryQueriesAttempted: limitedResultRecoveryRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
-    limitedResultRecoveryProviderCallsUsed: limitedResultRecoveryRequests.filter((record) => record.attempted).length,
+    limitedResultRecoveryProviderCallsUsed: limitedResultRecoveryRequests.reduce((sum, record) => sum + Number(record.physicalAttemptCount || 0), 0),
     limitedResultRecoverySourcesReturned: limitedResultRecoveryReturnedCount,
     limitedResultRecoveryReason: isCurrentRetailOnlyMode(retailEvidenceMode)
       ? limitedResultRecoveryAttempted
-        ? `Limited-result recovery ran because preliminary acquisition had ${recoveryAssessment.preliminaryUsableRecordCount} usable record${recoveryAssessment.preliminaryUsableRecordCount === 1 ? "" : "s"} across ${visibleRetailerCount} retailer${visibleRetailerCount === 1 ? "" : "s"} and data-driven retailer targets remained.`
+        ? `Limited-result recovery ran because canonical recovery had ${canonicalRecoveryDecisionView.priceBearingAcceptedCount} price-bearing record${canonicalRecoveryDecisionView.priceBearingAcceptedCount === 1 ? "" : "s"} across ${visibleRetailerCount} retailer${visibleRetailerCount === 1 ? "" : "s"} and data-driven retailer targets remained.`
         : "Limited-result recovery did not run because multiple customer-visible retailers were already present, no remaining data-driven retailer target was available, or current-retail mode was not active."
       : "",
+    directPageLogicalEnrichmentCount: directPageEnrichmentRequests.filter((record) => record.logicalQueryAttempted).length,
+    directPagePhysicalFetchAttemptCount: directPageEnrichmentRequests.reduce((sum, record) => sum + Number(record.physicalAttemptCount || 0), 0),
+    directPagePhysicalFetchAttemptBudget: directPageEnrichmentMaxAttempts,
     onlineRetailQueriesAttempted: onlineRetailRequests.filter((record) => record.attempted).map((record) => cleanText(record.query)),
     onlineRetailSearchStatus,
     onlineRetailProviderCallsUsed: onlineRetailRequests.filter((record) => record.attempted).length,
@@ -6352,10 +6709,13 @@ function buildRetailSearchDiagnostics({ context = {}, providerRequestRecords = [
     shoppingExecutionStatus,
     shoppingEndpointAttempted: shoppingAttempted ? "Yes" : "No",
     shoppingEndpointUnavailable: shoppingUnavailable ? "Yes" : "No",
-    retailProviderCallsUsed: retailQueriesExecuted.length,
-    retailSearchBudgetRemaining: Math.max(0, retailSerperBudgetAllocation.maxProviderCalls - retailQueriesExecuted.length),
+    retailLogicalProviderQueryCount: retailProviderAccounting.logicalProviderQueryCount,
+    retailPhysicalProviderAttemptCount: retailProviderAccounting.physicalProviderAttemptCount,
+    retailPhysicalProviderRetryAttemptCount: retailProviderAccounting.physicalProviderRetryAttemptCount,
+    retailProviderCallsUsed: retailProviderAccounting.physicalProviderAttemptCount,
+    retailSearchBudgetRemaining: retailProviderAccounting.remainingPhysicalProviderAttempts,
     retailRecoveryStoppedReason: isCurrentRetailOnlyMode(retailEvidenceMode)
-      ? retailQueriesExecuted.length >= retailSerperBudgetAllocation.maxProviderCalls
+      ? retailProviderAccounting.physicalProviderAttemptCount >= retailSerperBudgetAllocation.maxProviderCalls
         ? "Bounded retail provider-call budget reached."
         : "All planned bounded retail stages were executed or rejected by local preflight validation."
       : "",
@@ -10253,7 +10613,15 @@ function sanitizeProviderRequestRecord(record = {}) {
     validationFailureReason: cleanText(record.validationFailureReason),
     provider: cleanText(record.provider || "OpenAI web_search"),
     providerKey: cleanText(record.providerKey || ""),
+    logicalQueryAttempted: Boolean(record.logicalQueryAttempted),
     attempted: Boolean(record.attempted),
+    physicalAttemptCount: Number(record.physicalAttemptCount || 0),
+    physicalRetryAttemptCount: Number(record.physicalRetryAttemptCount || 0),
+    physicalAttempts: normalizeArray(record.physicalAttempts).map((attempt) => ({
+      attempt: Number(attempt.attempt || 0),
+      retry: Boolean(attempt.retry),
+      budgetCategory: cleanText(attempt.budgetCategory)
+    })),
     succeeded: Boolean(record.succeeded),
     providerSourceCount: Number(record.providerSourceCount || 0),
     returnedResultCount: Number(record.returnedResultCount || record.providerSourceCount || record.rawResultCount || 0),
@@ -11542,7 +11910,210 @@ function buildRetailAssessmentPriceLimitation(assessment = {}) {
     : "Current retail evidence passed shared source screening; confirm price, taxes, availability, and package details at the source.";
 }
 
+function buildCanonicalSubjectIdentity(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
+  return {
+    upc: firstKnown(identity.upcBarcode, identity.upc, identity.barcode, buyerIntake.known_upc),
+    sku: firstKnown(identity.sku, identity.SKU, identity.itemNumber, buyerIntake.known_sku),
+    model: firstKnown(identity.model, identity.modelNumber, buyerIntake.known_model),
+    brand: firstKnown(identity.brand, identity.manufacturer, buyerIntake.known_brand, buyerIntake.known_manufacturer),
+    productName: firstKnown(identity.exactProductIdentity, identity.productNameOrBoxTitle, buyerIntake.item_name),
+    quantity: extractPackQuantityNumber([
+      identity.packageQuantity,
+      identity.unitCount,
+      identity.pieceCount,
+      buyerIntake.package_quantity,
+      buyerIntake.item_name,
+      buyerIntake.buyer_notes
+    ].join(" ")),
+    dimensions: firstKnown(identity.dimensions, identity.sizeDimensions, identity.packageSize, buyerIntake.size_dimensions),
+    packageType: firstKnown(identity.packageType, identity.productForm),
+    designAttributes: normalizeStringArray(identity.designAttributes, 16),
+    identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 16)
+  };
+}
+
+function extractCanonicalObservationDimensions(record = {}) {
+  const explicit = cleanText(record.dimensions || record.sizeDimensions || record.packageSize);
+  if (explicit) return explicit;
+  const sourceText = [record.title, record.snippet, record.rawText].map(cleanText).join(" ");
+  const match = sourceText.match(/\b\d+(?:\.\d+)?\s*(?:x|Ã—|by)\s*\d+(?:\.\d+)?(?:\s*(?:inches?|in\.?|cm|mm))?/i);
+  return cleanText(match?.[0]);
+}
+
+function buildCanonicalEvidenceObservations(records = [], {
+  identity = {},
+  buyerIntake = normalizeBuyerIntake({}),
+  context = null,
+  searchProvider = ""
+} = {}) {
+  const searchContext = context || buildSearchQueryContext(identity, [], "", buyerIntake);
+  const currentRetail = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode || getRetailEvidenceMode({ buyerIntake, identity }));
+  return normalizeArray(records)
+    .filter((record) => record && typeof record === "object")
+    .map((record, index) => {
+      const assessment = currentRetail ? buildRetailEvidenceAssessment(record, searchContext, index) : null;
+      const sourceRecordId = cleanText(
+        record.sourceRecordId
+        || record.providerRecordId
+        || record.resultId
+        || record.originalSourceUrl
+        || record.originalUrl
+        || record.url
+        || record.destinationUrl
+      );
+      const destinationUrl = cleanText(
+        assessment?.destinationUrl
+        || record.destinationUrl
+        || record.url
+        || record.canonicalUrl
+      );
+      const originalUrl = cleanText(
+        record.originalUrl
+        || record.originalSourceUrl
+        || record.url
+        || destinationUrl
+      );
+      const parsedPrice = getVisibleItemPriceAmount(record);
+      const quantity = Number.isFinite(Number(record.quantity || record.packageQuantity))
+        ? Number(record.quantity || record.packageQuantity)
+        : assessment?.packageQuantity || extractPackQuantityNumber([
+            record.title,
+            record.snippet,
+            record.rawText,
+            record.candidatePackQuantity
+          ].join(" "));
+      const exactIdentity = Boolean(
+        record.exactIdentity
+        || /exact|tier_1/i.test(cleanText(
+          record.identityMatchStrength
+          || record.classification
+          || record.matchQuality
+          || record.priceContextLabel
+          || record.retailEvidenceTier
+        ))
+      );
+      const priceType = currentRetail
+        ? Number.isFinite(parsedPrice) ? "Current Retail Price" : "Price unavailable"
+        : record.priceType
+          || record.priceEvidenceType
+          || normalizePriceTypeLabel(record.priceTypeLabel, record);
+      const rawText = cleanText([
+        record.rawText,
+        record.title,
+        record.snippet,
+        assessment?.knownSpecificationDifferences,
+        assessment?.finalPromotionReason
+      ].filter(Boolean).join(" "));
+      return {
+        ...record,
+        sourceRecordId,
+        originalUrl,
+        destinationUrl,
+        retailer: assessment?.retailerDisplayName
+          || record.retailerDisplayName
+          || record.retailer
+          || record.merchantName
+          || record.source,
+        marketplace: record.marketplace || record.source,
+        acquisitionProvider: record.searchProvider || searchProvider,
+        sourceQuality: cleanText(
+          record.sourceQuality
+          || record.observationQuality
+          || record.sourceEvidenceType
+          || (/direct|page[_ -]?verified/i.test(cleanText(record.evidencePath || record.exactPageRecoveryMode))
+            ? "direct_product_page"
+            : "search_snippet")
+        ),
+        observedAt: record.observedAt || record.evidenceTimestamp || record.fetchedAt,
+        sourceDomain: assessment?.retailerDomain
+          || record.retailerDomain
+          || record.domain
+          || hostnameFromUrl(destinationUrl),
+        retailerDomain: assessment?.retailerDomain || record.retailerDomain || record.domain,
+        retailerDisplayName: assessment?.retailerDisplayName || record.retailerDisplayName || record.source,
+        price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
+        quantity: Number.isFinite(quantity) ? quantity : null,
+        dimensions: extractCanonicalObservationDimensions(record),
+        packageType: record.packageType || record.productForm,
+        designIdentity: record.designIdentity || record.designDescription,
+        exactIdentity,
+        pageType: currentRetail
+          ? record.pageType
+            || record.offerClassification
+            || (assessment?.validOfferClassification === "specific_offer" ? "product_or_listing" : "")
+            || assessment?.validOfferClassification
+            || record.candidateObjectClassification
+            || ""
+          : record.pageType || "product_or_listing",
+        priceType,
+        priceEvidenceType: priceType,
+        listingStatus: assessment?.availabilityStatus || record.listingStatus,
+        availabilityStatus: assessment?.availabilityStatus || record.availabilityStatus,
+        sourceEvidenceType: assessment?.sourceEvidenceType || record.sourceEvidenceType,
+        exactPageRecoveryStatus: assessment?.exactPageRecoveryStatus || record.exactPageRecoveryStatus,
+        exactPageRecoveryMode: assessment?.exactPageRecoveryMode || record.exactPageRecoveryMode,
+        exactPageMatchedBarcodeIdentities: assessment?.exactPageMatchedBarcodeIdentities || record.exactPageMatchedBarcodeIdentities,
+        retailOfferPlatform: assessment?.retailOfferPlatform || record.retailOfferPlatform,
+        retailOfferSeller: assessment?.retailOfferSeller || record.retailOfferSeller,
+        retailOfferSellerType: assessment?.retailOfferSellerType || record.retailOfferSellerType,
+        retailOfferConditionDisclosure: assessment?.retailOfferConditionDisclosure || record.retailOfferConditionDisclosure,
+        retailEvidenceTier: assessment?.customerEvidenceTier || record.retailEvidenceTier,
+        retailEvidenceTierLabel: assessment?.customerEvidenceTierLabel || record.retailEvidenceTierLabel,
+        targetProductFamily: assessment?.targetProductFamily || record.targetProductFamily,
+        candidateProductFamily: assessment?.candidateProductFamily || record.candidateProductFamily,
+        positiveCompatibilityEvidence: assessment?.positiveCompatibilityEvidence || record.positiveCompatibilityEvidence,
+        contradictoryEvidence: assessment?.contradictoryEvidence || record.contradictoryEvidence,
+        conciseLimitation: assessment ? buildRetailAssessmentPriceLimitation(assessment) : record.conciseLimitation,
+        knownDifferences: assessment?.knownSpecificationDifferences || record.knownDifferences,
+        retailerConfidenceLevel: assessment?.retailerConfidenceLevel || record.retailerConfidenceLevel,
+        confidenceDowngradeReasons: assessment?.confidenceDowngradeReasons || record.confidenceDowngradeReasons,
+        retailerAttributionEvidence: assessment?.retailerAttributionEvidence || record.retailerAttributionEvidence,
+        namedStoreMatchStatus: assessment?.namedStoreMatchStatus || record.namedStoreMatchStatus,
+        purchaseChannel: assessment?.purchaseChannel || record.purchaseChannel,
+        onlineLocalStatus: assessment?.onlineLocalStatus || record.onlineLocalStatus,
+        shipping: assessment?.shippingLabel || record.shipping,
+        shippingAmount: Number.isFinite(assessment?.shippingAmount) ? assessment.shippingAmount : record.shippingAmount,
+        shippingStatus: assessment?.shippingStatus || record.shippingStatus,
+        shippingDisclosure: assessment?.shippingDisclosure || record.shippingDisclosure,
+        deliveredCostAmount: assessment?.deliveredCostSupported
+          && Number.isFinite(parsedPrice)
+          && Number.isFinite(assessment.shippingAmount)
+          ? Math.round((parsedPrice + assessment.shippingAmount) * 100) / 100
+          : record.deliveredCostAmount,
+        rawText
+      };
+    });
+}
+
+function buildCanonicalRecoveryViewForRecords(records = [], {
+  identity = {},
+  buyerIntake = normalizeBuyerIntake({}),
+  context = null,
+  providerRequestRecords = []
+} = {}) {
+  const searchContext = context || buildSearchQueryContext(identity, [], "", buyerIntake);
+  return createCanonicalRecoveryView({
+    observations: buildCanonicalEvidenceObservations(records, {
+      identity,
+      buyerIntake,
+      context: searchContext,
+      searchProvider: "Serper Google Search"
+    }),
+    targetIdentity: buildCanonicalSubjectIdentity(identity, buyerIntake),
+    providerAccounting: buildProviderAttemptAccounting(providerRequestRecords, {
+      maximumPhysicalProviderAttempts: isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
+        ? retailSerperBudgetAllocation.maxProviderCalls
+        : 12,
+      maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
+      rawProviderObservationCount: records.length
+    })
+  });
+}
+
 function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
+  const searchContext = buildSearchQueryContext(identity, [], "", buyerIntake);
+  const currentRetail = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode);
+  const providerObservations = normalizeArray(liveSearch.providerSourceRecords);
   const candidateRecords = [
     ...buildRetailAssessmentPriceFoundRecords(liveSearch, askingPriceNumber, { identity, buyerIntake }),
     ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
@@ -11562,67 +12133,16 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
       : buildPriceFoundRecord(record, askingPriceNumber);
     legacyCandidates.push(enriched);
   }
-  const legacyEligibleRecords = legacyCandidates
-    .map((enriched) => {
-      const sourceRecordId = cleanText(
-        enriched.sourceRecordId
-        || enriched.providerRecordId
-        || enriched.originalSourceUrl
-        || enriched.originalUrl
-        || enriched.url
-        || enriched.destinationUrl
-      );
-      const parsedPrice = getVisibleItemPriceAmount(enriched);
-      return {
-        ...enriched,
-        prequalified: true,
-        sourceRecordId,
-        originalUrl: enriched.originalUrl || enriched.originalSourceUrl || enriched.url,
-        destinationUrl: enriched.destinationUrl || enriched.url,
-        retailer: enriched.retailerDisplayName || enriched.source,
-        marketplace: enriched.marketplace || enriched.source,
-        acquisitionProvider: enriched.searchProvider || liveSearch.searchProviderUsed,
-        sourceQuality: cleanText(
-          enriched.sourceQuality
-          || enriched.observationQuality
-          || enriched.sourceEvidenceType
-          || (/direct|page[_ -]?verified/i.test(cleanText(enriched.evidencePath || enriched.exactPageRecoveryMode))
-            ? "direct_product_page"
-            : "search_snippet")
-        ),
-        observedAt: enriched.observedAt || enriched.evidenceTimestamp || enriched.fetchedAt,
-        sourceDomain: enriched.retailerDomain || hostnameFromUrl(enriched.destinationUrl || enriched.url),
-        price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
-        quantity: enriched.packageQuantity,
-        exactIdentity: /exact|tier_1/i.test(cleanText(
-          enriched.identityMatchStrength
-          || enriched.classification
-          || enriched.matchQuality
-          || enriched.priceContextLabel
-          || enriched.retailEvidenceTier
-        )),
-        pageType: "product_or_listing"
-      };
-    });
-  const target = {
-    upc: firstKnown(identity.upcBarcode, identity.upc, identity.barcode, buyerIntake.known_upc),
-    sku: firstKnown(identity.sku, identity.SKU, identity.itemNumber, buyerIntake.known_sku),
-    model: firstKnown(identity.model, identity.modelNumber, buyerIntake.known_model),
-    brand: firstKnown(identity.brand, identity.manufacturer, buyerIntake.known_brand, buyerIntake.known_manufacturer),
-    productName: firstKnown(identity.exactProductIdentity, identity.productNameOrBoxTitle, buyerIntake.item_name),
-    quantity: extractPackQuantityNumber([
-      identity.packageQuantity,
-      identity.unitCount,
-      identity.pieceCount,
-      buyerIntake.package_quantity,
-      buyerIntake.item_name,
-      buyerIntake.buyer_notes
-    ].join(" ")),
-    dimensions: firstKnown(identity.dimensions, identity.sizeDimensions, buyerIntake.size_dimensions),
-    packageType: firstKnown(identity.packageType, identity.productForm),
-    designAttributes: normalizeStringArray(identity.designAttributes, 16),
-    identityConflictNotes: normalizeStringArray(identity.identityConflictNotes, 16)
-  };
+  const canonicalObservations = buildCanonicalEvidenceObservations(
+    currentRetail && providerObservations.length ? providerObservations : legacyCandidates,
+    {
+      identity,
+      buyerIntake,
+      context: searchContext,
+      searchProvider: liveSearch.searchProviderUsed
+    }
+  );
+  const target = buildCanonicalSubjectIdentity(identity, buyerIntake);
   const purchaseIntent = cleanText(buyerIntake.purchase_intent);
   const purpose = isOwnerValueIntent(purchaseIntent)
     ? "owner_value"
@@ -11636,7 +12156,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     analysisId: cleanText(liveSearch.analysisId),
     analysisMode: isCurrentRetailOnlyMode(getRetailEvidenceMode({ buyerIntake, identity })) ? "retail" : "collectible",
     targetIdentity: target,
-    observations: legacyEligibleRecords,
+    observations: canonicalObservations,
     providerRequests: liveSearch.providerRequestRecords || [],
     displayLimit: 8,
     askingPrice: askingPriceNumber,
@@ -17338,7 +17858,11 @@ export const __queryIntegrityTestHooks = {
   isExactSecondaryMarketEvidenceRecord,
   isRelatedDesignOnlyRecord,
   buildOnlineRetailSearchTargets,
+  createCanonicalRecoveryView,
   createRecoveryAssessment,
+  buildCanonicalSubjectIdentity,
+  buildCanonicalEvidenceObservations,
+  buildCanonicalRecoveryViewForRecords,
   buildLimitedResultRetailRecoveryQueries,
   shouldRunLimitedResultRetailRecovery,
   isLikelyExactRetailProductPage,
@@ -17352,6 +17876,8 @@ export const __queryIntegrityTestHooks = {
   buildSerperSingleMarketplaceQuery,
   bucketSerperRecords,
   dedupeSerperCandidateRecords,
+  coalesceIdenticalSerperTransportRecords,
+  buildSerperTransportIdentity,
   parseSerperResponse,
   isStrongComparableEvidenceRecord,
   isNoPriceIdentityReference,
@@ -17362,6 +17888,11 @@ export const __queryIntegrityTestHooks = {
   splitQueryTermsPreservingQuotes,
   shortenSerperQueryWithoutFragments,
   createSerperRequestRecord,
+  createPhysicalAttemptBudget,
+  consumePhysicalAttempt,
+  buildProviderAttemptAccounting,
+  requestSerperSearchWithBudget,
+  directPageEnrichmentMaxAttempts,
   evaluateComparableItemTypeCompatibility,
   classifySerperIdentityMatch,
   classifySerperPriceEvidence,

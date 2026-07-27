@@ -169,9 +169,13 @@ function testRetailObjectFirewallAndExactPageTruth() {
   });
 
   assert(hooks.isLikelyExactRetailProductPage(exactNoPrice, context), "Exact retailer product page with matching UPC should be recognized as exact identity evidence.");
-  assertEqual(prices.length, 1, "Only the same-object compatible envelope offer should enter Where to Buy.");
-  assert(/mailpro/i.test(prices[0].source || prices[0].retailerDisplayName || ""), "Compatible envelope offer should survive.");
-  assertNotMatches(JSON.stringify(prices), /moistener|postage|category|0\.50|10\.99|8\.98/i, "Accessories, consumables, and category/search pages must not be customer-visible price rows.");
+  assertEqual(prices.length, 2, "Canonical customer evidence should retain the exact no-price page and the compatible priced envelope offer.");
+  assert(prices.some((record) => /mailpro/i.test(record.source || record.retailerDisplayName || "") && record.canonicalPrice === 6.25), "Compatible envelope offer should survive.");
+  assert(prices.some((record) => /cornermart/i.test(record.source || record.retailerDisplayName || "") && record.customerPriceLabel === "Price unavailable"), "Exact no-price identity evidence should remain visible without inventing a price.");
+  assert(!prices.some((record) => (
+    /moistener|postage|security envelopes category/i.test(record.title || "")
+    || [0.5, 10.99, 8.98].includes(record.canonicalPrice)
+  )), "Accessories, consumables, and category/search pages must not be customer-visible price rows.");
   assert(assessments.some((assessment) => /moistener|postage|category|search/i.test(assessment.hardRejectionReason)), "Rejected rows should carry object/offer firewall reasons.");
   assertNotMatches(profile.namedStoreResult, /exact product not found/i, "Named-store summary must not say exact product was not found when an exact no-price page was recovered.");
   assertEqual(hooks.extractPackQuantityNumber("Office product id 639 count placeholder; Harbor Office security envelopes"), null, "Identifier-like 639 count wording must not become a supported package quantity.");
