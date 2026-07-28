@@ -8,6 +8,11 @@ import {
   dedupeUnderlyingOffers,
   underlyingOfferKey
 } from "../lib/evidence/index.js";
+import {
+  CANONICAL_OFFER_FACT_REGISTRY,
+  canonicalOfferFactSets,
+  normalizeCanonicalOfferUrl
+} from "../lib/evidence/dedupe.js";
 import { __queryIntegrityTestHooks as hooks } from "../api/generate-listing.js";
 
 for (const key of Object.keys(process.env)) {
@@ -195,6 +200,7 @@ const transportDuplicate = hooks.coalesceIdenticalSerperTransportRecords([
 ]);
 assert.equal(transportDuplicate.length, 1, "Transport-identical observations may be coalesced while query provenance is retained.");
 assert.deepEqual(transportDuplicate[0].queriesFound.sort(), ["query one", "query two"]);
+assert.deepEqual(transportDuplicate[0].searchPassesFound.sort(), ["exact", "retailer"]);
 const transportDifferentPrice = hooks.coalesceIdenticalSerperTransportRecords([
   observation({ price: 5.5 }),
   observation({ price: 6.5 })
@@ -212,15 +218,24 @@ const transportDifferentRetailer = hooks.coalesceIdenticalSerperTransportRecords
 assert.equal(transportDifferentRetailer.length, 2);
 
 for (const [field, changedValue] of [
+  ["upc", "012345678912"],
+  ["sku", "SKU-CHANGED"],
+  ["model", "MODEL-CHANGED"],
   ["dimensions", "6 x 9 inches"],
   ["designIdentity", "different closure design"],
+  ["color", "Blue"],
+  ["finish", "Gloss"],
   ["shipping", 4.99],
   ["deliveredCost", 10.49],
+  ["currency", "CAD"],
   ["sourceQuality", "direct_product_page"],
   ["directPageProvenance", "redirected_final_page"],
+  ["directProductPage", true],
+  ["imageUrl", "https://images.example/changed.jpg"],
   ["condition", "Used"],
   ["quantity", 50],
   ["listingStatus", "sold"],
+  ["availability", "out of stock"],
   ["seller", "Different Seller"],
   ["price", 6.5]
 ]) {
@@ -230,6 +245,119 @@ for (const [field, changedValue] of [
   ]);
   assert.equal(records.length, 2, `Transport observations differing only in ${field} must remain separate.`);
 }
+const runtimeOnlyTransportA = observation({
+  query: "query one",
+  searchPass: "pass one",
+  observedAt: "2026-01-01T00:00:00.000Z",
+  fetchedAt: "2026-01-01T00:00:01.000Z",
+  duration: 10,
+  elapsedMs: 10,
+  attemptStartedAt: "2026-01-01T00:00:00.000Z",
+  attemptCompletedAt: "2026-01-01T00:00:01.000Z",
+  attemptId: "attempt-one",
+  requestId: "request-one",
+  processId: 101,
+  testOnlyMetadata: "fixture-one",
+  positiveCompatibilityEvidence: ["barcode", "quantity"]
+});
+const runtimeOnlyTransportB = observation({
+  query: "query two",
+  searchPass: "pass two",
+  observedAt: "2026-02-01T00:00:00.000Z",
+  fetchedAt: "2026-02-01T00:00:01.000Z",
+  duration: 20,
+  elapsedMs: 20,
+  attemptStartedAt: "2026-02-01T00:00:00.000Z",
+  attemptCompletedAt: "2026-02-01T00:00:01.000Z",
+  attemptId: "attempt-two",
+  requestId: "request-two",
+  processId: 202,
+  testOnlyMetadata: "fixture-two",
+  positiveCompatibilityEvidence: ["quantity", "barcode"]
+});
+assert.equal(
+  hooks.buildSerperTransportIdentity(runtimeOnlyTransportA),
+  hooks.buildSerperTransportIdentity(runtimeOnlyTransportB),
+  "Volatile provenance, runtime attempt IDs, arbitrary metadata, and set order cannot affect transport identity."
+);
+assert.equal(
+  hooks.coalesceIdenticalSerperTransportRecords([runtimeOnlyTransportA, runtimeOnlyTransportB]).length,
+  1
+);
+const transportPropertyOrderA = {
+  title: "Transport property order",
+  seller: "Seller One",
+  price: 5.5,
+  dimensions: [4.125, 9.5]
+};
+const transportPropertyOrderB = {
+  dimensions: [4.125, 9.5],
+  price: 5.5,
+  seller: "Seller One",
+  title: "Transport property order"
+};
+assert.equal(
+  hooks.buildSerperTransportIdentity(transportPropertyOrderA),
+  hooks.buildSerperTransportIdentity(transportPropertyOrderB),
+  "Object property insertion order cannot affect transport identity."
+);
+assert.equal(
+  hooks.buildSerperTransportIdentity({
+    canonicalProductIdentity: { brand: "Cedarline", attributes: { count: 48, closure: "strip and seal" } }
+  }),
+  hooks.buildSerperTransportIdentity({
+    canonicalProductIdentity: { attributes: { closure: "strip and seal", count: 48 }, brand: "Cedarline" }
+  }),
+  "Nested object property insertion order cannot affect transport identity."
+);
+for (const setField of hooks.serperTransportSetFields) {
+  assert.equal(
+    hooks.buildSerperTransportIdentity({ title: "Set normalization", [setField]: ["Beta", "Alpha"] }),
+    hooks.buildSerperTransportIdentity({ title: "Set normalization", [setField]: ["Alpha", "Beta", "Alpha"] }),
+    `Set-like ${setField} order and duplicate values cannot affect transport identity.`
+  );
+}
+for (const materialField of hooks.serperTransportIdentityFields) {
+  const isSetField = hooks.serperTransportSetFields.includes(materialField);
+  const isUrlField = /(?:url|image)/i.test(materialField);
+  const leftValue = isSetField
+    ? ["Material A"]
+    : isUrlField
+      ? "https://transport.example/Material/A"
+      : "Material A";
+  const rightValue = isSetField
+    ? ["Material B"]
+    : isUrlField
+      ? "https://transport.example/Material/B"
+      : "Material B";
+  assert.notEqual(
+    hooks.buildSerperTransportIdentity({ [materialField]: leftValue }),
+    hooks.buildSerperTransportIdentity({ [materialField]: rightValue }),
+    `Explicit transport material field ${materialField} must affect identity.`
+  );
+}
+const repeatedTransportIdentity = hooks.buildSerperTransportIdentity(runtimeOnlyTransportA);
+for (let repetition = 0; repetition < 5; repetition += 1) {
+  assert.equal(
+    hooks.buildSerperTransportIdentity(runtimeOnlyTransportA),
+    repeatedTransportIdentity,
+    "Repeated transport identity runs must remain byte-for-byte stable."
+  );
+}
+assert.notEqual(
+  hooks.buildSerperTransportIdentity(observation({
+    destinationUrl: "https://direct.example/Product/Offer?Variant=Blue"
+  })),
+  hooks.buildSerperTransportIdentity(observation({
+    destinationUrl: "https://direct.example/product/Offer?Variant=Blue"
+  })),
+  "Transport URL identity preserves path case."
+);
+assert.notEqual(
+  hooks.buildSerperTransportIdentity(observation({ dimensionValues: [4.125, 9.5] })),
+  hooks.buildSerperTransportIdentity(observation({ dimensionValues: [9.5, 4.125] })),
+  "Ordered transport arrays preserve tuple order."
+);
 const directAndSearchTransport = hooks.coalesceIdenticalSerperTransportRecords([
   observation({ sourceQuality: "search_snippet", directProductPage: false }),
   observation({ sourceQuality: "direct_product_page", directProductPage: true })
@@ -274,6 +402,64 @@ const sameBarcodeDifferentConditions = dedupeUnderlyingOffers([
 ]);
 assert.equal(sameBarcodeDifferentConditions.length, 2, "Condition differences remain separate without a shared strong listing identity.");
 assert(!underlyingOfferKey(fallbackOffer()).startsWith("retail:"), "Barcode cannot become a product-only retail offer key.");
+
+const secondaryDesignFacts = dedupeUnderlyingOffers([
+  fallbackOffer({
+    sourceRecordId: "secondary-design-blue",
+    designIdentity: "floral",
+    variant: "blue"
+  }),
+  fallbackOffer({
+    sourceRecordId: "secondary-design-red",
+    designIdentity: "floral",
+    variant: "red"
+  })
+]);
+assert.equal(secondaryDesignFacts.length, 2, "A secondary populated variant cannot be hidden by equal designIdentity.");
+const secondaryQuantityFacts = dedupeUnderlyingOffers([
+  fallbackOffer({
+    sourceRecordId: "secondary-quantity-12",
+    quantity: 12,
+    packageQuantity: 12
+  }),
+  fallbackOffer({
+    sourceRecordId: "secondary-quantity-24",
+    quantity: 12,
+    packageQuantity: 24
+  })
+]);
+assert.equal(secondaryQuantityFacts.length, 2, "A conflicting packageQuantity cannot be hidden by equal quantity.");
+const differentFallbackModels = dedupeUnderlyingOffers([
+  fallbackOffer({ sourceRecordId: "fallback-model-a", model: "MODEL-A" }),
+  fallbackOffer({ sourceRecordId: "fallback-model-b", model: "MODEL-B" })
+]);
+assert.equal(differentFallbackModels.length, 2, "Different model facts remain distinct without strong listing proof.");
+const missingVersusPopulatedFallback = dedupeUnderlyingOffers([
+  fallbackOffer({ sourceRecordId: "fallback-model-missing", model: "" }),
+  fallbackOffer({ sourceRecordId: "fallback-model-populated", model: "MODEL-A" })
+]);
+assert.equal(missingVersusPopulatedFallback.length, 2, "A missing material fact remains conservatively separate without strong listing proof.");
+for (const [field, leftValue, rightValue] of [
+  ["packageType", "box", "bag"],
+  ["dimensions", "4 x 9 in", "6 x 9 in"],
+  ["design", "Design A", "Design B"],
+  ["condition", "New", "Used"],
+  ["price", 5.5, 6.5],
+  ["shippingCost", 0, 4.99],
+  ["deliveredCost", 5.5, 10.49],
+  ["listingStatus", "active", "sold"],
+  ["availability", "in stock", "out of stock"]
+]) {
+  const fallbackDifferences = dedupeUnderlyingOffers([
+    fallbackOffer({ sourceRecordId: `${field}-fallback-a`, [field]: leftValue }),
+    fallbackOffer({ sourceRecordId: `${field}-fallback-b`, [field]: rightValue })
+  ]);
+  assert.equal(
+    fallbackDifferences.length,
+    2,
+    `Different ${field} facts remain distinct absent strong listing proof.`
+  );
+}
 
 const sameExplicitListing = dedupeUnderlyingOffers([
   observation({
@@ -327,6 +513,387 @@ const sameCanonicalListingUrl = dedupeUnderlyingOffers([
   })
 ]);
 assert.equal(sameCanonicalListingUrl.length, 1, "Search and direct-page observations of one canonical listing count once.");
+
+assert.equal(
+  normalizeCanonicalOfferUrl("HTTPS://WWW.Example.COM:443/Case/Path?b=2&utm_source=search&A=Upper&a=lower#Section"),
+  "https://www.example.com/Case/Path?A=Upper&a=lower&b=2#Section",
+  "URL identity normalizes only proven-safe components and documented tracking parameters."
+);
+assert.equal(
+  normalizeCanonicalOfferUrl("https://example.com/Case/Path?b=2&a=1&a=2"),
+  "https://example.com/Case/Path?a=1&a=2&b=2",
+  "Non-tracking duplicate query parameters remain present and deterministically ordered."
+);
+const pathCaseOffers = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "path-case-upper",
+    destinationUrl: "https://direct.example/Product/Offer",
+    seller: "Direct Retail"
+  }),
+  observation({
+    sourceRecordId: "path-case-lower",
+    destinationUrl: "https://direct.example/product/Offer",
+    seller: "Direct Retail"
+  })
+]);
+assert.equal(pathCaseOffers.length, 2, "Case-sensitive URL paths cannot be lowercased into one offer.");
+const nonTrackingQueryOffers = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "query-case-upper",
+    destinationUrl: "https://direct.example/product/offer?Variant=Blue",
+    seller: "Direct Retail"
+  }),
+  observation({
+    sourceRecordId: "query-case-lower",
+    destinationUrl: "https://direct.example/product/offer?Variant=blue",
+    seller: "Direct Retail"
+  })
+]);
+assert.equal(nonTrackingQueryOffers.length, 2, "Case-sensitive non-tracking query values remain material.");
+const trackingOnlyUrlVariants = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "tracking-url-a",
+    destinationUrl: "https://direct.example/Product/Offer?utm_source=one&b=2&a=1",
+    seller: "Direct Retail"
+  }),
+  observation({
+    sourceRecordId: "tracking-url-b",
+    destinationUrl: "https://DIRECT.EXAMPLE:443/Product/Offer?a=1&b=2&fbclid=ignored",
+    seller: "Direct Retail"
+  })
+]);
+assert.equal(trackingOnlyUrlVariants.length, 1, "Host/default-port/query-order and tracking-only URL differences normalize together.");
+
+const sellerSeparatedListing = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "seller-separated-a",
+    offerId: "shared-seller-safe-listing",
+    seller: "Seller A"
+  }),
+  observation({
+    sourceRecordId: "seller-separated-b",
+    offerId: "shared-seller-safe-listing",
+    sellerName: "Seller B"
+  })
+]);
+assert.equal(sellerSeparatedListing.length, 2, "One strong listing identity cannot bridge two populated sellers.");
+const activeSellerAliases = CANONICAL_OFFER_FACT_REGISTRY
+  .find((family) => family.name === "seller")
+  .aliases;
+for (const sellerField of activeSellerAliases) {
+  const sellerAliasSeparated = dedupeUnderlyingOffers([
+    observation({
+      sourceRecordId: `${sellerField}-seller-a`,
+      offerId: `${sellerField}-seller-safe-listing`,
+      seller: "",
+      sellerName: "",
+      [sellerField]: "Seller A"
+    }),
+    observation({
+      sourceRecordId: `${sellerField}-seller-b`,
+      offerId: `${sellerField}-seller-safe-listing`,
+      seller: "",
+      sellerName: "",
+      [sellerField]: "Seller B"
+    })
+  ]);
+  assert.equal(
+    sellerAliasSeparated.length,
+    2,
+    `Active seller alias ${sellerField} must partition conflicting sellers.`
+  );
+}
+const sellerEnrichedListing = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "seller-known",
+    offerId: "seller-enrichment-listing",
+    seller: "Seller A",
+    sourceQuality: "direct_product_page"
+  }),
+  observation({
+    sourceRecordId: "seller-missing",
+    offerId: "seller-enrichment-listing",
+    seller: ""
+  })
+]);
+assert.equal(sellerEnrichedListing.length, 1, "A seller-missing observation may join exactly one populated compatible seller group.");
+assert.equal(sellerEnrichedListing[0].seller, "Seller A");
+const urlSellerEnrichedListing = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "url-seller-known",
+    seller: "Seller A",
+    sourceQuality: "direct_product_page"
+  }),
+  observation({
+    sourceRecordId: "url-seller-missing",
+    seller: ""
+  })
+]);
+assert.equal(urlSellerEnrichedListing.length, 1, "A canonical URL with one uniquely known seller deduplicates once.");
+assert.equal(urlSellerEnrichedListing[0].seller, "Seller A");
+const sellerBridgeBlocked = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "seller-bridge-a",
+    offerId: "seller-bridge-listing",
+    seller: "Seller A"
+  }),
+  observation({
+    sourceRecordId: "seller-bridge-b",
+    offerId: "seller-bridge-listing",
+    seller: "Seller B"
+  }),
+  observation({
+    sourceRecordId: "seller-bridge-missing",
+    offerId: "seller-bridge-listing",
+    seller: ""
+  })
+]);
+assert.equal(sellerBridgeBlocked.length, 3, "Seller-missing evidence cannot bridge two distinct populated seller groups.");
+assert(
+  sellerBridgeBlocked.some((record) => /seller-unspecified/.test(record.underlyingOfferId)),
+  "The missing-seller observation remains in an unresolved seller partition."
+);
+const urlSellerBridgeBlocked = dedupeUnderlyingOffers([
+  observation({ sourceRecordId: "url-seller-a", seller: "Seller A" }),
+  observation({ sourceRecordId: "url-seller-b", seller: "Seller B" }),
+  observation({ sourceRecordId: "url-seller-missing", seller: "" })
+]);
+assert.equal(urlSellerBridgeBlocked.length, 3, "A canonical URL cannot bridge two known sellers through missing-seller evidence.");
+
+const sameListingIdDifferentSources = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "same-id-source-a",
+    offerId: "source-scoped-listing",
+    retailer: "Source A",
+    sourceDomain: "source-a.example",
+    destinationUrl: "https://source-a.example/item/source-scoped-listing",
+    seller: "Seller One"
+  }),
+  observation({
+    sourceRecordId: "same-id-source-b",
+    offerId: "source-scoped-listing",
+    retailer: "Source B",
+    sourceDomain: "source-b.example",
+    destinationUrl: "https://source-b.example/item/source-scoped-listing",
+    seller: "Seller One"
+  })
+]);
+assert.equal(sameListingIdDifferentSources.length, 2, "The same textual listing ID on different sources remains separate.");
+for (const parameter of ["seller", "offer", "listing", "condition", "variant"]) {
+  const parameterVariants = dedupeUnderlyingOffers([
+    observation({
+      sourceRecordId: `${parameter}-parameter-a`,
+      destinationUrl: `https://direct.example/product/offer?${parameter}=Alpha`,
+      seller: "Direct Retail"
+    }),
+    observation({
+      sourceRecordId: `${parameter}-parameter-b`,
+      destinationUrl: `https://direct.example/product/offer?${parameter}=Beta`,
+      seller: "Direct Retail"
+    })
+  ]);
+  assert.equal(
+    parameterVariants.length,
+    2,
+    `Offer-discriminating ${parameter} query parameters remain distinct.`
+  );
+}
+const fragmentVariants = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "fragment-a",
+    destinationUrl: "https://direct.example/product/offer#seller-a",
+    seller: "Direct Retail"
+  }),
+  observation({
+    sourceRecordId: "fragment-b",
+    destinationUrl: "https://direct.example/product/offer#seller-b",
+    seller: "Direct Retail"
+  })
+]);
+assert.equal(fragmentVariants.length, 2, "Non-tracking fragments remain offer-discriminating.");
+
+const factRegistryNames = CANONICAL_OFFER_FACT_REGISTRY.map((family) => family.name);
+for (const requiredFamily of [
+  "seller",
+  "listingIdentifier",
+  "sku",
+  "productIdentifier",
+  "barcode",
+  "model",
+  "quantity",
+  "dimensions",
+  "design",
+  "colorFinish",
+  "condition",
+  "itemPrice",
+  "currency",
+  "shipping",
+  "deliveredCost",
+  "listingState",
+  "availability",
+  "sourceQuality",
+  "directPage",
+  "image"
+]) {
+  assert(factRegistryNames.includes(requiredFamily), `Canonical offer-fact registry must include ${requiredFamily}.`);
+}
+const repeatedAliasFacts = canonicalOfferFactSets(observation({
+  seller: "Seller One",
+  sellerName: " seller one ",
+  sku: "SKU-ABC",
+  SKU: "SKU-ABC",
+  model: "Model-Z",
+  modelNumber: "Model-Z",
+  condition: "New",
+  offerCondition: " new ",
+  price: 5.5,
+  parsedPrice: "5.50"
+}));
+assert.deepEqual(repeatedAliasFacts.seller, ["seller one"]);
+assert.deepEqual(repeatedAliasFacts.sku, ["SKU-ABC"]);
+assert.deepEqual(repeatedAliasFacts.model, ["Model-Z"]);
+assert.deepEqual(repeatedAliasFacts.condition, ["new"]);
+assert.deepEqual(repeatedAliasFacts.itemPrice, ["5.5"]);
+assert.deepEqual(
+  canonicalOfferFactSets(observation({
+    offerId: "CASE-SENSITIVE-ID",
+    listingId: "CASE-SENSITIVE-ID"
+  })).listingIdentifier,
+  ["listing:CASE-SENSITIVE-ID", "offer:CASE-SENSITIVE-ID"],
+  "Explicit listing identifier type and case remain represented."
+);
+
+const enrichedMaterialFactObservations = [
+  observation({
+    sourceRecordId: "material-search",
+    offerId: "material-enrichment-listing",
+    seller: "Seller One",
+    sourceQuality: "search_snippet",
+    sku: "SKU-ENRICH",
+    model: "MODEL-ENRICH",
+    productId: "PRODUCT-ENRICH",
+    color: "White",
+    finish: "Matte",
+    imageIdentity: "IMAGE-ENRICH"
+  }),
+  observation({
+    sourceRecordId: "material-direct",
+    offerId: "material-enrichment-listing",
+    sellerName: "Seller One",
+    sourceQuality: "direct_product_page",
+    directProductPage: true,
+    sku: "",
+    model: "",
+    productId: "",
+    upc: "",
+    color: "",
+    finish: "",
+    imageIdentity: ""
+  })
+];
+const enrichedMaterialFacts = dedupeUnderlyingOffers(enrichedMaterialFactObservations);
+assert.equal(enrichedMaterialFacts.length, 1);
+assert.equal(enrichedMaterialFacts[0].sku, "SKU-ENRICH", "A missing SKU is enriched from the lower-ranked observation.");
+assert.equal(enrichedMaterialFacts[0].model, "MODEL-ENRICH", "A missing model is enriched from the lower-ranked observation.");
+assert.equal(enrichedMaterialFacts[0].productId, "PRODUCT-ENRICH", "A missing product ID is enriched.");
+assert.equal(enrichedMaterialFacts[0].upc, "012345678905", "A missing barcode is enriched.");
+assert.equal(enrichedMaterialFacts[0].color, "White");
+assert.equal(enrichedMaterialFacts[0].finish, "Matte");
+assert.equal(enrichedMaterialFacts[0].imageIdentity, "IMAGE-ENRICH", "A missing image identity is enriched.");
+const enrichedMaterialFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: enrichedMaterialFactObservations
+});
+assert.equal(enrichedMaterialFinal.acceptedRecords.length, 1);
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].model, "MODEL-ENRICH");
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].sku, "SKU-ENRICH");
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].upc, "012345678905");
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].color, "White");
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].finish, "Matte");
+assert.equal(enrichedMaterialFinal.acceptedRecords[0].imageIdentity, "IMAGE-ENRICH");
+
+for (const {
+  family,
+  field,
+  leftValue,
+  rightValue
+} of [
+  { family: "sku", field: "sku", leftValue: "SKU-A", rightValue: "SKU-B" },
+  { family: "productIdentifier", field: "productId", leftValue: "PRODUCT-A", rightValue: "PRODUCT-B" },
+  { family: "barcode", field: "upc", leftValue: "012345678905", rightValue: "012345678912" },
+  { family: "model", field: "model", leftValue: "MODEL-A", rightValue: "MODEL-B" },
+  { family: "quantity", field: "quantity", leftValue: 48, rightValue: 50 },
+  { family: "dimensions", field: "dimensions", leftValue: "4 x 9 in", rightValue: "6 x 9 in" },
+  { family: "design", field: "design", leftValue: "Design A", rightValue: "Design B" },
+  { family: "colorFinish", field: "color", leftValue: "White", rightValue: "Blue" },
+  { family: "colorFinish", field: "finish", leftValue: "Matte", rightValue: "Gloss" },
+  { family: "condition", field: "condition", leftValue: "New", rightValue: "Used" },
+  { family: "currency", field: "currency", leftValue: "USD", rightValue: "CAD" },
+  { family: "shipping", field: "shippingCost", leftValue: 0, rightValue: 4.99 },
+  { family: "deliveredCost", field: "deliveredCost", leftValue: 5.5, rightValue: 10.49 },
+  { family: "listingState", field: "listingStatus", leftValue: "active", rightValue: "sold" },
+  { family: "availability", field: "availability", leftValue: "in stock", rightValue: "out of stock" },
+  { family: "image", field: "imageUrl", leftValue: "https://images.example/A.jpg", rightValue: "https://images.example/B.jpg" }
+]) {
+  const conflict = dedupeUnderlyingOffers([
+    observation({
+      sourceRecordId: `${family}-conflict-a`,
+      offerId: `${family}-conflict-listing`,
+      seller: "Seller One",
+      sourceQuality: "search_snippet",
+      [field]: leftValue
+    }),
+    observation({
+      sourceRecordId: `${family}-conflict-b`,
+      offerId: `${family}-conflict-listing`,
+      seller: "Seller One",
+      sourceQuality: "direct_product_page",
+      directProductPage: true,
+      [field]: rightValue
+    })
+  ]);
+  assert.equal(conflict.length, 1);
+  assert(
+    conflict[0].materialOfferConflicts?.[family]?.length >= 2,
+    `Conflicting populated ${family} facts must remain explicit.`
+  );
+}
+
+const sameFactsAcrossAliases = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "alias-facts-a",
+    offerId: "same-alias-facts",
+    seller: "Seller One",
+    condition: "New",
+    sku: "SKU-SAME",
+    model: "MODEL-SAME"
+  }),
+  observation({
+    sourceRecordId: "alias-facts-b",
+    offerId: "same-alias-facts",
+    sellerName: " seller one ",
+    offerCondition: " new ",
+    SKU: "SKU-SAME",
+    modelNumber: "MODEL-SAME"
+  })
+]);
+assert.equal(sameFactsAcrossAliases.length, 1);
+assert.equal(sameFactsAcrossAliases[0].materialOfferConflicts?.seller, undefined);
+assert.equal(sameFactsAcrossAliases[0].materialOfferConflicts?.condition, undefined);
+assert.equal(sameFactsAcrossAliases[0].materialOfferConflicts?.sku, undefined);
+assert.equal(sameFactsAcrossAliases[0].materialOfferConflicts?.model, undefined);
+
+const sellerAliasConflict = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "seller-alias-conflict",
+    offerId: "seller-alias-conflict-listing",
+    seller: "Seller A",
+    sellerName: "Seller B"
+  })
+]);
+assert.equal(sellerAliasConflict.length, 1);
+assert.equal(sellerAliasConflict[0].materialOfferConflicts.seller.length, 2, "Conflicting seller aliases remain explicit rather than selecting one silently.");
 
 const provenListingConflict = dedupeUnderlyingOffers([
   observation({
@@ -388,6 +955,84 @@ assert.deepEqual(
   correctedFinalResult.views.acceptedIds.slice().sort(),
   "Corrected separate-offer IDs remain stable from recovery through finalization."
 );
+const secondaryAliasOfferObservations = [
+  observation({
+    sourceRecordId: "secondary-alias-offer-a",
+    destinationUrl: "https://direct.example/product/secondary-alias-offer-a",
+    quantity: 48,
+    packageQuantity: 48,
+    price: 5.5
+  }),
+  observation({
+    sourceRecordId: "secondary-alias-offer-b",
+    destinationUrl: "https://direct.example/product/secondary-alias-offer-b",
+    quantity: 48,
+    packageQuantity: 50,
+    price: 6.25
+  })
+];
+const secondaryAliasRecovery = createCanonicalRecoveryView({
+  observations: secondaryAliasOfferObservations,
+  targetIdentity
+});
+const secondaryAliasFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: secondaryAliasOfferObservations
+});
+assert.equal(secondaryAliasRecovery.deduplicatedAcceptedCount, 2, "Recovery preserves the corrected two-offer universe.");
+assert.equal(secondaryAliasRecovery.distinctQualifyingRetailerCount, 1);
+assert.equal(secondaryAliasFinal.customerEvidence.length, 2, "Final customer evidence preserves the corrected two-offer universe.");
+assert.deepEqual(
+  secondaryAliasRecovery.acceptedEvidenceIds,
+  secondaryAliasFinal.views.acceptedIds,
+  "Secondary-alias offer IDs remain aligned from recovery through finalization."
+);
+const sellerUniverseObservations = [
+  observation({
+    sourceRecordId: "seller-universe-a",
+    offerId: "seller-universe-listing",
+    seller: "Seller A"
+  }),
+  observation({
+    sourceRecordId: "seller-universe-b",
+    offerId: "seller-universe-listing",
+    seller: "Seller B"
+  }),
+  observation({
+    sourceRecordId: "seller-universe-missing",
+    offerId: "seller-universe-listing",
+    seller: ""
+  })
+];
+const sellerUniverseRecovery = createCanonicalRecoveryView({
+  observations: sellerUniverseObservations,
+  targetIdentity
+});
+const sellerUniverseFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: sellerUniverseObservations
+});
+assert.equal(sellerUniverseRecovery.deduplicatedAcceptedCount, 3);
+assert.equal(sellerUniverseFinal.customerEvidence.length, 3, "Missing seller cannot collapse two known sellers in final customer evidence.");
+const uniqueSellerFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: [
+    observation({
+      sourceRecordId: "unique-seller-known-final",
+      offerId: "unique-seller-final-listing",
+      seller: "Seller A"
+    }),
+    observation({
+      sourceRecordId: "unique-seller-missing-final",
+      offerId: "unique-seller-final-listing",
+      seller: ""
+    })
+  ]
+});
+assert.equal(uniqueSellerFinal.customerEvidence.length, 1, "One uniquely resolvable missing seller appears once in final customer evidence.");
 const duplicateListingFinal = createFinalEvidenceResult({
   analysisMode: "retail",
   targetIdentity,
@@ -408,6 +1053,188 @@ const duplicateListingFinal = createFinalEvidenceResult({
   ]
 });
 assert.equal(duplicateListingFinal.customerEvidence.length, 1, "Final customer evidence shows one proven offer observed through multiple passes.");
+
+const deterministicObservations = [
+  observation({
+    sourceRecordId: "deterministic-a-search",
+    offerId: "deterministic-offer-a",
+    seller: "Seller A",
+    sourceQuality: "search_snippet",
+    query: "query z",
+    searchPass: "pass z",
+    model: "MODEL-A"
+  }),
+  observation({
+    sourceRecordId: "deterministic-a-direct",
+    offerId: "deterministic-offer-a",
+    sellerName: "Seller A",
+    sourceQuality: "direct_product_page",
+    directProductPage: true,
+    query: "query a",
+    searchPass: "pass a",
+    model: "",
+    snippet: "Direct page observation"
+  }),
+  observation({
+    sourceRecordId: "deterministic-b",
+    offerId: "deterministic-offer-b",
+    seller: "Seller B",
+    destinationUrl: "https://direct.example/product/deterministic-b",
+    price: 6.25
+  })
+];
+const deterministicForwardDedupe = dedupeUnderlyingOffers(deterministicObservations);
+const deterministicReverseDedupe = dedupeUnderlyingOffers(deterministicObservations.slice().reverse());
+assert.deepEqual(
+  deterministicReverseDedupe,
+  deterministicForwardDedupe,
+  "Canonical representative selection, enrichment, provenance, conflicts, and group ordering are input-order independent."
+);
+const deterministicForwardRecovery = createCanonicalRecoveryView({
+  observations: deterministicObservations,
+  targetIdentity
+});
+const deterministicReverseRecovery = createCanonicalRecoveryView({
+  observations: deterministicObservations.slice().reverse(),
+  targetIdentity
+});
+assert.deepEqual(
+  deterministicReverseRecovery.acceptedEvidenceIds,
+  deterministicForwardRecovery.acceptedEvidenceIds,
+  "Recovery IDs and order are stable when provider completion order reverses."
+);
+assert.deepEqual(
+  deterministicReverseRecovery.rejectedEvidenceIds,
+  deterministicForwardRecovery.rejectedEvidenceIds
+);
+const deterministicForwardFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: deterministicObservations
+});
+const deterministicReverseFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: deterministicObservations.slice().reverse()
+});
+assert.deepEqual(
+  deterministicReverseFinal.views,
+  deterministicForwardFinal.views,
+  "Final canonical evidence views are stable when input order reverses."
+);
+assert.deepEqual(
+  deterministicReverseFinal.customerEvidence,
+  deterministicForwardFinal.customerEvidence,
+  "Customer-visible evidence ordering and content are stable when input order reverses."
+);
+
+function permutations(values) {
+  if (values.length <= 1) return [values.slice()];
+  return values.flatMap((value, index) => (
+    permutations(values.filter((_, candidateIndex) => candidateIndex !== index))
+      .map((remainder) => [value, ...remainder])
+  ));
+}
+
+const threeTiedOffers = [
+  observation({
+    sourceRecordId: "tied-offer-c",
+    offerId: "tied-offer-c",
+    seller: "Seller One",
+    destinationUrl: "https://direct.example/item/tied-offer-c"
+  }),
+  observation({
+    sourceRecordId: "tied-offer-a",
+    offerId: "tied-offer-a",
+    seller: "Seller One",
+    destinationUrl: "https://direct.example/item/tied-offer-a"
+  }),
+  observation({
+    sourceRecordId: "tied-offer-b",
+    offerId: "tied-offer-b",
+    seller: "Seller One",
+    destinationUrl: "https://direct.example/item/tied-offer-b"
+  })
+];
+const tiedBaselineDedupe = dedupeUnderlyingOffers(threeTiedOffers);
+const tiedBaselineRecovery = createCanonicalRecoveryView({
+  observations: threeTiedOffers,
+  targetIdentity
+});
+const tiedBaselineFinal = createFinalEvidenceResult({
+  analysisMode: "retail",
+  targetIdentity,
+  observations: threeTiedOffers
+});
+assert.equal(tiedBaselineFinal.customerEvidence.length, 3);
+const canonicalRecoveryOutput = ({ observations: _observations, ...view }) => view;
+for (const permutation of permutations(threeTiedOffers)) {
+  assert.deepEqual(
+    dedupeUnderlyingOffers(permutation),
+    tiedBaselineDedupe,
+    "Every permutation of three tied offers must preserve canonical offer and evidence-ID order."
+  );
+  assert.deepEqual(
+    canonicalRecoveryOutput(createCanonicalRecoveryView({ observations: permutation, targetIdentity })),
+    canonicalRecoveryOutput(tiedBaselineRecovery),
+    "Every permutation of three tied offers must preserve recovery counts and support-ID order."
+  );
+  assert.deepEqual(
+    createFinalEvidenceResult({
+      analysisMode: "retail",
+      targetIdentity,
+      observations: permutation
+    }),
+    tiedBaselineFinal,
+    "Every permutation of three tied offers must preserve final evidence and customerEvidence order."
+  );
+}
+
+const reversedConflictForward = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "reversed-conflict-a",
+    offerId: "reversed-conflict-listing",
+    seller: "Seller One",
+    sourceQuality: "search_snippet",
+    condition: "New",
+    model: "MODEL-A",
+    price: 5.5
+  }),
+  observation({
+    sourceRecordId: "reversed-conflict-b",
+    offerId: "reversed-conflict-listing",
+    seller: "Seller One",
+    sourceQuality: "search_snippet",
+    condition: "Used",
+    model: "MODEL-B",
+    price: 6.5
+  })
+]);
+const reversedConflictBackward = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "reversed-conflict-b",
+    offerId: "reversed-conflict-listing",
+    seller: "Seller One",
+    sourceQuality: "search_snippet",
+    condition: "Used",
+    model: "MODEL-B",
+    price: 6.5
+  }),
+  observation({
+    sourceRecordId: "reversed-conflict-a",
+    offerId: "reversed-conflict-listing",
+    seller: "Seller One",
+    sourceQuality: "search_snippet",
+    condition: "New",
+    model: "MODEL-A",
+    price: 5.5
+  })
+]);
+assert.deepEqual(
+  reversedConflictBackward,
+  reversedConflictForward,
+  "Reversing conflicting observations cannot change price conflict, material conflict, or provenance ordering."
+);
 
 const recoveryRequestRecords = [];
 recoveryRequestRecords.canonicalRecoveryDecisionView = exactNoPriceView;

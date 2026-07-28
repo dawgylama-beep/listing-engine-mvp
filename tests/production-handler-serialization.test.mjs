@@ -699,3 +699,87 @@ test("real production handler preserves resale seller fields while projecting th
     assert.equal(report[field], expected, `canonical buyer projection changed seller field ${field}`);
   }
 });
+
+async function runRetailHandlerForProviderOrder(recoveryRecords) {
+  const finalEvidenceResults = [];
+  let clock = Date.parse(retailRecoveryFixture.fixedNow);
+  const handler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    getOpenAIModel: () => "deterministic-test-model",
+    getSerperApiKey: () => "deterministic-serper-placeholder",
+    createAnalysisId: () => retailRecoveryFixture.analysisId,
+    nowMilliseconds: () => {
+      clock += 5;
+      return clock;
+    },
+    nowIso: () => new Date(clock).toISOString(),
+    requestOpenAIJson: async ({ payload }) => ({
+      json: responseForSchema(payload?.text?.format?.name),
+      data: { output: [] }
+    }),
+    requestSerperSearch: async ({ queryRecord }) => ({
+      json: queryRecord?.retailStage === "stage_7_limited_result_recovery"
+        ? { organic: recoveryRecords }
+        : retailRecoveryFixture.preliminaryProviderResponse,
+      statusCode: 200,
+      elapsedMs: 4
+    }),
+    requestBoundedRetailProductPage: async () => retailRecoveryFixture.directPageResult,
+    onFinalEvidenceResult: (result) => finalEvidenceResults.push(result)
+  });
+  const req = {
+    method: "POST",
+    body: {
+      reportType: "marketValue",
+      platform: "",
+      notes: "Security envelopes, strip and seal, 48 count.",
+      photos: [{
+        name: "sanitized-retail-package.png",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+      }],
+      buyerIntake: retailRecoveryFixture.buyerIntake
+    }
+  };
+  const res = createResponseCapture();
+  const networkGuard = installHardNetworkDenial();
+  try {
+    await handler(req, res);
+  } finally {
+    networkGuard.restore();
+  }
+  assert.equal(networkGuard.attempts.length, 0);
+  assert.equal(res.statusCode, 200);
+  assert.equal(finalEvidenceResults.length, 1);
+  return {
+    finalEvidenceResult: finalEvidenceResults[0],
+    report: res.payload.valuation
+  };
+}
+
+test("real production handler preserves final customer evidence across provider completion order", async () => {
+  const forwardRecords = retailRecoveryFixture.recoveryProviderResponse.organic;
+  const forward = await runRetailHandlerForProviderOrder(forwardRecords);
+  const reversed = await runRetailHandlerForProviderOrder(forwardRecords.slice().reverse());
+  validateFinalEvidenceResult(forward.finalEvidenceResult);
+  validateFinalEvidenceResult(reversed.finalEvidenceResult);
+  assert.deepEqual(
+    reversed.finalEvidenceResult.views,
+    forward.finalEvidenceResult.views,
+    "Canonical final evidence IDs and order cannot depend on provider completion order."
+  );
+  assert.deepEqual(
+    reversed.finalEvidenceResult.customerEvidence,
+    forward.finalEvidenceResult.customerEvidence,
+    "Canonical customer evidence content and order cannot depend on provider completion order."
+  );
+  assert.deepEqual(
+    reversed.report.customerEvidence,
+    forward.report.customerEvidence,
+    "Serialized handler customer evidence cannot depend on provider completion order."
+  );
+  assert.deepEqual(
+    reversed.report.searchDiagnostics.canonicalCustomerEvidenceIds,
+    forward.report.searchDiagnostics.canonicalCustomerEvidenceIds
+  );
+  assert.deepEqual(reversed.report.pricesFound, reversed.report.customerEvidence);
+});

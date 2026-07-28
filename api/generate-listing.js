@@ -3201,16 +3201,387 @@ function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
   return domain && primaryBarcode ? `retail-exact:${domain}:${primaryBarcode}` : "";
 }
 
+const SERPER_TRANSPORT_TRACKING_PARAMETERS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "utm_id",
+  "gclid",
+  "dclid",
+  "fbclid",
+  "msclkid",
+  "mc_cid",
+  "mc_eid"
+]);
+
+const SERPER_TRANSPORT_URL_FIELDS = new Set([
+  "canonicalUrl",
+  "destinationUrl",
+  "url",
+  "sourceUrl",
+  "originalSourceUrl",
+  "originalUrl",
+  "imageUrl",
+  "imageIdentity",
+  "thumbnailUrl",
+  "images"
+]);
+
+const SERPER_TRANSPORT_CASE_SENSITIVE_FIELDS = new Set([
+  "marketplaceItemId",
+  "offerId",
+  "listingId",
+  "retailerOfferId",
+  "lotId",
+  "auctionLotId",
+  "itemId",
+  "retailerProductSku",
+  "sku",
+  "SKU",
+  "productSku",
+  "itemNumber",
+  "styleNumber",
+  "sourceProductId",
+  "productId",
+  "catalogProductId",
+  "model",
+  "modelNumber",
+  "modelOrItemNumber",
+  "manufacturerPartNumber",
+  "mpn",
+  "MPN"
+]);
+
+const SERPER_TRANSPORT_CURRENCY_FIELDS = new Set([
+  "currency",
+  "currencyCode"
+]);
+
+const SERPER_TRANSPORT_SET_FIELDS = new Set([
+  "marketplaceDomainsRequested",
+  "allowedDomainsRequested",
+  "exactPageMatchedBarcodeIdentities",
+  "exactPageNormalizedBarcodeIdentitiesFound",
+  "positiveCompatibilityEvidence",
+  "contradictoryEvidence",
+  "confidenceDowngradeReasons",
+  "retailerAttributionEvidence",
+  "designAttributes",
+  "identityConflictNotes",
+  "knownDifferences",
+  "marketplaceDomains",
+  "allowedDomains",
+  "images"
+]);
+
+const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
+  "provider",
+  "providerKey",
+  "searchProvider",
+  "providerEndpoint",
+  "source",
+  "sourceType",
+  "searchType",
+  "acquisitionProvider",
+  "originalMarketplaceDomain",
+  "marketplaceDomain",
+  "marketplace",
+  "domain",
+  "sourceDomain",
+  "retailerDomain",
+  "retailerDisplayName",
+  "retailer",
+  "merchant",
+  "seller",
+  "merchantSeller",
+  "sellerName",
+  "actualSeller",
+  "sourceSeller",
+  "merchantName",
+  "offerSeller",
+  "soldBy",
+  "retailOfferSeller",
+  "actualMerchant",
+  "offerMerchant",
+  "sourceMerchant",
+  "storeName",
+  "marketplaceItemId",
+  "offerId",
+  "listingId",
+  "retailerOfferId",
+  "lotId",
+  "auctionLotId",
+  "itemId",
+  "retailerProductSku",
+  "sku",
+  "SKU",
+  "productSku",
+  "itemNumber",
+  "styleNumber",
+  "sourceProductId",
+  "productId",
+  "catalogProductId",
+  "gtin",
+  "gtin12",
+  "gtin13",
+  "upc",
+  "UPC",
+  "barcode",
+  "ean",
+  "EAN",
+  "isbn",
+  "ISBN",
+  "productIdentity",
+  "canonicalProductIdentity",
+  "exactProductIdentity",
+  "normalizedProductIdentity",
+  "model",
+  "modelNumber",
+  "modelOrItemNumber",
+  "manufacturerPartNumber",
+  "mpn",
+  "MPN",
+  "title",
+  "productTitle",
+  "offerTitle",
+  "snippet",
+  "rawText",
+  "sourceEvidenceText",
+  "brand",
+  "manufacturer",
+  "maker",
+  "edition",
+  "releaseYear",
+  "year",
+  "series",
+  "quantity",
+  "packageQuantity",
+  "unitCount",
+  "count",
+  "packSize",
+  "packageCount",
+  "pieceCount",
+  "candidatePackQuantity",
+  "submittedPackQuantity",
+  "dimensions",
+  "dimensionText",
+  "packageSize",
+  "sizeDimensions",
+  "size",
+  "dimensionValues",
+  "dimensionUnits",
+  "dimensionUnit",
+  "packageType",
+  "packagingType",
+  "containerType",
+  "designIdentity",
+  "design",
+  "designDescription",
+  "variant",
+  "style",
+  "pattern",
+  "designVariant",
+  "designAttributes",
+  "color",
+  "colour",
+  "finish",
+  "colorFinish",
+  "offerCondition",
+  "condition",
+  "priceCondition",
+  "retailOfferConditionDisclosure",
+  "conditionGrade",
+  "price",
+  "parsedPrice",
+  "itemPriceAmount",
+  "displayedPrice",
+  "displayedPriceText",
+  "unitPrice",
+  "unitPriceAmount",
+  "pricePerUnit",
+  "currency",
+  "currencyCode",
+  "shipping",
+  "shippingCost",
+  "shippingAmount",
+  "shippingPrice",
+  "delivery",
+  "deliveryCost",
+  "deliveredCost",
+  "deliveredPrice",
+  "totalPrice",
+  "deliveredCostAmount",
+  "totalDeliveredCost",
+  "priceType",
+  "priceEvidenceType",
+  "priceTypeLabel",
+  "listingStatus",
+  "listingState",
+  "activeSoldReferenceStatus",
+  "saleStatus",
+  "transactionStatus",
+  "availability",
+  "availabilityStatus",
+  "stockStatus",
+  "inventoryStatus",
+  "sourceQuality",
+  "observationQuality",
+  "evidencePath",
+  "sourceEvidenceType",
+  "acquisitionSourceQuality",
+  "directProductPage",
+  "exactRetailPage",
+  "directPageProvenance",
+  "directPageSource",
+  "exactPageRecoveryStatus",
+  "exactPageRecoveryMode",
+  "exactPageEnrichmentStatus",
+  "retailOfferPageType",
+  "pageType",
+  "imageUrl",
+  "imageIdentity",
+  "thumbnailUrl",
+  "images",
+  "canonicalUrl",
+  "destinationUrl",
+  "url",
+  "sourceUrl",
+  "originalSourceUrl",
+  "originalUrl",
+  "submittedItemType",
+  "candidateItemType",
+  "itemType",
+  "targetProductFamily",
+  "candidateProductFamily",
+  "exactIdentity",
+  "identityMatchStrength",
+  "itemTypeCompatible",
+  "itemTypeCompatibilityStatus",
+  "quantityCompatible",
+  "dimensionsCompatible",
+  "positiveCompatibilityEvidence",
+  "contradictoryEvidence",
+  "confidenceDowngradeReasons",
+  "retailerAttributionEvidence",
+  "identityConflictNotes",
+  "candidateObjectClassification",
+  "candidateOrigin",
+  "canonicalMatchQuality",
+  "category",
+  "classification",
+  "description",
+  "evidenceRole",
+  "evidenceType",
+  "exactRetailPageEvidence",
+  "itemTypeCompatibilityExplanation",
+  "knownDifferences",
+  "listingFormat",
+  "listingType",
+  "matchExplanation",
+  "matchQuality",
+  "namedStoreMatchStatus",
+  "offerClassification",
+  "offerType",
+  "onlineLocalStatus",
+  "productFamilyCompatibilityOutcome",
+  "productForm",
+  "productName",
+  "promotion",
+  "purchaseChannel",
+  "qualification",
+  "rejectionReason",
+  "retained",
+  "retailEvidenceTier",
+  "retailEvidenceTierLabel",
+  "retailOfferPlatform",
+  "retailOfferSellerType",
+  "retailPriceDecisionEligibility",
+  "retailerConfidenceLevel",
+  "shippingDisclosure",
+  "shippingStatus",
+  "sourceBacked",
+  "sourceRoute",
+  "rawTextSource",
+  "itemIdentityDifferences",
+  "influencedVerifiedMarketRange",
+  "includedInPreliminaryAskingPriceRange",
+  "influencedReferenceRange",
+  "storeId",
+  "storeNumber",
+  "locationName",
+  "storeLocation",
+  "address",
+  "locationAddress",
+  "nearbyAddress",
+  "pickupAddress",
+  "retailerAddress",
+  "storeAddress",
+  "rating",
+  "ratingCount",
+  "date",
+  "marketplaceDomains",
+  "marketplaceDomainsRequested",
+  "allowedDomains",
+  "allowedDomainsRequested",
+  "exactPageMatchedBarcodeIdentities",
+  "exactPageNormalizedBarcodeIdentitiesFound"
+]);
+
+function compareSerperTransportText(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function normalizeSerperTransportUrl(value) {
+  try {
+    const url = new URL(cleanText(value));
+    const retainedPairs = [...url.searchParams.entries()]
+      .filter(([name]) => !SERPER_TRANSPORT_TRACKING_PARAMETERS.has(String(name).toLowerCase()))
+      .sort(([leftName, leftValue], [rightName, rightValue]) => (
+        compareSerperTransportText(leftName, rightName)
+        || compareSerperTransportText(leftValue, rightValue)
+      ));
+    url.search = "";
+    for (const [name, queryValue] of retainedPairs) {
+      url.searchParams.append(name, queryValue);
+    }
+    return url.toString();
+  } catch {
+    return cleanText(value);
+  }
+}
+
+function hasSerperTransportIdentityValue(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string") return cleanText(value) !== "";
+  if (Array.isArray(value)) return value.some(hasSerperTransportIdentityValue);
+  return true;
+}
+
 function normalizeSerperTransportIdentityValue(value, fieldName = "") {
-  if (value === undefined) return ["undefined"];
-  if (value === null) return ["null"];
   if (Array.isArray(value)) {
-    return ["array", value.map((item) => normalizeSerperTransportIdentityValue(item, fieldName))];
+    const normalizedItems = value
+      .filter(hasSerperTransportIdentityValue)
+      .map((item) => normalizeSerperTransportIdentityValue(item, fieldName));
+    if (SERPER_TRANSPORT_SET_FIELDS.has(fieldName)) {
+      return [
+        "set",
+        [...new Map(normalizedItems
+          .map((item) => [JSON.stringify(item), item]))
+          .entries()]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([, item]) => item)
+      ];
+    }
+    return ["array", normalizedItems];
   }
   if (value && typeof value === "object") {
     return [
       "object",
       Object.keys(value)
+        .filter((key) => hasSerperTransportIdentityValue(value[key]))
         .sort()
         .map((key) => [key, normalizeSerperTransportIdentityValue(value[key], key)])
     ];
@@ -3222,23 +3593,22 @@ function normalizeSerperTransportIdentityValue(value, fieldName = "") {
     return ["boolean", value];
   }
   const text = cleanText(value);
-  if (/url$/i.test(fieldName)) {
-    const normalized = canonicalizeComparableUrl(unwrapRetailDestinationUrl(text));
-    return ["url", (normalized || text).toLowerCase()];
+  if (SERPER_TRANSPORT_URL_FIELDS.has(fieldName)) {
+    return ["url", normalizeSerperTransportUrl(text)];
+  }
+  if (SERPER_TRANSPORT_CASE_SENSITIVE_FIELDS.has(fieldName)) {
+    return ["identifier", text];
+  }
+  if (SERPER_TRANSPORT_CURRENCY_FIELDS.has(fieldName)) {
+    return ["currency", text.toUpperCase()];
   }
   return ["string", text.toLowerCase()];
 }
 
 function buildSerperTransportIdentity(record = {}) {
   if (!record || typeof record !== "object") return "";
-  const queryProvenanceFields = new Set([
-    "query",
-    "searchPass",
-    "queriesFound",
-    "searchPassesFound"
-  ]);
-  const materialState = Object.keys(record)
-    .filter((key) => !queryProvenanceFields.has(key))
+  const materialState = SERPER_TRANSPORT_IDENTITY_FIELDS
+    .filter((key) => hasSerperTransportIdentityValue(record[key]))
     .sort()
     .map((key) => [key, normalizeSerperTransportIdentityValue(record[key], key)]);
   return materialState.length ? JSON.stringify(materialState) : "";
@@ -18052,6 +18422,8 @@ export const __queryIntegrityTestHooks = {
   dedupeSerperCandidateRecords,
   coalesceIdenticalSerperTransportRecords,
   buildSerperTransportIdentity,
+  serperTransportIdentityFields: SERPER_TRANSPORT_IDENTITY_FIELDS,
+  serperTransportSetFields: [...SERPER_TRANSPORT_SET_FIELDS].sort(),
   parseSerperResponse,
   isStrongComparableEvidenceRecord,
   isNoPriceIdentityReference,
