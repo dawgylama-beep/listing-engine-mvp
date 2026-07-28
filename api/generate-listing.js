@@ -4,7 +4,7 @@ import {
   createFinalEvidenceResult,
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
-import { compareObservationPreference } from "../lib/evidence/dedupe.js";
+import { compareObservationPreference, underlyingOfferKey } from "../lib/evidence/dedupe.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 
@@ -2577,19 +2577,38 @@ async function executeExactRetailPageDirectEnrichment({
     .filter((candidate) => !Number.isFinite(getVisibleItemPriceAmount(candidate)))
     .filter((candidate) => isApprovedRetailProductPageFetchUrl(candidate.destinationUrl || candidate.url || candidate.canonicalUrl, context, candidate))) {
     const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
-    if (url && !candidatesByUrl.has(url)) {
-      candidatesByUrl.set(url, record);
+    if (url) {
+      const members = candidatesByUrl.get(url) || [];
+      members.push(record);
+      candidatesByUrl.set(url, members);
     }
   }
+  const stableCandidateKey = (record) => [
+    underlyingOfferKey(record),
+    buildSerperTransportIdentity(record),
+    cleanText(record.sourceRecordId || record.providerRecordId || record.resultId),
+    cleanText(record.destinationUrl || record.url || record.canonicalUrl)
+  ].join("\u001f");
   const candidates = [...candidatesByUrl.entries()]
-    .sort(([leftUrl], [rightUrl]) => compareSerperTransportText(leftUrl, rightUrl))
+    .map(([url, members]) => {
+      const orderedMembers = members.slice().sort((left, right) => (
+        compareSerperTransportText(stableCandidateKey(left), stableCandidateKey(right))
+      ));
+      return {
+        url,
+        members: orderedMembers,
+        key: `${url}\u001e${orderedMembers.map(stableCandidateKey).join("\u001d")}`
+      };
+    })
+    .sort((left, right) => compareSerperTransportText(left.key, right.key))
     .slice(0, remainingBudget);
   if (!candidates.length) {
     return currentRecords;
   }
   let enrichedRecords = [...currentRecords];
   let priority = providerRequestRecords.length + 1;
-  for (const [candidateUrl, record] of candidates) {
+  for (const { url: candidateUrl, members } of candidates) {
+    const record = members[0];
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
     priority += 1;
     providerRequestRecords.push(requestRecord);
@@ -3630,37 +3649,98 @@ function buildSerperTransportIdentity(record = {}) {
   return materialState.length ? JSON.stringify(materialState) : "";
 }
 
+const SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS = Object.freeze([
+  "sourceRecordId",
+  "providerRecordId",
+  "resultId"
+]);
+
+function projectSerperSemanticTransportRecord(record = {}) {
+  const projected = {};
+  for (const key of [
+    ...SERPER_TRANSPORT_IDENTITY_FIELDS,
+    ...SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS
+  ]) {
+    if (hasSerperTransportIdentityValue(record[key])) {
+      projected[key] = record[key];
+    }
+  }
+  projected.query = cleanText(record.query);
+  projected.searchPass = cleanText(record.searchPass);
+  return projected;
+}
+
+function createSerperTransportMergeSeed(record = {}) {
+  return {
+    ...record,
+    observationIds: [...new Set([
+      record.sourceRecordId,
+      record.providerRecordId,
+      record.resultId
+    ].filter(Boolean))].sort(),
+    queriesFound: [record.query].filter(Boolean),
+    searchPassesFound: [record.searchPass].filter(Boolean),
+    providersFound: [...new Set([
+      record.provider,
+      record.providerKey,
+      record.searchProvider
+    ].filter(Boolean))].sort(),
+    sourceQualitiesFound: [...new Set([
+      record.sourceQuality,
+      record.observationQuality,
+      record.evidencePath,
+      record.sourceEvidenceType
+    ].filter(Boolean))].sort(),
+    directPageProvenanceFound: [...new Set([
+      record.directPageProvenance,
+      record.directPageSource
+    ].filter(Boolean))].sort()
+  };
+}
+
 function coalesceIdenticalSerperTransportRecords(records = []) {
   const byTransportIdentity = new Map();
-  const orderedRecords = records.slice().sort((left, right) => (
+  const orderedRecords = records.map(projectSerperSemanticTransportRecord).sort((left, right) => (
     buildSerperTransportIdentity(left).localeCompare(buildSerperTransportIdentity(right))
     || cleanText(left.query).localeCompare(cleanText(right.query))
     || cleanText(left.searchPass).localeCompare(cleanText(right.searchPass))
-    || JSON.stringify(normalizeSerperTransportIdentityValue(left))
-      .localeCompare(JSON.stringify(normalizeSerperTransportIdentityValue(right)))
+    || cleanText(left.sourceRecordId || left.providerRecordId || left.resultId)
+      .localeCompare(cleanText(right.sourceRecordId || right.providerRecordId || right.resultId))
   ));
   for (const record of orderedRecords) {
     const key = buildSerperTransportIdentity(record);
     if (!key) {
-      byTransportIdentity.set(Symbol("transport-observation"), {
-        ...record,
-        queriesFound: [record.query].filter(Boolean),
-        searchPassesFound: [record.searchPass].filter(Boolean)
-      });
+      byTransportIdentity.set(Symbol("transport-observation"), createSerperTransportMergeSeed(record));
       continue;
     }
     const existing = byTransportIdentity.get(key);
     if (!existing) {
-      byTransportIdentity.set(key, {
-        ...record,
-        queriesFound: [record.query].filter(Boolean),
-        searchPassesFound: [record.searchPass].filter(Boolean)
-      });
+      byTransportIdentity.set(key, createSerperTransportMergeSeed(record));
       continue;
     }
     const merged = preferRicherSerperRecord(existing, record);
+    merged.observationIds = mergeStringArrays(
+      existing.observationIds,
+      [record.sourceRecordId, record.providerRecordId, record.resultId],
+      24
+    ).sort();
     merged.queriesFound = mergeStringArrays(existing.queriesFound, [record.query], 8).sort();
     merged.searchPassesFound = mergeStringArrays(existing.searchPassesFound, [record.searchPass], 6).sort();
+    merged.providersFound = mergeStringArrays(
+      existing.providersFound,
+      [record.provider, record.providerKey, record.searchProvider],
+      12
+    ).sort();
+    merged.sourceQualitiesFound = mergeStringArrays(
+      existing.sourceQualitiesFound,
+      [record.sourceQuality, record.observationQuality, record.evidencePath, record.sourceEvidenceType],
+      12
+    ).sort();
+    merged.directPageProvenanceFound = mergeStringArrays(
+      existing.directPageProvenanceFound,
+      [record.directPageProvenance, record.directPageSource],
+      12
+    ).sort();
     byTransportIdentity.set(key, merged);
   }
   return [...byTransportIdentity.entries()]

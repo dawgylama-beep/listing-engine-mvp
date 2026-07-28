@@ -609,12 +609,61 @@ const retailerMerchantAndSeller = dedupeUnderlyingOffers([
 assert.equal(retailerMerchantAndSeller.length, 1, "Retailer/source merchantName cannot split one proven third-party offer.");
 assert.equal(retailerMerchantAndSeller[0].seller, "Third Party Seller");
 assert.equal(retailerMerchantAndSeller[0].merchantName, "Retailer Source");
+const producedShoppingObservation = hooks.parseSerperResponse({
+  shopping: [{
+    title: "Generic Marketplace Product",
+    link: "https://marketplace.example/item/producer-listing",
+    source: "Marketplace Retailer",
+    seller: "Third Party Seller",
+    price: "$5.50"
+  }]
+}, {
+  query: "generic marketplace product",
+  searchPass: "shopping",
+  searchType: "shopping"
+}).records[0];
+assert.equal(producedShoppingObservation.merchantName, "Marketplace Retailer");
+assert.equal(producedShoppingObservation.seller, "Third Party Seller");
+const producedMerchantMerge = dedupeUnderlyingOffers([
+  {
+    ...producedShoppingObservation,
+    sourceRecordId: "producer-shopping",
+    offerId: "producer-listing",
+    retailer: "Marketplace Retailer",
+    sourceDomain: "marketplace.example",
+    retailerDomain: "marketplace.example",
+    destinationUrl: "https://marketplace.example/item/producer-listing"
+  },
+  observation({
+    sourceRecordId: "producer-direct",
+    offerId: "producer-listing",
+    retailer: "Marketplace Retailer",
+    sourceDomain: "marketplace.example",
+    retailerDomain: "marketplace.example",
+    destinationUrl: "https://marketplace.example/item/producer-listing",
+    seller: "Third Party Seller",
+    sourceQuality: "direct_product_page"
+  })
+]);
+assert.equal(producedMerchantMerge.length, 1, "The active shopping producer keeps retailer merchant attribution outside seller identity.");
+assert.equal(producedMerchantMerge[0].merchantName, "Marketplace Retailer");
+assert.equal(producedMerchantMerge[0].seller, "Third Party Seller");
 const locationStoreName = dedupeUnderlyingOffers([
   observation({ sourceRecordId: "location-search", offerId: "location-listing", storeName: "Downtown Store", seller: "Seller One" }),
   observation({ sourceRecordId: "location-direct", offerId: "location-listing", seller: "Seller One" })
 ]);
 assert.equal(locationStoreName.length, 1, "A physical-location storeName cannot become offer-seller identity.");
 assert.equal(locationStoreName[0].storeName, "Downtown Store");
+const producedStoreIntake = hooks.normalizeBuyerIntake({
+  purchase_context: "retail_store",
+  store_name: "Downtown Store"
+});
+assert.equal(producedStoreIntake.store_name, "Downtown Store", "The active buyer-intake producer retains store_name as location context.");
+assert.equal(
+  CANONICAL_OFFER_FACT_REGISTRY.find((family) => family.name === "seller").aliases.includes("storeName"),
+  false,
+  "Producer-derived store location cannot enter seller partitioning."
+);
 const activeSellerAliases = CANONICAL_OFFER_FACT_REGISTRY
   .find((family) => family.name === "seller")
   .aliases;
@@ -717,6 +766,43 @@ const sameListingIdDifferentSources = dedupeUnderlyingOffers([
   })
 ]);
 assert.equal(sameListingIdDifferentSources.length, 2, "The same textual listing ID on different sources remains separate.");
+const conflictingSecondarySourceA = observation({
+  sourceRecordId: "secondary-source-a",
+  destinationUrl: "",
+  canonicalUrl: "",
+  originalUrl: "",
+  offerId: "secondary-source-listing",
+  originalMarketplaceDomain: "origin.example",
+  sourceDomain: "secondary-a.example",
+  retailerDomain: "secondary-a.example"
+});
+const conflictingSecondarySourceB = {
+  ...conflictingSecondarySourceA,
+  sourceRecordId: "secondary-source-b",
+  sourceDomain: "secondary-b.example",
+  retailerDomain: "secondary-b.example"
+};
+assert.notEqual(
+  underlyingOfferKey(conflictingSecondarySourceA),
+  underlyingOfferKey(conflictingSecondarySourceB),
+  "A preferred original marketplace domain cannot hide conflicting populated secondary source facts."
+);
+assert.equal(dedupeUnderlyingOffers([conflictingSecondarySourceA, conflictingSecondarySourceB]).length, 2);
+const equivalentSourceAliases = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "equivalent-source-a",
+    offerId: "equivalent-source-listing",
+    sourceDomain: "same.example",
+    retailerDomain: ""
+  }),
+  observation({
+    sourceRecordId: "equivalent-source-b",
+    offerId: "equivalent-source-listing",
+    sourceDomain: "",
+    retailerDomain: "same.example"
+  })
+]);
+assert.equal(equivalentSourceAliases.length, 1, "Equivalent source-domain aliases normalize together.");
 for (const parameter of ["seller", "offer", "listing", "condition", "variant"]) {
   const parameterVariants = dedupeUnderlyingOffers([
     observation({
@@ -800,6 +886,63 @@ assert.deepEqual(
   ["listing:CASE-SENSITIVE-ID", "offer:CASE-SENSITIVE-ID"],
   "Explicit listing identifier type and case remain represented."
 );
+for (const [leftField, rightField, expectedCount, contract] of [
+  ["offerId", "listingId", 2, "offer and listing namespaces remain conservative and distinct"],
+  ["marketplaceItemId", "itemId", 2, "marketplace-item and generic-item namespaces remain distinct"],
+  ["retailerOfferId", "productId", 2, "retailer offer identity remains distinct from catalog product identity"],
+  ["lotId", "auctionLotId", 1, "active auction aliases share the proven auction-lot namespace"]
+]) {
+  const records = dedupeUnderlyingOffers([
+    observation({
+      sourceRecordId: `${leftField}-namespace`,
+      destinationUrl: "",
+      canonicalUrl: "",
+      originalUrl: "",
+      [leftField]: "SHARED-NAMESPACE-ID"
+    }),
+    observation({
+      sourceRecordId: `${rightField}-namespace`,
+      destinationUrl: "",
+      canonicalUrl: "",
+      originalUrl: "",
+      [rightField]: "SHARED-NAMESPACE-ID"
+    })
+  ]);
+  assert.equal(records.length, expectedCount, `${leftField}/${rightField}: ${contract}.`);
+}
+assert.equal(dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "explicit-offer-id",
+    destinationUrl: "",
+    canonicalUrl: "",
+    offerId: "EXPLICIT-OFFER",
+    productId: "",
+    upc: ""
+  }),
+  observation({
+    sourceRecordId: "product-barcode-id",
+    destinationUrl: "",
+    canonicalUrl: "",
+    offerId: "",
+    productId: "EXPLICIT-OFFER",
+    upc: "012345678905"
+  })
+]).length, 2, "Product and barcode identities cannot independently merge into an explicit offer ID.");
+assert.equal(dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "explicit-inferred-id",
+    destinationUrl: "",
+    canonicalUrl: "",
+    itemId: "ABCDEF123"
+  }),
+  observation({
+    sourceRecordId: "text-inferred-id",
+    destinationUrl: "",
+    canonicalUrl: "",
+    itemId: "",
+    rawText: "Marketplace item id ABCDEF123"
+  })
+]).length, 2, "Inferred item evidence remains distinct from an explicit typed item ID without a producer equivalence contract.");
 
 const enrichedMaterialFactObservations = [
   observation({
@@ -1277,6 +1420,89 @@ for (const left of comparatorTriple) {
 const sortedComparatorTriple = comparatorTriple.slice().sort(hooks.compareObservationPreference);
 assert(hooks.compareObservationPreference(sortedComparatorTriple[0], sortedComparatorTriple[2]) <= 0, "Representative comparator must be transitive.");
 
+const recoveryVolatileFields = [
+  "acquisitionObservedAt", "acquisitionFetchedAt", "fetchedAt", "providerCompletedAt",
+  "enrichedAt", "createdAt", "requestId", "runtimeRequestId", "attemptId"
+];
+for (const volatileField of recoveryVolatileFields) {
+  const left = observation({
+    sourceRecordId: "volatile-recovery-b",
+    offerId: "volatile-recovery-offer",
+    title: "Volatile Recovery B",
+    [volatileField]: "runtime-z"
+  });
+  const right = observation({
+    sourceRecordId: "volatile-recovery-a",
+    offerId: "volatile-recovery-offer",
+    title: "Volatile Recovery A",
+    [volatileField]: "runtime-a"
+  });
+  const forward = createCanonicalRecoveryView({ observations: [left, right], targetIdentity });
+  const swapped = createCanonicalRecoveryView({
+    observations: [
+      { ...left, [volatileField]: right[volatileField] },
+      { ...right, [volatileField]: left[volatileField] }
+    ],
+    targetIdentity
+  });
+  assert.deepEqual(swapped, forward, `${volatileField} cannot change the complete recovery contract.`);
+  assert.equal(Object.hasOwn(forward, "observations"), true);
+  assert(forward.observations.every((record) => !Object.hasOwn(record, volatileField)));
+}
+const semanticTimestampRecovery = createCanonicalRecoveryView({
+  observations: [observation({
+    sourceRecordId: "semantic-time",
+    sourcePublishedAt: "2020-01-01T00:00:00.000Z",
+    listingPublishedAt: "2020-01-02T00:00:00.000Z"
+  })],
+  targetIdentity
+});
+assert.equal(semanticTimestampRecovery.observations[0].sourcePublishedAt, "2020-01-01T00:00:00.000Z");
+assert.equal(semanticTimestampRecovery.observations[0].listingPublishedAt, "2020-01-02T00:00:00.000Z");
+
+const volatileTransportPair = [
+  { ...runtimeOnlyTransportA, query: "same query", searchPass: "same pass", requestId: "request-z", attemptId: "attempt-z" },
+  {
+    ...runtimeOnlyTransportA,
+    query: "same query",
+    searchPass: "same pass",
+    observedAt: "2027-01-01T00:00:00.000Z",
+    fetchedAt: "2027-01-01T00:00:01.000Z",
+    requestId: "request-a",
+    attemptId: "attempt-a"
+  }
+];
+const volatileTransportBaseline = hooks.coalesceIdenticalSerperTransportRecords(volatileTransportPair);
+const volatileTransportSwapped = hooks.coalesceIdenticalSerperTransportRecords([
+  {
+    ...volatileTransportPair[0],
+    observedAt: volatileTransportPair[1].observedAt,
+    fetchedAt: volatileTransportPair[1].fetchedAt,
+    requestId: volatileTransportPair[1].requestId,
+    attemptId: volatileTransportPair[1].attemptId
+  },
+  {
+    ...volatileTransportPair[1],
+    observedAt: volatileTransportPair[0].observedAt,
+    fetchedAt: volatileTransportPair[0].fetchedAt,
+    requestId: volatileTransportPair[0].requestId,
+    attemptId: volatileTransportPair[0].attemptId
+  }
+]);
+assert.deepEqual(volatileTransportSwapped, volatileTransportBaseline, "Volatile transport mutation cannot change merged output.");
+assert.deepEqual(
+  hooks.coalesceIdenticalSerperTransportRecords([volatileTransportPair[0]]),
+  hooks.coalesceIdenticalSerperTransportRecords([volatileTransportPair[0], volatileTransportPair[0]]),
+  "Repeating a transport-identical observation cannot change merged output."
+);
+for (const permutation of permutations([...volatileTransportPair, volatileTransportPair[0]])) {
+  assert.deepEqual(
+    hooks.coalesceIdenticalSerperTransportRecords(permutation),
+    volatileTransportBaseline,
+    "Every three-record transport permutation must produce the same semantic merge."
+  );
+}
+
 const reversedConflictForward = dedupeUnderlyingOffers([
   observation({
     sourceRecordId: "reversed-conflict-a",
@@ -1707,6 +1933,84 @@ for (const permutation of permutations(threePageCandidates)) {
   assert.equal(selectedPages.length, 2, "The direct-page ceiling remains exactly two physical fetches.");
   assert.equal(pageBudget.physicalAttemptCount, 2);
 }
+
+const sharedCatalogUrl = "https://www.target.com/p/cedarline-security-envelopes-48?catalog=shared";
+const sharedUrlCandidates = [
+  { ...threePageCandidates[0], sourceRecordId: "shared-b", offerId: "shared-b", destinationUrl: sharedCatalogUrl, url: sharedCatalogUrl, canonicalUrl: sharedCatalogUrl },
+  { ...threePageCandidates[0], sourceRecordId: "shared-a", offerId: "shared-a", destinationUrl: sharedCatalogUrl, url: sharedCatalogUrl, canonicalUrl: sharedCatalogUrl },
+  threePageCandidates[1]
+];
+let sharedUrlBaseline = null;
+for (const permutation of permutations(sharedUrlCandidates)) {
+  const calls = [];
+  const pageBudget = hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment");
+  const enriched = await hooks.executeExactRetailPageDirectEnrichment({
+    context: enrichedContext,
+    currentRecords: permutation,
+    providerRequestRecords: [],
+    providerResponseSummaries: [],
+    providerErrors: [],
+    directPageAttemptBudget: pageBudget,
+    requestAdapter: async (url, _context, record) => {
+      calls.push([url, record.sourceRecordId]);
+      return {
+        finalUrl: url,
+        statusCode: 200,
+        elapsedMs: 1,
+        sourceEvidenceText: "Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50 In stock"
+      };
+    }
+  });
+  const result = {
+    calls,
+    sourceIds: enriched.map((record) => record.sourceRecordId).sort(),
+    budget: pageBudget.physicalAttemptCount
+  };
+  sharedUrlBaseline ??= result;
+  assert.deepEqual(result, sharedUrlBaseline, "Equal-URL groups and members are input-order independent.");
+  assert.equal(calls.length, 2);
+  assert.equal(calls.filter(([url]) => url === sharedCatalogUrl).length, 1);
+  assert(result.sourceIds.includes("shared-a") && result.sourceIds.includes("shared-b"));
+}
+const trackingUrlCandidates = [
+  { ...sharedUrlCandidates[0], destinationUrl: `${sharedCatalogUrl}&utm_source=one`, url: `${sharedCatalogUrl}&utm_source=one`, canonicalUrl: `${sharedCatalogUrl}&utm_source=one` },
+  { ...sharedUrlCandidates[1], destinationUrl: `${sharedCatalogUrl}&fbclid=two`, url: `${sharedCatalogUrl}&fbclid=two`, canonicalUrl: `${sharedCatalogUrl}&fbclid=two` }
+];
+const trackingCalls = [];
+await hooks.executeExactRetailPageDirectEnrichment({
+  context: enrichedContext,
+  currentRecords: trackingUrlCandidates,
+  providerRequestRecords: [],
+  providerResponseSummaries: [],
+  providerErrors: [],
+  directPageAttemptBudget: hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment"),
+  requestAdapter: async (url) => {
+    trackingCalls.push(url);
+    return { finalUrl: url, statusCode: 200, elapsedMs: 1, sourceEvidenceText: "Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50 In stock" };
+  }
+});
+assert.equal(trackingCalls.length, 1, "Tracking-only URL variants consume one physical fetch.");
+const missingUrlCandidate = {
+  ...threePageCandidates[2],
+  sourceRecordId: "missing-url",
+  destinationUrl: "",
+  url: "",
+  canonicalUrl: ""
+};
+const validWithMissingCalls = [];
+await hooks.executeExactRetailPageDirectEnrichment({
+  context: enrichedContext,
+  currentRecords: [missingUrlCandidate, ...threePageCandidates],
+  providerRequestRecords: [],
+  providerResponseSummaries: [],
+  providerErrors: [],
+  directPageAttemptBudget: hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment"),
+  requestAdapter: async (url) => {
+    validWithMissingCalls.push(url);
+    return { finalUrl: url, statusCode: 200, elapsedMs: 1, sourceEvidenceText: "Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50 In stock" };
+  }
+});
+assert.deepEqual(validWithMissingCalls, selectedPageBaseline, "A missing URL consumes no budget and cannot change selected valid groups.");
 
 const deniedFetch = globalThis.fetch;
 let redirectFetchInvocations = 0;

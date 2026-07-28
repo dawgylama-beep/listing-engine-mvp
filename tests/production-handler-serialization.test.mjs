@@ -700,7 +700,7 @@ test("real production handler preserves resale seller fields while projecting th
   }
 });
 
-async function runRetailHandlerForProviderOrder(recoveryRecords) {
+async function runRetailHandlerForProviderOrder(recoveryRecords, completionDelays = []) {
   const finalEvidenceResults = [];
   let clock = Date.parse(retailRecoveryFixture.fixedNow);
   const handler = createGenerateListingHandler({
@@ -717,13 +717,22 @@ async function runRetailHandlerForProviderOrder(recoveryRecords) {
       json: responseForSchema(payload?.text?.format?.name),
       data: { output: [] }
     }),
-    requestSerperSearch: async ({ queryRecord }) => ({
-      json: queryRecord?.retailStage === "stage_7_limited_result_recovery"
-        ? { organic: recoveryRecords }
-        : retailRecoveryFixture.preliminaryProviderResponse,
-      statusCode: 200,
-      elapsedMs: 4
-    }),
+    requestSerperSearch: async ({ queryRecord }) => {
+      const planIndex = Math.max(0, Number(queryRecord?.priority || 1) - 1);
+      const delayMs = completionDelays.length
+        ? completionDelays[planIndex % completionDelays.length]
+        : 0;
+      if (delayMs) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      return {
+        json: queryRecord?.retailStage === "stage_7_limited_result_recovery"
+          ? { organic: recoveryRecords }
+          : retailRecoveryFixture.preliminaryProviderResponse,
+        statusCode: 200,
+        elapsedMs: delayMs || 4
+      };
+    },
     requestBoundedRetailProductPage: async () => retailRecoveryFixture.directPageResult,
     onFinalEvidenceResult: (result) => finalEvidenceResults.push(result)
   });
@@ -782,4 +791,17 @@ test("real production handler preserves final customer evidence across provider 
     forward.report.searchDiagnostics.canonicalCustomerEvidenceIds
   );
   assert.deepEqual(reversed.report.pricesFound, reversed.report.customerEvidence);
+
+  for (const completionDelays of [
+    [12, 1, 7],
+    [1, 12, 7],
+    [7, 1, 12]
+  ]) {
+    const delayed = await runRetailHandlerForProviderOrder(forwardRecords, completionDelays);
+    validateFinalEvidenceResult(delayed.finalEvidenceResult);
+    assert.deepEqual(delayed.finalEvidenceResult.views, forward.finalEvidenceResult.views);
+    assert.deepEqual(delayed.finalEvidenceResult.customerEvidence, forward.finalEvidenceResult.customerEvidence);
+    assert.deepEqual(delayed.report.customerEvidence, forward.report.customerEvidence);
+    assert.deepEqual(delayed.report.pricesFound, delayed.report.customerEvidence);
+  }
 });
