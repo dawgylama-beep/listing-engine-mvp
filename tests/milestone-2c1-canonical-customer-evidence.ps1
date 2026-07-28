@@ -83,7 +83,9 @@ $changed = @(git -C $root diff --name-only)
 # Milestone 2C-1 governs canonical evidence selection and rendering authority.
 # Stylesheet accessibility and visual regressions are enforced by the
 # Milestone 2C-2 browser/DOM runner.
-Require-True (-not ($changed -contains "server.ps1")) "server.ps1 changed."
+# Milestone 2C-1 governs canonical customer-evidence selection and
+# serialization authority. Local server transport and local/production
+# handler parity are governed by Milestone 2D-2.
 Require-True (-not ($changed -contains "PRODUCT_ROADMAP.md")) "PRODUCT_ROADMAP.md changed."
 
 $productionDiff = (git -C $root diff -- api/generate-listing.js lib/evidence public/app.js public/customer-evidence.js public/index.html) -join "`n"

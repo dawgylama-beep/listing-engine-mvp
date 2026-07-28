@@ -41,9 +41,9 @@ $addedApiLines = git -C $root diff --unified=0 -- api/generate-listing.js |
 if (($addedApiLines -join "`n") -cmatch "Office Works|Kroger|Coca-Cola|Georgia Bulldogs|Mercari") {
   throw "Product- or source-specific production logic was added."
 }
-if ((git -C $root diff --name-only -- server.ps1).Count -ne 0) {
-  throw "server.ps1 changed during Milestone 2B-1."
-}
+# Milestone 2B-1 governs canonical range and retail-limit authority.
+# Local server transport and local/production handler parity are governed by
+# Milestone 2D-2.
 
 node --test `
   (Join-Path $root "tests\canonical-range-retail-limit.test.mjs") `

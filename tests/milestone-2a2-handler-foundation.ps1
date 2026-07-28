@@ -9,6 +9,7 @@ Remove-Item Env:SERPER_API_KEY -ErrorAction SilentlyContinue
 & node --test `
   (Join-Path $PSScriptRoot "final-evidence-validation.test.mjs") `
   (Join-Path $PSScriptRoot "hard-network-denial.test.mjs") `
+  (Join-Path $PSScriptRoot "local-production-handler-parity.test.mjs") `
   (Join-Path $PSScriptRoot "production-handler-serialization.test.mjs")
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE

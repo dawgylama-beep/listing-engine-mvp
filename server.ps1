@@ -7,6 +7,10 @@ $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
 $AppVersion = "1.12.1"
+$LocalBridgeProtocolVersion = 1
+$LocalBridgePath = Join-Path $RootDir "scripts\local-generate-listing-bridge.mjs"
+$LocalBridgeMaximumEnvelopeCharacters = 64 * 1024 * 1024
+$LocalBridgeDefaultTimeoutMilliseconds = 240000
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -704,8 +708,21 @@ function Handle-Client {
 
     Route-Request $Stream $Request
   } catch {
-    Write-Host $_.Exception.Message
-    Send-Json $Stream 500 @{ error = "Something went wrong while generating the listing." }
+    if ($_.Exception.Message -eq "Request body is too large.") {
+      try {
+        Send-Json $Stream 413 @{
+          error = "Request body is too large."
+          code = "request_body_too_large"
+        }
+      } catch {
+      }
+    } else {
+      Write-Host "Local request transport failed."
+      try {
+        Send-Json $Stream 500 @{ error = "Something went wrong while generating the listing." }
+      } catch {
+      }
+    }
   } finally {
     $Stream.Close()
     $Client.Close()
@@ -719,7 +736,7 @@ function Route-Request {
   )
 
   if ($Request.Method -eq "POST" -and $Request.Path -eq "/api/generate-listing") {
-    Handle-GenerateListing $Stream $Request
+    Invoke-LocalGenerateListingHandler $Stream $Request
     return
   }
 
@@ -734,6 +751,272 @@ function Route-Request {
   }
 
   Send-Json $Stream 405 @{ error = "Method not allowed." }
+}
+
+function Get-LocalNodeExecutable {
+  $ConfiguredExecutable = [System.Environment]::GetEnvironmentVariable("KATHERINES_EYE_NODE_EXECUTABLE", "Process")
+  if ($ConfiguredExecutable) {
+    $ConfiguredExecutable = $ConfiguredExecutable.Trim()
+    if ([System.IO.Path]::IsPathRooted($ConfiguredExecutable)) {
+      if (-not (Test-Path -LiteralPath $ConfiguredExecutable -PathType Leaf)) {
+        throw "Configured Node executable is unavailable."
+      }
+      return [System.IO.Path]::GetFullPath($ConfiguredExecutable)
+    }
+
+    $ConfiguredCommand = Get-Command $ConfiguredExecutable -CommandType Application -ErrorAction SilentlyContinue
+    if ($null -eq $ConfiguredCommand) {
+      throw "Configured Node executable is unavailable."
+    }
+    return $ConfiguredCommand.Source
+  }
+
+  $NodeCommand = Get-Command "node" -CommandType Application -ErrorAction SilentlyContinue
+  if ($null -eq $NodeCommand) {
+    throw "Node executable is unavailable."
+  }
+  return $NodeCommand.Source
+}
+
+function Get-LocalBridgeTimeoutMilliseconds {
+  $TimeoutMilliseconds = $LocalBridgeDefaultTimeoutMilliseconds
+  $ConfiguredTimeout = [System.Environment]::GetEnvironmentVariable("KATHERINES_EYE_BRIDGE_TIMEOUT_MS", "Process")
+  if ($ConfiguredTimeout) {
+    $ParsedTimeout = 0
+    if (
+      [int]::TryParse($ConfiguredTimeout, [ref]$ParsedTimeout) -and
+      $ParsedTimeout -ge 100 -and
+      $ParsedTimeout -le 600000
+    ) {
+      $TimeoutMilliseconds = $ParsedTimeout
+    }
+  }
+  return $TimeoutMilliseconds
+}
+
+function Get-BridgeRequestHeaders {
+  param($Headers)
+
+  $AllowedHeaders = @(
+    "Accept",
+    "Accept-Language",
+    "Content-Type",
+    "Origin",
+    "User-Agent",
+    "X-Requested-With"
+  )
+  $SafeHeaders = [ordered]@{}
+  foreach ($HeaderName in $AllowedHeaders) {
+    if ($Headers.ContainsKey($HeaderName)) {
+      $HeaderValue = [string]$Headers[$HeaderName]
+      if ($HeaderValue.Length -le 8192 -and $HeaderValue -notmatch "[\r\n]") {
+        $SafeHeaders[$HeaderName.ToLowerInvariant()] = $HeaderValue
+      }
+    }
+  }
+  return $SafeHeaders
+}
+
+function Invoke-LocalGenerateListingBridge {
+  param($Request)
+
+  if (-not (Test-Path -LiteralPath $LocalBridgePath -PathType Leaf)) {
+    throw "Local handler bridge is unavailable."
+  }
+
+  $BodyBytes = [byte[]]$Request.BodyBytes
+  if ($BodyBytes.Length -gt $MaxBodyBytes) {
+    throw "Request body is too large."
+  }
+
+  $Envelope = [ordered]@{
+    protocolVersion = $LocalBridgeProtocolVersion
+    method = [string]$Request.Method
+    url = [string]$Request.Url
+    headers = Get-BridgeRequestHeaders $Request.Headers
+    rawBodyBase64 = [System.Convert]::ToBase64String($BodyBytes)
+    correlationId = "ke-local-$([guid]::NewGuid().ToString('N'))"
+  }
+  $EnvelopeJson = $Envelope | ConvertTo-Json -Depth 8 -Compress
+  $EnvelopeBytes = [System.Text.Encoding]::UTF8.GetBytes($EnvelopeJson)
+  if ($EnvelopeBytes.Length -gt (44 * 1024 * 1024)) {
+    throw "Local handler request envelope is too large."
+  }
+
+  $NodeExecutable = Get-LocalNodeExecutable
+  if ($LocalBridgePath.Contains('"')) {
+    throw "Local handler bridge path is invalid."
+  }
+
+  $StartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $StartInfo.FileName = $NodeExecutable
+  $StartInfo.Arguments = "`"$LocalBridgePath`""
+  $StartInfo.WorkingDirectory = $RootDir
+  $StartInfo.UseShellExecute = $false
+  $StartInfo.CreateNoWindow = $true
+  $StartInfo.RedirectStandardInput = $true
+  $StartInfo.RedirectStandardOutput = $true
+  $StartInfo.RedirectStandardError = $true
+  $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  if ($StartInfo.PSObject.Properties.Name -contains "StandardOutputEncoding") {
+    $StartInfo.StandardOutputEncoding = $Utf8NoBom
+  }
+  if ($StartInfo.PSObject.Properties.Name -contains "StandardErrorEncoding") {
+    $StartInfo.StandardErrorEncoding = $Utf8NoBom
+  }
+
+  $Process = [System.Diagnostics.Process]::new()
+  $Process.StartInfo = $StartInfo
+  $Started = $false
+  try {
+    $Started = $Process.Start()
+    if (-not $Started) {
+      throw "Local handler bridge did not start."
+    }
+
+    $StandardOutputTask = $Process.StandardOutput.ReadToEndAsync()
+    $StandardErrorTask = $Process.StandardError.ReadToEndAsync()
+    $Process.StandardInput.BaseStream.Write($EnvelopeBytes, 0, $EnvelopeBytes.Length)
+    $Process.StandardInput.BaseStream.Flush()
+    $Process.StandardInput.Close()
+
+    $Completed = $Process.WaitForExit((Get-LocalBridgeTimeoutMilliseconds))
+    if (-not $Completed) {
+      try {
+        $Process.Kill()
+      } catch {
+      }
+      $Process.WaitForExit()
+      throw "Local handler bridge timed out."
+    }
+
+    $Process.WaitForExit()
+    $StandardOutput = $StandardOutputTask.Result
+    $null = $StandardErrorTask.Result
+    if ($Process.ExitCode -ne 0) {
+      throw "Local handler bridge exited unsuccessfully."
+    }
+    if (
+      [string]::IsNullOrWhiteSpace($StandardOutput) -or
+      $StandardOutput.Length -gt $LocalBridgeMaximumEnvelopeCharacters
+    ) {
+      throw "Local handler bridge returned an invalid response."
+    }
+
+    try {
+      $BridgeResponse = $StandardOutput | ConvertFrom-Json
+    } catch {
+      throw "Local handler bridge returned malformed protocol output."
+    }
+    if (
+      $null -eq $BridgeResponse -or
+      [int]$BridgeResponse.protocolVersion -ne $LocalBridgeProtocolVersion -or
+      $null -eq $BridgeResponse.statusCode -or
+      $null -eq $BridgeResponse.headers -or
+      $null -eq $BridgeResponse.rawBodyBase64
+    ) {
+      throw "Local handler bridge returned a protocol mismatch."
+    }
+
+    $StatusCode = 0
+    if (
+      -not [int]::TryParse([string]$BridgeResponse.statusCode, [ref]$StatusCode) -or
+      $StatusCode -lt 100 -or
+      $StatusCode -gt 599
+    ) {
+      throw "Local handler bridge returned an invalid status."
+    }
+    try {
+      $ResponseBytes = [System.Convert]::FromBase64String([string]$BridgeResponse.rawBodyBase64)
+    } catch {
+      throw "Local handler bridge returned an invalid response body."
+    }
+    if ($ResponseBytes.Length -gt $MaxBodyBytes) {
+      throw "Local handler bridge response is too large."
+    }
+
+    $ResponseHeaders = [ordered]@{}
+    foreach ($Property in $BridgeResponse.headers.PSObject.Properties) {
+      $HeaderName = [string]$Property.Name
+      $HeaderValue = [string]$Property.Value
+      if (
+        $HeaderName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|vary|x-request-id)$" -and
+        $HeaderValue.Length -le 8192 -and
+        $HeaderValue -notmatch "[\r\n]"
+      ) {
+        $ResponseHeaders[$HeaderName] = $HeaderValue
+      }
+    }
+
+    return @{
+      StatusCode = $StatusCode
+      Headers = $ResponseHeaders
+      BodyBytes = $ResponseBytes
+    }
+  } finally {
+    if ($Started -and -not $Process.HasExited) {
+      try {
+        $Process.Kill()
+      } catch {
+      }
+      try {
+        $Process.WaitForExit()
+      } catch {
+      }
+    }
+    if ($Started) {
+      try {
+        $Process.StandardInput.Dispose()
+      } catch {
+      }
+      try {
+        $Process.StandardOutput.Dispose()
+      } catch {
+      }
+      try {
+        $Process.StandardError.Dispose()
+      } catch {
+      }
+    }
+    $Process.Dispose()
+  }
+}
+
+function Invoke-LocalGenerateListingHandler {
+  param(
+    [System.Net.Sockets.NetworkStream]$Stream,
+    $Request
+  )
+
+  try {
+    $BridgeResponse = Invoke-LocalGenerateListingBridge $Request
+  } catch {
+    if ($_.Exception.Message -eq "Request body is too large.") {
+      try {
+        Send-Json $Stream 413 @{
+          error = "Request body is too large."
+          code = "request_body_too_large"
+        }
+      } catch {
+      }
+      return
+    }
+    Write-Host "Local production-handler bridge failed closed."
+    try {
+      Send-Json $Stream 502 @{
+        error = "Local analysis transport failed."
+        code = "local_handler_transport_error"
+      }
+    } catch {
+    }
+    return
+  }
+
+  try {
+    Send-HandlerBytes $Stream $BridgeResponse.StatusCode $BridgeResponse.Headers $BridgeResponse.BodyBytes
+  } catch {
+    Write-Host "Local handler response write was cancelled."
+  }
 }
 
 function Handle-GenerateListing {
@@ -3303,7 +3586,9 @@ function Read-HttpRequest {
   return @{
     Method = $RequestParts[0].ToUpperInvariant()
     Path = $PathOnly
+    Url = $RawPath
     Headers = $Headers
+    BodyBytes = $BodyMemory.ToArray()
     Body = [System.Text.Encoding]::UTF8.GetString($BodyMemory.ToArray())
   }
 }
@@ -3378,6 +3663,49 @@ function Send-Text {
   Send-Bytes $Stream $StatusCode "text/plain; charset=utf-8" $Bytes
 }
 
+function Send-HandlerBytes {
+  param(
+    [System.Net.Sockets.NetworkStream]$Stream,
+    [int]$StatusCode,
+    $Headers,
+    [byte[]]$Bytes
+  )
+
+  $HeaderLines = New-Object System.Collections.Generic.List[string]
+  $HeaderLines.Add("HTTP/1.1 $StatusCode $(Get-ReasonPhrase $StatusCode)")
+  $HasContentType = $false
+  $HasCacheControl = $false
+  foreach ($HeaderName in $Headers.Keys) {
+    $NormalizedName = [string]$HeaderName
+    $HeaderValue = [string]$Headers[$HeaderName]
+    if ($NormalizedName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|vary|x-request-id)$") {
+      if ($NormalizedName -ieq "Content-Type") {
+        $HasContentType = $true
+      }
+      if ($NormalizedName -ieq "Cache-Control") {
+        $HasCacheControl = $true
+      }
+      $HeaderLines.Add("$NormalizedName`: $HeaderValue")
+    }
+  }
+  if (-not $HasContentType) {
+    $HeaderLines.Add("Content-Type: application/octet-stream")
+  }
+  if (-not $HasCacheControl) {
+    $HeaderLines.Add("Cache-Control: no-store")
+  }
+  $HeaderLines.Add("Content-Length: $($Bytes.Length)")
+  $HeaderLines.Add("Connection: close")
+  $HeaderLines.Add("")
+  $HeaderLines.Add("")
+
+  $HeaderBytes = [System.Text.Encoding]::ASCII.GetBytes(($HeaderLines -join "`r`n"))
+  $Stream.Write($HeaderBytes, 0, $HeaderBytes.Length)
+  if ($Bytes.Length -gt 0) {
+    $Stream.Write($Bytes, 0, $Bytes.Length)
+  }
+}
+
 function Send-Bytes {
   param(
     [System.Net.Sockets.NetworkStream]$Stream,
@@ -3412,6 +3740,7 @@ function Get-ReasonPhrase {
     403 { return "Forbidden" }
     404 { return "Not Found" }
     405 { return "Method Not Allowed" }
+    409 { return "Conflict" }
     413 { return "Payload Too Large" }
     500 { return "Internal Server Error" }
     502 { return "Bad Gateway" }

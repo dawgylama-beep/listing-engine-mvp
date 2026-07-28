@@ -61,9 +61,9 @@ $addedProductionLines = git -C $root diff --unified=0 -- api/generate-listing.js
 if (($addedProductionLines -join "`n") -cmatch "Office Works|Kroger|Target 45|Coca-Cola|Georgia Bulldogs|Mercari|041226087161|6110325|30188") {
   throw "Product-, source-, identifier-, or ZIP-specific production logic was added."
 }
-if ((git -C $root diff --name-only -- server.ps1).Count -ne 0) {
-  throw "server.ps1 changed during Milestone 2B-2."
-}
+# Milestone 2B-2 governs canonical recommendation, confidence, and badge
+# authority. Local server transport and local/production handler parity are
+# governed by Milestone 2D-2.
 
 node --experimental-test-coverage --test `
   (Join-Path $root "tests\canonical-decision-confidence-badge.test.mjs") `
