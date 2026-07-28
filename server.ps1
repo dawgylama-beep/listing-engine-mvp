@@ -11,6 +11,8 @@ $LocalBridgeProtocolVersion = 1
 $LocalBridgePath = Join-Path $RootDir "scripts\local-generate-listing-bridge.mjs"
 $LocalBridgeMaximumEnvelopeCharacters = 64 * 1024 * 1024
 $LocalBridgeDefaultTimeoutMilliseconds = 240000
+$OversizedRequestDrainBufferBytes = 8192
+$OversizedRequestDrainTimeoutMilliseconds = 1000
 
 $ConsumerDecisionThresholds = @{
   exceptionalMaxRatio = 0.72
@@ -705,6 +707,14 @@ function Handle-Client {
     if ($null -eq $Request) {
       return
     }
+    if ($Request.IsOversizedRequest) {
+      try {
+        Complete-OversizedRequest $Client $Stream $Request
+      } catch {
+        Write-Host "Oversized request response transport ended."
+      }
+      return
+    }
 
     Route-Request $Stream $Request
   } catch {
@@ -726,6 +736,75 @@ function Handle-Client {
   } finally {
     $Stream.Close()
     $Client.Close()
+  }
+}
+
+function Complete-OversizedRequest {
+  param(
+    [System.Net.Sockets.TcpClient]$Client,
+    [System.Net.Sockets.NetworkStream]$Stream,
+    $Request
+  )
+
+  Send-Json $Stream 413 @{
+    error = "Request body is too large."
+    code = "request_body_too_large"
+  }
+  $Stream.Flush()
+
+  try {
+    $Client.Client.Shutdown([System.Net.Sockets.SocketShutdown]::Send)
+  } catch {
+  }
+
+  Drain-OversizedRequestBody $Client $Stream $Request.DeclaredContentLength $Request.BufferedBodyByteCount
+}
+
+function Drain-OversizedRequestBody {
+  param(
+    [System.Net.Sockets.TcpClient]$Client,
+    [System.Net.Sockets.NetworkStream]$Stream,
+    [long]$DeclaredContentLength,
+    [long]$BufferedBodyByteCount
+  )
+
+  $RemainingBytes = [Math]::Max([long]0, $DeclaredContentLength - $BufferedBodyByteCount)
+  if ($RemainingBytes -le 0) {
+    return
+  }
+
+  $Buffer = New-Object byte[] $OversizedRequestDrainBufferBytes
+  $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+  try {
+    while (
+      $RemainingBytes -gt 0 -and
+      $Stopwatch.ElapsedMilliseconds -lt $OversizedRequestDrainTimeoutMilliseconds
+    ) {
+      $AvailableBytes = $Client.Available
+      if ($AvailableBytes -gt 0) {
+        $ReadSize = [int][Math]::Min(
+          [long]$Buffer.Length,
+          [Math]::Min([long]$AvailableBytes, $RemainingBytes)
+        )
+        $Read = $Stream.Read($Buffer, 0, $ReadSize)
+        if ($Read -le 0) {
+          break
+        }
+        $RemainingBytes -= $Read
+        continue
+      }
+
+      if (
+        $Client.Client.Poll(0, [System.Net.Sockets.SelectMode]::SelectRead) -and
+        $Client.Available -eq 0
+      ) {
+        break
+      }
+      Start-Sleep -Milliseconds 5
+    }
+  } catch {
+  } finally {
+    $Stopwatch.Stop()
   }
 }
 
@@ -3551,13 +3630,24 @@ function Read-HttpRequest {
     $Headers[$Key] = $Value
   }
 
-  $ContentLength = 0
+  [long]$ContentLength = 0
   if ($Headers.ContainsKey("Content-Length")) {
-    $ContentLength = [int]$Headers["Content-Length"]
+    if (
+      -not [long]::TryParse([string]$Headers["Content-Length"], [ref]$ContentLength) -or
+      $ContentLength -lt 0
+    ) {
+      throw "Invalid Content-Length."
+    }
   }
 
   if ($ContentLength -gt $MaxBodyBytes) {
-    throw "Request body is too large."
+    $BodyStart = $HeaderEnd + 4
+    $BufferedBodyByteCount = [Math]::Max([long]0, [long]$AllBytes.Length - $BodyStart)
+    return @{
+      IsOversizedRequest = $true
+      DeclaredContentLength = $ContentLength
+      BufferedBodyByteCount = [Math]::Min($BufferedBodyByteCount, $ContentLength)
+    }
   }
 
   $BodyStart = $HeaderEnd + 4
@@ -3570,7 +3660,7 @@ function Read-HttpRequest {
 
   while ($BodyMemory.Length -lt $ContentLength) {
     $Remaining = $ContentLength - [int]$BodyMemory.Length
-    $ReadSize = [Math]::Min($Buffer.Length, $Remaining)
+    $ReadSize = [int][Math]::Min([long]$Buffer.Length, [long]$Remaining)
     $Read = $Stream.Read($Buffer, 0, $ReadSize)
     if ($Read -le 0) {
       break

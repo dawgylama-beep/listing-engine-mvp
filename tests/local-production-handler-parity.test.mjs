@@ -17,6 +17,11 @@ const serverPath = path.join(root, "server.ps1");
 const bridgePath = path.join(root, "scripts", "local-generate-listing-bridge.mjs");
 const fixtureUrl = pathToFileURL(path.join(root, "tests", "fixtures", "production-shaped-evidence.mjs")).href;
 const credentialPattern = /(API[_-]?KEY|ACCESS[_-]?TOKEN|AUTHORIZATION|BEARER|CLIENT[_-]?SECRET|OPENAI|OPEN_API|SERPER|MARKETPLACE|RETAILER|AUCTION|EBAY|ETSY|MERCARI|WORTHPOINT)/i;
+const maxRequestBodyBytes = 30 * 1024 * 1024;
+const expectedOversizedResponseBody = Buffer.from(
+  '{\r\n    "error":  "Request body is too large.",\r\n    "code":  "request_body_too_large"\r\n}',
+  "utf8"
+);
 const trackedServers = new Set();
 const adapterPaths = new Map();
 let temporaryRoot;
@@ -217,7 +222,14 @@ async function reserveLoopbackPort() {
   });
 }
 
-function loopbackRequest({ port, method = "POST", requestPath = "/api/generate-listing", body = Buffer.alloc(0), headers = {} }) {
+function loopbackRequest({
+  port,
+  method = "POST",
+  requestPath = "/api/generate-listing",
+  body = Buffer.alloc(0),
+  headers = {},
+  timeoutMs = 15000
+}) {
   const payload = Buffer.isBuffer(body) ? body : Buffer.from(body);
   return new Promise((resolve, reject) => {
     const request = http.request({
@@ -239,9 +251,123 @@ function loopbackRequest({ port, method = "POST", requestPath = "/api/generate-l
         body: Buffer.concat(chunks)
       }));
     });
-    request.setTimeout(15000, () => request.destroy(new Error("Loopback request timed out.")));
+    request.setTimeout(timeoutMs, () => request.destroy(new Error("Loopback request timed out.")));
     request.once("error", reject);
     request.end(payload);
+  });
+}
+
+function rawOversizedLoopbackRequest({
+  port,
+  declaredContentLength,
+  chunks = [],
+  chunkDelayMs = 0,
+  timeoutMs = 15000
+}) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({
+      host: "127.0.0.1",
+      port,
+      allowHalfOpen: true
+    });
+    const responseChunks = [];
+    let response = null;
+    let sendsComplete = false;
+    let settled = false;
+
+    const finishIfComplete = () => {
+      if (settled || !response || !sendsComplete) return;
+      settled = true;
+      socket.destroy();
+      resolve(response);
+    };
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      reject(error);
+    };
+    const parseResponse = () => {
+      const received = Buffer.concat(responseChunks);
+      const headerEnd = received.indexOf("\r\n\r\n");
+      if (headerEnd < 0) return;
+      const headerText = received.subarray(0, headerEnd).toString("ascii");
+      const lines = headerText.split("\r\n");
+      const statusMatch = lines.shift()?.match(/^HTTP\/1\.1\s+(\d{3})\b/);
+      if (!statusMatch) {
+        fail(new Error("Oversized response status line was invalid."));
+        return;
+      }
+      const headers = {};
+      for (const line of lines) {
+        const separator = line.indexOf(":");
+        if (separator < 1) continue;
+        headers[line.slice(0, separator).trim().toLowerCase()] = line.slice(separator + 1).trim();
+      }
+      const contentLength = Number(headers["content-length"]);
+      if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+        fail(new Error("Oversized response Content-Length was invalid."));
+        return;
+      }
+      const bodyStart = headerEnd + 4;
+      if (received.length < bodyStart + contentLength) return;
+      response = {
+        statusCode: Number(statusMatch[1]),
+        headers,
+        body: received.subarray(bodyStart, bodyStart + contentLength)
+      };
+      finishIfComplete();
+    };
+    const writeChunk = (chunk) => new Promise((resolveWrite, rejectWrite) => {
+      socket.write(chunk, (error) => error ? rejectWrite(error) : resolveWrite());
+    });
+
+    socket.setNoDelay(true);
+    socket.setTimeout(timeoutMs, () => fail(new Error("Raw oversized loopback request timed out.")));
+    socket.on("data", (chunk) => {
+      responseChunks.push(chunk);
+      parseResponse();
+    });
+    socket.once("error", fail);
+    socket.once("end", () => {
+      parseResponse();
+      if (!response) fail(new Error("Oversized connection ended before a complete response."));
+    });
+    socket.once("connect", async () => {
+      try {
+        await writeChunk(Buffer.from([
+          "POST /api/generate-listing HTTP/1.1",
+          `Host: 127.0.0.1:${port}`,
+          "Content-Type: application/json",
+          `Content-Length: ${declaredContentLength}`,
+          "Connection: close",
+          "",
+          ""
+        ].join("\r\n"), "ascii"));
+        for (const chunk of chunks) {
+          if (chunkDelayMs > 0) {
+            await new Promise((resolveDelay) => setTimeout(resolveDelay, chunkDelayMs));
+          }
+          await writeChunk(chunk);
+        }
+        sendsComplete = true;
+        finishIfComplete();
+      } catch (error) {
+        fail(error);
+      }
+    });
+  });
+}
+
+function assertOversizedResponse(response) {
+  assert.equal(response.statusCode, 413);
+  assert.equal(response.headers["content-type"], "application/json; charset=utf-8");
+  assert.equal(response.headers.connection, "close");
+  assert.equal(Number(response.headers["content-length"]), response.body.length);
+  assert.deepEqual(response.body, expectedOversizedResponseBody);
+  assert.deepEqual(JSON.parse(response.body.toString("utf8")), {
+    error: "Request body is too large.",
+    code: "request_body_too_large"
   });
 }
 
@@ -387,13 +513,15 @@ async function invokeDirect(rawBody, { adapterMode = "success", method = "POST" 
 async function assertHandlerParity(rawBody, {
   adapterMode = "success",
   server = mainServer,
-  expectedStatus
+  expectedStatus,
+  requestTimeoutMs
 } = {}) {
   const direct = await invokeDirect(rawBody, { adapterMode });
   const local = await loopbackRequest({
     port: server.port,
     body: rawBody,
-    headers: { "Content-Type": "application/json; charset=utf-8" }
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    timeoutMs: requestTimeoutMs
   });
   if (server === mainServer) mainBridgeInvocationCount += 1;
 
@@ -615,17 +743,116 @@ test("unrelated local routes, static MIME handling, traversal rejection, and met
   assert.equal(optionsGenerate.statusCode, 405);
 });
 
-test("oversized local request returns 413 without launching the bridge", async () => {
-  const beforeCount = readTrace(mainServer.tracePath).length;
-  const oversized = Buffer.alloc((30 * 1024 * 1024) + 1, 0x20);
-  const response = await loopbackRequest({
+test("oversized local requests reliably return 413 without launching the bridge", async () => {
+  const traceBeforeOversized = readTrace(mainServer.tracePath);
+  const metrics = {
+    attempted: 0,
+    http413: 0,
+    econnreset: 0,
+    otherSocketFailures: 0,
+    bridgeLaunches: 0,
+    handlerInvocations: 0,
+    legacyEngineInvocations: 0,
+    orphanProcesses: 0
+  };
+  const observeOversized = async (requestPromise) => {
+    metrics.attempted += 1;
+    try {
+      const response = await requestPromise;
+      assertOversizedResponse(response);
+      metrics.http413 += 1;
+      return response;
+    } catch (error) {
+      if (error?.code === "ECONNRESET") metrics.econnreset += 1;
+      else metrics.otherSocketFailures += 1;
+      throw error;
+    }
+  };
+
+  const earlyPayload = Buffer.alloc(256 * 1024, 0x20);
+  for (let index = 0; index < 50; index += 1) {
+    await observeOversized(rawOversizedLoopbackRequest({
+      port: mainServer.port,
+      declaredContentLength: maxRequestBodyBytes + 1,
+      chunks: [earlyPayload]
+    }));
+  }
+
+  const concurrentPayload = Buffer.alloc(128 * 1024, 0x20);
+  await Promise.all(Array.from({ length: 20 }, () => observeOversized(rawOversizedLoopbackRequest({
     port: mainServer.port,
-    body: oversized,
-    headers: { "Content-Type": "application/json" }
+    declaredContentLength: maxRequestBodyBytes + 1,
+    chunks: [concurrentPayload]
+  }))));
+
+  const fragmentedChunks = Array.from({ length: 4 }, () => Buffer.alloc(32 * 1024, 0x20));
+  for (let index = 0; index < 10; index += 1) {
+    await observeOversized(rawOversizedLoopbackRequest({
+      port: mainServer.port,
+      declaredContentLength: maxRequestBodyBytes + 1,
+      chunks: fragmentedChunks,
+      chunkDelayMs: 5
+    }));
+  }
+
+  await observeOversized(rawOversizedLoopbackRequest({
+    port: mainServer.port,
+    declaredContentLength: maxRequestBodyBytes + 1
+  }));
+
+  await observeOversized(loopbackRequest({
+    port: mainServer.port,
+    body: Buffer.alloc(maxRequestBodyBytes + 1, 0x20),
+    headers: { "Content-Type": "application/json" },
+    timeoutMs: 30000
+  }));
+
+  await observeOversized(rawOversizedLoopbackRequest({
+    port: mainServer.port,
+    declaredContentLength: maxRequestBodyBytes + 1,
+    chunks: [Buffer.from(" ", "utf8")]
+  }));
+
+  const traceAfterOversized = readTrace(mainServer.tracePath);
+  metrics.bridgeLaunches = traceAfterOversized.length - traceBeforeOversized.length;
+  assert.equal(metrics.attempted, 83);
+  assert.equal(metrics.http413, 83);
+  assert.equal(metrics.econnreset, 0);
+  assert.equal(metrics.otherSocketFailures, 0);
+  assert.equal(metrics.bridgeLaunches, 0, "Oversized requests launched the bridge.");
+  assert.equal(metrics.handlerInvocations, 0);
+  assert.equal(metrics.legacyEngineInvocations, 0);
+
+  const exactLimitBody = Buffer.alloc(maxRequestBodyBytes, 0x20);
+  Buffer.from('{"analysisId":"exact-limit","photos":[]}', "utf8").copy(exactLimitBody);
+  await assertHandlerParity(exactLimitBody, {
+    expectedStatus: 400,
+    requestTimeoutMs: 60000
   });
-  assert.equal(response.statusCode, 413);
-  assert.equal(JSON.parse(response.body.toString("utf8")).code, "request_body_too_large");
-  assert.equal(readTrace(mainServer.tracePath).length, beforeCount, "Oversized request launched the bridge.");
+
+  const rootResponse = await loopbackRequest({
+    port: mainServer.port,
+    method: "GET",
+    requestPath: "/"
+  });
+  assert.equal(rootResponse.statusCode, 200);
+  assert.match(rootResponse.headers["content-type"], /^text\/html/);
+
+  await assertHandlerParity(requestBodyForPurpose({
+    purchaseIntent: "personal_use",
+    reportType: "marketValue",
+    analysisId: "analysis-parity-post-oversized-stress"
+  }), { expectedStatus: 200 });
+
+  const newBridgeEvents = readTrace(mainServer.tracePath).slice(traceAfterOversized.length);
+  for (const event of newBridgeEvents) {
+    if (!event.pid) continue;
+    await waitForPidExit(event.pid);
+    if (await pidIsRunning(event.pid)) metrics.orphanProcesses += 1;
+  }
+  assert.equal(metrics.orphanProcesses, 0);
+  assert.equal(mainServer.child.exitCode, null, "Oversized stress terminated the PowerShell listener.");
+  console.log(`oversized-stress: ${JSON.stringify(metrics)}`);
 });
 
 test("missing Node executable fails closed without invoking the legacy engine", async () => {
