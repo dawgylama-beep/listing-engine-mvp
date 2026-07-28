@@ -4,6 +4,7 @@ import {
   createFinalEvidenceResult,
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
+import { compareObservationPreference } from "../lib/evidence/dedupe.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 
@@ -2062,6 +2063,7 @@ async function executeSerperComparableSearch({
   const providerResponseSummaries = [];
   const providerErrors = [];
   const rawProviderRecords = [];
+  const rawProviderRecordsByPlan = [];
 
   providerRequestRecords.forEach((requestRecord, index) => {
     if (!requestRecord.attempted) {
@@ -2073,7 +2075,7 @@ async function executeSerperComparableSearch({
     .map((requestRecord, index) => ({ requestRecord, queryRecord: queriesPrioritized[index] }))
     .filter(({ requestRecord }) => requestRecord.attempted);
 
-  await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }) => {
+  await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
     try {
       const response = await requestSerperSearchWithBudget({
         requestRecord,
@@ -2084,7 +2086,7 @@ async function executeSerperComparableSearch({
         requestAdapter
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
-      rawProviderRecords.push(...parsed.records);
+      rawProviderRecordsByPlan[planIndex] = parsed.records;
       requestRecord.succeeded = true;
       requestRecord.statusCode = response.statusCode;
       requestRecord.elapsedMilliseconds = response.elapsedMs;
@@ -2140,6 +2142,7 @@ async function executeSerperComparableSearch({
       });
     }
   }));
+  rawProviderRecords.push(...rawProviderRecordsByPlan.flatMap((records) => records || []));
 
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
   const elapsedMs = currentTimeMilliseconds() - requestStartedAtMs;
@@ -2461,6 +2464,7 @@ async function executeLimitedResultRetailRecovery({
       providerResponseSummaries.push(createSerperPreflightRejectedResponseSummary(plannedQueries[index], requestRecord));
     }
   });
+  const recoveredProviderRecordsByPlan = new Array(recoveryRequestRecords.length);
   await Promise.all(recoveryRequestRecords.map(async (requestRecord, index) => {
     if (!requestRecord.attempted) {
       return;
@@ -2476,7 +2480,7 @@ async function executeLimitedResultRetailRecovery({
         requestAdapter: serperRequestAdapter
       });
       const parsed = parseSerperResponse(response.json, queryRecord);
-      rawProviderRecords.push(...parsed.records);
+      recoveredProviderRecordsByPlan[index] = parsed.records;
       requestRecord.succeeded = true;
       requestRecord.statusCode = response.statusCode;
       requestRecord.elapsedMilliseconds = response.elapsedMs;
@@ -2532,6 +2536,7 @@ async function executeLimitedResultRetailRecovery({
       });
     }
   }));
+  rawProviderRecords.push(...recoveredProviderRecordsByPlan.flatMap((records) => records || []));
   const recoveredRecords = coalesceIdenticalSerperTransportRecords(
     [
       ...recordsForRecovery,
@@ -2576,7 +2581,9 @@ async function executeExactRetailPageDirectEnrichment({
       candidatesByUrl.set(url, record);
     }
   }
-  const candidates = [...candidatesByUrl.entries()].slice(0, remainingBudget);
+  const candidates = [...candidatesByUrl.entries()]
+    .sort(([leftUrl], [rightUrl]) => compareSerperTransportText(leftUrl, rightUrl))
+    .slice(0, remainingBudget);
   if (!candidates.length) {
     return currentRecords;
   }
@@ -3529,6 +3536,11 @@ const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
   "exactPageNormalizedBarcodeIdentitiesFound"
 ]);
 
+const SERPER_TRANSPORT_SET_PATHS = new Set([
+  "exactRetailPageEvidence.matchingBarcodeIdentities",
+  "exactRetailPageEvidence.normalizedBarcodeIdentitiesFound"
+]);
+
 function compareSerperTransportText(left, right) {
   if (left === right) return 0;
   return left < right ? -1 : 1;
@@ -3560,12 +3572,12 @@ function hasSerperTransportIdentityValue(value) {
   return true;
 }
 
-function normalizeSerperTransportIdentityValue(value, fieldName = "") {
+function normalizeSerperTransportIdentityValue(value, fieldName = "", fieldPath = fieldName) {
   if (Array.isArray(value)) {
     const normalizedItems = value
       .filter(hasSerperTransportIdentityValue)
-      .map((item) => normalizeSerperTransportIdentityValue(item, fieldName));
-    if (SERPER_TRANSPORT_SET_FIELDS.has(fieldName)) {
+      .map((item) => normalizeSerperTransportIdentityValue(item, fieldName, fieldPath));
+    if (SERPER_TRANSPORT_SET_FIELDS.has(fieldName) || SERPER_TRANSPORT_SET_PATHS.has(fieldPath)) {
       return [
         "set",
         [...new Map(normalizedItems
@@ -3583,7 +3595,11 @@ function normalizeSerperTransportIdentityValue(value, fieldName = "") {
       Object.keys(value)
         .filter((key) => hasSerperTransportIdentityValue(value[key]))
         .sort()
-        .map((key) => [key, normalizeSerperTransportIdentityValue(value[key], key)])
+        .map((key) => [key, normalizeSerperTransportIdentityValue(
+          value[key],
+          key,
+          fieldPath ? `${fieldPath}.${key}` : key
+        )])
     ];
   }
   if (typeof value === "number") {
@@ -3616,7 +3632,14 @@ function buildSerperTransportIdentity(record = {}) {
 
 function coalesceIdenticalSerperTransportRecords(records = []) {
   const byTransportIdentity = new Map();
-  for (const record of records) {
+  const orderedRecords = records.slice().sort((left, right) => (
+    buildSerperTransportIdentity(left).localeCompare(buildSerperTransportIdentity(right))
+    || cleanText(left.query).localeCompare(cleanText(right.query))
+    || cleanText(left.searchPass).localeCompare(cleanText(right.searchPass))
+    || JSON.stringify(normalizeSerperTransportIdentityValue(left))
+      .localeCompare(JSON.stringify(normalizeSerperTransportIdentityValue(right)))
+  ));
+  for (const record of orderedRecords) {
     const key = buildSerperTransportIdentity(record);
     if (!key) {
       byTransportIdentity.set(Symbol("transport-observation"), {
@@ -3636,11 +3659,13 @@ function coalesceIdenticalSerperTransportRecords(records = []) {
       continue;
     }
     const merged = preferRicherSerperRecord(existing, record);
-    merged.queriesFound = mergeStringArrays(existing.queriesFound, [record.query], 8);
-    merged.searchPassesFound = mergeStringArrays(existing.searchPassesFound, [record.searchPass], 6);
+    merged.queriesFound = mergeStringArrays(existing.queriesFound, [record.query], 8).sort();
+    merged.searchPassesFound = mergeStringArrays(existing.searchPassesFound, [record.searchPass], 6).sort();
     byTransportIdentity.set(key, merged);
   }
-  return [...byTransportIdentity.values()];
+  return [...byTransportIdentity.entries()]
+    .sort(([left], [right]) => String(left).localeCompare(String(right)))
+    .map(([, value]) => value);
 }
 
 function dedupeSerperCandidateRecords(records = []) {
@@ -12564,7 +12589,13 @@ function buildCanonicalEvidenceObservations(records = [], {
             ? "direct_product_page"
             : "search_snippet")
         ),
-        observedAt: record.observedAt || record.evidenceTimestamp || record.fetchedAt,
+        observedAt: record.sourcePublishedAt
+          || record.listingPublishedAt
+          || record.transactionAt
+          || record.saleAt
+          || record.soldAt,
+        acquisitionObservedAt: record.observedAt,
+        acquisitionFetchedAt: record.fetchedAt,
         sourceDomain: assessment?.retailerDomain
           || record.retailerDomain
           || record.domain
@@ -18424,6 +18455,7 @@ export const __queryIntegrityTestHooks = {
   buildSerperTransportIdentity,
   serperTransportIdentityFields: SERPER_TRANSPORT_IDENTITY_FIELDS,
   serperTransportSetFields: [...SERPER_TRANSPORT_SET_FIELDS].sort(),
+  serperTransportSetPaths: [...SERPER_TRANSPORT_SET_PATHS].sort(),
   parseSerperResponse,
   isStrongComparableEvidenceRecord,
   isNoPriceIdentityReference,
@@ -18444,6 +18476,7 @@ export const __queryIntegrityTestHooks = {
   executeExactRetailPageDirectEnrichment,
   requestBoundedRetailProductPageNetwork,
   directPageEnrichmentMaxAttempts,
+  compareObservationPreference,
   evaluateComparableItemTypeCompatibility,
   classifySerperIdentityMatch,
   classifySerperPriceEvidence,

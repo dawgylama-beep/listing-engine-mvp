@@ -284,6 +284,19 @@ assert.equal(
   hooks.coalesceIdenticalSerperTransportRecords([runtimeOnlyTransportA, runtimeOnlyTransportB]).length,
   1
 );
+assert.deepEqual(
+  hooks.coalesceIdenticalSerperTransportRecords([runtimeOnlyTransportA, runtimeOnlyTransportB]),
+  hooks.coalesceIdenticalSerperTransportRecords([runtimeOnlyTransportB, runtimeOnlyTransportA]),
+  "Transport coalescing cannot retain first-arrival query, pass, request ID, timestamp, or provenance order."
+);
+for (const nestedPath of hooks.serperTransportSetPaths) {
+  const [parent, child] = nestedPath.split(".");
+  assert.equal(
+    hooks.buildSerperTransportIdentity({ title: "Nested set", [parent]: { [child]: ["Beta", "Alpha"] } }),
+    hooks.buildSerperTransportIdentity({ title: "Nested set", [parent]: { [child]: ["Alpha", "Beta", "Alpha"] } }),
+    `Nested set-like path ${nestedPath} must ignore order and duplicate values.`
+  );
+}
 const transportPropertyOrderA = {
   title: "Transport property order",
   seller: "Seller One",
@@ -577,6 +590,31 @@ const sellerSeparatedListing = dedupeUnderlyingOffers([
   })
 ]);
 assert.equal(sellerSeparatedListing.length, 2, "One strong listing identity cannot bridge two populated sellers.");
+const retailerMerchantAndSeller = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "retailer-merchant-search",
+    offerId: "retailer-merchant-listing",
+    merchantName: "Retailer Source",
+    retailer: "Retailer Source",
+    seller: "Third Party Seller"
+  }),
+  observation({
+    sourceRecordId: "retailer-merchant-direct",
+    offerId: "retailer-merchant-listing",
+    retailer: "Retailer Source",
+    seller: "Third Party Seller",
+    sourceQuality: "direct_product_page"
+  })
+]);
+assert.equal(retailerMerchantAndSeller.length, 1, "Retailer/source merchantName cannot split one proven third-party offer.");
+assert.equal(retailerMerchantAndSeller[0].seller, "Third Party Seller");
+assert.equal(retailerMerchantAndSeller[0].merchantName, "Retailer Source");
+const locationStoreName = dedupeUnderlyingOffers([
+  observation({ sourceRecordId: "location-search", offerId: "location-listing", storeName: "Downtown Store", seller: "Seller One" }),
+  observation({ sourceRecordId: "location-direct", offerId: "location-listing", seller: "Seller One" })
+]);
+assert.equal(locationStoreName.length, 1, "A physical-location storeName cannot become offer-seller identity.");
+assert.equal(locationStoreName[0].storeName, "Downtown Store");
 const activeSellerAliases = CANONICAL_OFFER_FACT_REGISTRY
   .find((family) => family.name === "seller")
   .aliases;
@@ -1167,7 +1205,6 @@ const tiedBaselineFinal = createFinalEvidenceResult({
   observations: threeTiedOffers
 });
 assert.equal(tiedBaselineFinal.customerEvidence.length, 3);
-const canonicalRecoveryOutput = ({ observations: _observations, ...view }) => view;
 for (const permutation of permutations(threeTiedOffers)) {
   assert.deepEqual(
     dedupeUnderlyingOffers(permutation),
@@ -1175,9 +1212,9 @@ for (const permutation of permutations(threeTiedOffers)) {
     "Every permutation of three tied offers must preserve canonical offer and evidence-ID order."
   );
   assert.deepEqual(
-    canonicalRecoveryOutput(createCanonicalRecoveryView({ observations: permutation, targetIdentity })),
-    canonicalRecoveryOutput(tiedBaselineRecovery),
-    "Every permutation of three tied offers must preserve recovery counts and support-ID order."
+    createCanonicalRecoveryView({ observations: permutation, targetIdentity }),
+    tiedBaselineRecovery,
+    "Every permutation of three tied offers must preserve the complete recovery contract, including observations."
   );
   assert.deepEqual(
     createFinalEvidenceResult({
@@ -1189,6 +1226,56 @@ for (const permutation of permutations(threeTiedOffers)) {
     "Every permutation of three tied offers must preserve final evidence and customerEvidence order."
   );
 }
+
+const volatileTimestampObservations = [
+  observation({
+    sourceRecordId: "timestamp-b",
+    offerId: "timestamp-stable-listing",
+    title: "Stable title B",
+    fetchedAt: "2026-01-01T00:00:00.000Z",
+    observedAt: "2026-01-01T00:00:01.000Z",
+    providerCompletedAt: "2026-01-01T00:00:02.000Z",
+    enrichedAt: "2026-01-01T00:00:03.000Z"
+  }),
+  observation({
+    sourceRecordId: "timestamp-a",
+    offerId: "timestamp-stable-listing",
+    title: "Stable title A",
+    fetchedAt: "2026-02-01T00:00:00.000Z",
+    observedAt: "2026-02-01T00:00:01.000Z",
+    providerCompletedAt: "2026-02-01T00:00:02.000Z",
+    enrichedAt: "2026-02-01T00:00:03.000Z"
+  })
+];
+const timestampBaseline = dedupeUnderlyingOffers(volatileTimestampObservations);
+const swappedTimestamps = volatileTimestampObservations.map((record, index, all) => ({
+  ...record,
+  fetchedAt: all[1 - index].fetchedAt,
+  observedAt: all[1 - index].observedAt,
+  providerCompletedAt: all[1 - index].providerCompletedAt,
+  enrichedAt: all[1 - index].enrichedAt
+}));
+const timestampSwapped = dedupeUnderlyingOffers(swappedTimestamps);
+for (const field of ["sourceRecordId", "title", "price", "fieldProvenance", "materialOfferConflicts", "underlyingOfferId", "evidenceId"]) {
+  assert.deepEqual(timestampSwapped[0][field], timestampBaseline[0][field], `Volatile timestamps cannot change ${field}.`);
+}
+const comparatorTriple = volatileTimestampObservations.concat(observation({
+  sourceRecordId: "timestamp-c",
+  offerId: "timestamp-stable-listing",
+  title: "Stable title C"
+}));
+for (const left of comparatorTriple) {
+  for (const right of comparatorTriple) {
+    assert.equal(
+      Math.sign(hooks.compareObservationPreference(left, right))
+        + Math.sign(hooks.compareObservationPreference(right, left)),
+      0,
+      "Representative comparator must be antisymmetric."
+    );
+  }
+}
+const sortedComparatorTriple = comparatorTriple.slice().sort(hooks.compareObservationPreference);
+assert(hooks.compareObservationPreference(sortedComparatorTriple[0], sortedComparatorTriple[2]) <= 0, "Representative comparator must be transitive.");
 
 const reversedConflictForward = dedupeUnderlyingOffers([
   observation({
@@ -1235,6 +1322,25 @@ assert.deepEqual(
   reversedConflictForward,
   "Reversing conflicting observations cannot change price conflict, material conflict, or provenance ordering."
 );
+const repeatedConflictDedupe = dedupeUnderlyingOffers([
+  observation({
+    sourceRecordId: "duplicate-conflict-a",
+    offerId: "duplicate-conflict-listing",
+    condition: "New"
+  }),
+  observation({
+    sourceRecordId: "duplicate-conflict-b",
+    offerId: "duplicate-conflict-listing",
+    condition: "Used"
+  }),
+  observation({
+    sourceRecordId: "duplicate-conflict-b",
+    offerId: "duplicate-conflict-listing",
+    condition: "Used"
+  })
+]);
+assert.equal(repeatedConflictDedupe[0].materialOfferConflicts.condition.length, 2, "Identical conflict entries must deduplicate.");
+assert.equal(repeatedConflictDedupe[0].observationProvenance.length, 2, "Identical observation provenance must deduplicate.");
 
 const recoveryRequestRecords = [];
 recoveryRequestRecords.canonicalRecoveryDecisionView = exactNoPriceView;
@@ -1560,6 +1666,47 @@ assert.notEqual(
   productionProviderBudget,
   "Direct-page and provider-search attempts must remain in independent budget categories."
 );
+
+const threePageCandidates = ["c", "a", "b"].map((suffix) => ({
+  ...enrichedTargetRecord,
+  sourceRecordId: `three-page-${suffix}`,
+  query: "012345678905 Cedarline security envelopes",
+  searchPass: "stage_1_exact_identity",
+  rawText: "Cedarline security envelopes 48 count UPC 012345678905",
+  destinationUrl: `https://www.target.com/p/cedarline-security-envelopes-48?offer=${suffix}`,
+  url: `https://www.target.com/p/cedarline-security-envelopes-48?offer=${suffix}`,
+  canonicalUrl: `https://www.target.com/p/cedarline-security-envelopes-48?offer=${suffix}`,
+  price: null,
+  parsedPrice: null,
+  displayedPrice: "Price unavailable",
+  priceType: "Price unavailable"
+}));
+let selectedPageBaseline = null;
+for (const permutation of permutations(threePageCandidates)) {
+  const selectedPages = [];
+  const pageBudget = hooks.createPhysicalAttemptBudget(2, "direct_page_enrichment");
+  await hooks.executeExactRetailPageDirectEnrichment({
+    context: enrichedContext,
+    currentRecords: permutation,
+    providerRequestRecords: [],
+    providerResponseSummaries: [],
+    providerErrors: [],
+    directPageAttemptBudget: pageBudget,
+    requestAdapter: async (url) => {
+      selectedPages.push(url);
+      return {
+        finalUrl: url,
+        statusCode: 200,
+        elapsedMs: 1,
+        sourceEvidenceText: "Cedarline Security Envelopes 48 Count UPC 012345678905 Price $5.50 In stock"
+      };
+    }
+  });
+  selectedPageBaseline ??= selectedPages;
+  assert.deepEqual(selectedPages, selectedPageBaseline, "All six input permutations must select the same two qualified pages.");
+  assert.equal(selectedPages.length, 2, "The direct-page ceiling remains exactly two physical fetches.");
+  assert.equal(pageBudget.physicalAttemptCount, 2);
+}
 
 const deniedFetch = globalThis.fetch;
 let redirectFetchInvocations = 0;
