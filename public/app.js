@@ -1063,7 +1063,7 @@ async function handleSubmit(event) {
     if (!rawReport) {
       throw new Error(config.errorMessage);
     }
-    const report = normalizeReportForEvidenceDisplay(rawReport, workflow);
+    const report = rawReport;
 
     const sections = getSectionsForReport(config, report);
     latestReport = report;
@@ -1768,11 +1768,14 @@ function extractReportContext(report, sections = []) {
     "valuationEvidenceState",
     "valuationEvidenceLabel",
     "valuationEvidenceExplanation",
+    "verifiedMarketRange",
+    "currentAskingPriceRange",
     "preliminaryReferenceRange",
     "fairValueNotEstablished",
     "whatThisMeans",
     "bestNextStep",
     "estimatedFairMarketValue",
+    "estimatedMarketValue",
     "fairPriceRange",
     "aiOnlyRoughValueRange",
     "valueRating",
@@ -1785,6 +1788,8 @@ function extractReportContext(report, sections = []) {
     "currentPriceAssessment",
     "priceConfidence",
     "pricingConfidence",
+    "priceBasis",
+    "priceRationale",
     "pricingRationale",
     "buyerDecisionConfidence",
     "liveComparableSearchStatus",
@@ -1797,6 +1802,9 @@ function extractReportContext(report, sections = []) {
     "riskFlags",
     "resalePotential",
     "maximumRecommendedBuyPrice",
+    "maximumRecommendedPrice",
+    "maximumRecommendedPriceExplanation",
+    "suggestedOfferRange",
     "suggestedListingPrice",
     "expectedSalePrice",
     "minimumAcceptablePrice",
@@ -1946,292 +1954,70 @@ function isCurrentRetailOnlyReport(report) {
   return String(report && report.retailEvidenceMode || "").toLowerCase() === "current-retail-only";
 }
 
-function normalizeReportForEvidenceDisplay(report, workflow) {
-  const visibleResultCount = countVisibleResearchResults(report);
-  const supportingResultCount = countReferenceSupportingResearchResults(report);
-  if (supportingResultCount === 0) {
-    return applyFrontendZeroEvidenceGuard(report, workflow);
+function buildCanonicalValuationDisplayModel(report = {}) {
+  const recognizedStates = new Set([
+    "supported",
+    "current_asking",
+    "preliminary",
+    "single_observation",
+    "insufficient",
+    "current_retail",
+    "retail_unverified"
+  ]);
+  const state = typeof report.valuationEvidenceState === "string"
+    ? report.valuationEvidenceState
+    : "";
+  const label = typeof report.valuationEvidenceLabel === "string"
+    ? report.valuationEvidenceLabel
+    : "";
+  const explanation = typeof report.valuationEvidenceExplanation === "string"
+    ? report.valuationEvidenceExplanation
+    : "";
+
+  if (!recognizedStates.has(state) || !label.trim() || !explanation.trim()) {
+    const unavailableExplanation = "Canonical valuation information is unavailable.";
+    return {
+      valid: false,
+      state: "",
+      label: "Valuation Unavailable",
+      explanation: unavailableExplanation,
+      value: "",
+      visibleFieldKeys: [],
+      metrics: [["Valuation Unavailable", unavailableExplanation]]
+    };
   }
-  const initialClassification = classifyValuationEvidenceForDisplay(report);
-  const classified = initialClassification.state === "preliminary" && supportingResultCount === 0
-    ? {
-        state: "insufficient",
-        label: "Fair Value Not Established",
-        range: "",
-        explanation: "No visible strong, partial, or reference source records support a preliminary range."
-      }
-    : initialClassification;
-  const normalized = {
-    ...report,
-    valuationEvidenceState: classified.state,
-    valuationEvidenceLabel: classified.label,
-    valuationEvidenceExplanation: classified.explanation
+
+  const visibleFieldKeysByState = {
+    supported: ["verifiedMarketRange", "estimatedFairMarketValue", "estimatedMarketValue", "fairPriceRange"],
+    current_asking: ["currentAskingPriceRange"],
+    preliminary: ["preliminaryReferenceRange"],
+    single_observation: ["fairValueNotEstablished"],
+    insufficient: ["fairValueNotEstablished"],
+    current_retail: ["currentRetailPriceAssessment", "retailPriceLimit"],
+    retail_unverified: ["currentRetailPriceAssessment", "noCompatiblePricesFound"]
   };
-
-  if (workflow === "listing") {
-    normalized.pricingEvidenceState = classified.state;
-    return normalized;
-  }
-
-  if (classified.state === "supported") {
-    normalized.estimatedFairMarketValue = normalizeMoneyText(normalized.estimatedFairMarketValue);
-    normalized.estimatedMarketValue = normalizeMoneyText(normalized.estimatedMarketValue);
-    normalized.fairPriceRange = normalizeMoneyArray(normalized.fairPriceRange);
-    normalized.preliminaryReferenceRange = "";
-    normalized.fairValueNotEstablished = "";
-    return normalized;
-  }
-
-  if (classified.state === "preliminary") {
-    normalized.preliminaryReferenceRange = firstNonEmpty(
-      report.preliminaryReferenceRange,
-      `${classified.range} based on ${supportingResultCount} visible strong, partial, or reference result${supportingResultCount === 1 ? "" : "s"}; no confirmed sales or strong comparable matches were found. This is not a verified fair-market-value estimate.`
-    );
-    normalized.referenceRangeBasis = firstNonEmpty(
-      report.referenceRangeBasis,
-      `${supportingResultCount} visible supporting result${supportingResultCount === 1 ? "" : "s"} and ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`
-    );
-    normalized.fairValueNotEstablished = "";
-    normalized.estimatedFairMarketValue = "";
-    normalized.estimatedMarketValue = "";
-    normalized.fairPriceRange = [];
-    normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, buildPreliminaryMeaningText(report, classified));
-    normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
-    return normalized;
-  }
-
-  if (classified.state === "current_asking") {
-    normalized.currentAskingPriceRange = firstNonEmpty(
-      report.currentAskingPriceRange,
-      `${classified.range} based on ${supportingResultCount} visible active exact/strong asking-price result${supportingResultCount === 1 ? "" : "s"}; this is not verified fair market value because qualified sold evidence was not available.`
-    );
-    normalized.referenceRangeBasis = firstNonEmpty(
-      report.referenceRangeBasis,
-      `${supportingResultCount} visible supporting result${supportingResultCount === 1 ? "" : "s"} and ${visibleResultCount} total search result${visibleResultCount === 1 ? "" : "s"} are visible in Research Details.`
-    );
-    normalized.fairValueNotEstablished = "";
-    normalized.estimatedFairMarketValue = "";
-    normalized.estimatedMarketValue = "";
-    normalized.fairPriceRange = [];
-    normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, "The active asking range is directionally useful, but it is not verified fair market value because no qualified sold evidence established a sold range.");
-    normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
-    return normalized;
-  }
-
-  normalized.preliminaryReferenceRange = "";
-  normalized.fairValueNotEstablished = "Fair Value: Not established";
-  normalized.estimatedFairMarketValue = "";
-  normalized.estimatedMarketValue = "";
-  normalized.fairPriceRange = [];
-  normalized.valueRating = "Insufficient Evidence";
-  normalized.whatThisMeans = firstNonEmpty(report.whatThisMeans, "Fair market value has not been established from the available evidence.");
-  normalized.bestNextStep = firstNonEmpty(report.bestNextStep, getOneBestNextEvidenceStep(report));
-  normalized.referenceRangeBasis = firstNonEmpty(report.referenceRangeBasis, "No numeric preliminary range is shown because there are no visible structured source records supporting one.");
-  return normalized;
-}
-
-function applyFrontendZeroEvidenceGuard(report, workflow) {
-  const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, report.visiblePrice);
-  const retailContext = isRetailStoreReport(report);
-  const safeExplanation = askingPrice
-    ? `At ${askingPrice}, this may be a reasonable personal-use purchase only because the financial exposure is limited and the item appears identifiable from the submitted evidence. The current search did not return visible source-backed comparable evidence, so market value was not established.`
-    : "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
-  const retailExplanation = askingPrice
-    ? `At ${askingPrice}, the current retail price was not verified against source-backed current-retail comparisons. The financial exposure may be limited, but Katherine’s Eye did not confirm this is a good deal.`
-    : "The current retail price was not verified against source-backed current-retail comparisons.";
-  const guarded = {
-    ...report,
-    valuationEvidenceState: "insufficient",
-    valuationEvidenceLabel: "Fair Value Not Established",
-    valuationEvidenceExplanation: "Zero visible structured source-backed comparable results were retained. Market value is not established.",
-    fairValueNotEstablished: "Fair Value: Not established",
-    estimatedFairMarketValue: "",
-    estimatedMarketValue: "",
-    fairPriceRange: [],
-    preliminaryReferenceRange: "",
-    referenceRangeBasis: "",
-    referenceCenter: "",
-    marketLow: "",
-    marketHigh: "",
-    activeAskingRange: "",
-    soldRange: "",
-    priceToMarketRatio: "",
-    belowMarketPercent: "",
-    aiOnlyRoughValueRange: "",
-    suggestedListingPrice: "",
-    expectedSalePrice: "",
-    minimumAcceptablePrice: "",
-    recommendedListingPrice: "",
-    suggestedOfferRange: "",
-    valueRating: retailContext ? "Price Not Verified - Low Financial Risk" : "Insufficient Evidence",
-    recommendation: retailContext ? firstNonEmpty(report.recommendation, "Low-Risk Purchase - Limited Evidence") : report.recommendation,
-    whatThisMeans: retailContext ? retailExplanation : "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
-    priceBasis: retailContext
-      ? "Price not verified - the current search did not return source-backed current-retail comparisons."
-      : "Fair value not established - the current search did not return visible source-backed comparable evidence.",
-    currentPriceAssessment: retailContext
-      ? "Price Not Verified - no source-backed current-retail comparison is supported."
-      : "Insufficient evidence - no source-backed market comparison is supported.",
-    pricingRationale: retailContext ? retailExplanation : safeExplanation,
-    cautiousBuyExplanation: /personal/i.test(firstNonEmpty(report.buyerIntent, workflow)) ? (retailContext ? retailExplanation : safeExplanation) : "",
-    consumerDownsideRisk: askingPrice ? `Only the asking price (${askingPrice}) is available for a limited-downside personal-use assessment.` : report.consumerDownsideRisk
-  };
-
-  return sanitizeFrontendZeroEvidenceText(guarded, askingPrice);
-}
-
-function isRetailStoreReport(report = {}) {
-  const text = [
-    report.purchaseContextSummary,
-    report.localStoreContext,
-    report.retailPriceContext,
-    report.searchCoverage,
-    report.priceBasis,
-    report.currentPriceAssessment
-  ].flat().map((item) => normalizeDisplayValue(item)).join(" ").toLowerCase();
-  return /\bretail store\b|store name|local store context|current retail|nearby retail|barcode\/upc/i.test(text);
-}
-
-function sanitizeFrontendZeroEvidenceText(value, askingPrice, key = "") {
-  const allowedPriceKeys = new Set(["askingPrice", "currentAskingPrice", "visiblePrice"]);
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeFrontendZeroEvidenceText(item, askingPrice, key)).filter((item) => item !== "");
-  }
-  if (value && typeof value === "object") {
-    const result = {};
-    for (const [childKey, childValue] of Object.entries(value)) {
-      result[childKey] = sanitizeFrontendZeroEvidenceText(childValue, askingPrice, childKey);
-    }
-    return result;
-  }
-  if (typeof value !== "string" || allowedPriceKeys.has(key)) {
-    return value;
-  }
-  return sanitizeUnsupportedFrontendMarketText(value, askingPrice);
-}
-
-function sanitizeUnsupportedFrontendMarketText(value, askingPrice) {
-  const text = String(value || "");
-  if (!text) return text;
-  const unsupported = /reference center|market range|median market|market low|market high|active asking range|sold range|price-to-market|below[- ]market|below inferred|inferred fair|estimated fair market|fair market value|market suggests|visible market evidence|typical market|derived market|comparable evidence appears useful enough/i.test(text);
-  const range = /\$\s*\d[\d,]*(?:\.\d{1,2})?\s*(?:-|to|–|—)\s*\$?\s*\d[\d,]*(?:\.\d{1,2})?/.test(text);
-  const askingAmount = extractMoneyAmountsFromText(askingPrice)[0];
-  const amounts = extractMoneyAmountsFromText(text);
-  const askingCents = moneyToCents(askingAmount);
-  const nonAskingMoney = amounts.some((amount) => !Number.isFinite(askingCents) || moneyToCents(amount) !== askingCents);
-  if (unsupported || range || (nonAskingMoney && /\bmarket|value|range|reference|asking|sold|price|below|above\b/i.test(text))) {
-    return "The current search did not return visible source-backed comparable evidence. Fair value is not established.";
-  }
-  return text;
-}
-
-function classifyValuationEvidenceForDisplay(report = {}) {
-  const state = String(report.valuationEvidenceState || "").toLowerCase();
-  const explicitLabel = String(report.valuationEvidenceLabel || "").trim();
-  const directRange = normalizeMoneyText(firstNonEmpty(report.verifiedMarketRange, report.currentAskingPriceRange, report.preliminaryReferenceRange, report.estimatedFairMarketValue, report.estimatedMarketValue, report.aiOnlyRoughValueRange, report.expectedSalePrice, report.suggestedListingPrice));
-  if (state === "supported") {
-    return {
-      state: "supported",
-      label: explicitLabel || "Verified Market Range",
-      range: directRange,
-      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Qualified verified sold exact or strong comparable evidence supports this value.")
-    };
-  }
-  if (state === "current_asking") {
-    return {
-      state: "current_asking",
-      label: explicitLabel || "Current Asking-Price Range",
-      range: directRange,
-      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "Active exact or strong asking-price evidence supports this current asking range; it is not verified fair market value.")
-    };
-  }
-  if (state === "preliminary") {
-    return {
-      state: "preliminary",
-      label: explicitLabel || "Preliminary Reference Range",
-      range: directRange,
-      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "The range is tentative and not verified fair market value.")
-    };
-  }
-  if (state === "insufficient") {
-    return {
-      state: "insufficient",
-      label: "Fair Value Not Established",
-      range: "",
-      explanation: firstNonEmpty(report.valuationEvidenceExplanation, "The evidence is too weak for a defensible dollar range.")
-    };
-  }
-
-  const evidenceText = [
-    report.valueRating,
-    report.priceConfidence,
-    report.pricingConfidence,
-    report.valuationConfidence,
-    report.liveCompConfidence,
-    report.buyerDecisionConfidence,
-    report.priceBasis,
-    report.currentPriceAssessment,
-    report.researchResults,
-    report.comparableQuality,
-    report.noReliableComparableItemsFound,
-    report.aiOnlyRoughValueRange
-  ].flat().map((item) => String(item || "")).join(" ").toLowerCase();
-  const hasInsufficientEvidence = /insufficient evidence|no reliable|weak|partial|rejected|ai-only|ai only|rough value|active listing|active asking|not established|unavailable|low confidence/.test(evidenceText);
-  const hasReliableComps = /source-backed comps found|exact match|strong similar match/.test(evidenceText) && !hasInsufficientEvidence;
-  const range = extractMoneyRangeText([
-    report.verifiedMarketRange,
-    report.currentAskingPriceRange,
-    report.preliminaryReferenceRange,
-    report.estimatedFairMarketValue,
-    report.fairPriceRange,
-    report.aiOnlyRoughValueRange,
-    report.estimatedMarketValue,
-    report.expectedSalePrice,
-    report.suggestedListingPrice
-  ].flat().join(" "));
-
-  if (hasReliableComps) {
-    return {
-      state: "supported",
-      label: "Estimated Fair Market Value",
-      range,
-      explanation: "Source-backed exact or strong comparable evidence supports this value."
-    };
-  }
-
-  if (range) {
-    return {
-      state: "preliminary",
-      label: "Preliminary Reference Range",
-      range,
-      explanation: "The range is tentative and not verified fair market value."
-    };
-  }
+  const classified = { state };
+  const visibleFieldKeys = classified.state === "current_asking"
+    ? ["currentAskingPriceRange"]
+    : visibleFieldKeysByState[state];
+  const value = visibleFieldKeys
+    .map((key) => normalizeDisplayValue(report[key]))
+    .find(Boolean) || "";
+  const primaryValue = value || explanation;
 
   return {
-    state: "insufficient",
-    label: "Fair Value Not Established",
-    range: "",
-    explanation: "The evidence is too weak for a defensible dollar range."
+    valid: true,
+    state,
+    label,
+    explanation,
+    value,
+    visibleFieldKeys,
+    metrics: [
+      ["Valuation State", state],
+      [label, primaryValue],
+      ["Valuation Evidence", primaryValue === explanation ? "" : explanation]
+    ]
   };
-}
-
-function buildPreliminaryMeaningText(report, classified) {
-  const asking = extractMoneyAmountsFromText(firstNonEmpty(report.askingPrice, report.currentAskingPrice));
-  const range = extractMoneyAmountsFromText(classified.range);
-  if (asking.length && range.length >= 2 && asking[0] < Math.min(...range)) {
-    return `At ${formatMoney(asking[0])}, the price may be favorable relative to similar active listings, but there is not enough reliable evidence for a confident Buy recommendation.`;
-  }
-  return "The price may be directionally useful, but fair market value has not been established because no confirmed sales or strong comparable matches were found.";
-}
-
-function getOneBestNextEvidenceStep(report) {
-  return firstNonEmpty(
-    Array.isArray(report.whatToVerifyBeforeBuying) ? report.whatToVerifyBeforeBuying[0] : report.whatToVerifyBeforeBuying,
-    Array.isArray(report.additionalInformationNeeded) ? report.additionalInformationNeeded[0] : report.additionalInformationNeeded,
-    Array.isArray(report.missingDetails) ? report.missingDetails[0] : report.missingDetails,
-    "Add one clear close-up of the strongest label, model number, SKU, UPC/barcode, maker mark, measurement, or condition issue."
-  );
 }
 
 function countVisibleResearchResults(report = {}) {
@@ -2246,76 +2032,6 @@ function countVisibleResearchResults(report = {}) {
   ].flat().filter(Boolean).length;
 }
 
-function countReferenceSupportingResearchResults(report = {}) {
-  return [
-    report.strongComparables,
-    report.partialComparables,
-    report.referenceResults
-  ].flat().filter((item) => isUsableSourceRecord(item) && !/no usable price|identity\/reference|reference without price/i.test(normalizeDisplayValue(item))).length;
-}
-
-function isUsableSourceRecord(item) {
-  if (!item) {
-    return false;
-  }
-  if (typeof item === "string") {
-    return /https?:\/\//i.test(item) || /\b(source|platform|site|marketplace)\s*[:=-]/i.test(item);
-  }
-  return Boolean(item.url || (item.source && !/not supplied/i.test(item.source)));
-}
-
-function extractMoneyRangeText(text) {
-  const amounts = extractMoneyAmountsFromText(text);
-  if (amounts.length >= 2) {
-    return `${formatMoney(Math.min(...amounts))}-${formatMoney(Math.max(...amounts))}`;
-  }
-  if (amounts.length === 1) {
-    const amount = amounts[0];
-    return `${formatMoney(amount * 0.8)}-${formatMoney(amount * 1.2)}`;
-  }
-  return "";
-}
-
-function extractMoneyAmountsFromText(text) {
-  const amounts = [];
-  const source = String(text || "");
-  const patterns = [
-    /\$\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/g,
-    /\b(?:about|around|approx(?:imately)?|range|from|between|value|price|worth|listing|asking|listed)\D{0,24}(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to|and)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)/gi,
-    /\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:-|to)\s*\$?\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g
-  ];
-
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(source)) !== null) {
-      for (const group of match.slice(1).filter(Boolean)) {
-        const amount = Number(group.replace(/,/g, ""));
-        if (Number.isFinite(amount) && amount > 0 && amount < 100000) {
-          amounts.push(amount);
-        }
-      }
-    }
-  }
-
-  return [...new Set(amounts)];
-}
-
-function normalizeMoneyText(value) {
-  const text = normalizeDisplayValue(value);
-  if (!text) {
-    return "";
-  }
-  return text
-    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(?:to|through)\s+\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`)
-    .replace(/\$?\b(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*-\s*\$?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\b/g, (_, low, high) => `${formatMoney(Number(low.replace(/,/g, "")))}-${formatMoney(Number(high.replace(/,/g, "")))}`);
-}
-
-function normalizeMoneyArray(value) {
-  return Array.isArray(value)
-    ? value.map(normalizeMoneyText).filter(Boolean)
-    : normalizeMoneyText(value);
-}
-
 function formatMoney(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) {
@@ -2327,11 +2043,6 @@ function formatMoney(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
-}
-
-function moneyToCents(value) {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
 }
 
 async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionState = null) {
@@ -2964,8 +2675,13 @@ function getBestWhyText(report) {
 
 function renderExecutiveSummary(report, workflow) {
   const summary = getExecutiveSummary(report, workflow);
+  const valuation = summary.valuation;
   const card = document.createElement("article");
   card.className = `executive-summary-card ${getValueRatingModifier(summary.tone)}`;
+  card.dataset.valuationContractValid = String(valuation.valid);
+  card.dataset.valuationState = valuation.state;
+  card.dataset.valuationLabel = valuation.label;
+  card.dataset.valuationExplanation = valuation.explanation;
 
   const header = document.createElement("div");
   header.className = "executive-summary-header";
@@ -3015,6 +2731,7 @@ function renderExecutiveSummary(report, workflow) {
 }
 
 function getExecutiveSummary(report, workflow) {
+  const valuation = buildCanonicalValuationDisplayModel(report);
   if (workflow === "listing") {
     const listingTitle = firstNonEmpty(report.optimizedListingTitle, report.title, report.listingTitle, report.identifiedItem, "Listing title needs review");
     const price = firstNonEmpty(report.recommendedListingPrice, report.suggestedListingPrice, report.priceStrategy, "Price needs review");
@@ -3025,11 +2742,13 @@ function getExecutiveSummary(report, workflow) {
       title: price,
       badge: "Seller Pricing and Listing Plan",
       tone: confidence,
+      valuation,
       metrics: [
         ["Recommended Listing Price", price],
         ["Listing Title", listingTitle],
         ["Suggested Platform", platform],
-        ["Confidence", confidence]
+        ["Confidence", confidence],
+        ...valuation.metrics
       ]
     };
   }
@@ -3046,19 +2765,20 @@ function getExecutiveSummary(report, workflow) {
       title: decision,
       badge: "Resale Decision",
       tone: decision,
+      valuation,
       metrics: [
         ["Purchase Price", purchasePrice],
         ["Estimated Resale Range", resaleRange],
         ["Estimated Profit", profit],
         ["Maximum Buy Price", maxBuy],
-        ["Confidence", confidence]
+        ["Confidence", confidence],
+        ...valuation.metrics
       ]
     };
   }
 
   if (workflow === "market_value") {
-    const valuation = classifyValuationEvidenceForDisplay(report);
-    const value = getValuationDisplayValue(report, valuation);
+    const value = valuation.value || valuation.explanation;
     const identity = firstNonEmpty(report.subjectIdentity, report.itemIdentification, report.identifiedItem, report.visualSubject, "Identity not verified");
     const confidence = getConfidenceText(report);
     return {
@@ -3066,8 +2786,9 @@ function getExecutiveSummary(report, workflow) {
       title: value,
       badge: "Owner Value Assessment",
       tone: confidence,
+      valuation,
       metrics: [
-        [valuation.label, value],
+        ...valuation.metrics,
         ["Recommended Selling Venues", firstNonEmpty(report.recommendedSellingPlatform, report.platformSpecificSellingGuidance)],
         ["Confidence", confidence],
         ["Most Likely Identity", identity]
@@ -3075,7 +2796,7 @@ function getExecutiveSummary(report, workflow) {
     };
   }
 
-  if (isCurrentRetailOnlyReport(report)) {
+  if (valuation.valid && isCurrentRetailOnlyReport(report)) {
     const recommendation = firstNonEmpty(report.retailPurchaseDecision, report.recommendation, "Current Retail Price Not Verified");
     const priceAssessment = firstNonEmpty(report.currentRetailPriceAssessment, report.noCompatiblePricesFound, "Current Retail Price: Not verified");
     const askingPrice = firstNonEmpty(report.askingStorePrice, report.askingPrice, "Not provided");
@@ -3086,13 +2807,15 @@ function getExecutiveSummary(report, workflow) {
       title: recommendation,
       badge: firstNonEmpty(report.retailRouteClassification, "Ordinary Current Retail Product"),
       tone: report.valueRating || recommendation,
+      valuation,
       metrics: [
         ["Retail Purchase Decision", recommendation],
         ["Asking / Store Price", askingPrice],
         ["Current Retail Price Assessment", priceAssessment],
         ["Retail Price Limit", report.retailPriceLimit],
         ["Confidence", confidence],
-        ["Best Next Step", normalizeDisplayValue(nextStep)]
+        ["Best Next Step", normalizeDisplayValue(nextStep)],
+        ...valuation.metrics
       ]
     };
   }
@@ -3100,40 +2823,23 @@ function getExecutiveSummary(report, workflow) {
   const recommendation = firstNonEmpty(report.recommendation, report.purchaserDecision, "Need More Information");
   const valueRating = firstNonEmpty(report.valueRating, report.currentPriceAssessment, "Insufficient Evidence");
   const askingPrice = firstNonEmpty(report.askingPrice, report.currentAskingPrice, "Not provided");
-  const valuation = classifyValuationEvidenceForDisplay(report);
-  const fairValue = getValuationDisplayValue(report, valuation);
   const confidence = getConfidenceText(report);
   const nextStep = firstNonEmpty(report.bestNextStep, report.recommendedOffer, report.negotiationGuidance, report.whatToVerifyBeforeBuying, report.additionalInformationNeeded, "Verify identity, condition, and price evidence before acting.");
   return {
     eyebrow: "Executive Summary",
     title: recommendation,
-      badge: workflow === "personal_use" ? "Personal-Use Buying Decision" : valueRating,
+    badge: workflow === "personal_use" ? "Personal-Use Buying Decision" : valueRating,
     tone: valueRating,
+    valuation,
     metrics: [
       ["Recommendation", recommendation],
       ["Value Rating", valueRating],
       ["Asking Price", askingPrice],
-      [valuation.label, fairValue],
+      ...valuation.metrics,
       ["Confidence", confidence],
       ["Best Next Step", normalizeDisplayValue(nextStep)]
     ]
   };
-}
-
-function getValuationDisplayValue(report, valuation) {
-  if (isCurrentRetailOnlyReport(report)) {
-    return firstNonEmpty(report.currentRetailPriceAssessment, report.noCompatiblePricesFound, "Current Retail Price: Not verified");
-  }
-  if (valuation.state === "supported") {
-    return firstNonEmpty(report.estimatedFairMarketValue, report.estimatedMarketValue, report.fairPriceRange, valuation.range, "Value needs more evidence");
-  }
-  if (valuation.state === "preliminary") {
-    return firstNonEmpty(report.preliminaryReferenceRange, valuation.range, "Preliminary reference range needs more evidence");
-  }
-  if (valuation.state === "current_asking") {
-    return firstNonEmpty(report.currentAskingPriceRange, valuation.range, "Current asking-price range needs more evidence");
-  }
-  return firstNonEmpty(report.fairValueNotEstablished, "Fair Value: Not established");
 }
 
 function renderConfidenceExplainer(report) {
@@ -3371,7 +3077,7 @@ function formatExecutiveSummary(report, workflow) {
 
 function formatConsumerCompactSummaryText(report, workflow) {
   const evidenceViewModel = getCustomerEvidenceViewModel(report);
-  if (!isCurrentRetailOnlyReport(report)) {
+  if (!(buildCanonicalValuationDisplayModel(report).valid && isCurrentRetailOnlyReport(report))) {
     const evidenceText = formatCustomerEvidenceListText(evidenceViewModel);
     const sections = [
       ["Executive Summary", formatExecutiveSummary(report, workflow)],
@@ -3824,10 +3530,14 @@ function clearAskStatus() {
 }
 
 function renderConsumerSummary(report) {
-  const valuation = classifyValuationEvidenceForDisplay(report);
-  const retailReport = isCurrentRetailOnlyReport(report);
+  const valuation = buildCanonicalValuationDisplayModel(report);
+  const retailReport = valuation.valid && isCurrentRetailOnlyReport(report);
   const card = document.createElement("article");
   card.className = `consumer-summary-card ${getValueRatingModifier(report.valueRating)}`;
+  card.dataset.valuationContractValid = String(valuation.valid);
+  card.dataset.valuationState = valuation.state;
+  card.dataset.valuationLabel = valuation.label;
+  card.dataset.valuationExplanation = valuation.explanation;
 
   const header = document.createElement("div");
   header.className = "consumer-summary-header";
@@ -3854,13 +3564,13 @@ function renderConsumerSummary(report) {
   const metrics = retailReport
     ? [
         ["Asking / Store Price", report.askingStorePrice || report.askingPrice],
-        ["Current Retail Price Assessment", report.currentRetailPriceAssessment],
+        ...valuation.metrics,
         ["Retail Price Limit", report.retailPriceLimit],
         ["Pricing Confidence", report.pricingConfidence || report.priceConfidence]
       ]
     : [
         ["Asking Price", report.askingPrice],
-        [valuation.label, getValuationDisplayValue(report, valuation)],
+        ...valuation.metrics,
         ["Recommended Offer", Array.isArray(report.recommendedOffer) ? report.recommendedOffer.join(" | ") : report.recommendedOffer],
         ["Pricing Confidence", report.pricingConfidence]
       ];
@@ -3894,19 +3604,22 @@ function renderConsumerCompactSummary(report, workflow) {
   copyButton.addEventListener("click", () => copyText(formatConsumerCompactSummaryText(report, workflow), copyButton));
 
   if (isCurrentRetailOnlyReport(report)) {
-    appendConsumerCompactSection(details, "Retail Purchase Decision", firstNonEmpty(
-      report.retailPurchaseDecision,
-      report.recommendation,
-      "Current Retail Price Not Verified"
-    ));
-    appendConsumerCompactSection(details, "Current Retail Price Assessment", report.currentRetailPriceAssessment);
-    details.appendChild(renderCanonicalCustomerEvidenceSection(report));
+    const valuation = buildCanonicalValuationDisplayModel(report);
+    if (valuation.valid) {
+      appendConsumerCompactSection(details, "Retail Purchase Decision", firstNonEmpty(
+        report.retailPurchaseDecision,
+        report.recommendation,
+        "Current Retail Price Not Verified"
+      ));
+      appendConsumerCompactSection(details, "Current Retail Price Assessment", report.currentRetailPriceAssessment);
+      details.appendChild(renderCanonicalCustomerEvidenceSection(report));
 
-    appendConsumerCompactSection(details, "Next Best Action", getConsumerRetailNextBestAction(report));
-    appendConsumerPriceAnalysisDisclosure(details, report);
+      appendConsumerCompactSection(details, "Next Best Action", getConsumerRetailNextBestAction(report));
+      appendConsumerPriceAnalysisDisclosure(details, report);
 
-    card.append(details, copyButton);
-    return card;
+      card.append(details, copyButton);
+      return card;
+    }
   }
 
   appendConsumerCompactSection(details, "Evidence Summary", firstNonEmpty(
@@ -4023,6 +3736,25 @@ function shouldRenderSection(key, value) {
     return false;
   }
 
+  const canonicalValuationFieldKeys = new Set([
+    "verifiedMarketRange",
+    "currentAskingPriceRange",
+    "preliminaryReferenceRange",
+    "fairValueNotEstablished",
+    "estimatedFairMarketValue",
+    "estimatedMarketValue",
+    "fairPriceRange",
+    "currentRetailPriceAssessment",
+    "retailPriceLimit"
+  ]);
+  if (latestReport && canonicalValuationFieldKeys.has(key)) {
+    const valuation = buildCanonicalValuationDisplayModel(latestReport);
+    if (valuation.state === "current_asking" && key === "currentAskingPriceRange") {
+      return valuation.valid;
+    }
+    return valuation.visibleFieldKeys.includes(key);
+  }
+
   if (latestReport && isCurrentRetailOnlyReport(latestReport) && new Set([
     "recommendedOffer",
     "maximumRecommendedPriceExplanation",
@@ -4039,10 +3771,6 @@ function shouldRenderSection(key, value) {
 
   if ((key === "weFoundThisItem" || key === "weFoundSimilarComparableItems") && Array.isArray(value)) {
     return value.some((item) => /https?:\/\//i.test(String(item || "")));
-  }
-
-  if ((key === "estimatedFairMarketValue" || key === "fairPriceRange") && latestReport) {
-    return classifyValuationEvidenceForDisplay(latestReport).state === "supported";
   }
 
   if ((key === "noReliableComparableItemsFound" || key === "liveSearchDidNotComplete" || key === "aiOnlyRoughValueRange") && !value) {

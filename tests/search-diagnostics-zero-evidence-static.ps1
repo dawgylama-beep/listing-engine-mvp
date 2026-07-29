@@ -64,9 +64,12 @@ $checks = @(
   @{ Name = "Frontend copies technical diagnostics"; Text = $app; Pattern = "function formatSearchDiagnosticsText" },
   @{ Name = "Frontend exposes Technical Search Details"; Text = $app; Pattern = "Technical Search Details" },
   @{ Name = "Frontend Ask context carries diagnostics"; Text = $app; Pattern = '"searchDiagnostics"' },
-  @{ Name = "Frontend zero evidence guard exists"; Text = $app; Pattern = "function applyFrontendZeroEvidenceGuard" },
-  @{ Name = "Frontend zero guard triggers without supporting retained evidence"; Text = $app; Pattern = "if (supportingResultCount === 0)" },
-  @{ Name = "Frontend sanitizes unsupported market text"; Text = $app; Pattern = "function sanitizeUnsupportedFrontendMarketText" },
+  @{ Name = "Frontend preserves the canonical handler report"; Text = $app; Pattern = "const report = rawReport;" },
+  @{ Name = "Frontend has one translation-only valuation display mapping"; Text = $app; Pattern = "const recognizedStates = new Set" },
+  @{ Name = "Frontend malformed valuation metadata uses neutral unavailable wording"; Text = $app; Pattern = "Canonical valuation information is unavailable." },
+  @{ Name = "Retail provider ceiling remains 28"; Text = $api; Pattern = "maxProviderCalls: 28" },
+  @{ Name = "Non-retail provider ceiling remains 12"; Text = $api; Pattern = "retailSerperBudgetAllocation.maxProviderCalls : 12" },
+  @{ Name = "Direct-page ceiling remains 2"; Text = $api; Pattern = "const directPageEnrichmentMaxAttempts = 2" },
   @{ Name = "Styles include diagnostic summary"; Text = $styles; Pattern = ".diagnostic-summary" },
   @{ Name = "Styles include query diagnostic rows"; Text = $styles; Pattern = ".query-diagnostic-row" },
   @{ Name = "Georgia fixture includes exact query with championship wording"; Text = ($georgiaTrayMockedExtractedEvidence.expectedExactQueries -join "`n"); Pattern = '"1980 NATIONAL CHAMPIONS" Georgia Coca-Cola tray' },
@@ -95,8 +98,22 @@ foreach ($pattern in $forbiddenProductionPatterns) {
   }
 }
 
+$forbiddenFrontendAuthorityPatterns = @(
+  "function applyFrontendZeroEvidenceGuard",
+  "function sanitizeUnsupportedFrontendMarketText",
+  "function normalizeReportForEvidenceDisplay",
+  "function classifyValuationEvidenceForDisplay",
+  "countReferenceSupportingResearchResults"
+)
+
+foreach ($pattern in $forbiddenFrontendAuthorityPatterns) {
+  if ($app -like "*$pattern*") {
+    $failed += "Frontend valuation authority should be absent: $pattern"
+  }
+}
+
 if ($failed.Count -gt 0) {
   throw "Search diagnostics / zero-evidence static checks failed: $($failed -join '; ')"
 }
 
-Write-Host "Search diagnostics / zero-evidence static checks OK - $($checks.Count + $forbiddenProductionPatterns.Count) checks passed."
+Write-Host "Search diagnostics / zero-evidence static checks OK - $($checks.Count + $forbiddenProductionPatterns.Count + $forbiddenFrontendAuthorityPatterns.Count) checks passed."

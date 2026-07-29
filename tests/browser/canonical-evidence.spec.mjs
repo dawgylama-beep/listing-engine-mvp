@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import { createGenerateListingHandler } from "../../api/generate-listing.js";
+import { validateFinalEvidenceResult } from "../../lib/evidence/index.js";
 import { buildBrowserHandlerResponse } from "../helpers/build-browser-handler-response.mjs";
+import { installHardNetworkDenial } from "../helpers/hard-network-denial.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "..", "..");
@@ -36,6 +39,214 @@ const purposes = Object.freeze({
   }
 });
 
+const valuationContextFields = Object.freeze([
+  "valuationEvidenceState",
+  "valuationEvidenceLabel",
+  "valuationEvidenceExplanation",
+  "verifiedMarketRange",
+  "currentAskingPriceRange",
+  "preliminaryReferenceRange",
+  "fairValueNotEstablished",
+  "estimatedFairMarketValue",
+  "estimatedMarketValue",
+  "fairPriceRange",
+  "currentRetailPriceAssessment",
+  "retailPriceLimit",
+  "valueRating",
+  "priceBasis",
+  "priceRationale",
+  "pricingRationale",
+  "recommendation",
+  "recommendedListingPrice",
+  "suggestedListingPrice",
+  "expectedSalePrice",
+  "minimumAcceptablePrice",
+  "recommendedOffer",
+  "walkAwayPrice",
+  "maximumRecommendedPrice",
+  "maximumRecommendedBuyPrice"
+]);
+
+const displayFieldKeysByState = Object.freeze({
+  supported: Object.freeze(["verifiedMarketRange", "estimatedFairMarketValue", "estimatedMarketValue", "fairPriceRange"]),
+  current_asking: Object.freeze(["currentAskingPriceRange"]),
+  preliminary: Object.freeze(["preliminaryReferenceRange"]),
+  single_observation: Object.freeze(["fairValueNotEstablished"]),
+  insufficient: Object.freeze(["fairValueNotEstablished"]),
+  current_retail: Object.freeze(["currentRetailPriceAssessment", "retailPriceLimit"]),
+  retail_unverified: Object.freeze(["currentRetailPriceAssessment", "noCompatiblePricesFound"])
+});
+
+const rangeStateVisualRecognition = Object.freeze({
+  visualSubject: "Riverton Falcons championship tray",
+  visualSubjectCategory: "sports advertising collectible",
+  visualSubjectConfidence: "High",
+  recognizedOrganization: "Riverton Falcons",
+  recognizedBrand: "RefreshCo",
+  visibleWords: ["RIVERTON", "1999 CHAMPIONS", "RefreshCo"],
+  visualEvidence: ["championship tray"]
+});
+
+const rangeStateIdentity = Object.freeze({
+  visualRecognition: rangeStateVisualRecognition,
+  ...rangeStateVisualRecognition,
+  brand: "RefreshCo",
+  manufacturer: "RefreshCo",
+  category: "sports advertising collectible tray",
+  likelyItemDescription: "RefreshCo Riverton Falcons 1999 Champions collector tray",
+  subjectIdentity: "Riverton Falcons RefreshCo collector tray",
+  exactProductIdentity: "RefreshCo Riverton Falcons 1999 Champions collector tray",
+  exactProductConfidence: "High",
+  productNameOrBoxTitle: "RefreshCo Riverton Falcons collector tray",
+  frontBoxWording: "1999 CHAMPIONS RIVERTON RefreshCo",
+  visibleText: ["RIVERTON", "1999 CHAMPIONS", "RefreshCo"],
+  visualIdentityEvidence: ["RefreshCo logo", "Riverton championship wording"],
+  textIdentityEvidence: ["RIVERTON", "1999 CHAMPIONS"],
+  strongestSearchableIdentifiers: ["Riverton Falcons 1999 Champions RefreshCo collector tray"],
+  identitySummary: "RefreshCo Riverton Falcons 1999 Champions collector tray.",
+  identityConflictNotes: []
+});
+
+const rangeStateModelReport = Object.freeze({
+  identifiedItem: "RefreshCo Riverton Falcons 1999 Champions collector tray",
+  recommendation: "Need More Information",
+  valueRating: "Model value must be replaced by canonical evidence.",
+  suggestedListingPrice: "$30.00",
+  expectedSalePrice: "$20.00 - $30.00",
+  minimumAcceptablePrice: "$15.00",
+  recommendedSellingPlatform: "Local marketplace"
+});
+
+const rangeStateProviderResponses = Object.freeze({
+  supported: Object.freeze([
+    Object.freeze({
+      position: 1,
+      title: "Riverton Falcons 1999 Champions RefreshCo collector tray sold",
+      link: "https://sold-one.example/item/tray",
+      snippet: "Exact item. Sold for $20.00 on June 2, 2026. Completed sale."
+    }),
+    Object.freeze({
+      position: 2,
+      title: "Riverton Falcons 1999 Champions RefreshCo collector tray sold",
+      link: "https://sold-two.example/item/tray",
+      snippet: "Exact item. Sold for $28.00 on May 10, 2026. Completed transaction."
+    })
+  ]),
+  current_asking: Object.freeze([
+    Object.freeze({
+      position: 1,
+      title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
+      link: "https://ask-one.example/item/tray",
+      snippet: "Exact item active listing. Asking price $22.00. Available now."
+    }),
+    Object.freeze({
+      position: 2,
+      title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
+      link: "https://ask-two.example/item/tray",
+      snippet: "Exact item active listing. Asking price $30.00. In stock."
+    })
+  ])
+});
+
+function createResponseCapture() {
+  return {
+    statusCode: 200,
+    payload: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.payload = payload;
+      return this;
+    }
+  };
+}
+
+async function buildRangeStateHandlerResponse({ requestBody, state }) {
+  const organic = rangeStateProviderResponses[state];
+  if (!organic) {
+    throw new Error(`Unsupported deterministic range-state fixture: ${state}`);
+  }
+
+  const schemas = [];
+  const providerStages = [];
+  const directPageRequests = [];
+  const finalized = [];
+  let clock = Date.parse("2026-07-24T16:00:00.000Z");
+  const handler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    getOpenAIModel: () => "deterministic-browser-model",
+    getSerperApiKey: () => "deterministic-serper-placeholder",
+    createAnalysisId: () => requestBody.analysisId || `analysis-browser-${state}`,
+    nowMilliseconds: () => {
+      clock += 5;
+      return clock;
+    },
+    nowIso: () => new Date(clock).toISOString(),
+    requestOpenAIJson: async ({ payload }) => {
+      const schemaName = payload?.text?.format?.name;
+      schemas.push(schemaName);
+      if (schemaName === "visual_subject_recognition") {
+        return { json: rangeStateVisualRecognition, data: { output: [] } };
+      }
+      if (schemaName === "item_identity") {
+        return { json: rangeStateIdentity, data: { output: [] } };
+      }
+      if (schemaName === "market_value_report") {
+        return { json: rangeStateModelReport, data: { output: [] } };
+      }
+      throw new Error(`Unexpected deterministic range-state schema: ${schemaName}`);
+    },
+    requestSerperSearch: async ({ queryRecord }) => {
+      providerStages.push(queryRecord?.retailStage || queryRecord?.searchPass || "unknown");
+      return { json: { organic }, statusCode: 200, elapsedMs: 2 };
+    },
+    requestBoundedRetailProductPage: async (url) => {
+      directPageRequests.push(url);
+      return {
+        finalUrl: url,
+        statusCode: 200,
+        elapsedMs: 2,
+        html: "<html><body><h1>Riverton Falcons 1999 Champions RefreshCo collector tray</h1></body></html>",
+        sourceEvidenceText: `Riverton Falcons 1999 Champions RefreshCo collector tray ${organic.map((record) => record.snippet).join(" ")}`
+      };
+    },
+    onFinalEvidenceResult: (result) => finalized.push(result)
+  });
+
+  const response = createResponseCapture();
+  const networkGuard = installHardNetworkDenial();
+  try {
+    await handler({ method: "POST", body: structuredClone(requestBody) }, response);
+  } finally {
+    networkGuard.restore();
+  }
+
+  if (response.statusCode !== 200 || !response.payload) {
+    throw new Error(`Deterministic range-state handler failed with status ${response.statusCode}.`);
+  }
+  expect(networkGuard.attempts).toEqual([]);
+  expect(finalized).toHaveLength(1);
+  validateFinalEvidenceResult(finalized[0]);
+  const envelope = requestBody.reportType === "listing" ? "listing" : "valuation";
+
+  return {
+    payload: response.payload,
+    envelope,
+    report: response.payload[envelope],
+    canonicalReport: response.payload[envelope],
+    finalEvidenceResult: finalized[0],
+    metadata: {
+      schemas,
+      providerStages,
+      directPageRequests,
+      finalizerExecutions: finalized.length,
+      unexpectedNodeNetworkAttempts: networkGuard.attempts
+    }
+  };
+}
+
 function normalizeText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
@@ -43,6 +254,51 @@ function normalizeText(value) {
 function countOccurrences(text, value) {
   if (!value) return 0;
   return String(text).split(value).length - 1;
+}
+
+function hasDisplayValue(value) {
+  return Array.isArray(value)
+    ? value.length > 0
+    : value !== null && value !== undefined && normalizeText(value) !== "";
+}
+
+function applyScenarioContract(result, scenario) {
+  if (!scenario.canonicalContractVariant && !scenario.malformedValuation) {
+    return result;
+  }
+
+  const payload = structuredClone(result.payload);
+  const report = payload[result.envelope];
+  if (scenario.canonicalContractVariant === "preliminary") {
+    report.valuationEvidenceState = "preliminary";
+    report.valuationEvidenceLabel = "Preliminary Reference Range";
+    report.valuationEvidenceExplanation = "Weak, partial, guide, auction, or reference evidence supports only a preliminary reference range.";
+    report.preliminaryReferenceRange = String(report.currentAskingPriceRange || "")
+      .replace(/^Current Asking-Price Range/i, "Preliminary Reference Range");
+    report.currentAskingPriceRange = "";
+    report.fairValueNotEstablished = "";
+  }
+
+  if (scenario.malformedValuation) {
+    report.preliminaryReferenceRange = "$111.00-$222.00 malformed canonical range";
+    report.internalValuationNarrative = "Untrusted free text claims a $333.00-$444.00 value.";
+    if (scenario.malformedValuation === "missing_state") {
+      delete report.valuationEvidenceState;
+    } else if (scenario.malformedValuation === "unknown_state") {
+      report.valuationEvidenceState = "unknown_contract_state";
+    } else if (scenario.malformedValuation === "missing_label") {
+      delete report.valuationEvidenceLabel;
+    } else if (scenario.malformedValuation === "missing_explanation") {
+      delete report.valuationEvidenceExplanation;
+    }
+  }
+
+  return {
+    ...result,
+    payload,
+    report,
+    canonicalReport: report
+  };
 }
 
 function expectedMeta(record) {
@@ -54,22 +310,50 @@ function expectedMeta(record) {
   ].filter(Boolean).join(" · ");
 }
 
-function scenarioName({ evidenceMode, purpose, malformedCanonical }, projectName) {
-  const state = malformedCanonical ? "fail-closed" : `${evidenceMode}-${purpose}`;
+function scenarioName({ evidenceMode, purpose, malformedCanonical, malformedValuation, canonicalContractVariant, handlerState }, projectName) {
+  const state = malformedCanonical
+    ? "fail-closed"
+    : malformedValuation
+      ? `valuation-${malformedValuation}`
+      : `${canonicalContractVariant || handlerState || evidenceMode}-${purpose}`;
   return `${state}-${projectName}`;
 }
 
-function installBrowserGuards(page, scenario) {
+async function installBrowserGuards(page, scenario) {
   const state = {
     analysisRequests: [],
+    askRequests: [],
     externalRequests: [],
     productionDomainRequests: [],
     consoleErrors: [],
     consoleWarnings: [],
     pageErrors: [],
     unexpectedRequestFailures: [],
-    handlerResult: null
+    handlerResult: null,
+    handlerReportSnapshots: []
   };
+
+  await page.addInitScript(() => {
+    const originalJson = Response.prototype.json;
+    const deepFreeze = (value) => {
+      if (!value || typeof value !== "object" || Object.isFrozen(value)) {
+        return value;
+      }
+      Object.freeze(value);
+      Object.values(value).forEach(deepFreeze);
+      return value;
+    };
+    Response.prototype.json = async function canonicalHandlerJson(...args) {
+      const data = await originalJson.apply(this, args);
+      const report = data?.valuation || data?.listing;
+      if (report) {
+        window.__canonicalHandlerReportSnapshot = JSON.stringify(report);
+        window.__canonicalHandlerReportDeepFrozen = true;
+        deepFreeze(report);
+      }
+      return data;
+    };
+  });
 
   page.on("console", (message) => {
     const record = { type: message.type(), text: message.text() };
@@ -87,7 +371,7 @@ function installBrowserGuards(page, scenario) {
     }
   });
 
-  page.route("**/*", async (route) => {
+  await page.route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const local = url.hostname === "127.0.0.1";
@@ -102,16 +386,36 @@ function installBrowserGuards(page, scenario) {
 
     if (url.pathname === "/api/generate-listing") {
       const body = request.postDataJSON();
+      if (body.action === "ask_market_edge") {
+        state.askRequests.push(body);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json; charset=utf-8",
+          body: JSON.stringify({
+            answer: {
+              answer: "Deterministic captured Ask response.",
+              answerType: "item_context",
+              assumptions: [],
+              updatedScenario: {}
+            }
+          })
+        });
+        return;
+      }
       state.analysisRequests.push({
         method: request.method(),
         url: request.url(),
         body
       });
-      state.handlerResult = await buildBrowserHandlerResponse({
-        requestBody: body,
-        evidenceMode: scenario.evidenceMode,
-        malformedCanonical: scenario.malformedCanonical === true
-      });
+      const handlerResult = scenario.handlerState
+        ? await buildRangeStateHandlerResponse({ requestBody: body, state: scenario.handlerState })
+        : await buildBrowserHandlerResponse({
+            requestBody: body,
+            evidenceMode: scenario.evidenceMode,
+            malformedCanonical: scenario.malformedCanonical === true
+          });
+      state.handlerResult = applyScenarioContract(handlerResult, scenario);
+      state.handlerReportSnapshots.push(JSON.stringify(state.handlerResult.report));
       await route.fulfill({
         status: 200,
         contentType: "application/json; charset=utf-8",
@@ -321,6 +625,133 @@ async function assertCopyParity(page, report) {
   if (report.customerEvidence.some((record) => record.customerPriceLabel === "Price unavailable")) {
     expect(copied).toContain("Price unavailable");
   }
+}
+
+function expectedOutputText(value) {
+  if (Array.isArray(value)) {
+    return normalizeText(value.map((item) => typeof item === "object" ? JSON.stringify(item) : item).join(" "));
+  }
+  if (value && typeof value === "object") {
+    return normalizeText(Object.values(value).join(" "));
+  }
+  return normalizeText(value);
+}
+
+async function assertCanonicalValuationParity(page, state, scenario) {
+  const report = state.handlerResult.report;
+  const summary = page.locator(".consumer-summary-card, .executive-summary-card").first();
+  const expectedState = scenario.expectedValuationState || report.valuationEvidenceState;
+  expect(report.valuationEvidenceState).toBe(expectedState);
+  await expect(summary).toHaveAttribute("data-valuation-contract-valid", "true");
+  await expect(summary).toHaveAttribute("data-valuation-state", report.valuationEvidenceState);
+  await expect(summary).toHaveAttribute("data-valuation-label", report.valuationEvidenceLabel);
+  await expect(summary).toHaveAttribute("data-valuation-explanation", report.valuationEvidenceExplanation);
+  await expect(summary).toContainText(report.valuationEvidenceLabel);
+  await expect(summary).toContainText(report.valuationEvidenceExplanation);
+
+  const resultsText = normalizeText(await page.locator("#results").textContent());
+  const displayFields = displayFieldKeysByState[report.valuationEvidenceState] || [];
+  for (const field of displayFields) {
+    if (hasDisplayValue(report[field])) {
+      expect(resultsText).toContain(expectedOutputText(report[field]));
+    }
+  }
+
+  const copyButton = page.locator("#copy-all");
+  await expect(copyButton).toBeEnabled();
+  await copyButton.click();
+  await expect(copyButton).toHaveText("Copied!");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain(report.valuationEvidenceState);
+  expect(copied).toContain(report.valuationEvidenceLabel);
+  expect(copied).toContain(report.valuationEvidenceExplanation);
+  for (const field of displayFields) {
+    if (hasDisplayValue(report[field])) {
+      expect(normalizeText(copied)).toContain(expectedOutputText(report[field]));
+    }
+  }
+
+  await page.locator("#ask-question").fill("What valuation state is in the current report?");
+  await page.locator("#ask-submit-button").click();
+  await expect.poll(() => state.askRequests.length).toBe(1);
+  await expect(page.locator("#ask-history")).toContainText("Deterministic captured Ask response.");
+  const askReport = state.askRequests[0].currentItemContext.currentReport;
+  expect(askReport.valuationEvidenceState).toBe(report.valuationEvidenceState);
+  expect(askReport.valuationEvidenceLabel).toBe(report.valuationEvidenceLabel);
+  expect(askReport.valuationEvidenceExplanation).toBe(report.valuationEvidenceExplanation);
+  for (const field of valuationContextFields) {
+    if (hasDisplayValue(report[field])) {
+      expect(askReport[field], `Ask context must preserve ${field}`).toEqual(report[field]);
+    }
+  }
+  if (["single_observation", "insufficient"].includes(report.valuationEvidenceState) && !hasDisplayValue(report.preliminaryReferenceRange)) {
+    expect(hasDisplayValue(askReport.preliminaryReferenceRange)).toBe(false);
+  }
+
+  const browserCapture = await page.evaluate(() => ({
+    frozen: window.__canonicalHandlerReportDeepFrozen,
+    snapshot: window.__canonicalHandlerReportSnapshot
+  }));
+  expect(browserCapture.frozen).toBe(true);
+  expect(browserCapture.snapshot).toBe(state.handlerReportSnapshots.at(-1));
+  expect(JSON.stringify(state.handlerResult.report)).toBe(state.handlerReportSnapshots.at(-1));
+}
+
+async function assertReRenderImmutability(page, state) {
+  const firstHandlerResult = state.handlerResult;
+  const firstSnapshot = state.handlerReportSnapshots.at(-1);
+  await page.locator("#workflow-submit-button").click();
+  await expect.poll(() => state.analysisRequests.length).toBe(2);
+  await expect(page.locator(".canonical-evidence-section")).toHaveCount(1);
+  const secondReport = state.handlerResult.report;
+  const summary = page.locator(".consumer-summary-card, .executive-summary-card").first();
+  await expect(summary).toHaveAttribute("data-valuation-state", secondReport.valuationEvidenceState);
+  await expect(summary).toHaveAttribute("data-valuation-label", secondReport.valuationEvidenceLabel);
+  await expect(summary).toHaveAttribute("data-valuation-explanation", secondReport.valuationEvidenceExplanation);
+  expect(JSON.stringify(firstHandlerResult.report)).toBe(firstSnapshot);
+  expect(JSON.stringify(secondReport)).toBe(state.handlerReportSnapshots.at(-1));
+  expect(await page.evaluate(() => window.__canonicalHandlerReportSnapshot)).toBe(state.handlerReportSnapshots.at(-1));
+}
+
+async function assertMalformedValuationFailsClosed(page, state, scenario) {
+  const report = state.handlerResult.report;
+  const summary = page.locator(".consumer-summary-card, .executive-summary-card").first();
+  await expect(summary).toHaveAttribute("data-valuation-contract-valid", "false");
+  await expect(summary).toHaveAttribute("data-valuation-state", "");
+  await expect(summary).toHaveAttribute("data-valuation-label", "Valuation Unavailable");
+  await expect(summary).toHaveAttribute("data-valuation-explanation", "Canonical valuation information is unavailable.");
+  await expect(summary).toContainText("Valuation Unavailable");
+  await expect(summary).toContainText("Canonical valuation information is unavailable.");
+  const resultsText = normalizeText(await page.locator("#results").textContent());
+  expect(resultsText).not.toContain("$111.00-$222.00");
+  expect(resultsText).not.toContain("$333.00-$444.00");
+  expect(resultsText).not.toContain("unknown_contract_state");
+
+  const copyButton = page.locator("#copy-all");
+  await copyButton.click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("Valuation Unavailable");
+  expect(copied).toContain("Canonical valuation information is unavailable.");
+  expect(copied).not.toContain("$111.00-$222.00");
+  expect(copied).not.toContain("$333.00-$444.00");
+  expect(copied).not.toContain("unknown_contract_state");
+  expect(copied).not.toContain("\ninsufficient\n");
+
+  await page.locator("#ask-question").fill("What valuation state is in the current report?");
+  await page.locator("#ask-submit-button").click();
+  await expect.poll(() => state.askRequests.length).toBe(1);
+  const askReport = state.askRequests[0].currentItemContext.currentReport;
+  expect(askReport.valuationEvidenceState).toBe(report.valuationEvidenceState);
+  if (Object.hasOwn(report, "valuationEvidenceLabel")) {
+    expect(askReport.valuationEvidenceLabel).toBe(report.valuationEvidenceLabel);
+  }
+  if (Object.hasOwn(report, "valuationEvidenceExplanation")) {
+    expect(askReport.valuationEvidenceExplanation).toBe(report.valuationEvidenceExplanation);
+  }
+  expect(askReport.preliminaryReferenceRange).toBe(report.preliminaryReferenceRange);
+  expect(JSON.stringify(state.handlerResult.report)).toBe(state.handlerReportSnapshots.at(-1));
+  expect(await page.evaluate(() => window.__canonicalHandlerReportSnapshot)).toBe(state.handlerReportSnapshots.at(-1));
+  expect(scenario.malformedValuation).toMatch(/^(missing_state|unknown_state|missing_label|missing_explanation)$/);
 }
 
 async function readabilityAudit(page) {
@@ -541,13 +972,11 @@ function assertStable(state) {
   expect(state.externalRequests, JSON.stringify(state.externalRequests, null, 2)).toEqual([]);
   expect(state.productionDomainRequests).toEqual([]);
   expect(state.unexpectedRequestFailures, JSON.stringify(state.unexpectedRequestFailures, null, 2)).toEqual([]);
-  if (state.consoleWarnings.length) {
-    console.log(`BROWSER_INFORMATIONAL_WARNINGS ${JSON.stringify(state.consoleWarnings)}`);
-  }
+  expect(state.consoleWarnings, JSON.stringify(state.consoleWarnings, null, 2)).toEqual([]);
 }
 
 async function runSuccessfulScenario(page, scenario, projectName) {
-  const state = installBrowserGuards(page, scenario);
+  const state = await installBrowserGuards(page, scenario);
   await configureForm(page, scenario, state);
   await page.locator("#workflow-submit-button").click();
   await expect.poll(() => state.analysisRequests.length).toBe(1);
@@ -560,6 +989,7 @@ async function runSuccessfulScenario(page, scenario, projectName) {
   expect(state.handlerResult.finalEvidenceResult.decisionResult.purpose).toBe(
     purposes[scenario.purpose].canonicalPurpose
   );
+  await assertCanonicalValuationParity(page, state, scenario);
 
   if (scenario.purpose === "listing") {
     expect(state.handlerResult.report.optimizedListingTitle).toBe("Cedarline Privacy Mailers 48 Count");
@@ -568,6 +998,9 @@ async function runSuccessfulScenario(page, scenario, projectName) {
 
   if (scenario.copyParity) {
     await assertCopyParity(page, state.handlerResult.report);
+  }
+  if (scenario.reRender) {
+    await assertReRenderImmutability(page, state);
   }
   const screenshots = await captureScreenshots(page, scenario, projectName);
   assertStable(state);
@@ -579,6 +1012,7 @@ test("real form submits one retail analysis and renders canonical cards", async 
   await runSuccessfulScenario(page, {
     evidenceMode: "retail",
     purpose: "personal_use",
+    expectedValuationState: "current_retail",
     validateForm: true,
     expectCrossRetailer: true,
     copyParity: true
@@ -587,43 +1021,81 @@ test("real form submits one retail analysis and renders canonical cards", async 
 
 test("Buy to Resell renders canonical evidence exactly once", async ({ page }, testInfo) => {
   await runSuccessfulScenario(page, {
-    evidenceMode: "retail",
-    purpose: "resale"
+    evidenceMode: "collectible",
+    purpose: "resale",
+    expectedValuationState: "single_observation"
   }, testInfo.project.name);
 });
 
 test("Value Something I Own renders canonical evidence exactly once", async ({ page }, testInfo) => {
   await runSuccessfulScenario(page, {
-    evidenceMode: "retail",
-    purpose: "market_value"
+    evidenceMode: "collectible",
+    purpose: "market_value",
+    expectedValuationState: "single_observation"
   }, testInfo.project.name);
 });
 
 test("Sell Something I Own preserves seller content and canonical evidence", async ({ page }, testInfo) => {
   await runSuccessfulScenario(page, {
     evidenceMode: "retail",
-    purpose: "listing"
+    purpose: "listing",
+    expectedValuationState: "insufficient"
   }, testInfo.project.name);
 });
 
 test("collectible duplicate, cross-retailer, and exact no-price evidence stay canonical", async ({ page }, testInfo) => {
+  testInfo.setTimeout(120_000);
   await runSuccessfulScenario(page, {
     evidenceMode: "collectible",
     purpose: "personal_use",
+    expectedValuationState: "single_observation",
     expectCrossRetailer: true,
     expectDuplicateObservation: true,
     expectNoPrice: true,
-    copyParity: true
+    copyParity: true,
+    reRender: true
   }, testInfo.project.name);
+
+  const rangeScenarios = [
+    {
+      evidenceMode: "collectible",
+      purpose: "market_value",
+      handlerState: "supported",
+      expectedValuationState: "supported"
+    },
+    {
+      evidenceMode: "collectible",
+      purpose: "market_value",
+      handlerState: "current_asking",
+      expectedValuationState: "current_asking"
+    },
+    {
+      evidenceMode: "collectible",
+      purpose: "market_value",
+      handlerState: "current_asking",
+      canonicalContractVariant: "preliminary",
+      expectedValuationState: "preliminary"
+    }
+  ];
+  for (const scenario of rangeScenarios) {
+    const rangePage = await page.context().newPage();
+    try {
+      await runSuccessfulScenario(rangePage, scenario, testInfo.project.name);
+    } finally {
+      await rangePage.close();
+    }
+  }
 });
 
 test("malformed canonical evidence fails closed without legacy reconstruction", async ({ page }, testInfo) => {
+  testInfo.setTimeout(120_000);
   const scenario = {
     evidenceMode: "retail",
     purpose: "personal_use",
-    malformedCanonical: true
+    malformedCanonical: true,
+    expectedValuationState: "current_retail"
   };
-  const state = installBrowserGuards(page, scenario);
+  const state = await installBrowserGuards(page, scenario);
   await configureForm(page, scenario, state);
   await page.locator("#workflow-submit-button").click();
   await expect.poll(() => state.analysisRequests.length).toBe(1);
@@ -635,7 +1107,32 @@ test("malformed canonical evidence fails closed without legacy reconstruction", 
   await expect(section).not.toContainText("$999.00");
   await expect(page.getByRole("heading", { name: "Prices Found", exact: true })).toHaveCount(0);
   assertSubmittedRequest(state, scenario);
+  await assertCanonicalValuationParity(page, state, scenario);
   await captureScreenshots(page, scenario, testInfo.project.name);
   assertStable(state);
   await assertReadability(page);
+
+  for (const malformedValuation of ["missing_state", "unknown_state", "missing_label", "missing_explanation"]) {
+    const malformedScenario = {
+      evidenceMode: "collectible",
+      purpose: "resale",
+      malformedValuation
+    };
+    const malformedPage = await page.context().newPage();
+    try {
+      const malformedState = await installBrowserGuards(malformedPage, malformedScenario);
+      await configureForm(malformedPage, malformedScenario, malformedState);
+      await malformedPage.locator("#workflow-submit-button").click();
+      await expect.poll(() => malformedState.analysisRequests.length).toBe(1);
+      await expect(malformedPage.locator(".canonical-evidence-section [data-evidence-id]").first()).toBeVisible();
+      assertSubmittedRequest(malformedState, malformedScenario);
+      await assertCanonicalCards(malformedPage, malformedState, malformedScenario);
+      await assertMalformedValuationFailsClosed(malformedPage, malformedState, malformedScenario);
+      await captureScreenshots(malformedPage, malformedScenario, testInfo.project.name);
+      assertStable(malformedState);
+      await assertReadability(malformedPage);
+    } finally {
+      await malformedPage.close();
+    }
+  }
 });
