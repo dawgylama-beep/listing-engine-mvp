@@ -27,7 +27,6 @@ $checks = @(
   @{ Name = "API Ask scenario uses formatted proposed price"; Text = $api; Pattern = "formatMoney(proposedPrice)" },
   @{ Name = "API source money always shows cents"; Text = $api; Pattern = "function formatSourceMoney" },
   @{ Name = "API unit money can show sub-dollar precision"; Text = $api; Pattern = "amount < 0.01 ? 4 : amount < 1 ? 3 : 2" },
-  @{ Name = "Server money formatter keeps cents"; Text = $server; Pattern = "ToString('N2')" },
   @{ Name = "Static formatting path remains present"; Text = $app; Pattern = "formatSearchDiagnosticsText" }
 )
 
@@ -41,8 +40,7 @@ foreach ($check in $checks) {
 $forbidden = @(
   @{ Name = "API formatMoney must not round whole dollars"; Text = $api; Pattern = 'return `$${Math.round(value).toLocaleString("en-US")}`;' },
   @{ Name = "API unsupported-evidence guard must not compare rounded dollars"; Text = $api; Pattern = "Math.round(amount) !== Math.round(askingAmount)" },
-  @{ Name = "Ask scenario must not hand-build proposed dollar text"; Text = $api; Pattern = '$${proposedPrice}' },
-  @{ Name = "Server formatter must not round to whole dollars"; Text = $server; Pattern = "[Math]::Round(`$Value).ToString('N0')" }
+  @{ Name = "Ask scenario must not hand-build proposed dollar text"; Text = $api; Pattern = '$${proposedPrice}' }
 )
 
 foreach ($check in $forbidden) {

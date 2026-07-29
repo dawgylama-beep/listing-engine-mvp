@@ -43,7 +43,6 @@ $checks = @(
   @{ Name = "Ask label uses Katherine's Eye"; Text = $index; Pattern = "Ask Katherine" },
   @{ Name = "Loading state uses Katherine's Eye"; Text = $app; Pattern = "Katherine" },
   @{ Name = "API prompt uses Katherine's Eye"; Text = $api; Pattern = "buyer-first market intelligence assistant" },
-  @{ Name = "Server prompt uses Katherine's Eye"; Text = $server; Pattern = "buyer-first market intelligence assistant" },
   @{ Name = "Legacy stable ask action remains"; Text = $app; Pattern = 'action: "ask_market_edge"' },
   @{ Name = "No localStorage state is introduced"; Text = $app; Pattern = "localStorage" ; ShouldNotContain = $true },
   @{ Name = "No sessionStorage state is introduced"; Text = $app; Pattern = "sessionStorage" ; ShouldNotContain = $true },

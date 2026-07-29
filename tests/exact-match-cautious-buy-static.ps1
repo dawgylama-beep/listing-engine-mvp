@@ -34,9 +34,7 @@ $checks = @(
   @{ Name = "Insufficient evidence uses neutral badge"; Text = $decisions; Pattern = "market_evidence_insufficient" },
   @{ Name = "Frontend shows consumer downside risk"; Text = $app; Pattern = "Consumer Downside Risk" },
   @{ Name = "Frontend shows cautious buy explanation"; Text = $app; Pattern = "Cautious Buy Explanation" },
-  @{ Name = "Ask context carries downside risk"; Text = $app; Pattern = '"consumerDownsideRisk"' },
-  @{ Name = "Server prompt prioritizes exact visible phrase combinations"; Text = $server; Pattern = "exact visible phrase combinations" },
-  @{ Name = "Server includes cautious-buy threshold"; Text = $server; Pattern = "cautiousBuyMaxRatio" }
+  @{ Name = "Ask context carries downside risk"; Text = $app; Pattern = '"consumerDownsideRisk"' }
 )
 
 $failed = @()

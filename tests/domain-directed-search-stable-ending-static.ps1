@@ -55,9 +55,6 @@ $checks = @(
   @{ Name = "Styles include report root"; Text = $styles; Pattern = ".report-root" },
   @{ Name = "Styles include end marker"; Text = $styles; Pattern = ".end-of-report-marker" },
   @{ Name = "Styles stack diagnostics on mobile"; Text = $styles; Pattern = "grid-template-columns: 1fr;" },
-  @{ Name = "Server uses current web_search tool"; Text = $server; Pattern = 'type = "web_search"' },
-  @{ Name = "Server sets medium search context"; Text = $server; Pattern = 'search_context_size = "medium"' },
-  @{ Name = "Server exposes provider source count"; Text = $server; Pattern = "providerSourceCount" },
   @{ Name = "Roadmap notes marketplace-domain honesty"; Text = $roadmap; Pattern = "Marketplace-domain requests preserve allowed domains separately from domains actually returned" }
 )
 

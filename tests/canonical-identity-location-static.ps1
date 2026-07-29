@@ -58,8 +58,7 @@ $checks = @(
   @{ Name = "Mock covers Office Works envelope fixture"; Text = $mock; Pattern = "Office Works Security Envelopes" },
   @{ Name = "Mock rejects poster print queries"; Text = $mock; Pattern = "Unsupported poster print terms must not enter retail search queries." },
   @{ Name = "Mock checks Kroger domain UPC"; Text = $mock; Pattern = "Known retailer-domain plus UPC should be generated." },
-  @{ Name = "Mock preserves resale suppression"; Text = $mock; Pattern = "Retail-store route must suppress resale-oriented query terms for ordinary current products." },
-  @{ Name = "Server prompt mentions canonical identity"; Text = $server; Pattern = "Canonical Product Identity" }
+  @{ Name = "Mock preserves resale suppression"; Text = $mock; Pattern = "Retail-store route must suppress resale-oriented query terms for ordinary current products." }
 )
 
 $failed = @()

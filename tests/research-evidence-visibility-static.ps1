@@ -5,7 +5,6 @@
 $ErrorActionPreference = "Stop"
 
 $apiPath = Join-Path $Root "api/generate-listing.js"
-$serverPath = Join-Path $Root "server.ps1"
 $appPath = Join-Path $Root "public/app.js"
 $stylesPath = Join-Path $Root "public/styles.css"
 $indexPath = Join-Path $Root "public/index.html"
@@ -13,7 +12,6 @@ $packagePath = Join-Path $Root "package.json"
 $roadmapPath = Join-Path $Root "PRODUCT_ROADMAP.md"
 
 $api = Get-Content -LiteralPath $apiPath -Raw
-$server = Get-Content -LiteralPath $serverPath -Raw
 $app = Get-Content -LiteralPath $appPath -Raw
 $styles = Get-Content -LiteralPath $stylesPath -Raw
 $index = Get-Content -LiteralPath $indexPath -Raw
@@ -39,8 +37,6 @@ $checks = @(
   @{ Name = "Frontend Ask context carries result buckets"; Text = $app; Pattern = '"resultsFound"' },
   @{ Name = "Styles include source cards"; Text = $styles; Pattern = ".source-result-card" },
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
-  @{ Name = "Server has research visibility fields"; Text = $server; Pattern = "function Set-ResearchVisibilityFields" },
-  @{ Name = "Server blocks preliminary range without supporting records"; Text = $server; Pattern = "Get-ReferenceSupportingResearchResultCount" },
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
   @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }

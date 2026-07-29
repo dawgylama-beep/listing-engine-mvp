@@ -40,8 +40,7 @@ $checks = @(
   @{ Name = "Frontend renders Serper configured safely"; Text = $app; Pattern = "Serper Configured" },
   @{ Name = "Frontend renders source query"; Text = $app; Pattern = '["Query", item.query]' },
   @{ Name = "Frontend renders active sold reference status"; Text = $app; Pattern = "Active/Sold/Reference Status" },
-  @{ Name = "Ask instructions use stored Serper diagnostics"; Text = $api; Pattern = "stored Serper diagnostics" },
-  @{ Name = "Local server mirrors Serper configured state"; Text = $server; Pattern = '$SerperConfigured = [bool](Clean-Text $env:SERPER_API_KEY)' }
+  @{ Name = "Ask instructions use stored Serper diagnostics"; Text = $api; Pattern = "stored Serper diagnostics" }
 )
 
 $failed = @()

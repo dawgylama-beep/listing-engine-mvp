@@ -52,9 +52,7 @@ $checks = @(
   @{ Name = "Retail compact report uses named store result"; Text = $app; Pattern = "Named Store Result" },
   @{ Name = "Retail compact report uses Where to Buy list"; Text = $app; Pattern = "Where to Buy" },
   @{ Name = "Retail price card uses canonical match label"; Text = $app; Pattern = '["Match", item.canonicalMatchLabel]' },
-  @{ Name = "Technical details display retail evidence mode"; Text = $app; Pattern = '["Retail Evidence Mode", diagnostics.retailEvidenceMode]' },
-  @{ Name = "Server prompt includes retail-only mode"; Text = $server; Pattern = "Retail Evidence Mode: current-retail-only" },
-  @{ Name = "Server prompt blocks offer ladder"; Text = $server; Pattern = "do not show Opening Offer, negotiation target, offer ladder" }
+  @{ Name = "Technical details display retail evidence mode"; Text = $app; Pattern = '["Retail Evidence Mode", diagnostics.retailEvidenceMode]' }
 )
 
 $failed = @()

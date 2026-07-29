@@ -69,11 +69,6 @@ $checks = @(
   @{ Name = "Frontend sanitizes unsupported market text"; Text = $app; Pattern = "function sanitizeUnsupportedFrontendMarketText" },
   @{ Name = "Styles include diagnostic summary"; Text = $styles; Pattern = ".diagnostic-summary" },
   @{ Name = "Styles include query diagnostic rows"; Text = $styles; Pattern = ".query-diagnostic-row" },
-  @{ Name = "Server builds search diagnostics"; Text = $server; Pattern = "function New-SearchDiagnostics" },
-  @{ Name = "Server central zero evidence guard exists"; Text = $server; Pattern = "function Set-ZeroEvidenceGuard" },
-  @{ Name = "Server sanitizes unsupported market text"; Text = $server; Pattern = "function Sanitize-UnsupportedMarketText" },
-  @{ Name = "Server classifies search failure stage"; Text = $server; Pattern = "function Get-SearchAcquisitionFailureStage" },
-  @{ Name = "Server zero guard triggers without supporting retained evidence"; Text = $server; Pattern = '$SupportingResultCount -eq 0' },
   @{ Name = "Georgia fixture includes exact query with championship wording"; Text = ($georgiaTrayMockedExtractedEvidence.expectedExactQueries -join "`n"); Pattern = '"1980 NATIONAL CHAMPIONS" Georgia Coca-Cola tray' },
   @{ Name = "Georgia fixture preserves apostrophe query"; Text = ($georgiaTrayMockedExtractedEvidence.expectedExactQueries -join "`n"); Pattern = '"HOW ''BOUT THEM DAWGS" Coca-Cola tray' },
   @{ Name = "Georgia fixture keeps asking price visible"; Text = $georgiaTrayMockedExtractedEvidence.askingPrice; Pattern = '$10' }

@@ -25,9 +25,51 @@ const expectedOversizedResponseBody = Buffer.from(
 const observedPowerShellCommands = Object.freeze([
   "Route-Request",
   "Invoke-LocalGenerateListingHandler",
-  "Invoke-LocalGenerateListingBridge",
-  "Handle-GenerateListing",
-  "Generate-ReportWithOpenAI"
+  "Invoke-LocalGenerateListingBridge"
+]);
+const removedLegacyPowerShellFunctions = Object.freeze([
+  "Handle-GenerateListing", "Handle-AskMarketEdge", "Invoke-AskMarketEdge",
+  "Normalize-AskWorkflow", "Classify-AskQuestion", "Get-AskProposedPrice",
+  "Get-AskScenario", "Normalize-AskMarketEdgeAnswer", "Generate-ReportWithOpenAI",
+  "Set-ListingResearchHonesty", "Set-LiveSearchHonesty", "Set-ConsumerDecisionHonesty",
+  "Get-ConsumerAskingPriceNumber", "Get-ConsumerAskingPriceText",
+  "Get-ConsumerFairValueNumber", "Get-ConsumerConditionProfile",
+  "Get-ConsumerRiskFlags", "Get-ConsumerDecision", "Get-ConsumerOffer",
+  "Merge-ConsumerArrays", "Get-SearchCoverage", "Ensure-ConfidenceLayer",
+  "Force-LowConfidence", "Force-MediumConfidence", "Join-ValuationText",
+  "Get-ValuationEvidenceClassification", "Get-ZeroEvidenceAskingPriceText",
+  "Get-ZeroEvidenceLowDownsideText", "Test-ZeroEvidencePersonalBuyAllowed",
+  "Sanitize-UnsupportedMarketText", "Sanitize-ZeroEvidenceReportText",
+  "Set-ZeroEvidenceGuard", "Set-ValuationEvidenceLabels",
+  "Set-ResearchVisibilityFields", "New-SearchDiagnostics",
+  "Get-SearchAcquisitionFailureStage", "Get-QueryResultsSummary",
+  "Get-QueryPriorityRecords", "Get-ProviderResponseSummaries",
+  "Summarize-SourceLabels", "Get-DroppedResultReasons",
+  "Get-SafeRawResultSummaries", "Convert-ToResearchResultRecords",
+  "Convert-ToResearchResultRecord", "Get-VisibleResearchResultCount",
+  "Get-ReferenceSupportingResearchResultCount", "Test-UsableSourceRecord",
+  "Get-ValuationEvidenceRange", "Get-LooseMoneyAmounts",
+  "Get-PreliminaryReferenceRangeText", "Get-WeakEvidenceMeaningText",
+  "Get-BestNextEvidenceStep", "Get-CautiousCurrentPriceAssessment",
+  "Normalize-MoneyLabelText", "Format-MoneyInputText", "Ensure-Prefix",
+  "Get-SearchQueriesUsed", "Get-WebSearchCalls", "Get-UrlCitations",
+  "Normalize-ReportArray", "Test-CitedUrl", "Get-TextUrls", "Normalize-Url",
+  "Extract-OutputText", "Normalize-BuyerIntake", "ConvertTo-ParsedAskingPrice",
+  "Format-BuyerIntakeForPrompt", "Get-BuyerIntakeValue", "Test-HasAskingPrice",
+  "Get-BuyerRiskAssessment", "Get-IdentityRisk", "Get-ConditionRisk",
+  "Get-PriceExposureRisk", "Get-DownsideExposureProfile", "Get-LiquidityRisk",
+  "Get-DecisionAlignedWithRisk", "Test-BuyOrNegotiateDecision",
+  "Test-DirectBuyDecision", "Get-RiskLevelForScore", "Get-BuyerRiskSummary",
+  "Add-UniqueText", "Test-KnownText", "Limit-Number", "Get-ResalePlatformContext",
+  "Get-ResalePricingGuidance", "Get-LowConfidenceResaleGuidance",
+  "Get-SpeculativeBuyCeiling", "Format-SpeculativeOfferRange",
+  "Get-GuardedBuyerDecision", "Remove-DecisionLabel", "Get-CurrentPriceAssessment",
+  "Get-MaximumRecommendedBuyPrice", "Get-ResalePotential", "Add-ResalePriceLabel",
+  "Get-FallbackSellPriceGuidance", "Get-RecommendedSellingPlatform",
+  "Get-PlatformSpecificSellingGuidance", "Get-CurrentAskingPriceText",
+  "Get-ItemIdentificationText", "Test-ResaleIntent", "Get-MoneyRange",
+  "Get-MoneyAmounts", "Round-Money", "Format-MoneyRange", "Format-Money",
+  "Test-RejectedWeakComparableItem", "New-AnalysisId", "Get-OpenAIErrorMessage"
 ]);
 const trackedServers = new Set();
 const adapterPaths = new Map();
@@ -191,8 +233,6 @@ function writePowerShellObserverLauncher() {
     'Set-PSBreakpoint -Command "Route-Request" -Action { Write-ObservedCommand "Route-Request" } | Out-Null',
     'Set-PSBreakpoint -Command "Invoke-LocalGenerateListingHandler" -Action { Write-ObservedCommand "Invoke-LocalGenerateListingHandler" } | Out-Null',
     'Set-PSBreakpoint -Command "Invoke-LocalGenerateListingBridge" -Action { Write-ObservedCommand "Invoke-LocalGenerateListingBridge" } | Out-Null',
-    'Set-PSBreakpoint -Command "Handle-GenerateListing" -Action { Write-ObservedCommand "Handle-GenerateListing" } | Out-Null',
-    'Set-PSBreakpoint -Command "Generate-ReportWithOpenAI" -Action { Write-ObservedCommand "Generate-ReportWithOpenAI" } | Out-Null',
     "",
     ". $env:KATHERINES_EYE_COMMITTED_SERVER_PATH -Port $Port",
     ""
@@ -830,8 +870,6 @@ test("oversized local requests reliably return 413 without launching the bridge"
     routeEntries: 0,
     localHandlerEntries: 0,
     bridgeFunctionEntries: 0,
-    legacyHandlerEntries: 0,
-    legacyEngineEntries: 0,
     cacheControlAssertions: 0,
     observerSelfChecks: 0,
     staticControl: null,
@@ -936,8 +974,6 @@ test("oversized local requests reliably return 413 without launching the bridge"
   metrics.routeEntries = oversizedCommandCounts["Route-Request"];
   metrics.localHandlerEntries = oversizedCommandCounts["Invoke-LocalGenerateListingHandler"];
   metrics.bridgeFunctionEntries = oversizedCommandCounts["Invoke-LocalGenerateListingBridge"];
-  metrics.legacyHandlerEntries = oversizedCommandCounts["Handle-GenerateListing"];
-  metrics.legacyEngineEntries = oversizedCommandCounts["Generate-ReportWithOpenAI"];
   assert.equal(metrics.attempted, 83);
   assert.equal(metrics.http413, 83);
   assert.equal(metrics.econnreset, 0);
@@ -971,9 +1007,7 @@ test("oversized local requests reliably return 413 without launching the bridge"
     routeEntries: staticControlCounts["Route-Request"],
     localHandlerEntries: staticControlCounts["Invoke-LocalGenerateListingHandler"],
     bridgeFunctionEntries: staticControlCounts["Invoke-LocalGenerateListingBridge"],
-    bridgeLaunches: staticControlBridgeLaunches,
-    legacyHandlerEntries: staticControlCounts["Handle-GenerateListing"],
-    legacyEngineEntries: staticControlCounts["Generate-ReportWithOpenAI"]
+    bridgeLaunches: staticControlBridgeLaunches
   };
 
   const observerBeforeValidControl = readPowerShellObserverEvents(mainServer).length;
@@ -998,9 +1032,7 @@ test("oversized local requests reliably return 413 without launching the bridge"
     routeEntries: validControlCounts["Route-Request"],
     localHandlerEntries: validControlCounts["Invoke-LocalGenerateListingHandler"],
     bridgeFunctionEntries: validControlCounts["Invoke-LocalGenerateListingBridge"],
-    bridgeLaunches: validControlBridgeLaunches,
-    legacyHandlerEntries: validControlCounts["Handle-GenerateListing"],
-    legacyEngineEntries: validControlCounts["Generate-ReportWithOpenAI"]
+    bridgeLaunches: validControlBridgeLaunches
   };
 
   const newBridgeEvents = readTrace(mainServer.tracePath).slice(traceAfterOversized.length);
@@ -1131,22 +1163,31 @@ test("client cancellation leaves no bridge process and the local listener remain
   }
 });
 
-test("static route trace proves bridge-only dispatch and no legacy fallback", () => {
+test("static source proves bridge-only dispatch and physical legacy removal", () => {
   const serverSource = fs.readFileSync(serverPath, "utf8");
   const routeStart = serverSource.indexOf("function Route-Request");
   const routeEnd = serverSource.indexOf("function Get-LocalNodeExecutable", routeStart);
   const routeSource = serverSource.slice(routeStart, routeEnd);
   assert.match(routeSource, /Invoke-LocalGenerateListingHandler \$Stream \$Request/);
-  assert.doesNotMatch(routeSource, /Handle-GenerateListing|Generate-ReportWithOpenAI|Apply-ListingResearchHonesty/);
   const bridgeRouteStart = serverSource.indexOf("function Invoke-LocalGenerateListingHandler");
-  const legacyStart = serverSource.indexOf("function Handle-GenerateListing", bridgeRouteStart);
-  const bridgeRouteSource = serverSource.slice(bridgeRouteStart, legacyStart);
+  const bridgeRouteEnd = serverSource.indexOf("function Handle-ReverseGeocode", bridgeRouteStart);
+  const bridgeRouteSource = serverSource.slice(bridgeRouteStart, bridgeRouteEnd);
   assert.match(bridgeRouteSource, /Invoke-LocalGenerateListingBridge/);
-  assert.doesNotMatch(bridgeRouteSource, /Handle-GenerateListing|Generate-ReportWithOpenAI|Apply-ListingResearchHonesty/);
+  assert.match(bridgeRouteSource, /local_handler_transport_error/);
   assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 2);
   assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingBridge\b/g) || []).length, 2);
-  assert.match(serverSource, /function Handle-GenerateListing/);
-  assert.match(serverSource, /function Generate-ReportWithOpenAI/);
+  for (const functionName of removedLegacyPowerShellFunctions) {
+    const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.doesNotMatch(
+      serverSource,
+      new RegExp(`\\b${escapedName}\\b`, "i"),
+      `Removed legacy PowerShell symbol remains: ${functionName}`
+    );
+  }
+  assert.doesNotMatch(
+    serverSource,
+    /\b(?:Invoke-Expression|Invoke-Command|Set-Alias|New-Alias|Register-ObjectEvent|Start-Job)\b/i
+  );
 
   const bridgeSource = fs.readFileSync(bridgePath, "utf8");
   assert.match(bridgeSource, /new URL\("\.\.\/api\/generate-listing\.js", import\.meta\.url\)/);

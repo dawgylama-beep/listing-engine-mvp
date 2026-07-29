@@ -48,8 +48,7 @@ $checks = @(
   @{ Name = "Frontend cleans literal slash-n"; Text = $app; Pattern = "function cleanDiagnosticText" },
   @{ Name = "Styles stack diagnostic rows"; Text = $styles; Pattern = ".query-diagnostic-facts" },
   @{ Name = "Server protects client-visible data"; Text = $server; Pattern = "function Protect-ClientVisibleData" },
-  @{ Name = "Server filters unsafe action queries"; Text = $server; Pattern = "Test-InternalPromptFragment $Query" },
-  @{ Name = "Server exposes local execution limitation"; Text = $server; Pattern = "single_model_web_search_request_no_safe_query_records" }
+  @{ Name = "Server filters unsafe action queries"; Text = $server; Pattern = "Test-InternalPromptFragment $Query" }
 )
 
 $failed = @()

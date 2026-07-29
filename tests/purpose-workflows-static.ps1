@@ -46,9 +46,7 @@ $checks = @(
   @{ Name = "API owner intent helper exists"; Text = $api; Pattern = "function isOwnerValueIntent" },
   @{ Name = "API seller listing uses seller intent"; Text = $api; Pattern = 'purchase_intent: "seller_listing"' },
   @{ Name = "API Ask names owner workflow"; Text = $api; Pattern = "Active workflow is Value Something I Own" },
-  @{ Name = "API Ask names seller workflow"; Text = $api; Pattern = "Active workflow is Sell Something I Own" },
-  @{ Name = "Server Ask names owner workflow"; Text = $server; Pattern = "Active workflow is Value Something I Own" },
-  @{ Name = "Server Ask names seller workflow"; Text = $server; Pattern = "Active workflow is Sell Something I Own" }
+  @{ Name = "API Ask names seller workflow"; Text = $api; Pattern = "Active workflow is Sell Something I Own" }
 )
 
 $failed = @()
@@ -60,9 +58,7 @@ foreach ($check in $checks) {
 
 $forbidden = @(
   @{ Name = "Seller API must not reject missing platform"; Text = $api; Pattern = 'Choose a marketplace platform.' },
-  @{ Name = "Seller API must not reject missing notes"; Text = $api; Pattern = 'Add item notes before generating a listing.' },
-  @{ Name = "Local seller server must not reject missing platform"; Text = $server; Pattern = 'Choose a marketplace platform.' },
-  @{ Name = "Local seller server must not reject missing notes"; Text = $server; Pattern = 'Add item notes before generating a listing.' }
+  @{ Name = "Seller API must not reject missing notes"; Text = $api; Pattern = 'Add item notes before generating a listing.' }
 )
 
 foreach ($check in $forbidden) {
