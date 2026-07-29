@@ -22,9 +22,17 @@ const expectedOversizedResponseBody = Buffer.from(
   '{\r\n    "error":  "Request body is too large.",\r\n    "code":  "request_body_too_large"\r\n}',
   "utf8"
 );
+const observedPowerShellCommands = Object.freeze([
+  "Route-Request",
+  "Invoke-LocalGenerateListingHandler",
+  "Invoke-LocalGenerateListingBridge",
+  "Handle-GenerateListing",
+  "Generate-ReportWithOpenAI"
+]);
 const trackedServers = new Set();
 const adapterPaths = new Map();
 let temporaryRoot;
+let observerLauncherPath;
 let mainServer;
 let mainBridgeInvocationCount = 0;
 
@@ -166,6 +174,61 @@ function readTrace(tracePath) {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+}
+
+function writePowerShellObserverLauncher() {
+  observerLauncherPath = path.join(temporaryRoot, "powershell-command-observer.ps1");
+  const source = [
+    "param([int]$Port)",
+    '$ErrorActionPreference = "Stop"',
+    "",
+    "function Write-ObservedCommand {",
+    "  param([string]$CommandName)",
+    '  $Line = [string]::Concat([string]$PID, "`t", $CommandName, [Environment]::NewLine)',
+    "  [System.IO.File]::AppendAllText($env:KATHERINES_EYE_POWERSHELL_OBSERVER_PATH, $Line)",
+    "}",
+    "",
+    'Set-PSBreakpoint -Command "Route-Request" -Action { Write-ObservedCommand "Route-Request" } | Out-Null',
+    'Set-PSBreakpoint -Command "Invoke-LocalGenerateListingHandler" -Action { Write-ObservedCommand "Invoke-LocalGenerateListingHandler" } | Out-Null',
+    'Set-PSBreakpoint -Command "Invoke-LocalGenerateListingBridge" -Action { Write-ObservedCommand "Invoke-LocalGenerateListingBridge" } | Out-Null',
+    'Set-PSBreakpoint -Command "Handle-GenerateListing" -Action { Write-ObservedCommand "Handle-GenerateListing" } | Out-Null',
+    'Set-PSBreakpoint -Command "Generate-ReportWithOpenAI" -Action { Write-ObservedCommand "Generate-ReportWithOpenAI" } | Out-Null',
+    "",
+    ". $env:KATHERINES_EYE_COMMITTED_SERVER_PATH -Port $Port",
+    ""
+  ].join("\r\n");
+  fs.writeFileSync(observerLauncherPath, source, "utf8");
+}
+
+function readPowerShellObserverEvents(server) {
+  assert(server.observerPath, "PowerShell command observation is not enabled for this server.");
+  if (!fs.existsSync(server.observerPath)) return [];
+  return fs.readFileSync(server.observerPath, "utf8")
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split("\t");
+      assert.equal(parts.length, 2, "PowerShell observer event was malformed.");
+      const processId = Number(parts[0]);
+      assert.equal(Number.isSafeInteger(processId) && processId > 0, true, "PowerShell observer PID was invalid.");
+      assert.equal(processId, server.child.pid, "PowerShell observer event came from an unrelated process.");
+      assert(observedPowerShellCommands.includes(parts[1]), "PowerShell observer recorded an unexpected command.");
+      return { processId, command: parts[1] };
+    });
+}
+
+function assertObservedCommandCounts(events, expected, label) {
+  const counts = Object.fromEntries(observedPowerShellCommands.map((command) => [command, 0]));
+  for (const event of events) counts[event.command] += 1;
+  for (const command of observedPowerShellCommands) {
+    assert.equal(
+      counts[command],
+      expected[command] ?? 0,
+      `${label}: unexpected ${command} observer count.`
+    );
+  }
+  return counts;
 }
 
 function sanitizedChildEnvironment({
@@ -362,6 +425,7 @@ function rawOversizedLoopbackRequest({
 function assertOversizedResponse(response) {
   assert.equal(response.statusCode, 413);
   assert.equal(response.headers["content-type"], "application/json; charset=utf-8");
+  assert.equal(response.headers["cache-control"], "no-store", "Oversized response Cache-Control must be exactly no-store.");
   assert.equal(response.headers.connection, "close");
   assert.equal(Number(response.headers["content-length"]), response.body.length);
   assert.deepEqual(response.body, expectedOversizedResponseBody);
@@ -390,25 +454,34 @@ async function waitForServer(port, child) {
 async function startServer({
   adapterMode = "success",
   nodeExecutable,
-  bridgeTimeoutMs
+  bridgeTimeoutMs,
+  observePowerShellCommands = false
 } = {}) {
   const port = await reserveLoopbackPort();
   const tracePath = path.join(temporaryRoot, `trace-${adapterMode}-${port}.jsonl`);
   const networkTracePath = path.join(temporaryRoot, `network-${adapterMode}-${port}.jsonl`);
+  const observerPath = observePowerShellCommands
+    ? path.join(temporaryRoot, `observer-${adapterMode}-${port}.tsv`)
+    : null;
+  const childEnvironment = sanitizedChildEnvironment({
+    adapterMode,
+    tracePath,
+    networkTracePath,
+    nodeExecutable,
+    bridgeTimeoutMs
+  });
+  if (observePowerShellCommands) {
+    childEnvironment.KATHERINES_EYE_POWERSHELL_OBSERVER_PATH = observerPath;
+    childEnvironment.KATHERINES_EYE_COMMITTED_SERVER_PATH = serverPath;
+  }
   const child = spawn("powershell.exe", [
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
-    "-File", serverPath,
+    "-File", observePowerShellCommands ? observerLauncherPath : serverPath,
     "-Port", String(port)
   ], {
     cwd: root,
-    env: sanitizedChildEnvironment({
-      adapterMode,
-      tracePath,
-      networkTracePath,
-      nodeExecutable,
-      bridgeTimeoutMs
-    }),
+    env: childEnvironment,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true
   });
@@ -419,7 +492,7 @@ async function startServer({
   child.stderr.on("data", (chunk) => {
     outputBytes += chunk.length;
   });
-  const server = { child, port, tracePath, networkTracePath, outputBytes };
+  const server = { child, port, tracePath, networkTracePath, observerPath, outputBytes };
   trackedServers.add(server);
   try {
     await waitForServer(port, child);
@@ -620,7 +693,8 @@ before(async () => {
   ]) {
     writeAdapterModule(mode);
   }
-  mainServer = await startServer();
+  writePowerShellObserverLauncher();
+  mainServer = await startServer({ observePowerShellCommands: true });
 });
 
 after(async () => {
@@ -637,6 +711,7 @@ after(async () => {
   }
   fs.rmSync(temporaryRoot, { recursive: true, force: true });
   assert.equal(fs.existsSync(temporaryRoot), false, "Temporary parity material remains.");
+  console.log('observer-cleanup: {"temporaryObserverFilesRemaining":0}');
 });
 
 const purposeCases = [
@@ -745,16 +820,54 @@ test("unrelated local routes, static MIME handling, traversal rejection, and met
 
 test("oversized local requests reliably return 413 without launching the bridge", async () => {
   const traceBeforeOversized = readTrace(mainServer.tracePath);
+  const observerBeforeOversized = readPowerShellObserverEvents(mainServer).length;
   const metrics = {
     attempted: 0,
     http413: 0,
     econnreset: 0,
     otherSocketFailures: 0,
     bridgeLaunches: 0,
-    handlerInvocations: 0,
-    legacyEngineInvocations: 0,
+    routeEntries: 0,
+    localHandlerEntries: 0,
+    bridgeFunctionEntries: 0,
+    legacyHandlerEntries: 0,
+    legacyEngineEntries: 0,
+    cacheControlAssertions: 0,
+    observerSelfChecks: 0,
+    staticControl: null,
+    validAnalysisControl: null,
     orphanProcesses: 0
   };
+  const validResponseContract = {
+    statusCode: 413,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      connection: "close",
+      "content-length": String(expectedOversizedResponseBody.length)
+    },
+    body: expectedOversizedResponseBody
+  };
+  assert.throws(
+    () => assertObservedCommandCounts([], { "Route-Request": 1 }, "disabled observer counterfactual"),
+    /disabled observer counterfactual/
+  );
+  metrics.observerSelfChecks += 1;
+  const missingCacheControl = {
+    ...validResponseContract,
+    headers: { ...validResponseContract.headers }
+  };
+  delete missingCacheControl.headers["cache-control"];
+  assert.throws(() => assertOversizedResponse(missingCacheControl), /Cache-Control/);
+  assert.throws(
+    () => assertOversizedResponse({
+      ...validResponseContract,
+      headers: { ...validResponseContract.headers, "cache-control": "no-store, max-age=0" }
+    }),
+    /Cache-Control/
+  );
+  assert.doesNotThrow(() => assertOversizedResponse(validResponseContract));
+  metrics.cacheControlAssertions += 3;
   const observeOversized = async (requestPromise) => {
     metrics.attempted += 1;
     try {
@@ -815,13 +928,21 @@ test("oversized local requests reliably return 413 without launching the bridge"
 
   const traceAfterOversized = readTrace(mainServer.tracePath);
   metrics.bridgeLaunches = traceAfterOversized.length - traceBeforeOversized.length;
+  const oversizedCommandCounts = assertObservedCommandCounts(
+    readPowerShellObserverEvents(mainServer).slice(observerBeforeOversized),
+    {},
+    "oversized requests"
+  );
+  metrics.routeEntries = oversizedCommandCounts["Route-Request"];
+  metrics.localHandlerEntries = oversizedCommandCounts["Invoke-LocalGenerateListingHandler"];
+  metrics.bridgeFunctionEntries = oversizedCommandCounts["Invoke-LocalGenerateListingBridge"];
+  metrics.legacyHandlerEntries = oversizedCommandCounts["Handle-GenerateListing"];
+  metrics.legacyEngineEntries = oversizedCommandCounts["Generate-ReportWithOpenAI"];
   assert.equal(metrics.attempted, 83);
   assert.equal(metrics.http413, 83);
   assert.equal(metrics.econnreset, 0);
   assert.equal(metrics.otherSocketFailures, 0);
   assert.equal(metrics.bridgeLaunches, 0, "Oversized requests launched the bridge.");
-  assert.equal(metrics.handlerInvocations, 0);
-  assert.equal(metrics.legacyEngineInvocations, 0);
 
   const exactLimitBody = Buffer.alloc(maxRequestBodyBytes, 0x20);
   Buffer.from('{"analysisId":"exact-limit","photos":[]}', "utf8").copy(exactLimitBody);
@@ -830,6 +951,8 @@ test("oversized local requests reliably return 413 without launching the bridge"
     requestTimeoutMs: 60000
   });
 
+  const observerBeforeStaticControl = readPowerShellObserverEvents(mainServer).length;
+  const traceBeforeStaticControl = readTrace(mainServer.tracePath).length;
   const rootResponse = await loopbackRequest({
     port: mainServer.port,
     method: "GET",
@@ -837,12 +960,48 @@ test("oversized local requests reliably return 413 without launching the bridge"
   });
   assert.equal(rootResponse.statusCode, 200);
   assert.match(rootResponse.headers["content-type"], /^text\/html/);
+  const staticControlCounts = assertObservedCommandCounts(
+    readPowerShellObserverEvents(mainServer).slice(observerBeforeStaticControl),
+    { "Route-Request": 1 },
+    "static route positive control"
+  );
+  const staticControlBridgeLaunches = readTrace(mainServer.tracePath).length - traceBeforeStaticControl;
+  assert.equal(staticControlBridgeLaunches, 0, "Static route launched the bridge.");
+  metrics.staticControl = {
+    routeEntries: staticControlCounts["Route-Request"],
+    localHandlerEntries: staticControlCounts["Invoke-LocalGenerateListingHandler"],
+    bridgeFunctionEntries: staticControlCounts["Invoke-LocalGenerateListingBridge"],
+    bridgeLaunches: staticControlBridgeLaunches,
+    legacyHandlerEntries: staticControlCounts["Handle-GenerateListing"],
+    legacyEngineEntries: staticControlCounts["Generate-ReportWithOpenAI"]
+  };
 
+  const observerBeforeValidControl = readPowerShellObserverEvents(mainServer).length;
+  const traceBeforeValidControl = readTrace(mainServer.tracePath).length;
   await assertHandlerParity(requestBodyForPurpose({
     purchaseIntent: "personal_use",
     reportType: "marketValue",
     analysisId: "analysis-parity-post-oversized-stress"
   }), { expectedStatus: 200 });
+  const validControlCounts = assertObservedCommandCounts(
+    readPowerShellObserverEvents(mainServer).slice(observerBeforeValidControl),
+    {
+      "Route-Request": 1,
+      "Invoke-LocalGenerateListingHandler": 1,
+      "Invoke-LocalGenerateListingBridge": 1
+    },
+    "valid analysis positive control"
+  );
+  const validControlBridgeLaunches = readTrace(mainServer.tracePath).length - traceBeforeValidControl;
+  assert.equal(validControlBridgeLaunches, 1, "Valid analysis did not launch exactly one observed bridge process.");
+  metrics.validAnalysisControl = {
+    routeEntries: validControlCounts["Route-Request"],
+    localHandlerEntries: validControlCounts["Invoke-LocalGenerateListingHandler"],
+    bridgeFunctionEntries: validControlCounts["Invoke-LocalGenerateListingBridge"],
+    bridgeLaunches: validControlBridgeLaunches,
+    legacyHandlerEntries: validControlCounts["Handle-GenerateListing"],
+    legacyEngineEntries: validControlCounts["Generate-ReportWithOpenAI"]
+  };
 
   const newBridgeEvents = readTrace(mainServer.tracePath).slice(traceAfterOversized.length);
   for (const event of newBridgeEvents) {
@@ -984,12 +1143,15 @@ test("static route trace proves bridge-only dispatch and no legacy fallback", ()
   const bridgeRouteSource = serverSource.slice(bridgeRouteStart, legacyStart);
   assert.match(bridgeRouteSource, /Invoke-LocalGenerateListingBridge/);
   assert.doesNotMatch(bridgeRouteSource, /Handle-GenerateListing|Generate-ReportWithOpenAI|Apply-ListingResearchHonesty/);
+  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 2);
+  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingBridge\b/g) || []).length, 2);
   assert.match(serverSource, /function Handle-GenerateListing/);
   assert.match(serverSource, /function Generate-ReportWithOpenAI/);
 
   const bridgeSource = fs.readFileSync(bridgePath, "utf8");
   assert.match(bridgeSource, /new URL\("\.\.\/api\/generate-listing\.js", import\.meta\.url\)/);
   assert.match(bridgeSource, /createGenerateListingHandler\(adapters\)/);
+  assert.equal((bridgeSource.match(/createGenerateListingHandler\(adapters\)/g) || []).length, 1);
   assert.match(bridgeSource, /rawBodyBase64/);
   assert.doesNotMatch(bridgeSource, /https?:\/\/(?:www\.)?katherineseye\.com/i);
   assert.doesNotMatch(bridgeSource, /createFinalEvidenceResult|assembleFinalEvidence|deriveCanonicalRange|deriveCanonicalDecision/);
