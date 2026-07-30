@@ -112,6 +112,28 @@ if (MODE === "nonzero_exit") {
 
 let delayed = false;
 function finalModelResponse(schemaName) {
+  if (schemaName === "ask_market_edge_answer") {
+    return {
+      answer: "Deterministic Ask answer — café ✓",
+      answerType: "explanation",
+      evidenceBasis: ["Current canonical report only"],
+      assumptions: ["No new live search"],
+      recalculatedFields: [],
+      confidence: "High",
+      recommendedNextAction: "Use the current canonical report.",
+      needsNewSearch: false,
+      needsAdditionalPhoto: false,
+      suggestedPhoto: "",
+      revisedListingFields: {
+        title: "Canonical fixture title",
+        description: "Canonical fixture description",
+        priceStrategy: "Use the existing seller range",
+        conditionNotes: "Preserve disclosed condition",
+        sellerNotes: "Do not add unsupported claims"
+      },
+      updatedScenario: "Current report unchanged"
+    };
+  }
   if (schemaName === "visual_subject_recognition") return retailRecoveryFixture.visualRecognition;
   if (schemaName === "item_identity") return retailRecoveryFixture.identity;
   if (schemaName === "consumer_purchase_decision") return retailRecoveryFixture.finalReport;
@@ -150,7 +172,16 @@ const adapters = {
   nowMilliseconds: () => Date.parse(retailRecoveryFixture.fixedNow),
   nowIso: () => retailRecoveryFixture.fixedNow,
   createAnalysisId: () => "analysis-local-production-parity",
-  requestOpenAIJson: async ({ payload }) => {
+  requestOpenAIJson: async (args) => {
+    const { payload } = args;
+    if (payload?.text?.format?.name === "ask_market_edge_answer") {
+      appendTrace(tracePath, {
+        event: "ask_adapter_input",
+        mode: MODE,
+        pid: process.pid,
+        input: args
+      });
+    }
     if (MODE === "identity_confirmation") {
       const error = new Error("We found conflicting product details. Confirm the item before research continues.");
       error.identityConfirmationRequired = true;
@@ -604,9 +635,19 @@ async function importAdapters(mode) {
   return imported.default;
 }
 
-async function invokeDirect(rawBody, { adapterMode = "success", method = "POST" } = {}) {
+async function invokeDirectBody(body, { adapterMode = "success", method = "POST" } = {}) {
   const adapters = await importAdapters(adapterMode);
-  const handler = createGenerateListingHandler(adapters);
+  const askAdapterInputs = [];
+  const requestOpenAIJson = adapters.requestOpenAIJson;
+  const handler = createGenerateListingHandler({
+    ...adapters,
+    requestOpenAIJson: async (args) => {
+      if (args.payload?.text?.format?.name === "ask_market_edge_answer") {
+        askAdapterInputs.push(structuredClone(args));
+      }
+      return requestOpenAIJson(args);
+    }
+  });
   const capture = createResponseCapture();
   const networkGuard = installHardNetworkDenial();
   try {
@@ -614,21 +655,27 @@ async function invokeDirect(rawBody, { adapterMode = "success", method = "POST" 
       method,
       url: "/api/generate-listing",
       headers: { "content-type": "application/json" },
-      body: rawBody.toString("utf8")
+      body
     }, capture.response);
   } finally {
     networkGuard.restore();
   }
   assert.equal(networkGuard.attempts.length, 0, "Direct handler made an unexpected external network attempt.");
-  return capture.result();
+  return { ...capture.result(), askAdapterInputs };
+}
+
+async function invokeDirect(rawBody, options = {}) {
+  return invokeDirectBody(rawBody.toString("utf8"), options);
 }
 
 async function assertHandlerParity(rawBody, {
   adapterMode = "success",
   server = mainServer,
   expectedStatus,
-  requestTimeoutMs
+  requestTimeoutMs,
+  compareAskAdapterInputs = false
 } = {}) {
+  const localTraceStart = compareAskAdapterInputs ? readTrace(server.tracePath).length : 0;
   const direct = await invokeDirect(rawBody, { adapterMode });
   const local = await loopbackRequest({
     port: server.port,
@@ -643,7 +690,26 @@ async function assertHandlerParity(rawBody, {
   assert.equal(local.headers["content-type"], direct.headers["content-type"]);
   assert.deepEqual(local.body, direct.body, "Local response bytes differ from the direct production handler.");
   assert.deepEqual(JSON.parse(local.body.toString("utf8")), JSON.parse(direct.body.toString("utf8")));
-  return { direct, local, payload: JSON.parse(local.body.toString("utf8")) };
+  const localAskAdapterInputs = compareAskAdapterInputs
+    ? readTrace(server.tracePath)
+      .slice(localTraceStart)
+      .filter((event) => event.event === "ask_adapter_input")
+      .map((event) => event.input)
+    : [];
+  if (compareAskAdapterInputs) {
+    assert.deepEqual(
+      localAskAdapterInputs,
+      direct.askAdapterInputs,
+      "Local Ask adapter inputs differ from direct production-handler inputs."
+    );
+  }
+  return {
+    direct,
+    local,
+    directAskAdapterInputs: direct.askAdapterInputs,
+    localAskAdapterInputs,
+    payload: JSON.parse(local.body.toString("utf8"))
+  };
 }
 
 function requestBodyForPurpose({
@@ -671,6 +737,212 @@ function requestBodyForPurpose({
     ...(reportType === "listing" ? { sellerIntake: intake } : { buyerIntake: intake })
   };
   return Buffer.from(JSON.stringify(body, null, pretty ? 2 : 0), "utf8");
+}
+
+function askRequestBody({
+  sessionId = "ask-parity-session",
+  workflow = "personal_use",
+  question = "Explain the current recommendation.",
+  itemDescription = "Ceramic café sign",
+  currentReport
+} = {}) {
+  return {
+    action: "ask_market_edge",
+    sessionId,
+    workflow,
+    buyerIntent: workflow === "listing" ? "seller_listing" : "buy_for_myself",
+    question,
+    currentItemContext: {
+      sessionId,
+      analysisId: "analysis-ask-parity",
+      workflow,
+      buyerIntent: workflow === "listing" ? "seller_listing" : "buy_for_myself",
+      itemDescription,
+      askingPrice: "49.00",
+      selectedPlatform: workflow === "listing" ? "Local marketplace" : "",
+      photoCount: 2,
+      currentReport: currentReport || {
+        valuationEvidenceState: "supported",
+        displayedRange: {
+          low: "$42.00",
+          high: "$68.00",
+          label: "Estimated Fair Value"
+        },
+        recommendation: "Worth Buying",
+        customerEvidence: []
+      }
+    },
+    recentConversationContext: [{
+      role: "user",
+      text: "Keep the current item context."
+    }]
+  };
+}
+
+function canonicalAskFixture() {
+  const provenances = [
+    {
+      title: {
+        sourceRecordId: "provenance-title-001",
+        sourceUrl: "https://sold.example/items/cafe-sign-001",
+        acquisitionProvider: "Deterministic sold fixture",
+        evidencePath: "title"
+      },
+      retailer: null,
+      url: {
+        sourceRecordId: "provenance-url-001",
+        sourceUrl: "https://sold.example/items/cafe-sign-001",
+        acquisitionProvider: "Deterministic sold fixture",
+        evidencePath: "destinationUrl"
+      },
+      price: {
+        sourceRecordId: "provenance-price-001",
+        sourceUrl: null,
+        acquisitionProvider: "Deterministic sold fixture",
+        evidencePath: "price",
+        sourceRank: 1,
+        verified: true
+      },
+      quantity: null,
+      evidenceKinds: ["verified_sold", "référence", null, 2, true],
+      confidenceScore: 0.91,
+      canonical: true
+    },
+    {
+      title: {
+        sourceRecordId: "provenance-title-東京-002",
+        sourceUrl: "https://archive.example/édition/002",
+        acquisitionProvider: "Archive déterministe 東京",
+        evidencePath: "title"
+      },
+      retailer: {
+        sourceRecordId: "provenance-retailer-002",
+        sourceUrl: "https://archive.example/édition/002",
+        acquisitionProvider: "Archive déterministe 東京",
+        evidencePath: "retailer"
+      },
+      url: {
+        sourceRecordId: "provenance-url-002",
+        sourceUrl: "https://archive.example/édition/002",
+        acquisitionProvider: "Archive déterministe 東京",
+        evidencePath: "destinationUrl"
+      },
+      price: null,
+      quantity: {
+        sourceRecordId: "provenance-quantity-002",
+        sourceUrl: "https://archive.example/édition/002",
+        acquisitionProvider: "Archive déterministe 東京",
+        evidencePath: "quantity",
+        sourceRank: 2,
+        verified: false
+      },
+      evidenceKinds: ["reference", "Unicode ✓"],
+      optionalNote: null,
+      canonical: true
+    }
+  ];
+  const customerEvidence = [
+    {
+      evidenceId: "canonical-evidence-001",
+      customerEvidenceId: "customer-evidence-001",
+      sourceRecordId: "outer-source-record-001",
+      sourceLabel: "Verified sold source",
+      sourceDomain: "sold.example",
+      sourceUrl: "https://sold.example/items/cafe-sign-001",
+      customerPriceLabel: "$52.00 sold",
+      provenance: provenances[0]
+    },
+    {
+      evidenceId: "canonical-evidence-東京-002",
+      customerEvidenceId: "customer-evidence-東京-002",
+      sourceRecordId: "outer-source-record-東京-002",
+      sourceLabel: "Archive référence 東京",
+      sourceDomain: "archive.example",
+      sourceUrl: "https://archive.example/édition/002",
+      customerPriceLabel: "Price unavailable",
+      provenance: provenances[1]
+    }
+  ];
+  return {
+    provenances,
+    customerEvidence,
+    body: askRequestBody({
+      sessionId: "ask-canonical-session",
+      workflow: "listing",
+      question: "Revise the seller listing while preserving every canonical field.",
+      currentReport: {
+        valuationEvidenceState: "supported",
+        displayedRange: {
+          status: "supported",
+          low: "$42.00",
+          high: "$68.00",
+          label: "Estimated Fair Value",
+          lowLabel: "Supported low",
+          highLabel: "Supported high"
+        },
+        recommendation: "Worth Buying",
+        confidence: {
+          level: "Strong",
+          reason: "Canonical sold support"
+        },
+        badge: {
+          code: "best_supported_value",
+          label: "Best Supported Value"
+        },
+        buyerOffer: {
+          status: "supported",
+          openingOffer: "$42.00",
+          targetPrice: "$48.00",
+          maximumPrice: "$55.00"
+        },
+        sellerPricing: {
+          recommendedListingPrice: "$64.00",
+          minimumAcceptablePrice: "$50.00"
+        },
+        listing: {
+          title: "Ceramic café sign",
+          description: "Visible glaze wear disclosed.",
+          conditionNotes: "Small edge wear.",
+          sellerNotes: "Local pickup preferred."
+        },
+        customerEvidence
+      }
+    })
+  };
+}
+
+function boundedAskProvenance() {
+  return Object.fromEntries([
+    ["safeScalar", "preserved"],
+    ["longString", "λ".repeat(1505)],
+    ["longArray", Array.from({ length: 12 }, (_, index) => {
+      if (index === 1) return null;
+      if (index === 2) return true;
+      return index;
+    })],
+    ["deepControl", { levelOne: { blockedMarker: "ASK_PROVENANCE_TOO_DEEP" } }],
+    ["__proto__", { polluted: true }],
+    ["prototype", "blocked"],
+    ["constructor", "blocked"],
+    ...Array.from({ length: 36 }, (_, index) => [
+      `field${String(index).padStart(2, "0")}`,
+      `value-${index}`
+    ])
+  ]);
+}
+
+function askContextFromAdapterInput(input) {
+  const userText = input.payload.input
+    .find((entry) => entry.role === "user")
+    ?.content.find((entry) => entry.type === "input_text")
+    ?.text;
+  assert.equal(typeof userText, "string", "Ask adapter input is missing user context text.");
+  const contextPrefix = "Current item context:\n";
+  const conversationPrefix = "\n\nRecent conversation context:";
+  const start = userText.indexOf(contextPrefix);
+  const end = userText.indexOf(conversationPrefix, start + contextPrefix.length);
+  assert(start >= 0 && end > start, "Ask adapter input does not contain a bounded current-item context.");
+  return JSON.parse(userText.slice(start + contextPrefix.length, end));
 }
 
 function assertCanonicalSuccess(payload, envelope) {
@@ -1198,7 +1470,221 @@ test("static source proves bridge-only dispatch and physical legacy removal", ()
   assert.doesNotMatch(bridgeSource, /createFinalEvidenceResult|assembleFinalEvidence|deriveCanonicalRange|deriveCanonicalDecision/);
 });
 
-test("each successful main-server request used one bridge and no unexpected network", () => {
+async function runAskParityRegression() {
+  const results = [];
+  const runCase = async (name, body, expectedStatus, options = {}) => {
+    const result = await assertHandlerParity(
+      Buffer.from(JSON.stringify(body), "utf8"),
+      {
+        expectedStatus,
+        compareAskAdapterInputs: true,
+        ...options
+      }
+    );
+    const expectedAdapterCalls = options.expectedAdapterCalls ?? (expectedStatus === 200 || expectedStatus === 502 ? 1 : 0);
+    assert.equal(result.directAskAdapterInputs.length, expectedAdapterCalls, `${name}: unexpected direct Ask adapter count.`);
+    assert.equal(result.localAskAdapterInputs.length, expectedAdapterCalls, `${name}: unexpected local Ask adapter count.`);
+    results.push({
+      name,
+      localStatus: result.local.statusCode,
+      directStatus: result.direct.statusCode,
+      bodyEqual: true,
+      adapterInputEqual: true
+    });
+    return result;
+  };
+
+  const boundedProvenance = boundedAskProvenance();
+  const validBody = askRequestBody({
+    currentReport: {
+      valuationEvidenceState: "supported",
+      displayedRange: {
+        low: "$42.00",
+        high: "$68.00",
+        label: "Estimated Fair Value"
+      },
+      recommendation: "Worth Buying",
+      unrelatedDepthControl: {
+        levelOne: {
+          levelTwo: {
+            blockedMarker: "ASK_UNRELATED_TOO_DEEP"
+          }
+        }
+      },
+      customerEvidence: [{
+        evidenceId: "bounded-evidence-001",
+        sourceRecordId: "bounded-source-001",
+        sourceDomain: "bounded.example",
+        provenance: boundedProvenance
+      }]
+    }
+  });
+  const validResult = await runCase("valid", validBody, 200);
+  const validContext = askContextFromAdapterInput(validResult.directAskAdapterInputs[0]);
+  const sanitizedBoundedProvenance = validContext.currentReport.customerEvidence[0].provenance;
+  assert.equal(sanitizedBoundedProvenance.safeScalar, "preserved");
+  assert.equal(sanitizedBoundedProvenance.longString.length, 1400);
+  assert.deepEqual(sanitizedBoundedProvenance.longArray, boundedProvenance.longArray.slice(0, 10));
+  assert.equal(Object.keys(sanitizedBoundedProvenance).length, 35);
+  assert.equal(sanitizedBoundedProvenance.field30, "value-30");
+  assert.equal(Object.hasOwn(sanitizedBoundedProvenance, "field31"), false);
+  for (const dangerousKey of ["__proto__", "prototype", "constructor"]) {
+    assert.equal(Object.hasOwn(sanitizedBoundedProvenance, dangerousKey), false);
+  }
+  assert.doesNotMatch(JSON.stringify(validContext), /ASK_UNRELATED_TOO_DEEP|ASK_PROVENANCE_TOO_DEEP/);
+  assert.equal({}.polluted, undefined);
+
+  const missingQuestionBody = askRequestBody();
+  delete missingQuestionBody.question;
+  await runCase("missing question", missingQuestionBody, 400);
+
+  const missingSessionBody = askRequestBody();
+  delete missingSessionBody.sessionId;
+  const missingSessionResult = await runCase("missing session", missingSessionBody, 400);
+
+  const invalidSessionBody = askRequestBody();
+  invalidSessionBody.sessionId = "   ";
+  const invalidSessionResult = await runCase("invalid session", invalidSessionBody, 400);
+  assert.deepEqual(missingSessionResult.local.body, invalidSessionResult.local.body);
+
+  const invalidWorkflowBody = askRequestBody();
+  invalidWorkflowBody.workflow = "generic_chat";
+  await runCase("invalid workflow", invalidWorkflowBody, 400);
+
+  const oversizedBody = askRequestBody();
+  oversizedBody.currentItemContext.currentReport.padding = "x".repeat(181000);
+  await runCase("oversized Ask context", oversizedBody, 413);
+
+  const providerFailureServer = await startServer({ adapterMode: "provider_failure" });
+  try {
+    const providerFailureBody = askRequestBody({
+      question: "Exercise the deterministic provider-failure contract."
+    });
+    await runCase("deterministic provider failure", providerFailureBody, 502, {
+      adapterMode: "provider_failure",
+      server: providerFailureServer,
+      expectedAdapterCalls: 1
+    });
+    assert.equal(
+      readTrace(providerFailureServer.networkTracePath).length,
+      0,
+      "Provider-failure Ask server made an unexpected external network attempt."
+    );
+  } finally {
+    await stopServer(providerFailureServer);
+  }
+
+  const unicodeBody = askRequestBody({
+    sessionId: "ask-session-東京-✓",
+    question: "What about café value at €42 — “édition” 🧿?",
+    itemDescription: "Émail sign — 東京 ✓"
+  });
+  const unicodeResult = await runCase("Unicode", unicodeBody, 200);
+  assert.equal(unicodeResult.payload.answer.answer, "Deterministic Ask answer — café ✓");
+  const unicodeContext = askContextFromAdapterInput(unicodeResult.directAskAdapterInputs[0]);
+  assert.equal(unicodeContext.sessionId, "ask-session-東京-✓");
+  assert.equal(unicodeContext.itemDescription, "Émail sign — 東京 ✓");
+  assert.match(
+    unicodeResult.directAskAdapterInputs[0].payload.input[1].content[0].text,
+    /café value at €42 — “édition” 🧿/
+  );
+
+  const canonicalFixture = canonicalAskFixture();
+  const canonicalResult = await runCase("canonical valuation and evidence context", canonicalFixture.body, 200);
+  const directCanonicalContext = askContextFromAdapterInput(canonicalResult.directAskAdapterInputs[0]);
+  const localCanonicalContext = askContextFromAdapterInput(canonicalResult.localAskAdapterInputs[0]);
+  assert.deepEqual(localCanonicalContext, directCanonicalContext);
+  const canonicalReport = directCanonicalContext.currentReport;
+  assert.equal(canonicalReport.valuationEvidenceState, "supported");
+  assert.deepEqual(canonicalReport.displayedRange, canonicalFixture.body.currentItemContext.currentReport.displayedRange);
+  assert.equal(canonicalReport.recommendation, "Worth Buying");
+  assert.deepEqual(canonicalReport.confidence, canonicalFixture.body.currentItemContext.currentReport.confidence);
+  assert.deepEqual(canonicalReport.badge, canonicalFixture.body.currentItemContext.currentReport.badge);
+  assert.deepEqual(canonicalReport.buyerOffer, canonicalFixture.body.currentItemContext.currentReport.buyerOffer);
+  assert.deepEqual(canonicalReport.sellerPricing, canonicalFixture.body.currentItemContext.currentReport.sellerPricing);
+  assert.deepEqual(canonicalReport.listing, canonicalFixture.body.currentItemContext.currentReport.listing);
+  assert.deepEqual(
+    canonicalReport.customerEvidence.map((record) => record.evidenceId),
+    canonicalFixture.customerEvidence.map((record) => record.evidenceId)
+  );
+  assert.deepEqual(
+    canonicalReport.customerEvidence.map((record) => record.customerEvidenceId),
+    canonicalFixture.customerEvidence.map((record) => record.customerEvidenceId)
+  );
+  for (const [index, actual] of canonicalReport.customerEvidence.entries()) {
+    const expected = canonicalFixture.customerEvidence[index];
+    for (const field of ["evidenceId", "customerEvidenceId", "sourceRecordId", "sourceLabel", "sourceDomain", "sourceUrl"]) {
+      assert.equal(actual[field], expected[field], `Canonical customer evidence changed ${field}.`);
+    }
+    assert.equal(Object.hasOwn(actual, "provenance"), true, "Canonical provenance property is missing.");
+    assert.deepEqual(actual.provenance, canonicalFixture.provenances[index]);
+  }
+  assert.notEqual(
+    canonicalReport.customerEvidence[0].provenance.title.sourceRecordId,
+    canonicalReport.customerEvidence[0].sourceRecordId,
+    "Provenance was reconstructed from the outer source record."
+  );
+  assert.equal(canonicalReport.customerEvidence[0].provenance.retailer, null);
+  assert.equal(canonicalReport.customerEvidence[0].provenance.price.sourceUrl, null);
+  assert.equal(typeof canonicalReport.customerEvidence[0].provenance.price.sourceRank, "number");
+  assert.equal(typeof canonicalReport.customerEvidence[0].provenance.price.verified, "boolean");
+  assert.deepEqual(
+    canonicalReport.customerEvidence[0].provenance.evidenceKinds,
+    ["verified_sold", "référence", null, 2, true]
+  );
+
+  const nonJsonBody = askRequestBody();
+  nonJsonBody.currentItemContext.currentReport.customerEvidence = [{
+    evidenceId: "non-json-evidence",
+    provenance: {
+      safeScalar: "preserved",
+      functionValue: () => "blocked",
+      symbolValue: Symbol("blocked"),
+      undefinedValue: undefined,
+      notANumber: Number.NaN,
+      infinity: Number.POSITIVE_INFINITY
+    }
+  }];
+  const nonJsonResult = await invokeDirectBody(nonJsonBody);
+  assert.equal(nonJsonResult.statusCode, 200);
+  assert.equal(nonJsonResult.askAdapterInputs.length, 1);
+  assert.deepEqual(
+    askContextFromAdapterInput(nonJsonResult.askAdapterInputs[0]).currentReport.customerEvidence[0].provenance,
+    { safeScalar: "preserved" }
+  );
+
+  const circularBody = askRequestBody();
+  circularBody.currentItemContext.currentReport.circular = circularBody.currentItemContext.currentReport;
+  const circularResult = await invokeDirectBody(circularBody);
+  assert.equal(circularResult.statusCode, 502);
+  assert.equal(circularResult.askAdapterInputs.length, 0);
+
+  assert.equal(results.length, 9);
+  assert.deepEqual(
+    results.map((result) => result.name),
+    [
+      "valid",
+      "missing question",
+      "missing session",
+      "invalid session",
+      "invalid workflow",
+      "oversized Ask context",
+      "deterministic provider failure",
+      "Unicode",
+      "canonical valuation and evidence context"
+    ]
+  );
+  console.log(`ask-parity: ${JSON.stringify({
+    cases: results,
+    provenanceRecordsPreserved: canonicalReport.customerEvidence.length,
+    defaultDepthCeiling: 3,
+    provenanceRelativeDepthCeiling: 2,
+    externalNetworkAttempts: 0
+  })}`);
+}
+
+test("Ask canonical context and each successful main-server request preserve parity without network", async () => {
+  await runAskParityRegression();
   const imports = readTrace(mainServer.tracePath).filter((event) => event.event === "adapter_import");
   assert.equal(imports.length, mainBridgeInvocationCount);
   assert.equal(readTrace(mainServer.networkTracePath).length, 0, "Node child made an unexpected network attempt.");

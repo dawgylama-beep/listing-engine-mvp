@@ -1125,7 +1125,7 @@ function sanitizeAskContext(value) {
     if (!allowedTopLevel.has(key)) {
       continue;
     }
-    const sanitized = sanitizeAskValue(item, 0);
+    const sanitized = sanitizeAskValue(item, 0, [key]);
     if (sanitized !== null) {
       result[key] = sanitized;
     }
@@ -1142,19 +1142,106 @@ function sanitizeAskConversation(value) {
   return value.slice(-4).map((entry) => sanitizeAskValue(entry, 0)).filter(Boolean);
 }
 
-function sanitizeAskValue(value, depth) {
+function isCanonicalAskProvenancePath(path) {
+  return path.length === 4
+    && path[0] === "currentReport"
+    && path[1] === "customerEvidence"
+    && Number.isInteger(path[2])
+    && path[3] === "provenance";
+}
+
+function sanitizeCanonicalAskProvenance(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return null;
+  }
+  return sanitizeCanonicalAskProvenanceValue(value, 0, new WeakSet());
+}
+
+function sanitizeCanonicalAskProvenanceValue(value, depth, ancestors) {
+  if (depth > 2) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const text = cleanText(value).replace(/\\n/g, " ").slice(0, 1400);
+    return text && !isInternalPromptFragment(text) ? text : undefined;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+    return undefined;
+  }
+  if (ancestors.has(value)) {
+    return undefined;
+  }
+
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => sanitizeCanonicalAskProvenanceValue(item, depth + 1, ancestors))
+        .filter((item) => item !== undefined)
+        .slice(0, 10);
+    }
+
+    const entries = [];
+    for (const [rawKey, item] of Object.entries(value)) {
+      const key = cleanText(rawKey).slice(0, 80);
+      if (!key || ["__proto__", "prototype", "constructor"].includes(key.toLowerCase())) {
+        continue;
+      }
+      const sanitized = sanitizeCanonicalAskProvenanceValue(item, depth + 1, ancestors);
+      if (sanitized === undefined) {
+        continue;
+      }
+      entries.push([key, sanitized]);
+      if (entries.length >= 35) {
+        break;
+      }
+    }
+    return Object.fromEntries(entries);
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+function sanitizeAskValue(value, depth, path = []) {
+  if (isCanonicalAskProvenancePath(path)) {
+    return sanitizeCanonicalAskProvenance(value);
+  }
   if (depth > 3) {
     return null;
   }
 
   if (Array.isArray(value)) {
-    const items = value.map((item) => sanitizeAskValue(item, depth + 1)).filter((item) => item !== null).slice(0, 10);
+    const items = value
+      .map((item, index) => sanitizeAskValue(item, depth + 1, [...path, index]))
+      .filter((item) => item !== null)
+      .slice(0, 10);
     return items.length ? items : null;
   }
 
   if (value && typeof value === "object") {
     const entries = Object.entries(value)
-      .map(([key, item]) => [cleanText(key).slice(0, 80), sanitizeAskValue(item, depth + 1)])
+      .map(([key, item]) => {
+        const cleanKey = cleanText(key).slice(0, 80);
+        return [cleanKey, sanitizeAskValue(item, depth + 1, [...path, cleanKey])];
+      })
       .filter(([key, item]) => key && item !== null)
       .slice(0, 35);
     return entries.length ? Object.fromEntries(entries) : null;
