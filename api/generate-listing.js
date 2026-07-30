@@ -7,6 +7,21 @@ import {
 import { compareObservationPreference, underlyingOfferKey } from "../lib/evidence/dedupe.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
+const MAX_ANALYSIS_PHOTO_COUNT = 6;
+const MAX_ANALYSIS_PHOTO_BYTES = 240000;
+const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
+const MAX_MODEL_REQUEST_ESTIMATE = 360000;
+const IMAGE_TOKEN_ESTIMATE_PER_PHOTO = 2500;
+const SAFE_INPUT_TOO_LARGE_MESSAGE = "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
+const SAFE_PROVIDER_ERROR_MESSAGE = "Katherine\u2019s Eye could not complete the analysis right now. Please try again shortly.";
+const outputTokenLimits = Object.freeze({
+  ask_market_edge_answer: 2500,
+  item_identity: 6000,
+  consumer_purchase_decision: 5000,
+  market_value_report: 5000,
+  marketplace_listing: 5000,
+  live_comparable_search: 4000
+});
 
 const productionAnalysisAdapters = Object.freeze({
   getOpenAIApiKey: () => process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY,
@@ -594,6 +609,7 @@ const itemIdentitySchema = {
   type: "object",
   additionalProperties: false,
   required: [
+    "visualRecognition",
     "brand",
     "manufacturer",
     "teamName",
@@ -651,6 +667,7 @@ const itemIdentitySchema = {
     "buyerContext"
   ],
   properties: {
+    visualRecognition: visualRecognitionSchema,
     brand: { type: "string" },
     manufacturer: { type: "string" },
     teamName: { type: "string" },
@@ -881,24 +898,13 @@ async function handleGenerateListingRequest(req, res) {
       return res.status(400).json({ error: "Upload at least one item photo." });
     }
 
+    const safePhotos = validateAndNormalizePhotos(photos);
     const apiKey = currentAnalysisAdapters().getOpenAIApiKey();
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env."
+        error: "Katherine\u2019s Eye is not configured for analysis in this environment."
       });
-    }
-
-    const safePhotos = photos
-      .slice(0, 6)
-      .filter((photo) => typeof photo.dataUrl === "string" && photo.dataUrl.startsWith("data:image/"))
-      .map((photo) => ({
-        name: cleanText(photo.name || "Item photo"),
-        dataUrl: photo.dataUrl
-      }));
-
-    if (!safePhotos.length) {
-      return res.status(400).json({ error: "Uploaded photos must be image files." });
     }
 
     const report = await generateReportWithOpenAI({
@@ -931,13 +937,78 @@ async function handleGenerateListingRequest(req, res) {
       });
     }
 
+    if (error.clientSafeCode) {
+      return res.status(error.clientSafeStatusCode || 413).json({
+        error: error.clientSafeMessage || SAFE_INPUT_TOO_LARGE_MESSAGE,
+        code: error.clientSafeCode
+      });
+    }
+
     return res.status(502).json({
-      error: error.message || "OpenAI API request failed."
+      error: SAFE_PROVIDER_ERROR_MESSAGE
     });
   }
 }
 
 export default createGenerateListingHandler();
+
+function validateAndNormalizePhotos(photos) {
+  if (photos.length > MAX_ANALYSIS_PHOTO_COUNT) {
+    throw createClientSafeAnalysisError({
+      statusCode: 413,
+      code: "analysis_input_too_large",
+      message: SAFE_INPUT_TOO_LARGE_MESSAGE
+    });
+  }
+
+  const normalized = [];
+  let totalBytes = 0;
+
+  for (const photo of photos) {
+    const dataUrl = typeof photo?.dataUrl === "string" ? photo.dataUrl : "";
+    const match = dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+    if (!match || match[2].length % 4 !== 0) {
+      throw createClientSafeAnalysisError({
+        statusCode: 400,
+        code: "invalid_image_input",
+        message: "Uploaded photos must be JPEG, PNG, or WebP image files."
+      });
+    }
+
+    const decodedBytes = Buffer.from(match[2], "base64").byteLength;
+    if (decodedBytes <= 0 || decodedBytes > MAX_ANALYSIS_PHOTO_BYTES) {
+      throw createClientSafeAnalysisError({
+        statusCode: 413,
+        code: "analysis_input_too_large",
+        message: SAFE_INPUT_TOO_LARGE_MESSAGE
+      });
+    }
+
+    totalBytes += decodedBytes;
+    if (totalBytes > MAX_ANALYSIS_PHOTO_TOTAL_BYTES) {
+      throw createClientSafeAnalysisError({
+        statusCode: 413,
+        code: "analysis_input_too_large",
+        message: SAFE_INPUT_TOO_LARGE_MESSAGE
+      });
+    }
+
+    normalized.push({
+      name: cleanText(photo.name || "Item photo").slice(0, 180),
+      dataUrl
+    });
+  }
+
+  return normalized;
+}
+
+function createClientSafeAnalysisError({ statusCode, code, message }) {
+  const error = new Error(message);
+  error.clientSafeStatusCode = statusCode;
+  error.clientSafeCode = code;
+  error.clientSafeMessage = message;
+  return error;
+}
 
 async function handleAskMarketEdge({ body, res }) {
   if (JSON.stringify(body || {}).length > 180000) {
@@ -971,7 +1042,7 @@ async function handleAskMarketEdge({ body, res }) {
 
   if (!apiKey) {
     return res.status(500).json({
-      error: "Missing OpenAI API key. Add OPENAI_API_KEY or OPEN_API_KEY in Vercel Environment Variables or local .env."
+      error: "Katherine\u2019s Eye is not configured for analysis in this environment."
     });
   }
 
@@ -1267,7 +1338,68 @@ function currentTimeIso() {
 }
 
 function requestOpenAIJson(args) {
+  enforceModelRequestBudget(args?.payload);
   return currentAnalysisAdapters().requestOpenAIJson(args);
+}
+
+function enforceModelRequestBudget(payload) {
+  const maxOutputTokens = Number(payload?.max_output_tokens);
+  if (!Number.isInteger(maxOutputTokens) || maxOutputTokens <= 0 || maxOutputTokens > 6000) {
+    throw new Error("Model output token limit is missing or invalid.");
+  }
+
+  const contribution = estimateModelRequestContribution(payload);
+  if (contribution.estimatedTokens > MAX_MODEL_REQUEST_ESTIMATE) {
+    const error = createClientSafeAnalysisError({
+      statusCode: 413,
+      code: "analysis_input_too_large",
+      message: SAFE_INPUT_TOO_LARGE_MESSAGE
+    });
+    error.modelRequestContribution = contribution;
+    throw error;
+  }
+}
+
+function estimateModelRequestContribution(payload) {
+  let imageDataCharacters = 0;
+  let imageCount = 0;
+  const withoutImageData = redactModelImageData(payload, (imageUrl) => {
+    imageDataCharacters += imageUrl.length;
+    imageCount += 1;
+  });
+  const ordinaryPayloadCharacters = JSON.stringify(withoutImageData).length;
+  const ordinaryPayloadTokens = Math.ceil(ordinaryPayloadCharacters / 4);
+  const imageTokens = imageCount * IMAGE_TOKEN_ESTIMATE_PER_PHOTO;
+  const maxOutputTokens = Number(payload?.max_output_tokens) || 0;
+
+  return {
+    imageCount,
+    imageDataCharacters,
+    ordinaryPayloadCharacters,
+    ordinaryPayloadTokens,
+    imageTokens,
+    maxOutputTokens,
+    estimatedTokens: imageDataCharacters + ordinaryPayloadTokens + imageTokens + maxOutputTokens
+  };
+}
+
+function redactModelImageData(value, onImage) {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactModelImageData(item, onImage));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  if (value.type === "input_image" && typeof value.image_url === "string" && value.image_url.startsWith("data:image/")) {
+    onImage(value.image_url);
+    return {
+      ...value,
+      image_url: "[bounded image input]"
+    };
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, redactModelImageData(item, onImage)])
+  );
 }
 
 function requestSerperSearch(args) {
@@ -1503,8 +1635,8 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
-  const visualRecognition = await recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake: intake });
-  const extractedIdentity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake, visualRecognition });
+  const extractedIdentity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const visualRecognition = extractedIdentity.visualRecognition;
   const identity = finalizeIdentityForResearch(extractedIdentity, intake);
 
   if (identity.canonicalProductIdentity?.userConfirmationRequired && !identityConfirmationMatches(intake, identity.canonicalProductIdentity)) {
@@ -1529,55 +1661,17 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   return { visualRecognition, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
 }
 
-async function recognizeVisualSubject({ apiKey, model, platform, notes, photos, buyerIntake }) {
+async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
   const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
   const userContent = [
     {
       type: "input_text",
       text: [
-        "Perform Visual Subject Recognition before any exact product identification, marketplace research, pricing, valuation, or listing generation.",
-        "First answer: What am I looking at?",
-        "Identify the broad visual subject independently of exact commercial product identity, maker, model, edition, date, licensing, authenticity, or comparable matches.",
-        "Do not force every image into a retail-product classification. Recognize categories such as sports, mascots, logos, artwork, illustrations, advertising, posters, signs, plaques, prints, political memorabilia, military insignia, historical graphics, vintage packaging, toys, figurines, furniture, tools, appliances, electronics, clothing, jewelry, coins, watches, books, household items, antiques, and collectibles when supported.",
-        "Treat user input as evidence. If it agrees with visual evidence, increase visual subject confidence. If it is neutral, preserve it as context. If it conflicts, report the conflict. Never silently discard user information and never blindly accept it.",
-        "Keep visual subject confidence independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.",
-        "Low or missing exact-product evidence must not reduce confidence in an obvious broad visual subject.",
-        "Only populate fields supported by the photo evidence, visible text, and user notes. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
-        "Preserve all meaningful visible wording from every uploaded image, including front text, back text, slogans, event names, dates, named people, copyright lines, manufacturer/location text, dimensions, licensing language, and collector-edition wording.",
-        "When multiple photos are provided, merge the evidence across photos before summarizing. Do not let a front-photo clue replace or discard a back-label clue.",
-        "Use confidence language such as High, Medium, Low, Strongly Supported, Likely, Confirmed, Not Yet Verified, or Exact Product Unknown.",
-        `Marketplace platform context: ${platform || "No platform selected"}`,
-        `User item notes: ${notes || "No additional notes provided."}`,
-        "Guided Buyer Intake:",
-        buyerIntakeText
-      ].join("\n")
-    },
-    ...photos.map((photo) => ({
-      type: "input_image",
-      image_url: photo.dataUrl,
-      detail: "auto"
-    }))
-  ];
-
-  const payload = createResponsesPayload({
-    model,
-    systemText: "You are Katherine’s Eye Visual Intelligence Engine. Recognize broad visual subjects from photos before product identification. Return only structured JSON.",
-    userContent,
-    schemaName: "visual_subject_recognition",
-    schema: visualRecognitionSchema
-  });
-
-  return normalizeVisualRecognition((await requestOpenAIJson({ apiKey, payload })).json);
-}
-
-async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake, visualRecognition }) {
-  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
-  const userContent = [
-    {
-      type: "input_text",
-      text: [
-        "Extract the strongest searchable item identity from the photos, buyer notes, and Visual Recognition report.",
-        "This stage happens after Visual Subject Recognition. Preserve the visual subject first, then narrow toward exact product, maker, model, edition, artist, manufacturer, license, material, dimensions, and comparable identifiers.",
+        "Perform Visual Subject Recognition and then extract the strongest searchable item identity in this single multimodal pass.",
+        "First populate visualRecognition by answering what broad subject is visible independently of exact product, maker, model, date, licensing, authenticity, or comparable matches.",
+        "Then preserve that broad visual subject while narrowing toward exact product, maker, model, edition, artist, manufacturer, license, material, dimensions, barcode, and comparable identifiers.",
+        "Do not force every image into a retail-product classification. Keep visual subject confidence independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.",
+        "Only populate fields supported by photo evidence, visible text, buyer notes, and Guided Buyer Intake. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
         "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
         "Separate broad subject identity from exact product identity. Subject identity answers what is depicted or represented; exact product identity answers the exact item, maker, year, model, licensing, and comparable match.",
         "A broad subject may be likely or strongly supported even when the exact product, maker, era, licensing, authenticity, or exact comparable cannot be verified.",
@@ -1608,7 +1702,6 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
         `Marketplace platform: ${platform || "No platform selected"}`,
         `Buyer item notes: ${notes || "No additional notes provided."}`,
-        `Visual Recognition Report: ${JSON.stringify(visualRecognition || {})}`,
         "Guided Buyer Intake:",
         buyerIntakeText
       ].join("\n")
@@ -1616,22 +1709,21 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
     ...photos.map((photo) => ({
       type: "input_image",
       image_url: photo.dataUrl,
-      detail: "auto"
+      detail: "high"
     }))
   ];
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You identify marketplace items after broad visual subject recognition. Return only structured JSON.",
+    systemText: "You are Katherine\u2019s Eye Visual Intelligence Engine. Recognize the broad visual subject, then identify the marketplace item, in one structured multimodal response.",
     userContent,
     schemaName: "item_identity",
     schema: itemIdentitySchema
   });
 
-  return normalizeIdentity({
-    ...(await requestOpenAIJson({ apiKey, payload })).json,
-    visualRecognition
-  });
+  const response = (await requestOpenAIJson({ apiKey, payload })).json;
+  const visualRecognition = normalizeVisualRecognition(response.visualRecognition);
+  return normalizeIdentity({ ...response, visualRecognition });
 }
 
 async function executeLiveComparableSearch(args) {
@@ -7640,6 +7732,7 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
   }
   const payload = {
     model,
+    max_output_tokens: outputTokenLimits.live_comparable_search,
     tools: [tool],
     tool_choice: "required",
     input: [
@@ -8333,6 +8426,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
 function createResponsesPayload({ model, systemText, userContent, schemaName, schema }) {
   return {
     model,
+    max_output_tokens: outputTokenLimits[schemaName] || 4000,
     input: [
       {
         role: "system",
@@ -18270,7 +18364,9 @@ function classifyLiveSearchError(error) {
     code: error.openAIErrorCode,
     message: error.message
   });
-  const message = sanitizeErrorText(error.openAIErrorMessage || error.message || "Live search failed before source results could be retrieved.");
+  const message = category === "timeout"
+    ? "Live search timed out before source results could be retrieved."
+    : "Live search could not retrieve source results from the provider.";
 
   return {
     category,

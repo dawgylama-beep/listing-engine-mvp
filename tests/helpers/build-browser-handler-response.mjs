@@ -144,11 +144,11 @@ function marketValueModelResponse(baseReport) {
 function modelResponse(schemaName, evidenceMode) {
   const collectible = evidenceMode === "collectible";
   const baseReport = retailRecoveryFixture.finalReport;
-  if (schemaName === "visual_subject_recognition") {
-    return collectible ? collectibleVisualRecognition : retailRecoveryFixture.visualRecognition;
-  }
   if (schemaName === "item_identity") {
-    return collectible ? collectibleIdentity : retailRecoveryFixture.identity;
+    return {
+      ...(collectible ? collectibleIdentity : retailRecoveryFixture.identity),
+      visualRecognition: collectible ? collectibleVisualRecognition : retailRecoveryFixture.visualRecognition
+    };
   }
   if (schemaName === "consumer_purchase_decision") {
     return baseReport;

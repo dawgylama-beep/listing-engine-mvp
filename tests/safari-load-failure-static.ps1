@@ -79,7 +79,7 @@ if (-not $handleSubmit.Success) {
   }
 }
 
-$resizeImage = [regex]::Match($app, "function resizeImage\(file, submissionState = null\) \{(?<body>[\s\S]*?)\n\}")
+$resizeImage = [regex]::Match($app, "function resizeImage\(file, submissionState = null, maxBytes = MAX_PROCESSED_PHOTO_BYTES\) \{(?<body>[\s\S]*?)\n\}")
 if (-not $resizeImage.Success) {
   $failed += "resizeImage should be inspectable"
 } else {
@@ -98,13 +98,17 @@ if (-not $friendly.Success) {
 } else {
   $body = $friendly.Groups["body"].Value
   $loadIndex = $body.IndexOf("/load failed/i.test(message)")
-  $rawReturnIndex = $body.IndexOf("return message ||")
-  if ($loadIndex -lt 0 -or $rawReturnIndex -lt 0 -or $loadIndex -gt $rawReturnIndex) {
-    $failed += "Raw Load failed must be normalized before generic message return"
+  $genericReturnIndex = $body.IndexOf('return `${config.errorMessage}')
+  if ($loadIndex -lt 0 -or $genericReturnIndex -lt 0 -or $loadIndex -gt $genericReturnIndex) {
+    $failed += "Raw Load failed must be normalized before the generic safe-message return"
   }
-  if ($body -match 'return\s+["'']Load failed["'']') {
-    $failed += "Raw Load failed must never be returned directly"
+  if ($body -match 'return\s+message|return\s+["'']Load failed["'']') {
+    $failed += "Raw provider or Load failed text must never be returned directly"
   }
+}
+
+if ($app -notmatch 'apiError\.code\s*=\s*String\(data\.code\s*\|\|\s*["'']["'']\)' -or $app -notmatch 'analysis_input_too_large') {
+  $failed += "Customer-safe oversized-input response codes must reach the friendly error mapper"
 }
 
 if ($failed.Count -gt 0) {

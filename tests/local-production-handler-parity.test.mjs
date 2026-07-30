@@ -134,8 +134,12 @@ function finalModelResponse(schemaName) {
       updatedScenario: "Current report unchanged"
     };
   }
-  if (schemaName === "visual_subject_recognition") return retailRecoveryFixture.visualRecognition;
-  if (schemaName === "item_identity") return retailRecoveryFixture.identity;
+  if (schemaName === "item_identity") {
+    return {
+      ...retailRecoveryFixture.identity,
+      visualRecognition: retailRecoveryFixture.visualRecognition
+    };
+  }
   if (schemaName === "consumer_purchase_decision") return retailRecoveryFixture.finalReport;
   if (schemaName === "market_value_report") {
     return {
@@ -1087,7 +1091,11 @@ test("deterministic provider failure has exact handler 502 parity", async () => 
       reportType: "marketValue",
       analysisId: "analysis-parity-provider-failure"
     }), { adapterMode: "provider_failure", server, expectedStatus: 502 });
-    assert.equal(result.payload.error, "Deterministic provider failure.");
+    assert.equal(
+      result.payload.error,
+      "Katherine\u2019s Eye could not complete the analysis right now. Please try again shortly."
+    );
+    assert.equal(result.payload.error.includes("Deterministic provider failure."), false);
     assert.equal(readTrace(server.tracePath).filter((event) => event.event === "adapter_import").length, 1);
   } finally {
     await stopServer(server);

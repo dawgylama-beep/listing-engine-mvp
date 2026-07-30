@@ -12,6 +12,35 @@ const repositoryRoot = path.resolve(testDirectory, "..", "..");
 const photoFixture = path.join(repositoryRoot, "tests", "fixtures", "browser", "neutral-test-object.svg");
 const screenshotDirectory = path.join(repositoryRoot, "test-results", "review-screenshots");
 
+function createDemandingBmpFixture(filePath, width = 1800, height = 1800) {
+  const rowBytes = Math.ceil((width * 3) / 4) * 4;
+  const pixelBytes = rowBytes * height;
+  const bitmap = Buffer.alloc(54 + pixelBytes);
+  bitmap.write("BM", 0, "ascii");
+  bitmap.writeUInt32LE(bitmap.length, 2);
+  bitmap.writeUInt32LE(54, 10);
+  bitmap.writeUInt32LE(40, 14);
+  bitmap.writeInt32LE(width, 18);
+  bitmap.writeInt32LE(height, 22);
+  bitmap.writeUInt16LE(1, 26);
+  bitmap.writeUInt16LE(24, 28);
+  bitmap.writeUInt32LE(pixelBytes, 34);
+  let random = 0x6d2b79f5;
+  for (let offset = 54; offset < bitmap.length; offset += 1) {
+    random ^= random << 13;
+    random ^= random >>> 17;
+    random ^= random << 5;
+    bitmap[offset] = random & 0xff;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, bitmap);
+  return bitmap.length;
+}
+
+function dataUrlByteLength(dataUrl) {
+  return Buffer.from(String(dataUrl || "").split(",", 2)[1] || "", "base64").byteLength;
+}
+
 const purposes = Object.freeze({
   personal_use: {
     radioName: /Buying for Myself/i,
@@ -187,9 +216,6 @@ async function buildRangeStateHandlerResponse({ requestBody, state }) {
     requestOpenAIJson: async ({ payload }) => {
       const schemaName = payload?.text?.format?.name;
       schemas.push(schemaName);
-      if (schemaName === "visual_subject_recognition") {
-        return { json: rangeStateVisualRecognition, data: { output: [] } };
-      }
       if (schemaName === "item_identity") {
         return { json: rangeStateIdentity, data: { output: [] } };
       }
@@ -437,7 +463,9 @@ async function configureForm(page, scenario, state) {
   await page.getByRole("radio", { name: purpose.radioName }).check();
 
   await page.locator("#notes").fill(
-    scenario.evidenceMode === "collectible"
+    scenario.tokenBudgetFixture
+      ? "041226087161"
+      : scenario.evidenceMode === "collectible"
       ? "Deterministic browser test for a Riverton Falcons 1999 Champions collector tray."
       : "Deterministic browser test for Cedarline Privacy Mailers, 48 count."
   );
@@ -480,7 +508,7 @@ async function configureForm(page, scenario, state) {
   );
   await page.locator("#known_brand").fill(scenario.evidenceMode === "collectible" ? "RefreshCo" : "Cedarline");
   if (scenario.evidenceMode === "retail") {
-    await page.locator("#known_upc").fill("012345678905");
+    await page.locator("#known_upc").fill(scenario.tokenBudgetFixture ? "041226087161" : "012345678905");
   }
 
   if (scenario.purpose === "listing") {
@@ -495,7 +523,7 @@ async function configureForm(page, scenario, state) {
     expect(state.analysisRequests).toHaveLength(0);
   }
 
-  await page.locator("#photos").setInputFiles(photoFixture);
+  await page.locator("#photos").setInputFiles(scenario.photoFixture || photoFixture);
   await expect(page.locator(".photo-preview-item")).toHaveCount(1);
   await expect(page.locator(".photo-thumb")).toBeVisible();
 }
@@ -506,9 +534,13 @@ function assertSubmittedRequest(state, scenario) {
   const purpose = purposes[scenario.purpose];
   expect(request.method).toBe("POST");
   expect(request.body.reportType).toBe(purpose.reportType);
-  expect(normalizeText(request.body.notes)).toContain("Deterministic browser test");
+  expect(normalizeText(request.body.notes)).toContain(
+    scenario.tokenBudgetFixture ? "041226087161" : "Deterministic browser test"
+  );
   expect(request.body.photos).toHaveLength(1);
-  expect(request.body.photos[0].name).toBe("neutral-test-object.svg");
+  expect(request.body.photos[0].name).toBe(
+    scenario.photoFixture ? path.basename(scenario.photoFixture) : "neutral-test-object.svg"
+  );
   expect(request.body.photos[0].dataUrl).toMatch(/^data:image\/(?:jpeg|png|webp);base64,/);
 
   const intake = request.body[purpose.reportType === "listing" ? "sellerIntake" : "buyerIntake"];
@@ -518,7 +550,9 @@ function assertSubmittedRequest(state, scenario) {
     expect(intake.purchase_intent).toBe(purpose.requestPurpose);
   }
   expect(normalizeText(intake.item_name)).not.toBe("");
-  expect(normalizeText(intake.buyer_notes)).toContain("Deterministic browser test");
+  expect(normalizeText(intake.buyer_notes)).toContain(
+    scenario.tokenBudgetFixture ? "041226087161" : "Deterministic browser test"
+  );
 }
 
 async function assertCanonicalCards(page, state, scenario) {
@@ -1009,14 +1043,39 @@ async function runSuccessfulScenario(page, scenario, projectName) {
 }
 
 test("real form submits one retail analysis and renders canonical cards", async ({ page }, testInfo) => {
-  await runSuccessfulScenario(page, {
+  const demandingPhotoPath = testInfo.outputPath("demanding-token-budget-photo.bmp");
+  const originalPhotoBytes = createDemandingBmpFixture(demandingPhotoPath);
+  const result = await runSuccessfulScenario(page, {
     evidenceMode: "retail",
     purpose: "personal_use",
     expectedValuationState: "current_retail",
     validateForm: true,
     expectCrossRetailer: true,
-    copyParity: true
+    copyParity: true,
+    tokenBudgetFixture: true,
+    photoFixture: demandingPhotoPath
   }, testInfo.project.name);
+  const request = result.state.analysisRequests[0].body;
+  const processed = request.photos[0].dataUrl;
+  const processedPhotoBytes = dataUrlByteLength(processed);
+  const processedImage = await page.evaluate((dataUrl) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.width, height: image.height });
+    image.onerror = () => reject(new Error("Processed image could not be decoded."));
+    image.src = dataUrl;
+  }), processed);
+  expect(originalPhotoBytes).toBeGreaterThan(9000000);
+  expect(processed).toMatch(/^data:image\/jpeg;base64,/);
+  expect(processedPhotoBytes).toBeGreaterThan(0);
+  expect(processedPhotoBytes).toBeLessThanOrEqual(240000);
+  expect(processedPhotoBytes).toBeLessThan(originalPhotoBytes);
+  expect(Math.max(processedImage.width, processedImage.height)).toBeLessThanOrEqual(1400);
+  expect(JSON.stringify(request).split(processed).length - 1).toBe(1);
+  expect(JSON.stringify({
+    notes: request.notes,
+    buyerIntake: request.buyerIntake,
+    platform: request.platform
+  })).not.toContain("data:image/");
 });
 
 test("Buy to Resell renders canonical evidence exactly once", async ({ page }, testInfo) => {

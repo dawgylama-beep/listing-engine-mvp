@@ -31,16 +31,47 @@ function createResponseCapture() {
 }
 
 function responseForSchema(schemaName) {
-  if (schemaName === "visual_subject_recognition") {
-    return retailRecoveryFixture.visualRecognition;
-  }
   if (schemaName === "item_identity") {
-    return retailRecoveryFixture.identity;
+    return {
+      ...retailRecoveryFixture.identity,
+      visualRecognition: retailRecoveryFixture.visualRecognition
+    };
   }
   if (schemaName === "consumer_purchase_decision") {
     return retailRecoveryFixture.finalReport;
   }
   throw new Error(`Unexpected deterministic OpenAI schema request: ${schemaName}`);
+}
+
+function modelInputContribution(payload) {
+  const images = [];
+  const inputText = [];
+  for (const message of payload.input || []) {
+    for (const content of message.content || []) {
+      if (content.type === "input_image") images.push(content);
+      if (content.type === "input_text") inputText.push(String(content.text || ""));
+    }
+  }
+  const redacted = structuredClone(payload);
+  for (const message of redacted.input || []) {
+    for (const content of message.content || []) {
+      if (content.type === "input_image") content.image_url = "[bounded image input]";
+    }
+  }
+  const imageDataCharacters = images.reduce((total, image) => total + String(image.image_url || "").length, 0);
+  const ordinaryPayloadCharacters = JSON.stringify(redacted).length;
+  const maxOutputTokens = Number(payload.max_output_tokens) || 0;
+  return {
+    images,
+    inputText,
+    imageDataCharacters,
+    ordinaryPayloadCharacters,
+    maxOutputTokens,
+    estimatedTokens: imageDataCharacters
+      + Math.ceil(ordinaryPayloadCharacters / 4)
+      + (images.length * 2500)
+      + maxOutputTokens
+  };
 }
 
 function collectSerializedEvidenceIds(report = {}) {
@@ -77,6 +108,7 @@ function clientVisibleShape(value) {
 test("real production handler serializes canonical evidence IDs through deterministic adapters", async () => {
   const trace = {
     openAISchemas: [],
+    openAIPayloads: [],
     serperStages: [],
     directPageRequests: [],
     finalEvidenceResults: []
@@ -96,6 +128,7 @@ test("real production handler serializes canonical evidence IDs through determin
       assert.equal(payload.model, "deterministic-test-model");
       const schemaName = payload?.text?.format?.name;
       trace.openAISchemas.push(schemaName);
+      trace.openAIPayloads.push(payload);
       return { json: responseForSchema(schemaName), data: { output: [] } };
     },
     requestSerperSearch: async ({ queryRecord }) => {
@@ -122,10 +155,10 @@ test("real production handler serializes canonical evidence IDs through determin
     body: {
       reportType: "marketValue",
       platform: "",
-      notes: "Security envelopes, strip and seal, 48 count.",
+      notes: "041226087161",
       photos: [{
-        name: "sanitized-retail-package.png",
-        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+        name: "ordinary-upc-product.jpg",
+        dataUrl: `data:image/jpeg;base64,${Buffer.alloc(220000, 0x5a).toString("base64")}`
       }],
       buyerIntake: retailRecoveryFixture.buyerIntake
     }
@@ -143,10 +176,37 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(res.payload?.valuation, "real handler must serialize the valuation response envelope");
   assert.equal(res.payload.valuation.analysisId, retailRecoveryFixture.analysisId);
   assert.deepEqual(trace.openAISchemas, [
-    "visual_subject_recognition",
     "item_identity",
     "consumer_purchase_decision"
   ]);
+  const contributions = trace.openAIPayloads.map(modelInputContribution);
+  assert.equal(contributions.reduce((total, item) => total + item.images.length, 0), 1);
+  assert.equal(contributions[0].images.length, 1);
+  assert.equal(contributions[0].images[0].detail, "high");
+  assert.equal(contributions[1].images.length, 0);
+  assert(contributions.every((item) => item.inputText.every((text) => !text.includes("data:image/"))));
+  assert(contributions.every((item) => item.maxOutputTokens > 0 && item.maxOutputTokens <= 6000));
+  assert(
+    contributions.every((item) => item.ordinaryPayloadCharacters < 1200000),
+    "ordinary prompt, schema, tool, and context text must remain below 300,000 estimated tokens"
+  );
+  assert(
+    Math.max(...contributions.map((item) => item.estimatedTokens)) <= 360000,
+    "ordinary one-photo UPC request must stay under the deterministic pre-provider budget"
+  );
+  assert(
+    400000 - Math.max(...contributions.map((item) => item.estimatedTokens)) >= 40000,
+    "ordinary one-photo UPC request must retain at least a 40,000-token margin below the observed ceiling"
+  );
+  const ordinaryPhotoDataUrl = req.body.photos[0].dataUrl;
+  assert.equal(
+    trace.openAIPayloads.reduce(
+      (total, payload) => total + (JSON.stringify(payload).split(ordinaryPhotoDataUrl).length - 1),
+      0
+    ),
+    1,
+    "one browser photo must occur in exactly one model request block"
+  );
   assert.equal(
     res.payload.valuation.searchDiagnostics.physicalProviderAttemptCount,
     trace.serperStages.length,
@@ -367,6 +427,91 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(!/Cedarline|Harborline|direct\.example|alternate\.example/i.test(apiSource));
 });
 
+test("multimodal bounds reject excessive inputs before providers and mask provider details", async () => {
+  const baseBody = {
+    reportType: "marketValue",
+    platform: "",
+    notes: "041226087161",
+    photos: [{
+      name: "ordinary-upc-product.png",
+      dataUrl: "data:image/png;base64,iVBORw0KGgo="
+    }],
+    buyerIntake: {
+      purchase_intent: "personal_use",
+      known_upc: "041226087161"
+    }
+  };
+
+  let oversizedPhotoProviderCalls = 0;
+  const oversizedPhotoHandler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    requestOpenAIJson: async () => {
+      oversizedPhotoProviderCalls += 1;
+      throw new Error("provider must not be invoked");
+    }
+  });
+  const oversizedPhotoResponse = createResponseCapture();
+  await oversizedPhotoHandler({
+    method: "POST",
+    body: {
+      ...baseBody,
+      photos: [{
+        name: "excessive.png",
+        dataUrl: `data:image/png;base64,${Buffer.alloc(240001, 0x61).toString("base64")}`
+      }]
+    }
+  }, oversizedPhotoResponse);
+  assert.equal(oversizedPhotoResponse.statusCode, 413);
+  assert.equal(oversizedPhotoProviderCalls, 0);
+  assert.equal(oversizedPhotoResponse.payload.code, "analysis_input_too_large");
+
+  let oversizedRequestProviderCalls = 0;
+  const oversizedRequestHandler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    requestOpenAIJson: async () => {
+      oversizedRequestProviderCalls += 1;
+      throw new Error("provider must not be invoked");
+    }
+  });
+  const oversizedRequestResponse = createResponseCapture();
+  await oversizedRequestHandler({
+    method: "POST",
+    body: {
+      ...baseBody,
+      notes: "A".repeat(1500000)
+    }
+  }, oversizedRequestResponse);
+  assert.equal(oversizedRequestResponse.statusCode, 413);
+  assert.equal(oversizedRequestProviderCalls, 0);
+  assert.equal(oversizedRequestResponse.payload.code, "analysis_input_too_large");
+
+  const providerDetail = "Request too large for gpt-4.1-mini-long-context INTERNAL_ORGANIZATION_MARKER Limit 400000 stack fixture-secret";
+  let failingProviderCalls = 0;
+  const providerFailureHandler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    requestOpenAIJson: async () => {
+      failingProviderCalls += 1;
+      throw new Error(providerDetail);
+    }
+  });
+  const providerFailureResponse = createResponseCapture();
+  await providerFailureHandler({ method: "POST", body: baseBody }, providerFailureResponse);
+  assert.equal(providerFailureResponse.statusCode, 502);
+  assert.equal(failingProviderCalls, 1);
+  const customerError = JSON.stringify(providerFailureResponse.payload);
+  assert.match(customerError, /Katherine/);
+  for (const forbidden of [
+    "INTERNAL_ORGANIZATION_MARKER",
+    "gpt-4.1-mini-long-context",
+    "400000",
+    "stack",
+    "fixture-secret",
+    "Request too large"
+  ]) {
+    assert.equal(customerError.includes(forbidden), false, `${forbidden} must not reach the customer`);
+  }
+});
+
 test("real production handler serializes one active asking offer as one observation, not a range", async () => {
   const finalEvidenceResults = [];
   const visualRecognition = {
@@ -412,8 +557,7 @@ test("real production handler serializes one active asking offer as one observat
     createAnalysisId: () => "analysis-handler-one-asking",
     requestOpenAIJson: async ({ payload }) => {
       const schemaName = payload?.text?.format?.name;
-      if (schemaName === "visual_subject_recognition") return { json: visualRecognition, data: { output: [] } };
-      if (schemaName === "item_identity") return { json: identity, data: { output: [] } };
+      if (schemaName === "item_identity") return { json: { ...identity, visualRecognition }, data: { output: [] } };
       if (schemaName === "consumer_purchase_decision") {
         return {
           json: {
@@ -613,8 +757,7 @@ test("real production handler preserves resale seller fields while projecting th
     createAnalysisId: () => "analysis-handler-resale-seller-fields",
     requestOpenAIJson: async ({ payload }) => {
       const schemaName = payload?.text?.format?.name;
-      if (schemaName === "visual_subject_recognition") return { json: visualRecognition, data: { output: [] } };
-      if (schemaName === "item_identity") return { json: identity, data: { output: [] } };
+      if (schemaName === "item_identity") return { json: { ...identity, visualRecognition }, data: { output: [] } };
       if (schemaName === "market_value_report") {
         return {
           json: {

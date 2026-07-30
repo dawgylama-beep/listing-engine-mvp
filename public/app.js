@@ -616,6 +616,11 @@ const helpFocusableSelector = [
   "[tabindex]:not([tabindex='-1'])"
 ].join(",");
 const MAX_PHOTO_COUNT = 6;
+const MAX_PROCESSED_PHOTO_BYTES = 240000;
+const MAX_PROCESSED_PHOTO_DIMENSION = 1400;
+const MIN_PROCESSED_PHOTO_DIMENSION = 240;
+const INITIAL_PROCESSED_PHOTO_QUALITY = 0.82;
+const MIN_PROCESSED_PHOTO_QUALITY = 0.42;
 
 let latestReport = null;
 let latestSections = workflowConfigs[defaultWorkflow].sections;
@@ -1056,7 +1061,9 @@ async function handleSubmit(event) {
         setStatus("Confirm the item details before research continues.", "error");
         return;
       }
-      throw new Error(data.error || config.errorMessage);
+      const apiError = new Error(data.error || config.errorMessage);
+      apiError.code = String(data.code || "");
+      throw apiError;
     }
 
     const rawReport = data[config.responseKey];
@@ -2047,11 +2054,17 @@ function formatMoney(value) {
 
 async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionState = null) {
   const photos = [];
+  const boundedFiles = photoFiles.slice(0, MAX_PHOTO_COUNT);
+  let remainingBytes = MAX_PROCESSED_PHOTO_BYTES;
 
-  for (const file of photoFiles) {
+  for (const [index, file] of boundedFiles.entries()) {
+    const remainingPhotoCount = boundedFiles.length - index;
+    const photoByteBudget = Math.max(1, Math.floor(remainingBytes / remainingPhotoCount));
+    const dataUrl = await resizeImage(file, submissionState, photoByteBudget);
+    remainingBytes -= getDataUrlByteLength(dataUrl);
     photos.push({
       name: file.name,
-      dataUrl: await resizeImage(file, submissionState)
+      dataUrl
     });
   }
 
@@ -4338,6 +4351,10 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
   const stage = submissionStageFromError(error, submissionState);
 
+  if (error?.code === "analysis_input_too_large" || /analysis_input_too_large|image_too_large/i.test(message)) {
+    return "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
+  }
+
   if (/load failed/i.test(message)) {
     if (isPhotoReadStage(stage)) {
       return "We couldn't read that photo. Please select the photo again and retry.";
@@ -4379,7 +4396,7 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
     return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
   }
 
-  return message || `${config.errorMessage} The most useful next step is one clear full-item photo plus one close-up of any label, mark, model number, barcode, or condition issue.`;
+  return `${config.errorMessage} The most useful next step is one clear full-item photo plus one close-up of any label, mark, model number, barcode, or condition issue.`;
 }
 
 function toggleFeedbackPanel() {
@@ -4729,7 +4746,7 @@ function getRiskModifier(level) {
   return "risk-low";
 }
 
-function resizeImage(file, submissionState = null) {
+function resizeImage(file, submissionState = null, maxBytes = MAX_PROCESSED_PHOTO_BYTES) {
   return new Promise((resolve, reject) => {
     setSubmissionStage(submissionState, submissionStages.PHOTO_READ);
     const reader = new FileReader();
@@ -4745,18 +4762,55 @@ function resizeImage(file, submissionState = null) {
       image.onload = () => {
         setSubmissionStage(submissionState, submissionStages.IMAGE_PROCESS);
         try {
-          const maxDimension = 1400;
-          const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
           const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round(image.width * scale));
-          canvas.height = Math.max(1, Math.round(image.height * scale));
-
           const context = canvas.getContext("2d");
           if (!context) {
             throw new Error("Canvas unavailable.");
           }
-          context.drawImage(image, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.82));
+
+          let targetDimension = Math.max(
+            MIN_PROCESSED_PHOTO_DIMENSION,
+            Math.min(MAX_PROCESSED_PHOTO_DIMENSION, Math.max(image.width, image.height))
+          );
+          let candidate = "";
+
+          while (targetDimension >= MIN_PROCESSED_PHOTO_DIMENSION) {
+            const scale = Math.min(1, targetDimension / Math.max(image.width, image.height));
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            for (
+              let quality = INITIAL_PROCESSED_PHOTO_QUALITY;
+              quality >= MIN_PROCESSED_PHOTO_QUALITY - 0.001;
+              quality -= 0.08
+            ) {
+              candidate = canvas.toDataURL("image/jpeg", Math.max(MIN_PROCESSED_PHOTO_QUALITY, quality));
+              if (getDataUrlByteLength(candidate) <= maxBytes) {
+                resolve(candidate);
+                return;
+              }
+            }
+
+            if (targetDimension === MIN_PROCESSED_PHOTO_DIMENSION) {
+              break;
+            }
+            targetDimension = Math.max(
+              MIN_PROCESSED_PHOTO_DIMENSION,
+              Math.floor(targetDimension * 0.8)
+            );
+          }
+
+          if (candidate && getDataUrlByteLength(candidate) <= maxBytes) {
+            resolve(candidate);
+            return;
+          }
+          reject(createSubmissionError(
+            "The processed image remains too large.",
+            submissionStages.IMAGE_PROCESS,
+            "image_too_large"
+          ));
         } catch (error) {
           reject(createSubmissionError("Could not process an uploaded photo.", submissionStages.IMAGE_PROCESS, "image_resize_failed", error));
         }
@@ -4773,4 +4827,13 @@ function resizeImage(file, submissionState = null) {
       reject(createSubmissionError("Could not read an uploaded photo.", submissionStages.PHOTO_READ, "photo_read_failed", error));
     }
   });
+}
+
+function getDataUrlByteLength(dataUrl) {
+  const encoded = String(dataUrl || "").split(",", 2)[1] || "";
+  if (!encoded) {
+    return 0;
+  }
+  const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor(encoded.length * 3 / 4) - padding);
 }

@@ -45,8 +45,12 @@ function clientVisibleShape(value) {
 }
 
 function finalModelResponse(schemaName) {
-  if (schemaName === "visual_subject_recognition") return retailRecoveryFixture.visualRecognition;
-  if (schemaName === "item_identity") return retailRecoveryFixture.identity;
+  if (schemaName === "item_identity") {
+    return {
+      ...retailRecoveryFixture.identity,
+      visualRecognition: retailRecoveryFixture.visualRecognition
+    };
+  }
   if (schemaName === "consumer_purchase_decision") return retailRecoveryFixture.finalReport;
   if (schemaName === "market_value_report") {
     return {
