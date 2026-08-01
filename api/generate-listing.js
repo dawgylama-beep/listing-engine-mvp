@@ -33,6 +33,7 @@ const productionAnalysisAdapters = Object.freeze({
   nowMilliseconds: () => Date.now(),
   nowIso: () => new Date().toISOString(),
   createAnalysisId: () => `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  onModelRequestBudget: () => {},
   onFinalEvidenceResult: () => {}
 });
 
@@ -1349,7 +1350,14 @@ function enforceModelRequestBudget(payload) {
   }
 
   const contribution = estimateModelRequestContribution(payload);
-  if (contribution.estimatedTokens > MAX_MODEL_REQUEST_ESTIMATE) {
+  const guardResult = contribution.estimatedTokens > MAX_MODEL_REQUEST_ESTIMATE ? "reject" : "pass";
+  currentAnalysisAdapters().onModelRequestBudget(Object.freeze({
+    purpose: cleanText(payload?.text?.format?.name || "model_request"),
+    ...contribution,
+    guardThreshold: MAX_MODEL_REQUEST_ESTIMATE,
+    guardResult
+  }));
+  if (guardResult === "reject") {
     const error = createClientSafeAnalysisError({
       statusCode: 413,
       code: "analysis_input_too_large",
@@ -1362,9 +1370,11 @@ function enforceModelRequestBudget(payload) {
 
 function estimateModelRequestContribution(payload) {
   let imageDataCharacters = 0;
+  let decodedImageBytes = 0;
   let imageCount = 0;
   const withoutImageData = redactModelImageData(payload, (imageUrl) => {
     imageDataCharacters += imageUrl.length;
+    decodedImageBytes += getModelImageDecodedByteLength(imageUrl);
     imageCount += 1;
   });
   const ordinaryPayloadCharacters = JSON.stringify(withoutImageData).length;
@@ -1374,13 +1384,19 @@ function estimateModelRequestContribution(payload) {
 
   return {
     imageCount,
+    decodedImageBytes,
     imageDataCharacters,
     ordinaryPayloadCharacters,
     ordinaryPayloadTokens,
     imageTokens,
     maxOutputTokens,
-    estimatedTokens: imageDataCharacters + ordinaryPayloadTokens + imageTokens + maxOutputTokens
+    estimatedTokens: ordinaryPayloadTokens + imageTokens + maxOutputTokens
   };
+}
+
+function getModelImageDecodedByteLength(imageUrl) {
+  const encoded = String(imageUrl || "").split(",", 2)[1] || "";
+  return encoded ? Buffer.from(encoded, "base64").byteLength : 0;
 }
 
 function redactModelImageData(value, onImage) {
@@ -1400,6 +1416,202 @@ function redactModelImageData(value, onImage) {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [key, redactModelImageData(item, onImage)])
   );
+}
+
+function buildModelLiveSearchContext(liveSearch = {}) {
+  const searchDiagnostics = liveSearch.searchDiagnostics && typeof liveSearch.searchDiagnostics === "object"
+    ? liveSearch.searchDiagnostics
+    : {};
+  return {
+    liveSearchStatus: compactModelResearchText(liveSearch.liveSearchStatus),
+    comparableItemsFound: compactModelResearchTextArray(liveSearch.comparableItemsFound, 8),
+    strongComparables: compactModelResearchRecordArray(liveSearch.strongComparables, 8),
+    partialComparables: compactModelResearchRecordArray(liveSearch.partialComparables, 8),
+    itemIdentificationEvidence: compactModelResearchRecordArray(liveSearch.itemIdentificationEvidence, 8),
+    referenceResults: compactModelResearchRecordArray(liveSearch.referenceResults, 8),
+    weakMatches: compactModelResearchRecordArray(liveSearch.weakMatches, 8),
+    rejectedMatches: compactModelResearchRecordArray(liveSearch.rejectedMatches, 8),
+    retailEvidenceAssessments: compactModelResearchRecordArray(liveSearch.retailEvidenceAssessments, 12),
+    noReliableMatchesReason: compactModelResearchText(liveSearch.noReliableMatchesReason),
+    searchEvidenceSummary: compactModelResearchText(liveSearch.searchEvidenceSummary),
+    sourceRoute: compactModelResearchTextArray(liveSearch.sourceRoute, 16, 500),
+    searchQueries: compactModelResearchTextArray(liveSearch.searchQueries, 16, 500),
+    queriesActuallySent: compactModelResearchTextArray(liveSearch.queriesActuallySent, 28, 500),
+    sourcesSearched: compactModelResearchTextArray(liveSearch.sourcesSearched, 8, 300),
+    domainsActuallyReturned: compactModelResearchTextArray(liveSearch.domainsActuallyReturned, 24, 300),
+    sourceURLsReturned: compactModelResearchTextArray(liveSearch.sourceURLsReturned, 30, 700),
+    searchProviderUsed: compactModelResearchText(liveSearch.searchProviderUsed, 300),
+    primarySearchProvider: compactModelResearchText(liveSearch.primarySearchProvider, 300),
+    serperConfigured: Boolean(liveSearch.serperConfigured),
+    fallbackProviderUsed: Boolean(liveSearch.fallbackProviderUsed),
+    primaryProviderFailureState: compactModelResearchText(liveSearch.primaryProviderFailureState, 500),
+    providerSourceCount: Number(liveSearch.providerSourceCount || 0),
+    organicResultCount: Number(liveSearch.organicResultCount || 0),
+    shoppingResultCount: Number(liveSearch.shoppingResultCount || 0),
+    parsedCandidateCount: Number(liveSearch.parsedCandidateCount || 0),
+    normalizedCandidateCount: Number(liveSearch.normalizedCandidateCount || 0),
+    retainedVisibleResultCount: Number(liveSearch.retainedVisibleResultCount || 0),
+    rejectedCandidateCount: Number(liveSearch.rejectedCandidateCount || 0),
+    providerCallsAttempted: Number(searchDiagnostics.providerCallsAttempted || 0),
+    providerCallsSucceeded: Number(searchDiagnostics.providerCallsSucceeded || 0),
+    webSearchExecuted: Boolean(liveSearch.webSearchExecuted)
+  };
+}
+
+function compactModelResearchRecordArray(value, maxItems) {
+  return normalizeArray(value)
+    .slice(0, maxItems)
+    .map(compactModelResearchRecord)
+    .filter((record) => record && (typeof record !== "object" || Object.keys(record).length));
+}
+
+function compactModelResearchRecord(record) {
+  if (!record || typeof record !== "object") {
+    return compactModelResearchText(record);
+  }
+  const compact = {};
+  for (const field of [
+    "source",
+    "sourceLabel",
+    "sourceTitle",
+    "sourceDomain",
+    "sourceEvidenceText",
+    "provider",
+    "providerLabel",
+    "retailer",
+    "retailerDisplayName",
+    "retailerIdentity",
+    "retailerDomain",
+    "retailerConfidenceLevel",
+    "retailerAttributionEvidence",
+    "merchantName",
+    "seller",
+    "domain",
+    "title",
+    "productTitle",
+    "url",
+    "canonicalUrl",
+    "destinationUrl",
+    "originalSourceUrl",
+    "sourceURL",
+    "displayedPriceText",
+    "displayedPrice",
+    "priceText",
+    "parsedPrice",
+    "price",
+    "priceAmount",
+    "priceCurrency",
+    "priceOrigin",
+    "priceParsingConfidence",
+    "currency",
+    "delivery",
+    "shipping",
+    "shippingStatus",
+    "shippingLabel",
+    "shippingAmount",
+    "shippingDisclosure",
+    "deliveredCostSupported",
+    "date",
+    "condition",
+    "listingStatus",
+    "availabilityStatus",
+    "activeSoldReferenceStatus",
+    "currentListingEvidence",
+    "sourceType",
+    "sourceEvidenceType",
+    "priceEvidenceType",
+    "priceType",
+    "priceTypeLabel",
+    "identityMatchStrength",
+    "matchQuality",
+    "classification",
+    "evidenceRole",
+    "evidenceType",
+    "itemTypeCompatible",
+    "submittedItemType",
+    "candidateItemType",
+    "itemTypeCompatibilityStatus",
+    "itemTypeCompatibilityExplanation",
+    "packageQuantity",
+    "packageQuantityConfidence",
+    "packageCompatibility",
+    "packageCompatibilityLabel",
+    "packageCompatibilityStatus",
+    "unitPriceEligibility",
+    "searchQuery",
+    "searchStage",
+    "searchPass",
+    "query",
+    "endpointSearchType",
+    "searchProvider",
+    "onlineLocalStatus",
+    "purchaseChannel",
+    "namedStoreMatchStatus",
+    "transactionalRetailerEvidence",
+    "retailOfferPlatform",
+    "retailOfferSeller",
+    "retailOfferSellerType",
+    "retailOfferConditionDisclosure",
+    "retailOfferLimitations",
+    "exactPageRecoveryStatus",
+    "exactPageRecoveryMode",
+    "exactPageMatchedBarcodeIdentities",
+    "exactPageNormalizedBarcodeIdentitiesFound",
+    "exactProductStatus",
+    "productTypeCompatibility",
+    "candidateProductFamily",
+    "positiveCompatibilityEvidence",
+    "contradictoryEvidence",
+    "productFamilyCompatibilityOutcome",
+    "candidateObjectClassification",
+    "candidateObjectLabel",
+    "candidateObjectReason",
+    "functionalCompatibility",
+    "knownSpecificationDifferences",
+    "localRelevance",
+    "secondaryMarketStatus",
+    "hardRejectionReason",
+    "confidenceDowngradeReasons",
+    "customerPriceCardEligibility",
+    "retailPriceDecisionEligibility",
+    "customerEvidenceTier",
+    "customerEvidenceTierLabel",
+    "sourceScreeningPassed",
+    "validOfferClassification",
+    "finalPromotionReason",
+    "rejectionReason",
+    "matchExplanation",
+    "itemIdentityDifferences",
+    "snippet",
+    "rawText",
+    "sourceBacked",
+    "exactIdentity",
+    "retained",
+    "influencedVerifiedMarketRange",
+    "includedInPreliminaryAskingPriceRange",
+    "influencedReferenceRange"
+  ]) {
+    const rawValue = record[field];
+    if (rawValue === undefined || rawValue === null || rawValue === "") continue;
+    if (typeof rawValue === "boolean" || typeof rawValue === "number") {
+      compact[field] = rawValue;
+      continue;
+    }
+    const text = compactModelResearchText(rawValue);
+    if (text) compact[field] = text;
+  }
+  return compact;
+}
+
+function compactModelResearchTextArray(value, maxItems, maxCharacters = 1200) {
+  return normalizeArray(value)
+    .map((item) => compactModelResearchText(item, maxCharacters))
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function compactModelResearchText(value, maxCharacters = 1200) {
+  return cleanText(value).slice(0, maxCharacters);
 }
 
 function requestSerperSearch(args) {
@@ -1562,7 +1774,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Source route: ${JSON.stringify(sourceRoute)}`,
         `Search queries: ${JSON.stringify(searchQueries)}`,
-        `Live research result: ${JSON.stringify(liveSearch)}`,
+        `Live research result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
         "",
         "Create an evidence-backed marketplace listing draft.",
         "Use the extracted photo evidence, visible text, seller notes, search queries, source route, and live research result supplied by the backend.",
@@ -8275,7 +8487,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
-        `Live comparable search result: ${JSON.stringify(liveSearch)}`,
+        `Live comparable search result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
         "",
         ...taskText
       ].join("\n")
@@ -8403,7 +8615,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
         `Extracted item identity: ${JSON.stringify(identity)}`,
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
-        `Live comparable search result: ${JSON.stringify(liveSearch)}`,
+        `Live comparable search result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
         "",
         ...taskText
       ].join("\n")

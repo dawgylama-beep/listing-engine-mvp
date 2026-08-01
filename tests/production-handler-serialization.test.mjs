@@ -59,16 +59,19 @@ function modelInputContribution(payload) {
     }
   }
   const imageDataCharacters = images.reduce((total, image) => total + String(image.image_url || "").length, 0);
+  const decodedImageBytes = images.reduce((total, image) => (
+    total + Buffer.from(String(image.image_url || "").split(",", 2)[1] || "", "base64").byteLength
+  ), 0);
   const ordinaryPayloadCharacters = JSON.stringify(redacted).length;
   const maxOutputTokens = Number(payload.max_output_tokens) || 0;
   return {
     images,
     inputText,
+    decodedImageBytes,
     imageDataCharacters,
     ordinaryPayloadCharacters,
     maxOutputTokens,
-    estimatedTokens: imageDataCharacters
-      + Math.ceil(ordinaryPayloadCharacters / 4)
+    estimatedTokens: Math.ceil(ordinaryPayloadCharacters / 4)
       + (images.length * 2500)
       + maxOutputTokens
   };
@@ -109,6 +112,7 @@ test("real production handler serializes canonical evidence IDs through determin
   const trace = {
     openAISchemas: [],
     openAIPayloads: [],
+    modelRequestBudgets: [],
     serperStages: [],
     directPageRequests: [],
     finalEvidenceResults: []
@@ -124,6 +128,9 @@ test("real production handler serializes canonical evidence IDs through determin
       return clock;
     },
     nowIso: () => new Date(clock).toISOString(),
+    onModelRequestBudget: (observation) => {
+      trace.modelRequestBudgets.push(observation);
+    },
     requestOpenAIJson: async ({ payload }) => {
       assert.equal(payload.model, "deterministic-test-model");
       const schemaName = payload?.text?.format?.name;
@@ -180,9 +187,21 @@ test("real production handler serializes canonical evidence IDs through determin
     "consumer_purchase_decision"
   ]);
   const contributions = trace.openAIPayloads.map(modelInputContribution);
+  assert.deepEqual(
+    trace.modelRequestBudgets.map((item) => item.purpose),
+    trace.openAISchemas
+  );
+  assert(trace.modelRequestBudgets.every((item) => item.guardThreshold === 360000 && item.guardResult === "pass"));
+  assert.deepEqual(
+    trace.modelRequestBudgets.map((item) => item.estimatedTokens),
+    contributions.map((item) => item.estimatedTokens)
+  );
   assert.equal(contributions.reduce((total, item) => total + item.images.length, 0), 1);
   assert.equal(contributions[0].images.length, 1);
   assert.equal(contributions[0].images[0].detail, "high");
+  assert.equal(contributions[0].decodedImageBytes, 220000);
+  assert.equal(trace.modelRequestBudgets[0].decodedImageBytes, 220000);
+  assert.equal(trace.modelRequestBudgets[0].imageDataCharacters, req.body.photos[0].dataUrl.length);
   assert.equal(contributions[1].images.length, 0);
   assert(contributions.every((item) => item.inputText.every((text) => !text.includes("data:image/"))));
   assert(contributions.every((item) => item.maxOutputTokens > 0 && item.maxOutputTokens <= 6000));
@@ -425,6 +444,128 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(!apiSource.includes("assembleFinalEvidence"));
   assert(!/NODE_ENV\s*===\s*["']test|fixtureMode|mockItem/i.test(apiSource));
   assert(!/Cedarline|Harborline|direct\.example|alternate\.example/i.test(apiSource));
+  for (const [purpose, limit] of [
+    ["ask_market_edge_answer", 2500],
+    ["item_identity", 6000],
+    ["consumer_purchase_decision", 5000],
+    ["market_value_report", 5000],
+    ["marketplace_listing", 5000],
+    ["live_comparable_search", 4000]
+  ]) {
+    assert.match(apiSource, new RegExp(`${purpose}:\\s*${limit}\\b`));
+  }
+});
+
+test("ordinary browser-sized UPC input completes with dense bounded research context", async () => {
+  const budgetObservations = [];
+  const modelPurposes = [];
+  const finalEvidenceResults = [];
+  let serperCalls = 0;
+  let directPageCalls = 0;
+  let clock = Date.parse(retailRecoveryFixture.fixedNow);
+  const requestBody = {
+    reportType: "marketValue",
+    platform: "",
+    notes: "041226087161",
+    photos: [{
+      name: "ordinary-office-works-2200.png",
+      dataUrl: `data:image/jpeg;base64,${Buffer.alloc(105018, 0x5a).toString("base64")}`
+    }],
+    buyerIntake: {
+      purchase_context: "online_retailer",
+      retailer_or_marketplace_name: "Office Works",
+      purchase_intent: "personal_use",
+      item_condition: "new",
+      item_name: "Office Works Strip and Seal Security Envelopes White 45 Count",
+      known_brand: "Office Works",
+      known_upc: "041226087161",
+      buyer_notes: "041226087161"
+    }
+  };
+  const handler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    getOpenAIModel: () => "deterministic-test-model",
+    getSerperApiKey: () => "deterministic-serper-placeholder",
+    createAnalysisId: () => "analysis-ordinary-browser-sized-upc",
+    nowMilliseconds: () => {
+      clock += 5;
+      return clock;
+    },
+    nowIso: () => new Date(clock).toISOString(),
+    onModelRequestBudget: (observation) => budgetObservations.push(observation),
+    requestOpenAIJson: async ({ payload }) => {
+      const purpose = payload?.text?.format?.name;
+      const budget = budgetObservations.at(-1);
+      assert.equal(budget?.purpose, purpose, "the model adapter must run only after its exact request guard");
+      assert.equal(budget?.guardResult, "pass");
+      modelPurposes.push(purpose);
+      if (purpose === "item_identity") {
+        return {
+          json: {
+            ...retailRecoveryFixture.identity,
+            visualRecognition: retailRecoveryFixture.visualRecognition
+          },
+          data: { output: [] }
+        };
+      }
+      if (purpose === "consumer_purchase_decision") {
+        return { json: retailRecoveryFixture.finalReport, data: { output: [] } };
+      }
+      throw new Error(`Unexpected deterministic model purpose: ${purpose}`);
+    },
+    requestSerperSearch: async ({ queryRecord }) => {
+      serperCalls += 1;
+      const querySlug = Buffer.from(String(queryRecord?.query || serperCalls)).toString("hex").slice(0, 24);
+      return {
+        json: {
+          organic: Array.from({ length: 10 }, (_, index) => ({
+            position: index + 1,
+            title: `Office Works Strip and Seal Security Envelopes White 45 Count UPC 041226087161 result ${index + 1}`,
+            link: `https://retailer-${serperCalls}.example/product/${querySlug}-${index + 1}`,
+            snippet: `Current retail product page for Office Works Strip and Seal Security Envelopes White 45 Count UPC 041226087161. Price $5.${String(index + 10).slice(-2)}. In stock online. ${"Package evidence and current retailer context. ".repeat(3)}`
+          }))
+        },
+        statusCode: 200,
+        elapsedMs: 2
+      };
+    },
+    requestBoundedRetailProductPage: async (url) => {
+      directPageCalls += 1;
+      return {
+        finalUrl: url,
+        statusCode: 200,
+        elapsedMs: 2,
+        html: "<html><body>Office Works Strip and Seal Security Envelopes White 45 Count $5.49</body></html>",
+        sourceEvidenceText: "Office Works Strip and Seal Security Envelopes White 45 Count UPC 041226087161 current retail price $5.49"
+      };
+    },
+    onFinalEvidenceResult: (result) => finalEvidenceResults.push(result)
+  });
+  const response = createResponseCapture();
+  const networkGuard = installHardNetworkDenial();
+  try {
+    await handler({ method: "POST", body: structuredClone(requestBody) }, response);
+  } finally {
+    networkGuard.restore();
+  }
+
+  assert.equal(response.statusCode, 200);
+  assert(response.payload?.valuation, "ordinary one-photo Personal Buy must complete a valuation report");
+  assert.match(JSON.stringify(response.payload.valuation), /041226087161/);
+  assert.deepEqual(modelPurposes, ["item_identity", "consumer_purchase_decision"]);
+  assert.equal(budgetObservations.length, 2);
+  assert(budgetObservations.every((item) => item.guardThreshold === 360000 && item.guardResult === "pass"));
+  assert(budgetObservations.every((item) => item.estimatedTokens < 360000));
+  assert.equal(budgetObservations[0].imageCount, 1);
+  assert.equal(budgetObservations[0].decodedImageBytes, 105018);
+  assert.equal(budgetObservations[0].imageDataCharacters, requestBody.photos[0].dataUrl.length);
+  assert.equal(budgetObservations[1].imageCount, 0);
+  assert(budgetObservations[1].ordinaryPayloadCharacters < 120000);
+  assert(serperCalls > 0 && serperCalls <= 28);
+  assert(directPageCalls <= 2);
+  assert.equal(finalEvidenceResults.length, 1);
+  validateFinalEvidenceResult(finalEvidenceResults[0]);
+  assert.deepEqual(networkGuard.attempts, []);
 });
 
 test("multimodal bounds reject excessive inputs before providers and mask provider details", async () => {
@@ -465,9 +606,59 @@ test("multimodal bounds reject excessive inputs before providers and mask provid
   assert.equal(oversizedPhotoProviderCalls, 0);
   assert.equal(oversizedPhotoResponse.payload.code, "analysis_input_too_large");
 
+  let earlyRejectionProviderCalls = 0;
+  const earlyRejectionBudgets = [];
+  const earlyRejectionHandler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    onModelRequestBudget: (observation) => earlyRejectionBudgets.push(observation),
+    requestOpenAIJson: async () => {
+      earlyRejectionProviderCalls += 1;
+      throw new Error("provider must not be invoked");
+    }
+  });
+  const earlyCases = [
+    {
+      name: "combined decoded photo bytes",
+      expectedStatus: 413,
+      expectedCode: "analysis_input_too_large",
+      photos: [
+        { name: "combined-one.png", dataUrl: `data:image/png;base64,${Buffer.alloc(120001, 0x61).toString("base64")}` },
+        { name: "combined-two.png", dataUrl: `data:image/png;base64,${Buffer.alloc(120001, 0x62).toString("base64")}` }
+      ]
+    },
+    {
+      name: "seven photos",
+      expectedStatus: 413,
+      expectedCode: "analysis_input_too_large",
+      photos: Array.from({ length: 7 }, (_, index) => ({
+        name: `photo-${index + 1}.png`,
+        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+      }))
+    },
+    {
+      name: "invalid image type",
+      expectedStatus: 400,
+      expectedCode: "invalid_image_input",
+      photos: [{ name: "invalid.gif", dataUrl: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" }]
+    }
+  ];
+  for (const inputCase of earlyCases) {
+    const response = createResponseCapture();
+    await earlyRejectionHandler({
+      method: "POST",
+      body: { ...baseBody, photos: inputCase.photos }
+    }, response);
+    assert.equal(response.statusCode, inputCase.expectedStatus, inputCase.name);
+    assert.equal(response.payload.code, inputCase.expectedCode, inputCase.name);
+  }
+  assert.equal(earlyRejectionProviderCalls, 0);
+  assert.deepEqual(earlyRejectionBudgets, []);
+
   let oversizedRequestProviderCalls = 0;
+  const oversizedRequestBudgets = [];
   const oversizedRequestHandler = createGenerateListingHandler({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    onModelRequestBudget: (observation) => oversizedRequestBudgets.push(observation),
     requestOpenAIJson: async () => {
       oversizedRequestProviderCalls += 1;
       throw new Error("provider must not be invoked");
@@ -484,11 +675,18 @@ test("multimodal bounds reject excessive inputs before providers and mask provid
   assert.equal(oversizedRequestResponse.statusCode, 413);
   assert.equal(oversizedRequestProviderCalls, 0);
   assert.equal(oversizedRequestResponse.payload.code, "analysis_input_too_large");
+  assert.equal(oversizedRequestBudgets.length, 1);
+  assert.equal(oversizedRequestBudgets[0].purpose, "item_identity");
+  assert.equal(oversizedRequestBudgets[0].guardThreshold, 360000);
+  assert.equal(oversizedRequestBudgets[0].guardResult, "reject");
+  assert(oversizedRequestBudgets[0].estimatedTokens > 360000);
 
   const providerDetail = "Request too large for gpt-4.1-mini-long-context INTERNAL_ORGANIZATION_MARKER Limit 400000 stack fixture-secret";
   let failingProviderCalls = 0;
+  const failingProviderBudgets = [];
   const providerFailureHandler = createGenerateListingHandler({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    onModelRequestBudget: (observation) => failingProviderBudgets.push(observation),
     requestOpenAIJson: async () => {
       failingProviderCalls += 1;
       throw new Error(providerDetail);
@@ -498,6 +696,8 @@ test("multimodal bounds reject excessive inputs before providers and mask provid
   await providerFailureHandler({ method: "POST", body: baseBody }, providerFailureResponse);
   assert.equal(providerFailureResponse.statusCode, 502);
   assert.equal(failingProviderCalls, 1);
+  assert.equal(failingProviderBudgets.length, 1);
+  assert.equal(failingProviderBudgets[0].guardResult, "pass");
   const customerError = JSON.stringify(providerFailureResponse.payload);
   assert.match(customerError, /Katherine/);
   for (const forbidden of [

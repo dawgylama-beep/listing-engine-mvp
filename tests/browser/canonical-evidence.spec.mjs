@@ -12,7 +12,7 @@ const repositoryRoot = path.resolve(testDirectory, "..", "..");
 const photoFixture = path.join(repositoryRoot, "tests", "fixtures", "browser", "neutral-test-object.svg");
 const screenshotDirectory = path.join(repositoryRoot, "test-results", "review-screenshots");
 
-function createDemandingBmpFixture(filePath, width = 1800, height = 1800) {
+function createDemandingBmpFixture(filePath, width = 6000, height = 6000) {
   const rowBytes = Math.ceil((width * 3) / 4) * 4;
   const pixelBytes = rowBytes * height;
   const bitmap = Buffer.alloc(54 + pixelBytes);
@@ -35,6 +35,69 @@ function createDemandingBmpFixture(filePath, width = 1800, height = 1800) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, bitmap);
   return bitmap.length;
+}
+
+async function createOrdinaryPngFixture(page, filePath) {
+  const dataUrl = await page.evaluate(() => {
+    const baseSize = 280;
+    const source = document.createElement("canvas");
+    source.width = baseSize;
+    source.height = baseSize;
+    const context = source.getContext("2d", { alpha: false });
+    const unit = baseSize / 1100;
+    context.fillStyle = "#f8f8f3";
+    context.fillRect(0, 0, baseSize, baseSize);
+    context.strokeStyle = "#d4e8ee";
+    context.lineWidth = 1;
+    for (let offset = -baseSize; offset < baseSize * 2; offset += 30) {
+      context.beginPath();
+      context.moveTo(offset, 0);
+      context.lineTo(offset - baseSize, baseSize);
+      context.stroke();
+    }
+    context.fillStyle = "#0f4d68";
+    context.fillRect(60 * unit, 60 * unit, 980 * unit, 125 * unit);
+    context.fillStyle = "#ffffff";
+    context.font = `bold ${59 * unit}px Arial`;
+    context.fillText("Office Works", 105 * unit, 145 * unit);
+    context.fillStyle = "#ffffff";
+    context.strokeStyle = "#0f4d68";
+    context.lineWidth = Math.max(2, 7 * unit);
+    context.fillRect(90 * unit, 250 * unit, 920 * unit, 625 * unit);
+    context.strokeRect(90 * unit, 250 * unit, 920 * unit, 625 * unit);
+    context.fillStyle = "#153d50";
+    context.font = `bold ${43 * unit}px Arial`;
+    context.fillText("Strip and Seal", 150 * unit, 360 * unit);
+    context.fillText("Security Envelopes", 150 * unit, 418 * unit);
+    context.font = `${35 * unit}px Arial`;
+    context.fillText("White", 150 * unit, 518 * unit);
+    context.fillText("45 Count", 150 * unit, 570 * unit);
+    context.font = `bold ${33 * unit}px monospace`;
+    context.fillText("UPC 041226087161", 150 * unit, 700 * unit);
+    context.fillStyle = "#e5edf0";
+    context.fillRect(150 * unit, 750 * unit, 750 * unit, 45 * unit);
+    context.fillStyle = "#183f50";
+    for (let index = 0; index < 48; index += 1) {
+      const width = (index % 5 === 0 ? 5 : index % 3 === 0 ? 3 : 2) * unit;
+      context.fillRect((180 + index * 13.5) * unit, 755 * unit, Math.max(1, width), 35 * unit);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 2200;
+    canvas.height = 2200;
+    const output = canvas.getContext("2d", { alpha: false });
+    output.imageSmoothingEnabled = false;
+    output.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  });
+  const buffer = Buffer.from(dataUrl.split(",", 2)[1] || "", "base64");
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, buffer);
+  return {
+    format: "png",
+    width: 2200,
+    height: 2200,
+    bytes: buffer.length
+  };
 }
 
 function dataUrlByteLength(dataUrl) {
@@ -431,6 +494,7 @@ async function installBrowserGuards(page, scenario) {
       state.analysisRequests.push({
         method: request.method(),
         url: request.url(),
+        bodyBytes: Buffer.byteLength(request.postData() || "", "utf8"),
         body
       });
       const handlerResult = scenario.handlerState
@@ -482,15 +546,17 @@ async function configureForm(page, scenario, state) {
   }
 
   if (scenario.purpose === "personal_use" || scenario.purpose === "resale") {
-    const context = scenario.evidenceMode === "retail" && scenario.purpose === "personal_use"
+    const context = scenario.purchaseContext || (scenario.evidenceMode === "retail" && scenario.purpose === "personal_use"
       ? "retail_store"
-      : "private_seller";
+      : "private_seller");
     await page.locator("#purchase_context").selectOption(context);
     if (context === "retail_store") {
       await page.locator("#store_name").fill("Example Office Store");
       await page.locator("#location_zip").fill("30188");
     } else {
-      await page.locator("#retailer_or_marketplace_name").fill("Deterministic private seller");
+      await page.locator("#retailer_or_marketplace_name").fill(
+        scenario.retailerName || (scenario.tokenBudgetFixture ? "Office Works" : "Deterministic private seller")
+      );
     }
   }
 
@@ -502,11 +568,13 @@ async function configureForm(page, scenario, state) {
   const productDetails = page.locator("details.details-panel").first();
   await productDetails.locator("summary").click();
   await page.locator("#item_name").fill(
-    scenario.evidenceMode === "collectible"
+    scenario.itemName || (scenario.evidenceMode === "collectible"
       ? "Riverton Falcons 1999 Champions collector tray"
-      : "Cedarline Privacy Mailers"
+      : "Cedarline Privacy Mailers")
   );
-  await page.locator("#known_brand").fill(scenario.evidenceMode === "collectible" ? "RefreshCo" : "Cedarline");
+  await page.locator("#known_brand").fill(
+    scenario.knownBrand || (scenario.evidenceMode === "collectible" ? "RefreshCo" : "Cedarline")
+  );
   if (scenario.evidenceMode === "retail") {
     await page.locator("#known_upc").fill(scenario.tokenBudgetFixture ? "041226087161" : "012345678905");
   }
@@ -1043,8 +1111,9 @@ async function runSuccessfulScenario(page, scenario, projectName) {
 }
 
 test("real form submits one retail analysis and renders canonical cards", async ({ page }, testInfo) => {
-  const demandingPhotoPath = testInfo.outputPath("demanding-token-budget-photo.bmp");
-  const originalPhotoBytes = createDemandingBmpFixture(demandingPhotoPath);
+  testInfo.setTimeout(180_000);
+  const ordinaryPhotoPath = testInfo.outputPath("ordinary-office-works-2200.png");
+  const ordinarySource = await createOrdinaryPngFixture(page, ordinaryPhotoPath);
   const result = await runSuccessfulScenario(page, {
     evidenceMode: "retail",
     purpose: "personal_use",
@@ -1053,9 +1122,14 @@ test("real form submits one retail analysis and renders canonical cards", async 
     expectCrossRetailer: true,
     copyParity: true,
     tokenBudgetFixture: true,
-    photoFixture: demandingPhotoPath
+    purchaseContext: "online_retailer",
+    retailerName: "Office Works",
+    itemName: "Office Works Strip and Seal Security Envelopes White 45 Count",
+    knownBrand: "Office Works",
+    photoFixture: ordinaryPhotoPath
   }, testInfo.project.name);
-  const request = result.state.analysisRequests[0].body;
+  const submittedRequest = result.state.analysisRequests[0];
+  const request = submittedRequest.body;
   const processed = request.photos[0].dataUrl;
   const processedPhotoBytes = dataUrlByteLength(processed);
   const processedImage = await page.evaluate((dataUrl) => new Promise((resolve, reject) => {
@@ -1064,18 +1138,89 @@ test("real form submits one retail analysis and renders canonical cards", async 
     image.onerror = () => reject(new Error("Processed image could not be decoded."));
     image.src = dataUrl;
   }), processed);
-  expect(originalPhotoBytes).toBeGreaterThan(9000000);
+  expect(ordinarySource).toEqual(expect.objectContaining({
+    format: "png",
+    width: 2200,
+    height: 2200
+  }));
+  expect(ordinarySource.bytes).toBeGreaterThanOrEqual(100000);
+  expect(ordinarySource.bytes).toBeLessThanOrEqual(140000);
   expect(processed).toMatch(/^data:image\/jpeg;base64,/);
   expect(processedPhotoBytes).toBeGreaterThan(0);
   expect(processedPhotoBytes).toBeLessThanOrEqual(240000);
-  expect(processedPhotoBytes).toBeLessThan(originalPhotoBytes);
+  expect(processedPhotoBytes).toBeLessThan(ordinarySource.bytes);
   expect(Math.max(processedImage.width, processedImage.height)).toBeLessThanOrEqual(1400);
+  expect(processed.length).toBeGreaterThan(0);
+  expect(submittedRequest.bodyBytes).toBeLessThan(400000);
+  expect(request.photos).toHaveLength(1);
   expect(JSON.stringify(request).split(processed).length - 1).toBe(1);
   expect(JSON.stringify({
     notes: request.notes,
     buyerIntake: request.buyerIntake,
     platform: request.platform
   })).not.toContain("data:image/");
+  expect(request.notes).toBe("041226087161");
+  expect(request.buyerIntake.known_upc).toBe("041226087161");
+  expect(request.buyerIntake.purchase_context).toBe("online_retailer");
+  expect(result.state.handlerResult.metadata.schemas).toEqual(["item_identity", "consumer_purchase_decision"]);
+  expect(result.state.handlerResult.metadata.finalizerExecutions).toBe(1);
+  expect(result.state.handlerResult.metadata.unexpectedNodeNetworkAttempts).toEqual([]);
+  expect(await page.locator("#photos").evaluate((input) => input.files?.length || 0)).toBe(0);
+  expect(await page.locator(".photo-preview-item").count()).toBe(1);
+
+  const demandingPhotoPath = testInfo.outputPath("demanding-token-budget-photo-6000.bmp");
+  const demandingSourceBytes = createDemandingBmpFixture(demandingPhotoPath);
+  const demandingPage = await page.context().newPage();
+  try {
+    const demandingScenario = {
+      evidenceMode: "retail",
+      purpose: "personal_use",
+      expectedValuationState: "current_retail",
+      expectCrossRetailer: true,
+      tokenBudgetFixture: true,
+      purchaseContext: "online_retailer",
+      retailerName: "Office Works",
+      itemName: "Office Works Strip and Seal Security Envelopes White 45 Count",
+      knownBrand: "Office Works",
+      photoFixture: demandingPhotoPath
+    };
+    const demandingState = await installBrowserGuards(demandingPage, demandingScenario);
+    await configureForm(demandingPage, demandingScenario, demandingState);
+    await demandingPage.locator("#workflow-submit-button").click();
+    await expect.poll(() => demandingState.analysisRequests.length).toBe(1);
+    await expect(demandingPage.locator(".canonical-evidence-section")).toHaveCount(1);
+    assertSubmittedRequest(demandingState, demandingScenario);
+    assertStable(demandingState);
+    const demandingSubmission = demandingState.analysisRequests[0];
+    const demandingRequest = demandingSubmission.body;
+    const demandingProcessed = demandingRequest.photos[0].dataUrl;
+    const demandingProcessedBytes = dataUrlByteLength(demandingProcessed);
+    const demandingImage = await demandingPage.evaluate((dataUrl) => new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve({ width: image.width, height: image.height });
+      image.onerror = () => reject(new Error("Processed demanding image could not be decoded."));
+      image.src = dataUrl;
+    }), demandingProcessed);
+    expect(demandingSourceBytes).toBe(108000054);
+    expect(demandingProcessed).toMatch(/^data:image\/jpeg;base64,/);
+    expect(demandingProcessedBytes).toBeGreaterThan(processedPhotoBytes);
+    expect(demandingProcessedBytes).toBeLessThanOrEqual(240000);
+    expect(demandingSubmission.bodyBytes).toBeGreaterThan(submittedRequest.bodyBytes);
+    expect(demandingSubmission.bodyBytes).toBeLessThan(400000);
+    expect(Math.max(demandingImage.width, demandingImage.height)).toBeLessThanOrEqual(1400);
+    expect(demandingRequest.photos).toHaveLength(1);
+    expect(JSON.stringify(demandingRequest).split(demandingProcessed).length - 1).toBe(1);
+    expect(JSON.stringify({
+      notes: demandingRequest.notes,
+      buyerIntake: demandingRequest.buyerIntake,
+      platform: demandingRequest.platform
+    })).not.toContain("data:image/");
+    expect(demandingState.handlerResult.metadata.schemas).toEqual(["item_identity", "consumer_purchase_decision"]);
+    expect(demandingState.handlerResult.metadata.finalizerExecutions).toBe(1);
+    expect(demandingState.handlerResult.metadata.unexpectedNodeNetworkAttempts).toEqual([]);
+  } finally {
+    await demandingPage.close();
+  }
 });
 
 test("Buy to Resell renders canonical evidence exactly once", async ({ page }, testInfo) => {
