@@ -17,7 +17,8 @@ function observation({
   strong = false,
   pageType = "product",
   quantity = 12,
-  sourceQuality = "search_snippet"
+  sourceQuality = "search_snippet",
+  sourceChannel = ""
 }) {
   return {
     sourceRecordId: id,
@@ -35,6 +36,7 @@ function observation({
     price,
     priceType,
     sourceQuality,
+    sourceChannel,
     dimensions: "4 x 6 inches",
     packageType: "test package"
   };
@@ -86,7 +88,8 @@ function completeFixture(displayLimit = 20) {
         url: "https://reference.example/item/exact-012345678905",
         title: "Exact Test Product identity page",
         priceType: "Reference/archive",
-        exact: true
+        exact: true,
+        sourceChannel: "conventional_retail"
       }),
       observation({
         id: "compatible-ask",
