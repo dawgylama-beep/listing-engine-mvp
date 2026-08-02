@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "captureDate": "2026-08-02",
+  "eligibleCaseCount": 8,
+  "cases": [
+    {
+      "caseId": "OBJ-001",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-001-A",
+          "url": "https://world.openfoodfacts.org/product/3017620422003/nutella",
+          "sourceStatus": "VERIFIED_EXACT_ITEM_BY_GTIN",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Nutella hazelnut-and-cocoa spread, 400 g glass jar, GTIN 3017620422003; photographed legacy label revision",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The record and the visible barcode agree on GTIN 3017620422003; same-session images 60 and 65 show the same 400 g jar."
+        },
+        {
+          "sourceId": "EXACT-OBJ-001-B",
+          "url": "https://www.solucious.be/tech-fiche/71275/pdf?_locale=fr",
+          "sourceStatus": "VERIFIED_EXACT_ITEM_TECHNICAL_SHEET",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Nutella 400 g, GTIN 3017620422003",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The supplier technical sheet explicitly pairs the 400 g package with GTIN 3017620422003."
+        }
+      ],
+      "requiredDistractorId": "DST-001"
+    },
+    {
+      "caseId": "OBJ-002",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-002-A",
+          "url": "https://commons.wikimedia.org/wiki/File:Bialetti_moka_mini_express_1_tazza_01.jpg",
+          "sourceStatus": "VERIFIED_EXACT_PHOTOGRAPHED_ITEM_RECORD",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Bialetti Mini Express, one-cup/1 tazza stovetop espresso maker, single delivery spout and cup platform",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The independent object record identifies the same photographed item and records its visible 'Mini express / 1 tazza / design L. Bialetti' inscriptions and dimensions."
+        },
+        {
+          "sourceId": "EXACT-OBJ-002-B",
+          "url": "https://www.bialetti.co.nz/products/moka-express-dama-mini-express-break-ring-filter-pack",
+          "sourceStatus": "VERIFIED_MANUFACTURER_FAMILY_AND_SIZE_SUPPORT",
+          "price": {"amount": 13.99, "currency": "NZD", "type": "replacement_part"},
+          "shipping": null,
+          "packageModelVariation": "Bialetti Mini Express one-cup compatible ring/filter size",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "Bialetti's regional site documents Mini Express compatibility in the one-cup size; the listed price is for the replacement part, not the photographed brewer."
+        }
+      ],
+      "requiredDistractorId": "DST-002"
+    },
+    {
+      "caseId": "OBJ-003",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-003-A",
+          "url": "https://support.stanleytools.com/hc/en-us/articles/360012603777-No-78-Duplex-Rabbet-Plane-Instructions",
+          "sourceStatus": "VERIFIED_MANUFACTURER_ARCHIVE_EXACT_MODEL",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Stanley No. 78 duplex rabbet/fillister plane, US model 12-078, 8.5-inch cast-iron body with 1.5-inch cutter",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "Stanley documents the No. 78/12-078 model, dimensions, construction, cutter, uses, and original manual; the photographed tool has the same No. 78 configuration."
+        }
+      ],
+      "requiredDistractorId": "DST-003"
+    },
+    {
+      "caseId": "OBJ-004",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-004-A",
+          "url": "https://www.raspberrypi.com/products/raspberry-pi-4-model-b/",
+          "sourceStatus": "VERIFIED_MANUFACTURER_EXACT_DESIGN",
+          "price": {"amount": 35, "currency": "USD", "type": "manufacturer_from_price"},
+          "shipping": null,
+          "packageModelVariation": "Raspberry Pi 4 Model B board; RAM capacity not visually resolved",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "Visible board silkscreen and connector layout match the official Raspberry Pi 4 Model B product and specification pages."
+        },
+        {
+          "sourceId": "EXACT-OBJ-004-B",
+          "url": "https://www.raspberrypi.com/products/raspberry-pi-4-model-b/specifications/",
+          "sourceStatus": "VERIFIED_MANUFACTURER_SPECIFICATION",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Raspberry Pi 4 Model B, RAM variants 1/2/4/8 GB",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "Official port, processor, connectivity, power, and variant specifications match the photographed design family while preserving RAM uncertainty."
+        }
+      ],
+      "requiredDistractorId": "DST-004"
+    },
+    {
+      "caseId": "OBJ-005",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-005-A",
+          "url": "https://commons.wikimedia.org/wiki/File:Flewelling_Office_Chair_(1966),_003.jpg",
+          "sourceStatus": "VERIFIED_EXACT_PHOTOGRAPHED_ITEM_RECORD",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Flewelling office chair documented as 1966, molded shell with metal pedestal/caster base",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The open-license same-session object record independently names and dates the exact photographed chair; the paired view is from the same minute and object series."
+        }
+      ],
+      "requiredDistractorId": "DST-005"
+    },
+    {
+      "caseId": "OBJ-006",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-006-A",
+          "url": "https://www.casio.com/in/watches/casio/product.F-91W-1/",
+          "sourceStatus": "VERIFIED_MANUFACTURER_EXACT_MODEL",
+          "price": {"amount": 1295, "currency": "INR", "type": "manufacturer_mrp"},
+          "shipping": null,
+          "packageModelVariation": "Casio F-91W-1 black resin digital watch, module 593 family",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "Visible F-91W face markings, colors, resin case/band, dimensions, and functions match Casio's official F-91W-1 page."
+        }
+      ],
+      "requiredDistractorId": "DST-006"
+    },
+    {
+      "caseId": "OBJ-011",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-011-A",
+          "url": "https://www.rubiks.com/products/rubiks-3x3",
+          "sourceStatus": "VERIFIED_EXACT_DESIGN_FAMILY_NOT_BRAND_PROOF",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Standard solved six-color 3x3x3 color-matching twisty cube design",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The official design has six faces with nine colored squares each, matching the photographed 3x3 form; absence of a legible maker mark means exact Rubik brand is not frozen as proven."
+        }
+      ],
+      "requiredDistractorId": "DST-007"
+    },
+    {
+      "caseId": "OBJ-012",
+      "sources": [
+        {
+          "sourceId": "EXACT-OBJ-012-A",
+          "url": "https://collection.sciencemuseumgroup.org.uk/objects/co8184134/nintendo-game-boy",
+          "sourceStatus": "VERIFIED_MUSEUM_EXACT_MODEL",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Original gray Nintendo Game Boy handheld, model DMG-01",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "The museum record names Nintendo, Game Boy, and model DMG-01 and documents the same original gray form and dimensions."
+        },
+        {
+          "sourceId": "EXACT-OBJ-012-B",
+          "url": "https://www.mplus.org.hk/en/collection/objects/game-boy-portable-video-game-console-model-dmg-01-2016545/",
+          "sourceStatus": "VERIFIED_MUSEUM_EXACT_MODEL",
+          "price": null,
+          "shipping": null,
+          "packageModelVariation": "Nintendo Game Boy portable console, DMG-01",
+          "captureDate": "2026-08-02",
+          "exactnessBasis": "A second independent museum collection record identifies Nintendo as manufacturer and DMG-01 as model."
+        }
+      ],
+      "requiredDistractorId": "DST-008"
+    }
+  ]
+}

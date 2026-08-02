@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "productVisible": true,
+  "descriptionPolicy": "Only neutral transcriptions of characters genuinely visible in supplied photographs are permitted. PHOTO_ONLY descriptions are empty.",
+  "cases": [
+    {
+      "caseId": "OBJ-001",
+      "lane": "BARCODE_OR_MODEL",
+      "principalPurpose": "PERSONAL_BUY",
+      "description": "3017620422003",
+      "images": ["assets/obj-001-a.jpg", "assets/obj-001-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-002",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "PERSONAL_BUY",
+      "description": "",
+      "images": ["assets/obj-002-a.jpg", "assets/obj-002-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-003",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "RESALE",
+      "description": "",
+      "images": ["assets/obj-003-a.jpg", "assets/obj-003-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-004",
+      "lane": "BARCODE_OR_MODEL",
+      "principalPurpose": "WHATS_IT_WORTH",
+      "description": "Raspberry Pi 4 Model B",
+      "images": ["assets/obj-004-a.jpg", "assets/obj-004-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-005",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "PERSONAL_BUY",
+      "description": "",
+      "images": ["assets/obj-005-a.jpg", "assets/obj-005-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-006",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "principalPurpose": "PERSONAL_BUY",
+      "description": "CASIO | F-91W | WATER RESIST | ALARM CHRONOGRAPH",
+      "images": ["assets/obj-006-a.jpg", "assets/obj-006-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-007",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "WHATS_IT_WORTH",
+      "description": "",
+      "images": ["assets/obj-007-a.jpg", "assets/obj-007-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-008",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "principalPurpose": "RESALE",
+      "description": "BROWNIE HAWKEYE CAMERA | FLASH MODEL",
+      "images": ["assets/obj-008-a.jpg", "assets/obj-008-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-009",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "principalPurpose": "RESALE",
+      "description": "MATTEL, INC. | HOT WHEELS",
+      "images": ["assets/obj-009-a.jpg", "assets/obj-009-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-010",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "RESALE",
+      "description": "",
+      "images": ["assets/obj-010-a.jpg", "assets/obj-010-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-011",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "WHATS_IT_WORTH",
+      "description": "",
+      "images": ["assets/obj-011-a.jpg", "assets/obj-011-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-012",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "principalPurpose": "MARKETPLACE_LISTING",
+      "description": "Nintendo GAME BOY | DOT MATRIX WITH STEREO SOUND | DMG-01",
+      "images": ["assets/obj-012-a.jpg", "assets/obj-012-b.jpg"]
+    },
+    {
+      "caseId": "OBJ-013",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "MARKETPLACE_LISTING",
+      "description": "",
+      "images": ["assets/obj-013-a.jpg", "assets/obj-013-b.jpg", "assets/obj-013-c.jpg"]
+    },
+    {
+      "caseId": "OBJ-014",
+      "lane": "PHOTO_ONLY",
+      "principalPurpose": "MARKETPLACE_LISTING",
+      "description": "",
+      "images": ["assets/obj-014-a.jpg", "assets/obj-014-b.jpg"]
+    }
+  ]
+}

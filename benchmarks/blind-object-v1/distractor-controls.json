@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "distractorCount": 8,
+  "controls": [
+    {
+      "distractorId": "DST-001",
+      "caseId": "OBJ-001",
+      "url": "https://world.openfoodfacts.org/product/8000500426494/nutella-plant-based",
+      "label": "Nutella Plant-Based 350 g",
+      "plausibility": "Same brand, jar format, and hazelnut-spread product family.",
+      "whyNotSame": "It is a plant-based 350 g formulation with GTIN 8000500426494, not the photographed conventional 400 g jar with GTIN 3017620422003.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-002",
+      "caseId": "OBJ-002",
+      "url": "https://www.bialettishop.com.br/nuova-moka-express-bialetti-452",
+      "label": "Bialetti Moka Express 1-cup",
+      "plausibility": "Same manufacturer, one-cup capacity, aluminum boiler, and stovetop brewing family.",
+      "whyNotSame": "The Moka Express has a conventional upper collecting chamber and lid; the photographed Mini Express has an exposed delivery spout and cup platform.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-003",
+      "caseId": "OBJ-003",
+      "url": "https://www.stanleytools.com/product/12-978/10-bullnose-rabbet-plane",
+      "label": "Stanley 12-978 10-inch bullnose rabbet plane",
+      "plausibility": "Stanley calls it a similar currently manufactured rabbet-plane version with two cutter positions, gauge, and fence.",
+      "whyNotSame": "The distractor is the later 10-inch 12-978 design; the photographed object is the older 8.5-inch No. 78/12-078 duplex rabbet and fillister plane.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-004",
+      "caseId": "OBJ-004",
+      "url": "https://www.raspberrypi.com/products/raspberry-pi-5/",
+      "label": "Raspberry Pi 5",
+      "plausibility": "Same manufacturer and broadly similar single-board-computer form factor and connector family.",
+      "whyNotSame": "Pi 5 has a different SoC and board layout, PCIe and fan connectors, rearranged display/camera connectors, and different printed model identity; the photos show Pi 4 Model B.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-005",
+      "caseId": "OBJ-005",
+      "url": "https://www.1stdibs.com/furniture/seating/office-chairs-desk-chairs/flewelling-armchair-faux-perforated-vinyl-circa-1970/id-f_5042113/",
+      "label": "Flewelling faux-perforated-vinyl armchair, circa 1970",
+      "plausibility": "Same Flewelling maker family, period, perforated shell language, and office-seating context.",
+      "whyNotSame": "The listing describes a circa-1970 tubular chrome armchair; the photographed 1966 chair uses a pedestal/caster office base and a different shell/base construction.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-006",
+      "caseId": "OBJ-006",
+      "url": "https://www.casio.com/ca-en/watches/casio/standard/standard/products/f-91w/",
+      "label": "Casio F-91W-3 green-accent variant",
+      "plausibility": "Same F-91W series, case, module family, resin band, and functions.",
+      "whyNotSame": "The F-91W-3 is the green-accent variant; the photographed watch has the black/blue/red F-91W-1 face treatment.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-007",
+      "caseId": "OBJ-011",
+      "url": "https://www.rubiks.com/products/rubiks-retro",
+      "label": "Rubik's Retro 50th-anniversary cube",
+      "plausibility": "Same official 3x3 cube topology and classic color-matching purpose.",
+      "whyNotSame": "The Retro edition has intentionally boxy edges, slower turning, stickers, a gold side, and an anniversary logo; the photographed cube has modern rounded candy-color plastic pieces and no supported Retro details.",
+      "mustRejectAsExact": true
+    },
+    {
+      "distractorId": "DST-008",
+      "caseId": "OBJ-012",
+      "url": "https://collection.sciencemuseumgroup.org.uk/objects/co8184135/nintendo-game-boy-pocket",
+      "label": "Nintendo Game Boy Pocket MGB-001",
+      "plausibility": "Same Nintendo monochrome handheld lineage, controls, cartridge ecosystem, and product name.",
+      "whyNotSame": "The Pocket is the smaller 1996 MGB-001 revision powered by two AAA batteries; the photographed original is the larger four-AA gray DMG-01.",
+      "mustRejectAsExact": true
+    }
+  ]
+}

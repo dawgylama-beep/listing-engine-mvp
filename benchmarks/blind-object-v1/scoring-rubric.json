@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "frozenBeforeProductResults": true,
+  "totalPoints": 100,
+  "sections": [
+    {"key": "identity", "label": "Identity", "points": 20},
+    {"key": "uncertaintyAndAlternatives", "label": "Uncertainty and alternatives", "points": 10},
+    {"key": "exactEvidenceRecovery", "label": "Exact evidence recovery", "points": 15},
+    {"key": "evidenceAssociation", "label": "Evidence association", "points": 10},
+    {"key": "marketInterpretationAndValuation", "label": "Market interpretation and valuation", "points": 15},
+    {"key": "purposeSpecificJudgment", "label": "Purpose-specific judgment", "points": 10},
+    {"key": "practicalActionPlan", "label": "Practical action plan", "points": 10},
+    {"key": "confidenceCalibration", "label": "Confidence calibration", "points": 10}
+  ],
+  "thresholds": {
+    "overallScoreMinimum": 80,
+    "identityCapabilityMinimumPercent": 80,
+    "exactEvidenceRecoveryMinimumPercent": 70,
+    "evidenceAssociationCorrectnessMinimumPercent": 95,
+    "similarSourceRejectionMinimumPercent": 90,
+    "purposeInvarianceIdentityConsistencyRequiredPercent": 100,
+    "actionPlanCompletenessMinimumPercent": 80,
+    "confidenceCalibrationMinimumPercent": 75,
+    "confidentFalseExactsOnAmbiguousCaseMaximum": 0,
+    "wrongKnownAnswerControlSubstitutionsMaximum": 0,
+    "inventedSourcesOrTransactionFactsMaximum": 0
+  },
+  "criticalFailures": [
+    "CONFIDENT_FALSE_EXACT_ON_AMBIGUOUS_CASE",
+    "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION",
+    "INVENTED_SOURCE",
+    "INVENTED_TRANSACTION_FACT"
+  ],
+  "aggregationPolicy": {
+    "overallScore": "mean of all planned run scores",
+    "identityCapability": "percentage of principal cases earning at least 16/20 identity points",
+    "exactEvidenceRecovery": "percentage of exact-source-eligible principal cases recovering at least one verified exact source without accepting its distractor",
+    "evidenceAssociationCorrectness": "correct source-to-case associations divided by all asserted associations",
+    "similarSourceRejection": "required distractors correctly rejected divided by all required distractors",
+    "purposeInvarianceIdentityConsistency": "anchors whose canonical identity key is unchanged across all four purposes divided by four",
+    "actionPlanCompleteness": "required action elements present divided by all required action elements",
+    "confidenceCalibration": "runs whose confidence falls within the frozen acceptable interval divided by all runs"
+  }
+}
