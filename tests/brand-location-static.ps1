@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
+$indexUtf8 = Get-Content (Join-Path $Root "public/index.html") -Raw -Encoding UTF8
 $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
 $manifest = Get-Content (Join-Path $Root "public/manifest.webmanifest") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
@@ -34,12 +35,11 @@ $checks = @(
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
   @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine" },
-  @{ Name = "Meta description uses Katherine's Eye"; Text = $index; Pattern = 'name="description" content="Katherine' },
+  @{ Name = "Meta description uses the approved customer descriptor"; Text = $index; Pattern = 'name="description" content="Your guide to identifying, valuing, buying, and selling the things around you."' },
   @{ Name = "Open Graph metadata uses Katherine's Eye"; Text = $index; Pattern = 'property="og:title" content="Katherine' },
   @{ Name = "Twitter metadata uses Katherine's Eye"; Text = $index; Pattern = 'name="twitter:title" content="Katherine' },
   @{ Name = "Apple app title uses Katherine's Eye"; Text = $index; Pattern = 'name="apple-mobile-web-app-title" content="Katherine' },
   @{ Name = "Manifest name uses Katherine's Eye"; Text = $manifest; Pattern = '"name": "Katherine' },
-  @{ Name = "Header uses Katherine's Eye"; Text = $index; Pattern = '<h1 id="app-title">Katherine' },
   @{ Name = "Ask label uses Katherine's Eye"; Text = $index; Pattern = "Ask Katherine" },
   @{ Name = "Loading state uses Katherine's Eye"; Text = $app; Pattern = "Katherine" },
   @{ Name = "API prompt uses Katherine's Eye"; Text = $api; Pattern = "buyer-first market intelligence assistant" },
@@ -83,6 +83,24 @@ foreach ($check in $checks) {
   } elseif (-not $contains) {
     $failed += $check.Name
   }
+}
+
+$appTitleIdMatches = [regex]::Matches($indexUtf8, '(?is)\bid\s*=\s*"app-title"')
+$appTitleHeadingMatches = [regex]::Matches($indexUtf8, '(?is)<h1\b(?=[^>]*\bid\s*=\s*"app-title")[^>]*>(.*?)</h1>')
+if ($appTitleIdMatches.Count -ne 1 -or $appTitleHeadingMatches.Count -ne 1) {
+  $failed += 'Exactly one principal h1 heading must have id="app-title"'
+} else {
+  $appTitleWithoutTags = [regex]::Replace($appTitleHeadingMatches[0].Groups[1].Value, '(?is)<[^>]+>', ' ')
+  $normalizedAppTitle = [regex]::Replace([System.Net.WebUtility]::HtmlDecode($appTitleWithoutTags), '\s+', ' ').Trim()
+  $expectedAppTitle = "Katherine$([char]0x2019)s Eye"
+  if ($normalizedAppTitle -cne $expectedAppTitle) {
+    $failed += "The normalized app-title heading text must be exactly Katherine$([char]0x2019)s Eye"
+  }
+}
+
+$workspaceLabelMatches = [regex]::Matches($indexUtf8, '(?is)<(?:main|section|div)\b(?=[^>]*\bclass\s*=\s*"[^"]*\bworkspace\b[^"]*")(?=[^>]*\baria-labelledby\s*=\s*"[^"]*\bapp-title\b[^"]*")[^>]*>')
+if ($workspaceLabelMatches.Count -ne 1) {
+  $failed += 'The main workspace must be associated with app-title through aria-labelledby'
 }
 
 $obsoletePatterns = @(

@@ -5,6 +5,7 @@ Remove-Item Env:OPEN_API_KEY -ErrorAction SilentlyContinue
 Remove-Item Env:SERPER_API_KEY -ErrorAction SilentlyContinue
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "helpers\native-git.ps1")
 $apiPath = Join-Path $root "api\generate-listing.js"
 $rangePath = Join-Path $root "lib\evidence\range.js"
 $publicPath = Join-Path $root "public\app.js"
@@ -36,7 +37,8 @@ if (($rangeSource | Select-String -Pattern "CANONICAL_RANGE_MINIMUM_INDEPENDENT_
 if (($rangeSource | Select-String -Pattern "export function deriveRetailLimitResult\s*\(" -AllMatches).Matches.Count -ne 1) {
   throw "Canonical retail-limit authority is missing or duplicated."
 }
-$addedApiLines = git -C $root diff --unified=0 -- api/generate-listing.js |
+$gitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--unified=0", "--", "api/generate-listing.js")
+$addedApiLines = $gitDiff.StandardOutput -split "`r?`n" |
   Where-Object { $_ -match "^\+(?!\+\+)" }
 if (($addedApiLines -join "`n") -cmatch "Office Works|Kroger|Coca-Cola|Georgia Bulldogs|Mercari") {
   throw "Product- or source-specific production logic was added."

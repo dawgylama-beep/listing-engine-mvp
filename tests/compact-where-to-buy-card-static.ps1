@@ -27,9 +27,10 @@ Require-Contains "Where to Buy uses one canonical list container" $app 'const li
 Require-Contains "Compact list class is used" $app 'list.className = "prices-found-list compact-price-list";'
 Require-Contains "Canonical cards render through one list" $app "viewModel.cards.forEach"
 Require-Contains "Retail result is a compact list row" $app 'const card = document.createElement("li");'
-Require-Contains "Compact row class is used" $app 'card.className = "price-found-row";'
+Require-Contains "Compact row class is used" $app 'card.className = `price-found-row match-${matchModifier}`;'
 Require-Contains "Canonical evidence ID is attached to row" $app "card.dataset.evidenceId = item.evidenceId;"
-Require-Contains "Canonical source and price share lead line" $app 'source.textContent = `${item.sourceLabel} — ${item.customerPriceLabel}`;'
+Require-Contains "Canonical source is prominent" $app "source.textContent = item.sourceLabel;"
+Require-Contains "Canonical customer price is prominent" $app "priceValue.textContent = item.customerPriceLabel;"
 Require-Contains "Canonical quantity and attributes are formatted once" $model "function formatQuantity"
 Require-Contains "Canonical important attributes are formatted once" $model "function formatAttributes"
 Require-Contains "Canonical price type is preserved" $model "const canonicalPriceType = cleanText(record.canonicalPriceType)"

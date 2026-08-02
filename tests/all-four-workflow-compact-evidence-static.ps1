@@ -39,8 +39,8 @@ foreach ($workflow in @(
 foreach ($title in @(
   'title: "Buying for Myself"',
   'title: "Buying to Resell"',
-  'title: "Value Something I Own"',
-  'title: "Sell Something I Own"'
+  'It Worth?"',
+  'title: "Create a Listing"'
 )) {
   Require-Contains "Workflow title remains available: $title" $app $title
 }
@@ -53,9 +53,10 @@ Require-Contains "Presentation model fails closed" $model 'status: "evidence_una
 Require-Contains "App passes only canonical evidence inputs" $app "return builder(report.customerEvidence, report.customerEvidenceSummary);"
 Require-Contains "Shared renderer consumes view-model cards" $app "viewModel.cards.forEach((card) => list.appendChild(renderCustomerEvidenceCard(card)));"
 Require-Contains "Compact renderer uses one list" $app 'list.className = "prices-found-list compact-price-list";'
-Require-Contains "Compact row class remains shared" $app 'card.className = "price-found-row";'
+Require-Contains "Compact row class remains shared" $app 'card.className = `price-found-row match-${matchModifier}`;'
 Require-Contains "Rendered row preserves canonical evidence ID" $app "card.dataset.evidenceId = item.evidenceId;"
-Require-Contains "Rendered row uses canonical source label" $app 'source.textContent = `${item.sourceLabel} — ${item.customerPriceLabel}`;'
+Require-Contains "Rendered row uses canonical source label" $app "source.textContent = item.sourceLabel;"
+Require-Contains "Rendered row uses canonical customer price" $app "priceValue.textContent = item.customerPriceLabel;"
 Require-Contains "Rendered row uses canonical match label" $app "item.canonicalMatchLabel"
 Require-Contains "Rendered row uses canonical price type" $app "item.canonicalPriceType"
 Require-Contains "Source link uses canonical destination URL" $app "link.href = item.destinationUrl;"

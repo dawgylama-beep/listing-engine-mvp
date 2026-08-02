@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "helpers/native-git.ps1")
 $apiPath = Join-Path $root "api/generate-listing.js"
 $appPath = Join-Path $root "public/app.js"
 $browserModelPath = Join-Path $root "public/customer-evidence.js"
@@ -53,7 +54,12 @@ Require-True ($app -match 'link\.href\s*=\s*item\.destinationUrl') "Rendered sou
 Require-True ($app -notmatch 'index\s*===\s*0.*Best price|Best price.*index\s*===\s*0') "Frontend still selects a Best price by position."
 Require-True (-not $app.Contains("pricesFound")) "Frontend still reads or configures the deprecated pricesFound projection."
 Require-True ($app -match 'function renderCanonicalCustomerEvidenceSection\s*\(') "Shared all-purpose canonical evidence renderer is missing."
-Require-True ((Count-Matches $app 'renderCanonicalCustomerEvidenceSection\(report\)') -eq 3) "Canonical evidence must render once in each exclusive product-analysis rendering branch."
+$renderReportMatch = [regex]::Match($app, '(?s)function renderReport\(report, sections\)\s*\{.*?\n\}\s*\n\s*function renderReportIdentityHeader')
+Require-True $renderReportMatch.Success "The product-analysis report renderer could not be isolated."
+$renderReportSource = $renderReportMatch.Value
+Require-True ((Count-Matches $renderReportSource 'renderCanonicalCustomerEvidenceSection\(report\)') -eq 2) "Canonical evidence must render exactly once in each top-level product-analysis report path."
+Require-True ($renderReportSource -match 'if\s*\(isConsumerReport\(report\)\)\s*\{[\s\S]*?renderConsumerCompactSummary\(report, currentWorkflow\)[\s\S]*?renderActionPlan\(report, currentWorkflow\)[\s\S]*?renderCanonicalCustomerEvidenceSection\(report\)[\s\S]*?renderCustomerTechnicalSearchDetails\(report\)[\s\S]*?return;') "Consumer reports must render canonical evidence after guidance and before collapsed technical details."
+Require-True ($renderReportSource -match 'renderExecutiveSummary\(report, currentWorkflow\)[\s\S]*?renderActionPlan\(report, currentWorkflow\)[\s\S]*?renderCanonicalCustomerEvidenceSection\(report\)[\s\S]*?buildSectionCards\(report, sections, isWhySection\)') "Non-consumer reports must render canonical evidence after guidance and before supporting report groups."
 Require-True ($app -match 'return isCurrentRetailOnlyReport\(report\) \? "Where to Buy" : "Market Evidence"') "Evidence section labels are not neutral for mixed priced/no-price evidence."
 Require-True ($app -notmatch '"Prices Found"') "Mixed canonical evidence is still presented under the Prices Found heading."
 Require-True ($app -match 'viewModel\.cards\.forEach\(\(card\) => list\.appendChild\(renderCustomerEvidenceCard\(card\)\)\)') "Rendered evidence does not use canonical view-model order."
@@ -79,7 +85,8 @@ Require-True ($package.devDependencies.'@playwright/test' -ceq "1.62.0") "The ex
 Require-True ($null -eq $package.dependencies -or @($package.dependencies.PSObject.Properties.Name).Count -eq 0) "A production package dependency was added."
 Require-True (@($package.devDependencies.PSObject.Properties).Count -eq 1) "An unrelated direct development dependency was added."
 
-$changed = @(git -C $root diff --name-only)
+$gitChanged = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--name-only")
+$changed = @($gitChanged.StandardOutput -split "`r?`n" | Where-Object { $_.Length -gt 0 })
 # Milestone 2C-1 governs canonical evidence selection and rendering authority.
 # Stylesheet accessibility and visual regressions are enforced by the
 # Milestone 2C-2 browser/DOM runner.
@@ -88,8 +95,66 @@ $changed = @(git -C $root diff --name-only)
 # handler parity are governed by Milestone 2D-2.
 Require-True (-not ($changed -contains "PRODUCT_ROADMAP.md")) "PRODUCT_ROADMAP.md changed."
 
-$productionDiff = (git -C $root diff -- api/generate-listing.js lib/evidence public/app.js public/customer-evidence.js public/index.html) -join "`n"
-Require-True ($productionDiff -cnotmatch '(?m)^\+.*(?:Office Works|Kroger|Target|Coca-Cola|Georgia Bulldogs|Mercari)' ) "Product-specific production condition or literal was added."
+$gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")
+$productionDiff = $gitProductionDiff.StandardOutput
+$addedProductionLines = @($productionDiff -split "`r?`n" | Where-Object { $_ -match '^\+(?!\+\+)' })
+$productLiteralPattern = '(?i)(?<![A-Za-z0-9_$])(?:Office Works|Kroger|Target|Coca-Cola|Georgia Bulldogs|Mercari)(?![A-Za-z0-9_$])'
+
+function Get-ProductLiteralFirewallMatches([string[]]$Lines) {
+  $matchedLines = @()
+  $stringLiteralPatterns = @(
+    '"(?:\\.|[^"\\])*"',
+    "'(?:\\.|[^'\\])*'",
+    '`(?:\\.|[^`\\])*`'
+  )
+
+  foreach ($line in $Lines) {
+    $literalFragments = @()
+    foreach ($literalPattern in $stringLiteralPatterns) {
+      foreach ($literalMatch in [regex]::Matches($line, $literalPattern)) {
+        $literalFragment = $literalMatch.Value.Substring(1, $literalMatch.Value.Length - 2)
+        if ($literalMatch.Value.StartsWith('`')) {
+          $literalFragment = [regex]::Replace($literalFragment, '\$\{[^{}]*\}', '')
+        }
+        $literalFragments += $literalFragment
+      }
+    }
+    foreach ($textMatch in [regex]::Matches($line, '>([^<]+)<')) {
+      $literalFragments += $textMatch.Groups[1].Value
+    }
+    if (($literalFragments -join "`n") -match $productLiteralPattern) {
+      $matchedLines += $line
+    }
+  }
+
+  return $matchedLines
+}
+
+$negativeFirewallControls = @(
+  '+function getCurrencyErrorTarget(message) {',
+  '+function getPurchaseContextErrorTarget(message) {',
+  '+function clearFormErrorForTarget(event) {'
+)
+foreach ($control in $negativeFirewallControls) {
+  Require-True (@(Get-ProductLiteralFirewallMatches @($control)).Count -eq 0) "Product-literal firewall rejected an unrelated programming identifier: $control"
+}
+
+$positiveFirewallControls = @(
+  @{ Name = 'quoted Target retailer literal'; Line = '+const retailer = "Target";' },
+  @{ Name = 'target.com URL'; Line = '+const retailerUrl = "https://www.target.com/p/example";' },
+  @{ Name = 'quoted Kroger literal'; Line = '+const retailer = "Kroger";' },
+  @{ Name = 'quoted Mercari literal'; Line = '+const marketplace = "Mercari";' },
+  @{ Name = 'Georgia Bulldogs control-object phrase'; Line = '+const product = "Georgia Bulldogs collectible";' },
+  @{ Name = 'Coca-Cola control-object phrase'; Line = '+const product = "Coca-Cola tray";' },
+  @{ Name = 'Office Works control-object phrase'; Line = '+const retailer = "Office Works";' }
+)
+foreach ($control in $positiveFirewallControls) {
+  Require-True (@(Get-ProductLiteralFirewallMatches @($control.Line)).Count -eq 1) "Product-literal firewall missed the $($control.Name)."
+}
+Write-Output "Product-literal firewall controls passed: $($negativeFirewallControls.Count)/$($negativeFirewallControls.Count) negative controls and $($positiveFirewallControls.Count)/$($positiveFirewallControls.Count) positive controls."
+
+$productLiteralMatches = @(Get-ProductLiteralFirewallMatches $addedProductionLines)
+Require-True ($productLiteralMatches.Count -eq 0) "Product-specific production condition or literal was added: $($productLiteralMatches -join '; ')"
 
 & node --test `
   (Join-Path $PSScriptRoot "canonical-customer-evidence.test.mjs") `

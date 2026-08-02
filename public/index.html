@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Katherine’s Eye - Buying, Selling and Valuation Intelligence</title>
-    <meta name="description" content="Katherine’s Eye helps buyers, sellers, collectors, and resellers evaluate items from photos, notes, current evidence, and careful pricing logic.">
-    <meta property="og:title" content="Katherine’s Eye - Buying, Selling and Valuation Intelligence">
-    <meta property="og:description" content="Photo-first buying, selling, and valuation intelligence for everyday items, collectibles, and resale decisions.">
+    <title>Katherine’s Eye — Everyday Object Intelligence</title>
+    <meta name="description" content="Your guide to identifying, valuing, buying, and selling the things around you.">
+    <meta property="og:title" content="Katherine’s Eye — Everyday Object Intelligence">
+    <meta property="og:description" content="Your guide to identifying, valuing, buying, and selling the things around you.">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Katherine’s Eye - Buying, Selling and Valuation Intelligence">
@@ -28,41 +28,43 @@
               </span>
               <span class="help-menu-label">Help & Instructions</span>
             </button>
-            <p class="eyebrow">Know before you buy. Then profit if you sell.</p>
-            <h1 id="app-title">Katherine’s Eye</h1>
+            <p class="brand-kicker">Everyday object intelligence</p>
+            <h1 id="app-title"><span>Katherine’s</span> Eye</h1>
+            <p class="brand-descriptor">Your guide to identifying, valuing, buying, and selling the things around you.</p>
+            <p class="brand-intro">Begin with photographs—even when you do not know the item’s exact name. Clear marks, labels, and condition details help Katherine’s Eye give you a more useful answer.</p>
             <p class="version-badge">Version 1.12.1</p>
           </header>
 
           <form id="listing-form" class="listing-form">
             <fieldset id="workflow-field" class="field workflow-field" aria-describedby="workflow-helper">
-              <legend>Purpose</legend>
+              <legend><span class="step-number">1</span> What would you like help with?</legend>
               <div class="workflow-options" role="radiogroup" aria-label="Workflow">
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="personal_use" checked>
                   <span>
                     <strong>Buying for Myself</strong>
-                    <small>Fair-price guidance, comparisons, and a clear buying recommendation.</small>
+                    <small>Check the item, the price, and the smartest place to buy.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="resale">
                   <span>
                     <strong>Buying to Resell</strong>
-                    <small>Margin, resale price, platform fit, risk, and profit guidance.</small>
+                    <small>Understand the margin, risk, likely sale value, and best selling path.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="market_value">
                   <span>
-                    <strong>Value Something I Own</strong>
-                    <small>Identify what you have and estimate its supported market value.</small>
+                    <strong>What’s It Worth?</strong>
+                    <small>Identify the object and understand the evidence supporting its value.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="listing">
                   <span>
-                    <strong>Sell Something I Own</strong>
-                    <small>Set a selling price and create a seller-ready listing.</small>
+                    <strong>Create a Listing</strong>
+                    <small>Build a practical plan for pricing, presenting, and selling the item.</small>
                   </span>
                 </label>
               </div>
@@ -75,11 +77,19 @@
             <div class="field photo-stage">
               <div class="photo-stage-header">
                 <div>
-                  <p class="mini-eyebrow">Photos</p>
-                  <h2>Add Photos</h2>
+                  <p class="mini-eyebrow"><span class="step-number">2</span> Add photographs</p>
+                  <h2>Show Katherine’s Eye what you’re looking at.</h2>
                 </div>
-                <p class="field-note">Add up to 6 item photos. Clear close-ups of labels, marks, and damage usually improve confidence.</p>
+                <p class="field-note">Add up to 6 photographs. You do not need to know the answer before you begin.</p>
               </div>
+              <ul class="photo-guidance-list" aria-label="Helpful photographs">
+                <li>Front</li>
+                <li>Back</li>
+                <li>Label or maker’s mark</li>
+                <li>Model or serial number</li>
+                <li>Damage or condition</li>
+                <li>Packaging, when relevant</li>
+              </ul>
               <div class="photo-inputs photo-actions">
                 <div class="photo-control compact-photo-control">
                   <label class="photo-action" for="camera-photo">
@@ -102,7 +112,7 @@
             <section id="buyer-intake-section" class="field buyer-intake" aria-labelledby="buyer-intake-title">
               <div class="field-heading">
                 <div>
-                  <p id="buyer-intake-eyebrow" class="mini-eyebrow">Purchase details</p>
+                  <p id="buyer-intake-eyebrow" class="mini-eyebrow"><span class="step-number">3</span> Helpful context</p>
                   <h2 id="buyer-intake-title">Buying Details</h2>
                 </div>
                 <p id="buyer-intake-helper" class="field-note">Add what you know. Price, condition, and product details can stay blank if you are not sure.</p>
@@ -329,8 +339,8 @@
             </div>
 
             <div class="field optional-notes-field">
-              <label for="notes">Optional details</label>
-              <textarea id="notes" name="notes" rows="6" placeholder="Label wording, flaws, measurements, seller comments, or anything else useful..."></textarea>
+              <label for="notes">Helpful details <span class="optional-label">Optional</span></label>
+              <textarea id="notes" name="notes" rows="6" placeholder="Share visible wording, measurements, flaws, seller comments, or anything else you noticed."></textarea>
               <p id="notes-note" class="field-note">Optional for buyer workflows. Add ownership or selling details when useful.</p>
             </div>
 
@@ -370,7 +380,7 @@
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
-            <p>Add photos and choose a purpose to start.</p>
+            <p>Your guidance will appear here after Katherine’s Eye reviews the photographs and the details you choose to share.</p>
           </div>
 
           <section id="ask-panel" class="ask-panel" aria-labelledby="ask-title" hidden>

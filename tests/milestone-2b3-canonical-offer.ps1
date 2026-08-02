@@ -5,6 +5,7 @@ Remove-Item Env:OPEN_API_KEY -ErrorAction SilentlyContinue
 Remove-Item Env:SERPER_API_KEY -ErrorAction SilentlyContinue
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "helpers\native-git.ps1")
 $apiPath = Join-Path $root "api\generate-listing.js"
 $offerPath = Join-Path $root "lib\evidence\offer.js"
 $resultPath = Join-Path $root "lib\evidence\result.js"
@@ -13,7 +14,8 @@ $apiSource = Get-Content -Raw $apiPath
 $offerSource = Get-Content -Raw $offerPath
 $resultSource = Get-Content -Raw $resultPath
 $validatorSource = Get-Content -Raw $validatorPath
-$headApiSource = git -C $root show HEAD:api/generate-listing.js
+$gitShow = Invoke-TestGit -WorkingDirectory $root -Arguments @("show", "HEAD:api/generate-listing.js")
+$headApiSource = $gitShow.StandardOutput
 $normalizedApiSource = $apiSource.Replace("`r`n", "`n")
 $normalizedHeadApiSource = ($headApiSource -join "`n").Replace("`r`n", "`n")
 
@@ -101,7 +103,8 @@ if ($apiSource -notmatch "maxProviderCalls:\s*28" -or
   throw "Provider ceilings must remain retail 28 and collectible 12."
 }
 
-$addedProductionLines = git -C $root diff --unified=0 -- api/generate-listing.js lib/evidence |
+$gitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--unified=0", "--", "api/generate-listing.js", "lib/evidence")
+$addedProductionLines = $gitDiff.StandardOutput -split "`r?`n" |
   Where-Object { $_ -match "^\+(?!\+\+)" }
 if (($addedProductionLines -join "`n") -cmatch "Office Works|Kroger|Target 45|Coca-Cola|Georgia Bulldogs|Mercari|041226087161|6110325|30188") {
   throw "Product-, source-, identifier-, or ZIP-specific production logic was added."

@@ -118,13 +118,13 @@ const purposes = Object.freeze({
     reportType: "marketValue"
   },
   market_value: {
-    radioName: /Value Something I Own/i,
+    radioName: /What’s It Worth\?/i,
     requestPurpose: "owner_value",
     canonicalPurpose: "owner_value",
     reportType: "marketValue"
   },
   listing: {
-    radioName: /Sell Something I Own/i,
+    radioName: /Create a Listing/i,
     requestPurpose: "seller_listing",
     canonicalPurpose: "seller_listing",
     reportType: "listing"
@@ -659,9 +659,9 @@ async function assertCanonicalCards(page, state, scenario) {
   for (const [index, record] of report.customerEvidence.entries()) {
     const card = cards.nth(index);
     await expect(card).toHaveAttribute("data-evidence-id", record.evidenceId);
-    await expect(card.locator(".price-found-source")).toHaveText(
-      `${record.sourceLabel} — ${record.customerPriceLabel}`
-    );
+    await expect(card.locator(".price-found-source")).toHaveText(record.sourceLabel);
+    await expect(card.locator(".price-found-price strong")).toHaveText(record.customerPriceLabel);
+    await expect(card.locator(".evidence-match-badge")).toHaveText(record.canonicalMatchLabel);
     await expect(card.locator(".price-found-meta-line")).toHaveText(expectedMeta(record));
     await expect(card.locator(".price-found-product-title")).toHaveText(record.title);
     const link = card.getByRole("link", { name: "View source" });
@@ -700,7 +700,7 @@ async function assertCanonicalCards(page, state, scenario) {
     expect(noPrice.customerPriceLabel).toBe("Price unavailable");
     expect(Number.isFinite(noPrice.canonicalPrice)).toBe(false);
     const card = cards.nth(report.customerEvidence.indexOf(noPrice));
-    await expect(card.locator(".price-found-source")).toContainText("Price unavailable");
+    await expect(card.locator(".price-found-price strong")).toContainText("Price unavailable");
     await expect(card.getByRole("link", { name: "View source" })).toHaveAttribute("href", noPrice.destinationUrl);
     const otherPrices = report.customerEvidence
       .filter((record) => record.evidenceId !== noPrice.evidenceId)
@@ -1231,7 +1231,7 @@ test("Buy to Resell renders canonical evidence exactly once", async ({ page }, t
   }, testInfo.project.name);
 });
 
-test("Value Something I Own renders canonical evidence exactly once", async ({ page }, testInfo) => {
+test("What’s It Worth renders canonical evidence exactly once", async ({ page }, testInfo) => {
   await runSuccessfulScenario(page, {
     evidenceMode: "collectible",
     purpose: "market_value",
@@ -1239,7 +1239,7 @@ test("Value Something I Own renders canonical evidence exactly once", async ({ p
   }, testInfo.project.name);
 });
 
-test("Sell Something I Own preserves seller content and canonical evidence", async ({ page }, testInfo) => {
+test("Create a Listing preserves seller content and canonical evidence", async ({ page }, testInfo) => {
   await runSuccessfulScenario(page, {
     evidenceMode: "retail",
     purpose: "listing",

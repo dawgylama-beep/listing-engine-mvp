@@ -27,7 +27,7 @@ $checks = @(
   @{ Name = "Six-photo limit remains"; Text = $app; Pattern = "const MAX_PHOTO_COUNT = 6;" },
   @{ Name = "Remove photo helper remains"; Text = $app; Pattern = "function removePhotoAt" },
   @{ Name = "Compact empty-state class exists"; Text = $app; Pattern = "compact-empty-card" },
-  @{ Name = "Compact empty-state copy exists"; Text = $app; Pattern = 'copy.textContent = "Your recommendation will appear here after analysis."' },
+  @{ Name = "Compact empty-state copy exists"; Text = $app; Pattern = 'copy.textContent = "Your guidance will appear here after Katherine' },
   @{ Name = "Compact empty-state helper exists"; Text = $app; Pattern = 'helper.textContent = "Add clear photos and any details you know."' },
   @{ Name = "Desktop empty state is compact"; Text = $styles; Pattern = "min-height: 150px;" },
   @{ Name = "Mobile empty state is compact"; Text = $styles; Pattern = "min-height: 130px;" },

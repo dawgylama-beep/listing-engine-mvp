@@ -23,6 +23,13 @@ function Require-NotContains($Name, $Text, $Pattern) {
   }
 }
 
+function Require-Count($Name, $Text, $Pattern, $ExpectedCount) {
+  $actualCount = [regex]::Matches($Text, [regex]::Escape($Pattern)).Count
+  if ($actualCount -ne $ExpectedCount) {
+    $script:failed += "$Name (expected $ExpectedCount, actual $actualCount)"
+  }
+}
+
 function Require-Order($Name, $Text, $First, $Second) {
   $firstIndex = $Text.IndexOf($First)
   $secondIndex = $Text.IndexOf($Second)
@@ -42,20 +49,34 @@ function Function-Block($Text, $Start, $End) {
 
 $listRenderer = Function-Block $app "function renderCustomerEvidence" "function renderCustomerEvidenceCard"
 $rowRenderer = Function-Block $app "function renderCustomerEvidenceCard" "function appendDefinitionRow"
+$reportRenderer = Function-Block $app "function renderReport(report, sections)" "function renderReportIdentityHeader"
+$consumerReportPath = Function-Block $reportRenderer "if (isConsumerReport(report)) {" "reportRoot.appendChild(renderExecutiveSummary(report, currentWorkflow));"
 $consumerRenderer = Function-Block $app "function renderConsumerCompactSummary(report, workflow)" "function appendConsumerCompactSection"
 $currentRetailBlock = Function-Block $consumerRenderer "if (isCurrentRetailOnlyReport(report)) {" 'appendConsumerCompactSection(details, "Evidence Summary"'
+$technicalRenderer = Function-Block $app "function renderCustomerTechnicalSearchDetails(report)" "function renderTechnicalSearchDetails(value)"
 $stylesBlock = Function-Block $styles ".prices-found-block" ".ask-panel"
 $primaryRetailBlock = Function-Block $currentRetailBlock 'appendConsumerCompactSection(details, "Current Retail Price Assessment"' "appendConsumerPriceAnalysisDisclosure"
 
 if (-not $listRenderer) { $failed += "Could not isolate renderCustomerEvidence" }
 if (-not $rowRenderer) { $failed += "Could not isolate renderCustomerEvidenceCard" }
+if (-not $reportRenderer) { $failed += "Could not isolate top-level renderReport" }
+if (-not $consumerReportPath) { $failed += "Could not isolate the consumer top-level report path" }
 if (-not $currentRetailBlock) { $failed += "Could not isolate current-retail compact summary block" }
+if (-not $technicalRenderer) { $failed += "Could not isolate customer Technical Search Details" }
 if (-not $stylesBlock) { $failed += "Could not isolate price-list styles" }
 
 Require-Contains "Multiple canonical rows render in one list" $listRenderer "viewModel.cards.forEach((card) => list.appendChild(renderCustomerEvidenceCard(card)));"
 Require-Contains "One semantic list container is used" $listRenderer 'const list = document.createElement("ul");'
 Require-Contains "Rows are list items" $rowRenderer 'const card = document.createElement("li");'
 Require-Contains "Canonical badge is rendered without frontend selection" $rowRenderer "badge.textContent = item.cardBadge.label;"
+Require-Contains "Canonical price remains prominent" $rowRenderer "priceValue.textContent = item.customerPriceLabel;"
+Require-Contains "Match quality remains visible" $rowRenderer "match.textContent = item.canonicalMatchLabel;"
+Require-Contains "Shipping remains visible" $rowRenderer '["Shipping", item.shippingLabel]'
+Require-Contains "Delivered cost remains visible" $rowRenderer '["Delivered cost", item.deliveredCostLabel]'
+Require-Contains "Availability remains visible" $rowRenderer '["Availability", item.availabilityStatus]'
+Require-Contains "Known variation remains visible" $rowRenderer '["Known variation", item.knownDifferences]'
+Require-Contains "Limitations remain visible" $rowRenderer '["Limitation", item.conciseLimitation]'
+Require-Contains "Source action uses the canonical destination" $rowRenderer "link.href = item.destinationUrl;"
 Require-NotContains "Frontend does not assign Best price by position" $rowRenderer 'badge.textContent = "Best price";'
 Require-NotContains "Current retail does not render Best Current Retail card container" $currentRetailBlock "bestCurrentRetailAlternative"
 Require-NotContains "Current retail does not render Other Current Retail card container" $currentRetailBlock "otherCurrentRetailPrices"
@@ -83,9 +104,22 @@ Require-Contains "Copy Summary uses compact consumer formatter" $app "function f
 Require-Contains "Copied output uses canonical Where to Buy rows" $app "function formatCustomerEvidenceListText"
 Require-Contains "Presentation preserves canonical card order without a frontend cap" $presentation "cards: customerEvidence.map(buildCard)"
 
-Require-Order "Report answers price before canonical where-to-buy evidence" $currentRetailBlock "Retail Purchase Decision" "renderCanonicalCustomerEvidenceSection(report)"
-Require-Order "Canonical where-to-buy evidence precedes buyer action" $currentRetailBlock "renderCanonicalCustomerEvidenceSection(report)" "Next Best Action"
-Require-Order "Verbose analysis follows buyer action" $currentRetailBlock "Next Best Action" "appendConsumerPriceAnalysisDisclosure"
+Require-Count "Compact list renders each canonical card once" $listRenderer "viewModel.cards.forEach((card) => list.appendChild(renderCustomerEvidenceCard(card)));" 1
+Require-Count "Retail Price Analysis is rendered once" $currentRetailBlock "appendConsumerPriceAnalysisDisclosure(details, report);" 1
+Require-Order "Retail Purchase Decision precedes its subordinate Price Analysis" $currentRetailBlock "Retail Purchase Decision" "appendConsumerPriceAnalysisDisclosure(details, report);"
+Require-NotContains "Canonical evidence is not nested in the historical current-retail summary" $currentRetailBlock "renderCanonicalCustomerEvidenceSection(report)"
+Require-NotContains "Retired branch-local Next Best Action is not restored" $currentRetailBlock "Next Best Action"
+
+Require-Count "Consumer report has one shared action plan" $consumerReportPath "renderActionPlan(report, currentWorkflow)" 1
+Require-Count "Consumer report has one shared canonical evidence section" $consumerReportPath "renderCanonicalCustomerEvidenceSection(report)" 1
+Require-Count "Consumer report has one subordinate Technical Search Details section" $consumerReportPath "renderCustomerTechnicalSearchDetails(report)" 1
+Require-Order "Principal customer decision and price guidance precede the shared action plan" $consumerReportPath "renderConsumerCompactSummary(report, currentWorkflow)" "renderActionPlan(report, currentWorkflow)"
+Require-Order "Shared action guidance precedes canonical evidence" $consumerReportPath "renderActionPlan(report, currentWorkflow)" "renderCanonicalCustomerEvidenceSection(report)"
+Require-Order "Canonical evidence precedes subordinate Technical Search Details" $consumerReportPath "renderCanonicalCustomerEvidenceSection(report)" "renderCustomerTechnicalSearchDetails(report)"
+Require-Contains "Technical Search Details use a collapsed details element" $technicalRenderer 'const details = document.createElement("details");'
+Require-Contains "Technical Search Details retain their subordinate disclosure class" $technicalRenderer 'details.className = "technical-details-disclosure technical-report-disclosure";'
+Require-Contains "Technical Search Details retain their customer label" $technicalRenderer 'summary.textContent = "Technical Search Details";'
+Require-NotContains "Technical Search Details are not opened by default" $technicalRenderer ".open = true"
 
 if ($failed.Count -gt 0) {
   Write-Error ("True compact Where to Buy list static checks failed:`n- " + ($failed -join "`n- "))

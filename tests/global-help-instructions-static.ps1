@@ -40,8 +40,7 @@ function Require-Count($Name, $Text, $Pattern, $Expected) {
 $categories = @(
   "Buying for Myself",
   "Buying to Resell",
-  "Value Something I Own",
-  "Sell Something I Own",
+  "Create a Listing",
   "Taking Good Photos",
   "Using Location",
   "Understanding Your Results"
@@ -52,9 +51,9 @@ $workflowInstructionChecks = @(
   "Analyze Purchase",
   "Buying to Resell",
   "Analyze Resale",
-  "Value Something I Own",
+  "It Worth?",
   "Estimate Value",
-  "Sell Something I Own",
+  "Create a Listing",
   "Prepare to Sell"
 )
 
@@ -99,6 +98,7 @@ Require-Contains "Details use numbered instruction lists" $app 'const list = doc
 foreach ($category in $categories) {
   Require-Contains "Help category exists: $category" $app "title: `"$category`""
 }
+Require-Contains "Help category exists: What's It Worth?" $app 'It Worth?",'
 
 foreach ($instruction in $workflowInstructionChecks) {
   Require-Contains "Workflow instruction exists: $instruction" $app $instruction
@@ -135,7 +135,7 @@ Require-Count "Only one purpose help link exists" $index 'id="purpose-help-link"
 Require-Count "Only one help panel exists" $index 'id="help-panel"' 1
 
 Require-Contains "Compact Where to Buy renderer remains" $app 'list.className = "prices-found-list compact-price-list";'
-Require-Contains "Compact Where to Buy rows remain" $app 'card.className = "price-found-row";'
+Require-Contains "Compact Where to Buy rows remain" $app 'card.className = `price-found-row match-${matchModifier}`;'
 Require-Contains "Where to Buy still renders as unified canonical list" $app 'return isCurrentRetailOnlyReport(report) ? "Where to Buy" : "Market Evidence";'
 
 if ($failed.Count -gt 0) {
