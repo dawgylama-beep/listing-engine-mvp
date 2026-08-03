@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-026",
+  "runType": "ANCHOR_PURPOSE",
+  "identityInvariantGroup": "ANCHOR-OBJ-014",
+  "caseId": "OBJ-014",
+  "purpose": "WHATS_IT_WORTH",
+  "responseHash": "92c15c89d803e35e0e8c8cd0281402c6e597815cb434d3b03eb19ab0b13bb7dd",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 20,
+    "uncertaintyAndAlternatives": 0,
+    "exactEvidenceRecovery": 15,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 5,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 50,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "50 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 0,
+  "metrics": {
+    "identityCapable": true,
+    "exactEligible": false,
+    "exactRecoveredAndDistractorRejected": null,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": null,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "roman-pentagonal-dodecahedron-function-unresolved",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}
