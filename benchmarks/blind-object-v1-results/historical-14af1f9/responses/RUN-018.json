@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-018",
+  "objectId": "OBJ-003",
+  "requestSha256": "1e5401748f8a400dff5e95e71a00503275e4a1c775c00f83698f3399d331af39",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:36:15.742Z",
+  "endTimestamp": "2026-08-03T18:36:52.696Z",
+  "elapsedMilliseconds": 36953.85030000005,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6IlN0YW5sZXkgc3BlY2lhbGl6ZWQgbWV0YWwgd29vZHdvcmtpbmcgaGFuZCBwbGFuZSIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggZm9yIGJyb2FkIGNhdGVnb3J5IChtZXRhbCB3b29kd29ya2luZyBoYW5kIHBsYW5lKSwgbW9kZXJhdGUgZm9yIGV4YWN0IG1vZGVsIG9yIHZhcmlhbnQiLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IEhhbmQgdG9vbCAtIHNwZWNpYWxpemVkIG1ldGFsIHdvb2R3b3JraW5nIHBsYW5lIiwiVmlzdWFsIHN1YmplY3QgY2F0ZWdvcnk6IFRvb2xzIiwiVmlzdWFsIHN1YmplY3QgY29uZmlkZW5jZTogSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4iLCJSZWNvZ25pemVkIG9yZ2FuaXphdGlvbjogTm90IHZlcmlmaWVkIiwiUmVjb2duaXplZCBicmFuZDogU3RhbmxleSAodmlzaWJsZSkiLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogSGFuZCB0b29sIC0gc3BlY2lhbGl6ZWQgbWV0YWwgd29vZHdvcmtpbmcgcGxhbmUiLCJTdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiRXhhY3QgcHJvZHVjdCBpZGVudGl0eTogU3RhbmxleSBzcGVjaWFsaXplZCBtZXRhbCB3b29kd29ya2luZyBoYW5kIHBsYW5lIiwiRXhhY3QgcHJvZHVjdCBjb25maWRlbmNlOiBNb2RlcmF0ZSAtIEJyYW5kIGFuZCB0eXBlIGNvbmZpcm1lZCBidXQgZXhhY3QgbW9kZWwgb3IgdmFyaWFudCBub3QgaWRlbnRpZmllZCIsIkJyYW5kOiBTdGFubGV5IiwiTWFudWZhY3R1cmVyL2xvY2F0aW9uOiBNYWRlIGluIFN0YW5sZXkgRW5nbGFuZCAoYXMgcGVyIHN0aWNrZXIpIl0sImFza2luZ1ByaWNlIjoiTm90IHByb3ZpZGVkIC0gZW50ZXIgdGhlIGN1cnJlbnQgYXNraW5nIHByaWNlIGZvciBhIHBlcnNvbmFsLXVzZSB2YWx1ZSBkZWNpc2lvbi4iLCJlc3RpbWF0ZWRGYWlyTWFya2V0VmFsdWUiOiIiLCJmYWlyUHJpY2VSYW5nZSI6W10sInZhbHVlUmF0aW5nIjoiSW5zdWZmaWNpZW50IEV2aWRlbmNlIiwicmVjb21tZW5kYXRpb24iOiJOZWVkIE1vcmUgSW5mb3JtYXRpb24iLCJyZWNvbW1lbmRlZE9mZmVyIjpbIk9wZW5pbmcgT2ZmZXI6IE5vdCBzdXBwb3J0ZWQgeWV0LiIsIlRhcmdldCBQdXJjaGFzZSBQcmljZTogTm90IHN1cHBvcnRlZCB5ZXQuIiwiTWF4aW11bSBSZWNvbW1lbmRlZCBQcmljZTogTm90IHN1cHBvcnRlZCB5ZXQuIl0sIm9wZW5pbmdPZmZlciI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gdmVyaWZ5IGlkZW50aXR5LCBjb25kaXRpb24sIGFza2luZyBwcmljZSwgYW5kIHJlbGlhYmxlIGNvbXBhcmFibGVzIGZpcnN0LiIsInRhcmdldFB1cmNoYXNlUHJpY2UiOiJOb3Qgc3VwcG9ydGVkIHlldCAtIGV2aWRlbmNlIGlzIHRvbyB3ZWFrIGZvciBhIHJlc3BvbnNpYmxlIHRhcmdldCBwcmljZS4iLCJtYXhpbXVtUmVjb21tZW5kZWRQcmljZSI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gZG8gbm90IHNldCBhIG1heGltdW0gZnJvbSB3ZWFrIGV2aWRlbmNlLiIsIndhbGtBd2F5UHJpY2UiOiJOb3QgZW5vdWdoIGV2aWRlbmNlIGZvciBhIHByZWNpc2Ugd2Fsay1hd2F5IHByaWNlLiIsIm5lZ290aWF0aW9uR3VpZGFuY2UiOiJSZXF1ZXN0IHNlbGxlciB0byBwcm92aWRlIHRoZSBhc2tpbmcgcHJpY2UgYW5kIGNsZWFyZXIgZGV0YWlscyBvbiBtb2RlbCBhbmQgY29uZGl0aW9uIGJlZm9yZSBuZWdvdGlhdGluZy4gV2l0aG91dCBwcmljZSBvciBjb25kaXRpb24gaW5mbywgY2Fubm90IGFkdmlzZSBvbiBvZmZlciBzdHJhdGVneS4iLCJyZWFzb25zVG9CdXkiOlsiU3RhbmxleSBpcyBhIHJlcHV0YWJsZSBicmFuZCBrbm93biBmb3IgZHVyYWJsZSB3b29kd29ya2luZyB0b29scyIsIk1ldGFsIGhhbmQgcGxhbmVzIGFyZSB1c2VmdWwgZm9yIGZpbmUgd29vZHdvcmtpbmcgYW5kIGhhbmQgdG9vbCBlbnRodXNpYXN0cyIsIlZpc3VhbHMgc2hvdyBlcmdvbm9taWMgZGVzaWduIGFuZCBhZGp1c3RhYmxlIGZlYXR1cmVzIHN1Z2dlc3RpbmcgZnVuY3Rpb25hbCBjb25kaXRpb24iXSwicmVhc29uc0ZvckNhdXRpb24iOlsiRXhhY3QgbW9kZWwgYW5kIGNvbmRpdGlvbiBhcmUgdW5rbm93biB3aGljaCBpbXBhY3RzIHZhbHVlIGFzc2Vzc21lbnQiLCJObyBhc2tpbmcgcHJpY2UgcHJvdmlkZWQgc28gZmFpciBwcmljaW5nIGNhbm5vdCBiZSBkZXRlcm1pbmVkIiwiTm8gcmVsaWFibGUgbWFya2V0IGNvbXBhcmFibGVzIGZvdW5kIHRvIGJlbmNobWFyayBwcmljaW5nIiwiSWRlbnRpdHkgTm90IENvbmZpcm1lZCIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIkNvbmRpdGlvbiBVbmNsZWFyIiwiQ29uc3VtZXIgdmFsdWUgY2Fubm90IGJlIHJhdGVkIGNvbmZpZGVudGx5IHVudGlsIHRoZSBhc2tpbmcgcHJpY2UsIGV4YWN0IGlkZW50aXR5LCBjb25kaXRpb24sIGFuZCBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UgYXJlIHN0cm9uZ2VyLiJdLCJwcm9kdWN0T3JDb25kaXRpb25SaXNrcyI6WyJDb25kaXRpb24gYW5kIGNvbXBsZXRlbmVzcyB1bmtub3duIiwiQXV0aGVudGljaXR5IGFzc3VtZWQgYnV0IG5vdCBmb3JtYWxseSB2ZXJpZmllZCBiZXlvbmQgdmlzaWJsZSBicmFuZGluZyIsIlBvdGVudGlhbCBvbGRlciB0b29sIHdpdGggdW5rbm93biB3ZWFyIG9yIHBhcnRzIGlzc3VlcyIsIlJpc2sgZmxhZzogSWRlbnRpdHkgTm90IENvbmZpcm1lZCIsIlJpc2sgZmxhZzogV2VhayBDb21wYXJhYmxlIEV2aWRlbmNlIiwiUmlzayBmbGFnOiBDb25kaXRpb24gVW5jbGVhciIsIkNvbmRpdGlvbiBpcyBub3QgY29uZmlybWVkLiJdLCJyaXNrRmxhZ3MiOlsiSWRlbnRpdHkgTm90IENvbmZpcm1lZCIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIkNvbmRpdGlvbiBVbmNsZWFyIl0sImJldHRlclZhbHVlQ29uc2lkZXJhdGlvbnMiOlsiQ2hlY2sgZm9yIG1vcmUgY29tbW9uIFN0YW5sZXkgYmxvY2sgb3IgY29tYmluYXRpb24gcGxhbmVzIHdpdGggY29uZmlybWVkIG1vZGVsIG51bWJlcnMiLCJDb25zaWRlciB0b29scyB3aXRoIHZlcmlmaWVkIGNvbmRpdGlvbiBhbmQgY2xlYXJlciBwcmljaW5nIGhpc3RvcnkiLCJXYWl0IGZvciBsaXN0aW5ncyB3aXRoIGZ1bGwgY29uZGl0aW9uIGRldGFpbHMgYW5kIGFza2luZyBwcmljZSJdLCJyZXNlYXJjaFJlc3VsdHMiOlsiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBhcmFibGVzIHBhc3NlZCBmaWx0ZXJpbmcuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiJdLCJjb21wYXJhYmxlUXVhbGl0eSI6WyJSZWplY3RlZCBNYXRjaCAtIG5vIHJldHVybmVkIHJlc3VsdCBoYWQgZW5vdWdoIGNpdGVkLCByZWxldmFudCBldmlkZW5jZSB0byBkcml2ZSBsaXN0aW5nIHByaWNlLiJdLCJwcmljaW5nQ29uZmlkZW5jZSI6IkxvdyAtIENvbnN1bWVyIHZhbHVlIHJhdGluZyBpcyBpbnN1ZmZpY2llbnQgYmVjYXVzZSBubyBjdXJyZW50IGFza2luZyBwcmljZSB3YXMgcHJvdmlkZWQsIG5vIGV2aWRlbmNlLWJhY2tlZCBmYWlyIHZhbHVlIGNvdWxkIGJlIGV4dHJhY3RlZCwgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wcyBwYXNzZWQgZmlsdGVyaW5nLiBTdXBwb3J0czogcGhvdG9zIGFuZCBub3Rlcy4gV2Vha2VuczogbWlzc2luZyBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UuIEltcHJvdmUgYnkgZmluZGluZyBleGFjdCwgY2l0ZWQgY29tcGFyYWJsZSBtYXRjaGVzLiIsInByaWNpbmdSYXRpb25hbGUiOiJMaXZlIHJlc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gQ29uc3VtZXIgZGVjaXNpb24gaXMgbG93IGNvbmZpZGVuY2UuICBXaXRob3V0IGV4YWN0IG1vZGVsIGFuZCBjb25kaXRpb24gZGF0YSBvciBjdXJyZW50IGFza2luZyBwcmljZSwgbm8gZGVmZW5zaWJsZSBwcmljZSBlc3RpbWF0ZSBjYW4gYmUgZm9ybXVsYXRlZCIsImFkZGl0aW9uYWxJbmZvcm1hdGlvbk5lZWRlZCI6WyJBc2tpbmcgcHJpY2UiLCJFeGFjdCBtb2RlbCBpZGVudGlmaWNhdGlvbiBvciBzdGFtcGVkIG1vZGVsIG51bWJlciIsIkNvbmRpdGlvbiBkZXRhaWxzIGluY2x1ZGluZyB3ZWFyLCBkYW1hZ2UsIGFuZCBjb21wbGV0ZW5lc3MiLCJPbmUgc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlIHJlc3VsdCBmb3IgdGhlIHNhbWUgbW9kZWwsIFNLVSwgVVBDLCBtYWtlciwgc2l6ZSwgb3IgaXRlbSBjb2RlLiIsIkN1cnJlbnQgc2VsbGVyIGFza2luZyBwcmljZS4iLCJDbGVhciBjb25kaXRpb24gY29uZmlybWF0aW9uLCBpbmNsdWRpbmcgd2hldGhlciBpdCB3b3JrcyBhbmQgd2hldGhlciBhbnkgcGFydHMgb3IgYWNjZXNzb3JpZXMgYXJlIG1pc3NpbmcuIiwiQSBjbG9zZXIgcGhvdG8gb2YgdGhlIG1vZGVsIGxhYmVsLCBTS1UsIFVQQy9iYXJjb2RlLCBtYWtlciBtYXJrLCB0YWcsIG9yIHVuZGVyc2lkZS9iYWNrIGxhYmVsLiJdLCJzZWFyY2hRdWVyaWVzVXNlZCI6WyJUaGVzZSBhcmUgdGhlIHF1ZXJpZXMgdGhlIHN5c3RlbSB1c2VkLiIsIlwicmVhZHMgJ01BREUgSU4gU1RBTkxFWSBFTkdMQU5EJ1wiIFN0YW5sZXkgKHZpc2libGUpIHRvb2wiLCJcIlRvb2wgaGFzIGluZHVzdHJpYWwsIHV0aWxpdGFyaWFuIHN0eWxlIHR5cGljYWxcIiBOb3QgdmVyaWZpZWQgU3RhbmxleSAodmlzaWJsZSkiLCJcIm9uIGhhbmRsZSByZWFkcyAnTUFERSBJTiBTVEFOTEVZXCIgTm90IHZlcmlmaWVkIFN0YW5sZXkgKHZpc2libGUpIiwiXCJTdGlja2VyIGxhYmVsIG9uIGhhbmRsZSByZWFkcyAnTUFERVwiIE5vdCB2ZXJpZmllZCBTdGFubGV5ICh2aXNpYmxlKSIsIlwib24gaGFuZGxlIHJlYWRzICdNQURFIElOIFNUQU5MRVlcIiBTdGFubGV5ICh2aXNpYmxlKSB0b29sIiwiXCJTdGlja2VyIGxhYmVsIG9uIGhhbmRsZSByZWFkcyAnTUFERVwiIFN0YW5sZXkgKHZpc2libGUpIHRvb2wiLCJcImluZHVzdHJpYWwsIHV0aWxpdGFyaWFuIHN0eWxlIHR5cGljYWwgb2YgbWlkXCIgTm90IHZlcmlmaWVkIFN0YW5sZXkgKHZpc2libGUpIiwiXCJNQURFIElOIFNUQU5MRVkgRU5HTEFORFwiIFN0YW5sZXkgKHZpc2libGUpIHRvb2wiLCJcInN0eWxlIHR5cGljYWwgb2YgbWlkIHRvXCIgU3RhbmxleSAodmlzaWJsZSkgdG9vbCIsIlwiaW5kdXN0cmlhbCwgdXRpbGl0YXJpYW4gc3R5bGUgdHlwaWNhbCBvZiBtaWRcIiBTdGFubGV5ICh2aXNpYmxlKSB0b29sIiwiXCJUb29sIGhhcyBpbmR1c3RyaWFsLCB1dGlsaXRhcmlhbiBzdHlsZSB0eXBpY2FsXCIgU3RhbmxleSAodmlzaWJsZSkgdG9vbCIsIlwiQnJhbmQgbmFtZSAnU3RhbmxleScgY2xlYXJseSBlbWJvc3NlZCBvbiBzaWRlIGFuZFwiIFN0YW5sZXkgKHZpc2libGUpIiwiXCJCcmFuZCBuYW1lICdTdGFubGV5JyBjbGVhcmx5IGVtYm9zc2VkIG9uIHNpZGUgYW5kXCIgTm90IHZlcmlmaWVkIiwiXCJTdGlja2VyIGxhYmVsIG9uIGhhbmRsZSByZWFkcyAnTUFERSBJTiBTVEFOTEVZXCIgU3RhbmxleSAodmlzaWJsZSkiXSwic291cmNlc1NlYXJjaGVkIjpbIlNvdXJjZSBjYXRlZ29yaWVzIHRhcmdldGVkOiBGYWNlYm9vayBNYXJrZXRwbGFjZS1zdHlsZSBsb2NhbCB2YWx1ZSBsb2dpYzsgQ3JhaWdzbGlzdCAvIE9mZmVyVXAgLyBsb2NhbCBwaWNrdXAgcmVzYWxlOyBsb2NhbCBjb25zaWdubWVudCBsb2dpYzsgZXhhY3QgbGFiZWwvc3RhbXAgc2VhcmNoZXM7IGVCYXktc3R5bGUgcmVzYWxlIHJlc3VsdHM7IEV0c3ktc3R5bGUgdmludGFnZSByZXN1bHRzOyBNZXJjYXJpLXN0eWxlIHJlc2FsZSByZXN1bHRzOyBjb2xsZWN0b3IvcmVmZXJlbmNlL2JyYW5kIGNsdWUgcmVzdWx0cyIsIlNvdXJjZXMgc2VhcmNoZWQ6IGZpdGZvcmZhaXRoLmNhOyBtYWdpY2EuY29tOyBpbnRlcmVzdGFuYS5jb207IGNvbG9uaWFsc29jaWV0eS5vcmc7IGVsbWVsYWFiLm5ldDsgZXNxdWlyZS5jb207IHJvYmVydGdhc2tpbnMuY29tOyB1ay50cnVzdHBpbG90LmNvbSIsIlNvdXJjZXMgcmV0dXJuZWQgd2l0aCBVUkwgY2l0YXRpb25zOiBOb25lLiIsIk5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgbWF0Y2hlcyBwYXNzZWQgbWF0Y2gtcXVhbGl0eSBjaGVja3MuIiwiUmV0dXJuZWQgcmVzdWx0cyB3ZXJlIHJlamVjdGVkIHdoZW4gdGhleSBsYWNrZWQgZXhhY3QgbGFiZWwvY29kZSBtYXRjaGVzLCBoYWQgb25seSB3ZWFrIGxvb2thbGlrZSBldmlkZW5jZSwgb3IgZGlkIG5vdCBpbmNsdWRlIGEgY2l0ZWQgVVJMIGluIHRoZSBjb21wYXJhYmxlIGl0ZW0gdGV4dC4iLCJSZWplY3RlZCBpcnJlbGV2YW50IHNvdXJjZSBjYXRlZ29yaWVzOiBnZW5lcmljIHdob2xlc2FsZXJzLCByZXN0YXVyYW50LXN1cHBseSBzaXRlcywgYnVsayBpbXBvcnQvbWFudWZhY3R1cmluZyBjYXRhbG9ncywgdW5yZWxhdGVkIGN1cnJlbnQtcmV0YWlsIGxvb2thbGlrZXMsIGFuZCBnZW5lcmljIHZpc3VhbCBsb29rYWxpa2VzLiIsIlNlYXJjaGVkIHVzaW5nIGJhcmNvZGUvaXRlbSBjb2RlL21vZGVsIGlkZW50aWZpZXJzIHdoZW4gYXZhaWxhYmxlLiIsIlNlYXJjaGVkIHVzaW5nIHZpc2libGUgYm94LCBsYWJlbCwgYnJhbmQsIG9yIHByb2R1Y3QtdGl0bGUgd29yZGluZy4iLCJTZWFyY2hlZCByZWxldmFudCBob2xpZGF5IGRlY29yIC8gY29sbGVjdGlibGUgc291cmNlcy4iLCJTZWFyY2hlZCBsb2NhbC9idWxreS1pdGVtIHNvdXJjZSBjYXRlZ29yaWVzIHdoZXJlIGF2YWlsYWJsZS4iXSwidmlzdWFsU3ViamVjdCI6IkhhbmQgdG9vbCAtIHNwZWNpYWxpemVkIG1ldGFsIHdvb2R3b3JraW5nIHBsYW5lIiwidmlzdWFsU3ViamVjdENhdGVnb3J5IjoiVG9vbHMiLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRCcmFuZCI6IlN0YW5sZXkgKHZpc2libGUpIiwicmVjb2duaXplZENoYXJhY3RlciI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRJbnN0aXR1dGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRUaGVtZSI6Ik5vdCB2ZXJpZmllZCIsInZpc3VhbFJlY29nbml0aW9uRXZpZGVuY2UiOlsiVHdvIGltYWdlcyBzaG93IGRldGFpbGVkIGFuZCBkaWZmZXJlbnQgYW5nbGVzIG9mIHRoZSBzYW1lIGJsYWNrIGFuZCBzaWx2ZXIgaGFuZCB0b29sIiwiQ2xvc2V1cHMgb2YgYWRqdXN0bWVudCBzY3Jld3MgYW5kIG1lY2hhbmlzbSBmb3IgcGxhbmluZyIsIkJyYW5kIG5hbWUgJ1N0YW5sZXknIGNsZWFybHkgZW1ib3NzZWQgb24gc2lkZSBhbmQgc3RpY2tlciBvbiBoYW5kbGUgbW91bnQiLCJNZXRhbCB3b29kd29ya2luZyBwbGFuZSIsIkFkanVzdGFibGUgY29tcG9uZW50cyIsIkVyZ29ub21pYyBoYW5kbGUgd2l0aCB0ZXh0dXJlZCBncmlwIiwiQnJhbmQgbmFtZSBlbWJvc3NlZCBpbiBtZXRhbCBhbmQgc3RpY2tlciBsYWJlbCIsIlZpc2libGUgbG9nby9zeW1ib2w6IFN0YW5sZXkiLCJWaXNpYmxlIGxldHRlcjogUyIsIlZpc2libGUgbGV0dGVyOiBUIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgdG9vbCBtb2RlbCBvciB2YXJpYW50IiwiRXhhY3QgeWVhciBvciBlcmEgb2YgbWFudWZhY3R1cmUiXSwidmlzdWFsUmVjb2duaXRpb25Db25mbGljdHMiOltdLCJ2aXN1YWxSZWNvZ25pdGlvblN1bW1hcnkiOiJWaXN1YWwgU3ViamVjdDogSGFuZCB0b29sIC0gc3BlY2lhbGl6ZWQgbWV0YWwgd29vZHdvcmtpbmcgcGxhbmUgfCBDYXRlZ29yeTogVG9vbHMgfCBDb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiB8IFJlY29nbml6ZWQgY2x1ZXM6IG9yZ2FuaXphdGlvbjogTm90IHZlcmlmaWVkOyBicmFuZDogU3RhbmxleSAodmlzaWJsZSk7IGNoYXJhY3RlcjogTm90IHZlcmlmaWVkOyBpbnN0aXR1dGlvbjogTm90IHZlcmlmaWVkOyB0aGVtZTogTm90IHZlcmlmaWVkIHwgU3VwcG9ydGluZyBldmlkZW5jZTogVHdvIGltYWdlcyBzaG93IGRldGFpbGVkIGFuZCBkaWZmZXJlbnQgYW5nbGVzIG9mIHRoZSBzYW1lIGJsYWNrIGFuZCBzaWx2ZXIgaGFuZCB0b29sOyBDbG9zZXVwcyBvZiBhZGp1c3RtZW50IHNjcmV3cyBhbmQgbWVjaGFuaXNtIGZvciBwbGFuaW5nOyBCcmFuZCBuYW1lICdTdGFubGV5JyBjbGVhcmx5IGVtYm9zc2VkIG9uIHNpZGUgYW5kIHN0aWNrZXIgb24gaGFuZGxlIG1vdW50OyBNZXRhbCB3b29kd29ya2luZyBwbGFuZSB8IFN0aWxsIHVua25vd246IEV4YWN0IHRvb2wgbW9kZWwgb3IgdmFyaWFudDsgRXhhY3QgeWVhciBvciBlcmEgb2YgbWFudWZhY3R1cmUgfCBVc2VyIGV2aWRlbmNlIHJlY29uY2lsaWF0aW9uOiBVc2VyIGRpZCBub3QgcHJvdmlkZSBhZGRpdGlvbmFsIGV2aWRlbmNlIG9yIG5vdGUuIFZpc3VhbCBldmlkZW5jZSBzdHJvbmdseSBzdXBwb3J0cyBhIFN0YW5sZXkgYnJhbmRlZCBzcGVjaWFsaXplZCB3b29kd29ya2luZyBwbGFuZSB0b29sLiB8IFN1bW1hcnk6IFRoZSBpbWFnZXMgZGVwaWN0IGEgU3RhbmxleSBicmFuZGVkIHNwZWNpYWxpemVkIG1ldGFsIGhhbmQgcGxhbmUgdG9vbCB1c2VkIGluIHdvb2R3b3JraW5nLiBJdCBoYXMgYW4gZXJnb25vbWljIGJsYWNrIGhhbmRsZSB3aXRoIHRleHR1cmVkIGdyaXAsIGFkanVzdGFibGUgc2NyZXdzLCBhbmQgbWV0YWwgYm9keSB0eXBpY2FsIG9mIG1pZCB0byBsYXRlIDIwdGgtY2VudHVyeSBoYW5kIHRvb2xzLiBUaGUgU3RhbmxleSBicmFuZCBpcyBjbGVhcmx5IHZpc2libGUgb24gdGhlIHRvb2wgaW4gbWV0YWwgZW1ib3NzaW5nIGFuZCBhIHN0aWNrZXIuIFRoaXMgaXMgYSBicm9hZCBzdWJqZWN0IGlkZW50aWZpY2F0aW9uIGFzIGEgaGFuZCB0b29sIHNwZWNpZmljYWxseSBhIHdvb2R3b3JraW5nIHBsYW5lLiIsInN1YmplY3RJZGVudGl0eSI6IkhhbmQgdG9vbCAtIHNwZWNpYWxpemVkIG1ldGFsIHdvb2R3b3JraW5nIHBsYW5lIiwic3ViamVjdENvbmZpZGVuY2UiOiJIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiIsImV4YWN0UHJvZHVjdElkZW50aXR5IjoiU3RhbmxleSBzcGVjaWFsaXplZCBtZXRhbCB3b29kd29ya2luZyBoYW5kIHBsYW5lIiwiZXhhY3RQcm9kdWN0Q29uZmlkZW5jZSI6Ik1vZGVyYXRlIC0gQnJhbmQgYW5kIHR5cGUgY29uZmlybWVkIGJ1dCBleGFjdCBtb2RlbCBvciB2YXJpYW50IG5vdCBpZGVudGlmaWVkIiwibWFrZXJEYXRlTGljZW5zaW5nU3RhdHVzIjpbIk1ha2VyIC8gTWFudWZhY3R1cmVyOiBTdGFubGV5IiwiRGF0ZSAvIEVyYTogTWlkIDIwdGggY2VudHVyeSB0byBsYXRlIDIwdGggY2VudHVyeSIsIkxpY2Vuc2luZzogTm90IGFwcGxpY2FibGUiLCJBdXRoZW50aWNpdHk6IEFzc3VtZWQgYXV0aGVudGljIGJhc2VkIG9uIHZpc2libGUgYnJhbmQgYW5kIG1hbnVmYWN0dXJlIG1hcmsiXSwid2hhdElzS25vd24iOlsiU3ViamVjdDogSGFuZCB0b29sIC0gc3BlY2lhbGl6ZWQgbWV0YWwgd29vZHdvcmtpbmcgcGxhbmUiLCJWaXN1YWwgZXZpZGVuY2U6IFZpc2libGUgU3RhbmxleSBicmFuZCBlbWJvc3Npbmcgb24gbWV0YWwgYm9keSIsIlZpc3VhbCBldmlkZW5jZTogU3RpY2tlciBsYWJlbCBvbiBoYW5kbGUgcmVhZHMgJ01BREUgSU4gU1RBTkxFWSBFTkdMQU5EJyIsIlZpc3VhbCBldmlkZW5jZTogQmxhY2sgdGV4dHVyZWQgZXJnb25vbWljIGhhbmRsZSIsIlRleHQgZXZpZGVuY2U6IFNUQU5MRVkiLCJUZXh0IGV2aWRlbmNlOiBNQURFIElOIFNUQU5MRVkgRU5HTEFORCIsIkNvbXBhcmFibGUgc3RhdHVzOiBObyBleGFjdCBtb2RlbCBudW1iZXIgb3IgU0tVIHZpc2libGUgdG8gY29uZmlybSBleGFjdCBjb21wYXJhYmxlIl0sIndoYXRJc1N0aWxsVW5rbm93biI6WyJFeGFjdCBtb2RlbCBvciB2YXJpYW50IG5hbWUvbnVtYmVyIiwiRXhhY3QgbWFudWZhY3R1cmluZyB5ZWFyIG9yIHByZWNpc2UgZXJhIiwiSXRlbSBjb25kaXRpb24gYW5kIGFza2luZyBwcmljZSIsIkV4YWN0IHRvb2wgbW9kZWwgb3IgdmFyaWFudCIsIkV4YWN0IHllYXIgb3IgZXJhIG9mIG1hbnVmYWN0dXJlIl0sImlkZW50aXR5Q29uZmxpY3RzIjpbXSwiaWRlbnRpdHlTdW1tYXJ5IjoiU3ViamVjdCBJZGVudGl0eTogSGFuZCB0b29sIC0gc3BlY2lhbGl6ZWQgbWV0YWwgd29vZHdvcmtpbmcgcGxhbmUgfCBTdWJqZWN0IENvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIHwgRXhhY3QgUHJvZHVjdCBJZGVudGl0eTogU3RhbmxleSBzcGVjaWFsaXplZCBtZXRhbCB3b29kd29ya2luZyBoYW5kIHBsYW5lIHwgTWFrZXIgLyBNYW51ZmFjdHVyZXI6IFN0YW5sZXkgfCBMaWNlbnNpbmcgLyBBdXRoZW50aWNpdHk6IE5vdCBhcHBsaWNhYmxlIC8gQXNzdW1lZCBhdXRoZW50aWMgYmFzZWQgb24gdmlzaWJsZSBicmFuZCBhbmQgbWFudWZhY3R1cmUgbWFyayIsInJlc3VsdHNGb3VuZCI6W10sInN0cm9uZ0NvbXBhcmFibGVzIjpbXSwicGFydGlhbENvbXBhcmFibGVzIjpbXSwicmVmZXJlbmNlUmVzdWx0cyI6W10sIndlYWtNYXRjaGVzIjpbXSwicmVqZWN0ZWRNYXRjaGVzIjpbXSwic2VhcmNoTGltaXRhdGlvbnMiOlsiTGl2ZSBzZWFyY2ggY29tcGxldGVkLCBidXQgbm8gdmlzaWJsZSBzdHJ1Y3R1cmVkIHNvdXJjZS1iYWNrZWQgcmVzdWx0IHJlY29yZHMgd2VyZSByZXR1cm5lZC4iLCJFeGFjdCBwaHJhc2Ugc2VhcmNoZXMgd2VyZSBhdHRlbXB0ZWQsIGJ1dCB0aGUgbGl2ZSByZXNwb25zZSBkaWQgbm90IHJldHVybiBVUkwtY2l0ZWQgc291cmNlIHJlY29yZHMuIiwiTm8gZXhhY3Qgb3Igc3Ryb25nIGNvbXBhcmFibGUgcmVjb3JkcyBhcmUgdmlzaWJsZSBpbiB0aGlzIHJlcG9ydC4iXSwidmlzaWJsZVJlc2VhcmNoUmVzdWx0Q291bnQiOjAsInJlZmVyZW5jZVJhbmdlQmFzaXMiOiJObyBudW1lcmljIHByZWxpbWluYXJ5IHJhbmdlIGlzIHNob3duIGJlY2F1c2UgdGhlcmUgYXJlIG5vIHZpc2libGUgc3RydWN0dXJlZCBzb3VyY2UgcmVjb3JkcyBzdXBwb3J0aW5nIG9uZS4iLCJwcmVsaW1pbmFyeVJlZmVyZW5jZVJhbmdlIjoiIiwicHJpY2VCYXNpcyI6IkZhaXIgdmFsdWUgbm90IGVzdGFibGlzaGVkIC0gYXZhaWxhYmxlIGV2aWRlbmNlIGlzIHRvbyB3ZWFrIGZvciBhIGRlZmVuc2libGUgZG9sbGFyIHJhbmdlLiAgUHJpY2luZyBiYXNpcyBkaXN0aW5ndWlzaGVzIGV4YWN0IGlkZW50aXR5IG1hdGNoZXMgZnJvbSBhY3RpdmUgYXNraW5nLXByaWNlIGV2aWRlbmNlIGFuZCBjb25maXJtZWQgc29sZCBldmlkZW5jZS4iLCJjb25zdW1lckRvd25zaWRlUmlzayI6IkRvd25zaWRlIGNhbm5vdCBiZSBjYWxjdWxhdGVkIGJlY2F1c2UgdGhlIGFza2luZyBwcmljZSBpcyBtaXNzaW5nLiIsImNhdXRpb3VzQnV5RXhwbGFuYXRpb24iOiIiLCJsaXZlQ29tcGFyYWJsZVNlYXJjaFN0YXR1cyI6IkxpdmUgU2VhcmNoIENvbXBsZXRlZCAtIE5vIFJlbGlhYmxlIENvbXBzIEZvdW5kIiwid2VGb3VuZFRoaXNJdGVtIjpbXSwid2VGb3VuZFNpbWlsYXJDb21wYXJhYmxlSXRlbXMiOltdLCJ2YWx1YXRpb25FdmlkZW5jZVN0YXRlIjoiaW5zdWZmaWNpZW50IiwidmFsdWF0aW9uRXZpZGVuY2VMYWJlbCI6IkZhaXIgVmFsdWUgTm90IEVzdGFibGlzaGVkIiwidmFsdWF0aW9uRXZpZGVuY2VFeHBsYW5hdGlvbiI6IlRoZSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuIiwiZmFpclZhbHVlTm90RXN0YWJsaXNoZWQiOiJGYWlyIFZhbHVlOiBOb3QgZXN0YWJsaXNoZWQiLCJlc3RpbWF0ZWRNYXJrZXRWYWx1ZSI6IiIsIndoYXRUaGlzTWVhbnMiOiJGYWlyIG1hcmtldCB2YWx1ZSBoYXMgbm90IGJlZW4gZXN0YWJsaXNoZWQgZnJvbSB0aGUgYXZhaWxhYmxlIGV2aWRlbmNlLiBEbyBub3QgdHJlYXQgdGhpcyBhcyBhIGNvbmZpcm1lZCB2YWx1ZSBlc3RpbWF0ZS4iLCJiZXN0TmV4dFN0ZXAiOiJBc2tpbmcgcHJpY2UifX0=",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "Stanley specialized metal woodworking hand plane",
+      "identificationConfidence": "High for broad category (metal woodworking hand plane), moderate for exact model or variant",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Hand tool - specialized metal woodworking plane",
+        "Visual subject category: Tools",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Not verified",
+        "Recognized brand: Stanley (visible)",
+        "Recognized character: Not verified",
+        "Subject identity: Hand tool - specialized metal woodworking plane",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "Exact product identity: Stanley specialized metal woodworking hand plane",
+        "Exact product confidence: Moderate - Brand and type confirmed but exact model or variant not identified",
+        "Brand: Stanley",
+        "Manufacturer/location: Made in Stanley England (as per sticker)"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "Request seller to provide the asking price and clearer details on model and condition before negotiating. Without price or condition info, cannot advise on offer strategy.",
+      "reasonsToBuy": [
+        "Stanley is a reputable brand known for durable woodworking tools",
+        "Metal hand planes are useful for fine woodworking and hand tool enthusiasts",
+        "Visuals show ergonomic design and adjustable features suggesting functional condition"
+      ],
+      "reasonsForCaution": [
+        "Exact model and condition are unknown which impacts value assessment",
+        "No asking price provided so fair pricing cannot be determined",
+        "No reliable market comparables found to benchmark pricing",
+        "Identity Not Confirmed",
+        "Weak Comparable Evidence",
+        "Condition Unclear",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Condition and completeness unknown",
+        "Authenticity assumed but not formally verified beyond visible branding",
+        "Potential older tool with unknown wear or parts issues",
+        "Risk flag: Identity Not Confirmed",
+        "Risk flag: Weak Comparable Evidence",
+        "Risk flag: Condition Unclear",
+        "Condition is not confirmed."
+      ],
+      "riskFlags": [
+        "Identity Not Confirmed",
+        "Weak Comparable Evidence",
+        "Condition Unclear"
+      ],
+      "betterValueConsiderations": [
+        "Check for more common Stanley block or combination planes with confirmed model numbers",
+        "Consider tools with verified condition and clearer pricing history",
+        "Wait for listings with full condition details and asking price"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without exact model and condition data or current asking price, no defensible price estimate can be formulated",
+      "additionalInformationNeeded": [
+        "Asking price",
+        "Exact model identification or stamped model number",
+        "Condition details including wear, damage, and completeness",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price.",
+        "Clear condition confirmation, including whether it works and whether any parts or accessories are missing.",
+        "A closer photo of the model label, SKU, UPC/barcode, maker mark, tag, or underside/back label."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"reads 'MADE IN STANLEY ENGLAND'\" Stanley (visible) tool",
+        "\"Tool has industrial, utilitarian style typical\" Not verified Stanley (visible)",
+        "\"on handle reads 'MADE IN STANLEY\" Not verified Stanley (visible)",
+        "\"Sticker label on handle reads 'MADE\" Not verified Stanley (visible)",
+        "\"on handle reads 'MADE IN STANLEY\" Stanley (visible) tool",
+        "\"Sticker label on handle reads 'MADE\" Stanley (visible) tool",
+        "\"industrial, utilitarian style typical of mid\" Not verified Stanley (visible)",
+        "\"MADE IN STANLEY ENGLAND\" Stanley (visible) tool",
+        "\"style typical of mid to\" Stanley (visible) tool",
+        "\"industrial, utilitarian style typical of mid\" Stanley (visible) tool",
+        "\"Tool has industrial, utilitarian style typical\" Stanley (visible) tool",
+        "\"Brand name 'Stanley' clearly embossed on side and\" Stanley (visible)",
+        "\"Brand name 'Stanley' clearly embossed on side and\" Not verified",
+        "\"Sticker label on handle reads 'MADE IN STANLEY\" Stanley (visible)"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: Facebook Marketplace-style local value logic; Craigslist / OfferUp / local pickup resale; local consignment logic; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results; collector/reference/brand clue results",
+        "Sources searched: fitforfaith.ca; magica.com; interestana.com; colonialsociety.org; elmelaab.net; esquire.com; robertgaskins.com; uk.trustpilot.com",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched relevant holiday decor / collectible sources.",
+        "Searched local/bulky-item source categories where available."
+      ],
+      "visualSubject": "Hand tool - specialized metal woodworking plane",
+      "visualSubjectCategory": "Tools",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Not verified",
+      "recognizedBrand": "Stanley (visible)",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Not verified",
+      "visualRecognitionEvidence": [
+        "Two images show detailed and different angles of the same black and silver hand tool",
+        "Closeups of adjustment screws and mechanism for planing",
+        "Brand name 'Stanley' clearly embossed on side and sticker on handle mount",
+        "Metal woodworking plane",
+        "Adjustable components",
+        "Ergonomic handle with textured grip",
+        "Brand name embossed in metal and sticker label",
+        "Visible logo/symbol: Stanley",
+        "Visible letter: S",
+        "Visible letter: T"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact tool model or variant",
+        "Exact year or era of manufacture"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Hand tool - specialized metal woodworking plane | Category: Tools | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Stanley (visible); character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: Two images show detailed and different angles of the same black and silver hand tool; Closeups of adjustment screws and mechanism for planing; Brand name 'Stanley' clearly embossed on side and sticker on handle mount; Metal woodworking plane | Still unknown: Exact tool model or variant; Exact year or era of manufacture | User evidence reconciliation: User did not provide additional evidence or note. Visual evidence strongly supports a Stanley branded specialized woodworking plane tool. | Summary: The images depict a Stanley branded specialized metal hand plane tool used in woodworking. It has an ergonomic black handle with textured grip, adjustable screws, and metal body typical of mid to late 20th-century hand tools. The Stanley brand is clearly visible on the tool in metal embossing and a sticker. This is a broad subject identification as a hand tool specifically a woodworking plane.",
+      "subjectIdentity": "Hand tool - specialized metal woodworking plane",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Stanley specialized metal woodworking hand plane",
+      "exactProductConfidence": "Moderate - Brand and type confirmed but exact model or variant not identified",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Stanley",
+        "Date / Era: Mid 20th century to late 20th century",
+        "Licensing: Not applicable",
+        "Authenticity: Assumed authentic based on visible brand and manufacture mark"
+      ],
+      "whatIsKnown": [
+        "Subject: Hand tool - specialized metal woodworking plane",
+        "Visual evidence: Visible Stanley brand embossing on metal body",
+        "Visual evidence: Sticker label on handle reads 'MADE IN STANLEY ENGLAND'",
+        "Visual evidence: Black textured ergonomic handle",
+        "Text evidence: STANLEY",
+        "Text evidence: MADE IN STANLEY ENGLAND",
+        "Comparable status: No exact model number or SKU visible to confirm exact comparable"
+      ],
+      "whatIsStillUnknown": [
+        "Exact model or variant name/number",
+        "Exact manufacturing year or precise era",
+        "Item condition and asking price",
+        "Exact tool model or variant",
+        "Exact year or era of manufacture"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Hand tool - specialized metal woodworking plane | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Stanley specialized metal woodworking hand plane | Maker / Manufacturer: Stanley | Licensing / Authenticity: Not applicable / Assumed authentic based on visible brand and manufacture mark",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Asking price"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "Stanley specialized metal woodworking hand plane",
+    "identificationConfidence": "High for broad category (metal woodworking hand plane), moderate for exact model or variant",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Hand tool - specialized metal woodworking plane",
+      "Visual subject category: Tools",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Not verified",
+      "Recognized brand: Stanley (visible)",
+      "Recognized character: Not verified",
+      "Subject identity: Hand tool - specialized metal woodworking plane",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "Exact product identity: Stanley specialized metal woodworking hand plane",
+      "Exact product confidence: Moderate - Brand and type confirmed but exact model or variant not identified",
+      "Brand: Stanley",
+      "Manufacturer/location: Made in Stanley England (as per sticker)"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "Request seller to provide the asking price and clearer details on model and condition before negotiating. Without price or condition info, cannot advise on offer strategy.",
+    "reasonsToBuy": [
+      "Stanley is a reputable brand known for durable woodworking tools",
+      "Metal hand planes are useful for fine woodworking and hand tool enthusiasts",
+      "Visuals show ergonomic design and adjustable features suggesting functional condition"
+    ],
+    "reasonsForCaution": [
+      "Exact model and condition are unknown which impacts value assessment",
+      "No asking price provided so fair pricing cannot be determined",
+      "No reliable market comparables found to benchmark pricing",
+      "Identity Not Confirmed",
+      "Weak Comparable Evidence",
+      "Condition Unclear",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Condition and completeness unknown",
+      "Authenticity assumed but not formally verified beyond visible branding",
+      "Potential older tool with unknown wear or parts issues",
+      "Risk flag: Identity Not Confirmed",
+      "Risk flag: Weak Comparable Evidence",
+      "Risk flag: Condition Unclear",
+      "Condition is not confirmed."
+    ],
+    "riskFlags": [
+      "Identity Not Confirmed",
+      "Weak Comparable Evidence",
+      "Condition Unclear"
+    ],
+    "betterValueConsiderations": [
+      "Check for more common Stanley block or combination planes with confirmed model numbers",
+      "Consider tools with verified condition and clearer pricing history",
+      "Wait for listings with full condition details and asking price"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without exact model and condition data or current asking price, no defensible price estimate can be formulated",
+    "additionalInformationNeeded": [
+      "Asking price",
+      "Exact model identification or stamped model number",
+      "Condition details including wear, damage, and completeness",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price.",
+      "Clear condition confirmation, including whether it works and whether any parts or accessories are missing.",
+      "A closer photo of the model label, SKU, UPC/barcode, maker mark, tag, or underside/back label."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"reads 'MADE IN STANLEY ENGLAND'\" Stanley (visible) tool",
+      "\"Tool has industrial, utilitarian style typical\" Not verified Stanley (visible)",
+      "\"on handle reads 'MADE IN STANLEY\" Not verified Stanley (visible)",
+      "\"Sticker label on handle reads 'MADE\" Not verified Stanley (visible)",
+      "\"on handle reads 'MADE IN STANLEY\" Stanley (visible) tool",
+      "\"Sticker label on handle reads 'MADE\" Stanley (visible) tool",
+      "\"industrial, utilitarian style typical of mid\" Not verified Stanley (visible)",
+      "\"MADE IN STANLEY ENGLAND\" Stanley (visible) tool",
+      "\"style typical of mid to\" Stanley (visible) tool",
+      "\"industrial, utilitarian style typical of mid\" Stanley (visible) tool",
+      "\"Tool has industrial, utilitarian style typical\" Stanley (visible) tool",
+      "\"Brand name 'Stanley' clearly embossed on side and\" Stanley (visible)",
+      "\"Brand name 'Stanley' clearly embossed on side and\" Not verified",
+      "\"Sticker label on handle reads 'MADE IN STANLEY\" Stanley (visible)"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: Facebook Marketplace-style local value logic; Craigslist / OfferUp / local pickup resale; local consignment logic; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results; collector/reference/brand clue results",
+      "Sources searched: fitforfaith.ca; magica.com; interestana.com; colonialsociety.org; elmelaab.net; esquire.com; robertgaskins.com; uk.trustpilot.com",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched relevant holiday decor / collectible sources.",
+      "Searched local/bulky-item source categories where available."
+    ],
+    "visualSubject": "Hand tool - specialized metal woodworking plane",
+    "visualSubjectCategory": "Tools",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Not verified",
+    "recognizedBrand": "Stanley (visible)",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Not verified",
+    "visualRecognitionEvidence": [
+      "Two images show detailed and different angles of the same black and silver hand tool",
+      "Closeups of adjustment screws and mechanism for planing",
+      "Brand name 'Stanley' clearly embossed on side and sticker on handle mount",
+      "Metal woodworking plane",
+      "Adjustable components",
+      "Ergonomic handle with textured grip",
+      "Brand name embossed in metal and sticker label",
+      "Visible logo/symbol: Stanley",
+      "Visible letter: S",
+      "Visible letter: T"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact tool model or variant",
+      "Exact year or era of manufacture"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Hand tool - specialized metal woodworking plane | Category: Tools | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Stanley (visible); character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: Two images show detailed and different angles of the same black and silver hand tool; Closeups of adjustment screws and mechanism for planing; Brand name 'Stanley' clearly embossed on side and sticker on handle mount; Metal woodworking plane | Still unknown: Exact tool model or variant; Exact year or era of manufacture | User evidence reconciliation: User did not provide additional evidence or note. Visual evidence strongly supports a Stanley branded specialized woodworking plane tool. | Summary: The images depict a Stanley branded specialized metal hand plane tool used in woodworking. It has an ergonomic black handle with textured grip, adjustable screws, and metal body typical of mid to late 20th-century hand tools. The Stanley brand is clearly visible on the tool in metal embossing and a sticker. This is a broad subject identification as a hand tool specifically a woodworking plane.",
+    "subjectIdentity": "Hand tool - specialized metal woodworking plane",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Stanley specialized metal woodworking hand plane",
+    "exactProductConfidence": "Moderate - Brand and type confirmed but exact model or variant not identified",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Stanley",
+      "Date / Era: Mid 20th century to late 20th century",
+      "Licensing: Not applicable",
+      "Authenticity: Assumed authentic based on visible brand and manufacture mark"
+    ],
+    "whatIsKnown": [
+      "Subject: Hand tool - specialized metal woodworking plane",
+      "Visual evidence: Visible Stanley brand embossing on metal body",
+      "Visual evidence: Sticker label on handle reads 'MADE IN STANLEY ENGLAND'",
+      "Visual evidence: Black textured ergonomic handle",
+      "Text evidence: STANLEY",
+      "Text evidence: MADE IN STANLEY ENGLAND",
+      "Comparable status: No exact model number or SKU visible to confirm exact comparable"
+    ],
+    "whatIsStillUnknown": [
+      "Exact model or variant name/number",
+      "Exact manufacturing year or precise era",
+      "Item condition and asking price",
+      "Exact tool model or variant",
+      "Exact year or era of manufacture"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Hand tool - specialized metal woodworking plane | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Stanley specialized metal woodworking hand plane | Maker / Manufacturer: Stanley | Licensing / Authenticity: Not applicable / Assumed authentic based on visible brand and manufacture mark",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Asking price"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "3e889b8cfd74a38789837e072c4c1eb00038aee35aaf1b9d850cf3010f8cb8c2"
+}

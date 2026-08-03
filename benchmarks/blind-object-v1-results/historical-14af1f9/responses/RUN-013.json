@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-013",
+  "objectId": "OBJ-013",
+  "requestSha256": "26470b9dd64d039f6e5c743599451e45fa96ca0b5629234d7e506836273cdc9d",
+  "handlerStatus": {
+    "statusCode": 400,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:34:03.935Z",
+  "endTimestamp": "2026-08-03T18:34:03.935Z",
+  "elapsedMilliseconds": 0.10450000001583248,
+  "rawHandlerBodyBase64": "eyJlcnJvciI6IkFkZCBpdGVtIG5vdGVzIGJlZm9yZSBnZW5lcmF0aW5nIGEgbGlzdGluZy4ifQ==",
+  "rawProductResponse": {
+    "error": "Add item notes before generating a listing."
+  },
+  "customerFacingReport": {
+    "error": "Add item notes before generating a listing."
+  },
+  "providerAndSearchErrors": [
+    {
+      "path": "error",
+      "value": "Add item notes before generating a listing."
+    }
+  ],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "6c7b3f4bfda12314ed31a11603d45cc076dd310f965662b5405c76175181a1ea"
+}

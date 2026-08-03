@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-005",
+  "objectId": "OBJ-005",
+  "requestSha256": "9fd4c54c2e46f9cb031a2460d99fdf8c0b993e9524c4c71f9cdc18f0ff9c7035",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:27:51.117Z",
+  "endTimestamp": "2026-08-03T18:28:25.774Z",
+  "elapsedMilliseconds": 34658.596300000005,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6IlZpbnRhZ2Ugb2ZmaWNlIGNoYWlyIG1vZGVsIDU2MCBtYW51ZmFjdHVyZWQgaW4gMTk2NiBieSBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgY2xlYXIgbGFiZWwsIHZpc2libGUgbWFudWZhY3R1cmluZyBkZXRhaWxzLCBtb2RlbCBudW1iZXIsIGFuZCBjb25zaXN0ZW50IHZpbnRhZ2UgYXBwZWFyYW5jZS4iLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IE9mZmljZSBjaGFpciIsIlZpc3VhbCBzdWJqZWN0IGNhdGVnb3J5OiBGdXJuaXR1cmUiLCJWaXN1YWwgc3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIlJlY29nbml6ZWQgb3JnYW5pemF0aW9uOiBOb3QgdmVyaWZpZWQiLCJSZWNvZ25pemVkIGJyYW5kOiBOb3QgdmVyaWZpZWQiLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogT2ZmaWNlIGNoYWlyIiwiU3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiIsIkV4YWN0IHByb2R1Y3QgaWRlbnRpdHk6IFZpbnRhZ2Ugb2ZmaWNlIGNoYWlyIG1vZGVsIDU2MCBtYW51ZmFjdHVyZWQgaW4gMTk2NiBieSBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiwgZmVhdHVyaW5nIG9saXZlIGdyZWVuIHVwaG9sc3RlcnkgYW5kIGJyb3duIGFybXJlc3RzIG9uIGEgZm91ci1zdGFyIG1ldGFsIGJhc2Ugd2l0aCBjYXN0ZXJzIiwiRXhhY3QgcHJvZHVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIk1hbnVmYWN0dXJlcjogUmFmZmxld2VsbGluZyBDby4sIEluYy4iLCJNYW51ZmFjdHVyZXIvbG9jYXRpb246IEluZHVzdHJpYWwgQXZlbnVlLCBIb2xseWRhbGUsIENhbGlmb3JuaWEiXSwiYXNraW5nUHJpY2UiOiJOb3QgcHJvdmlkZWQgLSBlbnRlciB0aGUgY3VycmVudCBhc2tpbmcgcHJpY2UgZm9yIGEgcGVyc29uYWwtdXNlIHZhbHVlIGRlY2lzaW9uLiIsImVzdGltYXRlZEZhaXJNYXJrZXRWYWx1ZSI6IiIsImZhaXJQcmljZVJhbmdlIjpbXSwidmFsdWVSYXRpbmciOiJJbnN1ZmZpY2llbnQgRXZpZGVuY2UiLCJyZWNvbW1lbmRhdGlvbiI6Ik5lZWQgTW9yZSBJbmZvcm1hdGlvbiIsInJlY29tbWVuZGVkT2ZmZXIiOlsiT3BlbmluZyBPZmZlcjogTm90IHN1cHBvcnRlZCB5ZXQuIiwiVGFyZ2V0IFB1cmNoYXNlIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iLCJNYXhpbXVtIFJlY29tbWVuZGVkIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iXSwib3BlbmluZ09mZmVyIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSB2ZXJpZnkgaWRlbnRpdHksIGNvbmRpdGlvbiwgYXNraW5nIHByaWNlLCBhbmQgcmVsaWFibGUgY29tcGFyYWJsZXMgZmlyc3QuIiwidGFyZ2V0UHVyY2hhc2VQcmljZSI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgcmVzcG9uc2libGUgdGFyZ2V0IHByaWNlLiIsIm1heGltdW1SZWNvbW1lbmRlZFByaWNlIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSBkbyBub3Qgc2V0IGEgbWF4aW11bSBmcm9tIHdlYWsgZXZpZGVuY2UuIiwid2Fsa0F3YXlQcmljZSI6Ik5vdCBlbm91Z2ggZXZpZGVuY2UgZm9yIGEgcHJlY2lzZSB3YWxrLWF3YXkgcHJpY2UuIiwibmVnb3RpYXRpb25HdWlkYW5jZSI6Ik5vIHJlbGlhYmxlIG1hcmtldCBwcmljaW5nIGRhdGEgZXhpc3RzIGZvciB0aGlzIHNwZWNpZmljIHZpbnRhZ2UgbW9kZWwgdG8gZ3VpZGUgYW4gb2ZmZXIuIFJlcXVlc3Qgc2VsbGVyIHRvIHByb3ZpZGUgYSBjdXJyZW50IGFza2luZyBwcmljZSBhbmQgYWRkaXRpb25hbCBkZXRhaWxzIGFib3V0IGNoYWlyIGNvbmRpdGlvbiBhbmQgZnVuY3Rpb25hbGl0eSBiZWZvcmUgbmVnb3RpYXRpbmcuIiwicmVhc29uc1RvQnV5IjpbIlVuaXF1ZSBpZGVudGlmaWFibGUgdmludGFnZSBvZmZpY2UgY2hhaXIgZnJvbSAxOTY2IHdpdGggbWFudWZhY3R1cmVyIGxhYmVsLCBhcHBlYWxpbmcgdG8gY29sbGVjdG9ycyBvciBtaWQtY2VudHVyeSBtb2Rlcm4gZW50aHVzaWFzdHMiLCJEaXN0aW5jdGl2ZSBvbGl2ZSBncmVlbiB1cGhvbHN0ZXJ5IGFuZCBicm93biBhcm1yZXN0cyB3aXRoIGluZHVzdHJpYWwgc3R5bGUgbWV0YWwgYmFzZSIsIlBvdGVudGlhbCBhdXRoZW50aWMgbWlkLWNlbnR1cnkgdmludGFnZSBwaWVjZSBtYW51ZmFjdHVyZWQgYnkgUmFmZmxld2VsbGluZyBDby4sIEluYy4iXSwicmVhc29uc0ZvckNhdXRpb24iOlsiQ29uZGl0aW9uIHNob3dzIHZpc2libGUgd2VhciBhbmQgdGVhcnMgb24gdXBob2xzdGVyeSwgd2hpY2ggbWF5IHJlcXVpcmUgcmVzdG9yYXRpb24gb3IgcmVkdWNlIGNvbWZvcnQiLCJObyBjbGVhciBjdXJyZW50IG1hcmtldCBwcmljaW5nIG9yIHJlY2VudCBjb21wYXJhYmxlIHNhbGVzIGZvdW5kLCBtYWtpbmcgdmFsdWUgYXNzZXNzbWVudCBkaWZmaWN1bHQiLCJVbmNlcnRhaW50eSBhYm91dCBvcGVyYXRpb25hbCBjb25kaXRpb24gbGlrZSBjYXN0ZXIgcGVyZm9ybWFuY2UgYW5kIHN0cnVjdHVyYWwgc291bmRuZXNzIGR1ZSB0byB3ZWFyIiwiV2VhayBDb21wYXJhYmxlIEV2aWRlbmNlIiwiT2xkZXIgTW9kZWwiLCJDb25zdW1lciB2YWx1ZSBjYW5ub3QgYmUgcmF0ZWQgY29uZmlkZW50bHkgdW50aWwgdGhlIGFza2luZyBwcmljZSwgZXhhY3QgaWRlbnRpdHksIGNvbmRpdGlvbiwgYW5kIHNvdXJjZS1iYWNrZWQgY29tcGFyYWJsZSBldmlkZW5jZSBhcmUgc3Ryb25nZXIuIl0sInByb2R1Y3RPckNvbmRpdGlvblJpc2tzIjpbIldvcm4gdXBob2xzdGVyeSB3aXRoIHRlYXJzIG5vdGVkIiwiTm8gY29uZmlybWF0aW9uIG9mIG1lY2hhbmljYWwgb3Igc3RydWN0dXJhbCBpbnRlZ3JpdHkiLCJQb3RlbnRpYWwgcmVzdG9yYXRpb24gbmVlZGVkIiwiTm8gd2FycmFudHkgb3IgcmV0dXJuIGluZm9ybWF0aW9uIHByb3ZpZGVkIiwiUmlzayBmbGFnOiBXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJSaXNrIGZsYWc6IE9sZGVyIE1vZGVsIl0sInJpc2tGbGFncyI6WyJXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJPbGRlciBNb2RlbCJdLCJiZXR0ZXJWYWx1ZUNvbnNpZGVyYXRpb25zIjpbIkNvbnNpZGVyIHNlZWtpbmcgb3RoZXIgdmludGFnZSBvciBtaWQtY2VudHVyeSBvZmZpY2UgY2hhaXJzIHdpdGggdmVyaWZpZWQgY29uZGl0aW9uIGFuZCBwcmljaW5nIiwiTG9vayBmb3Igc2ltaWxhciBjaGFpcnMgd2l0aCBjbGVhcmVyIHByb3ZlbmFuY2Ugb3Iga25vd24gbWFya2V0IGRlbWFuZCIsIkV4cGxvcmUgbmV3ZXIgZXJnb25vbWljIG9mZmljZSBjaGFpcnMgaWYgZnVuY3Rpb25hbGl0eSBhbmQgY29tZm9ydCBhcmUgcHJpbWFyeSBjb25jZXJucyJdLCJyZXNlYXJjaFJlc3VsdHMiOlsiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBhcmFibGVzIHBhc3NlZCBmaWx0ZXJpbmcuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiJdLCJjb21wYXJhYmxlUXVhbGl0eSI6WyJSZWplY3RlZCBNYXRjaCAtIG5vIHJldHVybmVkIHJlc3VsdCBoYWQgZW5vdWdoIGNpdGVkLCByZWxldmFudCBldmlkZW5jZSB0byBkcml2ZSBsaXN0aW5nIHByaWNlLiJdLCJwcmljaW5nQ29uZmlkZW5jZSI6IkxvdyAtIENvbnN1bWVyIHZhbHVlIHJhdGluZyBpcyBpbnN1ZmZpY2llbnQgYmVjYXVzZSBubyBjdXJyZW50IGFza2luZyBwcmljZSB3YXMgcHJvdmlkZWQsIG5vIGV2aWRlbmNlLWJhY2tlZCBmYWlyIHZhbHVlIGNvdWxkIGJlIGV4dHJhY3RlZCwgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wcyBwYXNzZWQgZmlsdGVyaW5nLiBTdXBwb3J0czogcGhvdG9zIGFuZCBub3Rlcy4gV2Vha2VuczogbWlzc2luZyBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UuIEltcHJvdmUgYnkgZmluZGluZyBleGFjdCwgY2l0ZWQgY29tcGFyYWJsZSBtYXRjaGVzLiIsInByaWNpbmdSYXRpb25hbGUiOiJMaXZlIHJlc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gQ29uc3VtZXIgZGVjaXNpb24gaXMgbG93IGNvbmZpZGVuY2UuICBMYWNrIG9mIHZpc2libGUgYXNraW5nIHByaWNlIGFuZCBubyBhZHZlcnRpc2VtZW50cyBvciBzYWxlcyBoaXN0b3J5IGZvciB0aGUgZXhhY3QgbW9kZWwgcHJldmVudCBhIHByZWNpc2UgdmFsdWF0aW9uOyBvbmx5IGNvbmRpdGlvbiBhbmQgdmludGFnZSBjaGFyYWN0ZXJpc3RpY3MgY2FuIGJlIGFzc2Vzc2VkIHZpc3VhbGx5LiIsImFkZGl0aW9uYWxJbmZvcm1hdGlvbk5lZWRlZCI6WyJBc2tpbmcgcHJpY2Ugb3Igc2VsbGVyJ3MgcHJvcG9zZWQgc2FsZSBwcmljZSIsIk1vcmUgZGV0YWlsZWQgcGhvdG9zIHNob3dpbmcgb3ZlcmFsbCBjb25kaXRpb24sIGVzcGVjaWFsbHkgdGhlIHNlYXQgYmFzZSwgY2FzdGVyIGZ1bmN0aW9uYWxpdHksIGFuZCBhbnkgZGFtYWdlcyIsIkFueSBoaXN0b3J5IG9mIHJlcGFpcnMgb3IgcmVzdG9yYXRpb25zIiwiRGltZW5zaW9ucyBhbmQgd2VpZ2h0IGNhcGFjaXR5IGlmIHBvc3NpYmxlIiwiQ29uZmlybWF0aW9uIGlmIHRoZSBjaGFpciBpcyBmdWxseSBmdW5jdGlvbmFsIGZvciBpbnRlbmRlZCB1c2UiLCJPbmUgc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlIHJlc3VsdCBmb3IgdGhlIHNhbWUgbW9kZWwsIFNLVSwgVVBDLCBtYWtlciwgc2l6ZSwgb3IgaXRlbSBjb2RlLiIsIkN1cnJlbnQgc2VsbGVyIGFza2luZyBwcmljZS4iXSwic2VhcmNoUXVlcmllc1VzZWQiOlsiVGhlc2UgYXJlIHRoZSBxdWVyaWVzIHRoZSBzeXN0ZW0gdXNlZC4iLCJcIjU2MCAxMiA3IDE5NjZcIiBOb3QgdmVyaWZpZWQgZWxlY3Ryb25pY3MiLCJcIlZpbnRhZ2Ugb2ZmaWNlIGNoYWlyIG1vZGVsIDU2MFwiIE5vdCB2ZXJpZmllZCBlbGVjdHJvbmljcyIsIlwiVmludGFnZSBvZmZpY2UgY2hhaXIgbW9kZWwgNTYwIG1hbnVmYWN0dXJlZCBpbiAxOTY2XCIgTm90IHZlcmlmaWVkIiwiXCJsYWJlbCBkYXRlZCAxOTY2XCIgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiXCJJbmR1c3RyaWFsIEF2ZW51ZSwgSG9sbHlkYWxlLCBDYWxpZm9ybmlhXCIgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiXCJSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLlwiIE5vdCB2ZXJpZmllZCBlbGVjdHJvbmljcyIsIlwiTU9ERUwgTk9cIiBOb3QgdmVyaWZpZWQgZWxlY3Ryb25pY3MiLCJcIkZ1cm5pdHVyZSA+IE9mZmljZSBDaGFpclwiIE5vdCB2ZXJpZmllZCBlbGVjdHJvbmljcyIsIlwiT2ZmaWNlIGNoYWlyXCIgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiXCJVTklPTiBNQURFXCIgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiXCJBTEwgTkVXIE1BVEVSSUFMXCIgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiTm90IHZlcmlmaWVkIDU2MCBlbGVjdHJvbmljcyIsIjE5NjYgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIiwiSW5kdXN0cmlhbCBBdmVudWUgTm90IHZlcmlmaWVkIGVsZWN0cm9uaWNzIl0sInNvdXJjZXNTZWFyY2hlZCI6WyJTb3VyY2UgY2F0ZWdvcmllcyB0YXJnZXRlZDogRmFjZWJvb2sgTWFya2V0cGxhY2Utc3R5bGUgbG9jYWwgdmFsdWUgbG9naWM7IENyYWlnc2xpc3QgLyBPZmZlclVwIC8gbG9jYWwgcGlja3VwIHJlc2FsZTsgbG9jYWwgY29uc2lnbm1lbnQgbG9naWM7IGVsZWN0cm9uaWNzIG1vZGVsLW51bWJlciBzb3VyY2VzIGZvciBiZXR0ZXItcHJpY2UgY2hlY2tzOyBleGFjdCBsYWJlbC9zdGFtcCBzZWFyY2hlczsgZUJheS1zdHlsZSByZXNhbGUgcmVzdWx0czsgRXRzeS1zdHlsZSB2aW50YWdlIHJlc3VsdHM7IE1lcmNhcmktc3R5bGUgcmVzYWxlIHJlc3VsdHMiLCJTb3VyY2VzIHNlYXJjaGVkOiBMaXZlIHdlYiBzZWFyY2ggZXhlY3V0ZWQsIGJ1dCB0aGUgcHJvdmlkZXIgZGlkIG5vdCByZXR1cm4gYSBzZXBhcmF0ZSBzb3VyY2UgbGlzdC4iLCJTb3VyY2VzIHJldHVybmVkIHdpdGggVVJMIGNpdGF0aW9uczogTm9uZS4iLCJObyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIG1hdGNoZXMgcGFzc2VkIG1hdGNoLXF1YWxpdHkgY2hlY2tzLiIsIlJldHVybmVkIHJlc3VsdHMgd2VyZSByZWplY3RlZCB3aGVuIHRoZXkgbGFja2VkIGV4YWN0IGxhYmVsL2NvZGUgbWF0Y2hlcywgaGFkIG9ubHkgd2VhayBsb29rYWxpa2UgZXZpZGVuY2UsIG9yIGRpZCBub3QgaW5jbHVkZSBhIGNpdGVkIFVSTCBpbiB0aGUgY29tcGFyYWJsZSBpdGVtIHRleHQuIiwiUmVqZWN0ZWQgaXJyZWxldmFudCBzb3VyY2UgY2F0ZWdvcmllczogZ2VuZXJpYyB3aG9sZXNhbGVycywgcmVzdGF1cmFudC1zdXBwbHkgc2l0ZXMsIGJ1bGsgaW1wb3J0L21hbnVmYWN0dXJpbmcgY2F0YWxvZ3MsIHVucmVsYXRlZCBjdXJyZW50LXJldGFpbCBsb29rYWxpa2VzLCBhbmQgZ2VuZXJpYyB2aXN1YWwgbG9va2FsaWtlcy4iLCJTZWFyY2hlZCB1c2luZyBiYXJjb2RlL2l0ZW0gY29kZS9tb2RlbCBpZGVudGlmaWVycyB3aGVuIGF2YWlsYWJsZS4iLCJTZWFyY2hlZCB1c2luZyB2aXNpYmxlIGJveCwgbGFiZWwsIGJyYW5kLCBvciBwcm9kdWN0LXRpdGxlIHdvcmRpbmcuIiwiU2VhcmNoZWQgdXNpbmcgdmlzdWFsIGl0ZW0gZGVzY3JpcHRpb24gYW5kIGNhdGVnb3J5IHRlcm1zLiIsIlNlYXJjaGVkIHJlbGV2YW50IGhvbGlkYXkgZGVjb3IgLyBjb2xsZWN0aWJsZSBzb3VyY2VzLiIsIlNlYXJjaGVkIGVsZWN0cm9uaWNzL21vZGVsLW51bWJlciBzb3VyY2VzLiIsIlNlYXJjaGVkIGxvY2FsL2J1bGt5LWl0ZW0gc291cmNlIGNhdGVnb3JpZXMgd2hlcmUgYXZhaWxhYmxlLiJdLCJ2aXN1YWxTdWJqZWN0IjoiT2ZmaWNlIGNoYWlyIiwidmlzdWFsU3ViamVjdENhdGVnb3J5IjoiRnVybml0dXJlIiwidmlzdWFsU3ViamVjdENvbmZpZGVuY2UiOiJIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsInJlY29nbml6ZWRPcmdhbml6YXRpb24iOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkQnJhbmQiOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkQ2hhcmFjdGVyIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZEluc3RpdHV0aW9uIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZFRoZW1lIjoiTm90IHZlcmlmaWVkIiwidmlzdWFsUmVjb2duaXRpb25FdmlkZW5jZSI6WyJ0d28gcGhvdG9zIHNob3dpbmcgZnJvbnQgYW5kIGxhYmVsIG9mIGNoYWlyIiwibGFiZWwgZGF0ZWQgMTk2NiIsIndlYXIgYW5kIHRlYXIgb24gc2VhdCB1cGhvbHN0ZXJ5Iiwib2xpdmUgZ3JlZW4gcGFkZGVkIHNlYXQgYW5kIGJhY2siLCJicm93biBhcm1yZXN0cyB3aXRoIGJsYWNrIGFjY2VudHMiLCJmb3VyLXN0YXIgbWV0YWwgYmFzZSB3aXRoIGNhc3RlcnMiLCJ2aXNpYmxlIGxhYmVsIHdpdGggbWFudWZhY3R1cmluZyBkZXRhaWxzIGFuZCBkYXRlIiwiVmlzaWJsZSBsZXR0ZXI6IFVOSU9OIE1BREUiLCJWaXNpYmxlIGxldHRlcjogRE8gTk9UIFJFTU9WRSBUSElTIExBQkVMIFVOREVSIFBFTkFMVFkgT0YgTEFXIiwiVmlzaWJsZSBsZXR0ZXI6IEFMTCBORVcgTUFURVJJQUwiXSwidmlzdWFsUmVjb2duaXRpb25Vbmtub3ducyI6WyJleGFjdCBtYW51ZmFjdHVyZXIgbW9kZWwiLCJzcGVjaWZpYyBzdHlsZSBuYW1lIl0sInZpc3VhbFJlY29nbml0aW9uQ29uZmxpY3RzIjpbXSwidmlzdWFsUmVjb2duaXRpb25TdW1tYXJ5IjoiVmlzdWFsIFN1YmplY3Q6IE9mZmljZSBjaGFpciB8IENhdGVnb3J5OiBGdXJuaXR1cmUgfCBDb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiB8IFJlY29nbml6ZWQgY2x1ZXM6IG9yZ2FuaXphdGlvbjogTm90IHZlcmlmaWVkOyBicmFuZDogTm90IHZlcmlmaWVkOyBjaGFyYWN0ZXI6IE5vdCB2ZXJpZmllZDsgaW5zdGl0dXRpb246IE5vdCB2ZXJpZmllZDsgdGhlbWU6IE5vdCB2ZXJpZmllZCB8IFN1cHBvcnRpbmcgZXZpZGVuY2U6IHR3byBwaG90b3Mgc2hvd2luZyBmcm9udCBhbmQgbGFiZWwgb2YgY2hhaXI7IGxhYmVsIGRhdGVkIDE5NjY7IHdlYXIgYW5kIHRlYXIgb24gc2VhdCB1cGhvbHN0ZXJ5OyBvbGl2ZSBncmVlbiBwYWRkZWQgc2VhdCBhbmQgYmFjayB8IFN0aWxsIHVua25vd246IGV4YWN0IG1hbnVmYWN0dXJlciBtb2RlbDsgc3BlY2lmaWMgc3R5bGUgbmFtZSB8IFVzZXIgZXZpZGVuY2UgcmVjb25jaWxpYXRpb246IFRoZSB2aXNpYmxlIGxhYmVsIGNvbmZpcm1zIHZpbnRhZ2UgaW5kdXN0cmlhbCBvZmZpY2UgY2hhaXIgZGF0aW5nIGZyb20gMTk2NiwgbWF0Y2hpbmcgdGhlIHdvcm4gYW5kIHN0eWxlZCBhcHBlYXJhbmNlIGluIGltYWdlcy4gfCBTdW1tYXJ5OiBUaGlzIGlzIGEgdmludGFnZSBtaWQtY2VudHVyeSBvZmZpY2UgY2hhaXIgd2l0aCBvbGl2ZSBncmVlbiB1cGhvbHN0ZXJ5IGFuZCBicm93biBhcm1yZXN0cywgc2hvd2luZyB3ZWFyIGFuZCBiZWFyaW5nIGEgbWFudWZhY3R1cmVyIGxhYmVsIGZyb20gMTk2NiBieSBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiIsInN1YmplY3RJZGVudGl0eSI6Ik9mZmljZSBjaGFpciIsInN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4iLCJleGFjdFByb2R1Y3RJZGVudGl0eSI6IlZpbnRhZ2Ugb2ZmaWNlIGNoYWlyIG1vZGVsIDU2MCBtYW51ZmFjdHVyZWQgaW4gMTk2NiBieSBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiwgZmVhdHVyaW5nIG9saXZlIGdyZWVuIHVwaG9sc3RlcnkgYW5kIGJyb3duIGFybXJlc3RzIG9uIGEgZm91ci1zdGFyIG1ldGFsIGJhc2Ugd2l0aCBjYXN0ZXJzIiwiZXhhY3RQcm9kdWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwibWFrZXJEYXRlTGljZW5zaW5nU3RhdHVzIjpbIk1ha2VyIC8gTWFudWZhY3R1cmVyOiBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiIsIkRhdGUgLyBFcmE6IE1pZC0yMHRoIGNlbnR1cnkgKDE5NjBzKSIsIkxpY2Vuc2luZzogTm90IHZlcmlmaWVkIiwiQXV0aGVudGljaXR5OiBMaWtlbHkgYXV0aGVudGljIGdpdmVuIGxhYmVsIGFuZCBkYXRlIl0sIndoYXRJc0tub3duIjpbIlN1YmplY3Q6IE9mZmljZSBjaGFpciIsIlZpc3VhbCBldmlkZW5jZTogb2xpdmUgZ3JlZW4gcGFkZGVkIHNlYXQgYW5kIGJhY2siLCJWaXN1YWwgZXZpZGVuY2U6IGJyb3duIGFybXJlc3RzIHdpdGggYmxhY2sgYWNjZW50cyIsIlZpc3VhbCBldmlkZW5jZTogZm91ci1zdGFyIG1ldGFsIGJhc2Ugd2l0aCBjYXN0ZXJzIiwiVGV4dCBldmlkZW5jZTogVU5JT04gTUFERSIsIlRleHQgZXZpZGVuY2U6IERPIE5PVCBSRU1PVkUgVEhJUyBMQUJFTCBVTkRFUiBQRU5BTFRZIE9GIExBVyIsIlRleHQgZXZpZGVuY2U6IEFMTCBORVcgTUFURVJJQUwiLCJDb21wYXJhYmxlIHN0YXR1czogTm8gZXhhY3QgY29tcGFyYWJsZSBwcm92aWRlZCBidXQgbW9kZWwgbnVtYmVyIGNvbmZpcm1zIGlkZW50aXR5Il0sIndoYXRJc1N0aWxsVW5rbm93biI6WyJFeGFjdCBzdHlsZSBuYW1lIG5vdCB2aXNpYmxlIiwiTm8gcHVyY2hhc2UgcHJpY2Ugb3IgY29uZGl0aW9uIG5vdGVzIHByb3ZpZGVkIGJ5IGJ1eWVyIiwiZXhhY3QgbWFudWZhY3R1cmVyIG1vZGVsIiwic3BlY2lmaWMgc3R5bGUgbmFtZSIsIkxpY2Vuc2luZyBzdGF0dXMgbm90IHZlcmlmaWVkLiJdLCJpZGVudGl0eUNvbmZsaWN0cyI6W10sImlkZW50aXR5U3VtbWFyeSI6IlN1YmplY3QgSWRlbnRpdHk6IE9mZmljZSBjaGFpciB8IFN1YmplY3QgQ29uZmlkZW5jZTogSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4gfCBFeGFjdCBQcm9kdWN0IElkZW50aXR5OiBWaW50YWdlIG9mZmljZSBjaGFpciBtb2RlbCA1NjAgbWFudWZhY3R1cmVkIGluIDE5NjYgYnkgUmFmZmxld2VsbGluZyBDby4sIEluYy4sIGZlYXR1cmluZyBvbGl2ZSBncmVlbiB1cGhvbHN0ZXJ5IGFuZCBicm93biBhcm1yZXN0cyBvbiBhIGZvdXItc3RhciBtZXRhbCBiYXNlIHdpdGggY2FzdGVycyB8IE1ha2VyIC8gTWFudWZhY3R1cmVyOiBSYWZmbGV3ZWxsaW5nIENvLiwgSW5jLiB8IExpY2Vuc2luZyAvIEF1dGhlbnRpY2l0eTogVW5rbm93biAvIExpa2VseSBhdXRoZW50aWMgZ2l2ZW4gbGFiZWwgYW5kIGRhdGUiLCJyZXN1bHRzRm91bmQiOltdLCJzdHJvbmdDb21wYXJhYmxlcyI6W10sInBhcnRpYWxDb21wYXJhYmxlcyI6W10sInJlZmVyZW5jZVJlc3VsdHMiOltdLCJ3ZWFrTWF0Y2hlcyI6W10sInJlamVjdGVkTWF0Y2hlcyI6W10sInNlYXJjaExpbWl0YXRpb25zIjpbIkxpdmUgc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHZpc2libGUgc3RydWN0dXJlZCBzb3VyY2UtYmFja2VkIHJlc3VsdCByZWNvcmRzIHdlcmUgcmV0dXJuZWQuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiIsIk5vIGV4YWN0IG9yIHN0cm9uZyBjb21wYXJhYmxlIHJlY29yZHMgYXJlIHZpc2libGUgaW4gdGhpcyByZXBvcnQuIl0sInZpc2libGVSZXNlYXJjaFJlc3VsdENvdW50IjowLCJyZWZlcmVuY2VSYW5nZUJhc2lzIjoiTm8gbnVtZXJpYyBwcmVsaW1pbmFyeSByYW5nZSBpcyBzaG93biBiZWNhdXNlIHRoZXJlIGFyZSBubyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlIHJlY29yZHMgc3VwcG9ydGluZyBvbmUuIiwicHJlbGltaW5hcnlSZWZlcmVuY2VSYW5nZSI6IiIsInByaWNlQmFzaXMiOiJGYWlyIHZhbHVlIG5vdCBlc3RhYmxpc2hlZCAtIGF2YWlsYWJsZSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSBkZWZlbnNpYmxlIGRvbGxhciByYW5nZS4gIFByaWNpbmcgYmFzaXMgZGlzdGluZ3Vpc2hlcyBleGFjdCBpZGVudGl0eSBtYXRjaGVzIGZyb20gYWN0aXZlIGFza2luZy1wcmljZSBldmlkZW5jZSBhbmQgY29uZmlybWVkIHNvbGQgZXZpZGVuY2UuIiwiY29uc3VtZXJEb3duc2lkZVJpc2siOiJEb3duc2lkZSBjYW5ub3QgYmUgY2FsY3VsYXRlZCBiZWNhdXNlIHRoZSBhc2tpbmcgcHJpY2UgaXMgbWlzc2luZy4iLCJjYXV0aW91c0J1eUV4cGxhbmF0aW9uIjoiIiwibGl2ZUNvbXBhcmFibGVTZWFyY2hTdGF0dXMiOiJMaXZlIFNlYXJjaCBDb21wbGV0ZWQgLSBObyBSZWxpYWJsZSBDb21wcyBGb3VuZCIsIndlRm91bmRUaGlzSXRlbSI6W10sIndlRm91bmRTaW1pbGFyQ29tcGFyYWJsZUl0ZW1zIjpbXSwidmFsdWF0aW9uRXZpZGVuY2VTdGF0ZSI6Imluc3VmZmljaWVudCIsInZhbHVhdGlvbkV2aWRlbmNlTGFiZWwiOiJGYWlyIFZhbHVlIE5vdCBFc3RhYmxpc2hlZCIsInZhbHVhdGlvbkV2aWRlbmNlRXhwbGFuYXRpb24iOiJUaGUgYXZhaWxhYmxlIGV2aWRlbmNlIGlzIHRvbyB3ZWFrIGZvciBhIGRlZmVuc2libGUgZG9sbGFyIHJhbmdlLiIsImZhaXJWYWx1ZU5vdEVzdGFibGlzaGVkIjoiRmFpciBWYWx1ZTogTm90IGVzdGFibGlzaGVkIiwiZXN0aW1hdGVkTWFya2V0VmFsdWUiOiIiLCJ3aGF0VGhpc01lYW5zIjoiRmFpciBtYXJrZXQgdmFsdWUgaGFzIG5vdCBiZWVuIGVzdGFibGlzaGVkIGZyb20gdGhlIGF2YWlsYWJsZSBldmlkZW5jZS4gRG8gbm90IHRyZWF0IHRoaXMgYXMgYSBjb25maXJtZWQgdmFsdWUgZXN0aW1hdGUuIiwiYmVzdE5leHRTdGVwIjoiQXNraW5nIHByaWNlIG9yIHNlbGxlcidzIHByb3Bvc2VkIHNhbGUgcHJpY2UifX0=",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc.",
+      "identificationConfidence": "High - supported by clear label, visible manufacturing details, model number, and consistent vintage appearance.",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Office chair",
+        "Visual subject category: Furniture",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Not verified",
+        "Recognized brand: Not verified",
+        "Recognized character: Not verified",
+        "Subject identity: Office chair",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "Exact product identity: Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters",
+        "Exact product confidence: High - supported by available subject evidence.",
+        "Manufacturer: Rafflewelling Co., Inc.",
+        "Manufacturer/location: Industrial Avenue, Hollydale, California"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "No reliable market pricing data exists for this specific vintage model to guide an offer. Request seller to provide a current asking price and additional details about chair condition and functionality before negotiating.",
+      "reasonsToBuy": [
+        "Unique identifiable vintage office chair from 1966 with manufacturer label, appealing to collectors or mid-century modern enthusiasts",
+        "Distinctive olive green upholstery and brown armrests with industrial style metal base",
+        "Potential authentic mid-century vintage piece manufactured by Rafflewelling Co., Inc."
+      ],
+      "reasonsForCaution": [
+        "Condition shows visible wear and tears on upholstery, which may require restoration or reduce comfort",
+        "No clear current market pricing or recent comparable sales found, making value assessment difficult",
+        "Uncertainty about operational condition like caster performance and structural soundness due to wear",
+        "Weak Comparable Evidence",
+        "Older Model",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Worn upholstery with tears noted",
+        "No confirmation of mechanical or structural integrity",
+        "Potential restoration needed",
+        "No warranty or return information provided",
+        "Risk flag: Weak Comparable Evidence",
+        "Risk flag: Older Model"
+      ],
+      "riskFlags": [
+        "Weak Comparable Evidence",
+        "Older Model"
+      ],
+      "betterValueConsiderations": [
+        "Consider seeking other vintage or mid-century office chairs with verified condition and pricing",
+        "Look for similar chairs with clearer provenance or known market demand",
+        "Explore newer ergonomic office chairs if functionality and comfort are primary concerns"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Lack of visible asking price and no advertisements or sales history for the exact model prevent a precise valuation; only condition and vintage characteristics can be assessed visually.",
+      "additionalInformationNeeded": [
+        "Asking price or seller's proposed sale price",
+        "More detailed photos showing overall condition, especially the seat base, caster functionality, and any damages",
+        "Any history of repairs or restorations",
+        "Dimensions and weight capacity if possible",
+        "Confirmation if the chair is fully functional for intended use",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"560 12 7 1966\" Not verified electronics",
+        "\"Vintage office chair model 560\" Not verified electronics",
+        "\"Vintage office chair model 560 manufactured in 1966\" Not verified",
+        "\"label dated 1966\" Not verified electronics",
+        "\"Industrial Avenue, Hollydale, California\" Not verified electronics",
+        "\"Rafflewelling Co., Inc.\" Not verified electronics",
+        "\"MODEL NO\" Not verified electronics",
+        "\"Furniture > Office Chair\" Not verified electronics",
+        "\"Office chair\" Not verified electronics",
+        "\"UNION MADE\" Not verified electronics",
+        "\"ALL NEW MATERIAL\" Not verified electronics",
+        "Not verified 560 electronics",
+        "1966 Not verified electronics",
+        "Industrial Avenue Not verified electronics"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: Facebook Marketplace-style local value logic; Craigslist / OfferUp / local pickup resale; local consignment logic; electronics model-number sources for better-price checks; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+        "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched using visual item description and category terms.",
+        "Searched relevant holiday decor / collectible sources.",
+        "Searched electronics/model-number sources.",
+        "Searched local/bulky-item source categories where available."
+      ],
+      "visualSubject": "Office chair",
+      "visualSubjectCategory": "Furniture",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Not verified",
+      "recognizedBrand": "Not verified",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Not verified",
+      "visualRecognitionEvidence": [
+        "two photos showing front and label of chair",
+        "label dated 1966",
+        "wear and tear on seat upholstery",
+        "olive green padded seat and back",
+        "brown armrests with black accents",
+        "four-star metal base with casters",
+        "visible label with manufacturing details and date",
+        "Visible letter: UNION MADE",
+        "Visible letter: DO NOT REMOVE THIS LABEL UNDER PENALTY OF LAW",
+        "Visible letter: ALL NEW MATERIAL"
+      ],
+      "visualRecognitionUnknowns": [
+        "exact manufacturer model",
+        "specific style name"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Office chair | Category: Furniture | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: two photos showing front and label of chair; label dated 1966; wear and tear on seat upholstery; olive green padded seat and back | Still unknown: exact manufacturer model; specific style name | User evidence reconciliation: The visible label confirms vintage industrial office chair dating from 1966, matching the worn and styled appearance in images. | Summary: This is a vintage mid-century office chair with olive green upholstery and brown armrests, showing wear and bearing a manufacturer label from 1966 by Rafflewelling Co., Inc.",
+      "subjectIdentity": "Office chair",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters",
+      "exactProductConfidence": "High - supported by available subject evidence.",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Rafflewelling Co., Inc.",
+        "Date / Era: Mid-20th century (1960s)",
+        "Licensing: Not verified",
+        "Authenticity: Likely authentic given label and date"
+      ],
+      "whatIsKnown": [
+        "Subject: Office chair",
+        "Visual evidence: olive green padded seat and back",
+        "Visual evidence: brown armrests with black accents",
+        "Visual evidence: four-star metal base with casters",
+        "Text evidence: UNION MADE",
+        "Text evidence: DO NOT REMOVE THIS LABEL UNDER PENALTY OF LAW",
+        "Text evidence: ALL NEW MATERIAL",
+        "Comparable status: No exact comparable provided but model number confirms identity"
+      ],
+      "whatIsStillUnknown": [
+        "Exact style name not visible",
+        "No purchase price or condition notes provided by buyer",
+        "exact manufacturer model",
+        "specific style name",
+        "Licensing status not verified."
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Office chair | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters | Maker / Manufacturer: Rafflewelling Co., Inc. | Licensing / Authenticity: Unknown / Likely authentic given label and date",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Asking price or seller's proposed sale price"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc.",
+    "identificationConfidence": "High - supported by clear label, visible manufacturing details, model number, and consistent vintage appearance.",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Office chair",
+      "Visual subject category: Furniture",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Not verified",
+      "Recognized brand: Not verified",
+      "Recognized character: Not verified",
+      "Subject identity: Office chair",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "Exact product identity: Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters",
+      "Exact product confidence: High - supported by available subject evidence.",
+      "Manufacturer: Rafflewelling Co., Inc.",
+      "Manufacturer/location: Industrial Avenue, Hollydale, California"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "No reliable market pricing data exists for this specific vintage model to guide an offer. Request seller to provide a current asking price and additional details about chair condition and functionality before negotiating.",
+    "reasonsToBuy": [
+      "Unique identifiable vintage office chair from 1966 with manufacturer label, appealing to collectors or mid-century modern enthusiasts",
+      "Distinctive olive green upholstery and brown armrests with industrial style metal base",
+      "Potential authentic mid-century vintage piece manufactured by Rafflewelling Co., Inc."
+    ],
+    "reasonsForCaution": [
+      "Condition shows visible wear and tears on upholstery, which may require restoration or reduce comfort",
+      "No clear current market pricing or recent comparable sales found, making value assessment difficult",
+      "Uncertainty about operational condition like caster performance and structural soundness due to wear",
+      "Weak Comparable Evidence",
+      "Older Model",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Worn upholstery with tears noted",
+      "No confirmation of mechanical or structural integrity",
+      "Potential restoration needed",
+      "No warranty or return information provided",
+      "Risk flag: Weak Comparable Evidence",
+      "Risk flag: Older Model"
+    ],
+    "riskFlags": [
+      "Weak Comparable Evidence",
+      "Older Model"
+    ],
+    "betterValueConsiderations": [
+      "Consider seeking other vintage or mid-century office chairs with verified condition and pricing",
+      "Look for similar chairs with clearer provenance or known market demand",
+      "Explore newer ergonomic office chairs if functionality and comfort are primary concerns"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Lack of visible asking price and no advertisements or sales history for the exact model prevent a precise valuation; only condition and vintage characteristics can be assessed visually.",
+    "additionalInformationNeeded": [
+      "Asking price or seller's proposed sale price",
+      "More detailed photos showing overall condition, especially the seat base, caster functionality, and any damages",
+      "Any history of repairs or restorations",
+      "Dimensions and weight capacity if possible",
+      "Confirmation if the chair is fully functional for intended use",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"560 12 7 1966\" Not verified electronics",
+      "\"Vintage office chair model 560\" Not verified electronics",
+      "\"Vintage office chair model 560 manufactured in 1966\" Not verified",
+      "\"label dated 1966\" Not verified electronics",
+      "\"Industrial Avenue, Hollydale, California\" Not verified electronics",
+      "\"Rafflewelling Co., Inc.\" Not verified electronics",
+      "\"MODEL NO\" Not verified electronics",
+      "\"Furniture > Office Chair\" Not verified electronics",
+      "\"Office chair\" Not verified electronics",
+      "\"UNION MADE\" Not verified electronics",
+      "\"ALL NEW MATERIAL\" Not verified electronics",
+      "Not verified 560 electronics",
+      "1966 Not verified electronics",
+      "Industrial Avenue Not verified electronics"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: Facebook Marketplace-style local value logic; Craigslist / OfferUp / local pickup resale; local consignment logic; electronics model-number sources for better-price checks; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+      "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched using visual item description and category terms.",
+      "Searched relevant holiday decor / collectible sources.",
+      "Searched electronics/model-number sources.",
+      "Searched local/bulky-item source categories where available."
+    ],
+    "visualSubject": "Office chair",
+    "visualSubjectCategory": "Furniture",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Not verified",
+    "recognizedBrand": "Not verified",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Not verified",
+    "visualRecognitionEvidence": [
+      "two photos showing front and label of chair",
+      "label dated 1966",
+      "wear and tear on seat upholstery",
+      "olive green padded seat and back",
+      "brown armrests with black accents",
+      "four-star metal base with casters",
+      "visible label with manufacturing details and date",
+      "Visible letter: UNION MADE",
+      "Visible letter: DO NOT REMOVE THIS LABEL UNDER PENALTY OF LAW",
+      "Visible letter: ALL NEW MATERIAL"
+    ],
+    "visualRecognitionUnknowns": [
+      "exact manufacturer model",
+      "specific style name"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Office chair | Category: Furniture | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: two photos showing front and label of chair; label dated 1966; wear and tear on seat upholstery; olive green padded seat and back | Still unknown: exact manufacturer model; specific style name | User evidence reconciliation: The visible label confirms vintage industrial office chair dating from 1966, matching the worn and styled appearance in images. | Summary: This is a vintage mid-century office chair with olive green upholstery and brown armrests, showing wear and bearing a manufacturer label from 1966 by Rafflewelling Co., Inc.",
+    "subjectIdentity": "Office chair",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters",
+    "exactProductConfidence": "High - supported by available subject evidence.",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Rafflewelling Co., Inc.",
+      "Date / Era: Mid-20th century (1960s)",
+      "Licensing: Not verified",
+      "Authenticity: Likely authentic given label and date"
+    ],
+    "whatIsKnown": [
+      "Subject: Office chair",
+      "Visual evidence: olive green padded seat and back",
+      "Visual evidence: brown armrests with black accents",
+      "Visual evidence: four-star metal base with casters",
+      "Text evidence: UNION MADE",
+      "Text evidence: DO NOT REMOVE THIS LABEL UNDER PENALTY OF LAW",
+      "Text evidence: ALL NEW MATERIAL",
+      "Comparable status: No exact comparable provided but model number confirms identity"
+    ],
+    "whatIsStillUnknown": [
+      "Exact style name not visible",
+      "No purchase price or condition notes provided by buyer",
+      "exact manufacturer model",
+      "specific style name",
+      "Licensing status not verified."
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Office chair | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters | Maker / Manufacturer: Rafflewelling Co., Inc. | Licensing / Authenticity: Unknown / Likely authentic given label and date",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Asking price or seller's proposed sale price"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "01700a9cf8878b17c35d1ab138b120ee564aa21235215eb51bdc05d4aaac73eb"
+}

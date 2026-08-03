@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-006",
+  "objectId": "OBJ-006",
+  "requestSha256": "88b427590f39bbaa09c143c72ef734e50470213ec6c431b53db2bf397f478f97",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:28:25.790Z",
+  "endTimestamp": "2026-08-03T18:29:01.106Z",
+  "elapsedMilliseconds": 35316.6508,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6IkNBU0lPIEYtOTFXIGRpZ2l0YWwgd3Jpc3R3YXRjaCB3aXRoIHdhdGVyIHJlc2lzdGFuY2UgYW5kIGFsYXJtIGNocm9ub2dyYXBoIiwiaWRlbnRpZmljYXRpb25Db25maWRlbmNlIjoiSGlnaCAtIGV4YWN0IG1vZGVsIGFuZCBicmFuZCBjbGVhcmx5IHZpc2libGUgb24gZnJvbnQgYW5kIGJhY2ssIGNvbnNpc3RlbnQgd2l0aCBrbm93biBDYXNpbyBGLTkxVyIsImV2aWRlbmNlRm91bmRJblBob3RvcyI6WyJWaXN1YWwgc3ViamVjdDogRGlnaXRhbCB3cmlzdHdhdGNoIHdpdGggcnViYmVyIHN0cmFwIiwiVmlzdWFsIHN1YmplY3QgY2F0ZWdvcnk6IENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXMiLCJWaXN1YWwgc3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIlJlY29nbml6ZWQgb3JnYW5pemF0aW9uOiBDQVNJTyIsIlJlY29nbml6ZWQgYnJhbmQ6IENBU0lPIiwiUmVjb2duaXplZCBjaGFyYWN0ZXI6IE5vdCB2ZXJpZmllZCIsIlN1YmplY3QgaWRlbnRpdHk6IERpZ2l0YWwgd3Jpc3R3YXRjaCB3aXRoIHJ1YmJlciBzdHJhcCIsIlN1YmplY3QgY29uZmlkZW5jZTogSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4iLCJVc2VyLXByb3ZpZGVkIGlkZW50aXR5OiBDQVNJTyBGLTkxVyBXQVRFUiBSRVNJU1QgQUxBUk0gQ0hST05PR1JBUEgiLCJFeGFjdCBwcm9kdWN0IGlkZW50aXR5OiBDQVNJTyBGLTkxVyBkaWdpdGFsIHdyaXN0d2F0Y2ggd2l0aCB3YXRlciByZXNpc3RhbmNlIGFuZCBhbGFybSBjaHJvbm9ncmFwaCBmdW5jdGlvbnMsIGJsYWNrIHJ1YmJlciBzdHJhcCwgc3RhaW5sZXNzIHN0ZWVsIGJhY2ssIG1hZGUgaW4gQ2hpbmEiLCJFeGFjdCBwcm9kdWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSBleGFjdCBtb2RlbCBhbmQgYnJhbmQgY2xlYXJseSB2aXNpYmxlIG9uIGZyb250IGFuZCBiYWNrLCBjb25zaXN0ZW50IHdpdGgga25vd24gQ2FzaW8gRi05MVciLCJCcmFuZDogQ0FTSU8iXSwiYXNraW5nUHJpY2UiOiJOb3QgcHJvdmlkZWQgLSBlbnRlciB0aGUgY3VycmVudCBhc2tpbmcgcHJpY2UgZm9yIGEgcGVyc29uYWwtdXNlIHZhbHVlIGRlY2lzaW9uLiIsImVzdGltYXRlZEZhaXJNYXJrZXRWYWx1ZSI6IiIsImZhaXJQcmljZVJhbmdlIjpbXSwidmFsdWVSYXRpbmciOiJJbnN1ZmZpY2llbnQgRXZpZGVuY2UiLCJyZWNvbW1lbmRhdGlvbiI6Ik5lZWQgTW9yZSBJbmZvcm1hdGlvbiIsInJlY29tbWVuZGVkT2ZmZXIiOlsiT3BlbmluZyBPZmZlcjogTm90IHN1cHBvcnRlZCB5ZXQuIiwiVGFyZ2V0IFB1cmNoYXNlIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iLCJNYXhpbXVtIFJlY29tbWVuZGVkIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iXSwib3BlbmluZ09mZmVyIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSB2ZXJpZnkgaWRlbnRpdHksIGNvbmRpdGlvbiwgYXNraW5nIHByaWNlLCBhbmQgcmVsaWFibGUgY29tcGFyYWJsZXMgZmlyc3QuIiwidGFyZ2V0UHVyY2hhc2VQcmljZSI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgcmVzcG9uc2libGUgdGFyZ2V0IHByaWNlLiIsIm1heGltdW1SZWNvbW1lbmRlZFByaWNlIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSBkbyBub3Qgc2V0IGEgbWF4aW11bSBmcm9tIHdlYWsgZXZpZGVuY2UuIiwid2Fsa0F3YXlQcmljZSI6Ik5vdCBlbm91Z2ggZXZpZGVuY2UgZm9yIGEgcHJlY2lzZSB3YWxrLWF3YXkgcHJpY2UuIiwibmVnb3RpYXRpb25HdWlkYW5jZSI6IldpdGhvdXQgcmVsaWFibGUgY29tcGFyYWJsZSBwcmljZXMgb3IgYXNraW5nIHByaWNlLCBuZWdvdGlhdGlvbiBndWlkYW5jZSBjYW5ub3QgYmUgY29uZmlkZW50bHkgcHJvdmlkZWQuIE9idGFpbiB0aGUgYXNraW5nIHByaWNlIGFuZCB3YXRjaCBjb25kaXRpb24gZGV0YWlscyB0byBwcm9jZWVkIGVmZmVjdGl2ZWx5LiIsInJlYXNvbnNUb0J1eSI6WyJSZWNvZ25pemFibGUgY2xhc3NpYyBDYXNpbyBGLTkxVyBtb2RlbCBrbm93biBmb3IgcmVsaWFiaWxpdHkgYW5kIGJhc2ljIGRpZ2l0YWwgd2F0Y2ggZnVuY3Rpb25zIiwiV2F0ZXIgcmVzaXN0YW5jZSBhbmQgYWxhcm0gY2hyb25vZ3JhcGggZmVhdHVyZXMgaW5jbHVkZWQiLCJTaW1wbGUsIGR1cmFibGUgZGVzaWduIHN1aXRhYmxlIGZvciBldmVyeWRheSBwZXJzb25hbCB1c2UiXSwicmVhc29uc0ZvckNhdXRpb24iOlsiQ3VycmVudCBjb25kaXRpb24gdW5rbm93biBmcm9tIHByb3ZpZGVkIGRhdGE7IGNvbmRpdGlvbiBzaWduaWZpY2FudGx5IGFmZmVjdHMgdmFsdWUiLCJObyBhc2tpbmcgcHJpY2UgZ2l2ZW4sIG1ha2luZyBhc3Nlc3NtZW50IG9mIHZhbHVlIGRpZmZpY3VsdCIsIk5vIHJlY2VudCBzYWxlcyBvciBsaXN0aW5nIHByaWNlcyBmb3VuZCB0byBiZW5jaG1hcmsgZmFpciBtYXJrZXQgdmFsdWUiLCJXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJDb25kaXRpb24gVW5jbGVhciIsIkNvbnN1bWVyIHZhbHVlIGNhbm5vdCBiZSByYXRlZCBjb25maWRlbnRseSB1bnRpbCB0aGUgYXNraW5nIHByaWNlLCBleGFjdCBpZGVudGl0eSwgY29uZGl0aW9uLCBhbmQgc291cmNlLWJhY2tlZCBjb21wYXJhYmxlIGV2aWRlbmNlIGFyZSBzdHJvbmdlci4iXSwicHJvZHVjdE9yQ29uZGl0aW9uUmlza3MiOlsiQ29uZGl0aW9uIHVua25vd24sIHdoaWNoIGNvdWxkIGltcGx5IHVua25vd24gZGVmZWN0cyBvciBtaXNzaW5nIGZ1bmN0aW9uYWxpdHkiLCJBdXRoZW50aWNpdHkgcHJlc3VtZWQgYnV0IG5vdCBpbmRlcGVuZGVudGx5IHZlcmlmaWVkIGJleW9uZCB2aXNpYmxlIG1hcmtpbmdzIiwiUG90ZW50aWFsIGZvciBvbGRlciBzdG9jayBvciB1c2VkIGNvbmRpdGlvbiBpbXBhY3RpbmcgdmFsdWUiLCJSaXNrIGZsYWc6IFdlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIlJpc2sgZmxhZzogQ29uZGl0aW9uIFVuY2xlYXIiLCJDb25kaXRpb24gaXMgbm90IGNvbmZpcm1lZC4iXSwicmlza0ZsYWdzIjpbIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIkNvbmRpdGlvbiBVbmNsZWFyIl0sImJldHRlclZhbHVlQ29uc2lkZXJhdGlvbnMiOlsiQXdhaXQgcHJpY2UgZGlzY2xvc3VyZSBhbmQgY29uZGl0aW9uIGRldGFpbHMgYmVmb3JlIHB1cmNoYXNlIGRlY2lzaW9uIiwiQ29uc2lkZXIgY2hlY2tpbmcgbG9jYWwgb3IgcmVwdXRhYmxlIHJldGFpbGVyIHByaWNpbmcgZm9yIG5ldyBDYXNpbyBGLTkxVyB3YXRjaGVzIiwiTG9vayBmb3Igd2FycmFudGllcyBvciByZXR1cm4gb3B0aW9ucyBpZiBidXlpbmcgdXNlZCJdLCJyZXNlYXJjaFJlc3VsdHMiOlsiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBhcmFibGVzIHBhc3NlZCBmaWx0ZXJpbmcuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiJdLCJjb21wYXJhYmxlUXVhbGl0eSI6WyJSZWplY3RlZCBNYXRjaCAtIG5vIHJldHVybmVkIHJlc3VsdCBoYWQgZW5vdWdoIGNpdGVkLCByZWxldmFudCBldmlkZW5jZSB0byBkcml2ZSBsaXN0aW5nIHByaWNlLiJdLCJwcmljaW5nQ29uZmlkZW5jZSI6IkxvdyAtIENvbnN1bWVyIHZhbHVlIHJhdGluZyBpcyBpbnN1ZmZpY2llbnQgYmVjYXVzZSBubyBjdXJyZW50IGFza2luZyBwcmljZSB3YXMgcHJvdmlkZWQsIG5vIGV2aWRlbmNlLWJhY2tlZCBmYWlyIHZhbHVlIGNvdWxkIGJlIGV4dHJhY3RlZCwgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wcyBwYXNzZWQgZmlsdGVyaW5nLiBTdXBwb3J0czogcGhvdG9zIGFuZCBub3Rlcy4gV2Vha2VuczogbWlzc2luZyBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UuIEltcHJvdmUgYnkgZmluZGluZyBleGFjdCwgY2l0ZWQgY29tcGFyYWJsZSBtYXRjaGVzLiIsInByaWNpbmdSYXRpb25hbGUiOiJMaXZlIHJlc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gQ29uc3VtZXIgZGVjaXNpb24gaXMgbG93IGNvbmZpZGVuY2UuICBObyBleGFjdCBvciBuZWFyIGV4YWN0IHByb2R1Y3QgbGlzdGluZ3Mgb3IgcmVjZW50IHNhbGVzIGZvdW5kIGluIG11bHRpcGxlIG1hcmtldHBsYWNlcyBhbmQgc291cmNlcyBkdXJpbmcgbGl2ZSBzZWFyY2giLCJhZGRpdGlvbmFsSW5mb3JtYXRpb25OZWVkZWQiOlsiQ3VycmVudCBhc2tpbmcgcHJpY2UiLCJDb25kaXRpb24gYW5kIGZ1bmN0aW9uYWxpdHkgc3RhdHVzIiwiSW5jbHVkZWQgYWNjZXNzb3JpZXMgb3IgcGFja2FnaW5nIiwiT25lIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcGFyYWJsZSByZXN1bHQgZm9yIHRoZSBzYW1lIG1vZGVsLCBTS1UsIFVQQywgbWFrZXIsIHNpemUsIG9yIGl0ZW0gY29kZS4iLCJDdXJyZW50IHNlbGxlciBhc2tpbmcgcHJpY2UuIiwiQ2xlYXIgY29uZGl0aW9uIGNvbmZpcm1hdGlvbiwgaW5jbHVkaW5nIHdoZXRoZXIgaXQgd29ya3MgYW5kIHdoZXRoZXIgYW55IHBhcnRzIG9yIGFjY2Vzc29yaWVzIGFyZSBtaXNzaW5nLiJdLCJzZWFyY2hRdWVyaWVzVXNlZCI6WyJUaGVzZSBhcmUgdGhlIHF1ZXJpZXMgdGhlIHN5c3RlbSB1c2VkLiIsIlwiRi05MVcgbW9kZWwgbnVtYmVyIG9uIHdhdGNoIGZhY2UgYW5kIGJhY2tcIiBDQVNJTyBDbG90aGluZyIsIlwiQ0FTSU8gRi05MVcgV0FURVIgUkVTSVNUIEFMQVJNIENIUk9OT0dSQVBIXCIgQ0FTSU8gQ2xvdGhpbmcgYW5kIEFjY2Vzc29yaWVzIiwiXCJlbmdyYXZlZCBtb2RlbCBhbmQgbWFudWZhY3R1cmluZyBpbmZvXCIgQ0FTSU8gQ2xvdGhpbmcgYW5kIEFjY2Vzc29yaWVzID4iLCJcIlN0YWlubGVzcyBzdGVlbCBiYWNrIHdpdGggZW5ncmF2ZWQgbW9kZWxcIiBDQVNJTyBDbG90aGluZyBhbmQgQWNjZXNzb3JpZXMiLCJcImJhY2sgd2l0aCBlbmdyYXZlZCBtb2RlbCBhbmQgbWFudWZhY3R1cmluZ1wiIENBU0lPIENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyIsIlwiTWFkZSBpbiBDaGluYVwiIENBU0lPIENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXMiLCJcIkNsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXNcIiBDQVNJTyBDbG90aGluZyBhbmQgQWNjZXNzb3JpZXMgPiIsIlwiRGlnaXRhbCB3cmlzdHdhdGNoIHdpdGggcnViYmVyIHN0cmFwXCIgQ0FTSU8gQ2xvdGhpbmcgYW5kIEFjY2Vzc29yaWVzID4iLCJcIkNsYXNzaWMgZGlnaXRhbCB3YXRjaCBkZXNpZ25cIiBDQVNJTyBDbG90aGluZyBhbmQgQWNjZXNzb3JpZXMgPiBXYXRjaGVzIiwiXCJBTEFSTSBDSFJPTk9HUkFQSFwiIENBU0lPIENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXMiLCJcIldBVEVSIFJFU0lTVFwiIENBU0lPIENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXMiLCJcIkFMQVJNIE9OXCIgQ0FTSU8gQ2xvdGhpbmcgYW5kIEFjY2Vzc29yaWVzID4gV2F0Y2hlcyIsIkNBU0lPIEYtOTFXIENsb3RoaW5nIGFuZCBBY2Nlc3NvcmllcyA+IFdhdGNoZXMiLCJDQVNJTyBGLTkxVyBkaWdpdGFsIHdyaXN0d2F0Y2ggd2l0aCB3YXRlciByZXNpc3RhbmNlIGFuZCBhbGFybSBjaHJvbm9ncmFwaCJdLCJzb3VyY2VzU2VhcmNoZWQiOlsiU291cmNlIGNhdGVnb3JpZXMgdGFyZ2V0ZWQ6IGV4YWN0IHZpc2libGUgcGhyYXNlIHNlYXJjaGVzOyBlQmF5LXN0eWxlIGFjdGl2ZSBhbmQgc29sZCByZXNhbGUgcmVzdWx0czsgRXRzeS1zdHlsZSB2aW50YWdlIGFuZCBhZHZlcnRpc2luZyBjb2xsZWN0aWJsZSByZXN1bHRzOyBhdWN0aW9uL2FyY2hpdmUgc291cmNlIGNsdWVzOyBjb2xsZWN0b3IvcmVmZXJlbmNlIHNvdXJjZSBjbHVlczsgZ2VuZXJhbCB3ZWIgZXhhY3QgcGhyYXNlIHJlc3VsdHM7IG9yZ2FuaXphdGlvbi90ZWFtL2JyYW5kL2V2ZW50IHNlYXJjaGVzIiwiU291cmNlcyBzZWFyY2hlZDogbWFya2V0cGxhY2Uud2F0Y2hjaGFydHMuY29tOyBhdmFsdWVyLm5ldDsgc2hvcC50aWt0b2suY29tOyBibG9nLmphbXRhbmdhbi5jb207IG51bWEtZ2FyYXN1LmhhdGVuYWJsb2cuY29tOyBlYmF5LmNvbTsgbWVkaWFleHBlcnQucGw7IHJldHJvb3JkZW5hZG9yZXNvcnR5LmJsb2dzcG90LmNvbSIsIlNvdXJjZXMgcmV0dXJuZWQgd2l0aCBVUkwgY2l0YXRpb25zOiBOb25lLiIsIk5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgbWF0Y2hlcyBwYXNzZWQgbWF0Y2gtcXVhbGl0eSBjaGVja3MuIiwiUmV0dXJuZWQgcmVzdWx0cyB3ZXJlIHJlamVjdGVkIHdoZW4gdGhleSBsYWNrZWQgZXhhY3QgbGFiZWwvY29kZSBtYXRjaGVzLCBoYWQgb25seSB3ZWFrIGxvb2thbGlrZSBldmlkZW5jZSwgb3IgZGlkIG5vdCBpbmNsdWRlIGEgY2l0ZWQgVVJMIGluIHRoZSBjb21wYXJhYmxlIGl0ZW0gdGV4dC4iLCJSZWplY3RlZCBpcnJlbGV2YW50IHNvdXJjZSBjYXRlZ29yaWVzOiBnZW5lcmljIHdob2xlc2FsZXJzLCByZXN0YXVyYW50LXN1cHBseSBzaXRlcywgYnVsayBpbXBvcnQvbWFudWZhY3R1cmluZyBjYXRhbG9ncywgdW5yZWxhdGVkIGN1cnJlbnQtcmV0YWlsIGxvb2thbGlrZXMsIGFuZCBnZW5lcmljIHZpc3VhbCBsb29rYWxpa2VzLiIsIlNlYXJjaGVkIHVzaW5nIGJhcmNvZGUvaXRlbSBjb2RlL21vZGVsIGlkZW50aWZpZXJzIHdoZW4gYXZhaWxhYmxlLiIsIlNlYXJjaGVkIHJlbGV2YW50IGhvbGlkYXkgZGVjb3IgLyBjb2xsZWN0aWJsZSBzb3VyY2VzLiJdLCJ2aXN1YWxTdWJqZWN0IjoiRGlnaXRhbCB3cmlzdHdhdGNoIHdpdGggcnViYmVyIHN0cmFwIiwidmlzdWFsU3ViamVjdENhdGVnb3J5IjoiQ2xvdGhpbmcgYW5kIEFjY2Vzc29yaWVzID4gV2F0Y2hlcyIsInZpc3VhbFN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4iLCJyZWNvZ25pemVkT3JnYW5pemF0aW9uIjoiQ0FTSU8iLCJyZWNvZ25pemVkQnJhbmQiOiJDQVNJTyIsInJlY29nbml6ZWRDaGFyYWN0ZXIiOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkSW5zdGl0dXRpb24iOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkVGhlbWUiOiJDbGFzc2ljIGRpZ2l0YWwgd2F0Y2ggZGVzaWduIiwidmlzdWFsUmVjb2duaXRpb25FdmlkZW5jZSI6WyJDbGVhciBmcm9udCB2aWV3IHNob3dpbmcgZGlnaXRhbCB3YXRjaCBmYWNlIHdpdGggdGltZSBhbmQgZGF5IiwiQmFjayB2aWV3IHNob3dpbmcgc3RhaW5sZXNzIHN0ZWVsIGJhY2sgd2l0aCB0ZXh0OiBDQVNJTywgRi05MVcsIFNUQUlOTEVTUyBTVEVFTCBCQUNLLCBXQVRFUiBSRVNJU1RBTlQsIE1BREUgSU4gQ0hJTkEiLCJEaWdpdGFsIExDRCBkaXNwbGF5IHNob3dpbmcgdGltZSBhbmQgZGF5IiwiUnViYmVyIHN0cmFwIHdpdGggYnVja2xlIGNsYXNwIiwiTWV0YWwgYmFjayBjb3ZlciB3aXRoIGVuZ3JhdmVkIHByb2R1Y3QgaW5mb3JtYXRpb24iLCJCdXR0b25zIG9uIHNpZGVzIGZvciBtb2RlIGFuZCBhZGp1c3RtZW50cyIsIlZpc2libGUgbG9nby9zeW1ib2w6IENBU0lPIiwiVmlzaWJsZSBsb2dvL3N5bWJvbDogRi05MVciLCJWaXNpYmxlIGxldHRlcjogQ0FTSU8iLCJWaXNpYmxlIGxldHRlcjogRi05MVciXSwidmlzdWFsUmVjb2duaXRpb25Vbmtub3ducyI6WyJFeGFjdCBtYW51ZmFjdHVyaW5nIHllYXIgYW5kIGVkaXRpb24iLCJDdXJyZW50IHdvcmtpbmcgY29uZGl0aW9uIl0sInZpc3VhbFJlY29nbml0aW9uQ29uZmxpY3RzIjpbXSwidmlzdWFsUmVjb2duaXRpb25TdW1tYXJ5IjoiVmlzdWFsIFN1YmplY3Q6IERpZ2l0YWwgd3Jpc3R3YXRjaCB3aXRoIHJ1YmJlciBzdHJhcCB8IENhdGVnb3J5OiBDbG90aGluZyBhbmQgQWNjZXNzb3JpZXMgPiBXYXRjaGVzIHwgQ29uZmlkZW5jZTogSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4gfCBSZWNvZ25pemVkIGNsdWVzOiBvcmdhbml6YXRpb246IENBU0lPOyBicmFuZDogQ0FTSU87IGNoYXJhY3RlcjogTm90IHZlcmlmaWVkOyBpbnN0aXR1dGlvbjogTm90IHZlcmlmaWVkOyB0aGVtZTogQ2xhc3NpYyBkaWdpdGFsIHdhdGNoIGRlc2lnbiB8IFN1cHBvcnRpbmcgZXZpZGVuY2U6IENsZWFyIGZyb250IHZpZXcgc2hvd2luZyBkaWdpdGFsIHdhdGNoIGZhY2Ugd2l0aCB0aW1lIGFuZCBkYXk7IEJhY2sgdmlldyBzaG93aW5nIHN0YWlubGVzcyBzdGVlbCBiYWNrIHdpdGggdGV4dDogQ0FTSU8sIEYtOTFXLCBTVEFJTkxFU1MgU1RFRUwgQkFDSywgV0FURVIgUkVTSVNUQU5ULCBNQURFIElOIENISU5BOyBEaWdpdGFsIExDRCBkaXNwbGF5IHNob3dpbmcgdGltZSBhbmQgZGF5OyBSdWJiZXIgc3RyYXAgd2l0aCBidWNrbGUgY2xhc3AgfCBTdGlsbCB1bmtub3duOiBFeGFjdCBtYW51ZmFjdHVyaW5nIHllYXIgYW5kIGVkaXRpb247IEN1cnJlbnQgd29ya2luZyBjb25kaXRpb24gfCBVc2VyIGV2aWRlbmNlIHJlY29uY2lsaWF0aW9uOiBVc2VyIG5vdGVzIENBU0lPIEYtOTFXIHdpdGggV0FURVIgUkVTSVNUIEFMQVJNIENIUk9OT0dSQVBIIG1hdGNoZXMgdmlzdWFsIHRleHQgYW5kIGNvbmZpcm1zIGJyYW5kIGFuZCBtb2RlbCBkZXRhaWxzLiB8IFN1bW1hcnk6IFRoZSBpbWFnZXMgc2hvdyBhIGNsYXNzaWMgQ2FzaW8gZGlnaXRhbCB3cmlzdHdhdGNoIHdpdGggYSBibGFjayBydWJiZXIgc3RyYXAgYW5kIHJlY3Rhbmd1bGFyIExDRCBkaXNwbGF5LiBUaGUgd2F0Y2ggbW9kZWwgRi05MVcgaXMgY2xlYXJseSBpZGVudGlmaWFibGUgb24gdGhlIGZhY2UgYW5kIHRoZSBiYWNrLCB3aXRoIGFkZGl0aW9uYWwgdGV4dCBpbmRpY2F0aW5nIHdhdGVyIHJlc2lzdGFuY2UgYW5kIGFsYXJtIGNocm9ub2dyYXBoIGZ1bmN0aW9ucy4iLCJzdWJqZWN0SWRlbnRpdHkiOiJEaWdpdGFsIHdyaXN0d2F0Y2ggd2l0aCBydWJiZXIgc3RyYXAiLCJzdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiZXhhY3RQcm9kdWN0SWRlbnRpdHkiOiJDQVNJTyBGLTkxVyBkaWdpdGFsIHdyaXN0d2F0Y2ggd2l0aCB3YXRlciByZXNpc3RhbmNlIGFuZCBhbGFybSBjaHJvbm9ncmFwaCBmdW5jdGlvbnMsIGJsYWNrIHJ1YmJlciBzdHJhcCwgc3RhaW5sZXNzIHN0ZWVsIGJhY2ssIG1hZGUgaW4gQ2hpbmEiLCJleGFjdFByb2R1Y3RDb25maWRlbmNlIjoiSGlnaCAtIGV4YWN0IG1vZGVsIGFuZCBicmFuZCBjbGVhcmx5IHZpc2libGUgb24gZnJvbnQgYW5kIGJhY2ssIGNvbnNpc3RlbnQgd2l0aCBrbm93biBDYXNpbyBGLTkxVyIsIm1ha2VyRGF0ZUxpY2Vuc2luZ1N0YXR1cyI6WyJNYWtlciAvIE1hbnVmYWN0dXJlcjogQ0FTSU8iLCJEYXRlIC8gRXJhOiBMYXRlIDIwdGggY2VudHVyeSB0byBwcmVzZW50IiwiTGljZW5zaW5nOiBOb3QgYXBwbGljYWJsZSIsIkF1dGhlbnRpY2l0eTogUHJlc3VtZWQgYXV0aGVudGljIGZyb20gdmlzaWJsZSBtYXJraW5ncyBhbmQgY29uc2lzdGVudCB0ZXh0Il0sIndoYXRJc0tub3duIjpbIlN1YmplY3Q6IERpZ2l0YWwgd3Jpc3R3YXRjaCB3aXRoIHJ1YmJlciBzdHJhcCIsIlVzZXItcHJvdmlkZWQgaWRlbnRpdHk6IENBU0lPIEYtOTFXIFdBVEVSIFJFU0lTVCBBTEFSTSBDSFJPTk9HUkFQSCIsIlZpc3VhbCBldmlkZW5jZTogQ0FTSU8gbG9nbyBvbiB3YXRjaCBmYWNlIiwiVmlzdWFsIGV2aWRlbmNlOiBGLTkxVyBtb2RlbCBudW1iZXIgb24gd2F0Y2ggZmFjZSBhbmQgYmFjayIsIlZpc3VhbCBldmlkZW5jZTogQUxBUk0gQ0hST05PR1JBUEggdGV4dCIsIlRleHQgZXZpZGVuY2U6IENBU0lPIiwiVGV4dCBldmlkZW5jZTogRi05MVciLCJUZXh0IGV2aWRlbmNlOiBBTEFSTSBDSFJPTk9HUkFQSCJdLCJ3aGF0SXNTdGlsbFVua25vd24iOlsiRXhhY3QgbWFudWZhY3R1cmluZyB5ZWFyIGFuZCBlZGl0aW9uIiwiQ3VycmVudCB3b3JraW5nIGNvbmRpdGlvbiIsIkFza2luZyBwcmljZSBhbmQgcHVyY2hhc2UgZGF0ZSJdLCJpZGVudGl0eUNvbmZsaWN0cyI6W10sImlkZW50aXR5U3VtbWFyeSI6IlN1YmplY3QgSWRlbnRpdHk6IERpZ2l0YWwgd3Jpc3R3YXRjaCB3aXRoIHJ1YmJlciBzdHJhcCB8IFN1YmplY3QgQ29uZmlkZW5jZTogSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4gfCBFeGFjdCBQcm9kdWN0IElkZW50aXR5OiBDQVNJTyBGLTkxVyBkaWdpdGFsIHdyaXN0d2F0Y2ggd2l0aCB3YXRlciByZXNpc3RhbmNlIGFuZCBhbGFybSBjaHJvbm9ncmFwaCBmdW5jdGlvbnMsIGJsYWNrIHJ1YmJlciBzdHJhcCwgc3RhaW5sZXNzIHN0ZWVsIGJhY2ssIG1hZGUgaW4gQ2hpbmEgfCBNYWtlciAvIE1hbnVmYWN0dXJlcjogQ0FTSU8gfCBMaWNlbnNpbmcgLyBBdXRoZW50aWNpdHk6IE5vdCBhcHBsaWNhYmxlIC8gUHJlc3VtZWQgYXV0aGVudGljIGZyb20gdmlzaWJsZSBtYXJraW5ncyBhbmQgY29uc2lzdGVudCB0ZXh0IiwicmVzdWx0c0ZvdW5kIjpbXSwic3Ryb25nQ29tcGFyYWJsZXMiOltdLCJwYXJ0aWFsQ29tcGFyYWJsZXMiOltdLCJyZWZlcmVuY2VSZXN1bHRzIjpbXSwid2Vha01hdGNoZXMiOltdLCJyZWplY3RlZE1hdGNoZXMiOltdLCJzZWFyY2hMaW1pdGF0aW9ucyI6WyJMaXZlIHNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlLWJhY2tlZCByZXN1bHQgcmVjb3JkcyB3ZXJlIHJldHVybmVkLiIsIkV4YWN0IHBocmFzZSBzZWFyY2hlcyB3ZXJlIGF0dGVtcHRlZCwgYnV0IHRoZSBsaXZlIHJlc3BvbnNlIGRpZCBub3QgcmV0dXJuIFVSTC1jaXRlZCBzb3VyY2UgcmVjb3Jkcy4iLCJObyBleGFjdCBvciBzdHJvbmcgY29tcGFyYWJsZSByZWNvcmRzIGFyZSB2aXNpYmxlIGluIHRoaXMgcmVwb3J0LiJdLCJ2aXNpYmxlUmVzZWFyY2hSZXN1bHRDb3VudCI6MCwicmVmZXJlbmNlUmFuZ2VCYXNpcyI6Ik5vIG51bWVyaWMgcHJlbGltaW5hcnkgcmFuZ2UgaXMgc2hvd24gYmVjYXVzZSB0aGVyZSBhcmUgbm8gdmlzaWJsZSBzdHJ1Y3R1cmVkIHNvdXJjZSByZWNvcmRzIHN1cHBvcnRpbmcgb25lLiIsInByZWxpbWluYXJ5UmVmZXJlbmNlUmFuZ2UiOiIiLCJwcmljZUJhc2lzIjoiRmFpciB2YWx1ZSBub3QgZXN0YWJsaXNoZWQgLSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuICBQcmljaW5nIGJhc2lzIGRpc3Rpbmd1aXNoZXMgZXhhY3QgaWRlbnRpdHkgbWF0Y2hlcyBmcm9tIGFjdGl2ZSBhc2tpbmctcHJpY2UgZXZpZGVuY2UgYW5kIGNvbmZpcm1lZCBzb2xkIGV2aWRlbmNlLiIsImNvbnN1bWVyRG93bnNpZGVSaXNrIjoiRG93bnNpZGUgY2Fubm90IGJlIGNhbGN1bGF0ZWQgYmVjYXVzZSB0aGUgYXNraW5nIHByaWNlIGlzIG1pc3NpbmcuIiwiY2F1dGlvdXNCdXlFeHBsYW5hdGlvbiI6IiIsImxpdmVDb21wYXJhYmxlU2VhcmNoU3RhdHVzIjoiTGl2ZSBTZWFyY2ggQ29tcGxldGVkIC0gTm8gUmVsaWFibGUgQ29tcHMgRm91bmQiLCJ3ZUZvdW5kVGhpc0l0ZW0iOltdLCJ3ZUZvdW5kU2ltaWxhckNvbXBhcmFibGVJdGVtcyI6W10sInZhbHVhdGlvbkV2aWRlbmNlU3RhdGUiOiJpbnN1ZmZpY2llbnQiLCJ2YWx1YXRpb25FdmlkZW5jZUxhYmVsIjoiRmFpciBWYWx1ZSBOb3QgRXN0YWJsaXNoZWQiLCJ2YWx1YXRpb25FdmlkZW5jZUV4cGxhbmF0aW9uIjoiVGhlIGF2YWlsYWJsZSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSBkZWZlbnNpYmxlIGRvbGxhciByYW5nZS4iLCJmYWlyVmFsdWVOb3RFc3RhYmxpc2hlZCI6IkZhaXIgVmFsdWU6IE5vdCBlc3RhYmxpc2hlZCIsImVzdGltYXRlZE1hcmtldFZhbHVlIjoiIiwid2hhdFRoaXNNZWFucyI6IkZhaXIgbWFya2V0IHZhbHVlIGhhcyBub3QgYmVlbiBlc3RhYmxpc2hlZCBmcm9tIHRoZSBhdmFpbGFibGUgZXZpZGVuY2UuIERvIG5vdCB0cmVhdCB0aGlzIGFzIGEgY29uZmlybWVkIHZhbHVlIGVzdGltYXRlLiIsImJlc3ROZXh0U3RlcCI6IkN1cnJlbnQgYXNraW5nIHByaWNlIn19",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "CASIO F-91W digital wristwatch with water resistance and alarm chronograph",
+      "identificationConfidence": "High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Digital wristwatch with rubber strap",
+        "Visual subject category: Clothing and Accessories > Watches",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: CASIO",
+        "Recognized brand: CASIO",
+        "Recognized character: Not verified",
+        "Subject identity: Digital wristwatch with rubber strap",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "User-provided identity: CASIO F-91W WATER RESIST ALARM CHRONOGRAPH",
+        "Exact product identity: CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China",
+        "Exact product confidence: High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+        "Brand: CASIO"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "Without reliable comparable prices or asking price, negotiation guidance cannot be confidently provided. Obtain the asking price and watch condition details to proceed effectively.",
+      "reasonsToBuy": [
+        "Recognizable classic Casio F-91W model known for reliability and basic digital watch functions",
+        "Water resistance and alarm chronograph features included",
+        "Simple, durable design suitable for everyday personal use"
+      ],
+      "reasonsForCaution": [
+        "Current condition unknown from provided data; condition significantly affects value",
+        "No asking price given, making assessment of value difficult",
+        "No recent sales or listing prices found to benchmark fair market value",
+        "Weak Comparable Evidence",
+        "Condition Unclear",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Condition unknown, which could imply unknown defects or missing functionality",
+        "Authenticity presumed but not independently verified beyond visible markings",
+        "Potential for older stock or used condition impacting value",
+        "Risk flag: Weak Comparable Evidence",
+        "Risk flag: Condition Unclear",
+        "Condition is not confirmed."
+      ],
+      "riskFlags": [
+        "Weak Comparable Evidence",
+        "Condition Unclear"
+      ],
+      "betterValueConsiderations": [
+        "Await price disclosure and condition details before purchase decision",
+        "Consider checking local or reputable retailer pricing for new Casio F-91W watches",
+        "Look for warranties or return options if buying used"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  No exact or near exact product listings or recent sales found in multiple marketplaces and sources during live search",
+      "additionalInformationNeeded": [
+        "Current asking price",
+        "Condition and functionality status",
+        "Included accessories or packaging",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price.",
+        "Clear condition confirmation, including whether it works and whether any parts or accessories are missing."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"F-91W model number on watch face and back\" CASIO Clothing",
+        "\"CASIO F-91W WATER RESIST ALARM CHRONOGRAPH\" CASIO Clothing and Accessories",
+        "\"engraved model and manufacturing info\" CASIO Clothing and Accessories >",
+        "\"Stainless steel back with engraved model\" CASIO Clothing and Accessories",
+        "\"back with engraved model and manufacturing\" CASIO Clothing and Accessories",
+        "\"Made in China\" CASIO Clothing and Accessories > Watches",
+        "\"Clothing and Accessories > Watches\" CASIO Clothing and Accessories >",
+        "\"Digital wristwatch with rubber strap\" CASIO Clothing and Accessories >",
+        "\"Classic digital watch design\" CASIO Clothing and Accessories > Watches",
+        "\"ALARM CHRONOGRAPH\" CASIO Clothing and Accessories > Watches",
+        "\"WATER RESIST\" CASIO Clothing and Accessories > Watches",
+        "\"ALARM ON\" CASIO Clothing and Accessories > Watches",
+        "CASIO F-91W Clothing and Accessories > Watches",
+        "CASIO F-91W digital wristwatch with water resistance and alarm chronograph"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+        "Sources searched: marketplace.watchcharts.com; avaluer.net; shop.tiktok.com; blog.jamtangan.com; numa-garasu.hatenablog.com; ebay.com; mediaexpert.pl; retroordenadoresorty.blogspot.com",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "visualSubject": "Digital wristwatch with rubber strap",
+      "visualSubjectCategory": "Clothing and Accessories > Watches",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "CASIO",
+      "recognizedBrand": "CASIO",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Classic digital watch design",
+      "visualRecognitionEvidence": [
+        "Clear front view showing digital watch face with time and day",
+        "Back view showing stainless steel back with text: CASIO, F-91W, STAINLESS STEEL BACK, WATER RESISTANT, MADE IN CHINA",
+        "Digital LCD display showing time and day",
+        "Rubber strap with buckle clasp",
+        "Metal back cover with engraved product information",
+        "Buttons on sides for mode and adjustments",
+        "Visible logo/symbol: CASIO",
+        "Visible logo/symbol: F-91W",
+        "Visible letter: CASIO",
+        "Visible letter: F-91W"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact manufacturing year and edition",
+        "Current working condition"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Digital wristwatch with rubber strap | Category: Clothing and Accessories > Watches | Confidence: High - supported by available subject evidence. | Recognized clues: organization: CASIO; brand: CASIO; character: Not verified; institution: Not verified; theme: Classic digital watch design | Supporting evidence: Clear front view showing digital watch face with time and day; Back view showing stainless steel back with text: CASIO, F-91W, STAINLESS STEEL BACK, WATER RESISTANT, MADE IN CHINA; Digital LCD display showing time and day; Rubber strap with buckle clasp | Still unknown: Exact manufacturing year and edition; Current working condition | User evidence reconciliation: User notes CASIO F-91W with WATER RESIST ALARM CHRONOGRAPH matches visual text and confirms brand and model details. | Summary: The images show a classic Casio digital wristwatch with a black rubber strap and rectangular LCD display. The watch model F-91W is clearly identifiable on the face and the back, with additional text indicating water resistance and alarm chronograph functions.",
+      "subjectIdentity": "Digital wristwatch with rubber strap",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China",
+      "exactProductConfidence": "High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: CASIO",
+        "Date / Era: Late 20th century to present",
+        "Licensing: Not applicable",
+        "Authenticity: Presumed authentic from visible markings and consistent text"
+      ],
+      "whatIsKnown": [
+        "Subject: Digital wristwatch with rubber strap",
+        "User-provided identity: CASIO F-91W WATER RESIST ALARM CHRONOGRAPH",
+        "Visual evidence: CASIO logo on watch face",
+        "Visual evidence: F-91W model number on watch face and back",
+        "Visual evidence: ALARM CHRONOGRAPH text",
+        "Text evidence: CASIO",
+        "Text evidence: F-91W",
+        "Text evidence: ALARM CHRONOGRAPH"
+      ],
+      "whatIsStillUnknown": [
+        "Exact manufacturing year and edition",
+        "Current working condition",
+        "Asking price and purchase date"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Digital wristwatch with rubber strap | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China | Maker / Manufacturer: CASIO | Licensing / Authenticity: Not applicable / Presumed authentic from visible markings and consistent text",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Current asking price"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "CASIO F-91W digital wristwatch with water resistance and alarm chronograph",
+    "identificationConfidence": "High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Digital wristwatch with rubber strap",
+      "Visual subject category: Clothing and Accessories > Watches",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: CASIO",
+      "Recognized brand: CASIO",
+      "Recognized character: Not verified",
+      "Subject identity: Digital wristwatch with rubber strap",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "User-provided identity: CASIO F-91W WATER RESIST ALARM CHRONOGRAPH",
+      "Exact product identity: CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China",
+      "Exact product confidence: High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+      "Brand: CASIO"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "Without reliable comparable prices or asking price, negotiation guidance cannot be confidently provided. Obtain the asking price and watch condition details to proceed effectively.",
+    "reasonsToBuy": [
+      "Recognizable classic Casio F-91W model known for reliability and basic digital watch functions",
+      "Water resistance and alarm chronograph features included",
+      "Simple, durable design suitable for everyday personal use"
+    ],
+    "reasonsForCaution": [
+      "Current condition unknown from provided data; condition significantly affects value",
+      "No asking price given, making assessment of value difficult",
+      "No recent sales or listing prices found to benchmark fair market value",
+      "Weak Comparable Evidence",
+      "Condition Unclear",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Condition unknown, which could imply unknown defects or missing functionality",
+      "Authenticity presumed but not independently verified beyond visible markings",
+      "Potential for older stock or used condition impacting value",
+      "Risk flag: Weak Comparable Evidence",
+      "Risk flag: Condition Unclear",
+      "Condition is not confirmed."
+    ],
+    "riskFlags": [
+      "Weak Comparable Evidence",
+      "Condition Unclear"
+    ],
+    "betterValueConsiderations": [
+      "Await price disclosure and condition details before purchase decision",
+      "Consider checking local or reputable retailer pricing for new Casio F-91W watches",
+      "Look for warranties or return options if buying used"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  No exact or near exact product listings or recent sales found in multiple marketplaces and sources during live search",
+    "additionalInformationNeeded": [
+      "Current asking price",
+      "Condition and functionality status",
+      "Included accessories or packaging",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price.",
+      "Clear condition confirmation, including whether it works and whether any parts or accessories are missing."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"F-91W model number on watch face and back\" CASIO Clothing",
+      "\"CASIO F-91W WATER RESIST ALARM CHRONOGRAPH\" CASIO Clothing and Accessories",
+      "\"engraved model and manufacturing info\" CASIO Clothing and Accessories >",
+      "\"Stainless steel back with engraved model\" CASIO Clothing and Accessories",
+      "\"back with engraved model and manufacturing\" CASIO Clothing and Accessories",
+      "\"Made in China\" CASIO Clothing and Accessories > Watches",
+      "\"Clothing and Accessories > Watches\" CASIO Clothing and Accessories >",
+      "\"Digital wristwatch with rubber strap\" CASIO Clothing and Accessories >",
+      "\"Classic digital watch design\" CASIO Clothing and Accessories > Watches",
+      "\"ALARM CHRONOGRAPH\" CASIO Clothing and Accessories > Watches",
+      "\"WATER RESIST\" CASIO Clothing and Accessories > Watches",
+      "\"ALARM ON\" CASIO Clothing and Accessories > Watches",
+      "CASIO F-91W Clothing and Accessories > Watches",
+      "CASIO F-91W digital wristwatch with water resistance and alarm chronograph"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+      "Sources searched: marketplace.watchcharts.com; avaluer.net; shop.tiktok.com; blog.jamtangan.com; numa-garasu.hatenablog.com; ebay.com; mediaexpert.pl; retroordenadoresorty.blogspot.com",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "visualSubject": "Digital wristwatch with rubber strap",
+    "visualSubjectCategory": "Clothing and Accessories > Watches",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "CASIO",
+    "recognizedBrand": "CASIO",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Classic digital watch design",
+    "visualRecognitionEvidence": [
+      "Clear front view showing digital watch face with time and day",
+      "Back view showing stainless steel back with text: CASIO, F-91W, STAINLESS STEEL BACK, WATER RESISTANT, MADE IN CHINA",
+      "Digital LCD display showing time and day",
+      "Rubber strap with buckle clasp",
+      "Metal back cover with engraved product information",
+      "Buttons on sides for mode and adjustments",
+      "Visible logo/symbol: CASIO",
+      "Visible logo/symbol: F-91W",
+      "Visible letter: CASIO",
+      "Visible letter: F-91W"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact manufacturing year and edition",
+      "Current working condition"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Digital wristwatch with rubber strap | Category: Clothing and Accessories > Watches | Confidence: High - supported by available subject evidence. | Recognized clues: organization: CASIO; brand: CASIO; character: Not verified; institution: Not verified; theme: Classic digital watch design | Supporting evidence: Clear front view showing digital watch face with time and day; Back view showing stainless steel back with text: CASIO, F-91W, STAINLESS STEEL BACK, WATER RESISTANT, MADE IN CHINA; Digital LCD display showing time and day; Rubber strap with buckle clasp | Still unknown: Exact manufacturing year and edition; Current working condition | User evidence reconciliation: User notes CASIO F-91W with WATER RESIST ALARM CHRONOGRAPH matches visual text and confirms brand and model details. | Summary: The images show a classic Casio digital wristwatch with a black rubber strap and rectangular LCD display. The watch model F-91W is clearly identifiable on the face and the back, with additional text indicating water resistance and alarm chronograph functions.",
+    "subjectIdentity": "Digital wristwatch with rubber strap",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China",
+    "exactProductConfidence": "High - exact model and brand clearly visible on front and back, consistent with known Casio F-91W",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: CASIO",
+      "Date / Era: Late 20th century to present",
+      "Licensing: Not applicable",
+      "Authenticity: Presumed authentic from visible markings and consistent text"
+    ],
+    "whatIsKnown": [
+      "Subject: Digital wristwatch with rubber strap",
+      "User-provided identity: CASIO F-91W WATER RESIST ALARM CHRONOGRAPH",
+      "Visual evidence: CASIO logo on watch face",
+      "Visual evidence: F-91W model number on watch face and back",
+      "Visual evidence: ALARM CHRONOGRAPH text",
+      "Text evidence: CASIO",
+      "Text evidence: F-91W",
+      "Text evidence: ALARM CHRONOGRAPH"
+    ],
+    "whatIsStillUnknown": [
+      "Exact manufacturing year and edition",
+      "Current working condition",
+      "Asking price and purchase date"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Digital wristwatch with rubber strap | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China | Maker / Manufacturer: CASIO | Licensing / Authenticity: Not applicable / Presumed authentic from visible markings and consistent text",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Current asking price"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "7b7f0d05ddaa70a759f0889b26437557f80e5fb8186b40bbeb894cb4d25f9c2f"
+}

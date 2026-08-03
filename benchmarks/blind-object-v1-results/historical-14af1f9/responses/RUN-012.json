@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-012",
+  "objectId": "OBJ-012",
+  "requestSha256": "b5e20f696c85f5de8b9f110d0c7b53cb2c1cdacee75c186415b44960a95bd35d",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:33:18.383Z",
+  "endTimestamp": "2026-08-03T18:34:03.916Z",
+  "elapsedMilliseconds": 45532.87160000001,
+  "rawHandlerBodyBase64": "eyJsaXN0aW5nIjp7InBsYXRmb3JtIjoiZUJheSIsImNhdGVnb3J5U3VnZ2VzdGlvbiI6IlZpZGVvIEdhbWUgQ29uc29sZXMgJiBBY2Nlc3NvcmllcyA+IEhhbmRoZWxkIENvbnNvbGVzIiwiaWRlbnRpZmllZEl0ZW0iOiJOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUgbW9kZWwgRE1HLTAxIiwiaWRlbnRpZmljYXRpb25Db25maWRlbmNlIjoiSGlnaCAtIHN1cHBvcnRlZCBieSBkZXRhaWxlZCB2aXN1YWwgZXZpZGVuY2UgYW5kIHVzZXIgbm90ZXMgbWF0Y2hpbmcgdGhlIGV4YWN0IG1vZGVsIGFuZCBicmFuZGluZy4iLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IEhhbmRoZWxkIHZpZGVvIGdhbWUgY29uc29sZSIsIlZpc3VhbCBzdWJqZWN0IGNhdGVnb3J5OiBFbGVjdHJvbmljcywgR2FtaW5nIERldmljZSIsIlZpc3VhbCBzdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwiUmVjb2duaXplZCBvcmdhbml6YXRpb246IE5pbnRlbmRvIiwiUmVjb2duaXplZCBicmFuZDogTmludGVuZG8iLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogSGFuZGhlbGQgdmlkZW8gZ2FtZSBjb25zb2xlIiwiU3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiIsIlVzZXItcHJvdmlkZWQgaWRlbnRpdHk6IE5pbnRlbmRvIEdBTUUgQk9ZIHwgRE9UIE1BVFJJWCBXSVRIIFNURVJFTyBTT1VORCB8IERNRy0wMSIsIkV4YWN0IHByb2R1Y3QgaWRlbnRpdHk6IE5pbnRlbmRvIEdhbWUgQm95IGhhbmRoZWxkIGdhbWluZyBjb25zb2xlIG1vZGVsIERNRy0wMSByZWxlYXNlZCBpbiAxOTg5IiwiRXhhY3QgcHJvZHVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIkJyYW5kOiBOaW50ZW5kbyJdLCJzZWFyY2hRdWVyaWVzVXNlZCI6WyJUaGVzZSBhcmUgdGhlIHF1ZXJpZXMgdGhlIHN5c3RlbSBhdHRlbXB0ZWQgYmVmb3JlIGxpdmUgcmVzZWFyY2ggYmVjYW1lIHVuYXZhaWxhYmxlLiIsIlwiRE1HLTAxIMKpMTk4OSBOaW50ZW5kbyBSQVRJTkdcIiBOaW50ZW5kbyB0b29sIiwiXCJOaW50ZW5kbyBHYW1lIEJveSBETUctMDFcIiBOaW50ZW5kbyB0b29sIiwiXCJCb3kgaGFuZGhlbGQgZ2FtaW5nIGNvbnNvbGUgbW9kZWwgRE1HLTAxXCIgTmludGVuZG8gdG9vbCIsIlwiwqkxOTg5IE5pbnRlbmRvXCIgTmludGVuZG8gdG9vbCIsIk5pbnRlbmRvIEdBTUUgQk9ZIE1PREVMIE5PLiBETUctMDEgwqkxOTg5IE5pbnRlbmRvIFJBVElORzogREMiLCJcIk5pbnRlbmRvIEdBTUUgQk9ZXCIgTmludGVuZG8gdG9vbCIsIlwiTU9ERUwgTk9cIiBOaW50ZW5kbyB0b29sIiwiXCJoYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUgbW9kZWxcIiBOaW50ZW5kbyB0b29sIiwiXCJNYWRlIGluIEphcGFuXCIgTmludGVuZG8gdG9vbCIsIlwiRWxlY3Ryb25pY3MsIEdhbWluZyBEZXZpY2VcIiBOaW50ZW5kbyB0b29sIiwiXCJIYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGVcIiBOaW50ZW5kbyB0b29sIiwiXCJSZXRybyBnYW1pbmcgdGVjaG5vbG9neVwiIE5pbnRlbmRvIHRvb2wiLCJcIk9GRiBPTlwiIE5pbnRlbmRvIHRvb2wiLCJOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCBnYW1pbmcgY29uc29sZSBtb2RlbCBETUctMDEgcmVsZWFzZWQgaW4iXSwic291cmNlc1NlYXJjaGVkIjpbIlNvdXJjZXMgc2VhcmNoZWQ6IE5vbmUuIiwiTGl2ZSBzZWFyY2ggZGlkIG5vdCBjb21wbGV0ZSBiZWZvcmUgc291cmNlIHJlc3VsdHMgY291bGQgYmUgcmV0cmlldmVkLiIsIlNvdXJjZSBjYXRlZ29yaWVzIHRhcmdldGVkIGJlZm9yZSBmYWlsdXJlOiBzZWNvbmRoYW5kIHJlc2FsZSByZXN1bHRzOyB2aW50YWdlIGFuZCBjb2xsZWN0b3Igc291cmNlczsgc3BlY2lhbHR5IHJlZmVyZW5jZSBzb3VyY2VzOyBleGFjdC1sYWJlbCB3ZWIgcmVzdWx0czsgZXhhY3QgbGFiZWwvc3RhbXAgc2VhcmNoZXM7IGVCYXktc3R5bGUgcmVzYWxlIHJlc3VsdHM7IEV0c3ktc3R5bGUgdmludGFnZSByZXN1bHRzOyBNZXJjYXJpLXN0eWxlIHJlc2FsZSByZXN1bHRzIl0sInJlc2VhcmNoUmVzdWx0cyI6WyJMaXZlIFNlYXJjaCBVbmF2YWlsYWJsZSAtIEFJIFJlYXNvbmluZyBPbmx5LiBMaXZlIGNvbXBhcmFibGUgcmVzZWFyY2ggd2FzIGF0dGVtcHRlZCBidXQgdW5hdmFpbGFibGUgYmVmb3JlIHNvdXJjZS1iYWNrZWQgcmVzdWx0cyBjb3VsZCBiZSByZXRyaWV2ZWQuIiwiVW50ZXJtaW5hdGVkIHN0cmluZyBpbiBKU09OIGF0IHBvc2l0aW9uIDYyNTggKGxpbmUgMjYgY29sdW1uIDMxMSkiXSwiY29tcGFyYWJsZVF1YWxpdHkiOlsiUmVqZWN0ZWQgTWF0Y2ggLSBsaXZlIHJlc2VhcmNoIGRpZCBub3QgcmV0dXJuIHNvdXJjZS1iYWNrZWQgY29tcGFyYWJsZSBldmlkZW5jZS4iXSwicmVjb21tZW5kZWRMaXN0aW5nUHJpY2UiOiJMb3ctY29uZmlkZW5jZSBjYXV0aW91cyBlc3RpbWF0ZSAtICQ1MCB0byAkMTIwIChwcmljZSByYW5nZSBlc3RpbWF0ZSwgbG93IGNvbmZpZGVuY2UgZHVlIHRvIGxhY2sgb2YgY3VycmVudCBjb21wYXJhYmxlIHNhbGVzIGRhdGEpIiwic3VnZ2VzdGVkT2ZmZXJSYW5nZSI6Ikxvdy1jb25maWRlbmNlIG9mZmVyIGd1aWRhbmNlIC0gJDQwIHRvICQxMDAiLCJwcmljaW5nQ29uZmlkZW5jZSI6IkxvdyAtIExpc3RpbmcgcHJpY2Ugc3VwcG9ydCBpcyB3ZWFrIGJlY2F1c2UgcmVsaWFibGUgbGl2ZSByZXNlYXJjaCBldmlkZW5jZSBpcyBtaXNzaW5nLiBlc3RpbWF0ZSBiYXNlZCBvbiB0eXBpY2FsIG1hcmtldCByYW5nZSBmb3IgdmludGFnZSBoYW5kaGVsZCBnYW1lIGNvbnNvbGVzIG9mIHRoaXMgdHlwZSB3aXRob3V0IHJlY2VudCBzcGVjaWZpYyBzYWxlcyBkYXRhLiIsInByaWNpbmdSYXRpb25hbGUiOiJWYWx1YXRpb24gZXZpZGVuY2Ugc3RhdGU6IGluc3VmZmljaWVudC4gIExpdmUgcmVzZWFyY2ggZGlkIG5vdCBjb21wbGV0ZS4gUHJpY2luZyBpcyBhIGNhdXRpb3VzIGVzdGltYXRlLCBub3QgZXZpZGVuY2UtYmFja2VkIGZhY3QuIE5vIGFjdGl2ZSBvciByZWNlbnQgY29tcGFyYWJsZSBzYWxlcyBkYXRhIGF2YWlsYWJsZSBmcm9tIHJlc2VhcmNoIHNvdXJjZXM7IHByaWNpbmcgYmFzZWQgb24gaGlzdG9yaWNhbCBrbm93bGVkZ2Ugb2YgdmludGFnZSBOaW50ZW5kbyBHYW1lIEJveSBETUctMDEgdW5pdHMgYW5kIGNvbmRpdGlvbiBmYWN0b3JzIHZpc2libGUgaW4gcGhvdG9zLiIsIm9wdGltaXplZExpc3RpbmdUaXRsZSI6Ik5pbnRlbmRvIEdhbWUgQm95IERNRy0wMSBWaW50YWdlIEhhbmRoZWxkIEdhbWluZyBDb25zb2xlIDE5ODkgRG90IE1hdHJpeCBTY3JlZW4iLCJsaXN0aW5nRGVzY3JpcHRpb24iOiJPcmlnaW5hbCB2aW50YWdlIE5pbnRlbmRvIEdhbWUgQm95IGhhbmRoZWxkIHZpZGVvIGdhbWUgY29uc29sZSBtb2RlbCBETUctMDEgZnJvbSAxOTg5LCBmZWF0dXJpbmcgYSBtb25vY2hyb21lIGRvdCBtYXRyaXggc2NyZWVuIGFuZCBzdGVyZW8gc291bmQgY2FwYWJpbGl0eS4gT2ZmLXdoaXRlL2JlaWdlIGNhc2luZyB3aXRoIHB1cnBsZSBhY3Rpb24gYnV0dG9ucywgdHlwaWNhbCBkaXJlY3Rpb25hbCBwYWQsIFNFTEVDVCBhbmQgU1RBUlQgYnV0dG9ucywgc3BlYWtlciBncmlsbGUsIGhlYWRwaG9uZSBqYWNrLCBhbmQgYmF0dGVyeSBjb21wYXJ0bWVudC4gU2hvd3MgdmlzaWJsZSB3ZWFyIGFuZCB5ZWxsb3dpbmcgY29uc2lzdGVudCB3aXRoIGFnZS4gRXhhY3Qgb3BlcmF0aW9uYWwgc3RhdHVzIHVua25vd24uIEEgY29sbGVjdGlibGUgcmV0cm8gZ2FtaW5nIGRldmljZSBmb3IgZW50aHVzaWFzdHMgYW5kIGNvbGxlY3RvcnMuIiwiaXRlbVNwZWNpZmljcyI6WyJCcmFuZDogTmludGVuZG8iLCJNb2RlbDogRE1HLTAxIiwiVHlwZTogSGFuZGhlbGQgdmlkZW8gZ2FtZSBjb25zb2xlIiwiUmVsZWFzZSBZZWFyOiAxOTg5IiwiQ29sb3I6IE9mZi13aGl0ZS9iZWlnZSB3aXRoIHB1cnBsZS9tYWdlbnRhIGJ1dHRvbnMgYW5kIGJsYWNrIGRpcmVjdGlvbmFsIHBhZCIsIk1hdGVyaWFsOiBQbGFzdGljIiwiRGlzcGxheTogTW9ub2Nocm9tZSBkb3QgbWF0cml4IHNjcmVlbiIsIlBvd2VyOiA0IEFBIGJhdHRlcmllcyIsIk1hbnVmYWN0dXJlZCBpbjogSmFwYW4iLCJDb25kaXRpb246IFZpc2libGUgd2VhciBhbmQgeWVsbG93aW5nOyBmdW5jdGlvbmFsaXR5IHVudGVzdGVkIl0sImNvbmRpdGlvbk5vdGVzIjpbIlZpc2libGUgZGlzY29sb3JhdGlvbi95ZWxsb3dpbmcgb2YgcGxhc3RpYyBjYXNpbmcgY29uc2lzdGVudCB3aXRoIGFnZSIsIlN1cmZhY2Ugd2VhciBhbmQgc2N1ZmZzIGV2aWRlbnQgaW4gcGhvdG9zIiwiQmF0dGVyeSBjb21wYXJ0bWVudCBzaG93biBidXQgYmF0dGVyeSBjb25kaXRpb24gdW5rbm93biIsIk5vIGNyYWNrcyBvciBtYWpvciBkYW1hZ2UgdmlzaWJsZSBmcm9tIHByb3ZpZGVkIGltYWdlcyIsIkZ1bmN0aW9uYWwgc3RhdHVzIG5vdCBjb25maXJtZWQiXSwic3VnZ2VzdGVkU2VsbGluZ1BsYXRmb3JtIjoiZUJheSIsImFkZGl0aW9uYWxJbmZvcm1hdGlvbk5lZWRlZCI6WyJDb25maXJtYXRpb24gb2Ygb3BlcmF0aW9uYWwgc3RhdHVzIChwb3dlcnMgb24gYW5kIHBsYXlzIGdhbWVzKSIsIkluY2x1c2lvbiBvZiBvcmlnaW5hbCBhY2Nlc3NvcmllcyBvciBwYWNrYWdpbmcgaWYgYXZhaWxhYmxlIiwiQ2xvc2VyIHBob3RvcyBvZiBhbnkgaWRlbnRpZnlpbmcgbWFya3Mgb3IgZGFtYWdlIG5vdCBzaG93biIsIlRlc3QgcmVzdWx0cyBmb3Igc2NyZWVuIGFuZCBzb3VuZCBmdW5jdGlvbmFsaXR5Il0sInRpdGxlIjoiTmludGVuZG8gR2FtZSBCb3kgRE1HLTAxIFZpbnRhZ2UgSGFuZGhlbGQgR2FtaW5nIENvbnNvbGUgMTk4OSBEb3QgTWF0cml4IFNjcmVlbiIsImRlc2NyaXB0aW9uIjoiT3JpZ2luYWwgdmludGFnZSBOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUgbW9kZWwgRE1HLTAxIGZyb20gMTk4OSwgZmVhdHVyaW5nIGEgbW9ub2Nocm9tZSBkb3QgbWF0cml4IHNjcmVlbiBhbmQgc3RlcmVvIHNvdW5kIGNhcGFiaWxpdHkuIE9mZi13aGl0ZS9iZWlnZSBjYXNpbmcgd2l0aCBwdXJwbGUgYWN0aW9uIGJ1dHRvbnMsIHR5cGljYWwgZGlyZWN0aW9uYWwgcGFkLCBTRUxFQ1QgYW5kIFNUQVJUIGJ1dHRvbnMsIHNwZWFrZXIgZ3JpbGxlLCBoZWFkcGhvbmUgamFjaywgYW5kIGJhdHRlcnkgY29tcGFydG1lbnQuIFNob3dzIHZpc2libGUgd2VhciBhbmQgeWVsbG93aW5nIGNvbnNpc3RlbnQgd2l0aCBhZ2UuIEV4YWN0IG9wZXJhdGlvbmFsIHN0YXR1cyB1bmtub3duLiBBIGNvbGxlY3RpYmxlIHJldHJvIGdhbWluZyBkZXZpY2UgZm9yIGVudGh1c2lhc3RzIGFuZCBjb2xsZWN0b3JzLiIsIml0ZW1EZXRhaWxzIjpbIkV4YWN0IFByb2R1Y3Q6IE5pbnRlbmRvIEdhbWUgQm95IG1vZGVsIERNRy0wMSIsIlllYXIgTWFudWZhY3R1cmVkOiAxOTg5IiwiQnJhbmQ6IE5pbnRlbmRvIiwiQ29sb3I6IE9mZi13aGl0ZS9iZWlnZSB3aXRoIHB1cnBsZS9tYWdlbnRhIGFuZCBibGFjayBidXR0b25zIiwiTWF0ZXJpYWw6IFBsYXN0aWMiLCJCdXR0b24gbGF5b3V0OiBEaXJlY3Rpb25hbCBwYWQsIEEgYW5kIEIgYnV0dG9ucywgU0VMRUNUIGFuZCBTVEFSVCIsIlNjcmVlbjogTW9ub2Nocm9tZSBkb3QgbWF0cml4IiwiU291bmQ6IFN0ZXJlbyBzb3VuZCBjYXBhYmlsaXR5IChhcyBpbmRpY2F0ZWQpIl0sInByaWNlU3RyYXRlZ3kiOiJMaXZlIHJlc2VhcmNoIGRpZCBub3QgY29tcGxldGUuIFByaWNpbmcgaXMgYSBjYXV0aW91cyBlc3RpbWF0ZSwgbm90IGV2aWRlbmNlLWJhY2tlZCBmYWN0LiBTZXQgYSBtaWQtcmFuZ2Ugc3RhcnRpbmcgcHJpY2UgYmFzZWQgb24gdHlwaWNhbCB2aW50YWdlIGhhbmRoZWxkIGNvbnNvbGUgdmFsdWVzLCB3aXRoIHJvb20gZm9yIGJ1eWVyIG5lZ290aWF0aW9uIGR1ZSB0byBjb25kaXRpb24gYW5kIHVuY29uZmlybWVkIGZ1bmN0aW9uYWxpdHkuIEluY2x1ZGUgYmVzdCBvZmZlciBvcHRpb24gdG8gYXR0cmFjdCBpbnRlcmVzdC4iLCJleHBlY3RlZFNlbGxpbmdUaW1lbGluZSI6IjEtMyBtb250aHMgZGVwZW5kaW5nIG9uIG1hcmtldCBkZW1hbmQgYW5kIGxpc3RpbmcgdmlzaWJpbGl0eS4iLCJzaGlwcGluZ0RlbGl2ZXJ5IjoiU3RhbmRhcmQgc2hpcHBpbmcgd2l0aCB0cmFja2luZyByZWNvbW1lbmRlZDsgcGFja2FnZSBzZWN1cmVseSB0byBwcm90ZWN0IHZpbnRhZ2UgZWxlY3Ryb25pY3MuIiwic3RhZ2luZ1Bob3RvcyI6IkluY2x1ZGUgbXVsdGlwbGUgaGlnaC1yZXNvbHV0aW9uIGltYWdlcyBzaG93aW5nIGZyb250LCBiYWNrLCBzaWRlIHZpZXdzLCBjbG9zZS11cHMgb2YgYnV0dG9ucywgc2NyZWVuLCBsYWJlbGluZywgYW5kIGFueSB3ZWFyIG9yIGRhbWFnZS4iLCJzZWxsZXJOb3RlcyI6WyJTZWxsZXIgaGFzIGNvbmZpcm1lZCBpdGVtIGFzIG9yaWdpbmFsIE5pbnRlbmRvIEdhbWUgQm95IERNRy0wMSBmcm9tIDE5ODkgcGVyIHVzZXIgbm90ZXMgYW5kIHZpc2libGUgbWFya2luZ3MuIiwiQ29uZGl0aW9uIGJleW9uZCB2aXNpYmxlIHdlYXIgYW5kIGZ1bmN0aW9uYWxpdHkgbm90IGNvbmZpcm1lZC4iLCJObyBhZGRpdGlvbmFsIGFjY2Vzc29yaWVzIG9yIG9yaWdpbmFsIHBhY2thZ2luZyBpbmNsdWRlZCB1bmxlc3Mgc3RhdGVkLiJdLCJ2aXN1YWxTdWJqZWN0IjoiSGFuZGhlbGQgdmlkZW8gZ2FtZSBjb25zb2xlIiwidmlzdWFsU3ViamVjdENhdGVnb3J5IjoiRWxlY3Ryb25pY3MsIEdhbWluZyBEZXZpY2UiLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6Ik5pbnRlbmRvIiwicmVjb2duaXplZEJyYW5kIjoiTmludGVuZG8iLCJyZWNvZ25pemVkQ2hhcmFjdGVyIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZEluc3RpdHV0aW9uIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZFRoZW1lIjoiUmV0cm8gZ2FtaW5nIHRlY2hub2xvZ3kiLCJ2aXN1YWxSZWNvZ25pdGlvbkV2aWRlbmNlIjpbImZyb250IGZhY2Ugc2hvd3MgTmludGVuZG8gR0FNRSBCT1kgbG9nbyBhbmQgdHlwaWNhbCBidXR0b24gbGF5b3V0IiwiYmFjayBwYW5lbCBzaG93cyBtb2RlbCBudW1iZXIgRE1HLTAxIGFuZCAxOTg5IGNvcHlyaWdodCBkYXRlIiwiZGVzaWduIGFuZCBsYWJlbGluZyBjb25zaXN0ZW50IHdpdGggb3JpZ2luYWwgTmludGVuZG8gR2FtZSBCb3kgaGFuZGhlbGQgZ2FtaW5nIGNvbnNvbGUiLCJtb25vY2hyb21lIGRvdCBtYXRyaXggc2NyZWVuIiwiZGlyZWN0aW9uYWwgcGFkIiwidHdvIHJvdW5kIGFjdGlvbiBidXR0b25zIGxhYmVsZWQgQSBhbmQgQiIsIlNFTEVDVCBhbmQgU1RBUlQgYnV0dG9ucyIsInNwZWFrZXIgZ3JpbGxlIiwib2ZmLW9uIHNsaWRlciBzd2l0Y2giLCJoZWFkcGhvbmUgamFjayBtYXJrZWQgUEhPTkVTIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgcHJvZHVjdCBjb25kaXRpb24gYmV5b25kIHZpc2libGUgd2VhciIsIkV4YWN0IGludGVybmFsIG9wZXJhdGlvbmFsIHN0YXR1cyJdLCJ2aXN1YWxSZWNvZ25pdGlvbkNvbmZsaWN0cyI6W10sInZpc3VhbFJlY29nbml0aW9uU3VtbWFyeSI6IlZpc3VhbCBTdWJqZWN0OiBIYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUgfCBDYXRlZ29yeTogRWxlY3Ryb25pY3MsIEdhbWluZyBEZXZpY2UgfCBDb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiB8IFJlY29nbml6ZWQgY2x1ZXM6IG9yZ2FuaXphdGlvbjogTmludGVuZG87IGJyYW5kOiBOaW50ZW5kbzsgY2hhcmFjdGVyOiBOb3QgdmVyaWZpZWQ7IGluc3RpdHV0aW9uOiBOb3QgdmVyaWZpZWQ7IHRoZW1lOiBSZXRybyBnYW1pbmcgdGVjaG5vbG9neSB8IFN1cHBvcnRpbmcgZXZpZGVuY2U6IGZyb250IGZhY2Ugc2hvd3MgTmludGVuZG8gR0FNRSBCT1kgbG9nbyBhbmQgdHlwaWNhbCBidXR0b24gbGF5b3V0OyBiYWNrIHBhbmVsIHNob3dzIG1vZGVsIG51bWJlciBETUctMDEgYW5kIDE5ODkgY29weXJpZ2h0IGRhdGU7IGRlc2lnbiBhbmQgbGFiZWxpbmcgY29uc2lzdGVudCB3aXRoIG9yaWdpbmFsIE5pbnRlbmRvIEdhbWUgQm95IGhhbmRoZWxkIGdhbWluZyBjb25zb2xlOyBtb25vY2hyb21lIGRvdCBtYXRyaXggc2NyZWVuIHwgU3RpbGwgdW5rbm93bjogRXhhY3QgcHJvZHVjdCBjb25kaXRpb24gYmV5b25kIHZpc2libGUgd2VhcjsgRXhhY3QgaW50ZXJuYWwgb3BlcmF0aW9uYWwgc3RhdHVzIHwgVXNlciBldmlkZW5jZSByZWNvbmNpbGlhdGlvbjogVXNlciBub3RlcyBtYXRjaCB2aXN1YWwgZXZpZGVuY2UgZnVsbHksIGNvbmZpcm1pbmcgdGhlIGlkZW50aWZpY2F0aW9uIGFzIGEgTmludGVuZG8gR2FtZSBCb3kgRE1HLTAxIGhhbmRoZWxkIGdhbWluZyBjb25zb2xlIGZyb20gMTk4OS4gfCBTdW1tYXJ5OiBUaGlzIGlzIGEgaGlnaC1jb25maWRlbmNlIGltYWdlIG9mIGEgdmludGFnZSBOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUgKG1vZGVsIERNRy0wMSkgd2l0aCBkaXN0aW5jdGl2ZSBmZWF0dXJlcyBpbmNsdWRpbmcgYSBkb3QgbWF0cml4IHNjcmVlbiwgZGlyZWN0aW9uYWwgcGFkLCBBIGFuZCBCIGJ1dHRvbnMsIGFuZCBsYWJlbGluZyBjb25maXJtaW5nIGl0cyBpZGVudGl0eSBhcyB0aGUgb3JpZ2luYWwgbW9kZWwgcmVsZWFzZWQgaW4gMTk4OS4iLCJzdWJqZWN0SWRlbnRpdHkiOiJIYW5kaGVsZCB2aWRlbyBnYW1lIGNvbnNvbGUiLCJzdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiZXhhY3RQcm9kdWN0SWRlbnRpdHkiOiJOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCBnYW1pbmcgY29uc29sZSBtb2RlbCBETUctMDEgcmVsZWFzZWQgaW4gMTk4OSIsImV4YWN0UHJvZHVjdENvbmZpZGVuY2UiOiJIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIm1ha2VyRGF0ZUxpY2Vuc2luZ1N0YXR1cyI6WyJNYWtlciAvIE1hbnVmYWN0dXJlcjogTmludGVuZG8iLCJEYXRlIC8gRXJhOiBMYXRlIDE5ODBzIiwiTGljZW5zaW5nOiBMaWNlbnNlZCBOaW50ZW5kbyBwcm9kdWN0IiwiQXV0aGVudGljaXR5OiBMaWtlbHkgYXV0aGVudGljIGJhc2VkIG9uIHZpc3VhbCBldmlkZW5jZSBhbmQgbGFiZWxpbmciXSwid2hhdElzS25vd24iOlsiU3ViamVjdDogSGFuZGhlbGQgdmlkZW8gZ2FtZSBjb25zb2xlIiwiVXNlci1wcm92aWRlZCBpZGVudGl0eTogTmludGVuZG8gR0FNRSBCT1kgfCBET1QgTUFUUklYIFdJVEggU1RFUkVPIFNPVU5EIHwgRE1HLTAxIiwiVmlzdWFsIGV2aWRlbmNlOiBGcm9udCBmYWNlIHNob3dzIE5pbnRlbmRvIEdBTUUgQk9ZIGxvZ28gYW5kIHR5cGljYWwgYnV0dG9uIGxheW91dCIsIlZpc3VhbCBldmlkZW5jZTogQmFjayBwYW5lbCBzaG93cyBtb2RlbCBudW1iZXIgRE1HLTAxIGFuZCAxOTg5IGNvcHlyaWdodCBkYXRlIiwiVmlzdWFsIGV2aWRlbmNlOiBEZXNpZ24gYW5kIGxhYmVsaW5nIGNvbnNpc3RlbnQgd2l0aCBvcmlnaW5hbCBOaW50ZW5kbyBHYW1lIEJveSBoYW5kaGVsZCBnYW1pbmcgY29uc29sZSIsIlRleHQgZXZpZGVuY2U6IE5pbnRlbmRvIEdBTUUgQk9ZIiwiVGV4dCBldmlkZW5jZTogTU9ERUwgTk8uIERNRy0wMSIsIlRleHQgZXZpZGVuY2U6IMKpMTk4OSBOaW50ZW5kbyJdLCJ3aGF0SXNTdGlsbFVua25vd24iOlsiRXhhY3Qgb3BlcmF0aW9uYWwgc3RhdHVzIiwiRXhhY3QgcHVyY2hhc2UgYXNraW5nIHByaWNlIiwiQ29tcGxldGUgaXRlbSBjb25kaXRpb24gYmV5b25kIHZpc2libGUiLCJFeGFjdCBwcm9kdWN0IGNvbmRpdGlvbiBiZXlvbmQgdmlzaWJsZSB3ZWFyIiwiRXhhY3QgaW50ZXJuYWwgb3BlcmF0aW9uYWwgc3RhdHVzIl0sImlkZW50aXR5Q29uZmxpY3RzIjpbXSwiaWRlbnRpdHlTdW1tYXJ5IjoiU3ViamVjdCBJZGVudGl0eTogSGFuZGhlbGQgdmlkZW8gZ2FtZSBjb25zb2xlIHwgU3ViamVjdCBDb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiB8IEV4YWN0IFByb2R1Y3QgSWRlbnRpdHk6IE5pbnRlbmRvIEdhbWUgQm95IGhhbmRoZWxkIGdhbWluZyBjb25zb2xlIG1vZGVsIERNRy0wMSByZWxlYXNlZCBpbiAxOTg5IHwgTWFrZXIgLyBNYW51ZmFjdHVyZXI6IE5pbnRlbmRvIHwgTGljZW5zaW5nIC8gQXV0aGVudGljaXR5OiBMaWNlbnNlZCBOaW50ZW5kbyBwcm9kdWN0IC8gTGlrZWx5IGF1dGhlbnRpYyBiYXNlZCBvbiB2aXN1YWwgZXZpZGVuY2UgYW5kIGxhYmVsaW5nIiwicmVzdWx0c0ZvdW5kIjpbXSwic3Ryb25nQ29tcGFyYWJsZXMiOltdLCJwYXJ0aWFsQ29tcGFyYWJsZXMiOltdLCJyZWZlcmVuY2VSZXN1bHRzIjpbXSwid2Vha01hdGNoZXMiOltdLCJyZWplY3RlZE1hdGNoZXMiOltdLCJzZWFyY2hMaW1pdGF0aW9ucyI6WyJMaXZlIHNlYXJjaCB3YXMgdW5hdmFpbGFibGUsIHNvIG5vIHNvdXJjZSByZWNvcmRzIGNvdWxkIGJlIHJldHJpZXZlZC4iLCJMaXZlIHNlYXJjaCBkaWQgbm90IGNvbXBsZXRlLCBzbyBzb3VyY2UtYmFja2VkIGNvbXBzIGNvdWxkIG5vdCBiZSByZXRyaWV2ZWQuIiwiTm8gZXhhY3Qgb3Igc3Ryb25nIGNvbXBhcmFibGUgcmVjb3JkcyBhcmUgdmlzaWJsZSBpbiB0aGlzIHJlcG9ydC4iXSwidmlzaWJsZVJlc2VhcmNoUmVzdWx0Q291bnQiOjAsInJlZmVyZW5jZVJhbmdlQmFzaXMiOiJObyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlIHJlY29yZHMgd2VyZSByZXR1cm5lZCwgc28gYSBwcmVsaW1pbmFyeSByZWZlcmVuY2UgcmFuZ2UgaXMgbm90IHN1cHBvcnRlZC4iLCJ2YWx1YXRpb25FdmlkZW5jZVN0YXRlIjoiaW5zdWZmaWNpZW50IiwidmFsdWF0aW9uRXZpZGVuY2VMYWJlbCI6IkZhaXIgVmFsdWUgTm90IEVzdGFibGlzaGVkIiwidmFsdWF0aW9uRXZpZGVuY2VFeHBsYW5hdGlvbiI6IlRoZSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuIiwicHJpY2luZ0V2aWRlbmNlU3RhdGUiOiJpbnN1ZmZpY2llbnQifX0=",
+  "rawProductResponse": {
+    "listing": {
+      "platform": "eBay",
+      "categorySuggestion": "Video Game Consoles & Accessories > Handheld Consoles",
+      "identifiedItem": "Nintendo Game Boy handheld video game console model DMG-01",
+      "identificationConfidence": "High - supported by detailed visual evidence and user notes matching the exact model and branding.",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Handheld video game console",
+        "Visual subject category: Electronics, Gaming Device",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Nintendo",
+        "Recognized brand: Nintendo",
+        "Recognized character: Not verified",
+        "Subject identity: Handheld video game console",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "User-provided identity: Nintendo GAME BOY | DOT MATRIX WITH STEREO SOUND | DMG-01",
+        "Exact product identity: Nintendo Game Boy handheld gaming console model DMG-01 released in 1989",
+        "Exact product confidence: High - supported by available subject evidence.",
+        "Brand: Nintendo"
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system attempted before live research became unavailable.",
+        "\"DMG-01 ©1989 Nintendo RATING\" Nintendo tool",
+        "\"Nintendo Game Boy DMG-01\" Nintendo tool",
+        "\"Boy handheld gaming console model DMG-01\" Nintendo tool",
+        "\"©1989 Nintendo\" Nintendo tool",
+        "Nintendo GAME BOY MODEL NO. DMG-01 ©1989 Nintendo RATING: DC",
+        "\"Nintendo GAME BOY\" Nintendo tool",
+        "\"MODEL NO\" Nintendo tool",
+        "\"handheld video game console model\" Nintendo tool",
+        "\"Made in Japan\" Nintendo tool",
+        "\"Electronics, Gaming Device\" Nintendo tool",
+        "\"Handheld video game console\" Nintendo tool",
+        "\"Retro gaming technology\" Nintendo tool",
+        "\"OFF ON\" Nintendo tool",
+        "Nintendo Game Boy handheld gaming console model DMG-01 released in"
+      ],
+      "sourcesSearched": [
+        "Sources searched: None.",
+        "Live search did not complete before source results could be retrieved.",
+        "Source categories targeted before failure: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results"
+      ],
+      "researchResults": [
+        "Live Search Unavailable - AI Reasoning Only. Live comparable research was attempted but unavailable before source-backed results could be retrieved.",
+        "Unterminated string in JSON at position 6258 (line 26 column 311)"
+      ],
+      "comparableQuality": [
+        "Rejected Match - live research did not return source-backed comparable evidence."
+      ],
+      "recommendedListingPrice": "Low-confidence cautious estimate - $50 to $120 (price range estimate, low confidence due to lack of current comparable sales data)",
+      "suggestedOfferRange": "Low-confidence offer guidance - $40 to $100",
+      "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. estimate based on typical market range for vintage handheld game consoles of this type without recent specific sales data.",
+      "pricingRationale": "Valuation evidence state: insufficient.  Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact. No active or recent comparable sales data available from research sources; pricing based on historical knowledge of vintage Nintendo Game Boy DMG-01 units and condition factors visible in photos.",
+      "optimizedListingTitle": "Nintendo Game Boy DMG-01 Vintage Handheld Gaming Console 1989 Dot Matrix Screen",
+      "listingDescription": "Original vintage Nintendo Game Boy handheld video game console model DMG-01 from 1989, featuring a monochrome dot matrix screen and stereo sound capability. Off-white/beige casing with purple action buttons, typical directional pad, SELECT and START buttons, speaker grille, headphone jack, and battery compartment. Shows visible wear and yellowing consistent with age. Exact operational status unknown. A collectible retro gaming device for enthusiasts and collectors.",
+      "itemSpecifics": [
+        "Brand: Nintendo",
+        "Model: DMG-01",
+        "Type: Handheld video game console",
+        "Release Year: 1989",
+        "Color: Off-white/beige with purple/magenta buttons and black directional pad",
+        "Material: Plastic",
+        "Display: Monochrome dot matrix screen",
+        "Power: 4 AA batteries",
+        "Manufactured in: Japan",
+        "Condition: Visible wear and yellowing; functionality untested"
+      ],
+      "conditionNotes": [
+        "Visible discoloration/yellowing of plastic casing consistent with age",
+        "Surface wear and scuffs evident in photos",
+        "Battery compartment shown but battery condition unknown",
+        "No cracks or major damage visible from provided images",
+        "Functional status not confirmed"
+      ],
+      "suggestedSellingPlatform": "eBay",
+      "additionalInformationNeeded": [
+        "Confirmation of operational status (powers on and plays games)",
+        "Inclusion of original accessories or packaging if available",
+        "Closer photos of any identifying marks or damage not shown",
+        "Test results for screen and sound functionality"
+      ],
+      "title": "Nintendo Game Boy DMG-01 Vintage Handheld Gaming Console 1989 Dot Matrix Screen",
+      "description": "Original vintage Nintendo Game Boy handheld video game console model DMG-01 from 1989, featuring a monochrome dot matrix screen and stereo sound capability. Off-white/beige casing with purple action buttons, typical directional pad, SELECT and START buttons, speaker grille, headphone jack, and battery compartment. Shows visible wear and yellowing consistent with age. Exact operational status unknown. A collectible retro gaming device for enthusiasts and collectors.",
+      "itemDetails": [
+        "Exact Product: Nintendo Game Boy model DMG-01",
+        "Year Manufactured: 1989",
+        "Brand: Nintendo",
+        "Color: Off-white/beige with purple/magenta and black buttons",
+        "Material: Plastic",
+        "Button layout: Directional pad, A and B buttons, SELECT and START",
+        "Screen: Monochrome dot matrix",
+        "Sound: Stereo sound capability (as indicated)"
+      ],
+      "priceStrategy": "Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact. Set a mid-range starting price based on typical vintage handheld console values, with room for buyer negotiation due to condition and unconfirmed functionality. Include best offer option to attract interest.",
+      "expectedSellingTimeline": "1-3 months depending on market demand and listing visibility.",
+      "shippingDelivery": "Standard shipping with tracking recommended; package securely to protect vintage electronics.",
+      "stagingPhotos": "Include multiple high-resolution images showing front, back, side views, close-ups of buttons, screen, labeling, and any wear or damage.",
+      "sellerNotes": [
+        "Seller has confirmed item as original Nintendo Game Boy DMG-01 from 1989 per user notes and visible markings.",
+        "Condition beyond visible wear and functionality not confirmed.",
+        "No additional accessories or original packaging included unless stated."
+      ],
+      "visualSubject": "Handheld video game console",
+      "visualSubjectCategory": "Electronics, Gaming Device",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Nintendo",
+      "recognizedBrand": "Nintendo",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Retro gaming technology",
+      "visualRecognitionEvidence": [
+        "front face shows Nintendo GAME BOY logo and typical button layout",
+        "back panel shows model number DMG-01 and 1989 copyright date",
+        "design and labeling consistent with original Nintendo Game Boy handheld gaming console",
+        "monochrome dot matrix screen",
+        "directional pad",
+        "two round action buttons labeled A and B",
+        "SELECT and START buttons",
+        "speaker grille",
+        "off-on slider switch",
+        "headphone jack marked PHONES"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact product condition beyond visible wear",
+        "Exact internal operational status"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Handheld video game console | Category: Electronics, Gaming Device | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Nintendo; brand: Nintendo; character: Not verified; institution: Not verified; theme: Retro gaming technology | Supporting evidence: front face shows Nintendo GAME BOY logo and typical button layout; back panel shows model number DMG-01 and 1989 copyright date; design and labeling consistent with original Nintendo Game Boy handheld gaming console; monochrome dot matrix screen | Still unknown: Exact product condition beyond visible wear; Exact internal operational status | User evidence reconciliation: User notes match visual evidence fully, confirming the identification as a Nintendo Game Boy DMG-01 handheld gaming console from 1989. | Summary: This is a high-confidence image of a vintage Nintendo Game Boy handheld video game console (model DMG-01) with distinctive features including a dot matrix screen, directional pad, A and B buttons, and labeling confirming its identity as the original model released in 1989.",
+      "subjectIdentity": "Handheld video game console",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Nintendo Game Boy handheld gaming console model DMG-01 released in 1989",
+      "exactProductConfidence": "High - supported by available subject evidence.",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Nintendo",
+        "Date / Era: Late 1980s",
+        "Licensing: Licensed Nintendo product",
+        "Authenticity: Likely authentic based on visual evidence and labeling"
+      ],
+      "whatIsKnown": [
+        "Subject: Handheld video game console",
+        "User-provided identity: Nintendo GAME BOY | DOT MATRIX WITH STEREO SOUND | DMG-01",
+        "Visual evidence: Front face shows Nintendo GAME BOY logo and typical button layout",
+        "Visual evidence: Back panel shows model number DMG-01 and 1989 copyright date",
+        "Visual evidence: Design and labeling consistent with original Nintendo Game Boy handheld gaming console",
+        "Text evidence: Nintendo GAME BOY",
+        "Text evidence: MODEL NO. DMG-01",
+        "Text evidence: ©1989 Nintendo"
+      ],
+      "whatIsStillUnknown": [
+        "Exact operational status",
+        "Exact purchase asking price",
+        "Complete item condition beyond visible",
+        "Exact product condition beyond visible wear",
+        "Exact internal operational status"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Handheld video game console | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nintendo Game Boy handheld gaming console model DMG-01 released in 1989 | Maker / Manufacturer: Nintendo | Licensing / Authenticity: Licensed Nintendo product / Likely authentic based on visual evidence and labeling",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search was unavailable, so no source records could be retrieved.",
+        "Live search did not complete, so source-backed comps could not be retrieved.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No visible structured source records were returned, so a preliminary reference range is not supported.",
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "pricingEvidenceState": "insufficient"
+    }
+  },
+  "customerFacingReport": {
+    "platform": "eBay",
+    "categorySuggestion": "Video Game Consoles & Accessories > Handheld Consoles",
+    "identifiedItem": "Nintendo Game Boy handheld video game console model DMG-01",
+    "identificationConfidence": "High - supported by detailed visual evidence and user notes matching the exact model and branding.",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Handheld video game console",
+      "Visual subject category: Electronics, Gaming Device",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Nintendo",
+      "Recognized brand: Nintendo",
+      "Recognized character: Not verified",
+      "Subject identity: Handheld video game console",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "User-provided identity: Nintendo GAME BOY | DOT MATRIX WITH STEREO SOUND | DMG-01",
+      "Exact product identity: Nintendo Game Boy handheld gaming console model DMG-01 released in 1989",
+      "Exact product confidence: High - supported by available subject evidence.",
+      "Brand: Nintendo"
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system attempted before live research became unavailable.",
+      "\"DMG-01 ©1989 Nintendo RATING\" Nintendo tool",
+      "\"Nintendo Game Boy DMG-01\" Nintendo tool",
+      "\"Boy handheld gaming console model DMG-01\" Nintendo tool",
+      "\"©1989 Nintendo\" Nintendo tool",
+      "Nintendo GAME BOY MODEL NO. DMG-01 ©1989 Nintendo RATING: DC",
+      "\"Nintendo GAME BOY\" Nintendo tool",
+      "\"MODEL NO\" Nintendo tool",
+      "\"handheld video game console model\" Nintendo tool",
+      "\"Made in Japan\" Nintendo tool",
+      "\"Electronics, Gaming Device\" Nintendo tool",
+      "\"Handheld video game console\" Nintendo tool",
+      "\"Retro gaming technology\" Nintendo tool",
+      "\"OFF ON\" Nintendo tool",
+      "Nintendo Game Boy handheld gaming console model DMG-01 released in"
+    ],
+    "sourcesSearched": [
+      "Sources searched: None.",
+      "Live search did not complete before source results could be retrieved.",
+      "Source categories targeted before failure: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results"
+    ],
+    "researchResults": [
+      "Live Search Unavailable - AI Reasoning Only. Live comparable research was attempted but unavailable before source-backed results could be retrieved.",
+      "Unterminated string in JSON at position 6258 (line 26 column 311)"
+    ],
+    "comparableQuality": [
+      "Rejected Match - live research did not return source-backed comparable evidence."
+    ],
+    "recommendedListingPrice": "Low-confidence cautious estimate - $50 to $120 (price range estimate, low confidence due to lack of current comparable sales data)",
+    "suggestedOfferRange": "Low-confidence offer guidance - $40 to $100",
+    "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. estimate based on typical market range for vintage handheld game consoles of this type without recent specific sales data.",
+    "pricingRationale": "Valuation evidence state: insufficient.  Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact. No active or recent comparable sales data available from research sources; pricing based on historical knowledge of vintage Nintendo Game Boy DMG-01 units and condition factors visible in photos.",
+    "optimizedListingTitle": "Nintendo Game Boy DMG-01 Vintage Handheld Gaming Console 1989 Dot Matrix Screen",
+    "listingDescription": "Original vintage Nintendo Game Boy handheld video game console model DMG-01 from 1989, featuring a monochrome dot matrix screen and stereo sound capability. Off-white/beige casing with purple action buttons, typical directional pad, SELECT and START buttons, speaker grille, headphone jack, and battery compartment. Shows visible wear and yellowing consistent with age. Exact operational status unknown. A collectible retro gaming device for enthusiasts and collectors.",
+    "itemSpecifics": [
+      "Brand: Nintendo",
+      "Model: DMG-01",
+      "Type: Handheld video game console",
+      "Release Year: 1989",
+      "Color: Off-white/beige with purple/magenta buttons and black directional pad",
+      "Material: Plastic",
+      "Display: Monochrome dot matrix screen",
+      "Power: 4 AA batteries",
+      "Manufactured in: Japan",
+      "Condition: Visible wear and yellowing; functionality untested"
+    ],
+    "conditionNotes": [
+      "Visible discoloration/yellowing of plastic casing consistent with age",
+      "Surface wear and scuffs evident in photos",
+      "Battery compartment shown but battery condition unknown",
+      "No cracks or major damage visible from provided images",
+      "Functional status not confirmed"
+    ],
+    "suggestedSellingPlatform": "eBay",
+    "additionalInformationNeeded": [
+      "Confirmation of operational status (powers on and plays games)",
+      "Inclusion of original accessories or packaging if available",
+      "Closer photos of any identifying marks or damage not shown",
+      "Test results for screen and sound functionality"
+    ],
+    "title": "Nintendo Game Boy DMG-01 Vintage Handheld Gaming Console 1989 Dot Matrix Screen",
+    "description": "Original vintage Nintendo Game Boy handheld video game console model DMG-01 from 1989, featuring a monochrome dot matrix screen and stereo sound capability. Off-white/beige casing with purple action buttons, typical directional pad, SELECT and START buttons, speaker grille, headphone jack, and battery compartment. Shows visible wear and yellowing consistent with age. Exact operational status unknown. A collectible retro gaming device for enthusiasts and collectors.",
+    "itemDetails": [
+      "Exact Product: Nintendo Game Boy model DMG-01",
+      "Year Manufactured: 1989",
+      "Brand: Nintendo",
+      "Color: Off-white/beige with purple/magenta and black buttons",
+      "Material: Plastic",
+      "Button layout: Directional pad, A and B buttons, SELECT and START",
+      "Screen: Monochrome dot matrix",
+      "Sound: Stereo sound capability (as indicated)"
+    ],
+    "priceStrategy": "Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact. Set a mid-range starting price based on typical vintage handheld console values, with room for buyer negotiation due to condition and unconfirmed functionality. Include best offer option to attract interest.",
+    "expectedSellingTimeline": "1-3 months depending on market demand and listing visibility.",
+    "shippingDelivery": "Standard shipping with tracking recommended; package securely to protect vintage electronics.",
+    "stagingPhotos": "Include multiple high-resolution images showing front, back, side views, close-ups of buttons, screen, labeling, and any wear or damage.",
+    "sellerNotes": [
+      "Seller has confirmed item as original Nintendo Game Boy DMG-01 from 1989 per user notes and visible markings.",
+      "Condition beyond visible wear and functionality not confirmed.",
+      "No additional accessories or original packaging included unless stated."
+    ],
+    "visualSubject": "Handheld video game console",
+    "visualSubjectCategory": "Electronics, Gaming Device",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Nintendo",
+    "recognizedBrand": "Nintendo",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Retro gaming technology",
+    "visualRecognitionEvidence": [
+      "front face shows Nintendo GAME BOY logo and typical button layout",
+      "back panel shows model number DMG-01 and 1989 copyright date",
+      "design and labeling consistent with original Nintendo Game Boy handheld gaming console",
+      "monochrome dot matrix screen",
+      "directional pad",
+      "two round action buttons labeled A and B",
+      "SELECT and START buttons",
+      "speaker grille",
+      "off-on slider switch",
+      "headphone jack marked PHONES"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact product condition beyond visible wear",
+      "Exact internal operational status"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Handheld video game console | Category: Electronics, Gaming Device | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Nintendo; brand: Nintendo; character: Not verified; institution: Not verified; theme: Retro gaming technology | Supporting evidence: front face shows Nintendo GAME BOY logo and typical button layout; back panel shows model number DMG-01 and 1989 copyright date; design and labeling consistent with original Nintendo Game Boy handheld gaming console; monochrome dot matrix screen | Still unknown: Exact product condition beyond visible wear; Exact internal operational status | User evidence reconciliation: User notes match visual evidence fully, confirming the identification as a Nintendo Game Boy DMG-01 handheld gaming console from 1989. | Summary: This is a high-confidence image of a vintage Nintendo Game Boy handheld video game console (model DMG-01) with distinctive features including a dot matrix screen, directional pad, A and B buttons, and labeling confirming its identity as the original model released in 1989.",
+    "subjectIdentity": "Handheld video game console",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Nintendo Game Boy handheld gaming console model DMG-01 released in 1989",
+    "exactProductConfidence": "High - supported by available subject evidence.",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Nintendo",
+      "Date / Era: Late 1980s",
+      "Licensing: Licensed Nintendo product",
+      "Authenticity: Likely authentic based on visual evidence and labeling"
+    ],
+    "whatIsKnown": [
+      "Subject: Handheld video game console",
+      "User-provided identity: Nintendo GAME BOY | DOT MATRIX WITH STEREO SOUND | DMG-01",
+      "Visual evidence: Front face shows Nintendo GAME BOY logo and typical button layout",
+      "Visual evidence: Back panel shows model number DMG-01 and 1989 copyright date",
+      "Visual evidence: Design and labeling consistent with original Nintendo Game Boy handheld gaming console",
+      "Text evidence: Nintendo GAME BOY",
+      "Text evidence: MODEL NO. DMG-01",
+      "Text evidence: ©1989 Nintendo"
+    ],
+    "whatIsStillUnknown": [
+      "Exact operational status",
+      "Exact purchase asking price",
+      "Complete item condition beyond visible",
+      "Exact product condition beyond visible wear",
+      "Exact internal operational status"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Handheld video game console | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nintendo Game Boy handheld gaming console model DMG-01 released in 1989 | Maker / Manufacturer: Nintendo | Licensing / Authenticity: Licensed Nintendo product / Likely authentic based on visual evidence and labeling",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search was unavailable, so no source records could be retrieved.",
+      "Live search did not complete, so source-backed comps could not be retrieved.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No visible structured source records were returned, so a preliminary reference range is not supported.",
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "pricingEvidenceState": "insufficient"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "daf7dc0f6a229687237f04a7bb3715604223480626002d1949f552479adf04fa"
+}

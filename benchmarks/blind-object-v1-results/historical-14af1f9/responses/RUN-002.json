@@ -1,0 +1,405 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-002",
+  "objectId": "OBJ-002",
+  "requestSha256": "eb1db5e956b37892c9ebaf98f6911409dd1d534e9f362282d8fb9c29a2cab111",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:25:41.911Z",
+  "endTimestamp": "2026-08-03T18:26:17.466Z",
+  "elapsedMilliseconds": 35555.6286,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6IkJpYWxldHRpIDIgVGF6emUgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgKE1va2EgcG90IGlubmVyIGJvaWxlciB3aXRoIHNwb3V0KSIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggLSBzdHJvbmcgbWF0Y2ggYmFzZWQgb24gdmlzaWJsZSBlbWJvc3NlZCBicmFuZGluZyBhbmQgY2hhcmFjdGVyaXN0aWMgZGVzaWduIiwiZXZpZGVuY2VGb3VuZEluUGhvdG9zIjpbIlZpc3VhbCBzdWJqZWN0OiBBIHN0b3ZldG9wIGVzcHJlc3NvIG1ha2VyIHBhcnQsIHNwZWNpZmljYWxseSBhIGNvZmZlZSB3YXRlciBib2lsZXIgY29tcG9uZW50IHdpdGggYSBzcG91dC4iLCJWaXN1YWwgc3ViamVjdCBjYXRlZ29yeTogQXBwbGlhbmNlcyAvIEtpdGNoZW53YXJlIC8gQ29mZmVlIEVxdWlwbWVudCIsIlZpc3VhbCBzdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwiUmVjb2duaXplZCBvcmdhbml6YXRpb246IE5vdCB2ZXJpZmllZCIsIlJlY29nbml6ZWQgYnJhbmQ6IE5vdCB2ZXJpZmllZCIsIlJlY29nbml6ZWQgY2hhcmFjdGVyOiBOb3QgdmVyaWZpZWQiLCJTdWJqZWN0IGlkZW50aXR5OiBBIHN0b3ZldG9wIGVzcHJlc3NvIG1ha2VyIHBhcnQsIHNwZWNpZmljYWxseSBhIGNvZmZlZSB3YXRlciBib2lsZXIgY29tcG9uZW50IHdpdGggYSBzcG91dC4iLCJTdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiRXhhY3QgcHJvZHVjdCBpZGVudGl0eTogQmlhbGV0dGkgMiBUYXp6ZSBzdG92ZXRvcCBlc3ByZXNzbyBtYWtlciBjb2ZmZWUgd2F0ZXIgYm9pbGVyIGNvbXBvbmVudCAoTW9rYSBwb3QgaW5uZXIgYm9pbGVyIHdpdGggc3BvdXQpIiwiRXhhY3QgcHJvZHVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3Ryb25nIG1hdGNoIHRvIHZpc2libGUgYnJhbmRpbmcgYW5kIGZvcm0iLCJCcmFuZDogQklBTEVUVEkiLCJCcmFuZC9zZXJpZXM6IEJpYWxldHRpIE1va2EgRXhwcmVzcyBzZXJpZXMiXSwiYXNraW5nUHJpY2UiOiJOb3QgcHJvdmlkZWQgLSBlbnRlciB0aGUgY3VycmVudCBhc2tpbmcgcHJpY2UgZm9yIGEgcGVyc29uYWwtdXNlIHZhbHVlIGRlY2lzaW9uLiIsImVzdGltYXRlZEZhaXJNYXJrZXRWYWx1ZSI6IiIsImZhaXJQcmljZVJhbmdlIjpbXSwidmFsdWVSYXRpbmciOiJJbnN1ZmZpY2llbnQgRXZpZGVuY2UiLCJyZWNvbW1lbmRhdGlvbiI6Ik5lZWQgTW9yZSBJbmZvcm1hdGlvbiIsInJlY29tbWVuZGVkT2ZmZXIiOlsiT3BlbmluZyBPZmZlcjogTm90IHN1cHBvcnRlZCB5ZXQuIiwiVGFyZ2V0IFB1cmNoYXNlIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iLCJNYXhpbXVtIFJlY29tbWVuZGVkIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iXSwib3BlbmluZ09mZmVyIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSB2ZXJpZnkgaWRlbnRpdHksIGNvbmRpdGlvbiwgYXNraW5nIHByaWNlLCBhbmQgcmVsaWFibGUgY29tcGFyYWJsZXMgZmlyc3QuIiwidGFyZ2V0UHVyY2hhc2VQcmljZSI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgcmVzcG9uc2libGUgdGFyZ2V0IHByaWNlLiIsIm1heGltdW1SZWNvbW1lbmRlZFByaWNlIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSBkbyBub3Qgc2V0IGEgbWF4aW11bSBmcm9tIHdlYWsgZXZpZGVuY2UuIiwid2Fsa0F3YXlQcmljZSI6Ik5vdCBlbm91Z2ggZXZpZGVuY2UgZm9yIGEgcHJlY2lzZSB3YWxrLWF3YXkgcHJpY2UuIiwibmVnb3RpYXRpb25HdWlkYW5jZSI6IlJlcXVlc3QgdGhlIGN1cnJlbnQgYXNraW5nIHByaWNlIGFuZCBjb25kaXRpb24gZGV0YWlscyB0byBldmFsdWF0ZSBwcmljaW5nIGZhaXJuZXNzOyB3aXRob3V0IHRoaXMsIHByaWNlIG5lZ290aWF0aW9uIGNhbm5vdCBiZSBhZHZpc2VkLiIsInJlYXNvbnNUb0J1eSI6WyJHZW51aW5lIEJpYWxldHRpIHBhcnQgbGlrZWx5IGNvbXBhdGlibGUgd2l0aCAyIFRhenplIE1va2EgcG90IiwiRGlzdGluY3RpdmUgYW5kIG9yaWdpbmFsIGRlc2lnbiBmZWF0dXJlcyBpbmRpY2F0aW5nIGF1dGhlbnRpY2l0eSIsIkFwcGVhcnMgdG8gYmUgYSBmdW5jdGlvbmFsIHJlcGxhY2VtZW50IHBhcnQgZm9yIGNvZmZlZSBtYWtlcnMiXSwicmVhc29uc0ZvckNhdXRpb24iOlsiTm8gYXNraW5nIHByaWNlIHByb3ZpZGVkIHRvIGFzc2VzcyB2YWx1ZSIsIlVzZWQgY29uZGl0aW9uIHdpdGggc29tZSB2aXNpYmxlIHdlYXIsIGNvbmRpdGlvbiBkZXRhaWxzIGxpbWl0ZWQiLCJObyByZWxpYWJsZSBjb21wYXJhYmxlIHNhbGVzIG9yIGFjdGl2ZSBsaXN0aW5ncyBmb3VuZCBmb3IgZXhhY3QgcGFydCIsIk5vIGNsYXJpdHkgb24gY29tcGxldGVuZXNzIChlLmcuIGdhc2tldCwgZmlsdGVyIHBhcnRzKSBvciB3b3JraW5nIGNvbmRpdGlvbiIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIkNvbnN1bWVyIHZhbHVlIGNhbm5vdCBiZSByYXRlZCBjb25maWRlbnRseSB1bnRpbCB0aGUgYXNraW5nIHByaWNlLCBleGFjdCBpZGVudGl0eSwgY29uZGl0aW9uLCBhbmQgc291cmNlLWJhY2tlZCBjb21wYXJhYmxlIGV2aWRlbmNlIGFyZSBzdHJvbmdlci4iXSwicHJvZHVjdE9yQ29uZGl0aW9uUmlza3MiOlsiQ29uZGl0aW9uIFVuY2xlYXIgLSB3ZWFyIHNlZW4gYnV0IG5vIGRldGFpbGVkIGNvbmRpdGlvbiByZXBvcnQiLCJNaXNzaW5nIFBhcnRzIGNhbm5vdCBiZSBydWxlZCBvdXQgd2l0aG91dCBidXllciBjb25maXJtYXRpb24iLCJBdXRoZW50aWNpdHkgVW5jbGVhciBiZXlvbmQgdmlzaWJsZSBicmFuZGluZyBhbmQgbm8gY29uZmlybWVkIG1hbnVmYWN0dXJlciBzdGFtcCIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSBkdWUgdG8gbGFjayBvZiBtYXRjaGVkIG1hcmtldHBsYWNlIGxpc3RpbmdzIiwiUmlzayBmbGFnOiBXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJDb25kaXRpb24gc2hvdWxkIGJlIGluc3BlY3RlZCBiZWZvcmUgcGF5aW5nIG5lYXIgdGhlIHRvcCBvZiB0aGUgZmFpciByYW5nZS4iXSwicmlza0ZsYWdzIjpbIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSJdLCJiZXR0ZXJWYWx1ZUNvbnNpZGVyYXRpb25zIjpbIldhaXQgZm9yIGNsZWFyZXIgcHJpY2luZyBhbmQgY29uZGl0aW9uIGluZm8gYmVmb3JlIHB1cmNoYXNlIGRlY2lzaW9uIiwiQ29uc2lkZXIgbG9va2luZyBmb3IgY29tcGxldGUgTW9rYSBwb3Qgb3IgdmVyaWZpZWQgcmVwbGFjZW1lbnQgcGFydHMgd2l0aCBwcmljaW5nIGRhdGEiLCJDaGVjayBhdmFpbGFiaWxpdHkgb2YgbmV3IG9yIHJlZnVyYiByZXBsYWNlbWVudHMgZnJvbSBCaWFsZXR0aSBvciBhdXRob3JpemVkIHNlbGxlcnMiXSwicmVzZWFyY2hSZXN1bHRzIjpbIkxpdmUgcmVzZWFyY2ggY29tcGxldGVkLCBidXQgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlcyBwYXNzZWQgZmlsdGVyaW5nLiIsIkV4YWN0IHBocmFzZSBzZWFyY2hlcyB3ZXJlIGF0dGVtcHRlZCwgYnV0IHRoZSBsaXZlIHJlc3BvbnNlIGRpZCBub3QgcmV0dXJuIFVSTC1jaXRlZCBzb3VyY2UgcmVjb3Jkcy4iXSwiY29tcGFyYWJsZVF1YWxpdHkiOlsiUmVqZWN0ZWQgTWF0Y2ggLSBubyByZXR1cm5lZCByZXN1bHQgaGFkIGVub3VnaCBjaXRlZCwgcmVsZXZhbnQgZXZpZGVuY2UgdG8gZHJpdmUgbGlzdGluZyBwcmljZS4iXSwicHJpY2luZ0NvbmZpZGVuY2UiOiJMb3cgLSBDb25zdW1lciB2YWx1ZSByYXRpbmcgaXMgaW5zdWZmaWNpZW50IGJlY2F1c2Ugbm8gY3VycmVudCBhc2tpbmcgcHJpY2Ugd2FzIHByb3ZpZGVkLCBubyBldmlkZW5jZS1iYWNrZWQgZmFpciB2YWx1ZSBjb3VsZCBiZSBleHRyYWN0ZWQsIG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gU3VwcG9ydHM6IHBob3RvcyBhbmQgbm90ZXMuIFdlYWtlbnM6IG1pc3Npbmcgc291cmNlLWJhY2tlZCBjb21wYXJhYmxlIGV2aWRlbmNlLiBJbXByb3ZlIGJ5IGZpbmRpbmcgZXhhY3QsIGNpdGVkIGNvbXBhcmFibGUgbWF0Y2hlcy4iLCJwcmljaW5nUmF0aW9uYWxlIjoiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIENvbnN1bWVyIGRlY2lzaW9uIGlzIGxvdyBjb25maWRlbmNlLiAgV2l0aG91dCBhbiBhc2tpbmcgcHJpY2Ugb3IgYWN0aXZlIGNvbXBhcmFibGVzLCBmYWlyIG1hcmtldCB2YWx1ZSBjYW5ub3QgYmUgcmVsaWFibHkgZXN0aW1hdGVkLiIsImFkZGl0aW9uYWxJbmZvcm1hdGlvbk5lZWRlZCI6WyJDdXJyZW50IGFza2luZyBwcmljZSBmb3IgaXRlbSIsIkRldGFpbGVkIGNvbmRpdGlvbiByZXBvcnQgaW5jbHVkaW5nIHByZXNlbmNlL2Fic2VuY2Ugb2Ygc2VhbHMgb3IgZmlsdGVycyIsIkNvbmZpcm1hdGlvbiBvZiBjb21wbGV0ZW5lc3MgYW5kIGZ1bmN0aW9uYWxpdHkiLCJBZGRpdGlvbmFsIHBob3RvcyBzaG93aW5nIGFsbCBhbmdsZXMgYW5kIGNvbXBvbmVudHMiLCJPbmUgc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlIHJlc3VsdCBmb3IgdGhlIHNhbWUgbW9kZWwsIFNLVSwgVVBDLCBtYWtlciwgc2l6ZSwgb3IgaXRlbSBjb2RlLiIsIkN1cnJlbnQgc2VsbGVyIGFza2luZyBwcmljZS4iXSwic2VhcmNoUXVlcmllc1VzZWQiOlsiVGhlc2UgYXJlIHRoZSBxdWVyaWVzIHRoZSBzeXN0ZW0gdXNlZC4iLCJcIlZpc2libGUgZW1ib3NzZWQgdGV4dCAnMiBUQVpaRSdcIiBOb3QgdmVyaWZpZWQgYWR2ZXJ0aXNpbmcgc2lnbiIsIlwiVmlzaWJsZSBlbWJvc3NlZCB0ZXh0ICdCSUFMRVRUSSdcIiBOb3QgdmVyaWZpZWQgYWR2ZXJ0aXNpbmcgc2lnbiIsIlwiVmlzaWJsZSBlbWJvc3NlZCB0ZXh0ICdERVNJR04gTFwiIE5vdCB2ZXJpZmllZCBhZHZlcnRpc2luZyBzaWduIiwiXCJCaWFsZXR0aSBNb2thIEV4cHJlc3Mgc2VyaWVzXCIgTm90IHZlcmlmaWVkIGFkdmVydGlzaW5nIHNpZ24iLCJcIi0gbGlrZWx5IEJpYWxldHRpXCIgTm90IHZlcmlmaWVkIGFkdmVydGlzaW5nIHNpZ24iLCJcIkFwcGxpYW5jZXMgLyBLaXRjaGVud2FyZSAvIENvZmZlZSBFcXVpcG1lbnRcIiBOb3QgdmVyaWZpZWQgYWR2ZXJ0aXNpbmcgc2lnbiIsIlwiQ29mZmVlIGJyZXdpbmdcIiBOb3QgdmVyaWZpZWQgYWR2ZXJ0aXNpbmcgc2lnbiIsIlwiQ3VydmVkIGJyYXNzL2Jyb256ZSBzcG91dFwiIE5vdCB2ZXJpZmllZCBhZHZlcnRpc2luZyBzaWduIiwiXCJBbHVtaW51bSBvciBtZXRhbCBib2R5XCIgTm90IHZlcmlmaWVkIGFkdmVydGlzaW5nIHNpZ24iLCJcIlN0YW1wZWQgbWFya2luZ3Mgb24gdG9wIGxpZFwiIE5vdCB2ZXJpZmllZCBhZHZlcnRpc2luZyBzaWduIiwiXCJNb2thIHBvdFwiIE5vdCB2ZXJpZmllZCBhZHZlcnRpc2luZyBzaWduIiwiXCJDdXJ2ZWQgYnJhc3NcIiBOb3QgdmVyaWZpZWQgYWR2ZXJ0aXNpbmcgc2lnbiIsIlwiYnJvbnplIHNwb3V0XCIgTm90IHZlcmlmaWVkIGFkdmVydGlzaW5nIHNpZ24iLCJcImJsYWNrIGhhbmRsZVwiIE5vdCB2ZXJpZmllZCBhZHZlcnRpc2luZyBzaWduIl0sInNvdXJjZXNTZWFyY2hlZCI6WyJTb3VyY2UgY2F0ZWdvcmllcyB0YXJnZXRlZDogZXhhY3QgdmlzaWJsZSBwaHJhc2Ugc2VhcmNoZXM7IGVCYXktc3R5bGUgYWN0aXZlIGFuZCBzb2xkIHJlc2FsZSByZXN1bHRzOyBFdHN5LXN0eWxlIHZpbnRhZ2UgYW5kIGFkdmVydGlzaW5nIGNvbGxlY3RpYmxlIHJlc3VsdHM7IGF1Y3Rpb24vYXJjaGl2ZSBzb3VyY2UgY2x1ZXM7IGNvbGxlY3Rvci9yZWZlcmVuY2Ugc291cmNlIGNsdWVzOyBnZW5lcmFsIHdlYiBleGFjdCBwaHJhc2UgcmVzdWx0czsgb3JnYW5pemF0aW9uL3RlYW0vYnJhbmQvZXZlbnQgc2VhcmNoZXMiLCJTb3VyY2VzIHNlYXJjaGVkOiBMaXZlIHdlYiBzZWFyY2ggZXhlY3V0ZWQsIGJ1dCB0aGUgcHJvdmlkZXIgZGlkIG5vdCByZXR1cm4gYSBzZXBhcmF0ZSBzb3VyY2UgbGlzdC4iLCJTb3VyY2VzIHJldHVybmVkIHdpdGggVVJMIGNpdGF0aW9uczogTm9uZS4iLCJObyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIG1hdGNoZXMgcGFzc2VkIG1hdGNoLXF1YWxpdHkgY2hlY2tzLiIsIlJldHVybmVkIHJlc3VsdHMgd2VyZSByZWplY3RlZCB3aGVuIHRoZXkgbGFja2VkIGV4YWN0IGxhYmVsL2NvZGUgbWF0Y2hlcywgaGFkIG9ubHkgd2VhayBsb29rYWxpa2UgZXZpZGVuY2UsIG9yIGRpZCBub3QgaW5jbHVkZSBhIGNpdGVkIFVSTCBpbiB0aGUgY29tcGFyYWJsZSBpdGVtIHRleHQuIiwiUmVqZWN0ZWQgaXJyZWxldmFudCBzb3VyY2UgY2F0ZWdvcmllczogZ2VuZXJpYyB3aG9sZXNhbGVycywgcmVzdGF1cmFudC1zdXBwbHkgc2l0ZXMsIGJ1bGsgaW1wb3J0L21hbnVmYWN0dXJpbmcgY2F0YWxvZ3MsIHVucmVsYXRlZCBjdXJyZW50LXJldGFpbCBsb29rYWxpa2VzLCBhbmQgZ2VuZXJpYyB2aXN1YWwgbG9va2FsaWtlcy4iLCJTZWFyY2hlZCByZWxldmFudCBob2xpZGF5IGRlY29yIC8gY29sbGVjdGlibGUgc291cmNlcy4iXSwidmlzdWFsU3ViamVjdCI6IkEgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgcGFydCwgc3BlY2lmaWNhbGx5IGEgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgd2l0aCBhIHNwb3V0LiIsInZpc3VhbFN1YmplY3RDYXRlZ29yeSI6IkFwcGxpYW5jZXMgLyBLaXRjaGVud2FyZSAvIENvZmZlZSBFcXVpcG1lbnQiLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRCcmFuZCI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRDaGFyYWN0ZXIiOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkSW5zdGl0dXRpb24iOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkVGhlbWUiOiJDb2ZmZWUgYnJld2luZyIsInZpc3VhbFJlY29nbml0aW9uRXZpZGVuY2UiOlsiTWV0YWwgY3lsaW5kcmljYWwgYmFzZSB3aXRoIGEgd2lkZXIgYm90dG9tIGVkZ2UiLCJGbGF0IGxpZCB3aXRoIGVtYm9zc2VkIHRleHQgYW5kIGJyYW5kaW5nIiwiU3BvdXQgYXR0YWNoZWQgdG8gbGlkIHdpdGggYmxhY2sgaGFuZGxlL2dyaXAiLCJDdXJ2ZWQgYnJhc3MvYnJvbnplIHNwb3V0IiwiQWx1bWludW0gb3IgbWV0YWwgYm9keSIsIkJsYWNrIHBsYXN0aWMgb3IgcnViYmVyIGhhbmRsZSBzZWN0aW9uIG9uIHNwb3V0IiwiU3RhbXBlZCBtYXJraW5ncyBvbiB0b3AgbGlkIiwiVmlzaWJsZSBsb2dvL3N5bWJvbDogQklBTEVUVEkiLCJWaXNpYmxlIGxvZ28vc3ltYm9sOiAyIFRBWlpFIiwiVmlzaWJsZSBsZXR0ZXI6IEJJQUxFVFRJIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgbW9kZWwiLCJNYWtlciBiZXlvbmQgdmlzaWJsZSB0ZXh0IiwiQWdlIG9yIGV4YWN0IHByb2R1Y3Rpb24geWVhciJdLCJ2aXN1YWxSZWNvZ25pdGlvbkNvbmZsaWN0cyI6W10sInZpc3VhbFJlY29nbml0aW9uU3VtbWFyeSI6IlZpc3VhbCBTdWJqZWN0OiBBIHN0b3ZldG9wIGVzcHJlc3NvIG1ha2VyIHBhcnQsIHNwZWNpZmljYWxseSBhIGNvZmZlZSB3YXRlciBib2lsZXIgY29tcG9uZW50IHdpdGggYSBzcG91dC4gfCBDYXRlZ29yeTogQXBwbGlhbmNlcyAvIEtpdGNoZW53YXJlIC8gQ29mZmVlIEVxdWlwbWVudCB8IENvbmZpZGVuY2U6IEhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIHwgUmVjb2duaXplZCBjbHVlczogb3JnYW5pemF0aW9uOiBOb3QgdmVyaWZpZWQ7IGJyYW5kOiBOb3QgdmVyaWZpZWQ7IGNoYXJhY3RlcjogTm90IHZlcmlmaWVkOyBpbnN0aXR1dGlvbjogTm90IHZlcmlmaWVkOyB0aGVtZTogQ29mZmVlIGJyZXdpbmcgfCBTdXBwb3J0aW5nIGV2aWRlbmNlOiBNZXRhbCBjeWxpbmRyaWNhbCBiYXNlIHdpdGggYSB3aWRlciBib3R0b20gZWRnZTsgRmxhdCBsaWQgd2l0aCBlbWJvc3NlZCB0ZXh0IGFuZCBicmFuZGluZzsgU3BvdXQgYXR0YWNoZWQgdG8gbGlkIHdpdGggYmxhY2sgaGFuZGxlL2dyaXA7IEN1cnZlZCBicmFzcy9icm9uemUgc3BvdXQgfCBTdGlsbCB1bmtub3duOiBFeGFjdCBtb2RlbDsgTWFrZXIgYmV5b25kIHZpc2libGUgdGV4dDsgQWdlIG9yIGV4YWN0IHByb2R1Y3Rpb24geWVhciB8IFVzZXIgZXZpZGVuY2UgcmVjb25jaWxpYXRpb246IFVzZXIgZGlkIG5vdCBwcm92aWRlIGFkZGl0aW9uYWwgY29udGV4dCBvciBub3Rlcy4gVmlzdWFsIGV2aWRlbmNlIHN0cm9uZ2x5IHN1cHBvcnRzIGl0ZW0gYXMgYSBzdG92ZXRvcCBlc3ByZXNzbyBtYWtlciBjb21wb25lbnQsIGNvbnNpc3RlbnQgd2l0aCB2aXNpYmxlIGJyYW5kaW5nIGFuZCBzaGFwZS4gfCBTdW1tYXJ5OiBUaGUgaW1hZ2VzIHNob3cgYSBtZXRhbGxpYyBjb2ZmZWUgd2F0ZXIgYm9pbGVyIHBhcnQgZnJvbSBhIHN0b3ZldG9wIGVzcHJlc3NvIG1ha2VyLCBsaWtlbHkgYSBNb2thIHBvdCwgd2l0aCBhIGRpc3RpbmN0aXZlIGN1cnZlZCBicmFzcyBzcG91dCBhbmQgYmxhY2sgcGxhc3RpYyBoYW5kbGUgc2VjdGlvbi4gVGhlIGxpZCBoYXMgZW1ib3NzZWQgYnJhbmRpbmcgJ0JJQUxFVFRJIDIgVEFaWkUnIGFuZCBkZXNpZ24gY3JlZGl0ICdERVNJR04gTC5DT0xMSU5JLCcgY29uZmlybWluZyBhIGNvZmZlZSBicmV3aW5nIGFwcGxpYW5jZSBzdWJqZWN0IHdpdGggaGlnaCBjb25maWRlbmNlLiIsInN1YmplY3RJZGVudGl0eSI6IkEgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgcGFydCwgc3BlY2lmaWNhbGx5IGEgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgd2l0aCBhIHNwb3V0LiIsInN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4iLCJleGFjdFByb2R1Y3RJZGVudGl0eSI6IkJpYWxldHRpIDIgVGF6emUgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgKE1va2EgcG90IGlubmVyIGJvaWxlciB3aXRoIHNwb3V0KSIsImV4YWN0UHJvZHVjdENvbmZpZGVuY2UiOiJIaWdoIC0gc3Ryb25nIG1hdGNoIHRvIHZpc2libGUgYnJhbmRpbmcgYW5kIGZvcm0iLCJtYWtlckRhdGVMaWNlbnNpbmdTdGF0dXMiOlsiTWFrZXIgLyBNYW51ZmFjdHVyZXI6IEJpYWxldHRpIiwiRGF0ZSAvIEVyYTogTWlkIHRvIGxhdGUgMjB0aCBjZW50dXJ5IG9yIGxhdGVyIiwiTGljZW5zaW5nOiBMaWtlbHkgbGljZW5zZWQgYnJhbmQgQmlhbGV0dGkgY29mZmVlIG1ha2VyIiwiQXV0aGVudGljaXR5OiBQcmVzdW1lZCBhdXRoZW50aWMgYmFzZWQgb24gY2xlYXIgYnJhbmRpbmcgYnV0IG1hbnVmYWN0dXJlciBzdGFtcCB1bnJlYWRhYmxlIl0sIndoYXRJc0tub3duIjpbIlN1YmplY3Q6IEEgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgcGFydCwgc3BlY2lmaWNhbGx5IGEgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgd2l0aCBhIHNwb3V0LiIsIlZpc3VhbCBldmlkZW5jZTogVmlzaWJsZSBlbWJvc3NlZCB0ZXh0ICdCSUFMRVRUSSciLCJWaXN1YWwgZXZpZGVuY2U6IFZpc2libGUgZW1ib3NzZWQgdGV4dCAnMiBUQVpaRSciLCJWaXN1YWwgZXZpZGVuY2U6IFZpc2libGUgZW1ib3NzZWQgdGV4dCAnREVTSUdOIEwuQ09MTElOSSciLCJUZXh0IGV2aWRlbmNlOiBCSUFMRVRUSSIsIlRleHQgZXZpZGVuY2U6IDIgVEFaWkUiLCJUZXh0IGV2aWRlbmNlOiBERVNJR04gTC5DT0xMSU5JIiwiQ29tcGFyYWJsZSBzdGF0dXM6IEV4YWN0IG1vZGVsIGxpa2VseSBCaWFsZXR0aSAyIFRhenplIE1va2EgcG90IHBhcnQiXSwid2hhdElzU3RpbGxVbmtub3duIjpbIkV4YWN0IHByb2R1Y3Rpb24geWVhciIsIlNwZWNpZmljIG1hbnVmYWN0dXJlciBsb2NhdGlvbiBzdGFtcCAobm90IHZpc2libGUpIiwiQ29uZGl0aW9uIGRldGFpbHMgYmV5b25kIHZpc2libGUgd2VhciIsIk1pc3NpbmcgY29tcG9uZW50IHN0YXR1cyBub3QgcHJvdmlkZWQiLCJFeGFjdCBtb2RlbCIsIk1ha2VyIGJleW9uZCB2aXNpYmxlIHRleHQiLCJBZ2Ugb3IgZXhhY3QgcHJvZHVjdGlvbiB5ZWFyIl0sImlkZW50aXR5Q29uZmxpY3RzIjpbXSwiaWRlbnRpdHlTdW1tYXJ5IjoiU3ViamVjdCBJZGVudGl0eTogQSBzdG92ZXRvcCBlc3ByZXNzbyBtYWtlciBwYXJ0LCBzcGVjaWZpY2FsbHkgYSBjb2ZmZWUgd2F0ZXIgYm9pbGVyIGNvbXBvbmVudCB3aXRoIGEgc3BvdXQuIHwgU3ViamVjdCBDb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiB8IEV4YWN0IFByb2R1Y3QgSWRlbnRpdHk6IEJpYWxldHRpIDIgVGF6emUgc3RvdmV0b3AgZXNwcmVzc28gbWFrZXIgY29mZmVlIHdhdGVyIGJvaWxlciBjb21wb25lbnQgKE1va2EgcG90IGlubmVyIGJvaWxlciB3aXRoIHNwb3V0KSB8IE1ha2VyIC8gTWFudWZhY3R1cmVyOiBCaWFsZXR0aSB8IExpY2Vuc2luZyAvIEF1dGhlbnRpY2l0eTogTGlrZWx5IGxpY2Vuc2VkIGJyYW5kIEJpYWxldHRpIGNvZmZlZSBtYWtlciAvIFByZXN1bWVkIGF1dGhlbnRpYyBiYXNlZCBvbiBjbGVhciBicmFuZGluZyBidXQgbWFudWZhY3R1cmVyIHN0YW1wIHVucmVhZGFibGUiLCJyZXN1bHRzRm91bmQiOltdLCJzdHJvbmdDb21wYXJhYmxlcyI6W10sInBhcnRpYWxDb21wYXJhYmxlcyI6W10sInJlZmVyZW5jZVJlc3VsdHMiOltdLCJ3ZWFrTWF0Y2hlcyI6W10sInJlamVjdGVkTWF0Y2hlcyI6W10sInNlYXJjaExpbWl0YXRpb25zIjpbIkxpdmUgc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHZpc2libGUgc3RydWN0dXJlZCBzb3VyY2UtYmFja2VkIHJlc3VsdCByZWNvcmRzIHdlcmUgcmV0dXJuZWQuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiIsIk5vIGV4YWN0IG9yIHN0cm9uZyBjb21wYXJhYmxlIHJlY29yZHMgYXJlIHZpc2libGUgaW4gdGhpcyByZXBvcnQuIl0sInZpc2libGVSZXNlYXJjaFJlc3VsdENvdW50IjowLCJyZWZlcmVuY2VSYW5nZUJhc2lzIjoiTm8gbnVtZXJpYyBwcmVsaW1pbmFyeSByYW5nZSBpcyBzaG93biBiZWNhdXNlIHRoZXJlIGFyZSBubyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlIHJlY29yZHMgc3VwcG9ydGluZyBvbmUuIiwicHJlbGltaW5hcnlSZWZlcmVuY2VSYW5nZSI6IiIsInByaWNlQmFzaXMiOiJGYWlyIHZhbHVlIG5vdCBlc3RhYmxpc2hlZCAtIGF2YWlsYWJsZSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSBkZWZlbnNpYmxlIGRvbGxhciByYW5nZS4gIFByaWNpbmcgYmFzaXMgZGlzdGluZ3Vpc2hlcyBleGFjdCBpZGVudGl0eSBtYXRjaGVzIGZyb20gYWN0aXZlIGFza2luZy1wcmljZSBldmlkZW5jZSBhbmQgY29uZmlybWVkIHNvbGQgZXZpZGVuY2UuIiwiY29uc3VtZXJEb3duc2lkZVJpc2siOiJEb3duc2lkZSBjYW5ub3QgYmUgY2FsY3VsYXRlZCBiZWNhdXNlIHRoZSBhc2tpbmcgcHJpY2UgaXMgbWlzc2luZy4iLCJjYXV0aW91c0J1eUV4cGxhbmF0aW9uIjoiIiwibGl2ZUNvbXBhcmFibGVTZWFyY2hTdGF0dXMiOiJMaXZlIFNlYXJjaCBDb21wbGV0ZWQgLSBObyBSZWxpYWJsZSBDb21wcyBGb3VuZCIsIndlRm91bmRUaGlzSXRlbSI6W10sIndlRm91bmRTaW1pbGFyQ29tcGFyYWJsZUl0ZW1zIjpbXSwidmFsdWF0aW9uRXZpZGVuY2VTdGF0ZSI6Imluc3VmZmljaWVudCIsInZhbHVhdGlvbkV2aWRlbmNlTGFiZWwiOiJGYWlyIFZhbHVlIE5vdCBFc3RhYmxpc2hlZCIsInZhbHVhdGlvbkV2aWRlbmNlRXhwbGFuYXRpb24iOiJUaGUgYXZhaWxhYmxlIGV2aWRlbmNlIGlzIHRvbyB3ZWFrIGZvciBhIGRlZmVuc2libGUgZG9sbGFyIHJhbmdlLiIsImZhaXJWYWx1ZU5vdEVzdGFibGlzaGVkIjoiRmFpciBWYWx1ZTogTm90IGVzdGFibGlzaGVkIiwiZXN0aW1hdGVkTWFya2V0VmFsdWUiOiIiLCJ3aGF0VGhpc01lYW5zIjoiRmFpciBtYXJrZXQgdmFsdWUgaGFzIG5vdCBiZWVuIGVzdGFibGlzaGVkIGZyb20gdGhlIGF2YWlsYWJsZSBldmlkZW5jZS4gRG8gbm90IHRyZWF0IHRoaXMgYXMgYSBjb25maXJtZWQgdmFsdWUgZXN0aW1hdGUuIiwiYmVzdE5leHRTdGVwIjoiQ3VycmVudCBhc2tpbmcgcHJpY2UgZm9yIGl0ZW0ifX0=",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+      "identificationConfidence": "High - strong match based on visible embossed branding and characteristic design",
+      "evidenceFoundInPhotos": [
+        "Visual subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+        "Visual subject category: Appliances / Kitchenware / Coffee Equipment",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Not verified",
+        "Recognized brand: Not verified",
+        "Recognized character: Not verified",
+        "Subject identity: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "Exact product identity: Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+        "Exact product confidence: High - strong match to visible branding and form",
+        "Brand: BIALETTI",
+        "Brand/series: Bialetti Moka Express series"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "Request the current asking price and condition details to evaluate pricing fairness; without this, price negotiation cannot be advised.",
+      "reasonsToBuy": [
+        "Genuine Bialetti part likely compatible with 2 Tazze Moka pot",
+        "Distinctive and original design features indicating authenticity",
+        "Appears to be a functional replacement part for coffee makers"
+      ],
+      "reasonsForCaution": [
+        "No asking price provided to assess value",
+        "Used condition with some visible wear, condition details limited",
+        "No reliable comparable sales or active listings found for exact part",
+        "No clarity on completeness (e.g. gasket, filter parts) or working condition",
+        "Weak Comparable Evidence",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Condition Unclear - wear seen but no detailed condition report",
+        "Missing Parts cannot be ruled out without buyer confirmation",
+        "Authenticity Unclear beyond visible branding and no confirmed manufacturer stamp",
+        "Weak Comparable Evidence due to lack of matched marketplace listings",
+        "Risk flag: Weak Comparable Evidence",
+        "Condition should be inspected before paying near the top of the fair range."
+      ],
+      "riskFlags": [
+        "Weak Comparable Evidence"
+      ],
+      "betterValueConsiderations": [
+        "Wait for clearer pricing and condition info before purchase decision",
+        "Consider looking for complete Moka pot or verified replacement parts with pricing data",
+        "Check availability of new or refurb replacements from Bialetti or authorized sellers"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without an asking price or active comparables, fair market value cannot be reliably estimated.",
+      "additionalInformationNeeded": [
+        "Current asking price for item",
+        "Detailed condition report including presence/absence of seals or filters",
+        "Confirmation of completeness and functionality",
+        "Additional photos showing all angles and components",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"Visible embossed text '2 TAZZE'\" Not verified advertising sign",
+        "\"Visible embossed text 'BIALETTI'\" Not verified advertising sign",
+        "\"Visible embossed text 'DESIGN L\" Not verified advertising sign",
+        "\"Bialetti Moka Express series\" Not verified advertising sign",
+        "\"- likely Bialetti\" Not verified advertising sign",
+        "\"Appliances / Kitchenware / Coffee Equipment\" Not verified advertising sign",
+        "\"Coffee brewing\" Not verified advertising sign",
+        "\"Curved brass/bronze spout\" Not verified advertising sign",
+        "\"Aluminum or metal body\" Not verified advertising sign",
+        "\"Stamped markings on top lid\" Not verified advertising sign",
+        "\"Moka pot\" Not verified advertising sign",
+        "\"Curved brass\" Not verified advertising sign",
+        "\"bronze spout\" Not verified advertising sign",
+        "\"black handle\" Not verified advertising sign"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+        "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "visualSubject": "A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+      "visualSubjectCategory": "Appliances / Kitchenware / Coffee Equipment",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Not verified",
+      "recognizedBrand": "Not verified",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Coffee brewing",
+      "visualRecognitionEvidence": [
+        "Metal cylindrical base with a wider bottom edge",
+        "Flat lid with embossed text and branding",
+        "Spout attached to lid with black handle/grip",
+        "Curved brass/bronze spout",
+        "Aluminum or metal body",
+        "Black plastic or rubber handle section on spout",
+        "Stamped markings on top lid",
+        "Visible logo/symbol: BIALETTI",
+        "Visible logo/symbol: 2 TAZZE",
+        "Visible letter: BIALETTI"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact model",
+        "Maker beyond visible text",
+        "Age or exact production year"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout. | Category: Appliances / Kitchenware / Coffee Equipment | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Coffee brewing | Supporting evidence: Metal cylindrical base with a wider bottom edge; Flat lid with embossed text and branding; Spout attached to lid with black handle/grip; Curved brass/bronze spout | Still unknown: Exact model; Maker beyond visible text; Age or exact production year | User evidence reconciliation: User did not provide additional context or notes. Visual evidence strongly supports item as a stovetop espresso maker component, consistent with visible branding and shape. | Summary: The images show a metallic coffee water boiler part from a stovetop espresso maker, likely a Moka pot, with a distinctive curved brass spout and black plastic handle section. The lid has embossed branding 'BIALETTI 2 TAZZE' and design credit 'DESIGN L.COLLINI,' confirming a coffee brewing appliance subject with high confidence.",
+      "subjectIdentity": "A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+      "exactProductConfidence": "High - strong match to visible branding and form",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Bialetti",
+        "Date / Era: Mid to late 20th century or later",
+        "Licensing: Likely licensed brand Bialetti coffee maker",
+        "Authenticity: Presumed authentic based on clear branding but manufacturer stamp unreadable"
+      ],
+      "whatIsKnown": [
+        "Subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+        "Visual evidence: Visible embossed text 'BIALETTI'",
+        "Visual evidence: Visible embossed text '2 TAZZE'",
+        "Visual evidence: Visible embossed text 'DESIGN L.COLLINI'",
+        "Text evidence: BIALETTI",
+        "Text evidence: 2 TAZZE",
+        "Text evidence: DESIGN L.COLLINI",
+        "Comparable status: Exact model likely Bialetti 2 Tazze Moka pot part"
+      ],
+      "whatIsStillUnknown": [
+        "Exact production year",
+        "Specific manufacturer location stamp (not visible)",
+        "Condition details beyond visible wear",
+        "Missing component status not provided",
+        "Exact model",
+        "Maker beyond visible text",
+        "Age or exact production year"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: A stovetop espresso maker part, specifically a coffee water boiler component with a spout. | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout) | Maker / Manufacturer: Bialetti | Licensing / Authenticity: Likely licensed brand Bialetti coffee maker / Presumed authentic based on clear branding but manufacturer stamp unreadable",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Current asking price for item"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+    "identificationConfidence": "High - strong match based on visible embossed branding and characteristic design",
+    "evidenceFoundInPhotos": [
+      "Visual subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+      "Visual subject category: Appliances / Kitchenware / Coffee Equipment",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Not verified",
+      "Recognized brand: Not verified",
+      "Recognized character: Not verified",
+      "Subject identity: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "Exact product identity: Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+      "Exact product confidence: High - strong match to visible branding and form",
+      "Brand: BIALETTI",
+      "Brand/series: Bialetti Moka Express series"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "Request the current asking price and condition details to evaluate pricing fairness; without this, price negotiation cannot be advised.",
+    "reasonsToBuy": [
+      "Genuine Bialetti part likely compatible with 2 Tazze Moka pot",
+      "Distinctive and original design features indicating authenticity",
+      "Appears to be a functional replacement part for coffee makers"
+    ],
+    "reasonsForCaution": [
+      "No asking price provided to assess value",
+      "Used condition with some visible wear, condition details limited",
+      "No reliable comparable sales or active listings found for exact part",
+      "No clarity on completeness (e.g. gasket, filter parts) or working condition",
+      "Weak Comparable Evidence",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Condition Unclear - wear seen but no detailed condition report",
+      "Missing Parts cannot be ruled out without buyer confirmation",
+      "Authenticity Unclear beyond visible branding and no confirmed manufacturer stamp",
+      "Weak Comparable Evidence due to lack of matched marketplace listings",
+      "Risk flag: Weak Comparable Evidence",
+      "Condition should be inspected before paying near the top of the fair range."
+    ],
+    "riskFlags": [
+      "Weak Comparable Evidence"
+    ],
+    "betterValueConsiderations": [
+      "Wait for clearer pricing and condition info before purchase decision",
+      "Consider looking for complete Moka pot or verified replacement parts with pricing data",
+      "Check availability of new or refurb replacements from Bialetti or authorized sellers"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without an asking price or active comparables, fair market value cannot be reliably estimated.",
+    "additionalInformationNeeded": [
+      "Current asking price for item",
+      "Detailed condition report including presence/absence of seals or filters",
+      "Confirmation of completeness and functionality",
+      "Additional photos showing all angles and components",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"Visible embossed text '2 TAZZE'\" Not verified advertising sign",
+      "\"Visible embossed text 'BIALETTI'\" Not verified advertising sign",
+      "\"Visible embossed text 'DESIGN L\" Not verified advertising sign",
+      "\"Bialetti Moka Express series\" Not verified advertising sign",
+      "\"- likely Bialetti\" Not verified advertising sign",
+      "\"Appliances / Kitchenware / Coffee Equipment\" Not verified advertising sign",
+      "\"Coffee brewing\" Not verified advertising sign",
+      "\"Curved brass/bronze spout\" Not verified advertising sign",
+      "\"Aluminum or metal body\" Not verified advertising sign",
+      "\"Stamped markings on top lid\" Not verified advertising sign",
+      "\"Moka pot\" Not verified advertising sign",
+      "\"Curved brass\" Not verified advertising sign",
+      "\"bronze spout\" Not verified advertising sign",
+      "\"black handle\" Not verified advertising sign"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+      "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "visualSubject": "A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+    "visualSubjectCategory": "Appliances / Kitchenware / Coffee Equipment",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Not verified",
+    "recognizedBrand": "Not verified",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Coffee brewing",
+    "visualRecognitionEvidence": [
+      "Metal cylindrical base with a wider bottom edge",
+      "Flat lid with embossed text and branding",
+      "Spout attached to lid with black handle/grip",
+      "Curved brass/bronze spout",
+      "Aluminum or metal body",
+      "Black plastic or rubber handle section on spout",
+      "Stamped markings on top lid",
+      "Visible logo/symbol: BIALETTI",
+      "Visible logo/symbol: 2 TAZZE",
+      "Visible letter: BIALETTI"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact model",
+      "Maker beyond visible text",
+      "Age or exact production year"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout. | Category: Appliances / Kitchenware / Coffee Equipment | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Coffee brewing | Supporting evidence: Metal cylindrical base with a wider bottom edge; Flat lid with embossed text and branding; Spout attached to lid with black handle/grip; Curved brass/bronze spout | Still unknown: Exact model; Maker beyond visible text; Age or exact production year | User evidence reconciliation: User did not provide additional context or notes. Visual evidence strongly supports item as a stovetop espresso maker component, consistent with visible branding and shape. | Summary: The images show a metallic coffee water boiler part from a stovetop espresso maker, likely a Moka pot, with a distinctive curved brass spout and black plastic handle section. The lid has embossed branding 'BIALETTI 2 TAZZE' and design credit 'DESIGN L.COLLINI,' confirming a coffee brewing appliance subject with high confidence.",
+    "subjectIdentity": "A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+    "exactProductConfidence": "High - strong match to visible branding and form",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Bialetti",
+      "Date / Era: Mid to late 20th century or later",
+      "Licensing: Likely licensed brand Bialetti coffee maker",
+      "Authenticity: Presumed authentic based on clear branding but manufacturer stamp unreadable"
+    ],
+    "whatIsKnown": [
+      "Subject: A stovetop espresso maker part, specifically a coffee water boiler component with a spout.",
+      "Visual evidence: Visible embossed text 'BIALETTI'",
+      "Visual evidence: Visible embossed text '2 TAZZE'",
+      "Visual evidence: Visible embossed text 'DESIGN L.COLLINI'",
+      "Text evidence: BIALETTI",
+      "Text evidence: 2 TAZZE",
+      "Text evidence: DESIGN L.COLLINI",
+      "Comparable status: Exact model likely Bialetti 2 Tazze Moka pot part"
+    ],
+    "whatIsStillUnknown": [
+      "Exact production year",
+      "Specific manufacturer location stamp (not visible)",
+      "Condition details beyond visible wear",
+      "Missing component status not provided",
+      "Exact model",
+      "Maker beyond visible text",
+      "Age or exact production year"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: A stovetop espresso maker part, specifically a coffee water boiler component with a spout. | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout) | Maker / Manufacturer: Bialetti | Licensing / Authenticity: Likely licensed brand Bialetti coffee maker / Presumed authentic based on clear branding but manufacturer stamp unreadable",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Current asking price for item"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "8983ec3b4a4c4065b3d7d9869fe8215269d7a623b8e7152af880eba338152502"
+}

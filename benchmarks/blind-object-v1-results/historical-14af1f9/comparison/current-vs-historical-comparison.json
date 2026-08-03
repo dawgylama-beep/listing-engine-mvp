@@ -1,0 +1,725 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-current-a4a7214-vs-historical-14af1f9",
+  "conclusion": {
+    "classification": "LONG_STANDING_DESIGN_GAP_WITH_LOCALIZED_MIXED_DIFFERENCES",
+    "phase5Choice": "B_LONG_STANDING_DESIGN_GAP",
+    "summary": "Version 1.9.3 is not a stronger system overall: current identity capability is 42.86% versus 21.43%, while both recover 0% exact sources and reject 0% distractors. Historical behavior is locally better on OBJ-003 and OBJ-011 and is more purpose-invariant, but it is more prone to unsupported specific identities and cannot handle three empty-description listing cases.",
+    "strongestEvidenceOfRegression": "Purpose-invariance identity consistency is 100% historical versus 75% current, localized to OBJ-001. Because this is one anchor, it is evidence for a focused purpose-isolation test, not a systemic regression declaration.",
+    "strongestEvidenceAgainstRegression": "Current maps 6 of 14 principal identities versus 3 of 14 historically, and historical exact-source/distractor performance remains 0%/0%; restoring the old version would not repair the shared identity-to-evidence failure."
+  },
+  "componentComparisons": {
+    "exactVersusBroaderIdentityCorrectness": "Current maps 6/14 frozen principal identity keys versus historical 3/14. Historical is semantically closer on OBJ-003 and OBJ-011; current is better on five adjudicated cases and equal on four.",
+    "visibleTextUse": "Historical returns more visible/design specificity on OBJ-003, OBJ-009, OBJ-010, and OBJ-011, but converts some weak visual cues into incorrect specifics. Current is safer but sometimes too broad. Attribution remains inconclusive.",
+    "makerMarkUse": "Historical extracts Stanley/Bialetti/Mattel detail in several cases, but only three principal identities map overall; current evidence reconciliation maps OBJ-005 and OBJ-006 where historical does not.",
+    "barcodeAndModelUse": "Both map Raspberry Pi 4 Model B and Nintendo Game Boy DMG-01. Current preserves OBJ-001 UPC 3017620422003; neither maps the full Nutella 400 g identity.",
+    "uncertaintyBehavior": "Current uncertainty/alternatives average 1.538/10; historical 1.731/10. Historical has 9 concrete-but-unmapped principal exact claims versus current 2.",
+    "exactSourceRecovery": "Both 0/8 eligible cases; both 0% distractor rejection.",
+    "evidenceAssociation": "Current is 1/1 recognized association; historical is 0/0 and receives the scorer's zero-denominator 100% default. Comparative attribution is inconclusive.",
+    "purposeInvariance": "Historical 100% versus current 75%; the difference is localized to OBJ-001.",
+    "valuation": "Current market interpretation/valuation average 1.346/15; historical 1.346/15.",
+    "purposeSpecificJudgment": "Current average 0.000/10; historical 0.000/10.",
+    "actionPlanning": "Current average 0.000/10; historical 0.000/10; both aggregate action-plan completeness 0%.",
+    "confidenceCalibration": "Historical 11.538% versus current 3.846%; both fail the 75% gate.",
+    "providerAndSearch": "Current recorded 176 attempts. Historical has 92 statically derived provider attempts, including 23 web-search attempts, with three pre-provider HTTP 400 validations.",
+    "directPageVerification": "0 attempts in both result sets.",
+    "evidenceCardCapture": "Current capture metadata contains 5101 recursive evidence records and 2094 URL records; historical contains 65 and 27. These are not deduplicated customer cards.",
+    "unsupportedExactClaims": "Frozen ambiguous confident-false-exact count is 0 for both. Concrete-but-unmapped principal exact claims are current 2 versus historical 9.",
+    "inventedFacts": "Invented source/transaction-fact critical count is 0 for both."
+  },
+  "current": {
+    "productCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+    "baselineCommit": "610b3a5b7e3135cbcb2f9b85d1f20a20ef681e28",
+    "aggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.192307692307693,
+        "identityCapabilityPercent": 42.857142857142854,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 75,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 3.8461538461538463,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.192307692307693
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 10,
+      "uncertaintyAndAlternatives": 1.5384615384615385,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 0.38461538461538464
+    },
+    "handlerStatusCounts": {
+      "200": 26
+    },
+    "providerTotals": {
+      "providerCallsAttempted": 176,
+      "providerCallsSucceeded": 150,
+      "providerCallsFailed": 0,
+      "directPageAttempts": 0,
+      "derivation": "Numeric fields captured from immutable current product responses; Phase 3B recorded 176 attempts, 150 successes, and 26 failed/retried attempts."
+    },
+    "captureCounts": {
+      "sourceUrlRecords": 2094,
+      "evidenceMetadataRecords": 5101,
+      "errorRelatedMetadataRecords": 202
+    },
+    "unmappedConcreteExactClaims": 2
+  },
+  "historical": {
+    "productCommit": "14af1f99773da15da10752f6656e09efae2b4944",
+    "tree": "b446562f52e66649e25e032ece29a6dbf4b71eb4",
+    "version": "1.9.3",
+    "aggregateResultSha256": "17e89eaa28af153547f37e9131e0e33f90b073ab36c2b49d88d4a6b3f89037a5",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 25.76923076923077,
+        "identityCapabilityPercent": 21.428571428571427,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 100,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 11.538461538461538,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": true,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 25.76923076923077
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 4.615384615384615,
+      "uncertaintyAndAlternatives": 1.7307692307692308,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 1.1538461538461537
+    },
+    "handlerStatusCounts": {
+      "200": 23,
+      "400": 3
+    },
+    "providerTotals": {
+      "totalProviderAttempts": 92,
+      "imageRecognitionAttempts": 23,
+      "identityExtractionAttempts": 23,
+      "webSearchAttempts": 23,
+      "finalReportAttempts": 23,
+      "directPageAttempts": 0,
+      "explicitProviderFailures": 0,
+      "preProviderHandlerValidationFailures": 3,
+      "derivation": "Version 1.9.3 has four fixed provider stages for each HTTP 200 analysis: visual recognition, identity extraction, one required web_search request, and final report generation. Three empty-description listing requests ended at HTTP 400 before provider invocation. The historical report contract exposes no numeric provider counters and no include-compatibility retry marker was returned."
+    },
+    "captureCounts": {
+      "sourceUrlRecords": 27,
+      "evidenceMetadataRecords": 65,
+      "errorRelatedMetadataRecords": 3
+    },
+    "unmappedConcreteExactClaims": 9,
+    "executionStart": "2026-08-03T18:25:08.242Z",
+    "executionEnd": "2026-08-03T18:41:12.357Z",
+    "elapsedMilliseconds": 964115
+  },
+  "principalCases": [
+    {
+      "runId": "RUN-001",
+      "caseId": "OBJ-001",
+      "purpose": "PERSONAL_BUY",
+      "lane": "BARCODE_OR_MODEL",
+      "groundTruthIdentity": "Nutella hazelnut spread with cocoa, 400 g jar, GTIN 3017620422003",
+      "currentIdentity": "Nutella (UPC 3017620422003)",
+      "historicalIdentity": "Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar",
+      "verdict": "CURRENT_BETTER",
+      "verdictReason": "Both identify Nutella; current preserves the UPC while historical omits the frozen 400 g configuration.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 10,
+      "historicalScore": 15,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 114,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 112,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 112 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "barcode/model extraction and identity reconciliation",
+      "rawFieldCitations": [
+        "RUN-001 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-001 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-001 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-002",
+      "caseId": "OBJ-002",
+      "purpose": "PERSONAL_BUY",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Bialetti Mini Express one-cup (1 tazza) stovetop coffee maker",
+      "currentIdentity": "Vintage Moka Express stovetop espresso maker, three-cup capacity",
+      "historicalIdentity": "Bialetti 2 Tazze stovetop espresso maker coffee water boiler component (Moka pot inner boiler with spout)",
+      "verdict": "DIFFERENTLY_WRONG",
+      "verdictReason": "Current calls it a three-cup Moka Express; historical calls it a Bialetti 2 Tazze boiler component; truth is Mini Express one-cup.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 10,
+      "historicalScore": 15,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 62,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 28,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 28 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "visual-form reconciliation",
+      "rawFieldCitations": [
+        "RUN-002 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-002 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-002 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-003",
+      "caseId": "OBJ-003",
+      "purpose": "RESALE",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Stanley No. 78 duplex rabbet/fillister plane",
+      "currentIdentity": "Unverified exact product - likely Hand plane tool for woodworking; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "Stanley combination plane, mid-20th century, made in England",
+      "verdict": "HISTORICAL_BETTER",
+      "verdictReason": "Historical reaches Stanley and a specific plane family; current remains a generic hand plane, although historical still misses No. 78.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 15,
+      "historicalScore": 10,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 112,
+        "historicalQueryFieldValues": 0,
+        "currentCapturedSourceUrls": 106,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 106 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "maker-mark extraction and identity prompting",
+      "rawFieldCitations": [
+        "RUN-003 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-003 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-003 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-004",
+      "caseId": "OBJ-004",
+      "purpose": "WHATS_IT_WORTH",
+      "lane": "BARCODE_OR_MODEL",
+      "groundTruthIdentity": "Raspberry Pi 4 Model B single-board computer",
+      "currentIdentity": "Raspberry Pi 4 Model B",
+      "historicalIdentity": "Raspberry Pi Foundation Raspberry Pi 4 Model B single-board computer, 2018, Made in UK",
+      "verdict": "EQUAL",
+      "verdictReason": "Both return Raspberry Pi 4 Model B and receive the frozen identity key.",
+      "currentIdentityKey": "raspberry-pi-4-model-b",
+      "historicalIdentityKey": "raspberry-pi-4-model-b",
+      "currentScore": 35,
+      "historicalScore": 35,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 60,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 30,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 30 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "model-text extraction",
+      "rawFieldCitations": [
+        "RUN-004 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-004 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-004 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-005",
+      "caseId": "OBJ-005",
+      "purpose": "PERSONAL_BUY",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Flewelling office chair documented as a 1966 example",
+      "currentIdentity": "Vintage office swivel chair model 560 by Rafflewelling Co., Inc., circa 1966",
+      "historicalIdentity": "Vintage office chair model 560 manufactured in 1966 by Rafflewelling Co., Inc., featuring olive green upholstery and brown armrests on a four-star metal base with casters",
+      "verdict": "CURRENT_BETTER",
+      "verdictReason": "Current receives the frozen Flewelling/1966 identity key through its evidence chain; historical remains unmapped.",
+      "currentIdentityKey": "flewelling-office-chair-1966-photographed-example",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 45,
+      "historicalScore": 25,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 103,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 82,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 82 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "identity/evidence reconciliation",
+      "rawFieldCitations": [
+        "RUN-005 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-005 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-005 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-006",
+      "caseId": "OBJ-006",
+      "purpose": "PERSONAL_BUY",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "groundTruthIdentity": "Casio F-91W digital wristwatch, black/resin F-91W-1 presentation",
+      "currentIdentity": "CASIO F-91W digital wristwatch",
+      "historicalIdentity": "CASIO F-91W digital wristwatch with water resistance and alarm chronograph functions, black rubber strap, stainless steel back, made in China",
+      "verdict": "EQUAL",
+      "verdictReason": "Both visibly return Casio F-91W; current alone maps under the frozen full-report normalization, but the visible identities are equivalent.",
+      "currentIdentityKey": "casio-f-91w-1",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 35,
+      "historicalScore": 15,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 71,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 50,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 50 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "model-text extraction; normalization sensitivity",
+      "rawFieldCitations": [
+        "RUN-006 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-006 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-006 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-007",
+      "caseId": "OBJ-007",
+      "purpose": "WHATS_IT_WORTH",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Used brown leather folding wallet or pocketbook with a decorative heraldic-style crest",
+      "currentIdentity": "Unverified exact product - likely Vintage leather wallet or organizer with metal clasp; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "Vintage leather personal day planner or organizer with metal keyhole clasp and Italian day tabs",
+      "verdict": "CURRENT_BETTER",
+      "verdictReason": "Current preserves wallet/organizer; historical shifts to a day planner and misses the crest evidence.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 35,
+      "historicalScore": 35,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 61,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 32,
+        "historicalCapturedSourceUrls": 5,
+        "note": "Current captured 32 URL records; historical captured 5. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "visual-form reconciliation",
+      "rawFieldCitations": [
+        "RUN-007 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-007 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-007 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-008",
+      "caseId": "OBJ-008",
+      "purpose": "RESALE",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "groundTruthIdentity": "Kodak Brownie Hawkeye Flash Model camera",
+      "currentIdentity": "Brownie Hawkeye Flash Model Camera",
+      "historicalIdentity": "Kodak Brownie Hawkeye Flash Model box camera",
+      "verdict": "EQUAL",
+      "verdictReason": "Both correctly return Kodak Brownie Hawkeye Flash Model camera.",
+      "currentIdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+      "historicalIdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+      "currentScore": 45,
+      "historicalScore": 45,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 55,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 24,
+        "historicalCapturedSourceUrls": 6,
+        "note": "Current captured 24 URL records; historical captured 6. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "visible-label extraction",
+      "rawFieldCitations": [
+        "RUN-008 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-008 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-008 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-009",
+      "caseId": "OBJ-009",
+      "purpose": "RESALE",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "groundTruthIdentity": "Mattel Hot Wheels racing model car carrying number 6",
+      "currentIdentity": "Unverified exact product - likely toy car; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "Hot Wheels die-cast toy car, purple racing model with number 5 decal, manufactured by Mattel, Inc. in 1989 in Malaysia",
+      "verdict": "DIFFERENTLY_WRONG",
+      "verdictReason": "Current stays broad as toy car; historical adds Hot Wheels/Mattel but asserts number 5 and 1989 where the frozen object is number 6 with unresolved issue year.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 30,
+      "historicalScore": 30,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 107,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 94,
+        "historicalCapturedSourceUrls": 5,
+        "note": "Current captured 94 URL records; historical captured 5. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "visible-number extraction and confidence calibration",
+      "rawFieldCitations": [
+        "RUN-009 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-009 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-009 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-010",
+      "caseId": "OBJ-010",
+      "purpose": "RESALE",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Painted Coca-Cola wall advertisement/mural in Carthage, North Carolina",
+      "currentIdentity": "Unverified exact product - likely Vintage Coca-Cola advertisement painted as a mural on a brick wall; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "Mid-20th century style Coca-Cola vintage promotional wall mural featuring Coca-Cola Kid mascot and classic glass bottle with slogan 'Take Some Home Today' painted on brick wall",
+      "verdict": "DIFFERENTLY_WRONG",
+      "verdictReason": "Both recognize a Coca-Cola wall mural; historical extracts more design text but neither recovers the Carthage, North Carolina identity.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 30,
+      "historicalScore": 30,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 116,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 94,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 94 URL records; historical captured 0. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "visible-text extraction and exact-design search",
+      "rawFieldCitations": [
+        "RUN-010 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-010 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-010 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-011",
+      "caseId": "OBJ-011",
+      "purpose": "WHATS_IT_WORTH",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Solved 3x3 six-color twisty cube in a Rubik's Cube-style design",
+      "currentIdentity": "Unverified exact product - likely Handheld puzzle cube; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "3x3 twisty puzzle cube",
+      "verdict": "HISTORICAL_BETTER",
+      "verdictReason": "Historical returns a 3x3 twisty puzzle cube/Rubik-style design; current remains a generic handheld puzzle cube, though both miss the frozen key.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 15,
+      "historicalScore": 15,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 138,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 121,
+        "historicalCapturedSourceUrls": 5,
+        "note": "Current captured 121 URL records; historical captured 5. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "shape recognition and identity prompting",
+      "rawFieldCitations": [
+        "RUN-011 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-011 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-011 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-012",
+      "caseId": "OBJ-012",
+      "purpose": "MARKETPLACE_LISTING",
+      "lane": "PHOTO_PLUS_VISIBLE_MARKINGS",
+      "groundTruthIdentity": "Original gray Nintendo Game Boy handheld console, model DMG-01",
+      "currentIdentity": "Nintendo GAME BOY (UPC 011989607364)",
+      "historicalIdentity": "Nintendo Game Boy handheld gaming console model DMG-01 released in 1989",
+      "verdict": "EQUAL",
+      "verdictReason": "Both identify the original Nintendo Game Boy/DMG-01 family and receive the frozen identity key.",
+      "currentIdentityKey": "nintendo-game-boy-dmg-01",
+      "historicalIdentityKey": "nintendo-game-boy-dmg-01",
+      "currentScore": 30,
+      "historicalScore": 30,
+      "currentExactSourceResult": "FAIL",
+      "historicalExactSourceResult": "FAIL",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 96,
+        "historicalQueryFieldValues": 15,
+        "currentCapturedSourceUrls": 110,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 110 URL records; historical captured 0. Exact-source scoring is eligible."
+      },
+      "likelySubsystemOwnership": "model/barcode extraction",
+      "rawFieldCitations": [
+        "RUN-012 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-012 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-012 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-013",
+      "caseId": "OBJ-013",
+      "purpose": "MARKETPLACE_LISTING",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Broken wooden ladder with a failed or separated structural member",
+      "currentIdentity": "Unverified exact product - likely Wooden ladder; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "No identity returned: Add item notes before generating a listing.",
+      "verdict": "CURRENT_BETTER",
+      "verdictReason": "Historical listing returns HTTP 400 because the frozen description is empty; current identifies a wooden ladder but still fails the safety contract.",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 30,
+      "historicalScore": 25,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 98,
+        "historicalQueryFieldValues": 0,
+        "currentCapturedSourceUrls": 72,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 72 URL records; historical captured 0. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "empty-description listing compatibility and safety disposition",
+      "rawFieldCitations": [
+        "RUN-013 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-013 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-013 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    },
+    {
+      "runId": "RUN-014",
+      "caseId": "OBJ-014",
+      "purpose": "MARKETPLACE_LISTING",
+      "lane": "PHOTO_ONLY",
+      "groundTruthIdentity": "Roman-period hollow pentagonal dodecahedron artifact displayed at the Musée gallo-romain de Fourvière in Lyon; original function unresolved",
+      "currentIdentity": "Unverified exact product - likely Polyhedral object with spherical nodes and circular holes; exact item, maker, date, and licensing are not confirmed.",
+      "historicalIdentity": "No identity returned: Add item notes before generating a listing.",
+      "verdict": "CURRENT_BETTER",
+      "verdictReason": "Historical listing returns HTTP 400 on the empty frozen description; current recognizes the polyhedral artifact and receives the ambiguity-safe identity key.",
+      "currentIdentityKey": "roman-pentagonal-dodecahedron-function-unresolved",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "currentScore": 50,
+      "historicalScore": 30,
+      "currentExactSourceResult": "NOT_APPLICABLE",
+      "historicalExactSourceResult": "NOT_APPLICABLE",
+      "queryAndVerificationDifference": {
+        "currentQueryFieldValues": 89,
+        "historicalQueryFieldValues": 0,
+        "currentCapturedSourceUrls": 68,
+        "historicalCapturedSourceUrls": 0,
+        "note": "Current captured 68 URL records; historical captured 0. Exact-source scoring is not applicable."
+      },
+      "likelySubsystemOwnership": "empty-description listing compatibility and ambiguity handling",
+      "rawFieldCitations": [
+        "RUN-014 current customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-014 historical customerFacingReport.exactProductIdentity/identifiedItem/subjectIdentity",
+        "RUN-014 current/historical grading.metrics.reportedIdentityKey"
+      ]
+    }
+  ],
+  "anchors": [
+    {
+      "caseId": "OBJ-001",
+      "currentIdentityKeys": [
+        "unmapped-product-identity",
+        "nutella-400g-gtin-3017620422003",
+        "unmapped-product-identity",
+        "unmapped-product-identity"
+      ],
+      "historicalIdentityKeys": [
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity"
+      ],
+      "currentConsistent": false,
+      "historicalConsistent": true,
+      "comparison": "HISTORICAL_BETTER"
+    },
+    {
+      "caseId": "OBJ-003",
+      "currentIdentityKeys": [
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity"
+      ],
+      "historicalIdentityKeys": [
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity"
+      ],
+      "currentConsistent": true,
+      "historicalConsistent": true,
+      "comparison": "EQUAL"
+    },
+    {
+      "caseId": "OBJ-008",
+      "currentIdentityKeys": [
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera"
+      ],
+      "historicalIdentityKeys": [
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera",
+        "kodak-brownie-hawkeye-flash-model-camera"
+      ],
+      "currentConsistent": true,
+      "historicalConsistent": true,
+      "comparison": "EQUAL"
+    },
+    {
+      "caseId": "OBJ-014",
+      "currentIdentityKeys": [
+        "roman-pentagonal-dodecahedron-function-unresolved",
+        "roman-pentagonal-dodecahedron-function-unresolved",
+        "roman-pentagonal-dodecahedron-function-unresolved",
+        "roman-pentagonal-dodecahedron-function-unresolved"
+      ],
+      "historicalIdentityKeys": [
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity",
+        "unmapped-product-identity"
+      ],
+      "currentConsistent": true,
+      "historicalConsistent": true,
+      "comparison": "EQUAL"
+    }
+  ]
+}

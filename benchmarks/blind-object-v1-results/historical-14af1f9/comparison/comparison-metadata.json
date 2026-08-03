@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "selectedHistoricalCandidate": {
+    "commit": "14af1f99773da15da10752f6656e09efae2b4944",
+    "tree": "b446562f52e66649e25e032ece29a6dbf4b71eb4",
+    "version": "1.9.3",
+    "date": "2026-07-12T18:29:57-04:00",
+    "subject": "Version 1.9.3 - Improve exact-match search and consumer buy decisions",
+    "handlerPath": "api/generate-listing.js#default",
+    "handlerSha256": "e0ed5b34ac4f30b48c7567f674dc1a1805e187ee5ea1c4b9ef5b84dafa054260",
+    "environmentVariableNames": [
+      "OPENAI_API_KEY",
+      "OPEN_API_KEY",
+      "OPENAI_MODEL"
+    ],
+    "modelFallback": "gpt-4.1-mini",
+    "providerPath": "OpenAI Responses API and product-owned OpenAI web_search",
+    "imageProcessingPath": "frozen JPEG data URLs -> photos[].dataUrl -> two historical input_image stages",
+    "selectionReason": "Latest candidate with an explicitly visual-first identity pipeline, executable exact-query assertions, native four-purpose semantics, and a directly invocable production-owned photograph handler before later transaction-evidence releases became the primary change focus."
+  },
+  "candidates": [
+    {
+      "commit": "0d8d1e09666b03bd3e375f2b3446986021c43c70",
+      "version": "1.5.4 (package metadata still 0.1.0)",
+      "date": "2026-07-09",
+      "subject": "Version 1.5.4 - Improve photo text identity and source routing",
+      "handlerPath": "api/generate-listing.js#default",
+      "photographInputMechanism": "photos[].dataUrl passed as OpenAI input_image/image_url",
+      "purposeSupport": "Listing and market-value paths; no native four-workflow contract",
+      "identityOutputStructure": "Photo text/product identity embedded in listing or valuation report",
+      "evidenceSearchMechanism": "Source-routed live comparable search",
+      "objectiveEvidence": "Roadmap records improved photo-text extraction, preserved box/back-label wording, and SKU-style queries.",
+      "objectiveLimitation": "Older contract, incomplete version metadata, and no four-purpose workflow support."
+    },
+    {
+      "commit": "02d244d13241f6f0086ce7ef03f1debb6c57d9f6",
+      "version": "1.8.3",
+      "date": "2026-07-12",
+      "subject": "Version 1.8.3 - Reconcile subject identity and exact product verification",
+      "handlerPath": "api/generate-listing.js#default",
+      "photographInputMechanism": "photos[].dataUrl passed as OpenAI input_image/image_url",
+      "purposeSupport": "Four workflow modes through listing/marketValue plus purchase_intent",
+      "identityOutputStructure": "subjectIdentity, exactProductIdentity, maker/date/licensing status, separate confidences",
+      "evidenceSearchMechanism": "Broad-subject fallback plus product-owned OpenAI web_search",
+      "objectiveEvidence": "Roadmap documents separation of broad subject recognition from exact identity and preservation of supported identity under weak comps.",
+      "objectiveLimitation": "No dedicated visual-first recognition layer and no executable blind-photo acceptance fixture."
+    },
+    {
+      "commit": "ebb1a55e5abd2c02db56d1a81fac3930ed411e74",
+      "version": "1.8.4",
+      "date": "2026-07-12",
+      "subject": "Version 1.8.4 - Add visual intelligence engine",
+      "handlerPath": "api/generate-listing.js#default",
+      "photographInputMechanism": "photos[].dataUrl passed to a visual-recognition stage, then an identity stage",
+      "purposeSupport": "Four workflow modes through listing/marketValue plus purchase_intent",
+      "identityOutputStructure": "visualRecognition plus structured subject/exact identity and confidence",
+      "evidenceSearchMechanism": "Visual-subject-to-exact query ladder plus product-owned OpenAI web_search",
+      "objectiveEvidence": "Repository adds an explicit universal first-stage visual engine and documented visual clues/unknowns before exact search.",
+      "objectiveLimitation": "Static/documented evidence only; later 1.9.3 added executable exact-query assertions."
+    },
+    {
+      "commit": "14af1f99773da15da10752f6656e09efae2b4944",
+      "version": "1.9.3",
+      "date": "2026-07-12",
+      "subject": "Version 1.9.3 - Improve exact-match search and consumer buy decisions",
+      "handlerPath": "api/generate-listing.js#default",
+      "photographInputMechanism": "photos[].dataUrl -> visual input_image -> identity input_image",
+      "purposeSupport": "Native personal_use, resale, market_value, and listing workflows",
+      "identityOutputStructure": "visual subject, subject identity, exact product identity, maker/model/barcode fields, separate confidences",
+      "evidenceSearchMechanism": "Exact visible-phrase query builder and required product-owned OpenAI web_search",
+      "objectiveEvidence": "26 checked-in static assertions cover exact-query priority, visible-search evidence, match-strength classification, and identity/price separation.",
+      "objectiveLimitation": "No historical blind-photo fixture; listing rejects empty notes, producing three honest HTTP 400 results in this corpus."
+    },
+    {
+      "commit": "782a1c8e9d27e9fe11e73f2f9aa4dd7281047b00",
+      "version": "1.11.14",
+      "date": "2026-07-19",
+      "subject": "Release 1.11.14 live evidence qualification repair",
+      "handlerPath": "api/generate-listing.js#default",
+      "photographInputMechanism": "Multistage image analysis retained in production handler",
+      "purposeSupport": "Native four-purpose workflows",
+      "identityOutputStructure": "Visual/subject/exact identity plus canonical retail and collectible evidence",
+      "evidenceSearchMechanism": "Bounded search allocation, qualification, dedupe, and direct-page enrichment",
+      "objectiveEvidence": "Executable provider-shaped evidence fixtures validate qualification, dedupe, pricing, diagnostics, and output paths.",
+      "objectiveLimitation": "Release objective is downstream retail/transaction evidence qualification, not photograph identification as the primary task."
+    }
+  ],
+  "currentBaseline": {
+    "commit": "610b3a5b7e3135cbcb2f9b85d1f20a20ef681e28",
+    "productCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+    "aggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+    "rerun": false
+  },
+  "historicalResult": {
+    "aggregateResultSha256": "17e89eaa28af153547f37e9131e0e33f90b073ab36c2b49d88d4a6b3f89037a5",
+    "requests": 26,
+    "responses": 26,
+    "gradingPasses": 2,
+    "gradingByteIdentical": true,
+    "adapterSha256": "ebe15c9d4c5b6e06f4cea96707fad7e63f8d53d9f064382957e30b6cffcc671f"
+  },
+  "immutableInputs": {
+    "benchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
+    "corpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
+    "contractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
+    "executorCommit": "ec9605768580c9545bdda79f7437de6e374312b7",
+    "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581"
+  },
+  "assertions": {
+    "benchmarkCriteriaChanged": false,
+    "currentProductSourceChanged": false,
+    "historicalProductSourceChanged": false,
+    "currentBaselineRerun": false,
+    "manualSearchPerformed": false,
+    "previewOrProductionCalled": false
+  }
+}

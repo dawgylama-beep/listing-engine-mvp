@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-004",
+  "runType": "PRINCIPAL",
+  "identityInvariantGroup": null,
+  "caseId": "OBJ-004",
+  "purpose": "WHATS_IT_WORTH",
+  "responseHash": "621e2d4e6ff4785448c23ea76f8e51a37c0f35fa317b8b69608330d2cf3fa929",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 20,
+    "uncertaintyAndAlternatives": 5,
+    "exactEvidenceRecovery": 0,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 0,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 35,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "35 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 0,
+  "metrics": {
+    "identityCapable": true,
+    "exactEligible": true,
+    "exactRecoveredAndDistractorRejected": false,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": false,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "raspberry-pi-4-model-b",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-005",
+  "runType": "PRINCIPAL",
+  "identityInvariantGroup": null,
+  "caseId": "OBJ-005",
+  "purpose": "PERSONAL_BUY",
+  "responseHash": "84b9f15c0dad41f92452e5cfb51d47bb1ff6fbeb7f24c192958b12be587dff11",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 0,
+    "uncertaintyAndAlternatives": 0,
+    "exactEvidenceRecovery": 0,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 5,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 10
+  },
+  "totalScore": 25,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "25 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 0,
+  "metrics": {
+    "identityCapable": false,
+    "exactEligible": true,
+    "exactRecoveredAndDistractorRejected": false,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": false,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": true,
+    "reportedIdentityKey": "unmapped-product-identity",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}

@@ -1,0 +1,518 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-023",
+  "objectId": "OBJ-008",
+  "requestSha256": "c439cbf0bd1b795b65ee455b1ab0ad03bf740773e75c40ccbc379a2f484613ac",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:38:51.044Z",
+  "endTimestamp": "2026-08-03T18:39:38.883Z",
+  "elapsedMilliseconds": 47839.83840000001,
+  "rawHandlerBodyBase64": "eyJsaXN0aW5nIjp7InBsYXRmb3JtIjoiZUJheSIsImNhdGVnb3J5U3VnZ2VzdGlvbiI6IkNhbWVyYXMgJiBQaG90byA+IFZpbnRhZ2UgTW92aWUgJiBQaG90b2dyYXBoeSA+IFZpbnRhZ2UgQ2FtZXJhcyIsImlkZW50aWZpZWRJdGVtIjoiS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIHZpbnRhZ2UgYm94IGNhbWVyYSIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggLSBjb25maXJtZWQgYnkgdmlzaWJsZSBicmFuZCBhbmQgbW9kZWwgbGFiZWwgb24gZnJvbnQgcGxhdGUiLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IFZpbnRhZ2UgQm94IENhbWVyYSIsIlZpc3VhbCBzdWJqZWN0IGNhdGVnb3J5OiBQaG90b2dyYXBoeSBFcXVpcG1lbnQiLCJWaXN1YWwgc3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIlJlY29nbml6ZWQgb3JnYW5pemF0aW9uOiBLb2RhayIsIlJlY29nbml6ZWQgYnJhbmQ6IEJyb3duaWUgSGF3a2V5ZSIsIlJlY29nbml6ZWQgY2hhcmFjdGVyOiBOb3QgdmVyaWZpZWQiLCJTdWJqZWN0IGlkZW50aXR5OiBWaW50YWdlIEJveCBDYW1lcmEiLCJTdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiVXNlci1wcm92aWRlZCBpZGVudGl0eTogQlJPV05JRSBIQVdLRVlFIENBTUVSQSB8IEZMQVNIIE1PREVMIiwiRXhhY3QgcHJvZHVjdCBpZGVudGl0eTogS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIHZpbnRhZ2UgYm94IGNhbWVyYSIsIkV4YWN0IHByb2R1Y3QgY29uZmlkZW5jZTogSGlnaCAtIGNvbmZpcm1lZCBieSB2aXNpYmxlIGJyYW5kIGFuZCBtb2RlbCBsYWJlbCBvbiBmcm9udCBwbGF0ZSIsIkJyYW5kOiBLb2RhayJdLCJzZWFyY2hRdWVyaWVzVXNlZCI6WyJUaGVzZSBhcmUgdGhlIHF1ZXJpZXMgdGhlIHN5c3RlbSB1c2VkLiIsIlwiJ0JST1dOSUUgS29kYWsgSEFXS0VZRSBDQU1FUkEgRmxhc2hcIiBCcm93bmllIEhhd2tleWUgY29sbGVjdG9yIHBsYXRlIiwiXCJBIGNvbGxlY3RvcidzIHZpbnRhZ2UgZmlsbSBib3ggY2FtZXJhXCIgS29kYWsgQnJvd25pZSBIYXdrZXllIGNvbGxlY3RvciIsIlwiQm94IGNhbWVyYSB3aXRoIGxhYmVsICdCUk9XTklFIEtvZGFrXCIgQnJvd25pZSBIYXdrZXllIGNvbGxlY3RvciBwbGF0ZSIsIlwiQm94IGNhbWVyYSB3aXRoIGxhYmVsICdCUk9XTklFIEtvZGFrXCIgS29kYWsgQnJvd25pZSBIYXdrZXllIGNvbGxlY3RvciIsIlwiQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsXCIgQnJvd25pZSBIYXdrZXllIGNvbGxlY3RvciBwbGF0ZSIsIlwiQlJPV05JRSBLb2RhayBIQVdLRVlFIENBTUVSQSBGbGFzaCBNT0RFTFwiIEJyb3duaWUgSGF3a2V5ZSBjb2xsZWN0b3IgcGxhdGUiLCJcIkEgY29sbGVjdG9yJ3MgdmludGFnZSBmaWxtIGJveCBjYW1lcmEgcHJvZHVjZWQgYnlcIiBCcm93bmllIEhhd2tleWUiLCJcIkEgY29sbGVjdG9yJ3MgdmludGFnZSBmaWxtIGJveCBjYW1lcmEgcHJvZHVjZWQgYnlcIiBLb2RhayBCcm93bmllIiwiXCJBIGNvbGxlY3RvcidzIHZpbnRhZ2UgZmlsbSBib3ggY2FtZXJhXCIgQnJvd25pZSBIYXdrZXllIGNvbGxlY3RvciBwbGF0ZSIsIlwiQSBjb2xsZWN0b3IncyB2aW50YWdlIGZpbG0gYm94IGNhbWVyYSBwcm9kdWNlZCBieSBLb2RhayxcIiBLb2RhayIsIlwiRmxhc2ggTW9kZWxcIiBCcm93bmllIEhhd2tleWUgY29sbGVjdG9yIHBsYXRlIiwiS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIHZpbnRhZ2UgYm94IGNhbWVyYSBCcm93bmllIEhhd2tleWUiLCJCcm93bmllIEhhd2tleWUgRmxhc2ggTW9kZWwgY29sbGVjdG9yIHBsYXRlIiwiXCJCcm93bmllIEhhd2tleWVcIiBCcm93bmllIEhhd2tleWUgY29sbGVjdG9yIHBsYXRlIl0sInNvdXJjZXNTZWFyY2hlZCI6WyJTb3VyY2UgY2F0ZWdvcmllcyB0YXJnZXRlZDogc2Vjb25kaGFuZCByZXNhbGUgcmVzdWx0czsgdmludGFnZSBhbmQgY29sbGVjdG9yIHNvdXJjZXM7IHNwZWNpYWx0eSByZWZlcmVuY2Ugc291cmNlczsgZXhhY3QtbGFiZWwgd2ViIHJlc3VsdHM7IGV4YWN0IGxhYmVsL3N0YW1wIHNlYXJjaGVzOyBlQmF5LXN0eWxlIHJlc2FsZSByZXN1bHRzOyBFdHN5LXN0eWxlIHZpbnRhZ2UgcmVzdWx0czsgTWVyY2FyaS1zdHlsZSByZXNhbGUgcmVzdWx0cyIsIlNvdXJjZXMgc2VhcmNoZWQ6IExpdmUgd2ViIHNlYXJjaCBleGVjdXRlZCwgYnV0IHRoZSBwcm92aWRlciBkaWQgbm90IHJldHVybiBhIHNlcGFyYXRlIHNvdXJjZSBsaXN0LiIsIlNvdXJjZXMgcmV0dXJuZWQgd2l0aCBVUkwgY2l0YXRpb25zOiBOb25lLiIsIk5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgbWF0Y2hlcyBwYXNzZWQgbWF0Y2gtcXVhbGl0eSBjaGVja3MuIiwiUmV0dXJuZWQgcmVzdWx0cyB3ZXJlIHJlamVjdGVkIHdoZW4gdGhleSBsYWNrZWQgZXhhY3QgbGFiZWwvY29kZSBtYXRjaGVzLCBoYWQgb25seSB3ZWFrIGxvb2thbGlrZSBldmlkZW5jZSwgb3IgZGlkIG5vdCBpbmNsdWRlIGEgY2l0ZWQgVVJMIGluIHRoZSBjb21wYXJhYmxlIGl0ZW0gdGV4dC4iLCJSZWplY3RlZCBpcnJlbGV2YW50IHNvdXJjZSBjYXRlZ29yaWVzOiBnZW5lcmljIHdob2xlc2FsZXJzLCByZXN0YXVyYW50LXN1cHBseSBzaXRlcywgYnVsayBpbXBvcnQvbWFudWZhY3R1cmluZyBjYXRhbG9ncywgdW5yZWxhdGVkIGN1cnJlbnQtcmV0YWlsIGxvb2thbGlrZXMsIGFuZCBnZW5lcmljIHZpc3VhbCBsb29rYWxpa2VzLiIsIlNlYXJjaGVkIHVzaW5nIGJhcmNvZGUvaXRlbSBjb2RlL21vZGVsIGlkZW50aWZpZXJzIHdoZW4gYXZhaWxhYmxlLiIsIlNlYXJjaGVkIHVzaW5nIHZpc2libGUgYm94LCBsYWJlbCwgYnJhbmQsIG9yIHByb2R1Y3QtdGl0bGUgd29yZGluZy4iLCJTZWFyY2hlZCByZWxldmFudCBob2xpZGF5IGRlY29yIC8gY29sbGVjdGlibGUgc291cmNlcy4iXSwicmVzZWFyY2hSZXN1bHRzIjpbeyJ0aXRsZSI6IkFudGlxdWUsIHZpbnRhZ2UgYW5kIHVzZWQgZGlnaXRhbGNhbWVyYXMvbGVuc2VzIHByaWNlIGd1aWRlLiBDb2xsZWN0aUJsZW5kIEF2ZXJhZ2UgSW5kZXggQXZlcmFnZVZlcnkgZ29vZE1pbnQkMTAtMjAkMTAtMjAkMzAtNDBFc3RpbWF0ZSB2YWx1ZSBhY2N1cmFjeTogV2UgZG9uJ3QiLCJzb3VyY2UiOiJib2VuYm94LmNvbSIsInVybCI6Imh0dHBzOi8vYm9lbmJveC5jb20vaW1nL2ZpbGVzL2YwYjYxMWFlLTllYjUtNGY0Mi1hNjVjLTFlMGIwNzQyNmEwZC5wZGYiLCJkaXNwbGF5ZWRQcmljZSI6IiQxMCIsImN1cnJlbmN5IjoiJCIsInByaWNlVHlwZSI6IlByaWNlIHR5cGUgbm90IGNvbmZpcm1lZCIsImNvbmRpdGlvbiI6IiIsImNsYXNzaWZpY2F0aW9uIjoiUmVqZWN0ZWQgTWF0Y2giLCJldmlkZW5jZVJvbGUiOiJSZWplY3RlZCBldmlkZW5jZTsgc2hvdWxkIG5vdCBkcml2ZSBwcmljZS4gUmVqZWN0ZWQgTWF0Y2giLCJtYXRjaEV4cGxhbmF0aW9uIjoiQW50aXF1ZSwgdmludGFnZSBhbmQgdXNlZCBkaWdpdGFsY2FtZXJhcy9sZW5zZXMgcHJpY2UgZ3VpZGUuIENvbGxlY3RpQmxlbmQgQXZlcmFnZSBJbmRleCBBdmVyYWdlVmVyeSBnb29kTWludCQxMC0yMCQxMC0yMCQzMC00MEVzdGltYXRlIHZhbHVlIGFjY3VyYWN5OiBXZSBkb24ndCBoYXZlIGVub3VnaCBpbmZvcm1hdGlvbiB0byBwcm92aWRlIGFuIGFjY3VyYXRlIHByaWNlIGZvciB0aGlzIGNhbWVyYSwgc28gdGhpcyBpcyB0aGUgc3VnZ2VzdGlvbiBiYXMiLCJpdGVtSWRlbnRpdHlEaWZmZXJlbmNlcyI6IiIsImluZmx1ZW5jZWRSZWZlcmVuY2VSYW5nZSI6Ik5vLiIsInJlamVjdGlvblJlYXNvbiI6Ik5vdCByZWxpYWJsZSBlbm91Z2ggZm9yIHZhbHVhdGlvbi4gQ2xhc3NpZmljYXRpb246IFJlamVjdGVkIE1hdGNoLiIsInNvdXJjZUJhY2tlZCI6IlVSTCBwcm92aWRlZCBieSByZXN1bHQgdGV4dCIsInJhd1RleHQiOiJBbnRpcXVlLCB2aW50YWdlIGFuZCB1c2VkIGRpZ2l0YWxjYW1lcmFzL2xlbnNlcyBwcmljZSBndWlkZS4gQ29sbGVjdGlCbGVuZCBBdmVyYWdlIEluZGV4IEF2ZXJhZ2VWZXJ5IGdvb2RNaW50JDEwLTIwJDEwLTIwJDMwLTQwRXN0aW1hdGUgdmFsdWUgYWNjdXJhY3k6IFdlIGRvbid0IGhhdmUgZW5vdWdoIGluZm9ybWF0aW9uIHRvIHByb3ZpZGUgYW4gYWNjdXJhdGUgcHJpY2UgZm9yIHRoaXMgY2FtZXJhLCBzbyB0aGlzIGlzIHRoZSBzdWdnZXN0aW9uIGJhc2VkIG9uIHdoYXQgd2UgaGF2ZS5DYW1lcmEgcmFyaXR5IChWZXJ5IGNvbW1vbi4gVm90ZXM6IDMpIENhbWVyYSBzYWxlcyBhbmQgb3RoZXIgKGh0dHBzOi8vYm9lbmJveC5jb20vaW1nL2ZpbGVzL2YwYjYxMWFlLTllYjUtNGY0Mi1hNjVjLTFlMGIwNzQyNmEwZC5wZGYpIn1dLCJjb21wYXJhYmxlUXVhbGl0eSI6WyJTdHJvbmcgQ29tcGFyYWJsZXM6IDAiLCJQYXJ0aWFsIENvbXBhcmFibGVzOiAwIiwiUmVmZXJlbmNlIFJlc3VsdHM6IDAiLCJXZWFrIE1hdGNoZXM6IDAiLCJSZWplY3RlZCBNYXRjaGVzOiAxIl0sInJlY29tbWVuZGVkTGlzdGluZ1ByaWNlIjoiTG93LWNvbmZpZGVuY2UgY2F1dGlvdXMgZXN0aW1hdGUgLSAkMTUgLSAkNDAiLCJzdWdnZXN0ZWRPZmZlclJhbmdlIjoiTG93LWNvbmZpZGVuY2Ugb2ZmZXIgZ3VpZGFuY2UgLSAkMTAgLSAkMzAiLCJwcmljaW5nQ29uZmlkZW5jZSI6IkxvdyAtIExpc3RpbmcgcHJpY2Ugc3VwcG9ydCBpcyB3ZWFrIGJlY2F1c2UgcmVsaWFibGUgbGl2ZSByZXNlYXJjaCBldmlkZW5jZSBpcyBtaXNzaW5nLiBiYXNlZCBvbiBsYWNrIG9mIHJlbGlhYmxlIGNvbXBhcmFibGUgc2FsZXMgZGF0YSBhbmQgbGltaXRlZCBzb3VyY2UtYmFja2VkIHByaWNlIGd1aWRlczsgcmVjb21tZW5kIGNhdXRpb3VzIHByaWNpbmcuIiwicHJpY2luZ1JhdGlvbmFsZSI6IlZhbHVhdGlvbiBldmlkZW5jZSBzdGF0ZTogaW5zdWZmaWNpZW50LiAgTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIFByaWNpbmcgaXMgYSBjYXV0aW91cyBlc3RpbWF0ZSwgbm90IGV2aWRlbmNlLWJhY2tlZCBmYWN0LiBUaGUgS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIGlzIGEgY29tbW9uIHZpbnRhZ2UgZmlsbSBib3ggY2FtZXJhIGZyb20gY2lyY2EgMTk0MHMtMTk1MHM7IHZpc3VhbCBpbnNwZWN0aW9uIHN1cHBvcnRzIGlkZW50aWZpY2F0aW9uIGJ1dCBubyBzdHJvbmcgcmVjZW50IG1hcmtldCBkYXRhIGlzIGF2YWlsYWJsZTsgcHJpY2luZyBiYXNlZCBvbiBhbmFsb2dvdXMgdmludGFnZSBjYW1lcmEgcHJpY2UgZ3VpZGVzIGFuZCB0eXBpY2FsIGNvbGxlY3RpYmxlIG1hcmtldCB2YWx1ZXMuIiwib3B0aW1pemVkTGlzdGluZ1RpdGxlIjoiVmludGFnZSBLb2RhayBCcm93bmllIEhhd2tleWUgRmxhc2ggTW9kZWwgQm94IENhbWVyYSBNaWQtMjB0aCBDZW50dXJ5IiwibGlzdGluZ0Rlc2NyaXB0aW9uIjoiVXAgZm9yIHNhbGUgaXMgYSB2aW50YWdlIEtvZGFrIEJyb3duaWUgSGF3a2V5ZSBGbGFzaCBNb2RlbCBib3ggY2FtZXJhLCBhIGNsYXNzaWMgZmlsbSBjYW1lcmEgcG9wdWxhciBhbW9uZyBhbWF0ZXVyIHBob3RvZ3JhcGhlcnMgZHVyaW5nIHRoZSAxOTQwcyBhbmQgMTk1MHMuIFRoaXMgY29sbGVjdGlibGUgcGllY2UgZmVhdHVyZXMgdGhlIGRpc3RpbmN0aXZlIGJsYWNrIHJlY3Rhbmd1bGFyIGJveCBib2R5IHdpdGggdGhlIG9yaWdpbmFsIG1ldGFsIGxhYmVsIHBsYXRlIHJlYWRpbmcgJ0JST1dOSUUgS29kYWsgSEFXS0VZRSBDQU1FUkEgRmxhc2ggTU9ERUwnLiBJdCBpbmNsdWRlcyBhIHJvdGFyeSBmaWxtIGFkdmFuY2Uga25vYiBhbmQgYm90aCBhIGNpcmN1bGFyIHZpZXdmaW5kZXIgYW5kIGxhcmdlIGxlbnMgYXBlcnR1cmUuIEV4YWN0IG1hbnVmYWN0dXJlIGRhdGUsIGRldGFpbGVkIGNvbmRpdGlvbiwgYW5kIGF1dGhlbnRpY2l0eSBhcmUgdW52ZXJpZmllZCwgYnV0IHRoaXMgY2FtZXJhIGlzIGEgZ3JlYXQgYWRkaXRpb24gZm9yIHZpbnRhZ2UgY2FtZXJhIGNvbGxlY3RvcnMgYW5kIHBob3RvZ3JhcGh5IGVudGh1c2lhc3RzLiBQbGVhc2UgcmV2aWV3IHBob3RvcyBmb3IgdmlzaWJsZSBjb25kaXRpb24gYW5kIGZlZWwgZnJlZSB0byBhc2sgcXVlc3Rpb25zIGJlZm9yZSBwdXJjaGFzaW5nLiIsIml0ZW1TcGVjaWZpY3MiOlsiQnJhbmQ6IEtvZGFrIiwiTW9kZWw6IEJyb3duaWUgSGF3a2V5ZSBGbGFzaCBNb2RlbCIsIlR5cGU6IFZpbnRhZ2UgQm94IENhbWVyYSIsIkVyYTogQ2lyY2EgMTk0MHMtMTk1MHMgKGVzdGltYXRlZCkiLCJDb2xvcjogQmxhY2sgd2l0aCBzaWx2ZXIgbWV0YWwgbGFiZWwiLCJNYXRlcmlhbDogUGxhc3RpYyBhbmQgbWV0YWwgcGFydHMiLCJDb25kaXRpb246IFVzZWQgdmludGFnZSBjb25kaXRpb24gd2l0aCB3ZWFyIGNvbnNpc3RlbnQgd2l0aCBhZ2UsIGRldGFpbGVkIGNvbmRpdGlvbiBub3QgcHJvdmlkZWQiLCJEaXN0aW5jdGl2ZSBGZWF0dXJlczogQm94IHNoYXBlLCByb3RhcnkgZmlsbSBhZHZhbmNlIGtub2IsIGNpcmN1bGFyIHZpZXdmaW5kZXIsIGxhcmdlIGxlbnMsIGxhYmVsZWQgZnJvbnQgcGxhdGUiXSwiY29uZGl0aW9uTm90ZXMiOlsiV2VhciBjb25zaXN0ZW50IHdpdGggdmludGFnZSB1c2UgaW5jbHVkaW5nIGxpZ2h0IHN1cmZhY2Ugc2N1ZmZzIGFuZCBtaW5vciBwYWludCBsb3NzIHZpc2libGUgaW4gcGhvdG9zLiIsIkZ1bmN0aW9uYWxpdHkgdW50ZXN0ZWQsIHNvbGQgYXMtaXMgZm9yIGNvbGxlY3RpYmxlIHB1cnBvc2VzLiIsIk5vIGluZm8gb24gbWlzc2luZyBjb21wb25lbnRzIG9yIGludGVybmFsIGNvbmRpdGlvbiBhdmFpbGFibGUuIl0sInN1Z2dlc3RlZFNlbGxpbmdQbGF0Zm9ybSI6ImVCYXkiLCJhZGRpdGlvbmFsSW5mb3JtYXRpb25OZWVkZWQiOlsiRXhhY3QgbWFudWZhY3R1cmluZyBkYXRlIG9yIHNlcmlhbCBudW1iZXIgaWYgcG9zc2libGUiLCJEZXRhaWxlZCBjb25kaXRpb24gcmVwb3J0IGluY2x1ZGluZyBmdW5jdGlvbmFsaXR5IiwiSW5mb3JtYXRpb24gYWJvdXQgaW5jbHVkZWQgYWNjZXNzb3JpZXMgb3IgcGFja2FnaW5nIl0sInRpdGxlIjoiVmludGFnZSBLb2RhayBCcm93bmllIEhhd2tleWUgRmxhc2ggTW9kZWwgQm94IENhbWVyYSBNaWQtMjB0aCBDZW50dXJ5IiwiZGVzY3JpcHRpb24iOiJVcCBmb3Igc2FsZSBpcyBhIHZpbnRhZ2UgS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIGJveCBjYW1lcmEsIGEgY2xhc3NpYyBmaWxtIGNhbWVyYSBwb3B1bGFyIGFtb25nIGFtYXRldXIgcGhvdG9ncmFwaGVycyBkdXJpbmcgdGhlIDE5NDBzIGFuZCAxOTUwcy4gVGhpcyBjb2xsZWN0aWJsZSBwaWVjZSBmZWF0dXJlcyB0aGUgZGlzdGluY3RpdmUgYmxhY2sgcmVjdGFuZ3VsYXIgYm94IGJvZHkgd2l0aCB0aGUgb3JpZ2luYWwgbWV0YWwgbGFiZWwgcGxhdGUgcmVhZGluZyAnQlJPV05JRSBLb2RhayBIQVdLRVlFIENBTUVSQSBGbGFzaCBNT0RFTCcuIEl0IGluY2x1ZGVzIGEgcm90YXJ5IGZpbG0gYWR2YW5jZSBrbm9iIGFuZCBib3RoIGEgY2lyY3VsYXIgdmlld2ZpbmRlciBhbmQgbGFyZ2UgbGVucyBhcGVydHVyZS4gRXhhY3QgbWFudWZhY3R1cmUgZGF0ZSwgZGV0YWlsZWQgY29uZGl0aW9uLCBhbmQgYXV0aGVudGljaXR5IGFyZSB1bnZlcmlmaWVkLCBidXQgdGhpcyBjYW1lcmEgaXMgYSBncmVhdCBhZGRpdGlvbiBmb3IgdmludGFnZSBjYW1lcmEgY29sbGVjdG9ycyBhbmQgcGhvdG9ncmFwaHkgZW50aHVzaWFzdHMuIFBsZWFzZSByZXZpZXcgcGhvdG9zIGZvciB2aXNpYmxlIGNvbmRpdGlvbiBhbmQgZmVlbCBmcmVlIHRvIGFzayBxdWVzdGlvbnMgYmVmb3JlIHB1cmNoYXNpbmcuIiwiaXRlbURldGFpbHMiOlsiTWFrZXIvQnJhbmQ6IEtvZGFrIiwiTW9kZWwgTmFtZTogQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIiwiVHlwZTogRmlsbSBib3ggY2FtZXJhIiwiRGF0ZS9FcmE6IEFwcHJveC4gMTk0MHMtMTk1MHMiLCJNYWluIENvbG9yczogQmxhY2ssIFNpbHZlciAobGFiZWwgcGxhdGUpIiwiTWF0ZXJpYWw6IFBsYXN0aWMsIE1ldGFsIiwiRGlzdGluY3RpdmUgRmVhdHVyZXM6IEJveCBzaGFwZSwgYnJhbmRlZCBmcm9udCBwbGF0ZSwgcm90YXJ5IGZpbG0gYWR2YW5jZSBrbm9iLCBjaXJjdWxhciB2aWV3ZmluZGVyIiwiQ29uZGl0aW9uOiBVc2VkIHZpbnRhZ2UsIHZpc2libGUgd2VhciwgZnVuY3Rpb25hbCBzdGF0dXMgdW5rbm93biJdLCJwcmljZVN0cmF0ZWd5IjoiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIFByaWNpbmcgaXMgYSBjYXV0aW91cyBlc3RpbWF0ZSwgbm90IGV2aWRlbmNlLWJhY2tlZCBmYWN0LiBTZXQgYSBjb25zZXJ2YXRpdmUgc3RhcnRpbmcgcHJpY2Ugd2l0aGluICQxNSB0byAkNDAgcmFuZ2Ugd2l0aCBhbiBvcHRpb24gZm9yIGJ1eWVycyB0byBvZmZlciB3aXRoaW4gJDEwIHRvICQzMCwgZ2l2ZW4gbGFjayBvZiBzdHJvbmcgY29tcGFyYWJsZSBzYWxlcyBkYXRhIGFuZCBtZWRpdW0gY2VydGFpbnR5IGFib3V0IGNvbGxlY3RvciB2YWx1ZS4iLCJleHBlY3RlZFNlbGxpbmdUaW1lbGluZSI6IjEtMyBtb250aHMgZGVwZW5kaW5nIG9uIG5pY2hlIGludGVyZXN0IGFuZCBsaXN0aW5nIHZpc2liaWxpdHkuIiwic2hpcHBpbmdEZWxpdmVyeSI6IlN0YW5kYXJkIHNoaXBwaW5nIHdpdGggdHJhY2tpbmcgcmVjb21tZW5kZWQ7IGNhbGN1bGF0ZSBzaGlwcGluZyBjb3N0IGJhc2VkIG9uIHBhY2thZ2Ugd2VpZ2h0IGFuZCBkaW1lbnNpb25zOyBjb25zaWRlciBpbnRlcm5hdGlvbmFsIHNoaXBwaW5nIGZvciBicm9hZGVyIGJ1eWVyIHBvb2wuIiwic3RhZ2luZ1Bob3RvcyI6IkNsZWFyIGhpZ2gtcmVzb2x1dGlvbiBwaG90b3Mgb2YgZnJvbnQsIGJhY2ssIHNpZGVzLCB0b3AsIGJvdHRvbSwgY2xvc2UtdXBzIG9mIGxhYmVsLCB2aWV3ZmluZGVyLCByb3Rhcnkga25vYiwgYW5kIGFueSB2aXNpYmxlIG1hcmtpbmdzIG9yIHdlYXIgc3BvdHMuIiwic2VsbGVyTm90ZXMiOlsiU2VsbGVyIHByb3ZpZGVkIGJhc2ljIGl0ZW0gaWRlbnRpdHkgYXMg4oCYQlJPV05JRSBIQVdLRVlFIENBTUVSQSB8IEZMQVNIIE1PREVM4oCZIHdoaWNoIGFsaWducyB3aXRoIHZpc2libGUgYnJhbmRpbmcgYW5kIGRlc2lnbi4iLCJObyBhZGRpdGlvbmFsIGNvbmRpdGlvbiBvciBhY2Nlc3NvcnkgaW5mbyBzdXBwbGllZC4iXSwidmlzdWFsU3ViamVjdCI6IlZpbnRhZ2UgQm94IENhbWVyYSIsInZpc3VhbFN1YmplY3RDYXRlZ29yeSI6IlBob3RvZ3JhcGh5IEVxdWlwbWVudCIsInZpc3VhbFN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4iLCJyZWNvZ25pemVkT3JnYW5pemF0aW9uIjoiS29kYWsiLCJyZWNvZ25pemVkQnJhbmQiOiJCcm93bmllIEhhd2tleWUiLCJyZWNvZ25pemVkQ2hhcmFjdGVyIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZEluc3RpdHV0aW9uIjoiTm90IHZlcmlmaWVkIiwicmVjb2duaXplZFRoZW1lIjoiUGhvdG9ncmFwaHkiLCJ2aXN1YWxSZWNvZ25pdGlvbkV2aWRlbmNlIjpbIlR3byBpbWFnZXMgc2hvdyBhIGJveCBjYW1lcmEgd2l0aCBhIHByb21pbmVudCBsYWJlbCByZWFkaW5nICdCUk9XTklFIEtvZGFrIEhBV0tFWUUgQ0FNRVJBIEZsYXNoIE1PREVMJyIsIkJsYWNrIGJveCBjYW1lcmEgd2l0aCBtZXRhbCBhbmQgcGxhc3RpYyBwYXJ0cyIsIlJvdGFyeSBrbm9iIGxpa2VseSBmb3IgZmlsbSBhZHZhbmNlIiwiU21hbGwgY2lyY3VsYXIgdmlld2ZpbmRlciBhbmQgbGFyZ2VyIGxlbnMgb3BlbmluZyIsIkJveCBzaGFwZSIsIlZpZXdmaW5kZXIiLCJMYXJnZSBmb2N1c2luZyBsZW5zIiwiTGFiZWwgd2l0aCBicmFuZCBhbmQgbW9kZWwiLCJWaXNpYmxlIGxvZ28vc3ltYm9sOiBLb2RhayIsIlZpc2libGUgbGV0dGVyOiBCUk9XTklFIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgbWFudWZhY3R1cmUgZGF0ZSIsIkl0ZW0gY29uZGl0aW9uIGRldGFpbHMgYmV5b25kIHZpc3VhbCB3ZWFyIl0sInZpc3VhbFJlY29nbml0aW9uQ29uZmxpY3RzIjpbXSwidmlzdWFsUmVjb2duaXRpb25TdW1tYXJ5IjoiVmlzdWFsIFN1YmplY3Q6IFZpbnRhZ2UgQm94IENhbWVyYSB8IENhdGVnb3J5OiBQaG90b2dyYXBoeSBFcXVpcG1lbnQgfCBDb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiB8IFJlY29nbml6ZWQgY2x1ZXM6IG9yZ2FuaXphdGlvbjogS29kYWs7IGJyYW5kOiBCcm93bmllIEhhd2tleWU7IGNoYXJhY3RlcjogTm90IHZlcmlmaWVkOyBpbnN0aXR1dGlvbjogTm90IHZlcmlmaWVkOyB0aGVtZTogUGhvdG9ncmFwaHkgfCBTdXBwb3J0aW5nIGV2aWRlbmNlOiBUd28gaW1hZ2VzIHNob3cgYSBib3ggY2FtZXJhIHdpdGggYSBwcm9taW5lbnQgbGFiZWwgcmVhZGluZyAnQlJPV05JRSBLb2RhayBIQVdLRVlFIENBTUVSQSBGbGFzaCBNT0RFTCc7IEJsYWNrIGJveCBjYW1lcmEgd2l0aCBtZXRhbCBhbmQgcGxhc3RpYyBwYXJ0czsgUm90YXJ5IGtub2IgbGlrZWx5IGZvciBmaWxtIGFkdmFuY2U7IFNtYWxsIGNpcmN1bGFyIHZpZXdmaW5kZXIgYW5kIGxhcmdlciBsZW5zIG9wZW5pbmcgfCBTdGlsbCB1bmtub3duOiBFeGFjdCBtYW51ZmFjdHVyZSBkYXRlOyBJdGVtIGNvbmRpdGlvbiBkZXRhaWxzIGJleW9uZCB2aXN1YWwgd2VhciB8IFVzZXIgZXZpZGVuY2UgcmVjb25jaWxpYXRpb246IFVzZXIgbm90ZXMgaW5kaWNhdGluZyAnQlJPV05JRSBIQVdLRVlFIENBTUVSQSB8IEZMQVNIIE1PREVMJyBmdWxseSBhbGlnbiB3aXRoIHZpc2libGUgdGV4dCBhbmQgY2FtZXJhIGRlc2lnbiwgY29uZmlybWluZyBzdWJqZWN0IGlkZW50aXR5IGFuZCByZWluZm9yY2luZyBjb25maWRlbmNlLiB8IFN1bW1hcnk6IFRoZSBpbWFnZXMgZGVwaWN0IGEgdmludGFnZSBLb2RhayBCcm93bmllIEhhd2tleWUgRmxhc2ggTW9kZWwgYm94IGNhbWVyYSwgYSBjbGFzc2ljIG1pZC0yMHRoIGNlbnR1cnkgZmlsbSBjYW1lcmEgcmVjb2duaXplZCBieSBpdHMgYm94eSBzaGFwZSwgdmlld2ZpbmRlciwgYW5kIGJyYW5kZWQgbGFiZWwgcGxhdGUuIFRoZSBjYW1lcmEgaXMgYSBjb2xsZWN0aWJsZSBwaG90b2dyYXBoeSBlcXVpcG1lbnQgaXRlbS4iLCJzdWJqZWN0SWRlbnRpdHkiOiJWaW50YWdlIEJveCBDYW1lcmEiLCJzdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiZXhhY3RQcm9kdWN0SWRlbnRpdHkiOiJLb2RhayBCcm93bmllIEhhd2tleWUgRmxhc2ggTW9kZWwgdmludGFnZSBib3ggY2FtZXJhIiwiZXhhY3RQcm9kdWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBjb25maXJtZWQgYnkgdmlzaWJsZSBicmFuZCBhbmQgbW9kZWwgbGFiZWwgb24gZnJvbnQgcGxhdGUiLCJtYWtlckRhdGVMaWNlbnNpbmdTdGF0dXMiOlsiTWFrZXIgLyBNYW51ZmFjdHVyZXI6IEtvZGFrIiwiRGF0ZSAvIEVyYTogMTk0MHMtMTk1MHMiLCJMaWNlbnNpbmc6IE5vdCB2ZXJpZmllZCIsIkF1dGhlbnRpY2l0eTogTm90IHZlcmlmaWVkIl0sIndoYXRJc0tub3duIjpbIlN1YmplY3Q6IFZpbnRhZ2UgQm94IENhbWVyYSIsIlVzZXItcHJvdmlkZWQgaWRlbnRpdHk6IEJST1dOSUUgSEFXS0VZRSBDQU1FUkEgfCBGTEFTSCBNT0RFTCIsIlZpc3VhbCBldmlkZW5jZTogQm94IGNhbWVyYSB3aXRoIGxhYmVsICdCUk9XTklFIEtvZGFrIEhBV0tFWUUgQ0FNRVJBIEZsYXNoIE1PREVMJyIsIlZpc3VhbCBldmlkZW5jZTogQmxhY2sgYm94eSBzaGFwZSB3aXRoIG1ldGFsIGFuZCBwbGFzdGljIHBhcnRzIiwiVmlzdWFsIGV2aWRlbmNlOiBSb3RhcnkgZmlsbSBhZHZhbmNlIGtub2IiLCJUZXh0IGV2aWRlbmNlOiBCUk9XTklFIiwiVGV4dCBldmlkZW5jZTogS29kYWsiLCJUZXh0IGV2aWRlbmNlOiBIQVdLRVlFIl0sIndoYXRJc1N0aWxsVW5rbm93biI6WyJFeGFjdCBtYW51ZmFjdHVyZSBkYXRlIiwiRGV0YWlsZWQgaXRlbSBjb25kaXRpb24gYmV5b25kIHZpc2libGUgd2VhciIsIkl0ZW0gY29uZGl0aW9uIGRldGFpbHMgYmV5b25kIHZpc3VhbCB3ZWFyIiwiTGljZW5zaW5nIHN0YXR1cyBub3QgdmVyaWZpZWQuIiwiQXV0aGVudGljaXR5IG5vdCB2ZXJpZmllZC4iXSwiaWRlbnRpdHlDb25mbGljdHMiOltdLCJpZGVudGl0eVN1bW1hcnkiOiJTdWJqZWN0IElkZW50aXR5OiBWaW50YWdlIEJveCBDYW1lcmEgfCBTdWJqZWN0IENvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIHwgRXhhY3QgUHJvZHVjdCBJZGVudGl0eTogS29kYWsgQnJvd25pZSBIYXdrZXllIEZsYXNoIE1vZGVsIHZpbnRhZ2UgYm94IGNhbWVyYSB8IE1ha2VyIC8gTWFudWZhY3R1cmVyOiBLb2RhayB8IExpY2Vuc2luZyAvIEF1dGhlbnRpY2l0eTogVW5rbm93biAvIFVua25vd24iLCJyZXN1bHRzRm91bmQiOlt7InRpdGxlIjoiQW50aXF1ZSwgdmludGFnZSBhbmQgdXNlZCBkaWdpdGFsY2FtZXJhcy9sZW5zZXMgcHJpY2UgZ3VpZGUuIENvbGxlY3RpQmxlbmQgQXZlcmFnZSBJbmRleCBBdmVyYWdlVmVyeSBnb29kTWludCQxMC0yMCQxMC0yMCQzMC00MEVzdGltYXRlIHZhbHVlIGFjY3VyYWN5OiBXZSBkb24ndCIsInNvdXJjZSI6ImJvZW5ib3guY29tIiwidXJsIjoiaHR0cHM6Ly9ib2VuYm94LmNvbS9pbWcvZmlsZXMvZjBiNjExYWUtOWViNS00ZjQyLWE2NWMtMWUwYjA3NDI2YTBkLnBkZiIsImRpc3BsYXllZFByaWNlIjoiJDEwIiwiY3VycmVuY3kiOiIkIiwicHJpY2VUeXBlIjoiUHJpY2UgdHlwZSBub3QgY29uZmlybWVkIiwiY29uZGl0aW9uIjoiIiwiY2xhc3NpZmljYXRpb24iOiJSZWplY3RlZCBNYXRjaCIsImV2aWRlbmNlUm9sZSI6IlJlamVjdGVkIGV2aWRlbmNlOyBzaG91bGQgbm90IGRyaXZlIHByaWNlLiBSZWplY3RlZCBNYXRjaCIsIm1hdGNoRXhwbGFuYXRpb24iOiJBbnRpcXVlLCB2aW50YWdlIGFuZCB1c2VkIGRpZ2l0YWxjYW1lcmFzL2xlbnNlcyBwcmljZSBndWlkZS4gQ29sbGVjdGlCbGVuZCBBdmVyYWdlIEluZGV4IEF2ZXJhZ2VWZXJ5IGdvb2RNaW50JDEwLTIwJDEwLTIwJDMwLTQwRXN0aW1hdGUgdmFsdWUgYWNjdXJhY3k6IFdlIGRvbid0IGhhdmUgZW5vdWdoIGluZm9ybWF0aW9uIHRvIHByb3ZpZGUgYW4gYWNjdXJhdGUgcHJpY2UgZm9yIHRoaXMgY2FtZXJhLCBzbyB0aGlzIGlzIHRoZSBzdWdnZXN0aW9uIGJhcyIsIml0ZW1JZGVudGl0eURpZmZlcmVuY2VzIjoiIiwiaW5mbHVlbmNlZFJlZmVyZW5jZVJhbmdlIjoiTm8uIiwicmVqZWN0aW9uUmVhc29uIjoiTm90IHJlbGlhYmxlIGVub3VnaCBmb3IgdmFsdWF0aW9uLiBDbGFzc2lmaWNhdGlvbjogUmVqZWN0ZWQgTWF0Y2guIiwic291cmNlQmFja2VkIjoiVVJMIHByb3ZpZGVkIGJ5IHJlc3VsdCB0ZXh0IiwicmF3VGV4dCI6IkFudGlxdWUsIHZpbnRhZ2UgYW5kIHVzZWQgZGlnaXRhbGNhbWVyYXMvbGVuc2VzIHByaWNlIGd1aWRlLiBDb2xsZWN0aUJsZW5kIEF2ZXJhZ2UgSW5kZXggQXZlcmFnZVZlcnkgZ29vZE1pbnQkMTAtMjAkMTAtMjAkMzAtNDBFc3RpbWF0ZSB2YWx1ZSBhY2N1cmFjeTogV2UgZG9uJ3QgaGF2ZSBlbm91Z2ggaW5mb3JtYXRpb24gdG8gcHJvdmlkZSBhbiBhY2N1cmF0ZSBwcmljZSBmb3IgdGhpcyBjYW1lcmEsIHNvIHRoaXMgaXMgdGhlIHN1Z2dlc3Rpb24gYmFzZWQgb24gd2hhdCB3ZSBoYXZlLkNhbWVyYSByYXJpdHkgKFZlcnkgY29tbW9uLiBWb3RlczogMykgQ2FtZXJhIHNhbGVzIGFuZCBvdGhlciAoaHR0cHM6Ly9ib2VuYm94LmNvbS9pbWcvZmlsZXMvZjBiNjExYWUtOWViNS00ZjQyLWE2NWMtMWUwYjA3NDI2YTBkLnBkZikifV0sInN0cm9uZ0NvbXBhcmFibGVzIjpbXSwicGFydGlhbENvbXBhcmFibGVzIjpbXSwicmVmZXJlbmNlUmVzdWx0cyI6W10sIndlYWtNYXRjaGVzIjpbXSwicmVqZWN0ZWRNYXRjaGVzIjpbeyJ0aXRsZSI6IkFudGlxdWUsIHZpbnRhZ2UgYW5kIHVzZWQgZGlnaXRhbGNhbWVyYXMvbGVuc2VzIHByaWNlIGd1aWRlLiBDb2xsZWN0aUJsZW5kIEF2ZXJhZ2UgSW5kZXggQXZlcmFnZVZlcnkgZ29vZE1pbnQkMTAtMjAkMTAtMjAkMzAtNDBFc3RpbWF0ZSB2YWx1ZSBhY2N1cmFjeTogV2UgZG9uJ3QiLCJzb3VyY2UiOiJib2VuYm94LmNvbSIsInVybCI6Imh0dHBzOi8vYm9lbmJveC5jb20vaW1nL2ZpbGVzL2YwYjYxMWFlLTllYjUtNGY0Mi1hNjVjLTFlMGIwNzQyNmEwZC5wZGYiLCJkaXNwbGF5ZWRQcmljZSI6IiQxMCIsImN1cnJlbmN5IjoiJCIsInByaWNlVHlwZSI6IlByaWNlIHR5cGUgbm90IGNvbmZpcm1lZCIsImNvbmRpdGlvbiI6IiIsImNsYXNzaWZpY2F0aW9uIjoiUmVqZWN0ZWQgTWF0Y2giLCJldmlkZW5jZVJvbGUiOiJSZWplY3RlZCBldmlkZW5jZTsgc2hvdWxkIG5vdCBkcml2ZSBwcmljZS4gUmVqZWN0ZWQgTWF0Y2giLCJtYXRjaEV4cGxhbmF0aW9uIjoiQW50aXF1ZSwgdmludGFnZSBhbmQgdXNlZCBkaWdpdGFsY2FtZXJhcy9sZW5zZXMgcHJpY2UgZ3VpZGUuIENvbGxlY3RpQmxlbmQgQXZlcmFnZSBJbmRleCBBdmVyYWdlVmVyeSBnb29kTWludCQxMC0yMCQxMC0yMCQzMC00MEVzdGltYXRlIHZhbHVlIGFjY3VyYWN5OiBXZSBkb24ndCBoYXZlIGVub3VnaCBpbmZvcm1hdGlvbiB0byBwcm92aWRlIGFuIGFjY3VyYXRlIHByaWNlIGZvciB0aGlzIGNhbWVyYSwgc28gdGhpcyBpcyB0aGUgc3VnZ2VzdGlvbiBiYXMiLCJpdGVtSWRlbnRpdHlEaWZmZXJlbmNlcyI6IiIsImluZmx1ZW5jZWRSZWZlcmVuY2VSYW5nZSI6Ik5vLiIsInJlamVjdGlvblJlYXNvbiI6Ik5vdCByZWxpYWJsZSBlbm91Z2ggZm9yIHZhbHVhdGlvbi4gQ2xhc3NpZmljYXRpb246IFJlamVjdGVkIE1hdGNoLiIsInNvdXJjZUJhY2tlZCI6IlVSTCBwcm92aWRlZCBieSByZXN1bHQgdGV4dCIsInJhd1RleHQiOiJBbnRpcXVlLCB2aW50YWdlIGFuZCB1c2VkIGRpZ2l0YWxjYW1lcmFzL2xlbnNlcyBwcmljZSBndWlkZS4gQ29sbGVjdGlCbGVuZCBBdmVyYWdlIEluZGV4IEF2ZXJhZ2VWZXJ5IGdvb2RNaW50JDEwLTIwJDEwLTIwJDMwLTQwRXN0aW1hdGUgdmFsdWUgYWNjdXJhY3k6IFdlIGRvbid0IGhhdmUgZW5vdWdoIGluZm9ybWF0aW9uIHRvIHByb3ZpZGUgYW4gYWNjdXJhdGUgcHJpY2UgZm9yIHRoaXMgY2FtZXJhLCBzbyB0aGlzIGlzIHRoZSBzdWdnZXN0aW9uIGJhc2VkIG9uIHdoYXQgd2UgaGF2ZS5DYW1lcmEgcmFyaXR5IChWZXJ5IGNvbW1vbi4gVm90ZXM6IDMpIENhbWVyYSBzYWxlcyBhbmQgb3RoZXIgKGh0dHBzOi8vYm9lbmJveC5jb20vaW1nL2ZpbGVzL2YwYjYxMWFlLTllYjUtNGY0Mi1hNjVjLTFlMGIwNzQyNmEwZC5wZGYpIn1dLCJzZWFyY2hMaW1pdGF0aW9ucyI6WyJFeGFjdCBwaHJhc2Ugc2VhcmNoZXMgd2VyZSBhdHRlbXB0ZWQsIGJ1dCB0aGUgbGl2ZSByZXNwb25zZSBkaWQgbm90IHJldHVybiBVUkwtY2l0ZWQgc291cmNlIHJlY29yZHMuIiwiTm8gZXhhY3Qgb3Igc3Ryb25nIGNvbXBhcmFibGUgcmVjb3JkcyBhcmUgdmlzaWJsZSBpbiB0aGlzIHJlcG9ydC4iLCJXZWFrIGFuZCByZWplY3RlZCBtYXRjaGVzIGFyZSBzaG93biBmb3IgdHJhbnNwYXJlbmN5IGJ1dCBkbyBub3QgZXN0YWJsaXNoIGZhaXIgbWFya2V0IHZhbHVlLiJdLCJ2aXNpYmxlUmVzZWFyY2hSZXN1bHRDb3VudCI6MSwicmVmZXJlbmNlUmFuZ2VCYXNpcyI6IjEgdmlzaWJsZSBzb3VyY2UtYmFja2VkIHJlc3VsdCB3ZXJlIHJldHVybmVkLiBTdHJvbmcgcmVzdWx0cyBjYW4gc3VwcG9ydCB2YWx1ZTsgcGFydGlhbC9yZWZlcmVuY2UgcmVzdWx0cyBjYW4gb25seSBzdXBwb3J0IGEgcHJlbGltaW5hcnkgcmFuZ2U7IHdlYWsvcmVqZWN0ZWQgbWF0Y2hlcyBkbyBub3QgZXN0YWJsaXNoIGZhaXIgdmFsdWUuIiwidmFsdWF0aW9uRXZpZGVuY2VTdGF0ZSI6Imluc3VmZmljaWVudCIsInZhbHVhdGlvbkV2aWRlbmNlTGFiZWwiOiJGYWlyIFZhbHVlIE5vdCBFc3RhYmxpc2hlZCIsInZhbHVhdGlvbkV2aWRlbmNlRXhwbGFuYXRpb24iOiJUaGUgYXZhaWxhYmxlIGV2aWRlbmNlIGlzIHRvbyB3ZWFrIGZvciBhIGRlZmVuc2libGUgZG9sbGFyIHJhbmdlLiIsInByaWNpbmdFdmlkZW5jZVN0YXRlIjoiaW5zdWZmaWNpZW50In19",
+  "rawProductResponse": {
+    "listing": {
+      "platform": "eBay",
+      "categorySuggestion": "Cameras & Photo > Vintage Movie & Photography > Vintage Cameras",
+      "identifiedItem": "Kodak Brownie Hawkeye Flash Model vintage box camera",
+      "identificationConfidence": "High - confirmed by visible brand and model label on front plate",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Vintage Box Camera",
+        "Visual subject category: Photography Equipment",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Kodak",
+        "Recognized brand: Brownie Hawkeye",
+        "Recognized character: Not verified",
+        "Subject identity: Vintage Box Camera",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "User-provided identity: BROWNIE HAWKEYE CAMERA | FLASH MODEL",
+        "Exact product identity: Kodak Brownie Hawkeye Flash Model vintage box camera",
+        "Exact product confidence: High - confirmed by visible brand and model label on front plate",
+        "Brand: Kodak"
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"'BROWNIE Kodak HAWKEYE CAMERA Flash\" Brownie Hawkeye collector plate",
+        "\"A collector's vintage film box camera\" Kodak Brownie Hawkeye collector",
+        "\"Box camera with label 'BROWNIE Kodak\" Brownie Hawkeye collector plate",
+        "\"Box camera with label 'BROWNIE Kodak\" Kodak Brownie Hawkeye collector",
+        "\"Brownie Hawkeye Flash Model\" Brownie Hawkeye collector plate",
+        "\"BROWNIE Kodak HAWKEYE CAMERA Flash MODEL\" Brownie Hawkeye collector plate",
+        "\"A collector's vintage film box camera produced by\" Brownie Hawkeye",
+        "\"A collector's vintage film box camera produced by\" Kodak Brownie",
+        "\"A collector's vintage film box camera\" Brownie Hawkeye collector plate",
+        "\"A collector's vintage film box camera produced by Kodak,\" Kodak",
+        "\"Flash Model\" Brownie Hawkeye collector plate",
+        "Kodak Brownie Hawkeye Flash Model vintage box camera Brownie Hawkeye",
+        "Brownie Hawkeye Flash Model collector plate",
+        "\"Brownie Hawkeye\" Brownie Hawkeye collector plate"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+        "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "researchResults": [
+        {
+          "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+          "source": "boenbox.com",
+          "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+          "displayedPrice": "$10",
+          "currency": "$",
+          "priceType": "Price type not confirmed",
+          "condition": "",
+          "classification": "Rejected Match",
+          "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+          "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+          "itemIdentityDifferences": "",
+          "influencedReferenceRange": "No.",
+          "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+          "sourceBacked": "URL provided by result text",
+          "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+        }
+      ],
+      "comparableQuality": [
+        "Strong Comparables: 0",
+        "Partial Comparables: 0",
+        "Reference Results: 0",
+        "Weak Matches: 0",
+        "Rejected Matches: 1"
+      ],
+      "recommendedListingPrice": "Low-confidence cautious estimate - $15 - $40",
+      "suggestedOfferRange": "Low-confidence offer guidance - $10 - $30",
+      "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. based on lack of reliable comparable sales data and limited source-backed price guides; recommend cautious pricing.",
+      "pricingRationale": "Valuation evidence state: insufficient.  Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. The Kodak Brownie Hawkeye Flash Model is a common vintage film box camera from circa 1940s-1950s; visual inspection supports identification but no strong recent market data is available; pricing based on analogous vintage camera price guides and typical collectible market values.",
+      "optimizedListingTitle": "Vintage Kodak Brownie Hawkeye Flash Model Box Camera Mid-20th Century",
+      "listingDescription": "Up for sale is a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic film camera popular among amateur photographers during the 1940s and 1950s. This collectible piece features the distinctive black rectangular box body with the original metal label plate reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'. It includes a rotary film advance knob and both a circular viewfinder and large lens aperture. Exact manufacture date, detailed condition, and authenticity are unverified, but this camera is a great addition for vintage camera collectors and photography enthusiasts. Please review photos for visible condition and feel free to ask questions before purchasing.",
+      "itemSpecifics": [
+        "Brand: Kodak",
+        "Model: Brownie Hawkeye Flash Model",
+        "Type: Vintage Box Camera",
+        "Era: Circa 1940s-1950s (estimated)",
+        "Color: Black with silver metal label",
+        "Material: Plastic and metal parts",
+        "Condition: Used vintage condition with wear consistent with age, detailed condition not provided",
+        "Distinctive Features: Box shape, rotary film advance knob, circular viewfinder, large lens, labeled front plate"
+      ],
+      "conditionNotes": [
+        "Wear consistent with vintage use including light surface scuffs and minor paint loss visible in photos.",
+        "Functionality untested, sold as-is for collectible purposes.",
+        "No info on missing components or internal condition available."
+      ],
+      "suggestedSellingPlatform": "eBay",
+      "additionalInformationNeeded": [
+        "Exact manufacturing date or serial number if possible",
+        "Detailed condition report including functionality",
+        "Information about included accessories or packaging"
+      ],
+      "title": "Vintage Kodak Brownie Hawkeye Flash Model Box Camera Mid-20th Century",
+      "description": "Up for sale is a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic film camera popular among amateur photographers during the 1940s and 1950s. This collectible piece features the distinctive black rectangular box body with the original metal label plate reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'. It includes a rotary film advance knob and both a circular viewfinder and large lens aperture. Exact manufacture date, detailed condition, and authenticity are unverified, but this camera is a great addition for vintage camera collectors and photography enthusiasts. Please review photos for visible condition and feel free to ask questions before purchasing.",
+      "itemDetails": [
+        "Maker/Brand: Kodak",
+        "Model Name: Brownie Hawkeye Flash Model",
+        "Type: Film box camera",
+        "Date/Era: Approx. 1940s-1950s",
+        "Main Colors: Black, Silver (label plate)",
+        "Material: Plastic, Metal",
+        "Distinctive Features: Box shape, branded front plate, rotary film advance knob, circular viewfinder",
+        "Condition: Used vintage, visible wear, functional status unknown"
+      ],
+      "priceStrategy": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. Set a conservative starting price within $15 to $40 range with an option for buyers to offer within $10 to $30, given lack of strong comparable sales data and medium certainty about collector value.",
+      "expectedSellingTimeline": "1-3 months depending on niche interest and listing visibility.",
+      "shippingDelivery": "Standard shipping with tracking recommended; calculate shipping cost based on package weight and dimensions; consider international shipping for broader buyer pool.",
+      "stagingPhotos": "Clear high-resolution photos of front, back, sides, top, bottom, close-ups of label, viewfinder, rotary knob, and any visible markings or wear spots.",
+      "sellerNotes": [
+        "Seller provided basic item identity as ‘BROWNIE HAWKEYE CAMERA | FLASH MODEL’ which aligns with visible branding and design.",
+        "No additional condition or accessory info supplied."
+      ],
+      "visualSubject": "Vintage Box Camera",
+      "visualSubjectCategory": "Photography Equipment",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Kodak",
+      "recognizedBrand": "Brownie Hawkeye",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Photography",
+      "visualRecognitionEvidence": [
+        "Two images show a box camera with a prominent label reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'",
+        "Black box camera with metal and plastic parts",
+        "Rotary knob likely for film advance",
+        "Small circular viewfinder and larger lens opening",
+        "Box shape",
+        "Viewfinder",
+        "Large focusing lens",
+        "Label with brand and model",
+        "Visible logo/symbol: Kodak",
+        "Visible letter: BROWNIE"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact manufacture date",
+        "Item condition details beyond visual wear"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Vintage Box Camera | Category: Photography Equipment | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Kodak; brand: Brownie Hawkeye; character: Not verified; institution: Not verified; theme: Photography | Supporting evidence: Two images show a box camera with a prominent label reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'; Black box camera with metal and plastic parts; Rotary knob likely for film advance; Small circular viewfinder and larger lens opening | Still unknown: Exact manufacture date; Item condition details beyond visual wear | User evidence reconciliation: User notes indicating 'BROWNIE HAWKEYE CAMERA | FLASH MODEL' fully align with visible text and camera design, confirming subject identity and reinforcing confidence. | Summary: The images depict a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic mid-20th century film camera recognized by its boxy shape, viewfinder, and branded label plate. The camera is a collectible photography equipment item.",
+      "subjectIdentity": "Vintage Box Camera",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Kodak Brownie Hawkeye Flash Model vintage box camera",
+      "exactProductConfidence": "High - confirmed by visible brand and model label on front plate",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Kodak",
+        "Date / Era: 1940s-1950s",
+        "Licensing: Not verified",
+        "Authenticity: Not verified"
+      ],
+      "whatIsKnown": [
+        "Subject: Vintage Box Camera",
+        "User-provided identity: BROWNIE HAWKEYE CAMERA | FLASH MODEL",
+        "Visual evidence: Box camera with label 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'",
+        "Visual evidence: Black boxy shape with metal and plastic parts",
+        "Visual evidence: Rotary film advance knob",
+        "Text evidence: BROWNIE",
+        "Text evidence: Kodak",
+        "Text evidence: HAWKEYE"
+      ],
+      "whatIsStillUnknown": [
+        "Exact manufacture date",
+        "Detailed item condition beyond visible wear",
+        "Item condition details beyond visual wear",
+        "Licensing status not verified.",
+        "Authenticity not verified."
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Vintage Box Camera | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Kodak Brownie Hawkeye Flash Model vintage box camera | Maker / Manufacturer: Kodak | Licensing / Authenticity: Unknown / Unknown",
+      "resultsFound": [
+        {
+          "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+          "source": "boenbox.com",
+          "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+          "displayedPrice": "$10",
+          "currency": "$",
+          "priceType": "Price type not confirmed",
+          "condition": "",
+          "classification": "Rejected Match",
+          "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+          "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+          "itemIdentityDifferences": "",
+          "influencedReferenceRange": "No.",
+          "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+          "sourceBacked": "URL provided by result text",
+          "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+        }
+      ],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [
+        {
+          "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+          "source": "boenbox.com",
+          "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+          "displayedPrice": "$10",
+          "currency": "$",
+          "priceType": "Price type not confirmed",
+          "condition": "",
+          "classification": "Rejected Match",
+          "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+          "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+          "itemIdentityDifferences": "",
+          "influencedReferenceRange": "No.",
+          "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+          "sourceBacked": "URL provided by result text",
+          "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+        }
+      ],
+      "searchLimitations": [
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report.",
+        "Weak and rejected matches are shown for transparency but do not establish fair market value."
+      ],
+      "visibleResearchResultCount": 1,
+      "referenceRangeBasis": "1 visible source-backed result were returned. Strong results can support value; partial/reference results can only support a preliminary range; weak/rejected matches do not establish fair value.",
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "pricingEvidenceState": "insufficient"
+    }
+  },
+  "customerFacingReport": {
+    "platform": "eBay",
+    "categorySuggestion": "Cameras & Photo > Vintage Movie & Photography > Vintage Cameras",
+    "identifiedItem": "Kodak Brownie Hawkeye Flash Model vintage box camera",
+    "identificationConfidence": "High - confirmed by visible brand and model label on front plate",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Vintage Box Camera",
+      "Visual subject category: Photography Equipment",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Kodak",
+      "Recognized brand: Brownie Hawkeye",
+      "Recognized character: Not verified",
+      "Subject identity: Vintage Box Camera",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "User-provided identity: BROWNIE HAWKEYE CAMERA | FLASH MODEL",
+      "Exact product identity: Kodak Brownie Hawkeye Flash Model vintage box camera",
+      "Exact product confidence: High - confirmed by visible brand and model label on front plate",
+      "Brand: Kodak"
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"'BROWNIE Kodak HAWKEYE CAMERA Flash\" Brownie Hawkeye collector plate",
+      "\"A collector's vintage film box camera\" Kodak Brownie Hawkeye collector",
+      "\"Box camera with label 'BROWNIE Kodak\" Brownie Hawkeye collector plate",
+      "\"Box camera with label 'BROWNIE Kodak\" Kodak Brownie Hawkeye collector",
+      "\"Brownie Hawkeye Flash Model\" Brownie Hawkeye collector plate",
+      "\"BROWNIE Kodak HAWKEYE CAMERA Flash MODEL\" Brownie Hawkeye collector plate",
+      "\"A collector's vintage film box camera produced by\" Brownie Hawkeye",
+      "\"A collector's vintage film box camera produced by\" Kodak Brownie",
+      "\"A collector's vintage film box camera\" Brownie Hawkeye collector plate",
+      "\"A collector's vintage film box camera produced by Kodak,\" Kodak",
+      "\"Flash Model\" Brownie Hawkeye collector plate",
+      "Kodak Brownie Hawkeye Flash Model vintage box camera Brownie Hawkeye",
+      "Brownie Hawkeye Flash Model collector plate",
+      "\"Brownie Hawkeye\" Brownie Hawkeye collector plate"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+      "Sources searched: Live web search executed, but the provider did not return a separate source list.",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "researchResults": [
+      {
+        "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+        "source": "boenbox.com",
+        "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+        "displayedPrice": "$10",
+        "currency": "$",
+        "priceType": "Price type not confirmed",
+        "condition": "",
+        "classification": "Rejected Match",
+        "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+        "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+        "itemIdentityDifferences": "",
+        "influencedReferenceRange": "No.",
+        "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+        "sourceBacked": "URL provided by result text",
+        "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+      }
+    ],
+    "comparableQuality": [
+      "Strong Comparables: 0",
+      "Partial Comparables: 0",
+      "Reference Results: 0",
+      "Weak Matches: 0",
+      "Rejected Matches: 1"
+    ],
+    "recommendedListingPrice": "Low-confidence cautious estimate - $15 - $40",
+    "suggestedOfferRange": "Low-confidence offer guidance - $10 - $30",
+    "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. based on lack of reliable comparable sales data and limited source-backed price guides; recommend cautious pricing.",
+    "pricingRationale": "Valuation evidence state: insufficient.  Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. The Kodak Brownie Hawkeye Flash Model is a common vintage film box camera from circa 1940s-1950s; visual inspection supports identification but no strong recent market data is available; pricing based on analogous vintage camera price guides and typical collectible market values.",
+    "optimizedListingTitle": "Vintage Kodak Brownie Hawkeye Flash Model Box Camera Mid-20th Century",
+    "listingDescription": "Up for sale is a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic film camera popular among amateur photographers during the 1940s and 1950s. This collectible piece features the distinctive black rectangular box body with the original metal label plate reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'. It includes a rotary film advance knob and both a circular viewfinder and large lens aperture. Exact manufacture date, detailed condition, and authenticity are unverified, but this camera is a great addition for vintage camera collectors and photography enthusiasts. Please review photos for visible condition and feel free to ask questions before purchasing.",
+    "itemSpecifics": [
+      "Brand: Kodak",
+      "Model: Brownie Hawkeye Flash Model",
+      "Type: Vintage Box Camera",
+      "Era: Circa 1940s-1950s (estimated)",
+      "Color: Black with silver metal label",
+      "Material: Plastic and metal parts",
+      "Condition: Used vintage condition with wear consistent with age, detailed condition not provided",
+      "Distinctive Features: Box shape, rotary film advance knob, circular viewfinder, large lens, labeled front plate"
+    ],
+    "conditionNotes": [
+      "Wear consistent with vintage use including light surface scuffs and minor paint loss visible in photos.",
+      "Functionality untested, sold as-is for collectible purposes.",
+      "No info on missing components or internal condition available."
+    ],
+    "suggestedSellingPlatform": "eBay",
+    "additionalInformationNeeded": [
+      "Exact manufacturing date or serial number if possible",
+      "Detailed condition report including functionality",
+      "Information about included accessories or packaging"
+    ],
+    "title": "Vintage Kodak Brownie Hawkeye Flash Model Box Camera Mid-20th Century",
+    "description": "Up for sale is a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic film camera popular among amateur photographers during the 1940s and 1950s. This collectible piece features the distinctive black rectangular box body with the original metal label plate reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'. It includes a rotary film advance knob and both a circular viewfinder and large lens aperture. Exact manufacture date, detailed condition, and authenticity are unverified, but this camera is a great addition for vintage camera collectors and photography enthusiasts. Please review photos for visible condition and feel free to ask questions before purchasing.",
+    "itemDetails": [
+      "Maker/Brand: Kodak",
+      "Model Name: Brownie Hawkeye Flash Model",
+      "Type: Film box camera",
+      "Date/Era: Approx. 1940s-1950s",
+      "Main Colors: Black, Silver (label plate)",
+      "Material: Plastic, Metal",
+      "Distinctive Features: Box shape, branded front plate, rotary film advance knob, circular viewfinder",
+      "Condition: Used vintage, visible wear, functional status unknown"
+    ],
+    "priceStrategy": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. Set a conservative starting price within $15 to $40 range with an option for buyers to offer within $10 to $30, given lack of strong comparable sales data and medium certainty about collector value.",
+    "expectedSellingTimeline": "1-3 months depending on niche interest and listing visibility.",
+    "shippingDelivery": "Standard shipping with tracking recommended; calculate shipping cost based on package weight and dimensions; consider international shipping for broader buyer pool.",
+    "stagingPhotos": "Clear high-resolution photos of front, back, sides, top, bottom, close-ups of label, viewfinder, rotary knob, and any visible markings or wear spots.",
+    "sellerNotes": [
+      "Seller provided basic item identity as ‘BROWNIE HAWKEYE CAMERA | FLASH MODEL’ which aligns with visible branding and design.",
+      "No additional condition or accessory info supplied."
+    ],
+    "visualSubject": "Vintage Box Camera",
+    "visualSubjectCategory": "Photography Equipment",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Kodak",
+    "recognizedBrand": "Brownie Hawkeye",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Photography",
+    "visualRecognitionEvidence": [
+      "Two images show a box camera with a prominent label reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'",
+      "Black box camera with metal and plastic parts",
+      "Rotary knob likely for film advance",
+      "Small circular viewfinder and larger lens opening",
+      "Box shape",
+      "Viewfinder",
+      "Large focusing lens",
+      "Label with brand and model",
+      "Visible logo/symbol: Kodak",
+      "Visible letter: BROWNIE"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact manufacture date",
+      "Item condition details beyond visual wear"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Vintage Box Camera | Category: Photography Equipment | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Kodak; brand: Brownie Hawkeye; character: Not verified; institution: Not verified; theme: Photography | Supporting evidence: Two images show a box camera with a prominent label reading 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'; Black box camera with metal and plastic parts; Rotary knob likely for film advance; Small circular viewfinder and larger lens opening | Still unknown: Exact manufacture date; Item condition details beyond visual wear | User evidence reconciliation: User notes indicating 'BROWNIE HAWKEYE CAMERA | FLASH MODEL' fully align with visible text and camera design, confirming subject identity and reinforcing confidence. | Summary: The images depict a vintage Kodak Brownie Hawkeye Flash Model box camera, a classic mid-20th century film camera recognized by its boxy shape, viewfinder, and branded label plate. The camera is a collectible photography equipment item.",
+    "subjectIdentity": "Vintage Box Camera",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Kodak Brownie Hawkeye Flash Model vintage box camera",
+    "exactProductConfidence": "High - confirmed by visible brand and model label on front plate",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Kodak",
+      "Date / Era: 1940s-1950s",
+      "Licensing: Not verified",
+      "Authenticity: Not verified"
+    ],
+    "whatIsKnown": [
+      "Subject: Vintage Box Camera",
+      "User-provided identity: BROWNIE HAWKEYE CAMERA | FLASH MODEL",
+      "Visual evidence: Box camera with label 'BROWNIE Kodak HAWKEYE CAMERA Flash MODEL'",
+      "Visual evidence: Black boxy shape with metal and plastic parts",
+      "Visual evidence: Rotary film advance knob",
+      "Text evidence: BROWNIE",
+      "Text evidence: Kodak",
+      "Text evidence: HAWKEYE"
+    ],
+    "whatIsStillUnknown": [
+      "Exact manufacture date",
+      "Detailed item condition beyond visible wear",
+      "Item condition details beyond visual wear",
+      "Licensing status not verified.",
+      "Authenticity not verified."
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Vintage Box Camera | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Kodak Brownie Hawkeye Flash Model vintage box camera | Maker / Manufacturer: Kodak | Licensing / Authenticity: Unknown / Unknown",
+    "resultsFound": [
+      {
+        "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+        "source": "boenbox.com",
+        "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+        "displayedPrice": "$10",
+        "currency": "$",
+        "priceType": "Price type not confirmed",
+        "condition": "",
+        "classification": "Rejected Match",
+        "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+        "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+        "itemIdentityDifferences": "",
+        "influencedReferenceRange": "No.",
+        "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+        "sourceBacked": "URL provided by result text",
+        "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+      }
+    ],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [
+      {
+        "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+        "source": "boenbox.com",
+        "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+        "displayedPrice": "$10",
+        "currency": "$",
+        "priceType": "Price type not confirmed",
+        "condition": "",
+        "classification": "Rejected Match",
+        "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+        "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+        "itemIdentityDifferences": "",
+        "influencedReferenceRange": "No.",
+        "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+        "sourceBacked": "URL provided by result text",
+        "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+      }
+    ],
+    "searchLimitations": [
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report.",
+      "Weak and rejected matches are shown for transparency but do not establish fair market value."
+    ],
+    "visibleResearchResultCount": 1,
+    "referenceRangeBasis": "1 visible source-backed result were returned. Strong results can support value; partial/reference results can only support a preliminary range; weak/rejected matches do not establish fair value.",
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "pricingEvidenceState": "insufficient"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [
+    {
+      "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+      "source": "boenbox.com",
+      "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+      "displayedPrice": "$10",
+      "currency": "$",
+      "priceType": "Price type not confirmed",
+      "condition": "",
+      "classification": "Rejected Match",
+      "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+      "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+      "itemIdentityDifferences": "",
+      "influencedReferenceRange": "No.",
+      "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+      "sourceBacked": "URL provided by result text",
+      "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+    },
+    {
+      "title": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't",
+      "source": "boenbox.com",
+      "url": "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf",
+      "displayedPrice": "$10",
+      "currency": "$",
+      "priceType": "Price type not confirmed",
+      "condition": "",
+      "classification": "Rejected Match",
+      "evidenceRole": "Rejected evidence; should not drive price. Rejected Match",
+      "matchExplanation": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion bas",
+      "itemIdentityDifferences": "",
+      "influencedReferenceRange": "No.",
+      "rejectionReason": "Not reliable enough for valuation. Classification: Rejected Match.",
+      "sourceBacked": "URL provided by result text",
+      "rawText": "Antique, vintage and used digitalcameras/lenses price guide. CollectiBlend Average Index AverageVery goodMint$10-20$10-20$30-40Estimate value accuracy: We don't have enough information to provide an accurate price for this camera, so this is the suggestion based on what we have.Camera rarity (Very common. Votes: 3) Camera sales and other (https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf)"
+    }
+  ],
+  "sourceUrls": [
+    "https://boenbox.com/img/files/f0b611ae-9eb5-4f42-a65c-1e0b07426a0d.pdf"
+  ],
+  "responseSha256": "522897238e221fd2bbd2070c0d1e29e97f5a32f6858d4e47af16307cbb9593f5"
+}

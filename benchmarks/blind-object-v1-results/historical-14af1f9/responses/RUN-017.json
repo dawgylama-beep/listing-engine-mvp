@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-017",
+  "objectId": "OBJ-001",
+  "requestSha256": "8be3fee7baad6238eb88e160d35211176a068f5872c2e6cc0cab099932f4852d",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:35:39.722Z",
+  "endTimestamp": "2026-08-03T18:36:15.720Z",
+  "elapsedMilliseconds": 35997.99170000001,
+  "rawHandlerBodyBase64": "eyJsaXN0aW5nIjp7InBsYXRmb3JtIjoiZUJheSIsImNhdGVnb3J5U3VnZ2VzdGlvbiI6IkZvb2QgJiBCZXZlcmFnZSA+IFBhbnRyeSAmIERyeSBHb29kcyA+IFNwcmVhZHMgJiBKYW1zIiwiaWRlbnRpZmllZEl0ZW0iOiJOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCBqYXIgYnkgRmVycmVybyIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggLSBiYXJjb2RlIGFuZCBicmFuZCBsb2dvcyB2aXNpYmxlIGFuZCBtYXRjaCB1c2VyIG5vdGUiLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IEEgamFyIG9mIE51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIiwiVmlzdWFsIHN1YmplY3QgY2F0ZWdvcnk6IEZvb2QgcGFja2FnaW5nIiwiVmlzdWFsIHN1YmplY3QgY29uZmlkZW5jZTogSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4iLCJSZWNvZ25pemVkIG9yZ2FuaXphdGlvbjogRmVycmVybyIsIlJlY29nbml6ZWQgYnJhbmQ6IE51dGVsbGEiLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogQSBqYXIgb2YgTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWQiLCJTdWJqZWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiVXNlci1wcm92aWRlZCBpZGVudGl0eTogMzAxNzYyMDQyMjAwMyAobWF0Y2hlcyB2aXNpYmxlIGJhcmNvZGUpIiwiRXhhY3QgcHJvZHVjdCBpZGVudGl0eTogTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWQgamFyIGJ5IEZlcnJlcm8gd2l0aCBiYXJjb2RlIDMwMTc2MjA0MjIwMDMiLCJFeGFjdCBwcm9kdWN0IGNvbmZpZGVuY2U6IEhpZ2ggLSB2aXNpYmxlIGJyYW5kIGxvZ29zIGFuZCBiYXJjb2RlIG1hdGNoIiwiQnJhbmQ6IE51dGVsbGEiXSwic2VhcmNoUXVlcmllc1VzZWQiOlsiVGhlc2UgYXJlIHRoZSBxdWVyaWVzIHRoZSBzeXN0ZW0gdXNlZC4iLCJcIk51dHJpdGlvbmFsIGluZm8sIFFSIGNvZGUsIGJhcmNvZGUgMzAxNzYyMDQyMjAwM1wiIE51dGVsbGEgcG9zdGVyIHByaW50IiwiXCJCYXJjb2RlIDMwMTc2MjA0MjIwMDNcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiVGV4dCAnbnV0ZWxsYScgYW5kICdGRVJSRVJPJyBicmFuZCBuYW1lIG9uIGphclwiIE51dGVsbGEgcG9zdGVyIiwiXCJqYXIgYnkgRmVycmVybyB3aXRoIGJhcmNvZGVcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiVGV4dCAnbnV0ZWxsYScgYW5kICdGRVJSRVJPJyBicmFuZCBuYW1lIG9uIGphclwiIEZlcnJlcm8gTnV0ZWxsYSIsIlwiMjI3OCBrSlwiIEZlcnJlcm8gTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIkJhcmNvZGUgYW5kIFFSIGNvZGUgb24gbGFiZWxcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiRm9vZCBwYWNrYWdpbmdcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiMTVnOiAzMzkga0ogODEga2NhbCA0JSpcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiMTAwZzogMjI3OCBrSiAvIDU0NiBrY2FsXCIgTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIkJyb3duIHBsYXN0aWMgamFyXCIgTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIldoaXRlIHJpYmJlZCBzY3JldyBsaWRcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiSGF6ZWxudXRzIGFuZCB5ZWxsb3cgZmxvd2VyIGlsbHVzdHJhdGlvblwiIE51dGVsbGEgcG9zdGVyIHByaW50IiwiXCJOdXRyaXRpb25hbCBpbmZvcm1hdGlvbiBpbiBtdWx0aXBsZSBsYW5ndWFnZXNcIiBOdXRlbGxhIHBvc3RlciBwcmludCJdLCJzb3VyY2VzU2VhcmNoZWQiOlsiU291cmNlIGNhdGVnb3JpZXMgdGFyZ2V0ZWQ6IHNlY29uZGhhbmQgcmVzYWxlIHJlc3VsdHM7IHZpbnRhZ2UgYW5kIGNvbGxlY3RvciBzb3VyY2VzOyBzcGVjaWFsdHkgcmVmZXJlbmNlIHNvdXJjZXM7IGV4YWN0LWxhYmVsIHdlYiByZXN1bHRzOyBleGFjdCBsYWJlbC9zdGFtcCBzZWFyY2hlczsgZUJheS1zdHlsZSByZXNhbGUgcmVzdWx0czsgRXRzeS1zdHlsZSB2aW50YWdlIHJlc3VsdHM7IE1lcmNhcmktc3R5bGUgcmVzYWxlIHJlc3VsdHMiLCJTb3VyY2VzIHNlYXJjaGVkOiBiYXJjb2RlLWxpc3QuY29tOyBidXljb3R0LmNvbTsgY2xpYy50b29sczsgbnV0cmlmb29kaW5kZXguY29tOyBhbm1vbGFwcHMuY29tOyB0b29sLnRlYW16bGFiLmNvbTsgbm9yZGFwaS5lZTsgbWlhbWxhbmQuY29tIiwiU291cmNlcyByZXR1cm5lZCB3aXRoIFVSTCBjaXRhdGlvbnM6IE5vbmUuIiwiTm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBtYXRjaGVzIHBhc3NlZCBtYXRjaC1xdWFsaXR5IGNoZWNrcy4iLCJSZXR1cm5lZCByZXN1bHRzIHdlcmUgcmVqZWN0ZWQgd2hlbiB0aGV5IGxhY2tlZCBleGFjdCBsYWJlbC9jb2RlIG1hdGNoZXMsIGhhZCBvbmx5IHdlYWsgbG9va2FsaWtlIGV2aWRlbmNlLCBvciBkaWQgbm90IGluY2x1ZGUgYSBjaXRlZCBVUkwgaW4gdGhlIGNvbXBhcmFibGUgaXRlbSB0ZXh0LiIsIlJlamVjdGVkIGlycmVsZXZhbnQgc291cmNlIGNhdGVnb3JpZXM6IGdlbmVyaWMgd2hvbGVzYWxlcnMsIHJlc3RhdXJhbnQtc3VwcGx5IHNpdGVzLCBidWxrIGltcG9ydC9tYW51ZmFjdHVyaW5nIGNhdGFsb2dzLCB1bnJlbGF0ZWQgY3VycmVudC1yZXRhaWwgbG9va2FsaWtlcywgYW5kIGdlbmVyaWMgdmlzdWFsIGxvb2thbGlrZXMuIiwiU2VhcmNoZWQgdXNpbmcgYmFyY29kZS9pdGVtIGNvZGUvbW9kZWwgaWRlbnRpZmllcnMgd2hlbiBhdmFpbGFibGUuIiwiU2VhcmNoZWQgdXNpbmcgdmlzaWJsZSBib3gsIGxhYmVsLCBicmFuZCwgb3IgcHJvZHVjdC10aXRsZSB3b3JkaW5nLiIsIlNlYXJjaGVkIHJlbGV2YW50IGhvbGlkYXkgZGVjb3IgLyBjb2xsZWN0aWJsZSBzb3VyY2VzLiJdLCJyZXNlYXJjaFJlc3VsdHMiOlsiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBhcmFibGVzIHBhc3NlZCBmaWx0ZXJpbmcuIiwiRXhhY3QgcGhyYXNlIHNlYXJjaGVzIHdlcmUgYXR0ZW1wdGVkLCBidXQgdGhlIGxpdmUgcmVzcG9uc2UgZGlkIG5vdCByZXR1cm4gVVJMLWNpdGVkIHNvdXJjZSByZWNvcmRzLiJdLCJjb21wYXJhYmxlUXVhbGl0eSI6WyJSZWplY3RlZCBNYXRjaCAtIG5vIHJldHVybmVkIHJlc3VsdCBoYWQgZW5vdWdoIGNpdGVkLCByZWxldmFudCBldmlkZW5jZSB0byBkcml2ZSBsaXN0aW5nIHByaWNlLiJdLCJyZWNvbW1lbmRlZExpc3RpbmdQcmljZSI6Ikxvdy1jb25maWRlbmNlIGNhdXRpb3VzIGVzdGltYXRlIC0gJDMuMDAgLSAkOC4wMCBVU0QiLCJzdWdnZXN0ZWRPZmZlclJhbmdlIjoiTG93LWNvbmZpZGVuY2Ugb2ZmZXIgZ3VpZGFuY2UgLSAkMi4wMCAtICQ1LjAwIFVTRCIsInByaWNpbmdDb25maWRlbmNlIjoiTG93IC0gTGlzdGluZyBwcmljZSBzdXBwb3J0IGlzIHdlYWsgYmVjYXVzZSByZWxpYWJsZSBsaXZlIHJlc2VhcmNoIGV2aWRlbmNlIGlzIG1pc3NpbmcuIG5vIGNvbmZpcm1lZCBjb21wYXJhYmxlIHNvbGQgbGlzdGluZ3Mgb3IgZXhhY3QgbWF0Y2hlcyBmb3VuZCwgcHJpY2UgYmFzZWQgb24gdHlwaWNhbCByZXRhaWwgamFyIHJhbmdlIGFuZCBjYXV0aW91cyBtYXJrZXQgZXN0aW1hdGUiLCJwcmljaW5nUmF0aW9uYWxlIjoiVmFsdWF0aW9uIGV2aWRlbmNlIHN0YXRlOiBpbnN1ZmZpY2llbnQuICBMaXZlIHJlc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gUHJpY2luZyBpcyBhIGNhdXRpb3VzIGVzdGltYXRlLCBub3QgZXZpZGVuY2UtYmFja2VkIGZhY3QuIE5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nbHkgc2ltaWxhciBtYXJrZXRwbGFjZSBjb21wcyBhdmFpbGFibGU7IHByaWNlIHJlZmxlY3RzIGNvbW1vbiByZXRhaWwgcHJpY2UgcmFuZ2UgYW5kIGNhdXRpb3VzIGJ1eWVyIGd1aWRhbmNlIGZvciBOdXRlbGxhIGphcnMgaW4gcGxhc3RpYyBwYWNrYWdpbmc7IHNlbGxlciBzaG91bGQgY29uZmlybSBzaXplL3dlaWdodCBhbmQgY29uZGl0aW9uIGZvciByZWZpbmVtZW50LiIsIm9wdGltaXplZExpc3RpbmdUaXRsZSI6Ik51dGVsbGEgSGF6ZWxudXQgQ29jb2EgU3ByZWFkIEphciBieSBGZXJyZXJvIHdpdGggQmFyY29kZSAzMDE3NjIwNDIyMDAzIiwibGlzdGluZ0Rlc2NyaXB0aW9uIjoiVGhpcyBsaXN0aW5nIGZlYXR1cmVzIGEgY29tbWVyY2lhbCBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCBqYXIgYnkgRmVycmVybyBpZGVudGlmaWVkIGJ5IGJhcmNvZGUgMzAxNzYyMDQyMjAwMyB2aXNpYmxlIG9uIHRoZSBsYWJlbC4gVGhlIGphciBpcyBhIGJyb3duIHBsYXN0aWMgY29udGFpbmVyIHdpdGggYSB3aGl0ZSByaWJiZWQgc2NyZXcgbGlkIGFuZCBhIGxhYmVsIGRpc3BsYXlpbmcgdGhlIE51dGVsbGEgbG9nbyBpbiBwcm9taW5lbnQgcmVkIGFuZCBibGFjayBsZXR0ZXJzLCBhbiBpbWFnZSBvZiBicmVhZCB3aXRoIE51dGVsbGEgc3ByZWFkIGFuZCBrbmlmZSwgYXMgd2VsbCBhcyBoYXplbG51dHMgYW5kIGEgeWVsbG93IGZsb3dlciBpbGx1c3RyYXRpb24uIE51dHJpdGlvbmFsIGluZm9ybWF0aW9uIGlzIHByZXNlbnRlZCBpbiBtdWx0aXBsZSBsYW5ndWFnZXMuIEV4YWN0IHByb2R1Y3Qgc2l6ZSwgd2VpZ2h0LCBhbmQgY29uZGl0aW9uIGFyZSBub3Qgc3BlY2lmaWVkLiBObyBleGFjdCBtYXRjaGluZyBjb21wYXJhYmxlIHNhbGVzIHdlcmUgZm91bmQsIHNvIHByaWNlIGlzIGVzdGltYXRlZCBiYXNlZCBvbiB0eXBpY2FsIHJldGFpbCBOdXRlbGxhIGphcnMuIFN1aXRhYmxlIGZvciBjb2xsZWN0b3JzIG9yIGNvbnN1bWVycyBzZWVraW5nIHRoaXMgc3BlY2lmaWMgcGFja2FnaW5nIHByZXNlbnRhdGlvbi4iLCJpdGVtU3BlY2lmaWNzIjpbIkJyYW5kOiBOdXRlbGxhIiwiTWFudWZhY3R1cmVyOiBGZXJyZXJvIiwiUHJvZHVjdDogSGF6ZWxudXQgQ29jb2EgU3ByZWFkIiwiVVBDL0JhcmNvZGU6IDMwMTc2MjA0MjIwMDMiLCJQYWNrYWdpbmc6IEJyb3duIHBsYXN0aWMgamFyIHdpdGggd2hpdGUgcmliYmVkIHNjcmV3IGxpZCIsIkxhYmVsIEZlYXR1cmVzOiBMYXJnZSByZWQgYW5kIGJsYWNrIE51dGVsbGEgbG9nbywgYnJlYWQgc2xpY2Ugd2l0aCBzcHJlYWQgaW1hZ2UsIGhhemVsbnV0cyBhbmQgeWVsbG93IGZsb3dlciBpbGx1c3RyYXRpb24iLCJOdXRyaXRpb25hbCBJbmZvOiBQcmVzZW50IGluIG11bHRpcGxlIGxhbmd1YWdlcyIsIkNvbmRpdGlvbjogTm90IHByb3ZpZGVkIl0sImNvbmRpdGlvbk5vdGVzIjpbIkNvbmRpdGlvbiBub3QgcHJvdmlkZWQgYnkgc2VsbGVyIGFuZCBub3QgdmVyaWZpYWJsZSBpbiBwaG90b3M7IHBsZWFzZSByZXF1ZXN0IGRldGFpbHMgaWYgbmVlZGVkLiJdLCJzdWdnZXN0ZWRTZWxsaW5nUGxhdGZvcm0iOiJlQmF5IiwiYWRkaXRpb25hbEluZm9ybWF0aW9uTmVlZGVkIjpbIkV4YWN0IG5ldCB3ZWlnaHQgb3Igdm9sdW1lIG9mIHRoZSBzcHJlYWQiLCJEZXRhaWxlZCBkZXNjcmlwdGlvbiBvciBwaG90b3Mgb2YgamFyIGNvbmRpdGlvbiAoc2VhbGVkLCBvcGVuZWQsIGRhbWFnZSkiLCJQcm9vZiBvZiBwdXJjaGFzZSBvciBhdXRoZW50aWNpdHkgaWYgYXZhaWxhYmxlIiwiQW55IG9yaWdpbmFsIHBhY2thZ2luZyBvciBib3giXSwidGl0bGUiOiJOdXRlbGxhIEhhemVsbnV0IENvY29hIFNwcmVhZCBKYXIgYnkgRmVycmVybyB3aXRoIEJhcmNvZGUgMzAxNzYyMDQyMjAwMyIsImRlc2NyaXB0aW9uIjoiVGhpcyBsaXN0aW5nIGZlYXR1cmVzIGEgY29tbWVyY2lhbCBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCBqYXIgYnkgRmVycmVybyBpZGVudGlmaWVkIGJ5IGJhcmNvZGUgMzAxNzYyMDQyMjAwMyB2aXNpYmxlIG9uIHRoZSBsYWJlbC4gVGhlIGphciBpcyBhIGJyb3duIHBsYXN0aWMgY29udGFpbmVyIHdpdGggYSB3aGl0ZSByaWJiZWQgc2NyZXcgbGlkIGFuZCBhIGxhYmVsIGRpc3BsYXlpbmcgdGhlIE51dGVsbGEgbG9nbyBpbiBwcm9taW5lbnQgcmVkIGFuZCBibGFjayBsZXR0ZXJzLCBhbiBpbWFnZSBvZiBicmVhZCB3aXRoIE51dGVsbGEgc3ByZWFkIGFuZCBrbmlmZSwgYXMgd2VsbCBhcyBoYXplbG51dHMgYW5kIGEgeWVsbG93IGZsb3dlciBpbGx1c3RyYXRpb24uIE51dHJpdGlvbmFsIGluZm9ybWF0aW9uIGlzIHByZXNlbnRlZCBpbiBtdWx0aXBsZSBsYW5ndWFnZXMuIEV4YWN0IHByb2R1Y3Qgc2l6ZSwgd2VpZ2h0LCBhbmQgY29uZGl0aW9uIGFyZSBub3Qgc3BlY2lmaWVkLiBObyBleGFjdCBtYXRjaGluZyBjb21wYXJhYmxlIHNhbGVzIHdlcmUgZm91bmQsIHNvIHByaWNlIGlzIGVzdGltYXRlZCBiYXNlZCBvbiB0eXBpY2FsIHJldGFpbCBOdXRlbGxhIGphcnMuIFN1aXRhYmxlIGZvciBjb2xsZWN0b3JzIG9yIGNvbnN1bWVycyBzZWVraW5nIHRoaXMgc3BlY2lmaWMgcGFja2FnaW5nIHByZXNlbnRhdGlvbi4iLCJpdGVtRGV0YWlscyI6WyJWaXN1YWwgc3ViamVjdDogTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWQgamFyIiwiVmlzdWFsIHN1YmplY3QgY2F0ZWdvcnk6IEZvb2QgcGFja2FnaW5nIiwiQnJhbmQ6IE51dGVsbGEiLCJNYW51ZmFjdHVyZXI6IEZlcnJlcm8iLCJCYXJjb2RlL1VQQzogMzAxNzYyMDQyMjAwMyIsIk1hdGVyaWFsOiBQbGFzdGljIGphciBhbmQgbGlkIiwiQ29sb3I6IEJyb3duIGphciwgd2hpdGUgbGlkLCByZWQgYW5kIGJsYWNrIHRleHQgb24gbGFiZWwiLCJEaXN0aW5jdGl2ZSBmZWF0dXJlczogTnV0ZWxsYSBsb2dvLCBicmVhZCB3aXRoIHNwcmVhZCBpbWFnZSwgaGF6ZWxudXRzIGFuZCB5ZWxsb3cgZmxvd2VyLCBudXRyaXRpb25hbCBpbmZvIGluIG11bHRpcGxlIGxhbmd1YWdlcyJdLCJwcmljZVN0cmF0ZWd5IjoiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIFByaWNpbmcgaXMgYSBjYXV0aW91cyBlc3RpbWF0ZSwgbm90IGV2aWRlbmNlLWJhY2tlZCBmYWN0LiBMaXN0IGNhdXRpb3VzbHkgd2l0aGluIHR5cGljYWwgcmV0YWlsIGphciBwcmljZSByYW5nZSAoJDMtJDgpLCBjb25zaWRlciBvZmZlcnMgc3RhcnRpbmcgYXJvdW5kICQyLCBoaWdobGlnaHQgY29sbGVjdGlibGUgcGFja2FnaW5nIGZlYXR1cmVzLCBhbmQgZGlzY2xvc2UgdW5rbm93biBkZXRhaWxzIHRvIG1hbmFnZSBidXllciBleHBlY3RhdGlvbnMuIiwiZXhwZWN0ZWRTZWxsaW5nVGltZWxpbmUiOiJWYXJpYWJsZTsgZGVwZW5kZW50IG9uIGJ1eWVyIGRlbWFuZCBmb3IgcGFja2FnZWQgTnV0ZWxsYSBqYXJzOyBjb3VsZCB0YWtlIGRheXMgdG8gd2Vla3MuIiwic2hpcHBpbmdEZWxpdmVyeSI6IlN0YW5kYXJkIHNoaXBwaW5nIHJlY29tbWVuZGVkIHdpdGggc2VjdXJlIHBhY2thZ2luZyB0byBhdm9pZCBkYW1hZ2UgdG8gamFyIGFuZCBsYWJlbC4iLCJzdGFnaW5nUGhvdG9zIjoiVXNlIGNsZWFyIGltYWdlcyBzaG93aW5nIGZyb250IGxhYmVsLCBiYXJjb2RlLCBsaWQgY29uZGl0aW9uLCBhbmQgc2lkZS9iYWNrIGxhYmVsIHNob3dpbmcgbnV0cml0aW9uYWwgaW5mby4iLCJzZWxsZXJOb3RlcyI6WyJCYXJjb2RlIDMwMTc2MjA0MjIwMDMgbWF0Y2hlcyB2aXNpYmxlIGJhcmNvZGUgb24gamFyIGxhYmVsIiwiTm8gY29uZGl0aW9uIGRldGFpbHMgcHJvdmlkZWQiLCJFeGFjdCBzaXplIGFuZCB3ZWlnaHQgb2YgamFyIHVua25vd24iXSwidmlzdWFsU3ViamVjdCI6IkEgamFyIG9mIE51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIiwidmlzdWFsU3ViamVjdENhdGVnb3J5IjoiRm9vZCBwYWNrYWdpbmciLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6IkZlcnJlcm8iLCJyZWNvZ25pemVkQnJhbmQiOiJOdXRlbGxhIiwicmVjb2duaXplZENoYXJhY3RlciI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRJbnN0aXR1dGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRUaGVtZSI6Ik5vdCB2ZXJpZmllZCIsInZpc3VhbFJlY29nbml0aW9uRXZpZGVuY2UiOlsiVGV4dCBudXRlbGxhIGFuZCBGZXJyZXJvIGJyYW5kIG5hbWUgb24gamFyIiwiTnV0cml0aW9uYWwgdmFsdWVzIGluIGtKIGFuZCBrY2FsIiwiQmFyIGNvZGUgMzAxNzYyMDQyMjAwMyBtYXRjaGluZyB1c2VyIG5vdGUiLCJCcm93biBwbGFzdGljIGphciIsIldoaXRlIHJpYmJlZCBzY3JldyBsaWQiLCJMYWJlbCB3aXRoIE51dGVsbGEgbG9nbyBpbiBsYXJnZSByZWQgYW5kIGJsYWNrIGxldHRlcnMiLCJJbWFnZSBvZiBicmVhZCBzbGljZSB3aXRoIE51dGVsbGEgc3ByZWFkIGFuZCBrbmlmZSIsIkhhemVsbnV0cyBhbmQgeWVsbG93IGZsb3dlciBpbGx1c3RyYXRpb24iLCJOdXRyaXRpb25hbCBpbmZvcm1hdGlvbiBpbiBtdWx0aXBsZSBsYW5ndWFnZXMiLCJCYXJjb2RlIGFuZCBRUiBjb2RlIG9uIGxhYmVsIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgcHJvZHVjdCBzaXplIG9yIHdlaWdodCJdLCJ2aXN1YWxSZWNvZ25pdGlvbkNvbmZsaWN0cyI6W10sInZpc3VhbFJlY29nbml0aW9uU3VtbWFyeSI6IlZpc3VhbCBTdWJqZWN0OiBBIGphciBvZiBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCB8IENhdGVnb3J5OiBGb29kIHBhY2thZ2luZyB8IENvbmZpZGVuY2U6IEhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIHwgUmVjb2duaXplZCBjbHVlczogb3JnYW5pemF0aW9uOiBGZXJyZXJvOyBicmFuZDogTnV0ZWxsYTsgY2hhcmFjdGVyOiBOb3QgdmVyaWZpZWQ7IGluc3RpdHV0aW9uOiBOb3QgdmVyaWZpZWQ7IHRoZW1lOiBOb3QgdmVyaWZpZWQgfCBTdXBwb3J0aW5nIGV2aWRlbmNlOiBUZXh0IG51dGVsbGEgYW5kIEZlcnJlcm8gYnJhbmQgbmFtZSBvbiBqYXI7IE51dHJpdGlvbmFsIHZhbHVlcyBpbiBrSiBhbmQga2NhbDsgQmFyIGNvZGUgMzAxNzYyMDQyMjAwMyBtYXRjaGluZyB1c2VyIG5vdGU7IEJyb3duIHBsYXN0aWMgamFyIHwgU3RpbGwgdW5rbm93bjogRXhhY3QgcHJvZHVjdCBzaXplIG9yIHdlaWdodCB8IFVzZXIgZXZpZGVuY2UgcmVjb25jaWxpYXRpb246IFVzZXIgbm90ZSAzMDE3NjIwNDIyMDAzIG1hdGNoZXMgYmFyY29kZSB2aXNpYmxlIG9uIGphciBsYWJlbCwgc3VwcG9ydGluZyBpZGVudGlmaWNhdGlvbiBhcyBOdXRlbGxhIGphci4gfCBTdW1tYXJ5OiBUaGUgaW1hZ2VzIHNob3cgYSBjb21tZXJjaWFsIGZvb2QgcHJvZHVjdCBqYXIgbGFiZWxlZCBOdXRlbGxhIGJ5IEZlcnJlcm8sIGZlYXR1cmluZyBudXRyaXRpb25hbCBpbmZvLCBhIGJhcmNvZGUsIGFuZCBhIGNoYXJhY3RlcmlzdGljIE51dGVsbGEgbG9nbyB3aXRoIHJlZCBhbmQgYmxhY2sgdGV4dCBvbiBhIHdoaXRlIGxhYmVsIGFyb3VuZCBhIGJyb3duIHBsYXN0aWMgamFyIHdpdGggYSB3aGl0ZSBzY3JldyBsaWQuIiwic3ViamVjdElkZW50aXR5IjoiQSBqYXIgb2YgTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWQiLCJzdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIiwiZXhhY3RQcm9kdWN0SWRlbnRpdHkiOiJOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCBqYXIgYnkgRmVycmVybyB3aXRoIGJhcmNvZGUgMzAxNzYyMDQyMjAwMyIsImV4YWN0UHJvZHVjdENvbmZpZGVuY2UiOiJIaWdoIC0gdmlzaWJsZSBicmFuZCBsb2dvcyBhbmQgYmFyY29kZSBtYXRjaCIsIm1ha2VyRGF0ZUxpY2Vuc2luZ1N0YXR1cyI6WyJNYWtlciAvIE1hbnVmYWN0dXJlcjogRmVycmVybyIsIkRhdGUgLyBFcmE6IENvbnRlbXBvcmFyeSIsIkxpY2Vuc2luZzogTm90IGFwcGxpY2FibGUiLCJBdXRoZW50aWNpdHk6IEFwcGVhcnMgYXV0aGVudGljIC0gY29uc2lzdGVudCBicmFuZGluZyJdLCJ3aGF0SXNLbm93biI6WyJTdWJqZWN0OiBBIGphciBvZiBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCIsIlVzZXItcHJvdmlkZWQgaWRlbnRpdHk6IDMwMTc2MjA0MjIwMDMgKG1hdGNoZXMgdmlzaWJsZSBiYXJjb2RlKSIsIlZpc3VhbCBldmlkZW5jZTogVGV4dCAnbnV0ZWxsYScgYW5kICdGRVJSRVJPJyBicmFuZCBuYW1lIG9uIGphciIsIlZpc3VhbCBldmlkZW5jZTogTnV0cml0aW9uYWwgdmFsdWVzIGluIG11bHRpcGxlIGxhbmd1YWdlcyIsIlZpc3VhbCBldmlkZW5jZTogQmFyY29kZSAzMDE3NjIwNDIyMDAzIG1hdGNoaW5nIHVzZXIgbm90ZSIsIlRleHQgZXZpZGVuY2U6IG51dGVsbGEiLCJUZXh0IGV2aWRlbmNlOiBGRVJSRVJPIiwiVGV4dCBldmlkZW5jZTogbnV0ZWxsYS5jb20iXSwid2hhdElzU3RpbGxVbmtub3duIjpbIkV4YWN0IHByb2R1Y3Qgc2l6ZSBvciB3ZWlnaHQgbm90IHZpc2libGUiLCJDb25kaXRpb24gc3RhdHVzIG5vdCBwcm92aWRlZCIsIkV4YWN0IHByb2R1Y3Qgc2l6ZSBvciB3ZWlnaHQiXSwiaWRlbnRpdHlDb25mbGljdHMiOltdLCJpZGVudGl0eVN1bW1hcnkiOiJTdWJqZWN0IElkZW50aXR5OiBBIGphciBvZiBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCB8IFN1YmplY3QgQ29uZmlkZW5jZTogSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4gfCBFeGFjdCBQcm9kdWN0IElkZW50aXR5OiBOdXRlbGxhIGhhemVsbnV0IGNvY29hIHNwcmVhZCBqYXIgYnkgRmVycmVybyB3aXRoIGJhcmNvZGUgMzAxNzYyMDQyMjAwMyB8IE1ha2VyIC8gTWFudWZhY3R1cmVyOiBGZXJyZXJvIHwgTGljZW5zaW5nIC8gQXV0aGVudGljaXR5OiBOb3QgYXBwbGljYWJsZSAvIEFwcGVhcnMgYXV0aGVudGljIC0gY29uc2lzdGVudCBicmFuZGluZyIsInJlc3VsdHNGb3VuZCI6W10sInN0cm9uZ0NvbXBhcmFibGVzIjpbXSwicGFydGlhbENvbXBhcmFibGVzIjpbXSwicmVmZXJlbmNlUmVzdWx0cyI6W10sIndlYWtNYXRjaGVzIjpbXSwicmVqZWN0ZWRNYXRjaGVzIjpbXSwic2VhcmNoTGltaXRhdGlvbnMiOlsiTGl2ZSBzZWFyY2ggY29tcGxldGVkLCBidXQgbm8gdmlzaWJsZSBzdHJ1Y3R1cmVkIHNvdXJjZS1iYWNrZWQgcmVzdWx0IHJlY29yZHMgd2VyZSByZXR1cm5lZC4iLCJFeGFjdCBwaHJhc2Ugc2VhcmNoZXMgd2VyZSBhdHRlbXB0ZWQsIGJ1dCB0aGUgbGl2ZSByZXNwb25zZSBkaWQgbm90IHJldHVybiBVUkwtY2l0ZWQgc291cmNlIHJlY29yZHMuIiwiTm8gZXhhY3Qgb3Igc3Ryb25nIGNvbXBhcmFibGUgcmVjb3JkcyBhcmUgdmlzaWJsZSBpbiB0aGlzIHJlcG9ydC4iXSwidmlzaWJsZVJlc2VhcmNoUmVzdWx0Q291bnQiOjAsInJlZmVyZW5jZVJhbmdlQmFzaXMiOiJObyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlIHJlY29yZHMgd2VyZSByZXR1cm5lZCwgc28gYSBwcmVsaW1pbmFyeSByZWZlcmVuY2UgcmFuZ2UgaXMgbm90IHN1cHBvcnRlZC4iLCJ2YWx1YXRpb25FdmlkZW5jZVN0YXRlIjoiaW5zdWZmaWNpZW50IiwidmFsdWF0aW9uRXZpZGVuY2VMYWJlbCI6IkZhaXIgVmFsdWUgTm90IEVzdGFibGlzaGVkIiwidmFsdWF0aW9uRXZpZGVuY2VFeHBsYW5hdGlvbiI6IlRoZSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuIiwicHJpY2luZ0V2aWRlbmNlU3RhdGUiOiJpbnN1ZmZpY2llbnQifX0=",
+  "rawProductResponse": {
+    "listing": {
+      "platform": "eBay",
+      "categorySuggestion": "Food & Beverage > Pantry & Dry Goods > Spreads & Jams",
+      "identifiedItem": "Nutella hazelnut cocoa spread jar by Ferrero",
+      "identificationConfidence": "High - barcode and brand logos visible and match user note",
+      "evidenceFoundInPhotos": [
+        "Visual subject: A jar of Nutella hazelnut cocoa spread",
+        "Visual subject category: Food packaging",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Ferrero",
+        "Recognized brand: Nutella",
+        "Recognized character: Not verified",
+        "Subject identity: A jar of Nutella hazelnut cocoa spread",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "User-provided identity: 3017620422003 (matches visible barcode)",
+        "Exact product identity: Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003",
+        "Exact product confidence: High - visible brand logos and barcode match",
+        "Brand: Nutella"
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"Nutritional info, QR code, barcode 3017620422003\" Nutella poster print",
+        "\"Barcode 3017620422003\" Nutella poster print",
+        "\"Text 'nutella' and 'FERRERO' brand name on jar\" Nutella poster",
+        "\"jar by Ferrero with barcode\" Nutella poster print",
+        "\"Text 'nutella' and 'FERRERO' brand name on jar\" Ferrero Nutella",
+        "\"2278 kJ\" Ferrero Nutella poster print",
+        "\"Barcode and QR code on label\" Nutella poster print",
+        "\"Food packaging\" Nutella poster print",
+        "\"15g: 339 kJ 81 kcal 4%*\" Nutella poster print",
+        "\"100g: 2278 kJ / 546 kcal\" Nutella poster print",
+        "\"Brown plastic jar\" Nutella poster print",
+        "\"White ribbed screw lid\" Nutella poster print",
+        "\"Hazelnuts and yellow flower illustration\" Nutella poster print",
+        "\"Nutritional information in multiple languages\" Nutella poster print"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+        "Sources searched: barcode-list.com; buycott.com; clic.tools; nutrifoodindex.com; anmolapps.com; tool.teamzlab.com; nordapi.ee; miamland.com",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "recommendedListingPrice": "Low-confidence cautious estimate - $3.00 - $8.00 USD",
+      "suggestedOfferRange": "Low-confidence offer guidance - $2.00 - $5.00 USD",
+      "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. no confirmed comparable sold listings or exact matches found, price based on typical retail jar range and cautious market estimate",
+      "pricingRationale": "Valuation evidence state: insufficient.  Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. No source-backed exact or strongly similar marketplace comps available; price reflects common retail price range and cautious buyer guidance for Nutella jars in plastic packaging; seller should confirm size/weight and condition for refinement.",
+      "optimizedListingTitle": "Nutella Hazelnut Cocoa Spread Jar by Ferrero with Barcode 3017620422003",
+      "listingDescription": "This listing features a commercial Nutella hazelnut cocoa spread jar by Ferrero identified by barcode 3017620422003 visible on the label. The jar is a brown plastic container with a white ribbed screw lid and a label displaying the Nutella logo in prominent red and black letters, an image of bread with Nutella spread and knife, as well as hazelnuts and a yellow flower illustration. Nutritional information is presented in multiple languages. Exact product size, weight, and condition are not specified. No exact matching comparable sales were found, so price is estimated based on typical retail Nutella jars. Suitable for collectors or consumers seeking this specific packaging presentation.",
+      "itemSpecifics": [
+        "Brand: Nutella",
+        "Manufacturer: Ferrero",
+        "Product: Hazelnut Cocoa Spread",
+        "UPC/Barcode: 3017620422003",
+        "Packaging: Brown plastic jar with white ribbed screw lid",
+        "Label Features: Large red and black Nutella logo, bread slice with spread image, hazelnuts and yellow flower illustration",
+        "Nutritional Info: Present in multiple languages",
+        "Condition: Not provided"
+      ],
+      "conditionNotes": [
+        "Condition not provided by seller and not verifiable in photos; please request details if needed."
+      ],
+      "suggestedSellingPlatform": "eBay",
+      "additionalInformationNeeded": [
+        "Exact net weight or volume of the spread",
+        "Detailed description or photos of jar condition (sealed, opened, damage)",
+        "Proof of purchase or authenticity if available",
+        "Any original packaging or box"
+      ],
+      "title": "Nutella Hazelnut Cocoa Spread Jar by Ferrero with Barcode 3017620422003",
+      "description": "This listing features a commercial Nutella hazelnut cocoa spread jar by Ferrero identified by barcode 3017620422003 visible on the label. The jar is a brown plastic container with a white ribbed screw lid and a label displaying the Nutella logo in prominent red and black letters, an image of bread with Nutella spread and knife, as well as hazelnuts and a yellow flower illustration. Nutritional information is presented in multiple languages. Exact product size, weight, and condition are not specified. No exact matching comparable sales were found, so price is estimated based on typical retail Nutella jars. Suitable for collectors or consumers seeking this specific packaging presentation.",
+      "itemDetails": [
+        "Visual subject: Nutella hazelnut cocoa spread jar",
+        "Visual subject category: Food packaging",
+        "Brand: Nutella",
+        "Manufacturer: Ferrero",
+        "Barcode/UPC: 3017620422003",
+        "Material: Plastic jar and lid",
+        "Color: Brown jar, white lid, red and black text on label",
+        "Distinctive features: Nutella logo, bread with spread image, hazelnuts and yellow flower, nutritional info in multiple languages"
+      ],
+      "priceStrategy": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. List cautiously within typical retail jar price range ($3-$8), consider offers starting around $2, highlight collectible packaging features, and disclose unknown details to manage buyer expectations.",
+      "expectedSellingTimeline": "Variable; dependent on buyer demand for packaged Nutella jars; could take days to weeks.",
+      "shippingDelivery": "Standard shipping recommended with secure packaging to avoid damage to jar and label.",
+      "stagingPhotos": "Use clear images showing front label, barcode, lid condition, and side/back label showing nutritional info.",
+      "sellerNotes": [
+        "Barcode 3017620422003 matches visible barcode on jar label",
+        "No condition details provided",
+        "Exact size and weight of jar unknown"
+      ],
+      "visualSubject": "A jar of Nutella hazelnut cocoa spread",
+      "visualSubjectCategory": "Food packaging",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Ferrero",
+      "recognizedBrand": "Nutella",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Not verified",
+      "visualRecognitionEvidence": [
+        "Text nutella and Ferrero brand name on jar",
+        "Nutritional values in kJ and kcal",
+        "Bar code 3017620422003 matching user note",
+        "Brown plastic jar",
+        "White ribbed screw lid",
+        "Label with Nutella logo in large red and black letters",
+        "Image of bread slice with Nutella spread and knife",
+        "Hazelnuts and yellow flower illustration",
+        "Nutritional information in multiple languages",
+        "Barcode and QR code on label"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact product size or weight"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: A jar of Nutella hazelnut cocoa spread | Category: Food packaging | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Ferrero; brand: Nutella; character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: Text nutella and Ferrero brand name on jar; Nutritional values in kJ and kcal; Bar code 3017620422003 matching user note; Brown plastic jar | Still unknown: Exact product size or weight | User evidence reconciliation: User note 3017620422003 matches barcode visible on jar label, supporting identification as Nutella jar. | Summary: The images show a commercial food product jar labeled Nutella by Ferrero, featuring nutritional info, a barcode, and a characteristic Nutella logo with red and black text on a white label around a brown plastic jar with a white screw lid.",
+      "subjectIdentity": "A jar of Nutella hazelnut cocoa spread",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003",
+      "exactProductConfidence": "High - visible brand logos and barcode match",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Ferrero",
+        "Date / Era: Contemporary",
+        "Licensing: Not applicable",
+        "Authenticity: Appears authentic - consistent branding"
+      ],
+      "whatIsKnown": [
+        "Subject: A jar of Nutella hazelnut cocoa spread",
+        "User-provided identity: 3017620422003 (matches visible barcode)",
+        "Visual evidence: Text 'nutella' and 'FERRERO' brand name on jar",
+        "Visual evidence: Nutritional values in multiple languages",
+        "Visual evidence: Barcode 3017620422003 matching user note",
+        "Text evidence: nutella",
+        "Text evidence: FERRERO",
+        "Text evidence: nutella.com"
+      ],
+      "whatIsStillUnknown": [
+        "Exact product size or weight not visible",
+        "Condition status not provided",
+        "Exact product size or weight"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: A jar of Nutella hazelnut cocoa spread | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003 | Maker / Manufacturer: Ferrero | Licensing / Authenticity: Not applicable / Appears authentic - consistent branding",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No visible structured source records were returned, so a preliminary reference range is not supported.",
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "pricingEvidenceState": "insufficient"
+    }
+  },
+  "customerFacingReport": {
+    "platform": "eBay",
+    "categorySuggestion": "Food & Beverage > Pantry & Dry Goods > Spreads & Jams",
+    "identifiedItem": "Nutella hazelnut cocoa spread jar by Ferrero",
+    "identificationConfidence": "High - barcode and brand logos visible and match user note",
+    "evidenceFoundInPhotos": [
+      "Visual subject: A jar of Nutella hazelnut cocoa spread",
+      "Visual subject category: Food packaging",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Ferrero",
+      "Recognized brand: Nutella",
+      "Recognized character: Not verified",
+      "Subject identity: A jar of Nutella hazelnut cocoa spread",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "User-provided identity: 3017620422003 (matches visible barcode)",
+      "Exact product identity: Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003",
+      "Exact product confidence: High - visible brand logos and barcode match",
+      "Brand: Nutella"
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"Nutritional info, QR code, barcode 3017620422003\" Nutella poster print",
+      "\"Barcode 3017620422003\" Nutella poster print",
+      "\"Text 'nutella' and 'FERRERO' brand name on jar\" Nutella poster",
+      "\"jar by Ferrero with barcode\" Nutella poster print",
+      "\"Text 'nutella' and 'FERRERO' brand name on jar\" Ferrero Nutella",
+      "\"2278 kJ\" Ferrero Nutella poster print",
+      "\"Barcode and QR code on label\" Nutella poster print",
+      "\"Food packaging\" Nutella poster print",
+      "\"15g: 339 kJ 81 kcal 4%*\" Nutella poster print",
+      "\"100g: 2278 kJ / 546 kcal\" Nutella poster print",
+      "\"Brown plastic jar\" Nutella poster print",
+      "\"White ribbed screw lid\" Nutella poster print",
+      "\"Hazelnuts and yellow flower illustration\" Nutella poster print",
+      "\"Nutritional information in multiple languages\" Nutella poster print"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: secondhand resale results; vintage and collector sources; specialty reference sources; exact-label web results; exact label/stamp searches; eBay-style resale results; Etsy-style vintage results; Mercari-style resale results",
+      "Sources searched: barcode-list.com; buycott.com; clic.tools; nutrifoodindex.com; anmolapps.com; tool.teamzlab.com; nordapi.ee; miamland.com",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "recommendedListingPrice": "Low-confidence cautious estimate - $3.00 - $8.00 USD",
+    "suggestedOfferRange": "Low-confidence offer guidance - $2.00 - $5.00 USD",
+    "pricingConfidence": "Low - Listing price support is weak because reliable live research evidence is missing. no confirmed comparable sold listings or exact matches found, price based on typical retail jar range and cautious market estimate",
+    "pricingRationale": "Valuation evidence state: insufficient.  Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. No source-backed exact or strongly similar marketplace comps available; price reflects common retail price range and cautious buyer guidance for Nutella jars in plastic packaging; seller should confirm size/weight and condition for refinement.",
+    "optimizedListingTitle": "Nutella Hazelnut Cocoa Spread Jar by Ferrero with Barcode 3017620422003",
+    "listingDescription": "This listing features a commercial Nutella hazelnut cocoa spread jar by Ferrero identified by barcode 3017620422003 visible on the label. The jar is a brown plastic container with a white ribbed screw lid and a label displaying the Nutella logo in prominent red and black letters, an image of bread with Nutella spread and knife, as well as hazelnuts and a yellow flower illustration. Nutritional information is presented in multiple languages. Exact product size, weight, and condition are not specified. No exact matching comparable sales were found, so price is estimated based on typical retail Nutella jars. Suitable for collectors or consumers seeking this specific packaging presentation.",
+    "itemSpecifics": [
+      "Brand: Nutella",
+      "Manufacturer: Ferrero",
+      "Product: Hazelnut Cocoa Spread",
+      "UPC/Barcode: 3017620422003",
+      "Packaging: Brown plastic jar with white ribbed screw lid",
+      "Label Features: Large red and black Nutella logo, bread slice with spread image, hazelnuts and yellow flower illustration",
+      "Nutritional Info: Present in multiple languages",
+      "Condition: Not provided"
+    ],
+    "conditionNotes": [
+      "Condition not provided by seller and not verifiable in photos; please request details if needed."
+    ],
+    "suggestedSellingPlatform": "eBay",
+    "additionalInformationNeeded": [
+      "Exact net weight or volume of the spread",
+      "Detailed description or photos of jar condition (sealed, opened, damage)",
+      "Proof of purchase or authenticity if available",
+      "Any original packaging or box"
+    ],
+    "title": "Nutella Hazelnut Cocoa Spread Jar by Ferrero with Barcode 3017620422003",
+    "description": "This listing features a commercial Nutella hazelnut cocoa spread jar by Ferrero identified by barcode 3017620422003 visible on the label. The jar is a brown plastic container with a white ribbed screw lid and a label displaying the Nutella logo in prominent red and black letters, an image of bread with Nutella spread and knife, as well as hazelnuts and a yellow flower illustration. Nutritional information is presented in multiple languages. Exact product size, weight, and condition are not specified. No exact matching comparable sales were found, so price is estimated based on typical retail Nutella jars. Suitable for collectors or consumers seeking this specific packaging presentation.",
+    "itemDetails": [
+      "Visual subject: Nutella hazelnut cocoa spread jar",
+      "Visual subject category: Food packaging",
+      "Brand: Nutella",
+      "Manufacturer: Ferrero",
+      "Barcode/UPC: 3017620422003",
+      "Material: Plastic jar and lid",
+      "Color: Brown jar, white lid, red and black text on label",
+      "Distinctive features: Nutella logo, bread with spread image, hazelnuts and yellow flower, nutritional info in multiple languages"
+    ],
+    "priceStrategy": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact. List cautiously within typical retail jar price range ($3-$8), consider offers starting around $2, highlight collectible packaging features, and disclose unknown details to manage buyer expectations.",
+    "expectedSellingTimeline": "Variable; dependent on buyer demand for packaged Nutella jars; could take days to weeks.",
+    "shippingDelivery": "Standard shipping recommended with secure packaging to avoid damage to jar and label.",
+    "stagingPhotos": "Use clear images showing front label, barcode, lid condition, and side/back label showing nutritional info.",
+    "sellerNotes": [
+      "Barcode 3017620422003 matches visible barcode on jar label",
+      "No condition details provided",
+      "Exact size and weight of jar unknown"
+    ],
+    "visualSubject": "A jar of Nutella hazelnut cocoa spread",
+    "visualSubjectCategory": "Food packaging",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Ferrero",
+    "recognizedBrand": "Nutella",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Not verified",
+    "visualRecognitionEvidence": [
+      "Text nutella and Ferrero brand name on jar",
+      "Nutritional values in kJ and kcal",
+      "Bar code 3017620422003 matching user note",
+      "Brown plastic jar",
+      "White ribbed screw lid",
+      "Label with Nutella logo in large red and black letters",
+      "Image of bread slice with Nutella spread and knife",
+      "Hazelnuts and yellow flower illustration",
+      "Nutritional information in multiple languages",
+      "Barcode and QR code on label"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact product size or weight"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: A jar of Nutella hazelnut cocoa spread | Category: Food packaging | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Ferrero; brand: Nutella; character: Not verified; institution: Not verified; theme: Not verified | Supporting evidence: Text nutella and Ferrero brand name on jar; Nutritional values in kJ and kcal; Bar code 3017620422003 matching user note; Brown plastic jar | Still unknown: Exact product size or weight | User evidence reconciliation: User note 3017620422003 matches barcode visible on jar label, supporting identification as Nutella jar. | Summary: The images show a commercial food product jar labeled Nutella by Ferrero, featuring nutritional info, a barcode, and a characteristic Nutella logo with red and black text on a white label around a brown plastic jar with a white screw lid.",
+    "subjectIdentity": "A jar of Nutella hazelnut cocoa spread",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003",
+    "exactProductConfidence": "High - visible brand logos and barcode match",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Ferrero",
+      "Date / Era: Contemporary",
+      "Licensing: Not applicable",
+      "Authenticity: Appears authentic - consistent branding"
+    ],
+    "whatIsKnown": [
+      "Subject: A jar of Nutella hazelnut cocoa spread",
+      "User-provided identity: 3017620422003 (matches visible barcode)",
+      "Visual evidence: Text 'nutella' and 'FERRERO' brand name on jar",
+      "Visual evidence: Nutritional values in multiple languages",
+      "Visual evidence: Barcode 3017620422003 matching user note",
+      "Text evidence: nutella",
+      "Text evidence: FERRERO",
+      "Text evidence: nutella.com"
+    ],
+    "whatIsStillUnknown": [
+      "Exact product size or weight not visible",
+      "Condition status not provided",
+      "Exact product size or weight"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: A jar of Nutella hazelnut cocoa spread | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nutella hazelnut cocoa spread jar by Ferrero with barcode 3017620422003 | Maker / Manufacturer: Ferrero | Licensing / Authenticity: Not applicable / Appears authentic - consistent branding",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No visible structured source records were returned, so a preliminary reference range is not supported.",
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "pricingEvidenceState": "insufficient"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "1828bbc918a7fab1d9d60dbf83f5c9a3a79a3b2f1b697e012a7c815f32749022"
+}

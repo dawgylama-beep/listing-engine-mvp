@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-024",
+  "objectId": "OBJ-014",
+  "requestSha256": "37757b7135b59591f74230c73b9a0cb5572ea703f2a87a90a0e6292dc716ef97",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:39:38.900Z",
+  "endTimestamp": "2026-08-03T18:40:05.742Z",
+  "elapsedMilliseconds": 26852.288900000043,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6IkRlY29yYXRpdmUgZ2VvbWV0cmljIHNjdWxwdHVyZSBvciBhcnRpZmFjdCIsImlkZW50aWZpY2F0aW9uQ29uZmlkZW5jZSI6IkhpZ2ggLSB2aXN1YWwgc3ViamVjdCBhbmQgYnJvYWQgY2F0ZWdvcnkgd2VsbCBzdXBwb3J0ZWQ7IGV4YWN0IHByb2R1Y3QgaWRlbnRpdHkgdW52ZXJpZmllZCIsImV2aWRlbmNlRm91bmRJblBob3RvcyI6WyJWaXN1YWwgc3ViamVjdDogRGVjb3JhdGl2ZSBnZW9tZXRyaWMgc2N1bHB0dXJlIG9yIGFydGlmYWN0IiwiVmlzdWFsIHN1YmplY3QgY2F0ZWdvcnk6IEFudGlxdWVzIGFuZCBDb2xsZWN0aWJsZXMiLCJWaXN1YWwgc3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiIsIlJlY29nbml6ZWQgb3JnYW5pemF0aW9uOiBOb3QgdmVyaWZpZWQiLCJSZWNvZ25pemVkIGJyYW5kOiBOb3QgdmVyaWZpZWQiLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogRGVjb3JhdGl2ZSBnZW9tZXRyaWMgc2N1bHB0dXJlIG9yIGFydGlmYWN0IiwiU3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiIsIkV4YWN0IHByb2R1Y3QgaWRlbnRpdHk6IFVudmVyaWZpZWQgZXhhY3QgcHJvZHVjdCAtIGxpa2VseSBEZWNvcmF0aXZlIGdlb21ldHJpYyBzY3VscHR1cmUgb3IgYXJ0aWZhY3Q7IGV4YWN0IGl0ZW0sIG1ha2VyLCBkYXRlLCBhbmQgbGljZW5zaW5nIGFyZSBub3QgY29uZmlybWVkLiIsIkV4YWN0IHByb2R1Y3QgY29uZmlkZW5jZTogTG93IC0gc3BlY2lmaWMgb3JpZ2luLCBtYWtlciwgZXJhLCBhbmQgcHVycG9zZSBub3QgZGV0ZXJtaW5lZCIsIk1hdGVyaWFsOiBQb3NzaWJseSBtZXRhbCBvciBjZXJhbWljIiwiQ29sb3IvcGF0dGVybjogQmxhY2siXSwiYXNraW5nUHJpY2UiOiJOb3QgcHJvdmlkZWQgLSBlbnRlciB0aGUgY3VycmVudCBhc2tpbmcgcHJpY2UgZm9yIGEgcGVyc29uYWwtdXNlIHZhbHVlIGRlY2lzaW9uLiIsImVzdGltYXRlZEZhaXJNYXJrZXRWYWx1ZSI6IiIsImZhaXJQcmljZVJhbmdlIjpbXSwidmFsdWVSYXRpbmciOiJJbnN1ZmZpY2llbnQgRXZpZGVuY2UiLCJyZWNvbW1lbmRhdGlvbiI6Ik5lZWQgTW9yZSBJbmZvcm1hdGlvbiIsInJlY29tbWVuZGVkT2ZmZXIiOlsiT3BlbmluZyBPZmZlcjogTm90IHN1cHBvcnRlZCB5ZXQuIiwiVGFyZ2V0IFB1cmNoYXNlIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iLCJNYXhpbXVtIFJlY29tbWVuZGVkIFByaWNlOiBOb3Qgc3VwcG9ydGVkIHlldC4iXSwib3BlbmluZ09mZmVyIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSB2ZXJpZnkgaWRlbnRpdHksIGNvbmRpdGlvbiwgYXNraW5nIHByaWNlLCBhbmQgcmVsaWFibGUgY29tcGFyYWJsZXMgZmlyc3QuIiwidGFyZ2V0UHVyY2hhc2VQcmljZSI6Ik5vdCBzdXBwb3J0ZWQgeWV0IC0gZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgcmVzcG9uc2libGUgdGFyZ2V0IHByaWNlLiIsIm1heGltdW1SZWNvbW1lbmRlZFByaWNlIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSBkbyBub3Qgc2V0IGEgbWF4aW11bSBmcm9tIHdlYWsgZXZpZGVuY2UuIiwid2Fsa0F3YXlQcmljZSI6Ik5vdCBlbm91Z2ggZXZpZGVuY2UgZm9yIGEgcHJlY2lzZSB3YWxrLWF3YXkgcHJpY2UuIiwibmVnb3RpYXRpb25HdWlkYW5jZSI6Ikluc3VmZmljaWVudCBwcmljaW5nIGFuZCBjb25kaXRpb24gaW5mb3JtYXRpb24gdG8gZ3VpZGUgbmVnb3RpYXRpb247IHJlY29tbWVuZCBvYnRhaW5pbmcgY2xlYXIgYXNraW5nIHByaWNlIGFuZCBjb25kaXRpb24gZGV0YWlscyBiZWZvcmUgcHJvY2VlZGluZyIsInJlYXNvbnNUb0J1eSI6WyJVbmlxdWUgZGVjb3JhdGl2ZSBvciBwb3NzaWJseSBjdWx0dXJhbCBnZW9tZXRyaWMgYXJ0aWZhY3Qgd2l0aCBkaXN0aW5jdGl2ZSBkb2RlY2FoZWRyb24gZGVzaWduIiwiSGlnaCB2aXN1YWwgYXBwZWFsIGFzIGEgc2N1bHB0dXJhbCBvciBjb2xsZWN0aWJsZSBpdGVtIiwiUG90ZW50aWFsbHkgYWRkcyBhcnRpc3RpYyBvciBjdWx0dXJhbCB2YWx1ZSB0byBwZXJzb25hbCBjb2xsZWN0aW9uIl0sInJlYXNvbnNGb3JDYXV0aW9uIjpbIk5vIHZlcmlmaWNhdGlvbiBvZiBvcmlnaW4sIG1ha2VyLCBlcmEsIG9yIGF1dGhlbnRpY2l0eSIsIk1hdGVyaWFsIGFuZCBpdGVtIGNvbmRpdGlvbiBub3QgcHJvdmlkZWQiLCJObyBjb21wYXJhYmxlIG1hcmtldCBkYXRhIGF2YWlsYWJsZSB0byBhc3Nlc3MgZmFpciBwcmljZSIsIkFza2luZyBwcmljZSBub3QgZGlzY2xvc2VkLCBwcmV2ZW50aW5nIHZhbHVhdGlvbiIsIlVuaXF1ZW5lc3Mgb3IgcmFyaXR5IGNvbXBsaWNhdGVzIHZhbHVlIGFzc2Vzc21lbnQiLCJJZGVudGl0eSBOb3QgQ29uZmlybWVkIiwiV2VhayBDb21wYXJhYmxlIEV2aWRlbmNlIiwiQ29uc3VtZXIgdmFsdWUgY2Fubm90IGJlIHJhdGVkIGNvbmZpZGVudGx5IHVudGlsIHRoZSBhc2tpbmcgcHJpY2UsIGV4YWN0IGlkZW50aXR5LCBjb25kaXRpb24sIGFuZCBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UgYXJlIHN0cm9uZ2VyLiJdLCJwcm9kdWN0T3JDb25kaXRpb25SaXNrcyI6WyJJZGVudGl0eSBOb3QgQ29uZmlybWVkOiBleGFjdCBwcm9kdWN0IG1ha2VyIGFuZCBvcmlnaW5zIHVuY2xlYXIiLCJDb25kaXRpb24gVW5jbGVhcjogaXRlbSBjb25kaXRpb24gYW5kIGNvbXBsZXRlbmVzcyB1bmtub3duIiwiV2VhayBDb21wYXJhYmxlIEV2aWRlbmNlOiBubyByZWxpYWJsZSBzYWxlcyBvciBsaXN0aW5ncyBmb3VuZCIsIkF1dGhlbnRpY2l0eSBVbmNsZWFyOiBubyBjZXJ0aWZpY2F0aW9uIG9yIHByb3ZlbmFuY2UgcHJvdmlkZWQiLCJSaXNrIGZsYWc6IElkZW50aXR5IE5vdCBDb25maXJtZWQiLCJSaXNrIGZsYWc6IFdlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSJdLCJyaXNrRmxhZ3MiOlsiSWRlbnRpdHkgTm90IENvbmZpcm1lZCIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSJdLCJiZXR0ZXJWYWx1ZUNvbnNpZGVyYXRpb25zIjpbIkNvbnNpZGVyIG9idGFpbmluZyBwcm92ZW5hbmNlIG9yIGV4cGVydCBhcHByYWlzYWwgZm9yIHByb3BlciB2YWx1YXRpb24iLCJTZWVrIHNpbWlsYXIgZ2VvbWV0cmljIG9yIGN1bHR1cmFsIGFydGlmYWN0cyB3aXRoIHZlcmlmaWVkIGlkZW50aXR5IGFuZCBwcmljaW5nIGZvciBjb21wYXJpc29uIiwiV2FpdCBmb3IgbW9yZSBkZXRhaWxlZCBzZWxsZXIgaW5mb3JtYXRpb24gb3IgZG9jdW1lbnRlZCBwcmljaW5nIl0sInJlc2VhcmNoUmVzdWx0cyI6WyJMaXZlIHJlc2VhcmNoIGNvbXBsZXRlZCwgYnV0IG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcGFyYWJsZXMgcGFzc2VkIGZpbHRlcmluZy4iLCJFeGFjdCBwaHJhc2Ugc2VhcmNoZXMgd2VyZSBhdHRlbXB0ZWQsIGJ1dCB0aGUgbGl2ZSByZXNwb25zZSBkaWQgbm90IHJldHVybiBVUkwtY2l0ZWQgc291cmNlIHJlY29yZHMuIl0sImNvbXBhcmFibGVRdWFsaXR5IjpbIlJlamVjdGVkIE1hdGNoIC0gbm8gcmV0dXJuZWQgcmVzdWx0IGhhZCBlbm91Z2ggY2l0ZWQsIHJlbGV2YW50IGV2aWRlbmNlIHRvIGRyaXZlIGxpc3RpbmcgcHJpY2UuIl0sInByaWNpbmdDb25maWRlbmNlIjoiTG93IC0gQ29uc3VtZXIgdmFsdWUgcmF0aW5nIGlzIGluc3VmZmljaWVudCBiZWNhdXNlIG5vIGN1cnJlbnQgYXNraW5nIHByaWNlIHdhcyBwcm92aWRlZCwgbm8gZXZpZGVuY2UtYmFja2VkIGZhaXIgdmFsdWUgY291bGQgYmUgZXh0cmFjdGVkLCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIFN1cHBvcnRzOiBwaG90b3MgYW5kIG5vdGVzLiBXZWFrZW5zOiBtaXNzaW5nIHNvdXJjZS1iYWNrZWQgY29tcGFyYWJsZSBldmlkZW5jZS4gSW1wcm92ZSBieSBmaW5kaW5nIGV4YWN0LCBjaXRlZCBjb21wYXJhYmxlIG1hdGNoZXMuIiwicHJpY2luZ1JhdGlvbmFsZSI6IkxpdmUgcmVzZWFyY2ggY29tcGxldGVkLCBidXQgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wcyBwYXNzZWQgZmlsdGVyaW5nLiBDb25zdW1lciBkZWNpc2lvbiBpcyBsb3cgY29uZmlkZW5jZS4gIExhY2sgb2YgcHJpY2UgYW5kIGNvbmRpdGlvbiBpbmZvcm1hdGlvbiBjb21iaW5lZCB3aXRoIGFic2VuY2Ugb2YgY29tcGFyYWJsZSBzYWxlcyBwcmV2ZW50cyBhbnkgcmVsaWFibGUgcHJpY2UgZXN0aW1hdGUgb3IgdmFsdWF0aW9uIiwiYWRkaXRpb25hbEluZm9ybWF0aW9uTmVlZGVkIjpbIkN1cnJlbnQgYXNraW5nIHByaWNlIGZyb20gc2VsbGVyIiwiSXRlbSBjb25kaXRpb24gYW5kIGNvbXBsZXRlbmVzcyBub3RlcyIsIk1hdGVyaWFsIGNvbXBvc2l0aW9uIGNvbmZpcm1hdGlvbiIsIlByb3ZlbmFuY2Ugb3IgYXV0aGVudGljaXR5IGRvY3VtZW50YXRpb24iLCJEaW1lbnNpb25zIG9yIHNpemUgZGV0YWlscyIsIk9uZSBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBhcmFibGUgcmVzdWx0IGZvciB0aGUgc2FtZSBtb2RlbCwgU0tVLCBVUEMsIG1ha2VyLCBzaXplLCBvciBpdGVtIGNvZGUuIiwiQ3VycmVudCBzZWxsZXIgYXNraW5nIHByaWNlLiIsIkEgY2xvc2VyIHBob3RvIG9mIHRoZSBtb2RlbCBsYWJlbCwgU0tVLCBVUEMvYmFyY29kZSwgbWFrZXIgbWFyaywgdGFnLCBvciB1bmRlcnNpZGUvYmFjayBsYWJlbC4iXSwic2VhcmNoUXVlcmllc1VzZWQiOlsiVGhlc2UgYXJlIHRoZSBxdWVyaWVzIHRoZSBzeXN0ZW0gdXNlZC4iLCJcIkFudGlxdWVzIGFuZCBDb2xsZWN0aWJsZXNcIiBOb3QgdmVyaWZpZWQgaG9saWRheSBkZWNvciIsIlwiRGVjb3JhdGl2ZSBnZW9tZXRyaWMgc2N1bHB0dXJlIG9yIGFydGlmYWN0XCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcIkdlb21ldHJpYyBhcnQsIHBvbHloZWRyYWwgZGVzaWduXCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcIkRvZGVjYWhlZHJvbiBzaGFwZSB3aXRoIDEyIHBlbnRhZ29uYWwgZmFjZXNcIiBOb3QgdmVyaWZpZWQgaG9saWRheSBkZWNvciIsIlwiSG9sbG93IGNpcmN1bGFyIGhvbGVzIGluIGVhY2ggZmFjZVwiIE5vdCB2ZXJpZmllZCBob2xpZGF5IGRlY29yIiwiXCJCbGFjayBtZXRhbCBvciBjZXJhbWljIG1hdGVyaWFsXCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcIlNtYWxsIGNpcmN1bGFyIGVuZ3JhdmVkIHBhdHRlcm5zIG9uIGZhY2VzXCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcIkJsYWNrIG1hdGVyaWFsIHdpdGggZW5ncmF2ZWQgY2lyY3VsYXIgcGF0dGVybnNcIiBOb3QgdmVyaWZpZWQgaG9saWRheSBkZWNvciIsIlwiVW52ZXJpZmllZCBleGFjdCBwcm9kdWN0XCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcImVkZ2VzIG9yIHZlcnRpY2VzIG9mIGZhY2VzXCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcImRlY29yYXRpdmUgZ2VvbWV0cmljIGFydGlmYWN0XCIgTm90IHZlcmlmaWVkIGhvbGlkYXkgZGVjb3IiLCJcImFuZCBsaWNlbnNpbmcgYXJlIG5vdCBjb25maXJtZWRcIiBOb3QgdmVyaWZpZWQgaG9saWRheSBkZWNvciIsIkNvbGxlY3RpYmxlcyBEZWNvcmF0aXZlIE5vdCB2ZXJpZmllZCBob2xpZGF5IGRlY29yIiwiTm90IHZlcmlmaWVkIERlY29yYXRpdmUgZ2VvbWV0cmljIHNjdWxwdHVyZSBvciBhcnRpZmFjdCBob2xpZGF5IGRlY29yIl0sInNvdXJjZXNTZWFyY2hlZCI6WyJTb3VyY2UgY2F0ZWdvcmllcyB0YXJnZXRlZDogZXhhY3QgdmlzaWJsZSBwaHJhc2Ugc2VhcmNoZXM7IGVCYXktc3R5bGUgYWN0aXZlIGFuZCBzb2xkIHJlc2FsZSByZXN1bHRzOyBFdHN5LXN0eWxlIHZpbnRhZ2UgYW5kIGFkdmVydGlzaW5nIGNvbGxlY3RpYmxlIHJlc3VsdHM7IGF1Y3Rpb24vYXJjaGl2ZSBzb3VyY2UgY2x1ZXM7IGNvbGxlY3Rvci9yZWZlcmVuY2Ugc291cmNlIGNsdWVzOyBnZW5lcmFsIHdlYiBleGFjdCBwaHJhc2UgcmVzdWx0czsgb3JnYW5pemF0aW9uL3RlYW0vYnJhbmQvZXZlbnQgc2VhcmNoZXMiLCJTb3VyY2VzIHNlYXJjaGVkOiB0aGVicm9uemVkb2xwaGluLmNvbTsgdGlhcy5jb207IGZzdWllb25lY28uY29tOyBhbnRpcXVldHJhZGVyLmNvbTsgMTB0aW1lcy5jb207IGxvY2FsdmludGFnZXN0b3Jlcy5jb207IG9sZHN0dWZmb25seS5jb207IGViYXkuY29tIiwiU291cmNlcyByZXR1cm5lZCB3aXRoIFVSTCBjaXRhdGlvbnM6IE5vbmUuIiwiTm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBtYXRjaGVzIHBhc3NlZCBtYXRjaC1xdWFsaXR5IGNoZWNrcy4iLCJSZXR1cm5lZCByZXN1bHRzIHdlcmUgcmVqZWN0ZWQgd2hlbiB0aGV5IGxhY2tlZCBleGFjdCBsYWJlbC9jb2RlIG1hdGNoZXMsIGhhZCBvbmx5IHdlYWsgbG9va2FsaWtlIGV2aWRlbmNlLCBvciBkaWQgbm90IGluY2x1ZGUgYSBjaXRlZCBVUkwgaW4gdGhlIGNvbXBhcmFibGUgaXRlbSB0ZXh0LiIsIlJlamVjdGVkIGlycmVsZXZhbnQgc291cmNlIGNhdGVnb3JpZXM6IGdlbmVyaWMgd2hvbGVzYWxlcnMsIHJlc3RhdXJhbnQtc3VwcGx5IHNpdGVzLCBidWxrIGltcG9ydC9tYW51ZmFjdHVyaW5nIGNhdGFsb2dzLCB1bnJlbGF0ZWQgY3VycmVudC1yZXRhaWwgbG9va2FsaWtlcywgYW5kIGdlbmVyaWMgdmlzdWFsIGxvb2thbGlrZXMuIiwiU2VhcmNoZWQgdXNpbmcgdmlzaWJsZSBib3gsIGxhYmVsLCBicmFuZCwgb3IgcHJvZHVjdC10aXRsZSB3b3JkaW5nLiIsIlNlYXJjaGVkIHVzaW5nIHZpc3VhbCBpdGVtIGRlc2NyaXB0aW9uIGFuZCBjYXRlZ29yeSB0ZXJtcy4iLCJTZWFyY2hlZCByZWxldmFudCBob2xpZGF5IGRlY29yIC8gY29sbGVjdGlibGUgc291cmNlcy4iXSwidmlzdWFsU3ViamVjdCI6IkRlY29yYXRpdmUgZ2VvbWV0cmljIHNjdWxwdHVyZSBvciBhcnRpZmFjdCIsInZpc3VhbFN1YmplY3RDYXRlZ29yeSI6IkFudGlxdWVzIGFuZCBDb2xsZWN0aWJsZXMiLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRCcmFuZCI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRDaGFyYWN0ZXIiOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkSW5zdGl0dXRpb24iOiJOb3QgdmVyaWZpZWQiLCJyZWNvZ25pemVkVGhlbWUiOiJHZW9tZXRyaWMgYXJ0LCBwb2x5aGVkcmFsIGRlc2lnbiIsInZpc3VhbFJlY29nbml0aW9uRXZpZGVuY2UiOlsiMTItc2lkZWQgcG9seWhlZHJhbCBzaGFwZSB3aXRoIGhvbGVzIGFuZCBzcGhlcmljYWwgYnVtcHMiLCJCbGFjayBtYXRlcmlhbCB3aXRoIGVuZ3JhdmVkIGNpcmN1bGFyIHBhdHRlcm5zIiwiRGlzcGxheWVkIGluIGEgbXVzZXVtIG9yIGV4aGliaXQgc2V0dGluZyIsIkRvZGVjYWhlZHJvbiBzaGFwZSB3aXRoIDEyIHBlbnRhZ29uYWwgZmFjZXMiLCJIb2xsb3cgY2lyY3VsYXIgaG9sZXMgaW4gZWFjaCBmYWNlIiwiU3BoZXJpY2FsIHByb3RydXNpb25zIGNlbnRlcmVkIG9uIGVkZ2VzIG9yIHZlcnRpY2VzIG9mIGZhY2VzIiwiQmxhY2sgbWV0YWwgb3IgY2VyYW1pYyBtYXRlcmlhbCIsIlNtYWxsIGNpcmN1bGFyIGVuZ3JhdmVkIHBhdHRlcm5zIG9uIGZhY2VzIiwiVmlzaWJsZSBjb2xvcjogQmxhY2siLCJWaXNpYmxlIGNvbG9yOiBPcmFuZ2UgYmFja2dyb3VuZCJdLCJ2aXN1YWxSZWNvZ25pdGlvblVua25vd25zIjpbIkV4YWN0IG9yaWdpbiBvciBwdXJwb3NlIiwiTWF0ZXJpYWwgY29tcG9zaXRpb24iLCJDdWx0dXJhbCBvciBoaXN0b3JpY2FsIGNvbnRleHQiXSwidmlzdWFsUmVjb2duaXRpb25Db25mbGljdHMiOltdLCJ2aXN1YWxSZWNvZ25pdGlvblN1bW1hcnkiOiJWaXN1YWwgU3ViamVjdDogRGVjb3JhdGl2ZSBnZW9tZXRyaWMgc2N1bHB0dXJlIG9yIGFydGlmYWN0IHwgQ2F0ZWdvcnk6IEFudGlxdWVzIGFuZCBDb2xsZWN0aWJsZXMgfCBDb25maWRlbmNlOiBIaWdoIC0gc3VwcG9ydGVkIGJ5IGF2YWlsYWJsZSBzdWJqZWN0IGV2aWRlbmNlLiB8IFJlY29nbml6ZWQgY2x1ZXM6IG9yZ2FuaXphdGlvbjogTm90IHZlcmlmaWVkOyBicmFuZDogTm90IHZlcmlmaWVkOyBjaGFyYWN0ZXI6IE5vdCB2ZXJpZmllZDsgaW5zdGl0dXRpb246IE5vdCB2ZXJpZmllZDsgdGhlbWU6IEdlb21ldHJpYyBhcnQsIHBvbHloZWRyYWwgZGVzaWduIHwgU3VwcG9ydGluZyBldmlkZW5jZTogMTItc2lkZWQgcG9seWhlZHJhbCBzaGFwZSB3aXRoIGhvbGVzIGFuZCBzcGhlcmljYWwgYnVtcHM7IEJsYWNrIG1hdGVyaWFsIHdpdGggZW5ncmF2ZWQgY2lyY3VsYXIgcGF0dGVybnM7IERpc3BsYXllZCBpbiBhIG11c2V1bSBvciBleGhpYml0IHNldHRpbmc7IERvZGVjYWhlZHJvbiBzaGFwZSB3aXRoIDEyIHBlbnRhZ29uYWwgZmFjZXMgfCBTdGlsbCB1bmtub3duOiBFeGFjdCBvcmlnaW4gb3IgcHVycG9zZTsgTWF0ZXJpYWwgY29tcG9zaXRpb247IEN1bHR1cmFsIG9yIGhpc3RvcmljYWwgY29udGV4dCB8IFVzZXIgZXZpZGVuY2UgcmVjb25jaWxpYXRpb246IE5vIHVzZXIgaW5wdXQgcHJvdmlkZWQgdG8gY29uZmlybSBvciBjb25mbGljdCB3aXRoIHZpc3VhbCBhbmFseXNpcyB8IFN1bW1hcnk6IFRoZSBpbWFnZXMgc2hvdyBhbiBhbnRpcXVlLWxpa2UgZ2VvbWV0cmljIGFydGlmYWN0IG9yIGRlY29yYXRpdmUgc2N1bHB0dXJlIHNoYXBlZCBhcyBhIGRvZGVjYWhlZHJvbiB3aXRoIGNpcmN1bGFyIGhvbGVzIGFuZCBzcGhlcmljYWwgbm9kZXMgb24gZWFjaCBmYWNlLCByZW5kZXJlZCBpbiBibGFjayBtYXRlcmlhbCB3aXRoIGVuZ3JhdmVkIHBhdHRlcm5zLCBleGhpYml0ZWQgaW4gYSBtdXNldW0gc2V0dGluZy4gSXRzIGJyb2FkIGNhdGVnb3J5IGZpdHMgaW50byBhbnRpcXVlcyBhbmQgY29sbGVjdGlibGVzIHdpdGggYSBsaWtlbHkgY3VsdHVyYWwgb3IgYXJ0aXN0aWMgb3JpZ2luLiIsInN1YmplY3RJZGVudGl0eSI6IkRlY29yYXRpdmUgZ2VvbWV0cmljIHNjdWxwdHVyZSBvciBhcnRpZmFjdCIsInN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4iLCJleGFjdFByb2R1Y3RJZGVudGl0eSI6IlVudmVyaWZpZWQgZXhhY3QgcHJvZHVjdCAtIGxpa2VseSBEZWNvcmF0aXZlIGdlb21ldHJpYyBzY3VscHR1cmUgb3IgYXJ0aWZhY3Q7IGV4YWN0IGl0ZW0sIG1ha2VyLCBkYXRlLCBhbmQgbGljZW5zaW5nIGFyZSBub3QgY29uZmlybWVkLiIsImV4YWN0UHJvZHVjdENvbmZpZGVuY2UiOiJMb3cgLSBzcGVjaWZpYyBvcmlnaW4sIG1ha2VyLCBlcmEsIGFuZCBwdXJwb3NlIG5vdCBkZXRlcm1pbmVkIiwibWFrZXJEYXRlTGljZW5zaW5nU3RhdHVzIjpbIk1ha2VyIC8gTWFudWZhY3R1cmVyOiBOb3QgdmVyaWZpZWQiLCJEYXRlIC8gRXJhOiBJbmRldGVybWluYXRlLCBwb3NzaWJseSBoaXN0b3JpY2FsIG9yIHRyaWJhbCIsIkxpY2Vuc2luZzogTm90IHZlcmlmaWVkIiwiQXV0aGVudGljaXR5OiBOb3QgdmVyaWZpZWQiXSwid2hhdElzS25vd24iOlsiU3ViamVjdDogRGVjb3JhdGl2ZSBnZW9tZXRyaWMgc2N1bHB0dXJlIG9yIGFydGlmYWN0IiwiVmlzdWFsIGV2aWRlbmNlOiAxMi1zaWRlZCBwb2x5aGVkcmFsIHNoYXBlIHdpdGggaG9sZXMgYW5kIHNwaGVyaWNhbCBidW1wcyIsIlZpc3VhbCBldmlkZW5jZTogQmxhY2sgbWF0ZXJpYWwgd2l0aCBlbmdyYXZlZCBjaXJjdWxhciBwYXR0ZXJucyIsIlZpc3VhbCBldmlkZW5jZTogRGlzcGxheWVkIGluIGEgbXVzZXVtIG9yIGV4aGliaXQgc2V0dGluZyIsIkNvbXBhcmFibGUgc3RhdHVzOiBObyBleGFjdCBjb21wYXJhYmxlIGZvdW5kIl0sIndoYXRJc1N0aWxsVW5rbm93biI6WyJFeGFjdCBvcmlnaW4gb3IgY3VsdHVyYWwgY29udGV4dCIsIk1hbnVmYWN0dXJlciBvciBtYWtlciIsIlNwZWNpZmljIGFnZSBvciBlcmEiLCJNYXRlcmlhbCBjb21wb3NpdGlvbiIsIkV4YWN0IHB1cnBvc2Ugb3IgdXNlIiwiRXhhY3Qgb3JpZ2luIG9yIHB1cnBvc2UiLCJDdWx0dXJhbCBvciBoaXN0b3JpY2FsIGNvbnRleHQiLCJFeGFjdCBwcm9kdWN0IGlkZW50aXR5IG5vdCB2ZXJpZmllZC4iXSwiaWRlbnRpdHlDb25mbGljdHMiOltdLCJpZGVudGl0eVN1bW1hcnkiOiJTdWJqZWN0IElkZW50aXR5OiBEZWNvcmF0aXZlIGdlb21ldHJpYyBzY3VscHR1cmUgb3IgYXJ0aWZhY3QgfCBTdWJqZWN0IENvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIHwgRXhhY3QgUHJvZHVjdCBJZGVudGl0eTogVW52ZXJpZmllZCBleGFjdCBwcm9kdWN0IC0gbGlrZWx5IERlY29yYXRpdmUgZ2VvbWV0cmljIHNjdWxwdHVyZSBvciBhcnRpZmFjdDsgZXhhY3QgaXRlbSwgbWFrZXIsIGRhdGUsIGFuZCBsaWNlbnNpbmcgYXJlIG5vdCBjb25maXJtZWQuIHwgTWFrZXIgLyBNYW51ZmFjdHVyZXI6IE5vdCB2ZXJpZmllZCB8IExpY2Vuc2luZyAvIEF1dGhlbnRpY2l0eTogTm90IHZlcmlmaWVkIC8gTm90IHZlcmlmaWVkIiwicmVzdWx0c0ZvdW5kIjpbXSwic3Ryb25nQ29tcGFyYWJsZXMiOltdLCJwYXJ0aWFsQ29tcGFyYWJsZXMiOltdLCJyZWZlcmVuY2VSZXN1bHRzIjpbXSwid2Vha01hdGNoZXMiOltdLCJyZWplY3RlZE1hdGNoZXMiOltdLCJzZWFyY2hMaW1pdGF0aW9ucyI6WyJMaXZlIHNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlLWJhY2tlZCByZXN1bHQgcmVjb3JkcyB3ZXJlIHJldHVybmVkLiIsIkV4YWN0IHBocmFzZSBzZWFyY2hlcyB3ZXJlIGF0dGVtcHRlZCwgYnV0IHRoZSBsaXZlIHJlc3BvbnNlIGRpZCBub3QgcmV0dXJuIFVSTC1jaXRlZCBzb3VyY2UgcmVjb3Jkcy4iLCJObyBleGFjdCBvciBzdHJvbmcgY29tcGFyYWJsZSByZWNvcmRzIGFyZSB2aXNpYmxlIGluIHRoaXMgcmVwb3J0LiJdLCJ2aXNpYmxlUmVzZWFyY2hSZXN1bHRDb3VudCI6MCwicmVmZXJlbmNlUmFuZ2VCYXNpcyI6Ik5vIG51bWVyaWMgcHJlbGltaW5hcnkgcmFuZ2UgaXMgc2hvd24gYmVjYXVzZSB0aGVyZSBhcmUgbm8gdmlzaWJsZSBzdHJ1Y3R1cmVkIHNvdXJjZSByZWNvcmRzIHN1cHBvcnRpbmcgb25lLiIsInByZWxpbWluYXJ5UmVmZXJlbmNlUmFuZ2UiOiIiLCJwcmljZUJhc2lzIjoiRmFpciB2YWx1ZSBub3QgZXN0YWJsaXNoZWQgLSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuICBQcmljaW5nIGJhc2lzIGRpc3Rpbmd1aXNoZXMgZXhhY3QgaWRlbnRpdHkgbWF0Y2hlcyBmcm9tIGFjdGl2ZSBhc2tpbmctcHJpY2UgZXZpZGVuY2UgYW5kIGNvbmZpcm1lZCBzb2xkIGV2aWRlbmNlLiIsImNvbnN1bWVyRG93bnNpZGVSaXNrIjoiRG93bnNpZGUgY2Fubm90IGJlIGNhbGN1bGF0ZWQgYmVjYXVzZSB0aGUgYXNraW5nIHByaWNlIGlzIG1pc3NpbmcuIiwiY2F1dGlvdXNCdXlFeHBsYW5hdGlvbiI6IiIsImxpdmVDb21wYXJhYmxlU2VhcmNoU3RhdHVzIjoiTGl2ZSBTZWFyY2ggQ29tcGxldGVkIC0gTm8gUmVsaWFibGUgQ29tcHMgRm91bmQiLCJ3ZUZvdW5kVGhpc0l0ZW0iOltdLCJ3ZUZvdW5kU2ltaWxhckNvbXBhcmFibGVJdGVtcyI6W10sInZhbHVhdGlvbkV2aWRlbmNlU3RhdGUiOiJpbnN1ZmZpY2llbnQiLCJ2YWx1YXRpb25FdmlkZW5jZUxhYmVsIjoiRmFpciBWYWx1ZSBOb3QgRXN0YWJsaXNoZWQiLCJ2YWx1YXRpb25FdmlkZW5jZUV4cGxhbmF0aW9uIjoiVGhlIGF2YWlsYWJsZSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSBkZWZlbnNpYmxlIGRvbGxhciByYW5nZS4iLCJmYWlyVmFsdWVOb3RFc3RhYmxpc2hlZCI6IkZhaXIgVmFsdWU6IE5vdCBlc3RhYmxpc2hlZCIsImVzdGltYXRlZE1hcmtldFZhbHVlIjoiIiwid2hhdFRoaXNNZWFucyI6IkZhaXIgbWFya2V0IHZhbHVlIGhhcyBub3QgYmVlbiBlc3RhYmxpc2hlZCBmcm9tIHRoZSBhdmFpbGFibGUgZXZpZGVuY2UuIERvIG5vdCB0cmVhdCB0aGlzIGFzIGEgY29uZmlybWVkIHZhbHVlIGVzdGltYXRlLiIsImJlc3ROZXh0U3RlcCI6IkN1cnJlbnQgYXNraW5nIHByaWNlIGZyb20gc2VsbGVyIn19",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "Decorative geometric sculpture or artifact",
+      "identificationConfidence": "High - visual subject and broad category well supported; exact product identity unverified",
+      "evidenceFoundInPhotos": [
+        "Visual subject: Decorative geometric sculpture or artifact",
+        "Visual subject category: Antiques and Collectibles",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Not verified",
+        "Recognized brand: Not verified",
+        "Recognized character: Not verified",
+        "Subject identity: Decorative geometric sculpture or artifact",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "Exact product identity: Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed.",
+        "Exact product confidence: Low - specific origin, maker, era, and purpose not determined",
+        "Material: Possibly metal or ceramic",
+        "Color/pattern: Black"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "Insufficient pricing and condition information to guide negotiation; recommend obtaining clear asking price and condition details before proceeding",
+      "reasonsToBuy": [
+        "Unique decorative or possibly cultural geometric artifact with distinctive dodecahedron design",
+        "High visual appeal as a sculptural or collectible item",
+        "Potentially adds artistic or cultural value to personal collection"
+      ],
+      "reasonsForCaution": [
+        "No verification of origin, maker, era, or authenticity",
+        "Material and item condition not provided",
+        "No comparable market data available to assess fair price",
+        "Asking price not disclosed, preventing valuation",
+        "Uniqueness or rarity complicates value assessment",
+        "Identity Not Confirmed",
+        "Weak Comparable Evidence",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Identity Not Confirmed: exact product maker and origins unclear",
+        "Condition Unclear: item condition and completeness unknown",
+        "Weak Comparable Evidence: no reliable sales or listings found",
+        "Authenticity Unclear: no certification or provenance provided",
+        "Risk flag: Identity Not Confirmed",
+        "Risk flag: Weak Comparable Evidence"
+      ],
+      "riskFlags": [
+        "Identity Not Confirmed",
+        "Weak Comparable Evidence"
+      ],
+      "betterValueConsiderations": [
+        "Consider obtaining provenance or expert appraisal for proper valuation",
+        "Seek similar geometric or cultural artifacts with verified identity and pricing for comparison",
+        "Wait for more detailed seller information or documented pricing"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Lack of price and condition information combined with absence of comparable sales prevents any reliable price estimate or valuation",
+      "additionalInformationNeeded": [
+        "Current asking price from seller",
+        "Item condition and completeness notes",
+        "Material composition confirmation",
+        "Provenance or authenticity documentation",
+        "Dimensions or size details",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price.",
+        "A closer photo of the model label, SKU, UPC/barcode, maker mark, tag, or underside/back label."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"Antiques and Collectibles\" Not verified holiday decor",
+        "\"Decorative geometric sculpture or artifact\" Not verified holiday decor",
+        "\"Geometric art, polyhedral design\" Not verified holiday decor",
+        "\"Dodecahedron shape with 12 pentagonal faces\" Not verified holiday decor",
+        "\"Hollow circular holes in each face\" Not verified holiday decor",
+        "\"Black metal or ceramic material\" Not verified holiday decor",
+        "\"Small circular engraved patterns on faces\" Not verified holiday decor",
+        "\"Black material with engraved circular patterns\" Not verified holiday decor",
+        "\"Unverified exact product\" Not verified holiday decor",
+        "\"edges or vertices of faces\" Not verified holiday decor",
+        "\"decorative geometric artifact\" Not verified holiday decor",
+        "\"and licensing are not confirmed\" Not verified holiday decor",
+        "Collectibles Decorative Not verified holiday decor",
+        "Not verified Decorative geometric sculpture or artifact holiday decor"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+        "Sources searched: thebronzedolphin.com; tias.com; fsuieoneco.com; antiquetrader.com; 10times.com; localvintagestores.com; oldstuffonly.com; ebay.com",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched using visual item description and category terms.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "visualSubject": "Decorative geometric sculpture or artifact",
+      "visualSubjectCategory": "Antiques and Collectibles",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Not verified",
+      "recognizedBrand": "Not verified",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Geometric art, polyhedral design",
+      "visualRecognitionEvidence": [
+        "12-sided polyhedral shape with holes and spherical bumps",
+        "Black material with engraved circular patterns",
+        "Displayed in a museum or exhibit setting",
+        "Dodecahedron shape with 12 pentagonal faces",
+        "Hollow circular holes in each face",
+        "Spherical protrusions centered on edges or vertices of faces",
+        "Black metal or ceramic material",
+        "Small circular engraved patterns on faces",
+        "Visible color: Black",
+        "Visible color: Orange background"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact origin or purpose",
+        "Material composition",
+        "Cultural or historical context"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: Decorative geometric sculpture or artifact | Category: Antiques and Collectibles | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Geometric art, polyhedral design | Supporting evidence: 12-sided polyhedral shape with holes and spherical bumps; Black material with engraved circular patterns; Displayed in a museum or exhibit setting; Dodecahedron shape with 12 pentagonal faces | Still unknown: Exact origin or purpose; Material composition; Cultural or historical context | User evidence reconciliation: No user input provided to confirm or conflict with visual analysis | Summary: The images show an antique-like geometric artifact or decorative sculpture shaped as a dodecahedron with circular holes and spherical nodes on each face, rendered in black material with engraved patterns, exhibited in a museum setting. Its broad category fits into antiques and collectibles with a likely cultural or artistic origin.",
+      "subjectIdentity": "Decorative geometric sculpture or artifact",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed.",
+      "exactProductConfidence": "Low - specific origin, maker, era, and purpose not determined",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Not verified",
+        "Date / Era: Indeterminate, possibly historical or tribal",
+        "Licensing: Not verified",
+        "Authenticity: Not verified"
+      ],
+      "whatIsKnown": [
+        "Subject: Decorative geometric sculpture or artifact",
+        "Visual evidence: 12-sided polyhedral shape with holes and spherical bumps",
+        "Visual evidence: Black material with engraved circular patterns",
+        "Visual evidence: Displayed in a museum or exhibit setting",
+        "Comparable status: No exact comparable found"
+      ],
+      "whatIsStillUnknown": [
+        "Exact origin or cultural context",
+        "Manufacturer or maker",
+        "Specific age or era",
+        "Material composition",
+        "Exact purpose or use",
+        "Exact origin or purpose",
+        "Cultural or historical context",
+        "Exact product identity not verified."
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: Decorative geometric sculpture or artifact | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed. | Maker / Manufacturer: Not verified | Licensing / Authenticity: Not verified / Not verified",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Current asking price from seller"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "Decorative geometric sculpture or artifact",
+    "identificationConfidence": "High - visual subject and broad category well supported; exact product identity unverified",
+    "evidenceFoundInPhotos": [
+      "Visual subject: Decorative geometric sculpture or artifact",
+      "Visual subject category: Antiques and Collectibles",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Not verified",
+      "Recognized brand: Not verified",
+      "Recognized character: Not verified",
+      "Subject identity: Decorative geometric sculpture or artifact",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "Exact product identity: Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed.",
+      "Exact product confidence: Low - specific origin, maker, era, and purpose not determined",
+      "Material: Possibly metal or ceramic",
+      "Color/pattern: Black"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "Insufficient pricing and condition information to guide negotiation; recommend obtaining clear asking price and condition details before proceeding",
+    "reasonsToBuy": [
+      "Unique decorative or possibly cultural geometric artifact with distinctive dodecahedron design",
+      "High visual appeal as a sculptural or collectible item",
+      "Potentially adds artistic or cultural value to personal collection"
+    ],
+    "reasonsForCaution": [
+      "No verification of origin, maker, era, or authenticity",
+      "Material and item condition not provided",
+      "No comparable market data available to assess fair price",
+      "Asking price not disclosed, preventing valuation",
+      "Uniqueness or rarity complicates value assessment",
+      "Identity Not Confirmed",
+      "Weak Comparable Evidence",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Identity Not Confirmed: exact product maker and origins unclear",
+      "Condition Unclear: item condition and completeness unknown",
+      "Weak Comparable Evidence: no reliable sales or listings found",
+      "Authenticity Unclear: no certification or provenance provided",
+      "Risk flag: Identity Not Confirmed",
+      "Risk flag: Weak Comparable Evidence"
+    ],
+    "riskFlags": [
+      "Identity Not Confirmed",
+      "Weak Comparable Evidence"
+    ],
+    "betterValueConsiderations": [
+      "Consider obtaining provenance or expert appraisal for proper valuation",
+      "Seek similar geometric or cultural artifacts with verified identity and pricing for comparison",
+      "Wait for more detailed seller information or documented pricing"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Lack of price and condition information combined with absence of comparable sales prevents any reliable price estimate or valuation",
+    "additionalInformationNeeded": [
+      "Current asking price from seller",
+      "Item condition and completeness notes",
+      "Material composition confirmation",
+      "Provenance or authenticity documentation",
+      "Dimensions or size details",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price.",
+      "A closer photo of the model label, SKU, UPC/barcode, maker mark, tag, or underside/back label."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"Antiques and Collectibles\" Not verified holiday decor",
+      "\"Decorative geometric sculpture or artifact\" Not verified holiday decor",
+      "\"Geometric art, polyhedral design\" Not verified holiday decor",
+      "\"Dodecahedron shape with 12 pentagonal faces\" Not verified holiday decor",
+      "\"Hollow circular holes in each face\" Not verified holiday decor",
+      "\"Black metal or ceramic material\" Not verified holiday decor",
+      "\"Small circular engraved patterns on faces\" Not verified holiday decor",
+      "\"Black material with engraved circular patterns\" Not verified holiday decor",
+      "\"Unverified exact product\" Not verified holiday decor",
+      "\"edges or vertices of faces\" Not verified holiday decor",
+      "\"decorative geometric artifact\" Not verified holiday decor",
+      "\"and licensing are not confirmed\" Not verified holiday decor",
+      "Collectibles Decorative Not verified holiday decor",
+      "Not verified Decorative geometric sculpture or artifact holiday decor"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+      "Sources searched: thebronzedolphin.com; tias.com; fsuieoneco.com; antiquetrader.com; 10times.com; localvintagestores.com; oldstuffonly.com; ebay.com",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched using visual item description and category terms.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "visualSubject": "Decorative geometric sculpture or artifact",
+    "visualSubjectCategory": "Antiques and Collectibles",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Not verified",
+    "recognizedBrand": "Not verified",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Geometric art, polyhedral design",
+    "visualRecognitionEvidence": [
+      "12-sided polyhedral shape with holes and spherical bumps",
+      "Black material with engraved circular patterns",
+      "Displayed in a museum or exhibit setting",
+      "Dodecahedron shape with 12 pentagonal faces",
+      "Hollow circular holes in each face",
+      "Spherical protrusions centered on edges or vertices of faces",
+      "Black metal or ceramic material",
+      "Small circular engraved patterns on faces",
+      "Visible color: Black",
+      "Visible color: Orange background"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact origin or purpose",
+      "Material composition",
+      "Cultural or historical context"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: Decorative geometric sculpture or artifact | Category: Antiques and Collectibles | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Not verified; brand: Not verified; character: Not verified; institution: Not verified; theme: Geometric art, polyhedral design | Supporting evidence: 12-sided polyhedral shape with holes and spherical bumps; Black material with engraved circular patterns; Displayed in a museum or exhibit setting; Dodecahedron shape with 12 pentagonal faces | Still unknown: Exact origin or purpose; Material composition; Cultural or historical context | User evidence reconciliation: No user input provided to confirm or conflict with visual analysis | Summary: The images show an antique-like geometric artifact or decorative sculpture shaped as a dodecahedron with circular holes and spherical nodes on each face, rendered in black material with engraved patterns, exhibited in a museum setting. Its broad category fits into antiques and collectibles with a likely cultural or artistic origin.",
+    "subjectIdentity": "Decorative geometric sculpture or artifact",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed.",
+    "exactProductConfidence": "Low - specific origin, maker, era, and purpose not determined",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Not verified",
+      "Date / Era: Indeterminate, possibly historical or tribal",
+      "Licensing: Not verified",
+      "Authenticity: Not verified"
+    ],
+    "whatIsKnown": [
+      "Subject: Decorative geometric sculpture or artifact",
+      "Visual evidence: 12-sided polyhedral shape with holes and spherical bumps",
+      "Visual evidence: Black material with engraved circular patterns",
+      "Visual evidence: Displayed in a museum or exhibit setting",
+      "Comparable status: No exact comparable found"
+    ],
+    "whatIsStillUnknown": [
+      "Exact origin or cultural context",
+      "Manufacturer or maker",
+      "Specific age or era",
+      "Material composition",
+      "Exact purpose or use",
+      "Exact origin or purpose",
+      "Cultural or historical context",
+      "Exact product identity not verified."
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: Decorative geometric sculpture or artifact | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Unverified exact product - likely Decorative geometric sculpture or artifact; exact item, maker, date, and licensing are not confirmed. | Maker / Manufacturer: Not verified | Licensing / Authenticity: Not verified / Not verified",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Current asking price from seller"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "228d5280961dc05369c8bb749efad4741399355e3459ba96f9bef5ad1711c13e"
+}

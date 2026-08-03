@@ -1,0 +1,405 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-001",
+  "objectId": "OBJ-001",
+  "requestSha256": "a150d9815bcc4fb57129c8f020db674c3cbef7335f9b28756ce865f39e598a94",
+  "handlerStatus": {
+    "statusCode": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-03T18:25:08.242Z",
+  "endTimestamp": "2026-08-03T18:25:41.896Z",
+  "elapsedMilliseconds": 33654.7251,
+  "rawHandlerBodyBase64": "eyJ2YWx1YXRpb24iOnsiYnV5ZXJJbnRlbnQiOiJwZXJzb25hbF91c2UiLCJpZGVudGlmaWVkSXRlbSI6Ik51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIGphciBieSBGZXJyZXJvIiwiaWRlbnRpZmljYXRpb25Db25maWRlbmNlIjoiSGlnaCAtIGNvbmZpcm1lZCBieSBiYXJjb2RlIDMwMTc2MjA0MjIwMDMgdmlzaWJsZSBvbiBqYXIgYW5kIGJyYW5kZWQgbGFiZWwiLCJldmlkZW5jZUZvdW5kSW5QaG90b3MiOlsiVmlzdWFsIHN1YmplY3Q6IEEgamFyIG9mIGhhemVsbnV0IGNvY29hIHNwcmVhZCIsIlZpc3VhbCBzdWJqZWN0IGNhdGVnb3J5OiBGb29kIHByb2R1Y3QgcGFja2FnaW5nIiwiVmlzdWFsIHN1YmplY3QgY29uZmlkZW5jZTogSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4iLCJSZWNvZ25pemVkIG9yZ2FuaXphdGlvbjogRmVycmVybyIsIlJlY29nbml6ZWQgYnJhbmQ6IE51dGVsbGEiLCJSZWNvZ25pemVkIGNoYXJhY3RlcjogTm90IHZlcmlmaWVkIiwiU3ViamVjdCBpZGVudGl0eTogQSBqYXIgb2YgaGF6ZWxudXQgY29jb2Egc3ByZWFkIiwiU3ViamVjdCBjb25maWRlbmNlOiBIaWdoIC0gdXNlci1wcm92aWRlZCBpZGVudGl0eSBpcyBjb25zaXN0ZW50IHdpdGggYXZhaWxhYmxlIHZpc3VhbCBvciB0ZXh0IGV2aWRlbmNlLiIsIkV4YWN0IHByb2R1Y3QgaWRlbnRpdHk6IE51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIGJ5IEZlcnJlcm8gaW4gYSBzdGFuZGFyZCBjb21tZXJjaWFsIGphciIsIkV4YWN0IHByb2R1Y3QgY29uZmlkZW5jZTogSGlnaCAtIGJhcmNvZGUgYW5kIGJyYW5kZWQgbGFiZWwgbWF0Y2giLCJCcmFuZDogTnV0ZWxsYSIsIk1hbnVmYWN0dXJlcjogRmVycmVybyJdLCJhc2tpbmdQcmljZSI6Ik5vdCBwcm92aWRlZCAtIGVudGVyIHRoZSBjdXJyZW50IGFza2luZyBwcmljZSBmb3IgYSBwZXJzb25hbC11c2UgdmFsdWUgZGVjaXNpb24uIiwiZXN0aW1hdGVkRmFpck1hcmtldFZhbHVlIjoiIiwiZmFpclByaWNlUmFuZ2UiOltdLCJ2YWx1ZVJhdGluZyI6Ikluc3VmZmljaWVudCBFdmlkZW5jZSIsInJlY29tbWVuZGF0aW9uIjoiTmVlZCBNb3JlIEluZm9ybWF0aW9uIiwicmVjb21tZW5kZWRPZmZlciI6WyJPcGVuaW5nIE9mZmVyOiBOb3Qgc3VwcG9ydGVkIHlldC4iLCJUYXJnZXQgUHVyY2hhc2UgUHJpY2U6IE5vdCBzdXBwb3J0ZWQgeWV0LiIsIk1heGltdW0gUmVjb21tZW5kZWQgUHJpY2U6IE5vdCBzdXBwb3J0ZWQgeWV0LiJdLCJvcGVuaW5nT2ZmZXIiOiJOb3Qgc3VwcG9ydGVkIHlldCAtIHZlcmlmeSBpZGVudGl0eSwgY29uZGl0aW9uLCBhc2tpbmcgcHJpY2UsIGFuZCByZWxpYWJsZSBjb21wYXJhYmxlcyBmaXJzdC4iLCJ0YXJnZXRQdXJjaGFzZVByaWNlIjoiTm90IHN1cHBvcnRlZCB5ZXQgLSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSByZXNwb25zaWJsZSB0YXJnZXQgcHJpY2UuIiwibWF4aW11bVJlY29tbWVuZGVkUHJpY2UiOiJOb3Qgc3VwcG9ydGVkIHlldCAtIGRvIG5vdCBzZXQgYSBtYXhpbXVtIGZyb20gd2VhayBldmlkZW5jZS4iLCJ3YWxrQXdheVByaWNlIjoiTm90IGVub3VnaCBldmlkZW5jZSBmb3IgYSBwcmVjaXNlIHdhbGstYXdheSBwcmljZS4iLCJuZWdvdGlhdGlvbkd1aWRhbmNlIjoiV2l0aG91dCBhdmFpbGFibGUgYXNraW5nIHByaWNlIG9yIGNvbXBhcmFibGUgc2FsZXMsIG5lZ290aWF0aW9uIGd1aWRhbmNlIGNhbm5vdCBiZSBwcm92aWRlZC4gT2J0YWluIGFza2luZyBwcmljZSBhbmQgY2hlY2sgZm9yIGxvY2FsIHJldGFpbCBwcmljZXMgb3Igb25saW5lIG9mZmVycyBmb3IgTnV0ZWxsYSBvZiBzaW1pbGFyIHNpemUgYW5kIHZhcmlhbnQuIiwicmVhc29uc1RvQnV5IjpbIlJlY29nbml6YWJsZSwgbGlrZWx5IGF1dGhlbnRpYyBOdXRlbGxhIGJ5IEZlcnJlcm8gY29uZmlybWVkIGJ5IGJhcmNvZGUgYW5kIGxhYmVsIiwiUG9wdWxhciBjaG9jb2xhdGUgaGF6ZWxudXQgc3ByZWFkIHN1aXRhYmxlIGZvciBwZXJzb25hbCBjb25zdW1wdGlvbiIsIlN0YW5kYXJkIGNvbW1lcmNpYWwgZm9vZCBwYWNrYWdpbmcgaW5kaWNhdGluZyBmcmVzaGVyLCBvcmlnaW5hbCBwcm9kdWN0Il0sInJlYXNvbnNGb3JDYXV0aW9uIjpbIk5vIGFza2luZyBwcmljZSBwcm92aWRlZCB0byBjb21wYXJlIGZhaXIgdmFsdWUiLCJFeGFjdCBwcm9kdWN0IHdlaWdodCwgdmFyaWFudCwgYW5kIHNpemUgdW5rbm93biBhZmZlY3RpbmcgcHJpY2UgZXN0aW1hdGlvbiIsIk5vIGNvbmRpdGlvbiBkZXRhaWxzIGF2YWlsYWJsZTsgZnJlc2huZXNzIGFuZCBleHBpcnkgZGF0ZSB1bmtub3duIiwiTm8gY3VycmVudCBtYXJrZXRwbGFjZSBjb21wYXJhYmxlIGxpc3RpbmdzIGZvdW5kLCBsaW1pdGluZyBwcmljZSBndWlkYW5jZSIsIldlYWsgQ29tcGFyYWJsZSBFdmlkZW5jZSIsIkNvbmRpdGlvbiBVbmNsZWFyIiwiQ29uc3VtZXIgdmFsdWUgY2Fubm90IGJlIHJhdGVkIGNvbmZpZGVudGx5IHVudGlsIHRoZSBhc2tpbmcgcHJpY2UsIGV4YWN0IGlkZW50aXR5LCBjb25kaXRpb24sIGFuZCBzb3VyY2UtYmFja2VkIGNvbXBhcmFibGUgZXZpZGVuY2UgYXJlIHN0cm9uZ2VyLiJdLCJwcm9kdWN0T3JDb25kaXRpb25SaXNrcyI6WyJDb25kaXRpb24gdW5rbm93bjsgcG9zc2libGUgZnJlc2huZXNzIG9yIGV4cGlyeSBjb25jZXJucyB3aXRob3V0IHZpc2libGUgZGF0ZXMiLCJFeGFjdCB2YXJpYW50IGFuZCBxdWFudGl0eSB1bmtub3duLCBhZmZlY3RpbmcgcHJpY2UgY29tcGFyYWJpbGl0eSIsIk5vIGFzc3VyYW5jZSBvbiBtYW51ZmFjdHVyaW5nIGRhdGUgb3Igc3RvcmFnZSBjb25kaXRpb25zIiwiUmlzayBmbGFnOiBXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJSaXNrIGZsYWc6IENvbmRpdGlvbiBVbmNsZWFyIiwiQ29uZGl0aW9uIGlzIG5vdCBjb25maXJtZWQuIl0sInJpc2tGbGFncyI6WyJXZWFrIENvbXBhcmFibGUgRXZpZGVuY2UiLCJDb25kaXRpb24gVW5jbGVhciJdLCJiZXR0ZXJWYWx1ZUNvbnNpZGVyYXRpb25zIjpbIkNoZWNrIHByaWNlcyBhdCBsb2NhbCByZXRhaWxlcnMgb3IgcmVwdXRhYmxlIG9ubGluZSBzdG9yZXMgZm9yIE51dGVsbGEgamFycyB3aXRoIG1hdGNoaW5nIGJhcmNvZGUiLCJDb25zaWRlciBzaW1pbGFyIGhhemVsbnV0IHNwcmVhZHMgaWYgTnV0ZWxsYSBpcyB1bmF2YWlsYWJsZSBvciBwcmljZXMgYXJlIGhpZ2giXSwicmVzZWFyY2hSZXN1bHRzIjpbIkxpdmUgcmVzZWFyY2ggY29tcGxldGVkLCBidXQgbm8gc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlcyBwYXNzZWQgZmlsdGVyaW5nLiIsIkV4YWN0IHBocmFzZSBzZWFyY2hlcyB3ZXJlIGF0dGVtcHRlZCwgYnV0IHRoZSBsaXZlIHJlc3BvbnNlIGRpZCBub3QgcmV0dXJuIFVSTC1jaXRlZCBzb3VyY2UgcmVjb3Jkcy4iXSwiY29tcGFyYWJsZVF1YWxpdHkiOlsiUmVqZWN0ZWQgTWF0Y2ggLSBubyByZXR1cm5lZCByZXN1bHQgaGFkIGVub3VnaCBjaXRlZCwgcmVsZXZhbnQgZXZpZGVuY2UgdG8gZHJpdmUgbGlzdGluZyBwcmljZS4iXSwicHJpY2luZ0NvbmZpZGVuY2UiOiJMb3cgLSBDb25zdW1lciB2YWx1ZSByYXRpbmcgaXMgaW5zdWZmaWNpZW50IGJlY2F1c2Ugbm8gY3VycmVudCBhc2tpbmcgcHJpY2Ugd2FzIHByb3ZpZGVkLCBubyBldmlkZW5jZS1iYWNrZWQgZmFpciB2YWx1ZSBjb3VsZCBiZSBleHRyYWN0ZWQsIG5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgY29tcHMgcGFzc2VkIGZpbHRlcmluZy4gU3VwcG9ydHM6IHBob3RvcyBhbmQgbm90ZXMuIFdlYWtlbnM6IG1pc3Npbmcgc291cmNlLWJhY2tlZCBjb21wYXJhYmxlIGV2aWRlbmNlLiBJbXByb3ZlIGJ5IGZpbmRpbmcgZXhhY3QsIGNpdGVkIGNvbXBhcmFibGUgbWF0Y2hlcy4iLCJwcmljaW5nUmF0aW9uYWxlIjoiTGl2ZSByZXNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyBzb3VyY2UtYmFja2VkIGV4YWN0IG9yIHN0cm9uZyBzaW1pbGFyIGNvbXBzIHBhc3NlZCBmaWx0ZXJpbmcuIENvbnN1bWVyIGRlY2lzaW9uIGlzIGxvdyBjb25maWRlbmNlLiAgV2l0aG91dCBjdXJyZW50IHByaWNlIGRhdGEgb3IgcmVsaWFibGUgbWFya2V0cGxhY2UgY29tcGFyYWJsZXMsIGl0IGlzIGltcG9zc2libGUgdG8gZXN0YWJsaXNoIGEgZmFpciBtYXJrZXQgcHJpY2Ugb3IgcmVjb21tZW5kIG9mZmVycy4iLCJhZGRpdGlvbmFsSW5mb3JtYXRpb25OZWVkZWQiOlsiQXNraW5nIHByaWNlIGZyb20gc2VsbGVyIiwiSmFyIHNpemUgb3IgbmV0IHdlaWdodCIsIk1hbnVmYWN0dXJpbmcgb3IgZXhwaXJ5IGRhdGUgdG8gYXNzZXNzIGZyZXNobmVzcyIsIkNvbmRpdGlvbiBkZXRhaWxzIChzZWFsZWQsIG9wZW5lZCwgc3RvcmFnZSkiLCJPbmUgc291cmNlLWJhY2tlZCBleGFjdCBvciBzdHJvbmcgc2ltaWxhciBjb21wYXJhYmxlIHJlc3VsdCBmb3IgdGhlIHNhbWUgbW9kZWwsIFNLVSwgVVBDLCBtYWtlciwgc2l6ZSwgb3IgaXRlbSBjb2RlLiIsIkN1cnJlbnQgc2VsbGVyIGFza2luZyBwcmljZS4iLCJDbGVhciBjb25kaXRpb24gY29uZmlybWF0aW9uLCBpbmNsdWRpbmcgd2hldGhlciBpdCB3b3JrcyBhbmQgd2hldGhlciBhbnkgcGFydHMgb3IgYWNjZXNzb3JpZXMgYXJlIG1pc3NpbmcuIl0sInNlYXJjaFF1ZXJpZXNVc2VkIjpbIlRoZXNlIGFyZSB0aGUgcXVlcmllcyB0aGUgc3lzdGVtIHVzZWQuIiwiXCJiYXJjb2RlIDMwMTc2MjA0MjIwMDNcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiQmFyY29kZSB3aXRoIG51bWJlciAzMDE3NjIwNDIyMDAzXCIgTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIkJhcmNvZGUgYW5kIFFSIGNvZGUgb24gYmFjayBsYWJlbFwiIEZlcnJlcm8gTnV0ZWxsYSBwb3N0ZXIiLCJcIk51dHJpdGlvbiBsYWJlbCB3aXRoIGJhcmNvZGUgYW5kIFFSIGNvZGVcIiBGZXJyZXJvIE51dGVsbGEgcG9zdGVyIiwiXCJjb20sIGJhcmNvZGVcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiYmFyY29kZSAzIDAxNzYyMCA0MjIwMDNcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiQmFyY29kZSBhbmQgUVIgY29kZSBvbiBiYWNrIGxhYmVsXCIgTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIk51dHJpdGlvbiBsYWJlbCB3aXRoIGJhcmNvZGUgYW5kIFFSIGNvZGVcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWRcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiRm9vZCBwcm9kdWN0IHBhY2thZ2luZ1wiIE51dGVsbGEgcG9zdGVyIHByaW50IiwiXCJBIGphciBvZiBoYXplbG51dCBjb2NvYSBzcHJlYWRcIiBOdXRlbGxhIHBvc3RlciBwcmludCIsIlwiQ2hvY29sYXRlIHNwcmVhZCwgYnJlYWtmYXN0IGNvbmRpbWVudFwiIE51dGVsbGEgcG9zdGVyIHByaW50IiwiXCJIYXplbG51dHMgYW5kIGZsb3dlcnMgaWxsdXN0cmF0aW9uXCIgTnV0ZWxsYSBwb3N0ZXIgcHJpbnQiLCJcIk51dHJpdGlvbiBpbmZvcm1hdGlvbiBpbiBtdWx0aXBsZSBsYW5ndWFnZXNcIiBOdXRlbGxhIHBvc3RlciBwcmludCJdLCJzb3VyY2VzU2VhcmNoZWQiOlsiU291cmNlIGNhdGVnb3JpZXMgdGFyZ2V0ZWQ6IGV4YWN0IHZpc2libGUgcGhyYXNlIHNlYXJjaGVzOyBlQmF5LXN0eWxlIGFjdGl2ZSBhbmQgc29sZCByZXNhbGUgcmVzdWx0czsgRXRzeS1zdHlsZSB2aW50YWdlIGFuZCBhZHZlcnRpc2luZyBjb2xsZWN0aWJsZSByZXN1bHRzOyBhdWN0aW9uL2FyY2hpdmUgc291cmNlIGNsdWVzOyBjb2xsZWN0b3IvcmVmZXJlbmNlIHNvdXJjZSBjbHVlczsgZ2VuZXJhbCB3ZWIgZXhhY3QgcGhyYXNlIHJlc3VsdHM7IG9yZ2FuaXphdGlvbi90ZWFtL2JyYW5kL2V2ZW50IHNlYXJjaGVzIiwiU291cmNlcyBzZWFyY2hlZDogYmFyY29kZS1saXN0LmNvbTsgYnV5Y290dC5jb207IGNsaWMudG9vbHM7IG51dHJpZm9vZGluZGV4LmNvbTsgYW5tb2xhcHBzLmNvbTsgdG9vbC50ZWFtemxhYi5jb207IG5vcmRhcGkuZWU7IG1pYW1sYW5kLmNvbSIsIlNvdXJjZXMgcmV0dXJuZWQgd2l0aCBVUkwgY2l0YXRpb25zOiBOb25lLiIsIk5vIHNvdXJjZS1iYWNrZWQgZXhhY3Qgb3Igc3Ryb25nIHNpbWlsYXIgbWF0Y2hlcyBwYXNzZWQgbWF0Y2gtcXVhbGl0eSBjaGVja3MuIiwiUmV0dXJuZWQgcmVzdWx0cyB3ZXJlIHJlamVjdGVkIHdoZW4gdGhleSBsYWNrZWQgZXhhY3QgbGFiZWwvY29kZSBtYXRjaGVzLCBoYWQgb25seSB3ZWFrIGxvb2thbGlrZSBldmlkZW5jZSwgb3IgZGlkIG5vdCBpbmNsdWRlIGEgY2l0ZWQgVVJMIGluIHRoZSBjb21wYXJhYmxlIGl0ZW0gdGV4dC4iLCJSZWplY3RlZCBpcnJlbGV2YW50IHNvdXJjZSBjYXRlZ29yaWVzOiBnZW5lcmljIHdob2xlc2FsZXJzLCByZXN0YXVyYW50LXN1cHBseSBzaXRlcywgYnVsayBpbXBvcnQvbWFudWZhY3R1cmluZyBjYXRhbG9ncywgdW5yZWxhdGVkIGN1cnJlbnQtcmV0YWlsIGxvb2thbGlrZXMsIGFuZCBnZW5lcmljIHZpc3VhbCBsb29rYWxpa2VzLiIsIlNlYXJjaGVkIHVzaW5nIGJhcmNvZGUvaXRlbSBjb2RlL21vZGVsIGlkZW50aWZpZXJzIHdoZW4gYXZhaWxhYmxlLiIsIlNlYXJjaGVkIHVzaW5nIHZpc2libGUgYm94LCBsYWJlbCwgYnJhbmQsIG9yIHByb2R1Y3QtdGl0bGUgd29yZGluZy4iLCJTZWFyY2hlZCByZWxldmFudCBob2xpZGF5IGRlY29yIC8gY29sbGVjdGlibGUgc291cmNlcy4iXSwidmlzdWFsU3ViamVjdCI6IkEgamFyIG9mIGhhemVsbnV0IGNvY29hIHNwcmVhZCIsInZpc3VhbFN1YmplY3RDYXRlZ29yeSI6IkZvb2QgcHJvZHVjdCBwYWNrYWdpbmciLCJ2aXN1YWxTdWJqZWN0Q29uZmlkZW5jZSI6IkhpZ2ggLSBzdXBwb3J0ZWQgYnkgYXZhaWxhYmxlIHN1YmplY3QgZXZpZGVuY2UuIiwicmVjb2duaXplZE9yZ2FuaXphdGlvbiI6IkZlcnJlcm8iLCJyZWNvZ25pemVkQnJhbmQiOiJOdXRlbGxhIiwicmVjb2duaXplZENoYXJhY3RlciI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRJbnN0aXR1dGlvbiI6Ik5vdCB2ZXJpZmllZCIsInJlY29nbml6ZWRUaGVtZSI6IkNob2NvbGF0ZSBzcHJlYWQsIGJyZWFrZmFzdCBjb25kaW1lbnQiLCJ2aXN1YWxSZWNvZ25pdGlvbkV2aWRlbmNlIjpbIkxhYmVsIHdpdGggTnV0ZWxsYSBicmFuZCBwcm9taW5lbnRseSBkaXNwbGF5ZWQiLCJKYXIgY29udGFpbmluZyBicm93biBzcHJlYWQiLCJOdXRyaXRpb24gbGFiZWwgd2l0aCBiYXJjb2RlIGFuZCBRUiBjb2RlIiwiTXVsdGlsaW5ndWFsIHRleHQgb24gbGFiZWwiLCJOdXRlbGxhIGxvZ28gd2l0aCBtaXhlZCBibGFjayBhbmQgcmVkIHRleHQiLCJJbWFnZSBvZiBicmVhZCBzbGljZSB3aXRoIGNob2NvbGF0ZSBzcHJlYWQgYW5kIGtuaWZlIiwiSGF6ZWxudXRzIGFuZCBmbG93ZXJzIGlsbHVzdHJhdGlvbiIsIkJhcmNvZGUgYW5kIFFSIGNvZGUgb24gYmFjayBsYWJlbCIsIk51dHJpdGlvbiBpbmZvcm1hdGlvbiBpbiBtdWx0aXBsZSBsYW5ndWFnZXMiLCJWaXNpYmxlIGxvZ28vc3ltYm9sOiBudXRlbGxhIl0sInZpc3VhbFJlY29nbml0aW9uVW5rbm93bnMiOlsiRXhhY3QgcHJvZHVjdCB3ZWlnaHQgYW5kIHZhcmlhbnQiLCJNYW51ZmFjdHVyaW5nIG9yIGV4cGlyeSBkYXRlIl0sInZpc3VhbFJlY29nbml0aW9uQ29uZmxpY3RzIjpbXSwidmlzdWFsUmVjb2duaXRpb25TdW1tYXJ5IjoiVmlzdWFsIFN1YmplY3Q6IEEgamFyIG9mIGhhemVsbnV0IGNvY29hIHNwcmVhZCB8IENhdGVnb3J5OiBGb29kIHByb2R1Y3QgcGFja2FnaW5nIHwgQ29uZmlkZW5jZTogSGlnaCAtIHN1cHBvcnRlZCBieSBhdmFpbGFibGUgc3ViamVjdCBldmlkZW5jZS4gfCBSZWNvZ25pemVkIGNsdWVzOiBvcmdhbml6YXRpb246IEZlcnJlcm87IGJyYW5kOiBOdXRlbGxhOyBjaGFyYWN0ZXI6IE5vdCB2ZXJpZmllZDsgaW5zdGl0dXRpb246IE5vdCB2ZXJpZmllZDsgdGhlbWU6IENob2NvbGF0ZSBzcHJlYWQsIGJyZWFrZmFzdCBjb25kaW1lbnQgfCBTdXBwb3J0aW5nIGV2aWRlbmNlOiBMYWJlbCB3aXRoIE51dGVsbGEgYnJhbmQgcHJvbWluZW50bHkgZGlzcGxheWVkOyBKYXIgY29udGFpbmluZyBicm93biBzcHJlYWQ7IE51dHJpdGlvbiBsYWJlbCB3aXRoIGJhcmNvZGUgYW5kIFFSIGNvZGU7IE11bHRpbGluZ3VhbCB0ZXh0IG9uIGxhYmVsIHwgU3RpbGwgdW5rbm93bjogRXhhY3QgcHJvZHVjdCB3ZWlnaHQgYW5kIHZhcmlhbnQ7IE1hbnVmYWN0dXJpbmcgb3IgZXhwaXJ5IGRhdGUgfCBVc2VyIGV2aWRlbmNlIHJlY29uY2lsaWF0aW9uOiBVc2VyJ3MgcHJvdmlkZWQgbnVtYmVyIDMwMTc2MjA0MjIwMDMgbWF0Y2hlcyB0aGUgYmFyY29kZSB2aXNpYmxlIG9uIHRoZSBqYXIsIGNvbmZpcm1pbmcgdGhlIGl0ZW0gYXMgYSBOdXRlbGxhIGphci4gfCBTdW1tYXJ5OiBUaGlzIGlzIGEgY29udGVtcG9yYXJ5IGNvbW1lcmNpYWwgZm9vZCBwcm9kdWN0OiBhIGphciBjb250YWluaW5nIE51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIGJ5IEZlcnJlcm8sIHdpdGggYnJhbmRlZCBsYWJlbCwgbnV0cml0aW9uIGZhY3RzLCBiYXJjb2RlLCBhbmQgcHJvZHVjdCBpbWFnZXJ5LiIsInN1YmplY3RJZGVudGl0eSI6IkEgamFyIG9mIGhhemVsbnV0IGNvY29hIHNwcmVhZCIsInN1YmplY3RDb25maWRlbmNlIjoiSGlnaCAtIHVzZXItcHJvdmlkZWQgaWRlbnRpdHkgaXMgY29uc2lzdGVudCB3aXRoIGF2YWlsYWJsZSB2aXN1YWwgb3IgdGV4dCBldmlkZW5jZS4iLCJleGFjdFByb2R1Y3RJZGVudGl0eSI6Ik51dGVsbGEgaGF6ZWxudXQgY29jb2Egc3ByZWFkIGJ5IEZlcnJlcm8gaW4gYSBzdGFuZGFyZCBjb21tZXJjaWFsIGphciIsImV4YWN0UHJvZHVjdENvbmZpZGVuY2UiOiJIaWdoIC0gYmFyY29kZSBhbmQgYnJhbmRlZCBsYWJlbCBtYXRjaCIsIm1ha2VyRGF0ZUxpY2Vuc2luZ1N0YXR1cyI6WyJNYWtlciAvIE1hbnVmYWN0dXJlcjogRmVycmVybyIsIkRhdGUgLyBFcmE6IENvbnRlbXBvcmFyeSIsIkxpY2Vuc2luZzogTm90IGFwcGxpY2FibGUiLCJBdXRoZW50aWNpdHk6IExpa2VseSBhdXRoZW50aWMgYmFzZWQgb24gYnJhbmRlZCBsYWJlbCBhbmQgYmFyY29kZSJdLCJ3aGF0SXNLbm93biI6WyJTdWJqZWN0OiBBIGphciBvZiBoYXplbG51dCBjb2NvYSBzcHJlYWQiLCJWaXN1YWwgZXZpZGVuY2U6IE51dGVsbGEgYnJhbmQgbG9nbyBwcm9taW5lbnRseSBkaXNwbGF5ZWQiLCJWaXN1YWwgZXZpZGVuY2U6IEZlcnJlcm8gYnJhbmQgdGV4dCBvbiBsYWJlbCIsIlZpc3VhbCBldmlkZW5jZTogQ2hvY29sYXRlIGhhemVsbnV0IHNwcmVhZCBqYXIiLCJUZXh0IGV2aWRlbmNlOiBudXRlbGxhIiwiVGV4dCBldmlkZW5jZTogRkVSUkVSTyIsIlRleHQgZXZpZGVuY2U6IEEgY29uc29tbWVyIGRlIHByw6lmw6lyZW5jZSBhdmFudCBmaW4gOiB2b2lyIGNvdXZlcmNsZSIsIkNvbXBhcmFibGUgc3RhdHVzOiBFeGFjdCBtYXRjaCBmb3VuZCB3aXRoIFVQQyAzMDE3NjIwNDIyMDAzIl0sIndoYXRJc1N0aWxsVW5rbm93biI6WyJFeGFjdCBwcm9kdWN0IHdlaWdodCBhbmQgdmFyaWFudCBub3QgdmlzaWJsZSIsIk1hbnVmYWN0dXJpbmcgb3IgZXhwaXJ5IGRhdGUgbm90IHZpc2libGUiLCJFeGFjdCBwcm9kdWN0IHdlaWdodCBhbmQgdmFyaWFudCIsIk1hbnVmYWN0dXJpbmcgb3IgZXhwaXJ5IGRhdGUiXSwiaWRlbnRpdHlDb25mbGljdHMiOltdLCJpZGVudGl0eVN1bW1hcnkiOiJTdWJqZWN0IElkZW50aXR5OiBBIGphciBvZiBoYXplbG51dCBjb2NvYSBzcHJlYWQgfCBTdWJqZWN0IENvbmZpZGVuY2U6IEhpZ2ggLSB1c2VyLXByb3ZpZGVkIGlkZW50aXR5IGlzIGNvbnNpc3RlbnQgd2l0aCBhdmFpbGFibGUgdmlzdWFsIG9yIHRleHQgZXZpZGVuY2UuIHwgRXhhY3QgUHJvZHVjdCBJZGVudGl0eTogTnV0ZWxsYSBoYXplbG51dCBjb2NvYSBzcHJlYWQgYnkgRmVycmVybyBpbiBhIHN0YW5kYXJkIGNvbW1lcmNpYWwgamFyIHwgTWFrZXIgLyBNYW51ZmFjdHVyZXI6IEZlcnJlcm8gfCBMaWNlbnNpbmcgLyBBdXRoZW50aWNpdHk6IE5vdCBhcHBsaWNhYmxlIC8gTGlrZWx5IGF1dGhlbnRpYyBiYXNlZCBvbiBicmFuZGVkIGxhYmVsIGFuZCBiYXJjb2RlIiwicmVzdWx0c0ZvdW5kIjpbXSwic3Ryb25nQ29tcGFyYWJsZXMiOltdLCJwYXJ0aWFsQ29tcGFyYWJsZXMiOltdLCJyZWZlcmVuY2VSZXN1bHRzIjpbXSwid2Vha01hdGNoZXMiOltdLCJyZWplY3RlZE1hdGNoZXMiOltdLCJzZWFyY2hMaW1pdGF0aW9ucyI6WyJMaXZlIHNlYXJjaCBjb21wbGV0ZWQsIGJ1dCBubyB2aXNpYmxlIHN0cnVjdHVyZWQgc291cmNlLWJhY2tlZCByZXN1bHQgcmVjb3JkcyB3ZXJlIHJldHVybmVkLiIsIkV4YWN0IHBocmFzZSBzZWFyY2hlcyB3ZXJlIGF0dGVtcHRlZCwgYnV0IHRoZSBsaXZlIHJlc3BvbnNlIGRpZCBub3QgcmV0dXJuIFVSTC1jaXRlZCBzb3VyY2UgcmVjb3Jkcy4iLCJObyBleGFjdCBvciBzdHJvbmcgY29tcGFyYWJsZSByZWNvcmRzIGFyZSB2aXNpYmxlIGluIHRoaXMgcmVwb3J0LiJdLCJ2aXNpYmxlUmVzZWFyY2hSZXN1bHRDb3VudCI6MCwicmVmZXJlbmNlUmFuZ2VCYXNpcyI6Ik5vIG51bWVyaWMgcHJlbGltaW5hcnkgcmFuZ2UgaXMgc2hvd24gYmVjYXVzZSB0aGVyZSBhcmUgbm8gdmlzaWJsZSBzdHJ1Y3R1cmVkIHNvdXJjZSByZWNvcmRzIHN1cHBvcnRpbmcgb25lLiIsInByZWxpbWluYXJ5UmVmZXJlbmNlUmFuZ2UiOiIiLCJwcmljZUJhc2lzIjoiRmFpciB2YWx1ZSBub3QgZXN0YWJsaXNoZWQgLSBhdmFpbGFibGUgZXZpZGVuY2UgaXMgdG9vIHdlYWsgZm9yIGEgZGVmZW5zaWJsZSBkb2xsYXIgcmFuZ2UuICBQcmljaW5nIGJhc2lzIGRpc3Rpbmd1aXNoZXMgZXhhY3QgaWRlbnRpdHkgbWF0Y2hlcyBmcm9tIGFjdGl2ZSBhc2tpbmctcHJpY2UgZXZpZGVuY2UgYW5kIGNvbmZpcm1lZCBzb2xkIGV2aWRlbmNlLiIsImNvbnN1bWVyRG93bnNpZGVSaXNrIjoiRG93bnNpZGUgY2Fubm90IGJlIGNhbGN1bGF0ZWQgYmVjYXVzZSB0aGUgYXNraW5nIHByaWNlIGlzIG1pc3NpbmcuIiwiY2F1dGlvdXNCdXlFeHBsYW5hdGlvbiI6IiIsImxpdmVDb21wYXJhYmxlU2VhcmNoU3RhdHVzIjoiTGl2ZSBTZWFyY2ggQ29tcGxldGVkIC0gTm8gUmVsaWFibGUgQ29tcHMgRm91bmQiLCJ3ZUZvdW5kVGhpc0l0ZW0iOltdLCJ3ZUZvdW5kU2ltaWxhckNvbXBhcmFibGVJdGVtcyI6W10sInZhbHVhdGlvbkV2aWRlbmNlU3RhdGUiOiJpbnN1ZmZpY2llbnQiLCJ2YWx1YXRpb25FdmlkZW5jZUxhYmVsIjoiRmFpciBWYWx1ZSBOb3QgRXN0YWJsaXNoZWQiLCJ2YWx1YXRpb25FdmlkZW5jZUV4cGxhbmF0aW9uIjoiVGhlIGF2YWlsYWJsZSBldmlkZW5jZSBpcyB0b28gd2VhayBmb3IgYSBkZWZlbnNpYmxlIGRvbGxhciByYW5nZS4iLCJmYWlyVmFsdWVOb3RFc3RhYmxpc2hlZCI6IkZhaXIgVmFsdWU6IE5vdCBlc3RhYmxpc2hlZCIsImVzdGltYXRlZE1hcmtldFZhbHVlIjoiIiwid2hhdFRoaXNNZWFucyI6IkZhaXIgbWFya2V0IHZhbHVlIGhhcyBub3QgYmVlbiBlc3RhYmxpc2hlZCBmcm9tIHRoZSBhdmFpbGFibGUgZXZpZGVuY2UuIERvIG5vdCB0cmVhdCB0aGlzIGFzIGEgY29uZmlybWVkIHZhbHVlIGVzdGltYXRlLiIsImJlc3ROZXh0U3RlcCI6IkFza2luZyBwcmljZSBmcm9tIHNlbGxlciJ9fQ==",
+  "rawProductResponse": {
+    "valuation": {
+      "buyerIntent": "personal_use",
+      "identifiedItem": "Nutella hazelnut cocoa spread jar by Ferrero",
+      "identificationConfidence": "High - confirmed by barcode 3017620422003 visible on jar and branded label",
+      "evidenceFoundInPhotos": [
+        "Visual subject: A jar of hazelnut cocoa spread",
+        "Visual subject category: Food product packaging",
+        "Visual subject confidence: High - supported by available subject evidence.",
+        "Recognized organization: Ferrero",
+        "Recognized brand: Nutella",
+        "Recognized character: Not verified",
+        "Subject identity: A jar of hazelnut cocoa spread",
+        "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+        "Exact product identity: Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar",
+        "Exact product confidence: High - barcode and branded label match",
+        "Brand: Nutella",
+        "Manufacturer: Ferrero"
+      ],
+      "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+      "estimatedFairMarketValue": "",
+      "fairPriceRange": [],
+      "valueRating": "Insufficient Evidence",
+      "recommendation": "Need More Information",
+      "recommendedOffer": [
+        "Opening Offer: Not supported yet.",
+        "Target Purchase Price: Not supported yet.",
+        "Maximum Recommended Price: Not supported yet."
+      ],
+      "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+      "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+      "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+      "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+      "negotiationGuidance": "Without available asking price or comparable sales, negotiation guidance cannot be provided. Obtain asking price and check for local retail prices or online offers for Nutella of similar size and variant.",
+      "reasonsToBuy": [
+        "Recognizable, likely authentic Nutella by Ferrero confirmed by barcode and label",
+        "Popular chocolate hazelnut spread suitable for personal consumption",
+        "Standard commercial food packaging indicating fresher, original product"
+      ],
+      "reasonsForCaution": [
+        "No asking price provided to compare fair value",
+        "Exact product weight, variant, and size unknown affecting price estimation",
+        "No condition details available; freshness and expiry date unknown",
+        "No current marketplace comparable listings found, limiting price guidance",
+        "Weak Comparable Evidence",
+        "Condition Unclear",
+        "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+      ],
+      "productOrConditionRisks": [
+        "Condition unknown; possible freshness or expiry concerns without visible dates",
+        "Exact variant and quantity unknown, affecting price comparability",
+        "No assurance on manufacturing date or storage conditions",
+        "Risk flag: Weak Comparable Evidence",
+        "Risk flag: Condition Unclear",
+        "Condition is not confirmed."
+      ],
+      "riskFlags": [
+        "Weak Comparable Evidence",
+        "Condition Unclear"
+      ],
+      "betterValueConsiderations": [
+        "Check prices at local retailers or reputable online stores for Nutella jars with matching barcode",
+        "Consider similar hazelnut spreads if Nutella is unavailable or prices are high"
+      ],
+      "researchResults": [
+        "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+      ],
+      "comparableQuality": [
+        "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+      ],
+      "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+      "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without current price data or reliable marketplace comparables, it is impossible to establish a fair market price or recommend offers.",
+      "additionalInformationNeeded": [
+        "Asking price from seller",
+        "Jar size or net weight",
+        "Manufacturing or expiry date to assess freshness",
+        "Condition details (sealed, opened, storage)",
+        "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+        "Current seller asking price.",
+        "Clear condition confirmation, including whether it works and whether any parts or accessories are missing."
+      ],
+      "searchQueriesUsed": [
+        "These are the queries the system used.",
+        "\"barcode 3017620422003\" Nutella poster print",
+        "\"Barcode with number 3017620422003\" Nutella poster print",
+        "\"Barcode and QR code on back label\" Ferrero Nutella poster",
+        "\"Nutrition label with barcode and QR code\" Ferrero Nutella poster",
+        "\"com, barcode\" Nutella poster print",
+        "\"barcode 3 017620 422003\" Nutella poster print",
+        "\"Barcode and QR code on back label\" Nutella poster print",
+        "\"Nutrition label with barcode and QR code\" Nutella poster print",
+        "\"Nutella hazelnut cocoa spread\" Nutella poster print",
+        "\"Food product packaging\" Nutella poster print",
+        "\"A jar of hazelnut cocoa spread\" Nutella poster print",
+        "\"Chocolate spread, breakfast condiment\" Nutella poster print",
+        "\"Hazelnuts and flowers illustration\" Nutella poster print",
+        "\"Nutrition information in multiple languages\" Nutella poster print"
+      ],
+      "sourcesSearched": [
+        "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+        "Sources searched: barcode-list.com; buycott.com; clic.tools; nutrifoodindex.com; anmolapps.com; tool.teamzlab.com; nordapi.ee; miamland.com",
+        "Sources returned with URL citations: None.",
+        "No source-backed exact or strong similar matches passed match-quality checks.",
+        "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+        "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+        "Searched using barcode/item code/model identifiers when available.",
+        "Searched using visible box, label, brand, or product-title wording.",
+        "Searched relevant holiday decor / collectible sources."
+      ],
+      "visualSubject": "A jar of hazelnut cocoa spread",
+      "visualSubjectCategory": "Food product packaging",
+      "visualSubjectConfidence": "High - supported by available subject evidence.",
+      "recognizedOrganization": "Ferrero",
+      "recognizedBrand": "Nutella",
+      "recognizedCharacter": "Not verified",
+      "recognizedInstitution": "Not verified",
+      "recognizedTheme": "Chocolate spread, breakfast condiment",
+      "visualRecognitionEvidence": [
+        "Label with Nutella brand prominently displayed",
+        "Jar containing brown spread",
+        "Nutrition label with barcode and QR code",
+        "Multilingual text on label",
+        "Nutella logo with mixed black and red text",
+        "Image of bread slice with chocolate spread and knife",
+        "Hazelnuts and flowers illustration",
+        "Barcode and QR code on back label",
+        "Nutrition information in multiple languages",
+        "Visible logo/symbol: nutella"
+      ],
+      "visualRecognitionUnknowns": [
+        "Exact product weight and variant",
+        "Manufacturing or expiry date"
+      ],
+      "visualRecognitionConflicts": [],
+      "visualRecognitionSummary": "Visual Subject: A jar of hazelnut cocoa spread | Category: Food product packaging | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Ferrero; brand: Nutella; character: Not verified; institution: Not verified; theme: Chocolate spread, breakfast condiment | Supporting evidence: Label with Nutella brand prominently displayed; Jar containing brown spread; Nutrition label with barcode and QR code; Multilingual text on label | Still unknown: Exact product weight and variant; Manufacturing or expiry date | User evidence reconciliation: User's provided number 3017620422003 matches the barcode visible on the jar, confirming the item as a Nutella jar. | Summary: This is a contemporary commercial food product: a jar containing Nutella hazelnut cocoa spread by Ferrero, with branded label, nutrition facts, barcode, and product imagery.",
+      "subjectIdentity": "A jar of hazelnut cocoa spread",
+      "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+      "exactProductIdentity": "Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar",
+      "exactProductConfidence": "High - barcode and branded label match",
+      "makerDateLicensingStatus": [
+        "Maker / Manufacturer: Ferrero",
+        "Date / Era: Contemporary",
+        "Licensing: Not applicable",
+        "Authenticity: Likely authentic based on branded label and barcode"
+      ],
+      "whatIsKnown": [
+        "Subject: A jar of hazelnut cocoa spread",
+        "Visual evidence: Nutella brand logo prominently displayed",
+        "Visual evidence: Ferrero brand text on label",
+        "Visual evidence: Chocolate hazelnut spread jar",
+        "Text evidence: nutella",
+        "Text evidence: FERRERO",
+        "Text evidence: A consommer de préférence avant fin : voir couvercle",
+        "Comparable status: Exact match found with UPC 3017620422003"
+      ],
+      "whatIsStillUnknown": [
+        "Exact product weight and variant not visible",
+        "Manufacturing or expiry date not visible",
+        "Exact product weight and variant",
+        "Manufacturing or expiry date"
+      ],
+      "identityConflicts": [],
+      "identitySummary": "Subject Identity: A jar of hazelnut cocoa spread | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar | Maker / Manufacturer: Ferrero | Licensing / Authenticity: Not applicable / Likely authentic based on branded label and barcode",
+      "resultsFound": [],
+      "strongComparables": [],
+      "partialComparables": [],
+      "referenceResults": [],
+      "weakMatches": [],
+      "rejectedMatches": [],
+      "searchLimitations": [
+        "Live search completed, but no visible structured source-backed result records were returned.",
+        "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+        "No exact or strong comparable records are visible in this report."
+      ],
+      "visibleResearchResultCount": 0,
+      "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+      "preliminaryReferenceRange": "",
+      "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+      "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+      "cautiousBuyExplanation": "",
+      "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+      "weFoundThisItem": [],
+      "weFoundSimilarComparableItems": [],
+      "valuationEvidenceState": "insufficient",
+      "valuationEvidenceLabel": "Fair Value Not Established",
+      "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+      "fairValueNotEstablished": "Fair Value: Not established",
+      "estimatedMarketValue": "",
+      "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+      "bestNextStep": "Asking price from seller"
+    }
+  },
+  "customerFacingReport": {
+    "buyerIntent": "personal_use",
+    "identifiedItem": "Nutella hazelnut cocoa spread jar by Ferrero",
+    "identificationConfidence": "High - confirmed by barcode 3017620422003 visible on jar and branded label",
+    "evidenceFoundInPhotos": [
+      "Visual subject: A jar of hazelnut cocoa spread",
+      "Visual subject category: Food product packaging",
+      "Visual subject confidence: High - supported by available subject evidence.",
+      "Recognized organization: Ferrero",
+      "Recognized brand: Nutella",
+      "Recognized character: Not verified",
+      "Subject identity: A jar of hazelnut cocoa spread",
+      "Subject confidence: High - user-provided identity is consistent with available visual or text evidence.",
+      "Exact product identity: Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar",
+      "Exact product confidence: High - barcode and branded label match",
+      "Brand: Nutella",
+      "Manufacturer: Ferrero"
+    ],
+    "askingPrice": "Not provided - enter the current asking price for a personal-use value decision.",
+    "estimatedFairMarketValue": "",
+    "fairPriceRange": [],
+    "valueRating": "Insufficient Evidence",
+    "recommendation": "Need More Information",
+    "recommendedOffer": [
+      "Opening Offer: Not supported yet.",
+      "Target Purchase Price: Not supported yet.",
+      "Maximum Recommended Price: Not supported yet."
+    ],
+    "openingOffer": "Not supported yet - verify identity, condition, asking price, and reliable comparables first.",
+    "targetPurchasePrice": "Not supported yet - evidence is too weak for a responsible target price.",
+    "maximumRecommendedPrice": "Not supported yet - do not set a maximum from weak evidence.",
+    "walkAwayPrice": "Not enough evidence for a precise walk-away price.",
+    "negotiationGuidance": "Without available asking price or comparable sales, negotiation guidance cannot be provided. Obtain asking price and check for local retail prices or online offers for Nutella of similar size and variant.",
+    "reasonsToBuy": [
+      "Recognizable, likely authentic Nutella by Ferrero confirmed by barcode and label",
+      "Popular chocolate hazelnut spread suitable for personal consumption",
+      "Standard commercial food packaging indicating fresher, original product"
+    ],
+    "reasonsForCaution": [
+      "No asking price provided to compare fair value",
+      "Exact product weight, variant, and size unknown affecting price estimation",
+      "No condition details available; freshness and expiry date unknown",
+      "No current marketplace comparable listings found, limiting price guidance",
+      "Weak Comparable Evidence",
+      "Condition Unclear",
+      "Consumer value cannot be rated confidently until the asking price, exact identity, condition, and source-backed comparable evidence are stronger."
+    ],
+    "productOrConditionRisks": [
+      "Condition unknown; possible freshness or expiry concerns without visible dates",
+      "Exact variant and quantity unknown, affecting price comparability",
+      "No assurance on manufacturing date or storage conditions",
+      "Risk flag: Weak Comparable Evidence",
+      "Risk flag: Condition Unclear",
+      "Condition is not confirmed."
+    ],
+    "riskFlags": [
+      "Weak Comparable Evidence",
+      "Condition Unclear"
+    ],
+    "betterValueConsiderations": [
+      "Check prices at local retailers or reputable online stores for Nutella jars with matching barcode",
+      "Consider similar hazelnut spreads if Nutella is unavailable or prices are high"
+    ],
+    "researchResults": [
+      "Live research completed, but no source-backed exact or strong similar comparables passed filtering.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records."
+    ],
+    "comparableQuality": [
+      "Rejected Match - no returned result had enough cited, relevant evidence to drive listing price."
+    ],
+    "pricingConfidence": "Low - Consumer value rating is insufficient because no current asking price was provided, no evidence-backed fair value could be extracted, no source-backed exact or strong similar comps passed filtering. Supports: photos and notes. Weakens: missing source-backed comparable evidence. Improve by finding exact, cited comparable matches.",
+    "pricingRationale": "Live research completed, but no source-backed exact or strong similar comps passed filtering. Consumer decision is low confidence.  Without current price data or reliable marketplace comparables, it is impossible to establish a fair market price or recommend offers.",
+    "additionalInformationNeeded": [
+      "Asking price from seller",
+      "Jar size or net weight",
+      "Manufacturing or expiry date to assess freshness",
+      "Condition details (sealed, opened, storage)",
+      "One source-backed exact or strong similar comparable result for the same model, SKU, UPC, maker, size, or item code.",
+      "Current seller asking price.",
+      "Clear condition confirmation, including whether it works and whether any parts or accessories are missing."
+    ],
+    "searchQueriesUsed": [
+      "These are the queries the system used.",
+      "\"barcode 3017620422003\" Nutella poster print",
+      "\"Barcode with number 3017620422003\" Nutella poster print",
+      "\"Barcode and QR code on back label\" Ferrero Nutella poster",
+      "\"Nutrition label with barcode and QR code\" Ferrero Nutella poster",
+      "\"com, barcode\" Nutella poster print",
+      "\"barcode 3 017620 422003\" Nutella poster print",
+      "\"Barcode and QR code on back label\" Nutella poster print",
+      "\"Nutrition label with barcode and QR code\" Nutella poster print",
+      "\"Nutella hazelnut cocoa spread\" Nutella poster print",
+      "\"Food product packaging\" Nutella poster print",
+      "\"A jar of hazelnut cocoa spread\" Nutella poster print",
+      "\"Chocolate spread, breakfast condiment\" Nutella poster print",
+      "\"Hazelnuts and flowers illustration\" Nutella poster print",
+      "\"Nutrition information in multiple languages\" Nutella poster print"
+    ],
+    "sourcesSearched": [
+      "Source categories targeted: exact visible phrase searches; eBay-style active and sold resale results; Etsy-style vintage and advertising collectible results; auction/archive source clues; collector/reference source clues; general web exact phrase results; organization/team/brand/event searches",
+      "Sources searched: barcode-list.com; buycott.com; clic.tools; nutrifoodindex.com; anmolapps.com; tool.teamzlab.com; nordapi.ee; miamland.com",
+      "Sources returned with URL citations: None.",
+      "No source-backed exact or strong similar matches passed match-quality checks.",
+      "Returned results were rejected when they lacked exact label/code matches, had only weak lookalike evidence, or did not include a cited URL in the comparable item text.",
+      "Rejected irrelevant source categories: generic wholesalers, restaurant-supply sites, bulk import/manufacturing catalogs, unrelated current-retail lookalikes, and generic visual lookalikes.",
+      "Searched using barcode/item code/model identifiers when available.",
+      "Searched using visible box, label, brand, or product-title wording.",
+      "Searched relevant holiday decor / collectible sources."
+    ],
+    "visualSubject": "A jar of hazelnut cocoa spread",
+    "visualSubjectCategory": "Food product packaging",
+    "visualSubjectConfidence": "High - supported by available subject evidence.",
+    "recognizedOrganization": "Ferrero",
+    "recognizedBrand": "Nutella",
+    "recognizedCharacter": "Not verified",
+    "recognizedInstitution": "Not verified",
+    "recognizedTheme": "Chocolate spread, breakfast condiment",
+    "visualRecognitionEvidence": [
+      "Label with Nutella brand prominently displayed",
+      "Jar containing brown spread",
+      "Nutrition label with barcode and QR code",
+      "Multilingual text on label",
+      "Nutella logo with mixed black and red text",
+      "Image of bread slice with chocolate spread and knife",
+      "Hazelnuts and flowers illustration",
+      "Barcode and QR code on back label",
+      "Nutrition information in multiple languages",
+      "Visible logo/symbol: nutella"
+    ],
+    "visualRecognitionUnknowns": [
+      "Exact product weight and variant",
+      "Manufacturing or expiry date"
+    ],
+    "visualRecognitionConflicts": [],
+    "visualRecognitionSummary": "Visual Subject: A jar of hazelnut cocoa spread | Category: Food product packaging | Confidence: High - supported by available subject evidence. | Recognized clues: organization: Ferrero; brand: Nutella; character: Not verified; institution: Not verified; theme: Chocolate spread, breakfast condiment | Supporting evidence: Label with Nutella brand prominently displayed; Jar containing brown spread; Nutrition label with barcode and QR code; Multilingual text on label | Still unknown: Exact product weight and variant; Manufacturing or expiry date | User evidence reconciliation: User's provided number 3017620422003 matches the barcode visible on the jar, confirming the item as a Nutella jar. | Summary: This is a contemporary commercial food product: a jar containing Nutella hazelnut cocoa spread by Ferrero, with branded label, nutrition facts, barcode, and product imagery.",
+    "subjectIdentity": "A jar of hazelnut cocoa spread",
+    "subjectConfidence": "High - user-provided identity is consistent with available visual or text evidence.",
+    "exactProductIdentity": "Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar",
+    "exactProductConfidence": "High - barcode and branded label match",
+    "makerDateLicensingStatus": [
+      "Maker / Manufacturer: Ferrero",
+      "Date / Era: Contemporary",
+      "Licensing: Not applicable",
+      "Authenticity: Likely authentic based on branded label and barcode"
+    ],
+    "whatIsKnown": [
+      "Subject: A jar of hazelnut cocoa spread",
+      "Visual evidence: Nutella brand logo prominently displayed",
+      "Visual evidence: Ferrero brand text on label",
+      "Visual evidence: Chocolate hazelnut spread jar",
+      "Text evidence: nutella",
+      "Text evidence: FERRERO",
+      "Text evidence: A consommer de préférence avant fin : voir couvercle",
+      "Comparable status: Exact match found with UPC 3017620422003"
+    ],
+    "whatIsStillUnknown": [
+      "Exact product weight and variant not visible",
+      "Manufacturing or expiry date not visible",
+      "Exact product weight and variant",
+      "Manufacturing or expiry date"
+    ],
+    "identityConflicts": [],
+    "identitySummary": "Subject Identity: A jar of hazelnut cocoa spread | Subject Confidence: High - user-provided identity is consistent with available visual or text evidence. | Exact Product Identity: Nutella hazelnut cocoa spread by Ferrero in a standard commercial jar | Maker / Manufacturer: Ferrero | Licensing / Authenticity: Not applicable / Likely authentic based on branded label and barcode",
+    "resultsFound": [],
+    "strongComparables": [],
+    "partialComparables": [],
+    "referenceResults": [],
+    "weakMatches": [],
+    "rejectedMatches": [],
+    "searchLimitations": [
+      "Live search completed, but no visible structured source-backed result records were returned.",
+      "Exact phrase searches were attempted, but the live response did not return URL-cited source records.",
+      "No exact or strong comparable records are visible in this report."
+    ],
+    "visibleResearchResultCount": 0,
+    "referenceRangeBasis": "No numeric preliminary range is shown because there are no visible structured source records supporting one.",
+    "preliminaryReferenceRange": "",
+    "priceBasis": "Fair value not established - available evidence is too weak for a defensible dollar range.  Pricing basis distinguishes exact identity matches from active asking-price evidence and confirmed sold evidence.",
+    "consumerDownsideRisk": "Downside cannot be calculated because the asking price is missing.",
+    "cautiousBuyExplanation": "",
+    "liveComparableSearchStatus": "Live Search Completed - No Reliable Comps Found",
+    "weFoundThisItem": [],
+    "weFoundSimilarComparableItems": [],
+    "valuationEvidenceState": "insufficient",
+    "valuationEvidenceLabel": "Fair Value Not Established",
+    "valuationEvidenceExplanation": "The available evidence is too weak for a defensible dollar range.",
+    "fairValueNotEstablished": "Fair Value: Not established",
+    "estimatedMarketValue": "",
+    "whatThisMeans": "Fair market value has not been established from the available evidence. Do not treat this as a confirmed value estimate.",
+    "bestNextStep": "Asking price from seller"
+  },
+  "providerAndSearchErrors": [],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "4485f9c530ea2668870830e5766bfbabd2c310acbf6bbaed70609012692a38d3"
+}

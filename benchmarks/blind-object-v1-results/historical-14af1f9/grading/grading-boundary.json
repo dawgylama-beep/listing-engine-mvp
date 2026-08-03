@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "frozenResultIntegrityVerifiedBeforePrivateLoad": true,
+  "aggregateResultSha256": "17e89eaa28af153547f37e9131e0e33f90b073ab36c2b49d88d4a6b3f89037a5",
+  "scoredRunCount": 26,
+  "synthetic": false,
+  "historicalProductCommit": "14af1f99773da15da10752f6656e09efae2b4944",
+  "frozenNormalizerSha256": "3c0ca6db25d44cef9fe7236a50dbbf4914573d060cc9b0b4216aaaae11bcec53",
+  "frozenScorerSha256": "db861c8a71587f2b3ab71925cb5e8b9c88fc3b6eeaec05050925941959e9f80e"
+}

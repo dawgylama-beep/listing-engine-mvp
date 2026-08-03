@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-current-a4a7214-vs-historical-14af1f9",
+  "currentAggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+  "historicalAggregateResultSha256": "17e89eaa28af153547f37e9131e0e33f90b073ab36c2b49d88d4a6b3f89037a5",
+  "files": [
+    {
+      "path": "comparison-metadata.json",
+      "sha256": "2d1696e3851cc224c97fef0b7a7a33051180eaa8ad9a715883200e5f8be2b294"
+    },
+    {
+      "path": "current-vs-historical-comparison.json",
+      "sha256": "3d3858c09c019454ca5fd8ed806306fa332ec763d6ac119c5764d3d625cd4fbd"
+    },
+    {
+      "path": "current-vs-historical-comparison.md",
+      "sha256": "a5f105971b886e17b32e5d0d6c9cb21f140a6d9028c676e96c11f876b678b272"
+    },
+    {
+      "path": "regression-ownership.json",
+      "sha256": "be38ebe63d2d5f0cc3795ce3d8798fdfcc56f021253738b7ee3d8d57f4dc5be2"
+    },
+    {
+      "path": "regression-ownership.md",
+      "sha256": "e71985f382cd83679d2c503289d6de8e925cfbf5a18e5b2d4609a4cd7994df24"
+    }
+  ]
+}

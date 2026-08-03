@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-current-a4a7214-vs-historical-14af1f9",
+  "conclusion": {
+    "classification": "LONG_STANDING_DESIGN_GAP_WITH_LOCALIZED_MIXED_DIFFERENCES",
+    "phase5Choice": "B_LONG_STANDING_DESIGN_GAP",
+    "summary": "Version 1.9.3 is not a stronger system overall: current identity capability is 42.86% versus 21.43%, while both recover 0% exact sources and reject 0% distractors. Historical behavior is locally better on OBJ-003 and OBJ-011 and is more purpose-invariant, but it is more prone to unsupported specific identities and cannot handle three empty-description listing cases.",
+    "strongestEvidenceOfRegression": "Purpose-invariance identity consistency is 100% historical versus 75% current, localized to OBJ-001. Because this is one anchor, it is evidence for a focused purpose-isolation test, not a systemic regression declaration.",
+    "strongestEvidenceAgainstRegression": "Current maps 6 of 14 principal identities versus 3 of 14 historically, and historical exact-source/distractor performance remains 0%/0%; restoring the old version would not repair the shared identity-to-evidence failure."
+  },
+  "rankedSubsystems": [
+    {
+      "rank": 1,
+      "subsystem": "identity prompting and reconciliation",
+      "classification": "CURRENT_STRONGER",
+      "supportingCases": [
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-014"
+      ],
+      "counterexamples": [
+        "OBJ-003",
+        "OBJ-011"
+      ],
+      "rawFieldEvidence": [
+        "RUN-003/RUN-011 historical customerFacingReport.exactProductIdentity",
+        "RUN-005/RUN-006/RUN-014 grading.metrics.reportedIdentityKey"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": true,
+      "repairScope": "Treat low identity capability as a shared design gap while preserving current reconciliation improvements; do not restore Version 1.9.3 wholesale."
+    },
+    {
+      "rank": 2,
+      "subsystem": "exact-design search and distractor rejection",
+      "classification": "NO_MATERIAL_DIFFERENCE",
+      "supportingCases": [
+        "OBJ-001",
+        "OBJ-002",
+        "OBJ-003",
+        "OBJ-004",
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-011",
+        "OBJ-012"
+      ],
+      "counterexamples": [],
+      "rawFieldEvidence": [
+        "All eight principal grading.metrics.exactRecoveredAndDistractorRejected=false in both result sets",
+        "All eight grading.metrics.distractorRejected=false in both result sets"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": true,
+      "repairScope": "Long-standing shared 0% exact-source and 0% distractor-rejection gap."
+    },
+    {
+      "rank": 3,
+      "subsystem": "purpose isolation",
+      "classification": "HISTORICAL_STRONGER",
+      "supportingCases": [
+        "OBJ-001"
+      ],
+      "counterexamples": [
+        "OBJ-003",
+        "OBJ-008",
+        "OBJ-014"
+      ],
+      "rawFieldEvidence": [
+        "OBJ-001 current four-run grading.metrics.reportedIdentityKey varies",
+        "OBJ-001 historical four-run identity key remains consistently unmapped"
+      ],
+      "confidence": "MEDIUM",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Add systemic purpose-isolation coverage; one affected anchor is insufficient to declare broad regression."
+    },
+    {
+      "rank": 4,
+      "subsystem": "barcode and model extraction",
+      "classification": "CURRENT_STRONGER",
+      "supportingCases": [
+        "OBJ-001",
+        "OBJ-012"
+      ],
+      "counterexamples": [
+        "OBJ-004",
+        "OBJ-006",
+        "OBJ-008"
+      ],
+      "rawFieldEvidence": [
+        "RUN-001 current exactProductIdentity preserves UPC 3017620422003",
+        "RUN-012 both products preserve Nintendo/Game Boy model evidence"
+      ],
+      "confidence": "MEDIUM",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Preserve current barcode/model handling; exact configuration reconciliation remains shared."
+    },
+    {
+      "rank": 5,
+      "subsystem": "visible-text and maker-mark extraction",
+      "classification": "INCONCLUSIVE",
+      "supportingCases": [
+        "OBJ-003",
+        "OBJ-010",
+        "OBJ-011"
+      ],
+      "counterexamples": [
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-008"
+      ],
+      "rawFieldEvidence": [
+        "Historical RUN-003/RUN-010/RUN-011 returns more specific visible-text identity",
+        "Historical RUN-005/RUN-006 remains unmapped despite specific text"
+      ],
+      "confidence": "LOW",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Outputs conflate extraction with prompt reconciliation; isolate in Phase 5 tests before changing this subsystem."
+    },
+    {
+      "rank": 6,
+      "subsystem": "visual-form and visual-similarity recovery",
+      "classification": "INCONCLUSIVE",
+      "supportingCases": [
+        "OBJ-003",
+        "OBJ-011"
+      ],
+      "counterexamples": [
+        "OBJ-007",
+        "OBJ-009",
+        "OBJ-014"
+      ],
+      "rawFieldEvidence": [
+        "Historical detailed identities are closer on two cases",
+        "Historical is wrong/absent on three counterexamples"
+      ],
+      "confidence": "LOW",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Cannot separate image encoding/model perception from downstream prompting using final responses alone."
+    },
+    {
+      "rank": 7,
+      "subsystem": "query construction",
+      "classification": "NO_MATERIAL_DIFFERENCE",
+      "supportingCases": [
+        "All eight exact-source cases"
+      ],
+      "counterexamples": [
+        "OBJ-003",
+        "OBJ-011"
+      ],
+      "rawFieldEvidence": [
+        "Historical reports expose up to 15 searchQueriesUsed but recover no frozen exact source",
+        "Current performs bounded multi-query search but also recovers no frozen exact source"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": true,
+      "repairScope": "Query volume/specificity does not reach verified exact-source recovery in either version."
+    },
+    {
+      "rank": 8,
+      "subsystem": "direct-page verification",
+      "classification": "NO_MATERIAL_DIFFERENCE",
+      "supportingCases": [
+        "All 26 runs"
+      ],
+      "counterexamples": [],
+      "rawFieldEvidence": [
+        "Current directPageAttempts=0",
+        "Version 1.9.3 has no direct-page enrichment stage"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "No comparative execution evidence for this subsystem."
+    },
+    {
+      "rank": 9,
+      "subsystem": "evidence association",
+      "classification": "INCONCLUSIVE",
+      "supportingCases": [
+        "Current recognized association denominator 1",
+        "Historical recognized association denominator 0"
+      ],
+      "counterexamples": [],
+      "rawFieldEvidence": [
+        "Current aggregate 100% from 1/1",
+        "Historical aggregate 100% from frozen zero-denominator default"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Neither result supplies a broad enough recognized denominator for regression attribution."
+    },
+    {
+      "rank": 10,
+      "subsystem": "confidence calibration",
+      "classification": "HISTORICAL_STRONGER",
+      "supportingCases": [
+        "Historical 3/26 calibrated versus current 1/26"
+      ],
+      "counterexamples": [
+        "Historical unmapped concrete exact claims"
+      ],
+      "rawFieldEvidence": [
+        "Historical aggregate confidenceCalibrationPercent=11.538%",
+        "Current aggregate confidenceCalibrationPercent=3.846%"
+      ],
+      "confidence": "MEDIUM",
+      "phase5SystemicRepairJustified": true,
+      "repairScope": "Both versions are far below threshold; treat as shared gap, not a restoration target."
+    },
+    {
+      "rank": 11,
+      "subsystem": "empty-description listing compatibility",
+      "classification": "CURRENT_STRONGER",
+      "supportingCases": [
+        "OBJ-013",
+        "OBJ-014",
+        "OBJ-001 anchor RUN-020"
+      ],
+      "counterexamples": [],
+      "rawFieldEvidence": [
+        "Historical RUN-013/RUN-014/RUN-020 customerFacingReport.error=Add item notes before generating a listing",
+        "Current corresponding runs return HTTP 200"
+      ],
+      "confidence": "HIGH",
+      "phase5SystemicRepairJustified": false,
+      "repairScope": "Preserve current optional-description compatibility."
+    },
+    {
+      "rank": 12,
+      "subsystem": "market interpretation, purpose judgment, and action planning",
+      "classification": "CURRENT_STRONGER",
+      "supportingCases": [
+        "Aggregate and section averages"
+      ],
+      "counterexamples": [
+        "Both action-plan completeness 0%"
+      ],
+      "rawFieldEvidence": [
+        "Current overall 30.192 versus historical 25.769",
+        "Both actionPlanCompletenessPercent=0"
+      ],
+      "confidence": "MEDIUM",
+      "phase5SystemicRepairJustified": true,
+      "repairScope": "Shared downstream gap; not evidence for restoring historical code."
+    }
+  ]
+}
