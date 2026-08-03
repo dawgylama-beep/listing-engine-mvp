@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "executorName": "Katherine's Eye Frozen Blind-Object Baseline Executor",
+  "executorId": "blind-object-v1-execution-v1",
+  "executorVersion": "1.0.0",
+  "freezeTimestampUtc": "2026-08-03T16:23:41.964Z",
+  "futureExecutionStatus": "READY_REQUIRES_SEPARATE_PHASE_3B_AUTHORIZATION",
+  "productUnderTestCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+  "frozenBenchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
+  "frozenCorpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
+  "frozenContractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
+  "runCount": 26,
+  "runIdsInOrder": ["RUN-001","RUN-002","RUN-003","RUN-004","RUN-005","RUN-006","RUN-007","RUN-008","RUN-009","RUN-010","RUN-011","RUN-012","RUN-013","RUN-014","RUN-015","RUN-016","RUN-017","RUN-018","RUN-019","RUN-020","RUN-021","RUN-022","RUN-023","RUN-024","RUN-025","RUN-026"],
+  "permittedBenchmarkInputsDuringExecution": ["input-cases.json", "manifest.json", "assets/*"],
+  "prohibitedPrivateInputsDuringExecution": ["ground-truth.json", "exact-source-controls.json", "distractor-controls.json", "scoring-rubric.json", "provenanceAndVerifierNotes", "valuation answers", "expected identities", "accepted aliases"],
+  "handlerMechanism": {
+    "route": "POST /api/generate-listing",
+    "bridge": "scripts/local-generate-listing-bridge.mjs",
+    "handlerExport": "api/generate-listing.js#createGenerateListingHandler",
+    "parityProof": "tests/local-production-handler-parity.test.mjs",
+    "adapterScope": "Frontend-equivalent image-envelope preparation and metadata capture only; product input meaning and output bytes are not altered."
+  },
+  "schemaSha256": {
+    "requestRecord": "32029359d48fc381158c34ed0fedef22c977ce4ca6abd0cedb6d5b6085848ca9",
+    "responseRecord": "252d9f54d39f127dd3175342435f1b21d7a03d9e01964841a55a4c04a12bd364",
+    "runJournal": "14e81c39957f39c406631dc46fde9096000366ac85cc6f7c2173be55bdf12cf5",
+    "frozenResultManifest": "db85409185c90f113854a53e346321cb54c0fe8f16e3b854c06f18255b3f9472"
+  },
+  "providerCeilingContract": {
+    "standardProviderAttempts": 12,
+    "retailProviderAttempts": 28,
+    "directPageEnrichmentAttempts": 2
+  },
+  "concurrency": 1,
+  "retryPolicy": {
+    "afterHandlerAcceptedRequest": "PROHIBITED",
+    "completedResponse": "NEVER_RETRY",
+    "providerErrorOrNoEvidence": "PRESERVE_AS_PRODUCT_RESULT",
+    "beforeHandlerInvocation": "A transport setup may be retried only with proof that the handler was never invoked."
+  },
+  "interruptionAndResumePolicy": {
+    "frozenRun": "NEVER_EXECUTE_AGAIN",
+    "responseHashedRun": "DO_NOT_EXECUTE_AGAIN; await aggregate freeze",
+    "startedWithoutSecureHash": "MARK_INDETERMINATE_AND_STOP",
+    "indeterminateRun": "NO_AUTOMATIC_RETRY"
+  },
+  "answerKeySeparationPolicy": "Preparation, execution, journal, capture, freeze, and integrity modules have a statically audited import/file-access graph that excludes all private answer files. Only the separate post-freeze grading process may load them.",
+  "rawResponseFreezeBoundary": "Exactly 26 validated request/response records, individual hashes, FROZEN journal states, and an aggregate result hash must exist before grading is permitted.",
+  "gradingBoundary": "grade-frozen-results.mjs must independently verify the immutable result manifest and aggregate hash before dynamically loading the frozen scorer or any private answer file.",
+  "expectedResultLocation": "benchmarks/blind-object-v1-results/current-a4a7214/",
+  "executorCommitResolution": "At execution time, resolve the immutable executor commit with git log -1 -- EXECUTOR_FREEZE.json and store it in every request record.",
+  "executorContentHashAlgorithm": "SHA-256 of lexicographically sorted UTF-8 lines relative-path:file-sha256 for every execution-package file except EXECUTOR_FREEZE.json. This excludes the self-referential freeze file and Git commit.",
+  "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581",
+  "constructionAttestation": {
+    "realProductRuns": 0,
+    "providerCalls": 0,
+    "previewRequests": 0,
+    "productionRequests": 0,
+    "realResultArtifactsCreated": false
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "handler": "api/generate-listing.js#createGenerateListingHandler",
+  "capturedAtUtc": "2026-08-03T16:23:41.964Z",
+  "variables": [
+    {
+      "name": "OPENAI_API_KEY",
+      "subsystem": "OpenAI Responses API and web_search",
+      "status": "required_unless_fallback_alias_present",
+      "source": "api/generate-listing.js:27,892-898",
+      "presentLocally": true,
+      "absencePreventsProductionParity": true,
+      "productOwnedFallback": "OPEN_API_KEY"
+    },
+    {
+      "name": "OPEN_API_KEY",
+      "subsystem": "OpenAI credential compatibility alias",
+      "status": "optional_fallback_alias",
+      "source": "api/generate-listing.js:27",
+      "presentLocally": false,
+      "absencePreventsProductionParity": false,
+      "productOwnedFallback": "OPENAI_API_KEY"
+    },
+    {
+      "name": "OPENAI_MODEL",
+      "subsystem": "OpenAI model selection",
+      "status": "optional",
+      "source": "api/generate-listing.js:28",
+      "presentLocally": false,
+      "absencePreventsProductionParity": false,
+      "productOwnedFallback": "gpt-4.1-mini"
+    },
+    {
+      "name": "SERPER_API_KEY",
+      "subsystem": "Serper Google Search",
+      "status": "optional",
+      "source": "api/generate-listing.js:29,1947-1975",
+      "presentLocally": false,
+      "absencePreventsProductionParity": false,
+      "productOwnedFallback": "OpenAI web_search"
+    }
+  ]
+}

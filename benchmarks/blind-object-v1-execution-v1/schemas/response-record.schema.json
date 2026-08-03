@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "katherines-eye/blind-object-v1/response-record.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","runId","objectId","requestSha256","handlerStatus","startTimestamp","endTimestamp","elapsedMilliseconds","rawHandlerBodyBase64","rawProductResponse","customerFacingReport","providerAndSearchErrors","providerCallCounts","evidenceRecords","sourceUrls","responseSha256"],
+  "properties": {
+    "schemaVersion": {"const":1},
+    "runId": {"type":"string","pattern":"^RUN-[0-9]{3}$"},
+    "objectId": {"type":"string","pattern":"^OBJ-[0-9]{3}$"},
+    "requestSha256": {"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "handlerStatus": {"type":"object","additionalProperties":false,"required":["statusCode","headers"],"properties":{"statusCode":{"type":"integer","minimum":100,"maximum":599},"headers":{"type":"object"}}},
+    "startTimestamp": {"type":"string","format":"date-time"},
+    "endTimestamp": {"type":"string","format":"date-time"},
+    "elapsedMilliseconds": {"type":"number","minimum":0},
+    "rawHandlerBodyBase64": {"type":"string"},
+    "rawProductResponse": {},
+    "customerFacingReport": {},
+    "providerAndSearchErrors": {"type":"array"},
+    "providerCallCounts": {"type":"object"},
+    "evidenceRecords": {"type":"array"},
+    "sourceUrls": {"type":"array","items":{"type":"string"}},
+    "responseSha256": {"type":"string","pattern":"^[a-f0-9]{64}$"}
+  }
+}

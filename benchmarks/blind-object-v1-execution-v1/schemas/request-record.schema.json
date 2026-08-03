@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "katherines-eye/blind-object-v1/request-record.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","runId","objectId","runType","purpose","lane","images","description","requestTimestamp","productCommit","benchmarkCommit","executorCommit","handlerRequest","requestSha256"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"type":"string","pattern":"^RUN-[0-9]{3}$"},
+    "objectId": {"type":"string","pattern":"^OBJ-[0-9]{3}$"},
+    "runType": {"enum":["PRINCIPAL","ANCHOR_PURPOSE"]},
+    "purpose": {"enum":["PERSONAL_BUY","RESALE","WHATS_IT_WORTH","MARKETPLACE_LISTING"]},
+    "lane": {"enum":["PHOTO_ONLY","PHOTO_PLUS_VISIBLE_MARKINGS","BARCODE_OR_MODEL"]},
+    "images": {"type":"array","minItems":1,"maxItems":6,"items":{"type":"object","additionalProperties":false,"required":["imageId","sha256"],"properties":{"imageId":{"type":"string","pattern":"^OBJ-[0-9]{3}-[A-Z]$"},"sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"}}}},
+    "description": {"type":"string"},
+    "requestTimestamp": {"type":"string","format":"date-time"},
+    "productCommit": {"const":"a4a7214f612314977b8ffd30743b336820fd9372"},
+    "benchmarkCommit": {"const":"3449f9a1a29b98b7422710f9e967770d0655b38c"},
+    "executorCommit": {"type":"string","pattern":"^[a-f0-9]{40}$"},
+    "handlerRequest": {"type":"object","additionalProperties":false,"required":["method","url","headers","body"],"properties":{"method":{"const":"POST"},"url":{"const":"/api/generate-listing"},"headers":{"type":"object"},"body":{"type":"object"}}},
+    "requestSha256": {"type":"string","pattern":"^[a-f0-9]{64}$"}
+  }
+}

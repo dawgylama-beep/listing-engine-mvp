@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "katherines-eye/blind-object-v1/frozen-result-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","executorId","productCommit","benchmarkCommit","corpusSha256","contractSha256","executorContentSha256","requestCount","responseCount","runIds","requests","responses","journalSha256","aggregateResultSha256","rawResponseFreezeTimestamp","gradingPermitted"],
+  "properties": {
+    "schemaVersion":{"const":1},
+    "executorId":{"const":"blind-object-v1-execution-v1"},
+    "productCommit":{"const":"a4a7214f612314977b8ffd30743b336820fd9372"},
+    "benchmarkCommit":{"const":"3449f9a1a29b98b7422710f9e967770d0655b38c"},
+    "corpusSha256":{"const":"c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853"},
+    "contractSha256":{"const":"3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f"},
+    "executorContentSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "requestCount":{"const":26},
+    "responseCount":{"const":26},
+    "runIds":{"type":"array","minItems":26,"maxItems":26,"items":{"type":"string","pattern":"^RUN-[0-9]{3}$"}},
+    "requests":{"type":"array","minItems":26,"maxItems":26},
+    "responses":{"type":"array","minItems":26,"maxItems":26},
+    "journalSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "aggregateResultSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "rawResponseFreezeTimestamp":{"type":"string","format":"date-time"},
+    "gradingPermitted":{"const":true}
+  }
+}
