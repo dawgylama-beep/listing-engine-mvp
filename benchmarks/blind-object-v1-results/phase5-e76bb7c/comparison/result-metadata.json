@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "resultId": "blind-object-v1-phase5-e76bb7c",
+  "sourceCommit": "e76bb7ced47f75a900fc9819e9a42e882da7d7d0",
+  "sourceSubject": "feat: establish shared object intelligence spine",
+  "version": "1.12.1",
+  "resultRoot": "benchmarks/blind-object-v1-results/phase5-e76bb7c",
+  "requestCount": 26,
+  "responseCount": 26,
+  "principalRunCount": 14,
+  "anchorPurposeRunCount": 12,
+  "aggregateResultSha256": "a21ea53427806eacf0e8588b66ca7b096cfe3628f839b63efd7589031b91223e",
+  "executionStart": "2026-08-03T21:22:27.633Z",
+  "executionEnd": "2026-08-03T21:47:16.492Z",
+  "gradingPasses": 2,
+  "gradingByteIdentical": true,
+  "completeProductPassed": false,
+  "phase5IdentitySearchPassed": false,
+  "immutableInputs": {
+    "benchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
+    "corpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
+    "contractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
+    "executorCommit": "ec9605768580c9545bdda79f7437de6e374312b7",
+    "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581"
+  },
+  "externalBindingAdapter": {
+    "sha256": "fbe8cf7b337ad542ee3f5aae013d3acb8df99b37fdd919fa406ac8316e86e674",
+    "fixedWidthProductCommitSubstitutionCount": 1,
+    "executorSemanticChanges": 0,
+    "syntheticValidationRequests": 26,
+    "syntheticValidationResponses": 26,
+    "syntheticExternalNetworkRequests": 0,
+    "removedAfterResultRecording": true
+  },
+  "assertions": {
+    "benchmarkCriteriaChanged": false,
+    "benchmarkAssetsChanged": false,
+    "benchmarkDescriptionsChanged": false,
+    "executorChanged": false,
+    "scoringOrThresholdsChanged": false,
+    "sourceOrTestsChangedAfterInvocation": false,
+    "rerunPerformed": false,
+    "currentBaselineRerun": false,
+    "historicalBaselineRerun": false,
+    "manualSearchPerformed": false,
+    "previewRequested": false,
+    "productionRequestedOrModified": false,
+    "pushMergeOrDeployPerformed": false
+  }
+}

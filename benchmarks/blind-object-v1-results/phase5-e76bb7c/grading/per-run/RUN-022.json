@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-022",
+  "runType": "ANCHOR_PURPOSE",
+  "identityInvariantGroup": "ANCHOR-OBJ-008",
+  "caseId": "OBJ-008",
+  "purpose": "WHATS_IT_WORTH",
+  "responseHash": "f0f9d4eff27e672f698899c50368b941cd01a20d871c04aa4534ecd77e72d119",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 20,
+    "uncertaintyAndAlternatives": 5,
+    "exactEvidenceRecovery": 15,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 0,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 50,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "50 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 0,
+  "metrics": {
+    "identityCapable": true,
+    "exactEligible": false,
+    "exactRecoveredAndDistractorRejected": null,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": null,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-010",
+  "runType": "PRINCIPAL",
+  "identityInvariantGroup": null,
+  "caseId": "OBJ-010",
+  "purpose": "RESALE",
+  "responseHash": "3d7129fc0ecf3f182c7cb04e1ff7c6302aa8d7d1eb1b3e49dee3f07ab4518804",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 0,
+    "uncertaintyAndAlternatives": 0,
+    "exactEvidenceRecovery": 15,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 5,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 30,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "30 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 0,
+  "metrics": {
+    "identityCapable": false,
+    "exactEligible": false,
+    "exactRecoveredAndDistractorRejected": null,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": null,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "unmapped-product-identity",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}

@@ -1,0 +1,1209 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-phase5-e76bb7c-vs-current-and-historical",
+  "conclusion": {
+    "completeProductResult": "FAIL",
+    "phase5IdentitySearchResult": "FAIL",
+    "classification": "MIXED_RESULT_WITH_UNMET_IDENTITY_SEARCH_TARGETS",
+    "summary": "Phase 5 raises the overall frozen score by 0.19 points over current and improves uncertainty coverage, but identity capability remains 42.86%, exact-source recovery and distractor rejection remain 0%, and purpose invariance remains 75%. The principal identity improvement on OBJ-001 is offset by a principal identity regression on OBJ-005; the inconsistent purpose anchor moves from OBJ-001 to OBJ-014.",
+    "strongestImprovement": "OBJ-001 becomes identity-capable and purpose-invariant across all four purposes, mapping to the frozen Nutella 400 g GTIN identity key.",
+    "strongestRegression": "OBJ-005 falls from identity-capable at 45 points to unmapped at 15 points; OBJ-014 also loses four-purpose identity consistency.",
+    "remainingSharedWeakness": "Verified exact-source recovery, distractor rejection, direct-page reachability, action-plan completeness, confidence calibration, and persisted query ownership remain absent in the frozen result."
+  },
+  "phase5": {
+    "productCommit": "e76bb7ced47f75a900fc9819e9a42e882da7d7d0",
+    "sourceSubject": "feat: establish shared object intelligence spine",
+    "aggregateResultSha256": "a21ea53427806eacf0e8588b66ca7b096cfe3628f839b63efd7589031b91223e",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.384615384615383,
+        "identityCapabilityPercent": 42.857142857142854,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 75,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 0,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.384615384615383
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 10,
+      "uncertaintyAndAlternatives": 2.1153846153846154,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 0
+    },
+    "execution": {
+      "handlerStatusCounts": {
+        "200": 26
+      },
+      "executionStart": "2026-08-03T21:22:27.633Z",
+      "executionEnd": "2026-08-03T21:47:16.492Z",
+      "logicalProviderQueries": 112,
+      "physicalProviderAttempts": 138,
+      "physicalProviderRetries": 26,
+      "providerCallsSucceeded": 109,
+      "directPageAttempts": 0,
+      "directPageFetchesSucceeded": 0,
+      "queriesGenerated": 209,
+      "queriesActuallySent": 112,
+      "experienceQueriesAttempted": 112,
+      "queryOwnershipRecords": 0,
+      "objectMindSourcesAccepted": 103,
+      "objectMindSourcesRejected": 5,
+      "objectMindExactEvidenceRecords": 103,
+      "refinementPhases": 0,
+      "sourceUrlRecords": 1261,
+      "evidenceMetadataRecords": 4442,
+      "errorRelatedMetadataRecords": 182,
+      "maximumProviderAttemptsInOneRun": 9,
+      "maximumDirectPageAttemptsInOneRun": 0,
+      "budgetViolations": 0
+    },
+    "targetedIdentitySearchGates": {
+      "identityCapability": {
+        "actual": 42.857142857142854,
+        "requirement": ">= 80%",
+        "passed": false
+      },
+      "eligibleExactSourceRecovery": {
+        "actual": 0,
+        "requirement": ">= 70%",
+        "passed": false
+      },
+      "distractorRejection": {
+        "actual": 0,
+        "requirement": ">= 90%",
+        "passed": false
+      },
+      "evidenceAssociation": {
+        "actual": 100,
+        "requirement": ">= 95%",
+        "passed": true
+      },
+      "purposeInvariance": {
+        "actual": 75,
+        "requirement": ">= 100%",
+        "passed": false
+      },
+      "ambiguousConfidentFalseExacts": {
+        "actual": 0,
+        "requirement": "= 0",
+        "passed": true
+      },
+      "wrongKnownAnswerSubstitutions": {
+        "actual": 1,
+        "requirement": "= 0",
+        "passed": false
+      },
+      "inventedSourcesOrTransactionFacts": {
+        "actual": 0,
+        "requirement": "= 0",
+        "passed": true
+      }
+    },
+    "targetedIdentitySearchPassed": false,
+    "preservationGates": {
+      "allRunsStructurallyValid": true,
+      "previouslyCorrectPrincipalIdentityPreserved": false,
+      "principalIdentityRegressions": [
+        "RUN-005"
+      ],
+      "principalIdentityImprovements": [
+        "RUN-001"
+      ],
+      "ambiguousConfidentFalseExactIncrease": 0,
+      "providerCeilingViolations": 0,
+      "duplicateRuns": 0,
+      "indeterminateRuns": 0,
+      "benchmarkLeakageDetected": false
+    }
+  },
+  "current": {
+    "resultCommit": "610b3a5b7e3135cbcb2f9b85d1f20a20ef681e28",
+    "productCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+    "aggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.192307692307693,
+        "identityCapabilityPercent": 42.857142857142854,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 75,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 3.8461538461538463,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.192307692307693
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 10,
+      "uncertaintyAndAlternatives": 1.5384615384615385,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 0.38461538461538464
+    },
+    "providerTotals": {
+      "providerCallsAttempted": 176,
+      "providerCallsSucceeded": 150,
+      "providerCallsFailed": 0,
+      "directPageAttempts": 0,
+      "derivation": "Numeric fields captured from immutable current product responses; Phase 3B recorded 176 attempts, 150 successes, and 26 failed/retried attempts."
+    }
+  },
+  "historical": {
+    "resultCommit": "2692c06633402671674c1c6b4750ed64ddf74be7",
+    "productCommit": "14af1f99773da15da10752f6656e09efae2b4944",
+    "aggregateResultSha256": "17e89eaa28af153547f37e9131e0e33f90b073ab36c2b49d88d4a6b3f89037a5",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 25.76923076923077,
+        "identityCapabilityPercent": 21.428571428571427,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 100,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 11.538461538461538,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": true,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 25.76923076923077
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 4.615384615384615,
+      "uncertaintyAndAlternatives": 1.7307692307692308,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 1.1538461538461537
+    },
+    "providerTotals": {
+      "totalProviderAttempts": 92,
+      "imageRecognitionAttempts": 23,
+      "identityExtractionAttempts": 23,
+      "webSearchAttempts": 23,
+      "finalReportAttempts": 23,
+      "directPageAttempts": 0,
+      "explicitProviderFailures": 0,
+      "preProviderHandlerValidationFailures": 3,
+      "derivation": "Version 1.9.3 has four fixed provider stages for each HTTP 200 analysis: visual recognition, identity extraction, one required web_search request, and final report generation. Three empty-description listing requests ended at HTTP 400 before provider invocation. The historical report contract exposes no numeric provider counters and no include-compatibility retry marker was returned."
+    }
+  },
+  "metricComparison": {
+    "overallScore": {
+      "phase5": 30.384615384615383,
+      "current": 30.192307692307693,
+      "historical": 25.76923076923077,
+      "deltaFromCurrent": 0.19230769230768985,
+      "deltaFromHistorical": 4.615384615384613
+    },
+    "identityCapabilityPercent": {
+      "phase5": 42.857142857142854,
+      "current": 42.857142857142854,
+      "historical": 21.428571428571427,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 21.428571428571427
+    },
+    "exactEvidenceRecoveryPercent": {
+      "phase5": 0,
+      "current": 0,
+      "historical": 0,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "evidenceAssociationCorrectnessPercent": {
+      "phase5": 100,
+      "current": 100,
+      "historical": 100,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "similarSourceRejectionPercent": {
+      "phase5": 0,
+      "current": 0,
+      "historical": 0,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "purposeInvarianceIdentityConsistencyPercent": {
+      "phase5": 75,
+      "current": 75,
+      "historical": 100,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": -25
+    },
+    "actionPlanCompletenessPercent": {
+      "phase5": 0,
+      "current": 0,
+      "historical": 0,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "confidenceCalibrationPercent": {
+      "phase5": 0,
+      "current": 3.8461538461538463,
+      "historical": 11.538461538461538,
+      "deltaFromCurrent": -3.8461538461538463,
+      "deltaFromHistorical": -11.538461538461538
+    },
+    "confidentFalseExactsOnAmbiguousCase": {
+      "phase5": 0,
+      "current": 0,
+      "historical": 0,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "wrongKnownAnswerControlSubstitutions": {
+      "phase5": 1,
+      "current": 1,
+      "historical": 1,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    },
+    "inventedSourcesOrTransactionFacts": {
+      "phase5": 0,
+      "current": 0,
+      "historical": 0,
+      "deltaFromCurrent": 0,
+      "deltaFromHistorical": 0
+    }
+  },
+  "principalCases": [
+    {
+      "runId": "RUN-001",
+      "caseId": "OBJ-001",
+      "purpose": "PERSONAL_BUY",
+      "phase5Score": 30,
+      "currentScore": 10,
+      "historicalScore": 15,
+      "phase5IdentityKey": "nutella-400g-gtin-3017620422003",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "BETTER",
+      "phase5VsHistorical": "BETTER"
+    },
+    {
+      "runId": "RUN-002",
+      "caseId": "OBJ-002",
+      "purpose": "PERSONAL_BUY",
+      "phase5Score": 15,
+      "currentScore": 10,
+      "historicalScore": 15,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "BETTER",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-003",
+      "caseId": "OBJ-003",
+      "purpose": "RESALE",
+      "phase5Score": 10,
+      "currentScore": 15,
+      "historicalScore": 10,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "WORSE",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-004",
+      "caseId": "OBJ-004",
+      "purpose": "WHATS_IT_WORTH",
+      "phase5Score": 35,
+      "currentScore": 35,
+      "historicalScore": 35,
+      "phase5IdentityKey": "raspberry-pi-4-model-b",
+      "currentIdentityKey": "raspberry-pi-4-model-b",
+      "historicalIdentityKey": "raspberry-pi-4-model-b",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": true,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-005",
+      "caseId": "OBJ-005",
+      "purpose": "PERSONAL_BUY",
+      "phase5Score": 15,
+      "currentScore": 45,
+      "historicalScore": 25,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "flewelling-office-chair-1966-photographed-example",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "WORSE",
+      "phase5VsHistorical": "WORSE"
+    },
+    {
+      "runId": "RUN-006",
+      "caseId": "OBJ-006",
+      "purpose": "PERSONAL_BUY",
+      "phase5Score": 35,
+      "currentScore": 35,
+      "historicalScore": 15,
+      "phase5IdentityKey": "casio-f-91w-1",
+      "currentIdentityKey": "casio-f-91w-1",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "DIFFERENTLY_WRONG",
+      "phase5VsHistorical": "BETTER"
+    },
+    {
+      "runId": "RUN-007",
+      "caseId": "OBJ-007",
+      "purpose": "WHATS_IT_WORTH",
+      "phase5Score": 35,
+      "currentScore": 35,
+      "historicalScore": 35,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-008",
+      "caseId": "OBJ-008",
+      "purpose": "RESALE",
+      "phase5Score": 45,
+      "currentScore": 45,
+      "historicalScore": 45,
+      "phase5IdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+      "currentIdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+      "historicalIdentityKey": "kodak-brownie-hawkeye-flash-model-camera",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": true,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-009",
+      "caseId": "OBJ-009",
+      "purpose": "RESALE",
+      "phase5Score": 30,
+      "currentScore": 30,
+      "historicalScore": 30,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-010",
+      "caseId": "OBJ-010",
+      "purpose": "RESALE",
+      "phase5Score": 30,
+      "currentScore": 30,
+      "historicalScore": 30,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-011",
+      "caseId": "OBJ-011",
+      "purpose": "WHATS_IT_WORTH",
+      "phase5Score": 15,
+      "currentScore": 15,
+      "historicalScore": 15,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION",
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [
+        "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION"
+      ],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-012",
+      "caseId": "OBJ-012",
+      "purpose": "MARKETPLACE_LISTING",
+      "phase5Score": 30,
+      "currentScore": 30,
+      "historicalScore": 30,
+      "phase5IdentityKey": "nintendo-game-boy-dmg-01",
+      "currentIdentityKey": "nintendo-game-boy-dmg-01",
+      "historicalIdentityKey": "nintendo-game-boy-dmg-01",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": true,
+      "exactEligible": true,
+      "exactSourceRecoveredAndDistractorRejected": false,
+      "distractorRejected": false,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "runId": "RUN-013",
+      "caseId": "OBJ-013",
+      "purpose": "MARKETPLACE_LISTING",
+      "phase5Score": 30,
+      "currentScore": 30,
+      "historicalScore": 25,
+      "phase5IdentityKey": "unmapped-product-identity",
+      "currentIdentityKey": "unmapped-product-identity",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": false,
+      "currentIdentityCapable": false,
+      "historicalIdentityCapable": false,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION",
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [
+        "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION"
+      ],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "BETTER"
+    },
+    {
+      "runId": "RUN-014",
+      "caseId": "OBJ-014",
+      "purpose": "MARKETPLACE_LISTING",
+      "phase5Score": 50,
+      "currentScore": 50,
+      "historicalScore": 30,
+      "phase5IdentityKey": "roman-pentagonal-dodecahedron-function-unresolved",
+      "currentIdentityKey": "roman-pentagonal-dodecahedron-function-unresolved",
+      "historicalIdentityKey": "unmapped-product-identity",
+      "phase5IdentityCapable": true,
+      "currentIdentityCapable": true,
+      "historicalIdentityCapable": false,
+      "exactEligible": false,
+      "exactSourceRecoveredAndDistractorRejected": null,
+      "distractorRejected": null,
+      "phase5FailureCodes": [
+        "OVERALL_SCORE_BELOW_THRESHOLD"
+      ],
+      "phase5CriticalFailureCodes": [],
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "BETTER"
+    }
+  ],
+  "anchors": [
+    {
+      "identityInvariantGroup": "ANCHOR-OBJ-001",
+      "caseId": "OBJ-001",
+      "phase5": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-001",
+            "caseId": "OBJ-001",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "nutella-400g-gtin-3017620422003"
+          },
+          {
+            "runId": "RUN-015",
+            "caseId": "OBJ-001",
+            "purpose": "RESALE",
+            "identityKey": "nutella-400g-gtin-3017620422003"
+          },
+          {
+            "runId": "RUN-016",
+            "caseId": "OBJ-001",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "nutella-400g-gtin-3017620422003"
+          },
+          {
+            "runId": "RUN-017",
+            "caseId": "OBJ-001",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "nutella-400g-gtin-3017620422003"
+          }
+        ]
+      },
+      "current": {
+        "consistent": false,
+        "runs": [
+          {
+            "runId": "RUN-001",
+            "caseId": "OBJ-001",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-015",
+            "caseId": "OBJ-001",
+            "purpose": "RESALE",
+            "identityKey": "nutella-400g-gtin-3017620422003"
+          },
+          {
+            "runId": "RUN-016",
+            "caseId": "OBJ-001",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-017",
+            "caseId": "OBJ-001",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "historical": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-001",
+            "caseId": "OBJ-001",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-015",
+            "caseId": "OBJ-001",
+            "purpose": "RESALE",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-016",
+            "caseId": "OBJ-001",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-017",
+            "caseId": "OBJ-001",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "phase5VsCurrent": "BETTER",
+      "phase5VsHistorical": "DIFFERENT_IDENTITY_SAME_CONSISTENCY"
+    },
+    {
+      "identityInvariantGroup": "ANCHOR-OBJ-003",
+      "caseId": "OBJ-003",
+      "phase5": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-003",
+            "caseId": "OBJ-003",
+            "purpose": "RESALE",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-018",
+            "caseId": "OBJ-003",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-019",
+            "caseId": "OBJ-003",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-020",
+            "caseId": "OBJ-003",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "current": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-003",
+            "caseId": "OBJ-003",
+            "purpose": "RESALE",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-018",
+            "caseId": "OBJ-003",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-019",
+            "caseId": "OBJ-003",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-020",
+            "caseId": "OBJ-003",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "historical": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-003",
+            "caseId": "OBJ-003",
+            "purpose": "RESALE",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-018",
+            "caseId": "OBJ-003",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-019",
+            "caseId": "OBJ-003",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-020",
+            "caseId": "OBJ-003",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "identityInvariantGroup": "ANCHOR-OBJ-008",
+      "caseId": "OBJ-008",
+      "phase5": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-008",
+            "caseId": "OBJ-008",
+            "purpose": "RESALE",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-021",
+            "caseId": "OBJ-008",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-022",
+            "caseId": "OBJ-008",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-023",
+            "caseId": "OBJ-008",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          }
+        ]
+      },
+      "current": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-008",
+            "caseId": "OBJ-008",
+            "purpose": "RESALE",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-021",
+            "caseId": "OBJ-008",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-022",
+            "caseId": "OBJ-008",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-023",
+            "caseId": "OBJ-008",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          }
+        ]
+      },
+      "historical": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-008",
+            "caseId": "OBJ-008",
+            "purpose": "RESALE",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-021",
+            "caseId": "OBJ-008",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-022",
+            "caseId": "OBJ-008",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          },
+          {
+            "runId": "RUN-023",
+            "caseId": "OBJ-008",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "kodak-brownie-hawkeye-flash-model-camera"
+          }
+        ]
+      },
+      "phase5VsCurrent": "EQUAL",
+      "phase5VsHistorical": "EQUAL"
+    },
+    {
+      "identityInvariantGroup": "ANCHOR-OBJ-014",
+      "caseId": "OBJ-014",
+      "phase5": {
+        "consistent": false,
+        "runs": [
+          {
+            "runId": "RUN-014",
+            "caseId": "OBJ-014",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          },
+          {
+            "runId": "RUN-024",
+            "caseId": "OBJ-014",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-025",
+            "caseId": "OBJ-014",
+            "purpose": "RESALE",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          },
+          {
+            "runId": "RUN-026",
+            "caseId": "OBJ-014",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "current": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-014",
+            "caseId": "OBJ-014",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          },
+          {
+            "runId": "RUN-024",
+            "caseId": "OBJ-014",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          },
+          {
+            "runId": "RUN-025",
+            "caseId": "OBJ-014",
+            "purpose": "RESALE",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          },
+          {
+            "runId": "RUN-026",
+            "caseId": "OBJ-014",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "roman-pentagonal-dodecahedron-function-unresolved"
+          }
+        ]
+      },
+      "historical": {
+        "consistent": true,
+        "runs": [
+          {
+            "runId": "RUN-014",
+            "caseId": "OBJ-014",
+            "purpose": "MARKETPLACE_LISTING",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-024",
+            "caseId": "OBJ-014",
+            "purpose": "PERSONAL_BUY",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-025",
+            "caseId": "OBJ-014",
+            "purpose": "RESALE",
+            "identityKey": "unmapped-product-identity"
+          },
+          {
+            "runId": "RUN-026",
+            "caseId": "OBJ-014",
+            "purpose": "WHATS_IT_WORTH",
+            "identityKey": "unmapped-product-identity"
+          }
+        ]
+      },
+      "phase5VsCurrent": "WORSE",
+      "phase5VsHistorical": "WORSE"
+    }
+  ],
+  "exactSourceCases": [
+    {
+      "runId": "RUN-001",
+      "caseId": "OBJ-001",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-002",
+      "caseId": "OBJ-002",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-003",
+      "caseId": "OBJ-003",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-004",
+      "caseId": "OBJ-004",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-005",
+      "caseId": "OBJ-005",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-006",
+      "caseId": "OBJ-006",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-011",
+      "caseId": "OBJ-011",
+      "recovered": false,
+      "distractorRejected": false
+    },
+    {
+      "runId": "RUN-012",
+      "caseId": "OBJ-012",
+      "recovered": false,
+      "distractorRejected": false
+    }
+  ],
+  "criticalFailures": [
+    {
+      "runId": "RUN-011",
+      "caseId": "OBJ-011",
+      "purpose": "WHATS_IT_WORTH",
+      "code": "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION",
+      "detail": "Expected identity key solved-3x3-six-color-twisty-cube-rubik-style."
+    },
+    {
+      "runId": "RUN-013",
+      "caseId": "OBJ-013",
+      "purpose": "MARKETPLACE_LISTING",
+      "code": "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION",
+      "detail": "The required remove-from-service disposition was not preserved."
+    }
+  ],
+  "failureCodeCounts": {
+    "OVERALL_SCORE_BELOW_THRESHOLD": 26,
+    "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION": 1,
+    "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION": 1
+  }
+}
