@@ -10,6 +10,7 @@ $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $package = Get-Content (Join-Path $Root "package.json") -Raw
 $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
+$objectResolution = Get-Content (Join-Path $Root "lib/object-intelligence/resolution.js") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
@@ -25,7 +26,19 @@ $checks = @(
   @{ Name = "API requests ten Serper results"; Text = $api; Pattern = "num: 10" },
   @{ Name = "Serper is selected before OpenAI fallback"; Text = $api; Pattern = "executeSerperComparableSearch" },
   @{ Name = "OpenAI web_search fallback remains available"; Text = $api; Pattern = "executeOpenAIWebComparableSearch" },
-  @{ Name = "Serper query plan is bounded"; Text = $api; Pattern = "validRecords.slice(0, 12)" },
+  @{ Name = "Standard provider ceiling remains twelve physical attempts"; Text = $api; Pattern = 'isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12' },
+  @{ Name = "Retail provider ceiling remains twenty-eight physical attempts"; Text = $api; Pattern = "maxProviderCalls: 28" },
+  @{ Name = "Standard initial phase reserves four attempts for refinement"; Text = $api; Pattern = "const initialProviderLimit = objectMindState?.objectStateId ? 8 : 12;" },
+  @{ Name = "Retail initial phase reserves four attempts for refinement"; Text = $api; Pattern = "? Math.max(1, retailSerperBudgetAllocation.maxProviderCalls - 4)" },
+  @{ Name = "Initial provider plans slice before dispatch through their assigned limit"; Text = $api; Pattern = "validRecords.slice(0, initialProviderLimit)"; MinimumCount = 2 },
+  @{ Name = "Refinement is limited to the reserved four queries"; Text = $api; Pattern = "maximumQueries: 4" },
+  @{ Name = "Serper initial and refinement requests share one provider attempt budget"; Text = $api; Pattern = "attemptBudget: sharedProviderAttemptBudget"; MinimumCount = 2 },
+  @{ Name = "Refinement and retail recovery receive the existing shared provider budget"; Text = $api; Pattern = "providerAttemptBudget: sharedProviderAttemptBudget"; MinimumCount = 2 },
+  @{ Name = "Direct-page enrichment has a separate two-attempt ceiling"; Text = $api; Pattern = "const directPageEnrichmentMaxAttempts = 2;" },
+  @{ Name = "Direct-page candidates are sliced to remaining direct capacity"; Text = $api; Pattern = ".slice(0, remainingBudget)" },
+  @{ Name = "Direct-page fetches consume only the direct-page budget"; Text = $api; Pattern = "consumePhysicalAttempt(directPageAttemptBudget" },
+  @{ Name = "Object intelligence permits only one refinement phase"; Text = $objectResolution; Pattern = "if (Number(evidenceState.refinementCount || 0) >= 1)" },
+  @{ Name = "Object intelligence records the single refinement phase"; Text = $objectResolution; Pattern = "refinementCount: 1" },
   @{ Name = "Serper organic results parsed"; Text = $api; Pattern = "data.organic" },
   @{ Name = "Serper shopping results parsed"; Text = $api; Pattern = "data.shopping" },
   @{ Name = "Serper knowledge graph reference parsed"; Text = $api; Pattern = "knowledgeGraph" },
@@ -45,7 +58,9 @@ $checks = @(
 
 $failed = @()
 foreach ($check in $checks) {
-  if (-not $check.Text.Contains($check.Pattern)) {
+  $minimumCount = if ($check.MinimumCount) { [int]$check.MinimumCount } else { 1 }
+  $matchCount = ([regex]::Matches($check.Text, [regex]::Escape($check.Pattern))).Count
+  if ($matchCount -lt $minimumCount) {
     $failed += $check.Name
   }
 }

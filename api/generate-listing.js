@@ -5,6 +5,16 @@ import {
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
 import { compareObservationPreference, underlyingOfferKey } from "../lib/evidence/dedupe.js";
+import {
+  applyObjectEvidenceVerification,
+  buildExperienceRecord,
+  createEvidenceInformedRefinement,
+  createInitialObjectSearchPlan,
+  createObjectMindState,
+  createPurposeNeutralObjectInput,
+  incorporateCandidateEvidence,
+  withObjectSearchPlan
+} from "../lib/object-intelligence/index.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 const MAX_ANALYSIS_PHOTO_COUNT = 6;
@@ -665,6 +675,13 @@ const itemIdentitySchema = {
     "distinctiveVisualDescription",
     "likelyItemDescription",
     "strongestSearchableIdentifiers",
+    "shape",
+    "construction",
+    "completeness",
+    "accessories",
+    "diagnosticVisualDetails",
+    "additionalEvidenceNeeded",
+    "identityHypotheses",
     "buyerContext"
   ],
   properties: {
@@ -752,6 +769,82 @@ const itemIdentitySchema = {
       minItems: 0,
       maxItems: 12,
       items: { type: "string" }
+    },
+    shape: { type: "string" },
+    construction: { type: "string" },
+    completeness: { type: "string" },
+    accessories: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    diagnosticVisualDetails: {
+      type: "array",
+      minItems: 0,
+      maxItems: 16,
+      items: { type: "string" }
+    },
+    additionalEvidenceNeeded: {
+      type: "array",
+      minItems: 0,
+      maxItems: 10,
+      items: { type: "string" }
+    },
+    identityHypotheses: {
+      type: "array",
+      minItems: 1,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "exactCandidateLabel",
+          "broaderFamilyIdentity",
+          "brandOrMaker",
+          "model",
+          "variantPackageEditionDesign",
+          "supportingObservations",
+          "contradictingObservations",
+          "unresolvedDiscriminators",
+          "distinguishingQueryOrObservation",
+          "exactnessLevel",
+          "confidenceBand"
+        ],
+        properties: {
+          exactCandidateLabel: { type: "string" },
+          broaderFamilyIdentity: { type: "string" },
+          brandOrMaker: { type: "string" },
+          model: { type: "string" },
+          variantPackageEditionDesign: { type: "string" },
+          supportingObservations: {
+            type: "array",
+            minItems: 0,
+            maxItems: 12,
+            items: { type: "string" }
+          },
+          contradictingObservations: {
+            type: "array",
+            minItems: 0,
+            maxItems: 10,
+            items: { type: "string" }
+          },
+          unresolvedDiscriminators: {
+            type: "array",
+            minItems: 0,
+            maxItems: 10,
+            items: { type: "string" }
+          },
+          distinguishingQueryOrObservation: {
+            type: "array",
+            minItems: 0,
+            maxItems: 8,
+            items: { type: "string" }
+          },
+          exactnessLevel: { type: "string" },
+          confidenceBand: { type: "string" }
+        }
+      }
     },
     buyerContext: {
       type: "array",
@@ -1847,16 +1940,25 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
-  const extractedIdentity = await extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake: intake });
+  const neutralInput = createPurposeNeutralObjectInput({ notes, buyerIntake: intake });
+  const extractedIdentity = await extractItemIdentity({ apiKey, model, photos, neutralInput });
   const visualRecognition = extractedIdentity.visualRecognition;
   const identity = finalizeIdentityForResearch(extractedIdentity, intake);
+  let objectMindState = createObjectMindState({
+    analysisId,
+    photos,
+    neutralInput,
+    extractedIdentity: identity
+  });
 
   if (identity.canonicalProductIdentity?.userConfirmationRequired && !identityConfirmationMatches(intake, identity.canonicalProductIdentity)) {
     throw createIdentityConfirmationRequiredError(identity.canonicalProductIdentity);
   }
 
+  const initialObjectSearchPlan = createInitialObjectSearchPlan(objectMindState, { maximumQueries: 12 });
+  objectMindState = withObjectSearchPlan(objectMindState, initialObjectSearchPlan);
   const sourceRoute = routeMarketSources(identity, intake, platform);
-  const searchQueries = buildLiveSearchQueries(identity, sourceRoute, notes, intake);
+  const searchQueries = initialObjectSearchPlan.map((record) => record.query);
   const liveSearch = await executeLiveComparableSearch({
     apiKey,
     model,
@@ -1866,25 +1968,30 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     sourceRoute,
     searchQueries,
     buyerIntake: intake,
-    researchPurpose
+    researchPurpose,
+    objectMindState
   });
   liveSearch.analysisId = analysisId;
+  liveSearch.objectMindState = liveSearch.objectMindState || objectMindState;
 
-  return { visualRecognition, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
+  return { visualRecognition, identity, objectMindState: liveSearch.objectMindState, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
 }
 
-async function extractItemIdentity({ apiKey, model, platform, notes, photos, buyerIntake }) {
-  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
+async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
   const userContent = [
     {
       type: "input_text",
       text: [
-        "Perform Visual Subject Recognition and then extract the strongest searchable item identity in this single multimodal pass.",
+        "Perform purpose-neutral Visual Subject Recognition and then create a bounded object identity state in this single multimodal pass.",
+        "Do not infer whether the customer is buying, reselling, valuing, or listing the object. The same photographs and permitted object description must produce materially the same observations and identity hypotheses for every customer purpose.",
         "First populate visualRecognition by answering what broad subject is visible independently of exact product, maker, model, date, licensing, authenticity, or comparable matches.",
         "Then preserve that broad visual subject while narrowing toward exact product, maker, model, edition, artist, manufacturer, license, material, dimensions, barcode, and comparable identifiers.",
+        "Create one to six bounded identityHypotheses. Each must name its exact candidate when supported, its broader family, supporting observations, contradictions, unresolved discriminators, and the query or additional observation that would distinguish it.",
+        "Do not force one exact hypothesis. Prefer a useful broader family identity over an unsupported exact candidate.",
+        "Record shape, material, construction, color, condition, completeness, accessories, and other diagnostic visual details separately. Condition or damage must not become the object identity.",
         "Do not force every image into a retail-product classification. Keep visual subject confidence independent from exact product, maker, era, licensing, authenticity, comparable, and pricing confidence.",
-        "Only populate fields supported by photo evidence, visible text, buyer notes, and Guided Buyer Intake. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
-        "Use Guided Buyer Intake as structured buyer-provided clues, but still verify against photos and visible text.",
+        "Only populate fields supported by photo evidence, visible text, the object description, and structured object clues. Never fabricate maker, artist, date, edition, license, authentication, exact product, sold data, source results, or image matches.",
+        "Use structured object clues as user-provided evidence, but still verify them against photos and visible text.",
         "Separate broad subject identity from exact product identity. Subject identity answers what is depicted or represented; exact product identity answers the exact item, maker, year, model, licensing, and comparable match.",
         "A broad subject may be likely or strongly supported even when the exact product, maker, era, licensing, authenticity, or exact comparable cannot be verified.",
         "Treat user-provided identity as meaningful evidence: do not accept it blindly, do not ignore it, and do not contradict it without visible or textual conflict.",
@@ -1893,9 +2000,9 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "When visible evidence conflicts with the user description, record the conflict plainly in identityConflictNotes.",
         "For logos, mascots, institutions, organizations, brands, characters, artwork, advertising, historical graphics, signs, posters, and collectibles, subjectIdentity should preserve the supported broad visual subject even if exact product, maker, age, and licensing are unknown.",
         "Use subjectConfidence separately from exactProductConfidence. Do not let no exact comparable found erase a supported broad subject identity.",
-        "Preserve item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, asking price, purchase context, and condition concerns when provided.",
-        "Do not silently discard conflicts between typed identity fields, buyer notes, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
-        "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, visible price, and current asking price.",
+        "Preserve object-only clues such as item name, brand, manufacturer, model, SKU, UPC, approximate age or era, condition, completeness, and condition concerns when provided.",
+        "Do not silently discard conflicts between typed identity fields, the object description, and photo evidence. Add conflicts or uncertainty to identityConflictNotes and lower confidence later.",
+        "Prioritize exact visible front-box wording, back-label wording, manufacturer/location text, brand/series text, product name or box title, UPC/barcode, item code/SKU/style number, distinctive visual description, category, size, condition, and completeness.",
         "Preserve searchable text exactly when visible. Do not collapse label text into generic terms if a brand, series, city/state, SKU, UPC, item code, slogan, event name, organization/team, named person, year, dimension, or reverse-side description appears.",
         "For ordinary current retail products, barcode/UPC digits are the highest-priority identity clue. Extract and preserve the exact digit sequence when readable.",
         "Do not silently correct barcode digits. If multiple barcode/UPC digit candidates are visible, preserve the alternatives in visibleText or textIdentityEvidence so the server can validate check digits before search.",
@@ -1905,17 +2012,16 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
         "For multi-photo items, merge front wording, reverse wording, side labels, tags, stamps, and visual form into one identity record. Do not treat one photo independently if another photo supplies stronger exact text.",
         "For institution, organization, school, team, mascot, logo, or character items, preserve names, visual symbols, licensing sticker text, manufacturer stamp, model number, copyright wording, year, product category, dimensions, material, and missing-component status when visible or provided.",
         "Do not describe an officially licensed sticker as proof of a specific manufacturer. If the manufacturer stamp is unclear, say that a closer photo is needed rather than treating all identification as failed.",
-        "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, UPC/barcode, and asking price such as $65 when provided.",
+        "For holiday decor, capture wording such as Santa's Workshop, Hubbard Ohio, Santa Claus, Santa figurine, Christmas decoration, holiday decor, boxed seasonal decor, green box, height/size such as 10 inch if provided, item code such as GAB031, and UPC/barcode.",
         "For boxed seasonal decor or unbranded/private-label holiday figures, treat brand/series, location text, item code, UPC, and box/label wording as primary identity clues.",
-        "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, tag status, and current asking price.",
-        "For electronics, capture exact model number, brand/manufacturer, specs visible in notes/photos, condition, charger/accessories, and current asking price.",
-        "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and current asking price.",
+        "For apparel, capture brand, style number, SKU/UPC, garment type, color, size, material, and tag status.",
+        "For electronics, capture exact model number, brand/manufacturer, specs visible in the object description or photos, condition, charger, and accessories.",
+        "For ceramics/home goods, capture maker, pattern, piece count, lids, material, condition, and completeness.",
         "Use Unknown for unknown text fields. Use an empty array only when no identifier is visible or provided.",
-        "Buyer context options include retail, resale, secondhand, local, collectible, apparel, electronics, home goods, furniture, vintage, unknown.",
-        `Marketplace platform: ${platform || "No platform selected"}`,
-        `Buyer item notes: ${notes || "No additional notes provided."}`,
-        "Guided Buyer Intake:",
-        buyerIntakeText
+        "Set buyerContext to [\"unknown\"] because customer purpose and transaction context are intentionally unavailable during object identification.",
+        `Input image identifiers in order: ${photos.map((photo, index) => `image-${index + 1}`).join(", ")}`,
+        "Purpose-neutral object input:",
+        neutralInput.promptText
       ].join("\n")
     },
     ...photos.map((photo) => ({
@@ -1927,7 +2033,7 @@ async function extractItemIdentity({ apiKey, model, platform, notes, photos, buy
 
   const payload = createResponsesPayload({
     model,
-    systemText: "You are Katherine\u2019s Eye Visual Intelligence Engine. Recognize the broad visual subject, then identify the marketplace item, in one structured multimodal response.",
+    systemText: "You are Katherine\u2019s Eye purpose-neutral Object Intelligence Engine. Observe the object, maintain bounded identity hypotheses, and resolve only what the photographs and permitted object clues support. Return structured facts and decisions, never private reasoning.",
     userContent,
     schemaName: "item_identity",
     schema: itemIdentitySchema
@@ -2435,6 +2541,7 @@ async function executeSerperComparableSearch({
   searchQueries,
   buyerIntake,
   researchPurpose = "buyer_decision",
+  objectMindState = null,
   providerAttemptBudget,
   requestAdapter = requestSerperSearch
 }) {
@@ -2449,7 +2556,7 @@ async function executeSerperComparableSearch({
     directPageEnrichmentMaxAttempts,
     "direct_page_enrichment"
   );
-  const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
+  const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes, objectMindState });
   const providerRequestRecords = queriesPrioritized.map((queryRecord) => createSerperRequestRecord(queryRecord));
   const providerResponseSummaries = [];
   const providerErrors = [];
@@ -2554,8 +2661,30 @@ async function executeSerperComparableSearch({
     });
   }
 
-  const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context);
+  const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context, objectMindState);
   let dedupedRecords = coalesceIdenticalSerperTransportRecords(normalizedRecords);
+  const refinement = createEvidenceInformedRefinement(objectMindState || {}, dedupedRecords, {
+    attemptedQueries: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+    maximumQueries: 4
+  });
+  objectMindState = refinement.state;
+  const refinementResult = await executeObjectMindRefinementSearch({
+    serperApiKey,
+    context,
+    identity,
+    sourceRoute,
+    queryRecords: refinement.searchPlan,
+    providerRequestRecords,
+    providerResponseSummaries,
+    providerErrors,
+    rawProviderRecords,
+    currentRecords: dedupedRecords,
+    providerAttemptBudget: sharedProviderAttemptBudget,
+    requestAdapter,
+    objectMindState
+  });
+  dedupedRecords = refinementResult.records;
+  objectMindState = refinementResult.objectMindState;
   dedupedRecords = await executeLimitedResultRetailRecovery({
     serperApiKey,
     context,
@@ -2570,10 +2699,12 @@ async function executeSerperComparableSearch({
     currentRecords: dedupedRecords,
     providerAttemptBudget: sharedProviderAttemptBudget,
     directPageAttemptBudget,
-    serperRequestAdapter: requestAdapter
+    serperRequestAdapter: requestAdapter,
+    objectMindState
   });
+  objectMindState = incorporateCandidateEvidence(objectMindState || {}, dedupedRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
-  return normalizeSerperLiveSearchResult({
+  const normalizedResult = normalizeSerperLiveSearchResult({
     records: dedupedRecords,
     rawProviderRecords,
     searchStartedAt,
@@ -2589,6 +2720,133 @@ async function executeSerperComparableSearch({
     buyerIntake,
     notes
   });
+  normalizedResult.objectMindState = objectMindState;
+  return normalizedResult;
+}
+
+function finalizeObjectMindRefinementQueries(context = {}, sourceRoute = [], queryRecords = [], startingPriority = 1) {
+  const sourceCategories = buildSourcesTargeted(sourceRoute);
+  return normalizeArray(queryRecords).slice(0, 4).map((record, index) => {
+    const normalizedCandidate = cleanSerperQuery(finalizeSearchQueryCandidate(record.query, context, 14));
+    const validation = validateSerperQueryCandidate(normalizedCandidate, context, {
+      searchPass: "object_mind_evidence_refinement",
+      rawCandidate: record.query
+    });
+    return {
+      query: normalizedCandidate || cleanText(record.query),
+      priority: startingPriority + index,
+      searchPass: "object_mind_evidence_refinement",
+      searchType: "organic_web",
+      providerEndpoint: "serper_search",
+      sourceRoute: sourceCategories,
+      marketplaceDomains: [],
+      rawCandidate: cleanText(record.query),
+      candidateOrigin: "object_mind_evidence_refinement",
+      normalizedCandidate,
+      finalQuery: normalizedCandidate,
+      validationPassed: validation.passed,
+      validationFailureReason: validation.passed ? "" : validation.reason,
+      objectMindQueryId: record.queryId,
+      objectMindHypothesisId: record.owningHypothesisId,
+      objectMindQueryType: record.queryType,
+      objectMindExactVisibleFactsUsed: record.exactVisibleFactsUsed,
+      objectMindDiscriminatorTested: record.discriminatorTested,
+      objectMindPhase: "REFINEMENT",
+      objectMindProviderLane: record.providerLane
+    };
+  });
+}
+
+async function executeObjectMindRefinementSearch({
+  serperApiKey,
+  context = {},
+  identity = {},
+  sourceRoute = [],
+  queryRecords = [],
+  providerRequestRecords = [],
+  providerResponseSummaries = [],
+  providerErrors = [],
+  rawProviderRecords = [],
+  currentRecords = [],
+  providerAttemptBudget = createPhysicalAttemptBudget(12, "provider_search"),
+  requestAdapter = requestSerperSearch,
+  objectMindState = null
+} = {}) {
+  const plannedQueries = finalizeObjectMindRefinementQueries(
+    context,
+    sourceRoute,
+    queryRecords,
+    providerRequestRecords.length + 1
+  );
+  if (!plannedQueries.length || Number(providerAttemptBudget.physicalAttemptCount || 0) >= Number(providerAttemptBudget.maximumAttempts || 0)) {
+    return { records: currentRecords, objectMindState };
+  }
+  const requestRecords = plannedQueries.map((record) => createSerperRequestRecord(record));
+  providerRequestRecords.push(...requestRecords);
+  const returnedByPlan = new Array(requestRecords.length);
+  for (let index = 0; index < requestRecords.length; index += 1) {
+    const requestRecord = requestRecords[index];
+    const queryRecord = plannedQueries[index];
+    if (!requestRecord.attempted) {
+      providerResponseSummaries.push(createSerperPreflightRejectedResponseSummary(queryRecord, requestRecord));
+      continue;
+    }
+    if (Number(providerAttemptBudget.physicalAttemptCount || 0) >= Number(providerAttemptBudget.maximumAttempts || 0)) {
+      requestRecord.attempted = false;
+      requestRecord.failureStage = "provider_attempt_budget_exhausted";
+      break;
+    }
+    try {
+      const response = await requestSerperSearchWithBudget({
+        requestRecord,
+        queryRecord,
+        attemptBudget: providerAttemptBudget,
+        apiKey: serperApiKey,
+        maxRetries: 1,
+        requestAdapter
+      });
+      const parsed = parseSerperResponse(response.json, queryRecord);
+      returnedByPlan[index] = parsed.records;
+      requestRecord.succeeded = true;
+      requestRecord.statusCode = response.statusCode;
+      requestRecord.elapsedMilliseconds = response.elapsedMs;
+      requestRecord.organicResultCount = parsed.organicResultCount;
+      requestRecord.shoppingResultCount = parsed.shoppingResultCount;
+      requestRecord.knowledgeGraphResultCount = parsed.knowledgeGraphResultCount;
+      requestRecord.providerSourceCount = parsed.records.length;
+      requestRecord.rawResultCount = parsed.records.length;
+      requestRecord.returnedResultCount = parsed.records.length;
+      requestRecord.parsedResultCount = parsed.records.length;
+      requestRecord.normalizedResultCount = parsed.records.length;
+      requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
+      requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
+    } catch (error) {
+      const diagnostic = classifySerperError(error);
+      requestRecord.succeeded = false;
+      requestRecord.errorCode = diagnostic.code || diagnostic.category;
+      requestRecord.failureStage = diagnostic.category;
+      providerErrors.push({
+        ...diagnostic,
+        query: queryRecord.query,
+        priority: queryRecord.priority
+      });
+      providerResponseSummaries.push({
+        ...createSerperResponseSummary(queryRecord, requestRecord, { records: [], organicResultCount: 0, shoppingResultCount: 0, knowledgeGraphResultCount: 0, relatedSearchCount: 0 }),
+        errorCode: diagnostic.code || diagnostic.category,
+        errorMessage: diagnostic.message
+      });
+    }
+  }
+  const returned = returnedByPlan.flatMap((records) => records || []);
+  rawProviderRecords.push(...returned);
+  const verified = normalizeSerperCandidateRecords(returned, identity, context, objectMindState);
+  const records = coalesceIdenticalSerperTransportRecords([...currentRecords, ...verified]);
+  return {
+    records,
+    objectMindState: incorporateCandidateEvidence(objectMindState || {}, records, { phase: "REFINEMENT" })
+  };
 }
 
 function createRecoveryAssessment({
@@ -2805,16 +3063,19 @@ async function executeLimitedResultRetailRecovery({
   providerAttemptBudget = createPhysicalAttemptBudget(retailSerperBudgetAllocation.maxProviderCalls, "provider_search"),
   directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
   serperRequestAdapter = requestSerperSearch,
-  directPageRequestAdapter = requestBoundedRetailProductPage
+  directPageRequestAdapter = requestBoundedRetailProductPage,
+  objectMindState = null
 } = {}) {
   let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
     context,
+    identity,
     providerRequestRecords,
     providerResponseSummaries,
     providerErrors,
     currentRecords,
     directPageAttemptBudget,
-    requestAdapter: directPageRequestAdapter
+    requestAdapter: directPageRequestAdapter,
+    objectMindState
   });
   const recoveryView = buildCanonicalRecoveryViewForRecords(recordsForRecovery, {
     identity,
@@ -2931,7 +3192,7 @@ async function executeLimitedResultRetailRecovery({
   const recoveredRecords = coalesceIdenticalSerperTransportRecords(
     [
       ...recordsForRecovery,
-      ...normalizeSerperCandidateRecords(rawProviderRecords, identity, context)
+      ...normalizeSerperCandidateRecords(rawProviderRecords, identity, context, objectMindState)
     ]
   );
   providerRequestRecords.canonicalRecoveryStoppingView = buildCanonicalRecoveryViewForRecords(recoveredRecords, {
@@ -2945,16 +3206,15 @@ async function executeLimitedResultRetailRecovery({
 
 async function executeExactRetailPageDirectEnrichment({
   context = {},
+  identity = context,
   providerRequestRecords = [],
   providerResponseSummaries = [],
   providerErrors = [],
   currentRecords = [],
   directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
-  requestAdapter = requestBoundedRetailProductPage
+  requestAdapter = requestBoundedRetailProductPage,
+  objectMindState = null
 } = {}) {
-  if (!isCurrentRetailOnlyMode(context.retailEvidenceMode)) {
-    return currentRecords;
-  }
   const remainingBudget = Math.max(
     0,
     Number(directPageAttemptBudget.maximumAttempts || 0) - Number(directPageAttemptBudget.physicalAttemptCount || 0)
@@ -2964,8 +3224,7 @@ async function executeExactRetailPageDirectEnrichment({
   }
   const candidatesByUrl = new Map();
   for (const record of currentRecords
-    .filter((candidate) => isLikelyExactRetailProductPage(candidate, context))
-    .filter((candidate) => !Number.isFinite(getVisibleItemPriceAmount(candidate)))
+    .filter((candidate) => candidate.objectMindDirectPageEligible || isLikelyExactRetailProductPage(candidate, context))
     .filter((candidate) => isApprovedRetailProductPageFetchUrl(candidate.destinationUrl || candidate.url || candidate.canonicalUrl, context, candidate))) {
     const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
     if (url) {
@@ -3084,7 +3343,8 @@ async function executeExactRetailPageDirectEnrichment({
       });
     }
   }
-  return coalesceIdenticalSerperTransportRecords(enrichedRecords);
+  const verifiedRecords = normalizeSerperCandidateRecords(enrichedRecords, identity, context, objectMindState);
+  return coalesceIdenticalSerperTransportRecords(verifiedRecords);
 }
 
 function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
@@ -3109,6 +3369,13 @@ function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
     finalQuery: url,
     validationPassed: true,
     validationFailureReason: "",
+    objectMindQueryId: cleanText(record.objectMindQueryId),
+    objectMindHypothesisId: cleanText(record.objectMindHypothesisId),
+    objectMindQueryType: cleanText(record.objectMindQueryType || "DIRECT_PAGE_VERIFICATION"),
+    objectMindExactVisibleFactsUsed: normalizeStringArray(record.objectMindExactVisibleFactsUsed, 12),
+    objectMindDiscriminatorTested: cleanText(record.objectMindDiscriminatorTested || "Verify candidate attributes on the item-specific page"),
+    objectMindPhase: "DIRECT_PAGE_VERIFICATION",
+    objectMindProviderLane: "direct_page_verification",
     provider: "Direct product page fetch",
     providerKey: "direct_product_page_fetch",
     logicalQueryAttempted: false,
@@ -3171,7 +3438,10 @@ function createDirectProductPageFetchResponseSummary(requestRecord = {}) {
 
 function isApprovedRetailProductPageFetchUrl(url = "", context = {}, record = {}) {
   const raw = unwrapRetailDestinationUrl(url) || cleanText(url);
-  if (!isPublicHttpUrl(raw) || isLikelyCategoryOrSearchPageUrl(raw) || !isLikelyRetailProductPageUrl(raw)) {
+  const itemSpecificPage = isLikelyRetailProductPageUrl(raw)
+    || isLikelyItemSpecificMarketplaceUrl(raw)
+    || /product_or_listing|specific_offer|auction_lot/i.test(cleanText(record.pageType || record.offerClassification));
+  if (!isPublicHttpUrl(raw) || isLikelyCategoryOrSearchPageUrl(raw) || !itemSpecificPage) {
     return false;
   }
   const domain = hostnameFromUrl(raw);
@@ -3189,6 +3459,7 @@ function getApprovedRetailProductPageFetchDomains(context = {}) {
   return [
     ...onlineRetailerRegistry.map((retailer) => retailer.domain),
     ...retailAggregatorPlatformRegistry.map((platform) => platform.domain),
+    ...secondaryMarketAuctionRegistry.map((source) => source.domain),
     context.retailerDomain,
     getRetailerDomainForStore(context.storeName || context.retailerOrMarketplaceName)
   ]
@@ -3354,6 +3625,13 @@ function createSerperRequestRecord(queryRecord) {
     finalQuery: cleanText(queryRecord.finalQuery || queryRecord.query),
     validationPassed,
     validationFailureReason: cleanText(queryRecord.validationFailureReason),
+    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
+    objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
+    objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
+    objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
+    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
     provider: "Serper Google Search",
     providerKey: "serper_google",
     logicalQueryAttempted: false,
@@ -3542,6 +3820,13 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
     searchType: cleanText(queryRecord.searchType || "organic_web"),
     providerEndpoint: cleanText(queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search")),
     marketplaceDomainsRequested: normalizeStringArray(queryRecord.marketplaceDomains, 8),
+    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
+    objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
+    objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
+    objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
+    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
     title: cleanText(title || canonicalUrl),
     url: canonicalUrl,
     canonicalUrl,
@@ -3563,8 +3848,8 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
   };
 }
 
-function normalizeSerperCandidateRecords(records = [], identity = {}, context = {}) {
-  return records
+function normalizeSerperCandidateRecords(records = [], identity = {}, context = {}, objectMindState = null) {
+  const normalizedRecords = records
     .filter((record) => record.url && /^https?:\/\//i.test(record.url))
     .map((record) => {
       const enrichedRecord = enrichExactRetailPageRecord(record, context);
@@ -3606,6 +3891,9 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
           : buildNonValuationInfluenceReason(priceEvidenceType, itemTypeCompatibility)
       };
     });
+  return objectMindState?.objectStateId
+    ? applyObjectEvidenceVerification(objectMindState, normalizedRecords)
+    : normalizedRecords;
 }
 
 function buildEquivalentRetailPageDedupeKey(record = {}, context = {}) {
@@ -3873,6 +4161,14 @@ const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
   "targetProductFamily",
   "candidateProductFamily",
   "exactIdentity",
+  "objectMindSourceId",
+  "objectMindClassification",
+  "objectMindVerificationState",
+  "objectMindSupportingAttributes",
+  "objectMindConflictingAttributes",
+  "objectMindRejectionReason",
+  "objectMindDirectPageEligible",
+  "objectMindDirectPageVerified",
   "identityMatchStrength",
   "itemTypeCompatible",
   "itemTypeCompatibilityStatus",
@@ -4043,7 +4339,14 @@ function buildSerperTransportIdentity(record = {}) {
 const SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS = Object.freeze([
   "sourceRecordId",
   "providerRecordId",
-  "resultId"
+  "resultId",
+  "objectMindQueryId",
+  "objectMindHypothesisId",
+  "objectMindQueryType",
+  "objectMindExactVisibleFactsUsed",
+  "objectMindDiscriminatorTested",
+  "objectMindPhase",
+  "objectMindProviderLane"
 ]);
 
 function projectSerperSemanticTransportRecord(record = {}) {
@@ -4427,7 +4730,7 @@ function annotateOpenAIFallbackResult(openaiResult, serperResult) {
   };
 }
 
-function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "" } = {}) {
+function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "", objectMindState = null } = {}) {
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const sourceCategories = buildSourcesTargeted(sourceRoute);
   const marketplaceDomains = selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake).slice(0, 5);
@@ -4439,7 +4742,8 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
       buyerIntake,
       notes,
       context,
-      sourceCategories
+      sourceCategories,
+      objectMindState
     });
   }
   const domainRecords = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
@@ -4621,16 +4925,17 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     });
   }
 
-  return [
-    ...validRecords.slice(0, 12),
+  const initialProviderLimit = objectMindState?.objectStateId ? 8 : 12;
+  return attachObjectSearchPlanProvenance([
+    ...validRecords.slice(0, initialProviderLimit),
     ...rejectedRecords.slice(0, 24)
   ].map((record, index) => ({
     ...record,
     priority: index + 1
-  }));
+  })), objectMindState);
 }
 
-function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "", context = null, sourceCategories = [] } = {}) {
+function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity = {}, buyerIntake = normalizeBuyerIntake({}), notes = "", context = null, sourceCategories = [], objectMindState = null } = {}) {
   const retailContext = context || buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const categories = sourceCategories.length ? sourceCategories : buildSourcesTargeted(sourceRoute);
   const stageQueries = buildRetailStagedSearchQueries(retailContext, searchQueries);
@@ -4735,13 +5040,35 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
     });
   }
 
-  return [
-    ...validRecords.slice(0, retailSerperBudgetAllocation.maxProviderCalls),
+  const initialProviderLimit = objectMindState?.objectStateId
+    ? Math.max(1, retailSerperBudgetAllocation.maxProviderCalls - 4)
+    : retailSerperBudgetAllocation.maxProviderCalls;
+  return attachObjectSearchPlanProvenance([
+    ...validRecords.slice(0, initialProviderLimit),
     ...rejectedRecords.slice(0, 24)
   ].map((record, index) => ({
     ...record,
     priority: index + 1
-  }));
+  })), objectMindState);
+}
+
+function attachObjectSearchPlanProvenance(records = [], objectMindState = null) {
+  if (!objectMindState?.objectStateId) return records;
+  const objectQueries = normalizeArray(objectMindState.searchPlan);
+  return records.map((record) => {
+    const owner = objectQueries.find((queryRecord) => queriesAreSemanticallySame(record.query, queryRecord.query));
+    if (!owner) return record;
+    return {
+      ...record,
+      objectMindQueryId: owner.queryId,
+      objectMindHypothesisId: owner.owningHypothesisId,
+      objectMindQueryType: owner.queryType,
+      objectMindExactVisibleFactsUsed: owner.exactVisibleFactsUsed,
+      objectMindDiscriminatorTested: owner.discriminatorTested,
+      objectMindPhase: owner.phase,
+      objectMindProviderLane: owner.providerLane
+    };
+  });
 }
 
 function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
@@ -7033,7 +7360,7 @@ function hasExplicitBuyItNowEvidence(record = {}) {
 }
 
 function classifySerperPriceEvidence(record = {}) {
-  const text = normalizeComparableText([record.title, record.snippet, record.rawText, record.domain, record.displayedPriceText, record.date, record.delivery, record.listingType, record.listingFormat, record.offerType].join(" "));
+  const text = normalizeComparableText([record.title, record.snippet, record.rawText, record.sourceEvidenceText, record.domain, record.displayedPriceText, record.date, record.delivery, record.listingType, record.listingFormat, record.offerType].join(" "));
   const hasPrice = Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice));
   if (isBulkLotReferenceWithoutUnitPrice(record)) {
     return "Bulk/Lot Reference";
@@ -7182,7 +7509,7 @@ function preferRicherSerperRecord(existing = {}, incoming = {}) {
     : { ...existing };
 }
 
-function bucketSerperRecords(records = []) {
+function bucketSerperRecords(records = [], { perBucketLimit = 8 } = {}) {
   const buckets = {
     strongComparables: [],
     partialComparables: [],
@@ -7214,13 +7541,16 @@ function bucketSerperRecords(records = []) {
       buckets.rejectedMatches.push(visible);
     }
   }
+  const retain = (items) => Number.isFinite(perBucketLimit)
+    ? items.slice(0, Math.max(0, perBucketLimit))
+    : items;
   return {
-    strongComparables: buckets.strongComparables.slice(0, 8),
-    partialComparables: buckets.partialComparables.slice(0, 8),
-    itemIdentificationEvidence: buckets.itemIdentificationEvidence.slice(0, 8),
-    referenceResults: buckets.referenceResults.slice(0, 8),
-    weakMatches: buckets.weakMatches.slice(0, 8),
-    rejectedMatches: buckets.rejectedMatches.slice(0, 8)
+    strongComparables: retain(buckets.strongComparables),
+    partialComparables: retain(buckets.partialComparables),
+    itemIdentificationEvidence: retain(buckets.itemIdentificationEvidence),
+    referenceResults: retain(buckets.referenceResults),
+    weakMatches: retain(buckets.weakMatches),
+    rejectedMatches: retain(buckets.rejectedMatches)
   };
 }
 
@@ -7323,6 +7653,19 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     providerEndpoint: record.providerEndpoint,
     searchPass: record.searchPass,
     query: record.query,
+    objectMindSourceId: record.objectMindSourceId,
+    objectMindQueryId: record.objectMindQueryId,
+    objectMindHypothesisId: record.objectMindHypothesisId,
+    objectMindQueryType: record.objectMindQueryType,
+    objectMindPhase: record.objectMindPhase,
+    objectMindProviderLane: record.objectMindProviderLane,
+    objectMindClassification: record.objectMindClassification,
+    objectMindVerificationState: record.objectMindVerificationState,
+    objectMindSupportingAttributes: record.objectMindSupportingAttributes,
+    objectMindConflictingAttributes: record.objectMindConflictingAttributes,
+    objectMindRejectionReason: record.objectMindRejectionReason,
+    objectMindDirectPageEligible: record.objectMindDirectPageEligible,
+    objectMindDirectPageVerified: record.objectMindDirectPageVerified,
     queriesFound: record.queriesFound || [record.query].filter(Boolean),
     searchPassesFound: record.searchPassesFound || [record.searchPass].filter(Boolean),
     activeSoldReferenceStatus: status,
@@ -8792,10 +9135,34 @@ function normalizeIdentity(identity) {
     distinctiveVisualDescription: cleanText(identity.distinctiveVisualDescription || "Unknown") || "Unknown",
     likelyItemDescription: cleanText(identity.likelyItemDescription || "Unknown") || "Unknown",
     strongestSearchableIdentifiers: normalizeStringArray(identity.strongestSearchableIdentifiers, 12),
+    shape: cleanText(identity.shape || "Unknown") || "Unknown",
+    construction: cleanText(identity.construction || "Unknown") || "Unknown",
+    completeness: cleanText(identity.completeness || identity.missingComponentStatus || "Unknown") || "Unknown",
+    accessories: normalizeStringArray(identity.accessories, 10),
+    diagnosticVisualDetails: normalizeStringArray(identity.diagnosticVisualDetails, 16),
+    additionalEvidenceNeeded: normalizeStringArray(identity.additionalEvidenceNeeded, 10),
+    identityHypotheses: normalizeIdentityHypotheses(identity.identityHypotheses),
     buyerContext: normalizeStringArray(identity.buyerContext, 8, ["unknown"])
   };
 
   return reconcileIdentityEvidence(normalized);
+}
+
+function normalizeIdentityHypotheses(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source.slice(0, 6).map((candidate) => ({
+    exactCandidateLabel: cleanText(candidate?.exactCandidateLabel),
+    broaderFamilyIdentity: cleanText(candidate?.broaderFamilyIdentity),
+    brandOrMaker: cleanText(candidate?.brandOrMaker),
+    model: cleanText(candidate?.model),
+    variantPackageEditionDesign: cleanText(candidate?.variantPackageEditionDesign),
+    supportingObservations: normalizeStringArray(candidate?.supportingObservations, 12),
+    contradictingObservations: normalizeStringArray(candidate?.contradictingObservations, 10),
+    unresolvedDiscriminators: normalizeStringArray(candidate?.unresolvedDiscriminators, 10),
+    distinguishingQueryOrObservation: normalizeStringArray(candidate?.distinguishingQueryOrObservation, 8),
+    exactnessLevel: cleanText(candidate?.exactnessLevel || "BROADER_FAMILY"),
+    confidenceBand: cleanText(candidate?.confidenceBand || "MEDIUM")
+  })).filter((candidate) => candidate.exactCandidateLabel || candidate.broaderFamilyIdentity);
 }
 
 function normalizeVisualRecognition(value = {}) {
@@ -12644,6 +13011,7 @@ function buildComparableEvidenceText(record = {}, { includeSystemLabels = true }
     record.url,
     record.sourceType,
     record.activeSoldReferenceStatus,
+    record.sourceEvidenceText,
     includeSystemLabels ? record.priceType : "",
     includeSystemLabels ? record.priceEvidenceType : "",
     includeSystemLabels ? record.priceTypeLabel : "",
@@ -12904,6 +13272,11 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     retailOfferSellerType: assessment.retailOfferSellerType,
     retailOfferConditionDisclosure: assessment.retailOfferConditionDisclosure,
     retailOfferLimitations: normalizeStringArray(assessment.retailOfferLimitations, 6),
+    pageType: assessment.validOfferClassification === "specific_offer"
+      ? "product_or_listing"
+      : assessment.validOfferClassification,
+    validOfferClassification: assessment.validOfferClassification,
+    candidateObjectClassification: assessment.candidateObjectClassification,
     confidenceDowngradeReasons: normalizeStringArray(assessment.confidenceDowngradeReasons, 8),
     transactionalRetailerEvidence: Boolean(assessment.transactionalRetailerEvidence),
     retailPriceDecisionEligibility: Boolean(assessment.retailPriceDecisionEligibility),
@@ -12989,7 +13362,9 @@ function buildCanonicalEvidenceObservations(records = [], {
   return normalizeArray(records)
     .filter((record) => record && typeof record === "object")
     .map((record, index) => {
-      const assessment = currentRetail ? buildRetailEvidenceAssessment(record, searchContext, index) : null;
+      const assessment = currentRetail && !record.retailEvidenceTier
+        ? buildRetailEvidenceAssessment(record, searchContext, index)
+        : null;
       const sourceRecordId = cleanText(
         record.sourceRecordId
         || record.providerRecordId
@@ -13030,11 +13405,12 @@ function buildCanonicalEvidenceObservations(records = [], {
           || record.retailEvidenceTier
         ))
       );
+      const providedPriceType = cleanText(record.priceType || record.priceEvidenceType || record.priceTypeLabel);
       const priceType = currentRetail
         ? Number.isFinite(parsedPrice) ? "Current Retail Price" : "Price unavailable"
-        : record.priceType
-          || record.priceEvidenceType
-          || normalizePriceTypeLabel(record.priceTypeLabel, record);
+        : /^confirmed sold$/i.test(providedPriceType)
+          ? "Verified Sold"
+          : providedPriceType || normalizePriceTypeLabel(record.priceTypeLabel, record);
       const rawText = cleanText([
         record.rawText,
         record.title,
@@ -13154,12 +13530,156 @@ function buildCanonicalRecoveryViewForRecords(records = [], {
   });
 }
 
+const OBJECT_VERIFICATION_ANNOTATION_FIELDS = Object.freeze([
+  "objectMindSourceId",
+  "objectMindQueryId",
+  "objectMindHypothesisId",
+  "objectMindQueryType",
+  "objectMindExactVisibleFactsUsed",
+  "objectMindDiscriminatorTested",
+  "objectMindPhase",
+  "objectMindProviderLane",
+  "objectMindClassification",
+  "objectMindVerificationState",
+  "objectMindSupportingAttributes",
+  "objectMindConflictingAttributes",
+  "objectMindRejectionReason",
+  "objectMindDirectPageEligible",
+  "objectMindDirectPageVerified",
+  "exactIdentity",
+  "retained",
+  "identityMatchStrength",
+  "rejectionReason",
+  "itemIdentityDifferences"
+]);
+
+function objectVerificationJoinKeys(record = {}) {
+  const keys = new Set();
+  for (const value of [record.sourceRecordId, record.providerRecordId, record.resultId]) {
+    const identifier = cleanText(value);
+    if (!identifier) continue;
+    if (/^https?:\/\//i.test(identifier)) {
+      const canonical = canonicalizeComparableUrl(identifier) || identifier;
+      keys.add(`url:${canonical.toLowerCase()}`);
+    } else {
+      keys.add(`id:${identifier.toLowerCase()}`);
+    }
+  }
+  for (const value of [
+    record.canonicalUrl,
+    record.destinationUrl,
+    record.url,
+    record.originalUrl,
+    record.originalSourceUrl,
+    record.sourceUrl
+  ]) {
+    const url = cleanText(value);
+    if (!url) continue;
+    const canonical = canonicalizeComparableUrl(url) || url;
+    keys.add(`url:${canonical.toLowerCase()}`);
+  }
+  return [...keys].sort();
+}
+
+function indexObjectVerificationObservations(records = []) {
+  const index = new Map();
+  for (const record of normalizeArray(records)) {
+    for (const key of objectVerificationJoinKeys(record)) {
+      if (!index.has(key)) index.set(key, []);
+      index.get(key).push(record);
+    }
+  }
+  for (const matches of index.values()) {
+    matches.sort((left, right) => (
+      Number(Boolean(right.objectMindDirectPageVerified || right.sourceEvidenceText || right.pageEvidenceText))
+        - Number(Boolean(left.objectMindDirectPageVerified || left.sourceEvidenceText || left.pageEvidenceText))
+      || cleanText(left.objectMindSourceId || left.sourceRecordId || left.canonicalUrl || left.url)
+        .localeCompare(cleanText(right.objectMindSourceId || right.sourceRecordId || right.canonicalUrl || right.url))
+    ));
+  }
+  return index;
+}
+
+function findObjectVerificationObservation(record = {}, observationIndex = new Map()) {
+  const matches = [];
+  const seen = new Set();
+  for (const key of objectVerificationJoinKeys(record)) {
+    for (const candidate of observationIndex.get(key) || []) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      matches.push(candidate);
+    }
+  }
+  return matches.sort((left, right) => (
+    Number(Boolean(right.objectMindDirectPageVerified || right.sourceEvidenceText || right.pageEvidenceText))
+      - Number(Boolean(left.objectMindDirectPageVerified || left.sourceEvidenceText || left.pageEvidenceText))
+    || cleanText(left.objectMindSourceId || left.sourceRecordId || left.canonicalUrl || left.url)
+      .localeCompare(cleanText(right.objectMindSourceId || right.sourceRecordId || right.canonicalUrl || right.url))
+  ))[0] || null;
+}
+
+function attachObjectVerificationToEnrichedCandidates(objectMindState = {}, enrichedCandidates = [], providerObservations = []) {
+  if (!objectMindState?.objectStateId) return normalizeArray(enrichedCandidates);
+  const observationIndex = indexObjectVerificationObservations(providerObservations);
+  return normalizeArray(enrichedCandidates).map((candidate) => {
+    const matched = findObjectVerificationObservation(candidate, observationIndex);
+    const verificationInput = matched ? {
+      ...candidate,
+      sourceEvidenceText: matched.sourceEvidenceText,
+      pageEvidenceText: matched.pageEvidenceText,
+      exactPageRecoveryStatus: matched.exactPageRecoveryStatus,
+      evidencePath: matched.evidencePath,
+      sourceQuality: matched.sourceQuality,
+      snippet: matched.snippet || candidate.snippet,
+      quantity: matched.quantity ?? candidate.quantity,
+      packageQuantity: matched.packageQuantity ?? candidate.packageQuantity,
+      dimensions: matched.dimensions ?? candidate.dimensions,
+      designIdentity: matched.designIdentity ?? candidate.designIdentity,
+      identifiers: matched.identifiers ?? candidate.identifiers,
+      model: matched.model ?? candidate.model,
+      sku: matched.sku ?? candidate.sku,
+      productName: matched.productName ?? candidate.productName,
+      brand: matched.brand ?? candidate.brand,
+      manufacturer: matched.manufacturer ?? candidate.manufacturer,
+      objectMindQueryId: matched.objectMindQueryId,
+      objectMindHypothesisId: matched.objectMindHypothesisId,
+      objectMindQueryType: matched.objectMindQueryType,
+      objectMindExactVisibleFactsUsed: matched.objectMindExactVisibleFactsUsed,
+      objectMindDiscriminatorTested: matched.objectMindDiscriminatorTested,
+      objectMindPhase: matched.objectMindPhase,
+      objectMindProviderLane: matched.objectMindProviderLane
+    } : candidate;
+    const verified = applyObjectEvidenceVerification(objectMindState, [verificationInput])[0];
+    const annotations = {};
+    for (const field of OBJECT_VERIFICATION_ANNOTATION_FIELDS) {
+      if (verified[field] !== undefined) annotations[field] = verified[field];
+    }
+    return {
+      ...candidate,
+      ...annotations
+    };
+  });
+}
+
 function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
   const searchContext = buildSearchQueryContext(identity, [], "", buyerIntake);
   const currentRetail = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode);
-  const providerObservations = normalizeArray(liveSearch.providerSourceRecords);
+  const objectMindState = liveSearch.objectMindState || null;
+  const providerObservations = objectMindState?.objectStateId
+    ? applyObjectEvidenceVerification(objectMindState, normalizeArray(liveSearch.providerSourceRecords))
+    : normalizeArray(liveSearch.providerSourceRecords);
+  const providerResearchBuckets = bucketSerperRecords(providerObservations, { perBucketLimit: null });
+  const providerEnrichedCandidates = currentRetail
+    ? providerResearchBuckets.itemIdentificationEvidence
+    : [
+        ...providerResearchBuckets.strongComparables,
+        ...providerResearchBuckets.partialComparables,
+        ...providerResearchBuckets.itemIdentificationEvidence,
+        ...providerResearchBuckets.referenceResults
+      ];
   const candidateRecords = [
     ...buildRetailAssessmentPriceFoundRecords(liveSearch, askingPriceNumber, { identity, buyerIntake }),
+    ...providerEnrichedCandidates,
     ...normalizeResearchRecordArray(liveSearch.strongComparables, "strongComparables"),
     ...normalizeResearchRecordArray(liveSearch.partialComparables, "partialComparables"),
     ...normalizeResearchRecordArray(liveSearch.itemIdentificationEvidence, "itemIdentificationEvidence"),
@@ -13177,8 +13697,13 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
       : buildPriceFoundRecord(record, askingPriceNumber);
     legacyCandidates.push(enriched);
   }
+  const verifiedLegacyCandidates = attachObjectVerificationToEnrichedCandidates(
+    objectMindState,
+    legacyCandidates,
+    providerObservations
+  );
   const canonicalObservations = buildCanonicalEvidenceObservations(
-    currentRetail && providerObservations.length ? providerObservations : legacyCandidates,
+    verifiedLegacyCandidates,
     {
       identity,
       buyerIntake,
@@ -13245,6 +13770,32 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   liveSearch.finalEvidenceConfidenceResult = finalEvidenceResult.confidenceResult;
   liveSearch.finalEvidenceBadgeResult = finalEvidenceResult.badgeResult;
   liveSearch.finalEvidenceBuyerOfferResult = finalEvidenceResult.buyerOfferResult;
+  const finalObjectMindState = objectMindState?.objectStateId
+    ? incorporateCandidateEvidence(objectMindState, canonicalObservations, { phase: "CANONICAL_FINALIZATION" })
+    : null;
+  if (finalObjectMindState) {
+    liveSearch.objectMindState = finalObjectMindState;
+  }
+  const experienceRecord = finalObjectMindState
+    ? buildExperienceRecord({
+        state: finalObjectMindState,
+        providerRequests: liveSearch.providerRequestRecords || [],
+        sourcesFound: canonicalObservations,
+        acceptedSources: finalEvidenceResult.acceptedRecords,
+        rejectedSources: finalEvidenceResult.rejectedRecords,
+        subsystemOutcomeFlags: {
+          purposeNeutralIdentityFrozen: Boolean(finalObjectMindState.identityStateHash),
+          exactIdentityResolved: finalObjectMindState.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",
+          exactEvidenceRecovered: finalEvidenceResult.acceptedRecords.some((record) => record.objectMindClassification === "EXACT_ITEM"),
+          distractorsRejected: finalEvidenceResult.rejectedRecords.some((record) => /SIMILAR_OBJECT|UNRELATED/.test(record.objectMindClassification || "")),
+          refinementCount: Number(finalObjectMindState.refinementCount || 0),
+          directPageAttemptCount: normalizeArray(liveSearch.providerRequestRecords).filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || "") && Number(record.physicalAttemptCount || 0) > 0).length,
+          providerErrorObserved: normalizeArray(liveSearch.providerRequestRecords).some((record) => record.errorCode && record.errorCode !== "invalid_query_preflight"),
+          emptySearchResult: canonicalObservations.length === 0
+        }
+      })
+    : null;
+  liveSearch.experienceRecord = experienceRecord;
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,
@@ -13284,7 +13835,22 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
     canonicalBuyerOfferUserEnteredPriceRole: finalEvidenceResult.buyerOfferResult.userEnteredPriceRole,
     canonicalBuyerOfferSupportEvidenceIds: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds,
     canonicalBuyerOfferSupportUnderlyingOfferIds: finalEvidenceResult.buyerOfferResult.supportingUnderlyingOfferIds,
-    canonicalBuyerOfferSupportCount: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds.length
+    canonicalBuyerOfferSupportCount: finalEvidenceResult.buyerOfferResult.supportingEvidenceIds.length,
+    ...(finalObjectMindState ? {
+      objectIntelligence: {
+        objectStateSchemaVersion: finalObjectMindState.schemaVersion,
+        objectStateId: finalObjectMindState.objectStateId,
+        identityStateHash: finalObjectMindState.identityStateHash,
+        purposeNeutralBoundary: "identity_and_initial_exact_search_frozen_before_purpose_specific_advice",
+        selectedCandidateId: finalObjectMindState.resolvedIdentity?.selectedCandidateId || "",
+        resolvedIdentity: finalObjectMindState.resolvedIdentity,
+        identityHypotheses: finalObjectMindState.identityHypotheses,
+        searchPlan: finalObjectMindState.searchPlan,
+        verifiedEvidenceSummary: finalObjectMindState.verifiedEvidenceSummary,
+        resolutionHistory: finalObjectMindState.resolutionHistory,
+        experienceRecord
+      }
+    } : {})
   };
   liveSearch.diagnostics = liveSearch.searchDiagnostics;
   return customerEvidence;
@@ -13436,6 +14002,9 @@ function getVisibleItemPriceAmount(record = {}) {
   const amount = extractFirstMoneyAmount(record.displayedPrice || record.displayedPriceText || record.price);
   if (Number.isFinite(amount) && amount > 0) {
     return amount;
+  }
+  if (Number.isFinite(record.itemPriceAmount) && record.itemPriceAmount > 0) {
+    return record.itemPriceAmount;
   }
   return Number.isFinite(record.parsedPrice) && record.parsedPrice > 0 ? record.parsedPrice : null;
 }

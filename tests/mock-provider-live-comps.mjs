@@ -2034,7 +2034,9 @@ try {
   assert(diagnostics.serperConfigured === true, "Diagnostics should confirm Serper is configured without exposing the key.");
   assert(diagnostics.fallbackProviderUsed === false, "OpenAI web_search fallback should not run when Serper succeeds.");
   assert(Array.isArray(diagnostics.providerRequestRecords) && diagnostics.providerRequestRecords.length > 0, "Provider request records should exist.");
-  const attemptedRecords = diagnostics.providerRequestRecords.filter((record) => record.attempted);
+  const attemptedRecords = diagnostics.providerRequestRecords.filter((record) => (
+    record.attempted && !/direct_product_page_fetch/i.test(record.providerEndpoint || "")
+  ));
   assert(attemptedRecords.length <= 12, "Serper query budget should stay within the bounded recovery call budget.");
   assert(attemptedRecords.length > 0 && attemptedRecords.every((record) => diagnostics.queriesActuallySent.includes(record.query)), "Sent queries should match attempted provider records.");
   assert(attemptedRecords.some((record) => /HOW '?BOUT THEM DAWGS|1980 NATIONAL CHAMPIONS|Vince Dooley/i.test(record.query)), "Exact Georgia visible clues should be prioritized into attempted queries.");
@@ -2063,7 +2065,7 @@ try {
 
   const querySet = new Set(attemptedRecords.map((record) => record.query.toLowerCase()));
   assert(querySet.size === attemptedRecords.length, "Duplicate Serper queries should not be sent.");
-  assert(georgia.serperPayloads.length === diagnostics.providerRequestRecords.filter((record) => record.attempted).length, "Serper payload count should match attempted provider request records.");
+  assert(georgia.serperPayloads.length === attemptedRecords.length, "Serper payload count should match attempted Serper provider request records.");
   assert(georgia.serperPayloads.every((item) => item.hasApiKeyHeader), "Serper requests should include the server-side API key header.");
   assert(georgia.serperPayloads.every((item) => item.gl === "us" && item.hl === "en" && item.num === 10), "Serper requests should use expected US English defaults.");
   assert(georgia.serperPayloads.every((item) => item.q !== "Vin" && item.q !== "1980 Un"), "Invalid query fragments should never be sent to Serper.");
