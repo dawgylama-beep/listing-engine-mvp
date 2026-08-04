@@ -13,6 +13,7 @@ import {
   createObjectMindState,
   createPurposeNeutralObjectInput,
   incorporateCandidateEvidence,
+  stableInternalId,
   withObjectSearchPlan
 } from "../lib/object-intelligence/index.js";
 
@@ -2088,8 +2089,10 @@ async function executeOpenAIWebComparableSearch({
   searchQueries,
   buyerIntake,
   researchPurpose = "buyer_decision",
+  objectMindState = null,
   providerAttemptBudget,
-  requestAdapter = requestOpenAIJson
+  requestAdapter = requestOpenAIJson,
+  directPageRequestAdapter = requestBoundedRetailProductPage
 }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
@@ -2098,7 +2101,14 @@ async function executeOpenAIWebComparableSearch({
     isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
     "provider_search"
   );
-  const queriesPrioritized = buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes });
+  const directPageAttemptBudget = createPhysicalAttemptBudget(
+    directPageEnrichmentMaxAttempts,
+    "direct_page_enrichment"
+  );
+  const queriesPrioritized = attachObjectSearchPlanProvenance(
+    buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes }),
+    objectMindState
+  );
   const providerRequestRecords = [];
   const providerResponseSummaries = [];
   const providerErrors = [];
@@ -2111,7 +2121,7 @@ async function executeOpenAIWebComparableSearch({
   let searchControlsSupported = true;
   let searchControlsFallbackReason = "";
 
-  for (const queryRecord of queriesPrioritized) {
+  const executeQueryRecord = async (queryRecord) => {
     const requestRecord = {
       query: queryRecord.query,
       priority: queryRecord.priority,
@@ -2119,6 +2129,15 @@ async function executeOpenAIWebComparableSearch({
       sourceRoute: queryRecord.sourceRoute,
       allowedDomainsRequested: queryRecord.allowedDomains,
       allowedDomainsApplied: Boolean(queryRecord.allowedDomains?.length),
+      normalizedCandidate: cleanText(queryRecord.query),
+      finalQuery: cleanText(queryRecord.query),
+      objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+      objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
+      objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+      objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
+      objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
+      objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
+      objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane || "purpose_neutral_exact"),
       provider: "OpenAI web_search",
       providerKey: "openai_web_search",
       providerEndpoint: "openai_web_search",
@@ -2253,6 +2272,10 @@ async function executeOpenAIWebComparableSearch({
         errorMessage: diagnostic.message
       });
     }
+  };
+
+  for (const queryRecord of queriesPrioritized.slice()) {
+    await executeQueryRecord(queryRecord);
   }
 
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
@@ -2276,7 +2299,58 @@ async function executeOpenAIWebComparableSearch({
     });
   }
 
-  return normalizeLiveSearchResult({
+  let verifiedSourceRecords = objectMindState?.objectStateId
+    ? coalesceIdenticalSerperTransportRecords(
+        normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
+      )
+    : providerSourceRecords;
+  if (objectMindState?.objectStateId) {
+    const refinement = createEvidenceInformedRefinement(objectMindState, verifiedSourceRecords, {
+      attemptedQueries: providerRequestRecords
+        .filter((record) => Number(record.physicalAttemptCount || 0) > 0)
+        .map((record) => record.query),
+      maximumQueries: Math.min(4, Math.max(
+        0,
+        Number(sharedProviderAttemptBudget.maximumAttempts || 0)
+          - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
+      ))
+    });
+    objectMindState = refinement.state;
+    const refinementQueries = finalizeOpenAIObjectMindRefinementQueries(
+      context,
+      sourceRoute,
+      refinement.searchPlan,
+      providerRequestRecords.length + 1,
+      Math.max(
+        0,
+        Number(sharedProviderAttemptBudget.maximumAttempts || 0)
+          - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
+      )
+    );
+    queriesPrioritized.push(...refinementQueries);
+    for (const queryRecord of refinementQueries) {
+      if (Number(sharedProviderAttemptBudget.physicalAttemptCount || 0) >= Number(sharedProviderAttemptBudget.maximumAttempts || 0)) break;
+      await executeQueryRecord(queryRecord);
+    }
+    verifiedSourceRecords = coalesceIdenticalSerperTransportRecords(
+      normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
+    );
+    objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "REFINEMENT" });
+    verifiedSourceRecords = await executeExactRetailPageDirectEnrichment({
+      context,
+      identity,
+      providerRequestRecords,
+      providerResponseSummaries,
+      providerErrors,
+      currentRecords: verifiedSourceRecords,
+      directPageAttemptBudget,
+      requestAdapter: directPageRequestAdapter,
+      objectMindState
+    });
+    objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
+  }
+
+  const normalizedResult = normalizeLiveSearchResult({
     result: mergeLiveSearchResults(resultList),
     responseData: mergeResponseData(responseDataList),
     identity,
@@ -2291,7 +2365,7 @@ async function executeOpenAIWebComparableSearch({
     providerRequestRecords,
     providerResponseSummaries,
     providerErrors,
-    providerSourceRecords,
+    providerSourceRecords: verifiedSourceRecords,
     safeRawResultSummaries,
     elapsedMs: currentTimeMilliseconds() - requestStartedAtMs,
     statusCode: providerResponseSummaries.find((item) => item.statusCode)?.statusCode || null,
@@ -2301,6 +2375,29 @@ async function executeOpenAIWebComparableSearch({
     buyerIntake,
     notes
   });
+  normalizedResult.objectMindState = objectMindState;
+  return normalizedResult;
+}
+
+function finalizeOpenAIObjectMindRefinementQueries(context = {}, sourceRoute = [], queryRecords = [], startingPriority = 1, remainingCapacity = 0) {
+  const sourceCategories = buildSourcesTargeted(sourceRoute);
+  return normalizeArray(queryRecords)
+    .slice(0, Math.min(4, Math.max(0, Number(remainingCapacity || 0))))
+    .map((record, index) => ({
+      query: finalizeSearchQueryCandidate(record.query, context, 12),
+      priority: startingPriority + index,
+      searchPass: "object_mind_evidence_refinement",
+      sourceRoute: sourceCategories,
+      allowedDomains: [],
+      objectMindQueryId: record.queryId,
+      objectMindHypothesisId: record.owningHypothesisId,
+      objectMindQueryType: record.queryType,
+      objectMindExactVisibleFactsUsed: record.exactVisibleFactsUsed,
+      objectMindDiscriminatorTested: record.discriminatorTested,
+      objectMindPhase: "REFINEMENT",
+      objectMindProviderLane: record.providerLane
+    }))
+    .filter((record) => record.query);
 }
 
 function getSerperApiKey() {
@@ -2665,7 +2762,11 @@ async function executeSerperComparableSearch({
   let dedupedRecords = coalesceIdenticalSerperTransportRecords(normalizedRecords);
   const refinement = createEvidenceInformedRefinement(objectMindState || {}, dedupedRecords, {
     attemptedQueries: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
-    maximumQueries: 4
+    maximumQueries: Math.min(4, Math.max(
+      0,
+      Number(sharedProviderAttemptBudget.maximumAttempts || 0)
+        - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
+    ))
   });
   objectMindState = refinement.state;
   const refinementResult = await executeObjectMindRefinementSearch({
@@ -3260,6 +3361,10 @@ async function executeExactRetailPageDirectEnrichment({
   for (const { url: candidateUrl, members } of candidates) {
     const record = members[0];
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
+    requestRecord.resultingCandidateIds = normalizeStringArray(
+      members.map((member) => member.objectMindSourceId || member.sourceRecordId),
+      12
+    );
     priority += 1;
     providerRequestRecords.push(requestRecord);
     requestRecord.logicalQueryAttempted = true;
@@ -3349,6 +3454,7 @@ async function executeExactRetailPageDirectEnrichment({
 
 function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
   const url = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  const hypothesisId = cleanText(record.objectMindHypothesisId);
   return {
     query: url,
     priority,
@@ -3369,13 +3475,14 @@ function createDirectProductPageFetchRequestRecord(record = {}, priority = 1) {
     finalQuery: url,
     validationPassed: true,
     validationFailureReason: "",
-    objectMindQueryId: cleanText(record.objectMindQueryId),
-    objectMindHypothesisId: cleanText(record.objectMindHypothesisId),
+    objectMindQueryId: stableInternalId("query", ["DIRECT_PAGE_VERIFICATION", hypothesisId, canonicalizeComparableUrl(url)], 14),
+    objectMindHypothesisId: hypothesisId,
     objectMindQueryType: cleanText(record.objectMindQueryType || "DIRECT_PAGE_VERIFICATION"),
     objectMindExactVisibleFactsUsed: normalizeStringArray(record.objectMindExactVisibleFactsUsed, 12),
     objectMindDiscriminatorTested: cleanText(record.objectMindDiscriminatorTested || "Verify candidate attributes on the item-specific page"),
     objectMindPhase: "DIRECT_PAGE_VERIFICATION",
     objectMindProviderLane: "direct_page_verification",
+    resultingCandidateIds: normalizeStringArray([record.objectMindSourceId || record.sourceRecordId], 12),
     provider: "Direct product page fetch",
     providerKey: "direct_product_page_fetch",
     logicalQueryAttempted: false,
@@ -5055,18 +5162,55 @@ function buildRetailSerperSearchPlan({ searchQueries = [], sourceRoute = [], ide
 function attachObjectSearchPlanProvenance(records = [], objectMindState = null) {
   if (!objectMindState?.objectStateId) return records;
   const objectQueries = normalizeArray(objectMindState.searchPlan);
+  const selectedHypothesis = normalizeArray(objectMindState.identityHypotheses).find((candidate) => (
+    candidate.candidateId === objectMindState.resolvedIdentity?.selectedCandidateId
+  )) || objectMindState.identityHypotheses?.[0] || {};
   return records.map((record) => {
     const owner = objectQueries.find((queryRecord) => queriesAreSemanticallySame(record.query, queryRecord.query));
-    if (!owner) return record;
+    const normalizedQuery = normalizeComparableText(record.query);
+    const matchingFacts = normalizeArray(objectMindState.observedFacts)
+      .filter((fact) => fact.normalizedValue && normalizedQuery.includes(fact.normalizedValue))
+      .slice(0, 12)
+      .map((fact) => fact.observationId);
+    const phase = cleanText(record.objectMindPhase || owner?.phase || (/refinement/i.test(record.searchPass) ? "REFINEMENT" : "INITIAL"));
+    const hypothesisId = cleanText(record.objectMindHypothesisId || owner?.owningHypothesisId || selectedHypothesis.candidateId);
+    const queryType = cleanText(record.objectMindQueryType || owner?.queryType || (
+      phase === "REFINEMENT" ? "EVIDENCE_INFORMED_DISAMBIGUATION" : "PROVIDER_ROUTED_IDENTITY_QUERY"
+    ));
+    const exactVisibleFactsUsed = normalizeStringArray(
+      record.objectMindExactVisibleFactsUsed?.length
+        ? record.objectMindExactVisibleFactsUsed
+        : owner?.exactVisibleFactsUsed?.length
+          ? owner.exactVisibleFactsUsed
+          : matchingFacts.length
+            ? matchingFacts
+            : selectedHypothesis.supportingObservationIds,
+      12
+    );
+    const discriminatorTested = cleanText(
+      record.objectMindDiscriminatorTested
+      || owner?.discriminatorTested
+      || (phase === "REFINEMENT"
+        ? selectedHypothesis.unresolvedDiscriminators?.[0]
+        : "Acquire source-backed facts for the active bounded identity hypothesis")
+    );
     return {
       ...record,
-      objectMindQueryId: owner.queryId,
-      objectMindHypothesisId: owner.owningHypothesisId,
-      objectMindQueryType: owner.queryType,
-      objectMindExactVisibleFactsUsed: owner.exactVisibleFactsUsed,
-      objectMindDiscriminatorTested: owner.discriminatorTested,
-      objectMindPhase: owner.phase,
-      objectMindProviderLane: owner.providerLane
+      objectMindQueryId: cleanText(record.objectMindQueryId || owner?.queryId) || stableInternalId("query", {
+        objectStateId: objectMindState.objectStateId,
+        query: cleanText(record.query),
+        searchPass: cleanText(record.searchPass),
+        phase,
+        hypothesisId
+      }, 14),
+      objectMindHypothesisId: hypothesisId,
+      objectMindQueryType: queryType,
+      objectMindExactVisibleFactsUsed: exactVisibleFactsUsed,
+      objectMindDiscriminatorTested: discriminatorTested,
+      objectMindPhase: phase,
+      objectMindProviderLane: cleanText(record.objectMindProviderLane || owner?.providerLane || (
+        phase === "REFINEMENT" ? "purpose_neutral_refinement" : "purpose_neutral_exact"
+      ))
     };
   });
 }
@@ -13786,7 +13930,10 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
         subsystemOutcomeFlags: {
           purposeNeutralIdentityFrozen: Boolean(finalObjectMindState.identityStateHash),
           exactIdentityResolved: finalObjectMindState.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",
-          exactEvidenceRecovered: finalEvidenceResult.acceptedRecords.some((record) => record.objectMindClassification === "EXACT_ITEM"),
+          exactEvidenceRecovered: finalEvidenceResult.acceptedRecords.some((record) => (
+            record.objectMindClassification === "EXACT_ITEM"
+            && record.objectMindVerificationState === "VERIFIED"
+          )),
           distractorsRejected: finalEvidenceResult.rejectedRecords.some((record) => /SIMILAR_OBJECT|UNRELATED/.test(record.objectMindClassification || "")),
           refinementCount: Number(finalObjectMindState.refinementCount || 0),
           directPageAttemptCount: normalizeArray(liveSearch.providerRequestRecords).filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || "") && Number(record.physicalAttemptCount || 0) > 0).length,
@@ -19293,7 +19440,14 @@ function normalizeProviderSourceRecord(source, queryRecord = {}) {
     displayedPriceText: extractDisplayedPrice([title, snippet].join(" ")),
     query: cleanText(queryRecord.query),
     searchPass: cleanText(queryRecord.searchPass),
-    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8)
+    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8),
+    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
+    objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
+    objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
+    objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
+    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane)
   };
 }
 
@@ -19310,7 +19464,14 @@ function sourceRecordFromCitation(citation, queryRecord = {}) {
     displayedPriceText: "",
     query: cleanText(queryRecord.query),
     searchPass: cleanText(queryRecord.searchPass),
-    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8)
+    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8),
+    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
+    objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
+    objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
+    objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
+    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane)
   };
 }
 
@@ -19516,6 +19677,9 @@ export const __queryIntegrityTestHooks = {
   buildProviderAttemptAccounting,
   requestSerperSearchWithBudget,
   requestOpenAIComparableSearchWithBudget,
+  executeOpenAIWebComparableSearch,
+  finalizeOpenAIObjectMindRefinementQueries,
+  attachObjectSearchPlanProvenance,
   executeLimitedResultRetailRecovery,
   executeExactRetailPageDirectEnrichment,
   requestBoundedRetailProductPageNetwork,

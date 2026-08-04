@@ -145,6 +145,62 @@ test("established enriched compatibility remains non-exact and raw similarity ca
   assert.equal(unqualifiedRaw.verificationState, "REJECTED");
 });
 
+test("an exact-target query echo and generic brand or category support cannot establish exactness", () => {
+  const state = stateFor({
+    brand: "Cinder Atelier",
+    exactProductIdentity: "Cinder Atelier Meridian Desk Vessel",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Decorative desk vessel",
+    visibleText: ["Cinder Atelier"],
+    identityUnknowns: ["base mark", "dimensions"],
+    visualRecognition: { visualSubject: "Decorative desk vessel", visibleWords: ["Cinder Atelier"] }
+  });
+  const query = "Cinder Atelier Meridian Desk Vessel";
+  const echo = verifyObjectEvidenceCandidate(state, source({
+    title: query,
+    query,
+    url: "https://merchant.example/product/meridian-vessel"
+  }));
+  const generic = verifyObjectEvidenceCandidate(state, source({
+    title: "Cinder Atelier decorative vessel in blue ceramic",
+    query,
+    url: "https://merchant.example/product/generic-vessel"
+  }));
+  assert.equal(echo.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.INSUFFICIENT_EVIDENCE);
+  assert.equal(echo.verificationState, "UNRESOLVED");
+  assert.equal(echo.directPageEligible, true);
+  assert.notEqual(generic.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.EXACT_ITEM);
+});
+
+test("multiple independent non-generic source discriminators can establish exactness without an object-specific rule", () => {
+  const state = stateFor({
+    brand: "Quill and Fen",
+    exactProductIdentity: "Quill and Fen Solstice Folio",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Bound presentation folio",
+    packageQuantity: "3 count",
+    dimensions: "11 x 17",
+    shape: "stepped crescent clasp",
+    visibleText: ["Quill and Fen", "Solstice Press Mark"],
+    diagnosticVisualDetails: ["stepped crescent clasp"],
+    identityUnknowns: ["catalog number not visible"],
+    visualRecognition: {
+      visualSubject: "Bound presentation folio",
+      visibleWords: ["Quill and Fen", "Solstice Press Mark"],
+      distinctiveFeatures: ["stepped crescent clasp"]
+    }
+  });
+  const candidate = verifyObjectEvidenceCandidate(state, source({
+    title: "Quill and Fen Solstice Folio 3 count 11 x 17",
+    snippet: "Solstice Press Mark with stepped crescent clasp",
+    url: "https://merchant.example/product/solstice-folio"
+  }));
+  assert.equal(candidate.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.EXACT_ITEM);
+  assert.equal(candidate.verificationState, "VERIFIED");
+  assert(candidate.supportReasons.some((reason) => /dimensions/i.test(reason)));
+  assert(candidate.supportReasons.some((reason) => /package count/i.test(reason)));
+});
+
 test("vintage design family stays exact-design with its edition unresolved", () => {
   const state = stateFor({
     subjectIdentity: "Art-deco sailboat serving plaque",
@@ -254,7 +310,7 @@ test("purpose changes do not change the frozen identity-state hash", () => {
   assert.equal(new Set(states.map((state) => state.requestIdentity.purpose)).size, 4);
 });
 
-test("evidence can weaken the initial candidate, promote an existing alternate, and refine only once", () => {
+test("evidence can weaken the initial candidate, promote a verified alternate, and avoid unnecessary refinement", () => {
   const state = stateFor({
     brand: "Orion Instruments",
     model: "MX-10",
@@ -305,11 +361,149 @@ test("evidence can weaken the initial candidate, promote an existing alternate, 
   ];
   const refinement = createEvidenceInformedRefinement(state, records, { attemptedQueries: [] });
   assert.equal(refinement.state.resolvedIdentity.selectedCandidateId, alternate.candidateId);
-  assert.equal(refinement.state.refinementCount, 1);
+  assert.equal(refinement.state.refinementCount, 0);
   assert(refinement.state.resolutionHistory.some((entry) => entry.event === "ALTERNATE_HYPOTHESIS_PROMOTED"));
   const second = createEvidenceInformedRefinement(refinement.state, records, { attemptedQueries: [] });
   assert.deepEqual(second.searchPlan, []);
+  assert.equal(second.state.refinementCount, 0);
+});
+
+test("no verified exact evidence triggers one materially new provenance-backed refinement and never a second", () => {
+  const state = stateFor({
+    sku: "AW-47",
+    exactProductIdentity: "Arbor Calibration Wheel",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Handheld calibration wheel",
+    diagnosticVisualDetails: ["radial brass spokes"],
+    identityUnknowns: ["catalog code"],
+    visualRecognition: {
+      visualSubject: "Handheld calibration wheel",
+      distinctiveFeatures: ["radial brass spokes"]
+    }
+  });
+  const attemptedQueries = state.searchPlan.map((record) => record.query);
+  const first = createEvidenceInformedRefinement(state, [source({
+    title: "Generic plastic measuring wheel",
+    url: "https://merchant.example/product/plastic-wheel"
+  })], { attemptedQueries, maximumQueries: 4 });
+  assert.equal(first.state.refinementCount, 1);
+  assert(first.searchPlan.length >= 1 && first.searchPlan.length <= 4);
+  assert(first.searchPlan.every((record) => record.discriminatorTested));
+  assert(first.searchPlan.every((record) => !attemptedQueries.some((query) => query.toLowerCase() === record.query.toLowerCase())));
+  assert(first.searchPlan.every((record) => record.exactVisibleFactsUsed.length > 0));
+  assert.match(first.state.resolutionHistory.at(-1).reason, /no verified exact evidence/i);
+  const second = createEvidenceInformedRefinement(first.state, [], { attemptedQueries, maximumQueries: 4 });
   assert.equal(second.state.refinementCount, 1);
+  assert.deepEqual(second.searchPlan, []);
+});
+
+test("the OpenAI provider lane shares refinement capacity and gives every sent query bounded Experience Record ownership", async () => {
+  const identity = {
+    sku: "AW-47",
+    exactProductIdentity: "Arbor Calibration Wheel",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Handheld calibration wheel",
+    diagnosticVisualDetails: ["radial brass spokes"],
+    identityUnknowns: ["catalog code"],
+    visualRecognition: {
+      visualSubject: "Handheld calibration wheel",
+      distinctiveFeatures: ["radial brass spokes"]
+    }
+  };
+  const state = stateFor(identity);
+  let callCount = 0;
+  const requestAdapter = async () => {
+    callCount += 1;
+    const json = {
+      comparableItemsFound: [],
+      resultsFound: [],
+      strongComparables: [],
+      partialComparables: [],
+      itemIdentificationEvidence: [],
+      referenceResults: [],
+      weakMatches: [],
+      rejectedMatches: [],
+      searchEvidenceSummary: "Synthetic bounded no-match response."
+    };
+    const sourceRecord = {
+      title: `Unrelated plastic hanger ${callCount}`,
+      url: `https://example.org/item-${callCount}`,
+      snippet: "No matching object identity facts."
+    };
+    return {
+      json,
+      data: {
+        output: [{
+          type: "web_search_call",
+          action: { query: `synthetic-${callCount}`, sources: [sourceRecord] }
+        }, {
+          type: "message",
+          content: [{ type: "output_text", text: JSON.stringify(json), annotations: [] }]
+        }]
+      },
+      statusCode: 200,
+      elapsedMs: 1
+    };
+  };
+  const liveSearch = await hooks.executeOpenAIWebComparableSearch({
+    apiKey: "synthetic-placeholder",
+    model: "synthetic-model",
+    platform: "",
+    notes: identity.exactProductIdentity,
+    identity,
+    sourceRoute: [],
+    searchQueries: state.searchPlan.map((record) => record.query),
+    buyerIntake: hooks.normalizeBuyerIntake({ purchase_intent: "personal_use", purchase_context: "private_seller" }),
+    objectMindState: state,
+    requestAdapter,
+    directPageRequestAdapter: async () => {
+      throw new Error("No direct-page request was expected for unrelated sources.");
+    }
+  });
+  const sent = liveSearch.providerRequestRecords.filter((record) => Number(record.physicalAttemptCount || 0) > 0);
+  const refinementRequests = sent.filter((record) => record.objectMindPhase === "REFINEMENT");
+  assert(liveSearch.objectMindState, JSON.stringify({
+    status: liveSearch.liveSearchStatus,
+    errors: liveSearch.providerRequestRecords.map((record) => ({ errorCode: record.errorCode, failureStage: record.failureStage })),
+    responses: liveSearch.providerResponseSummaries
+  }));
+  assert.equal(liveSearch.objectMindState.refinementCount, 1);
+  assert(refinementRequests.length >= 1 && refinementRequests.length <= 4);
+  assert(sent.length <= 12);
+  assert(sent.every((record) => record.objectMindQueryId && record.objectMindHypothesisId));
+  assert(refinementRequests.every((record) => record.objectMindDiscriminatorTested && record.objectMindExactVisibleFactsUsed.length));
+  const rejected = liveSearch.providerSourceRecords.filter((record) => record.objectMindVerificationState === "REJECTED");
+  const experience = buildExperienceRecord({
+    state: liveSearch.objectMindState,
+    providerRequests: liveSearch.providerRequestRecords,
+    sourcesFound: liveSearch.providerSourceRecords,
+    acceptedSources: [],
+    rejectedSources: rejected
+  });
+  assert.equal(experience.queryOwnership.length, sent.length);
+  assert(experience.queryOwnership.every((record) => record.queryId && record.normalizedQuery && record.disposition));
+  assert(experience.queryOwnership.some((record) => record.phase === "REFINEMENT" && record.discriminatorTested));
+
+  const exhaustedBudget = hooks.createPhysicalAttemptBudget(2, "provider_search");
+  const capacityBound = await hooks.executeOpenAIWebComparableSearch({
+    apiKey: "synthetic-placeholder",
+    model: "synthetic-model",
+    platform: "",
+    notes: identity.exactProductIdentity,
+    identity,
+    sourceRoute: [],
+    searchQueries: state.searchPlan.map((record) => record.query),
+    buyerIntake: hooks.normalizeBuyerIntake({ purchase_intent: "personal_use", purchase_context: "private_seller" }),
+    objectMindState: state,
+    providerAttemptBudget: exhaustedBudget,
+    requestAdapter,
+    directPageRequestAdapter: async () => {
+      throw new Error("No direct-page request was expected for unrelated sources.");
+    }
+  });
+  assert.equal(exhaustedBudget.physicalAttemptCount, 2);
+  assert.equal(capacityBound.objectMindState.refinementCount, 0);
+  assert.equal(capacityBound.providerRequestRecords.filter((record) => record.objectMindPhase === "REFINEMENT" && record.attempted).length, 0);
 });
 
 test("direct-page verification admits qualified candidates only, remains capped at two, and can reject after page evidence", async () => {
@@ -360,6 +554,126 @@ test("direct-page verification admits qualified candidates only, remains capped 
   assert(verified.some((record) => record.objectMindDirectPageVerified && record.objectMindVerificationState === "REJECTED"));
 });
 
+test("a plausible information-poor candidate can use a direct page, then re-enter enrichment and verification before canonical authority", async () => {
+  const identity = {
+    brand: "Morrow Foundry",
+    exactProductIdentity: "Morrow Foundry Arc Clock",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Arched mantel clock",
+    dimensions: "8 x 12",
+    shape: "arched stepped bezel",
+    visibleText: ["Morrow Foundry", "Series Seven Seal"],
+    diagnosticVisualDetails: ["arched stepped bezel"],
+    identityUnknowns: ["rear catalog mark"],
+    visualRecognition: {
+      visualSubject: "Arched mantel clock",
+      visibleWords: ["Morrow Foundry", "Series Seven Seal"],
+      distinctiveFeatures: ["arched stepped bezel"]
+    }
+  };
+  const state = stateFor(identity);
+  const context = hooks.buildSearchQueryContext(identity, [], identity.exactProductIdentity, {
+    purchase_intent: "personal_use",
+    purchase_context: "online_retailer",
+    item_name: identity.exactProductIdentity,
+    known_brand: identity.brand
+  });
+  const initial = hooks.normalizeSerperCandidateRecords([source({
+    title: "Morrow Foundry Arc Clock",
+    url: "https://www.amazon.com/product/morrow-arc-clock",
+    owningHypothesisId: state.resolvedIdentity.selectedCandidateId,
+    price: ""
+  })], identity, context, state);
+  assert.equal(initial[0].objectMindClassification, OBJECT_EVIDENCE_CLASSIFICATION.INSUFFICIENT_EVIDENCE);
+  assert.equal(initial[0].objectMindVerificationState, "UNRESOLVED");
+  assert.equal(initial[0].objectMindDirectPageEligible, true);
+  const rawCanonical = createFinalEvidenceResult({
+    analysisId: "synthetic-raw-direct-boundary",
+    analysisMode: "retail",
+    targetIdentity: { brand: identity.brand, productName: identity.exactProductIdentity },
+    observations: initial,
+    providerRequests: [],
+    purpose: "personal"
+  });
+  assert.equal(rawCanonical.acceptedRecords.some((record) => record.objectMindClassification === OBJECT_EVIDENCE_CLASSIFICATION.EXACT_ITEM), false);
+  const requests = [];
+  const enriched = await hooks.executeExactRetailPageDirectEnrichment({
+    context,
+    identity,
+    objectMindState: state,
+    currentRecords: initial,
+    providerRequestRecords: requests,
+    providerResponseSummaries: [],
+    providerErrors: [],
+    requestAdapter: async (url) => ({
+      finalUrl: url,
+      statusCode: 200,
+      elapsedMs: 1,
+      html: "<html>Morrow Foundry Arc Clock Series Seven Seal 8 x 12 arched stepped bezel</html>",
+      sourceEvidenceText: "Morrow Foundry Arc Clock Series Seven Seal 8 x 12 arched stepped bezel"
+    })
+  });
+  assert.equal(requests.filter((record) => Number(record.physicalAttemptCount || 0) > 0).length, 1);
+  assert.match(requests[0].objectMindQueryId, /^query-/);
+  assert(requests[0].resultingCandidateIds.length > 0);
+  assert.equal(enriched[0].objectMindDirectPageVerified, true);
+  assert.equal(enriched[0].objectMindClassification, OBJECT_EVIDENCE_CLASSIFICATION.EXACT_ITEM);
+  assert.equal(enriched[0].objectMindVerificationState, "VERIFIED");
+  const final = createFinalEvidenceResult({
+    analysisId: "synthetic-enriched-direct-boundary",
+    analysisMode: "retail",
+    targetIdentity: { brand: identity.brand, productName: identity.exactProductIdentity },
+    observations: enriched,
+    providerRequests: requests,
+    purpose: "personal"
+  });
+  assert(final.acceptedRecords.every((record) => record.objectMindVerificationState !== "REJECTED"));
+  assert([...final.acceptedRecords, ...final.rejectedRecords].some((record) => /morrow-arc-clock/i.test(record.canonicalUrl || record.url)));
+});
+
+test("exact, compatible, similar, unrelated, unresolved, and rejected evidence states remain distinguishable", () => {
+  const upc = validUpc("76123456789");
+  const state = stateFor({
+    brand: "Heliotrope Lab",
+    model: "HL-63",
+    upcBarcode: upc,
+    exactProductIdentity: "Heliotrope Lab HL-63 Prism Stand",
+    exactProductConfidence: "High",
+    subjectIdentity: "Optical prism stand",
+    packageQuantity: "6 count",
+    visibleText: ["Heliotrope Lab", "HL-63", upc],
+    visualRecognition: { visualSubject: "Optical prism stand", visibleWords: ["Heliotrope Lab", "HL-63"] }
+  });
+  const exact = verifyObjectEvidenceCandidate(state, source({ title: `Heliotrope Lab HL-63 Prism Stand ${upc} 6 count`, url: "https://example.org/exact" }));
+  const compatible = verifyObjectEvidenceCandidate(state, {
+    ...source({ title: "Heliotrope Lab compatible prism stand", url: "https://example.org/compatible" }),
+    candidateObjectClassification: "same_object_compatible_alternative",
+    productFamilyCompatibilityOutcome: "compatible",
+    retailPriceDecisionEligibility: true,
+    transactionalRetailerEvidence: true,
+    contradictoryEvidence: []
+  });
+  const unresolvedState = stateFor({
+    brand: "Umber Studio",
+    exactProductIdentity: "Umber Studio Meridian Form",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Decorative studio form",
+    identityUnknowns: ["maker code"],
+    visualRecognition: { visualSubject: "Decorative studio form" }
+  });
+  const unresolved = verifyObjectEvidenceCandidate(unresolvedState, source({ title: "Umber Studio Meridian Form", url: "https://example.org/unresolved" }));
+  const similar = verifyObjectEvidenceCandidate(state, source({ title: "Blue metal optical stand", url: "https://example.org/similar" }));
+  const unrelated = verifyObjectEvidenceCandidate(state, { ...source({ title: "Cotton kitchen towel", url: "https://example.org/unrelated" }), itemTypeCompatible: false });
+  const rejected = verifyObjectEvidenceCandidate(state, source({ title: "Heliotrope Lab HL-63 Prism Stand 12 count", url: "https://example.org/rejected" }));
+  assert.equal(exact.verificationState, "VERIFIED");
+  assert.equal(compatible.verificationState, "COMPATIBLE");
+  assert.equal(unresolved.verificationState, "UNRESOLVED");
+  assert.equal(unresolved.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.INSUFFICIENT_EVIDENCE);
+  assert.equal(similar.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.SIMILAR_OBJECT);
+  assert.equal(unrelated.exactnessClassification, OBJECT_EVIDENCE_CLASSIFICATION.UNRELATED);
+  assert.equal(rejected.verificationState, "REJECTED");
+});
+
 test("Experience Record is deterministic, bounded, secret-safe, and records accepted and rejected outcomes", () => {
   const state = stateFor({
     brand: "Lumen Works",
@@ -400,6 +714,42 @@ test("Experience Record is deterministic, bounded, secret-safe, and records acce
   assert.doesNotMatch(rendered, /Bearer|should-never-appear|authorization|apiKey|chain.of.thought|benchmark/i);
   assert(first.sourcesAccepted.length > 0);
   assert(first.sourcesRejected.length > 0);
+});
+
+test("Experience Record keeps every bounded sent-query owner under the record byte ceiling", () => {
+  const state = stateFor({
+    brand: "Verdant Instruments",
+    exactProductIdentity: "Verdant Instruments Field Comparator",
+    exactProductConfidence: "Medium",
+    subjectIdentity: "Field comparator",
+    identityUnknowns: ["maker code", "scale arrangement"],
+    visibleText: ["Verdant Instruments", "graduated scale"],
+    visualRecognition: { visualSubject: "Field comparator", visibleWords: ["Verdant Instruments", "graduated scale"] }
+  });
+  const providerRequests = Array.from({ length: 32 }, (_, index) => ({
+    objectMindQueryId: `query-${index}-${"q".repeat(120)}`,
+    objectMindHypothesisId: index === 31 ? "" : `${state.resolvedIdentity.selectedCandidateId}-${"h".repeat(120)}`,
+    objectMindQueryType: "EVIDENCE_INFORMED_DISAMBIGUATION",
+    objectMindPhase: index >= 28 ? "DIRECT_PAGE" : "REFINEMENT",
+    objectMindExactVisibleFactsUsed: Array.from({ length: 12 }, (unused, factIndex) => `observation-${factIndex}-${"f".repeat(120)}`),
+    objectMindDiscriminatorTested: `scale arrangement ${"d".repeat(240)}`,
+    provider: "synthetic_provider",
+    query: `Verdant Instruments field comparator ${index} ${"query".repeat(80)}`,
+    normalizedCandidate: `verdant instruments field comparator ${index} ${"normalized".repeat(60)}`,
+    resultingCandidateIds: Array.from({ length: 12 }, (unused, candidateIndex) => `source-${index}-${candidateIndex}-${"s".repeat(180)}`),
+    physicalAttemptCount: 1,
+    attempted: true,
+    succeeded: true,
+    failureStage: "none"
+  }));
+  const first = buildExperienceRecord({ state, providerRequests });
+  const second = buildExperienceRecord({ state, providerRequests });
+  assert.deepEqual(first, second);
+  assert.equal(first.queriesAttempted.length, providerRequests.length);
+  assert.equal(first.queryOwnership.length, providerRequests.length);
+  assert(first.queryOwnership.every((record) => record.queryId && record.normalizedQuery && record.provider && record.disposition));
+  assert.equal(first.queryOwnership.at(-1).owningHypothesisId, "");
+  assert(experienceRecordByteLength(first) <= MAX_EXPERIENCE_RECORD_BYTES);
 });
 
 test("empty results, repeated distractors, and provider errors cannot create an unbounded loop", () => {
