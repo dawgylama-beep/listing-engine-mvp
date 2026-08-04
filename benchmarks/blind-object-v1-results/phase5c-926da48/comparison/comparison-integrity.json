@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-phase5c-926da48-comparison",
+  "phase5cAggregateResultSha256": "47563e2ef0bf05fca9a25ab60103b09efd155af64fee29a567bd1810f794e9a4",
+  "phase5aAggregateResultSha256": "6d484ef11ca21c68e5a3937ead300afcb0fc729a7f7c7e22b9e0998d1d22a3a5",
+  "prePhase5AggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+  "files": [
+    {
+      "path": "phase5c-comparison.json",
+      "sha256": "f544184d3cfd178bd0f3ea8a26a429ea188a36b82e655683f6c38cfb7572d8b4"
+    },
+    {
+      "path": "phase5c-comparison.md",
+      "sha256": "ec548205f2b2ea6a74e4e5b964d257e21fb5e28aef72f9a19f2cdc72acd7e2cb"
+    },
+    {
+      "path": "result-metadata.json",
+      "sha256": "b230ccb9d0d268bd7519d074e9ba82337affbfc6f4e8f5a9ff6c4bb7dd6c4bf1"
+    }
+  ]
+}

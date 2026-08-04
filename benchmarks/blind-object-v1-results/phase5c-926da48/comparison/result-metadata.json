@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "resultId": "blind-object-v1-phase5c-926da48",
+  "sourceCommit": "926da482c14a9557f4f02966d46ac8a8b58d5c00",
+  "sourceSubject": "fix: preserve structured source candidates",
+  "version": "1.12.1",
+  "resultRoot": "benchmarks/blind-object-v1-results/phase5c-926da48",
+  "benchmarkInvocationCount": 1,
+  "handlerInvocationCount": 26,
+  "requestCount": 26,
+  "responseCount": 26,
+  "principalRunCount": 14,
+  "anchorPurposeRunCount": 12,
+  "indeterminateRunCount": 0,
+  "duplicateRunCount": 0,
+  "aggregateResultSha256": "47563e2ef0bf05fca9a25ab60103b09efd155af64fee29a567bd1810f794e9a4",
+  "executionStart": "2026-08-04T21:59:58.484Z",
+  "executionEnd": "2026-08-04T22:33:21.394Z",
+  "gradingPasses": 2,
+  "gradingFileCountPerPass": 28,
+  "gradingByteIdentical": true,
+  "completeProductPassed": false,
+  "immutableInputs": {
+    "benchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
+    "corpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
+    "contractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
+    "executorCommit": "ec9605768580c9545bdda79f7437de6e374312b7",
+    "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581"
+  },
+  "externalBindingAdapter": {
+    "files": [
+      {
+        "name": "phase5c-binding-loader.mjs",
+        "sha256": "5f5019388aad0f18dacc04f4ac2c769ce6f570815e3a40f8d6b85be342c9f9dd"
+      },
+      {
+        "name": "phase5c-runner.mjs",
+        "sha256": "272f07f7a8f85ab875065c697ee726061671ff9f93ad82e37bb24be9b851e2dd"
+      }
+    ],
+    "fixedWidthProductCommitSubstitutionCount": 1,
+    "executorSemanticChanges": 0,
+    "syntheticValidationRequests": 26,
+    "syntheticValidationResponses": 26,
+    "syntheticGradingByteIdentical": true,
+    "removedAfterResultRecording": true
+  },
+  "assertions": {
+    "benchmarkCriteriaChanged": false,
+    "benchmarkAssetsChanged": false,
+    "benchmarkDescriptionsChanged": false,
+    "executorChanged": false,
+    "scoringOrThresholdsChanged": false,
+    "sourceOrTestsChangedAfterInvocation": false,
+    "rerunPerformed": false,
+    "individualCaseResubmissionPerformed": false,
+    "currentBaselineRerun": false,
+    "phase5BaselineRerun": false,
+    "phase5aBaselineRerun": false,
+    "manualSearchPerformed": false,
+    "previewRequested": false,
+    "productionRequestedOrModified": false,
+    "pushMergeOrDeployPerformed": false
+  }
+}

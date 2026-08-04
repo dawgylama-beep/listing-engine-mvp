@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "scoredRunCount": 26,
+  "metrics": {
+    "overallScore": 30.384615384615383,
+    "identityCapabilityPercent": 35.714285714285715,
+    "exactEvidenceRecoveryPercent": 0,
+    "evidenceAssociationCorrectnessPercent": 100,
+    "similarSourceRejectionPercent": 0,
+    "purposeInvarianceIdentityConsistencyPercent": 75,
+    "actionPlanCompletenessPercent": 0,
+    "confidenceCalibrationPercent": 0,
+    "confidentFalseExactsOnAmbiguousCase": 0,
+    "wrongKnownAnswerControlSubstitutions": 1,
+    "inventedSourcesOrTransactionFacts": 0
+  },
+  "gates": {
+    "overallScore": false,
+    "identityCapability": false,
+    "exactEvidenceRecovery": false,
+    "evidenceAssociationCorrectness": true,
+    "similarSourceRejection": false,
+    "purposeInvarianceIdentityConsistency": false,
+    "actionPlanCompleteness": false,
+    "confidenceCalibration": false,
+    "confidentFalseExactsOnAmbiguousCase": true,
+    "wrongKnownAnswerControlSubstitutions": false,
+    "inventedSourcesOrTransactionFacts": true
+  },
+  "passed": false,
+  "failureReport": [
+    {
+      "gate": "overallScore",
+      "actual": 30.384615384615383
+    },
+    {
+      "gate": "identityCapability",
+      "actual": null
+    },
+    {
+      "gate": "exactEvidenceRecovery",
+      "actual": null
+    },
+    {
+      "gate": "similarSourceRejection",
+      "actual": null
+    },
+    {
+      "gate": "purposeInvarianceIdentityConsistency",
+      "actual": null
+    },
+    {
+      "gate": "actionPlanCompleteness",
+      "actual": null
+    },
+    {
+      "gate": "confidenceCalibration",
+      "actual": null
+    },
+    {
+      "gate": "wrongKnownAnswerControlSubstitutions",
+      "actual": 1
+    }
+  ]
+}

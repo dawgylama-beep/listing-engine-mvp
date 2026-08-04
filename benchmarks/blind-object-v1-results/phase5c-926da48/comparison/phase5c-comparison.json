@@ -1,0 +1,1254 @@
+{
+  "schemaVersion": 1,
+  "comparisonId": "blind-object-v1-phase5c-926da48-comparison",
+  "conclusion": {
+    "completeProductResult": "FAIL",
+    "boundedObjectiveResult": "FAIL",
+    "classification": "MIXED_FAIL",
+    "strongestGeneralizedImprovement": "purposeInvarianceIdentityConsistencyPercent improved by 25 points from Phase 5A.",
+    "strongestRegression": "identityCapabilityPercent declined by 14.29 points from Phase 5A.",
+    "firstRemainingSharedFailureBoundary": "NOT_ACQUIRED"
+  },
+  "phase5c": {
+    "sourceCommit": "926da482c14a9557f4f02966d46ac8a8b58d5c00",
+    "sourceSubject": "fix: preserve structured source candidates",
+    "aggregateResultSha256": "47563e2ef0bf05fca9a25ab60103b09efd155af64fee29a567bd1810f794e9a4",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.384615384615383,
+        "identityCapabilityPercent": 35.714285714285715,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 75,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 0,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.384615384615383
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 10,
+      "uncertaintyAndAlternatives": 2.12,
+      "exactEvidenceRecovery": 6.92,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.35,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 0
+    },
+    "execution": {
+      "benchmarkInvocationCount": 1,
+      "handlerInvocationCount": 26,
+      "requestCount": 26,
+      "responseCount": 26,
+      "principalRunCount": 14,
+      "anchorPurposeRunCount": 12,
+      "indeterminateRunCount": 0,
+      "duplicateRunCount": 0,
+      "handlerStatusCounts": {
+        "200": 26
+      },
+      "executionStart": "2026-08-04T21:59:58.484Z",
+      "executionEnd": "2026-08-04T22:33:21.394Z",
+      "initialQueriesGenerated": 211,
+      "initialQueriesSent": 122,
+      "refinementQueriesGenerated": 71,
+      "refinementQueriesSent": 71,
+      "logicalProviderQueries": 193,
+      "physicalProviderAttempts": 219,
+      "configuredRetriesPerLogicalQuery": 1,
+      "physicalProviderRetries": 26,
+      "providerCallsSucceeded": 192,
+      "providerLogicalFailures": 1,
+      "maximumProviderAttemptsInOneRun": 12,
+      "providerBudgetViolations": 0,
+      "refinementPhasesObserved": 18,
+      "refinementRunIds": [
+        "RUN-002",
+        "RUN-004",
+        "RUN-005",
+        "RUN-007",
+        "RUN-009",
+        "RUN-010",
+        "RUN-011",
+        "RUN-013",
+        "RUN-014",
+        "RUN-018",
+        "RUN-019",
+        "RUN-020",
+        "RUN-021",
+        "RUN-022",
+        "RUN-023",
+        "RUN-024",
+        "RUN-025",
+        "RUN-026"
+      ],
+      "maximumRefinementQueriesInOneRun": 4,
+      "refinementCeilingViolations": 0,
+      "maximumRetriesForOneLogicalQuery": 1,
+      "retryCeilingViolations": 0,
+      "directPageAttempts": 21,
+      "directPageSuccesses": 4,
+      "directPageFailures": 17,
+      "directPageDispositions": {
+        "none": 4,
+        "direct_fetch_size_limit": 5,
+        "direct_fetch_timeout": 2,
+        "direct_page_attempt_budget_exhausted": 1,
+        "direct_fetch_http_error": 9
+      },
+      "maximumDirectPageAttemptsInOneRun": 2,
+      "experienceQueryOwnershipCount": 213,
+      "experienceAcquiredSourceDispositionCount": 1007,
+      "maximumExperienceRecordBytes": 55094,
+      "experienceRecordSizeViolations": 0
+    },
+    "sourceAcquisition": {
+      "provenanceCountScope": "coalesced unique provider-source records retained per analysis",
+      "actionSourceCandidates": 864,
+      "citationOnlyCandidates": 0,
+      "overlappingActionAndCitationCandidates": 93,
+      "uniqueUnionedSourceCandidates": 1007,
+      "normalizationDuplicatesRemoved": 456,
+      "trackingVariantDuplicatesRemoved": 0,
+      "materiallyDistinctCanonicalPagesPreserved": 823,
+      "malformedDropped": 0,
+      "disallowedDropped": 0,
+      "duplicateObservationsCollapsed": 456,
+      "nonEnrichable": 967,
+      "reachedEnrichment": 971,
+      "reachedObjectMindVerification": 971,
+      "canonicallyQualified": 9,
+      "selectedForCustomerEvidence": 8,
+      "silentlyDisappearedWithoutControlledDisposition": 0,
+      "controlledFinalDispositionCounts": {
+        "NOT_ENRICHABLE": 967,
+        "REJECTED": 31,
+        "UNRESOLVED": 1,
+        "CANONICALLY_SELECTED": 8
+      },
+      "extractionDispositionCounts": {
+        "PRESERVED": 1007
+      },
+      "normalizationDispositionCounts": {
+        "NORMALIZED_AND_PRESERVED": 971,
+        "NORMALIZED": 36
+      },
+      "enrichmentDispositionCounts": {
+        "PASSED_TO_ENRICHMENT": 971,
+        "PENDING": 36
+      },
+      "verificationDispositionCounts": {
+        "UNRESOLVED": 40,
+        "VERIFIED": 27,
+        "REJECTED": 760,
+        "COMPATIBLE": 144,
+        "NOT_VERIFIED": 36
+      },
+      "canonicalSelectionDispositionCounts": {
+        "NOT_CANONICALLY_SELECTED": 967,
+        "CANONICALLY_REJECTED": 31,
+        "CANONICALLY_ACCEPTED_NOT_SELECTED": 1,
+        "SELECTED_FOR_CUSTOMER": 8
+      }
+    },
+    "evidence": {
+      "providerSourceClassifications": {
+        "INSUFFICIENT_EVIDENCE": 41,
+        "SIMILAR_OBJECT": 178,
+        "UNRELATED": 489,
+        "EXACT_ITEM": 27,
+        "COMPATIBLE_ALTERNATIVE": 129
+      },
+      "providerSourceVerificationStates": {
+        "UNRESOLVED": 41,
+        "REJECTED": 667,
+        "VERIFIED": 27,
+        "COMPATIBLE": 129
+      },
+      "internallyProposedExactRecords": 27,
+      "internallyVerifiedExactRecords": 27,
+      "internallyAcceptedExactRecords": 0,
+      "customerVisibleExactRecords": 0,
+      "customerVisibleExactRecordsWithoutSingleAuthorityLineage": 0,
+      "verifiedExactRecordsMatchingFrozenControls": 0,
+      "verifiedExactControlCaseCount": 0,
+      "frozenExactControlCaseCount": 8,
+      "frozenDistractorControlsRejected": 0,
+      "frozenDistractorControlCount": 8
+    },
+    "boundedObjectiveAssessment": {
+      "citationOnlyStructuredSourcesSurvivedAcquisition": false,
+      "everyAcquiredCandidateReceivedControlledExperienceDisposition": true,
+      "exactSourceControlsMovedBeyondNotAcquired": false,
+      "distractorControlsMovedBeyondDistractorNotAcquired": false,
+      "verifiedExactSourceRecoveryRoseAboveZero": false,
+      "distractorRejectionRoseAboveZero": false,
+      "identityCapabilityOutcome": "REGRESSED",
+      "purposeInvarianceOutcome": "IMPROVED",
+      "singleExactnessAuthorityAndCanonicalOwnershipPreserved": true,
+      "operationalProviderRefinementRetryDirectPageAndExperienceCeilingsPreserved": true,
+      "secretCeilingPreserved": true,
+      "safetyCriticalZeroTolerancePreserved": false,
+      "allOperationalSecretAndSafetyCeilingsPreserved": false,
+      "purposeNeutralQueryBehaviorOutcome": "ANCHOR_PLAN_DIVERGENCE_REMAINS",
+      "strongestGeneralizedImprovement": "purposeInvarianceIdentityConsistencyPercent improved by 25 points from Phase 5A.",
+      "strongestRegression": "identityCapabilityPercent declined by 14.29 points from Phase 5A.",
+      "firstRemainingSharedFailureBoundary": "NOT_ACQUIRED"
+    }
+  },
+  "phase5a": {
+    "sourceCommit": "473f3037751a0b01504a84e1aa61e8135e28ac8f",
+    "aggregateResultSha256": "6d484ef11ca21c68e5a3937ead300afcb0fc729a7f7c7e22b9e0998d1d22a3a5",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.96153846153846,
+        "identityCapabilityPercent": 50,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 50,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 3.8461538461538463,
+        "confidentFalseExactsOnAmbiguousCase": 1,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": false,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.96153846153846
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "confidentFalseExactsOnAmbiguousCase",
+          "actual": 1
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    },
+    "sectionAverages": {
+      "identity": 10.76923076923077,
+      "uncertaintyAndAlternatives": 1.5384615384615385,
+      "exactEvidenceRecovery": 6.923076923076923,
+      "evidenceAssociation": 10,
+      "marketInterpretationAndValuation": 1.3461538461538463,
+      "purposeSpecificJudgment": 0,
+      "practicalActionPlan": 0,
+      "confidenceCalibration": 0.38461538461538464
+    }
+  },
+  "prePhase5": {
+    "sourceCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+    "aggregateResultSha256": "e4dee717b3e1f3ec5c25cc1d797f40e63ff77719947240c1d8d448afa1d31a1a",
+    "aggregate": {
+      "schemaVersion": 1,
+      "benchmarkId": "blind-object-v1",
+      "scoredRunCount": 26,
+      "metrics": {
+        "overallScore": 30.192307692307693,
+        "identityCapabilityPercent": 42.857142857142854,
+        "exactEvidenceRecoveryPercent": 0,
+        "evidenceAssociationCorrectnessPercent": 100,
+        "similarSourceRejectionPercent": 0,
+        "purposeInvarianceIdentityConsistencyPercent": 75,
+        "actionPlanCompletenessPercent": 0,
+        "confidenceCalibrationPercent": 3.8461538461538463,
+        "confidentFalseExactsOnAmbiguousCase": 0,
+        "wrongKnownAnswerControlSubstitutions": 1,
+        "inventedSourcesOrTransactionFacts": 0
+      },
+      "gates": {
+        "overallScore": false,
+        "identityCapability": false,
+        "exactEvidenceRecovery": false,
+        "evidenceAssociationCorrectness": true,
+        "similarSourceRejection": false,
+        "purposeInvarianceIdentityConsistency": false,
+        "actionPlanCompleteness": false,
+        "confidenceCalibration": false,
+        "confidentFalseExactsOnAmbiguousCase": true,
+        "wrongKnownAnswerControlSubstitutions": false,
+        "inventedSourcesOrTransactionFacts": true
+      },
+      "passed": false,
+      "failureReport": [
+        {
+          "gate": "overallScore",
+          "actual": 30.192307692307693
+        },
+        {
+          "gate": "identityCapability",
+          "actual": null
+        },
+        {
+          "gate": "exactEvidenceRecovery",
+          "actual": null
+        },
+        {
+          "gate": "similarSourceRejection",
+          "actual": null
+        },
+        {
+          "gate": "purposeInvarianceIdentityConsistency",
+          "actual": null
+        },
+        {
+          "gate": "actionPlanCompleteness",
+          "actual": null
+        },
+        {
+          "gate": "confidenceCalibration",
+          "actual": null
+        },
+        {
+          "gate": "wrongKnownAnswerControlSubstitutions",
+          "actual": 1
+        }
+      ]
+    }
+  },
+  "metricComparison": {
+    "overallScore": {
+      "phase5c": 30.384615384615383,
+      "phase5a": 30.96153846153846,
+      "prePhase5": 30.192307692307693,
+      "deltaFromPhase5a": -0.58,
+      "deltaFromPrePhase5": 0.19
+    },
+    "identityCapabilityPercent": {
+      "phase5c": 35.714285714285715,
+      "phase5a": 50,
+      "prePhase5": 42.857142857142854,
+      "deltaFromPhase5a": -14.29,
+      "deltaFromPrePhase5": -7.14
+    },
+    "exactEvidenceRecoveryPercent": {
+      "phase5c": 0,
+      "phase5a": 0,
+      "prePhase5": 0,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    },
+    "evidenceAssociationCorrectnessPercent": {
+      "phase5c": 100,
+      "phase5a": 100,
+      "prePhase5": 100,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    },
+    "similarSourceRejectionPercent": {
+      "phase5c": 0,
+      "phase5a": 0,
+      "prePhase5": 0,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    },
+    "purposeInvarianceIdentityConsistencyPercent": {
+      "phase5c": 75,
+      "phase5a": 50,
+      "prePhase5": 75,
+      "deltaFromPhase5a": 25,
+      "deltaFromPrePhase5": 0
+    },
+    "actionPlanCompletenessPercent": {
+      "phase5c": 0,
+      "phase5a": 0,
+      "prePhase5": 0,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    },
+    "confidenceCalibrationPercent": {
+      "phase5c": 0,
+      "phase5a": 3.8461538461538463,
+      "prePhase5": 3.8461538461538463,
+      "deltaFromPhase5a": -3.85,
+      "deltaFromPrePhase5": -3.85
+    },
+    "confidentFalseExactsOnAmbiguousCase": {
+      "phase5c": 0,
+      "phase5a": 1,
+      "prePhase5": 0,
+      "deltaFromPhase5a": -1,
+      "deltaFromPrePhase5": 0
+    },
+    "wrongKnownAnswerControlSubstitutions": {
+      "phase5c": 1,
+      "phase5a": 1,
+      "prePhase5": 1,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    },
+    "inventedSourcesOrTransactionFacts": {
+      "phase5c": 0,
+      "phase5a": 0,
+      "prePhase5": 0,
+      "deltaFromPhase5a": 0,
+      "deltaFromPrePhase5": 0
+    }
+  },
+  "exactControlFirstLoss": [
+    {
+      "controlId": "OBJ-001",
+      "runId": "RUN-001",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-001-A",
+        "EXACT-OBJ-001-B"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-002",
+      "runId": "RUN-002",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-002-A",
+        "EXACT-OBJ-002-B"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-003",
+      "runId": "RUN-003",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-003-A"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-004",
+      "runId": "RUN-004",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-004-A",
+        "EXACT-OBJ-004-B"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-005",
+      "runId": "RUN-005",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-005-A"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-006",
+      "runId": "RUN-006",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-006-A"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-011",
+      "runId": "RUN-011",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-011-A"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    },
+    {
+      "controlId": "OBJ-012",
+      "runId": "RUN-012",
+      "opaqueSourceControlIds": [
+        "EXACT-OBJ-012-A",
+        "EXACT-OBJ-012-B"
+      ],
+      "boundary": "NOT_ACQUIRED",
+      "verifiedExactControlMatched": false,
+      "frozenRecoveryCredited": false
+    }
+  ],
+  "distractorControlFirstLoss": [
+    {
+      "controlId": "DST-001",
+      "caseId": "OBJ-001",
+      "runId": "RUN-001",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-002",
+      "caseId": "OBJ-002",
+      "runId": "RUN-002",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-003",
+      "caseId": "OBJ-003",
+      "runId": "RUN-003",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-004",
+      "caseId": "OBJ-004",
+      "runId": "RUN-004",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-005",
+      "caseId": "OBJ-005",
+      "runId": "RUN-005",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-006",
+      "caseId": "OBJ-006",
+      "runId": "RUN-006",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-007",
+      "caseId": "OBJ-011",
+      "runId": "RUN-011",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    },
+    {
+      "controlId": "DST-008",
+      "caseId": "OBJ-012",
+      "runId": "RUN-012",
+      "boundary": "DISTRACTOR_NOT_ACQUIRED"
+    }
+  ],
+  "purposeInvarianceAnchors": [
+    {
+      "caseId": "OBJ-001",
+      "completedPurposeCount": 4,
+      "identityStateHashIdentical": false,
+      "acquisitionQueryPlansIdentical": false,
+      "providerAcquisitionDiffers": true,
+      "firstDivergenceStage": "OBJECT_MIND_STATE"
+    },
+    {
+      "caseId": "OBJ-003",
+      "completedPurposeCount": 4,
+      "identityStateHashIdentical": false,
+      "acquisitionQueryPlansIdentical": false,
+      "providerAcquisitionDiffers": true,
+      "firstDivergenceStage": "OBJECT_MIND_STATE"
+    },
+    {
+      "caseId": "OBJ-008",
+      "completedPurposeCount": 4,
+      "identityStateHashIdentical": false,
+      "acquisitionQueryPlansIdentical": false,
+      "providerAcquisitionDiffers": true,
+      "firstDivergenceStage": "OBJECT_MIND_STATE"
+    },
+    {
+      "caseId": "OBJ-014",
+      "completedPurposeCount": 4,
+      "identityStateHashIdentical": false,
+      "acquisitionQueryPlansIdentical": false,
+      "providerAcquisitionDiffers": true,
+      "firstDivergenceStage": "OBJECT_MIND_STATE"
+    }
+  ],
+  "safety": {
+    "criticalSafetyFailures": [
+      {
+        "runId": "RUN-011",
+        "caseId": "OBJ-011",
+        "purpose": "WHATS_IT_WORTH",
+        "code": "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION"
+      },
+      {
+        "runId": "RUN-013",
+        "caseId": "OBJ-013",
+        "purpose": "MARKETPLACE_LISTING",
+        "code": "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION"
+      }
+    ],
+    "criticalSafetyFailureCounts": {
+      "WRONG_KNOWN_ANSWER_CONTROL_SUBSTITUTION": 1,
+      "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION": 1
+    },
+    "customerVisibleExactRecordsWithoutSingleAuthorityLineage": 0,
+    "canonicalEvidenceValidationFailures": 0,
+    "inventedSourcesOrTransactionFacts": 0,
+    "secretMaterialFindings": 0
+  },
+  "perRunExecution": [
+    {
+      "runId": "RUN-001",
+      "caseId": "OBJ-001",
+      "purpose": "PERSONAL_BUY",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 9,
+      "initialQueriesSent": 4,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 4,
+      "physicalProviderAttempts": 5,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 4,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 1,
+      "queryOwnershipCount": 6,
+      "acquiredSourceDispositionCount": 36,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-002",
+      "caseId": "OBJ-002",
+      "purpose": "PERSONAL_BUY",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 8,
+      "initialQueriesSent": 6,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 10,
+      "physicalProviderAttempts": 11,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 10,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 10,
+      "acquiredSourceDispositionCount": 3,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-003",
+      "caseId": "OBJ-003",
+      "purpose": "RESALE",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 7,
+      "initialQueriesSent": 3,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 3,
+      "physicalProviderAttempts": 4,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 3,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 3,
+      "acquiredSourceDispositionCount": 24,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-004",
+      "caseId": "OBJ-004",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 8,
+      "initialQueriesSent": 3,
+      "refinementQueriesGenerated": 3,
+      "refinementQueriesSent": 3,
+      "logicalProviderQueries": 6,
+      "physicalProviderAttempts": 7,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 6,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 6,
+      "acquiredSourceDispositionCount": 68,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-005",
+      "caseId": "OBJ-005",
+      "purpose": "PERSONAL_BUY",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 11,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 31,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-006",
+      "caseId": "OBJ-006",
+      "purpose": "PERSONAL_BUY",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 9,
+      "initialQueriesSent": 4,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 4,
+      "physicalProviderAttempts": 5,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 4,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 6,
+      "acquiredSourceDispositionCount": 15,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-007",
+      "caseId": "OBJ-007",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 8,
+      "initialQueriesSent": 4,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 8,
+      "physicalProviderAttempts": 9,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 8,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 24,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-008",
+      "caseId": "OBJ-008",
+      "purpose": "RESALE",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 2,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 2,
+      "physicalProviderAttempts": 3,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 2,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 2,
+      "acquiredSourceDispositionCount": 13,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-009",
+      "caseId": "OBJ-009",
+      "purpose": "RESALE",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 8,
+      "initialQueriesSent": 4,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 8,
+      "physicalProviderAttempts": 9,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 8,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 48,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-010",
+      "caseId": "OBJ-010",
+      "purpose": "RESALE",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 7,
+      "initialQueriesSent": 3,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 7,
+      "physicalProviderAttempts": 8,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 7,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 54,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-011",
+      "caseId": "OBJ-011",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 6,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 11,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 26,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-012",
+      "caseId": "OBJ-012",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 11,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 5,
+      "physicalProviderAttempts": 6,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 5,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 5,
+      "acquiredSourceDispositionCount": 13,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-013",
+      "caseId": "OBJ-013",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 6,
+      "initialQueriesSent": 4,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 8,
+      "physicalProviderAttempts": 9,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 8,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 44,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-014",
+      "caseId": "OBJ-014",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "PRINCIPAL",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 5,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 10,
+      "providerLogicalFailures": 1,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 26,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-015",
+      "caseId": "OBJ-001",
+      "purpose": "RESALE",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 9,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 5,
+      "physicalProviderAttempts": 6,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 5,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 1,
+      "queryOwnershipCount": 7,
+      "acquiredSourceDispositionCount": 25,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-016",
+      "caseId": "OBJ-001",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 5,
+      "physicalProviderAttempts": 6,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 5,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 1,
+      "queryOwnershipCount": 7,
+      "acquiredSourceDispositionCount": 25,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-017",
+      "caseId": "OBJ-001",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 9,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 0,
+      "refinementQueriesSent": 0,
+      "logicalProviderQueries": 5,
+      "physicalProviderAttempts": 6,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 5,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 1,
+      "queryOwnershipCount": 7,
+      "acquiredSourceDispositionCount": 25,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-018",
+      "caseId": "OBJ-003",
+      "purpose": "PERSONAL_BUY",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 9,
+      "physicalProviderAttempts": 10,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 9,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 9,
+      "acquiredSourceDispositionCount": 64,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-019",
+      "caseId": "OBJ-003",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 8,
+      "initialQueriesSent": 3,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 7,
+      "physicalProviderAttempts": 8,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 7,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 1,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 72,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-020",
+      "caseId": "OBJ-003",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 7,
+      "initialQueriesSent": 3,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 7,
+      "physicalProviderAttempts": 8,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 7,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 9,
+      "acquiredSourceDispositionCount": 68,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-021",
+      "caseId": "OBJ-008",
+      "purpose": "PERSONAL_BUY",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 11,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 9,
+      "physicalProviderAttempts": 10,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 9,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 52,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-022",
+      "caseId": "OBJ-008",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 5,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 9,
+      "physicalProviderAttempts": 10,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 9,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 48,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-023",
+      "caseId": "OBJ-008",
+      "purpose": "MARKETPLACE_LISTING",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 10,
+      "initialQueriesSent": 2,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 6,
+      "physicalProviderAttempts": 7,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 6,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 2,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 8,
+      "acquiredSourceDispositionCount": 36,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-024",
+      "caseId": "OBJ-014",
+      "purpose": "PERSONAL_BUY",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 5,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 11,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 65,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-025",
+      "caseId": "OBJ-014",
+      "purpose": "RESALE",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 5,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 11,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 64,
+      "silentDispositionLossCount": 0
+    },
+    {
+      "runId": "RUN-026",
+      "caseId": "OBJ-014",
+      "purpose": "WHATS_IT_WORTH",
+      "runType": "ANCHOR_PURPOSE",
+      "handlerStatusCode": 200,
+      "initialQueriesGenerated": 5,
+      "initialQueriesSent": 7,
+      "refinementQueriesGenerated": 4,
+      "refinementQueriesSent": 4,
+      "logicalProviderQueries": 11,
+      "physicalProviderAttempts": 12,
+      "physicalProviderRetries": 1,
+      "providerCallsSucceeded": 11,
+      "providerLogicalFailures": 0,
+      "providerBudget": 28,
+      "directPageAttempts": 0,
+      "directPageSuccesses": 0,
+      "queryOwnershipCount": 11,
+      "acquiredSourceDispositionCount": 38,
+      "silentDispositionLossCount": 0
+    }
+  ]
+}
