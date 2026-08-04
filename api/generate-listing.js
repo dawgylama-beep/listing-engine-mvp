@@ -2193,9 +2193,7 @@ async function executeOpenAIWebComparableSearch({
       const { json, data, statusCode } = response;
       const citations = collectUrlCitations(data);
       const webSearchCalls = collectWebSearchCalls(data);
-      const sourceRecords = collectWebSearchSourceRecords(data, queryRecord);
-      const sourceBackfillRecords = sourceRecords.length ? [] : citations.map((citation) => sourceRecordFromCitation(citation, queryRecord));
-      const requestSourceRecords = [...sourceRecords, ...sourceBackfillRecords];
+      const requestSourceRecords = collectStructuredProviderSourceRecords(data, queryRecord);
       const rawSummaries = collectSafeRawResultSummaries({
         result: json,
         citations,
@@ -2209,6 +2207,8 @@ async function executeOpenAIWebComparableSearch({
 
       requestRecord.succeeded = webSearchCalls.length > 0;
       requestRecord.providerSourceCount = requestSourceRecords.length;
+      requestRecord.resultingCandidateIds = requestSourceRecords.map((record) => record.sourceRecordId).filter(Boolean);
+      requestRecord.extractionDispositionCounts = countControlledDispositions(requestSourceRecords, "extractionDisposition");
       requestRecord.domainsReturned = domainsReturned;
       requestRecord.sourceURLsReturned = sourceURLsReturned;
       requestRecord.rawResultCount = rawSummaries.length;
@@ -2241,6 +2241,7 @@ async function executeOpenAIWebComparableSearch({
         webSearchCallAppeared: webSearchCalls.length > 0,
         urlCitationCount: citations.length,
         providerSourceCount: requestSourceRecords.length,
+        extractionDispositionCounts: requestRecord.extractionDispositionCounts,
         sourceURLsReturned,
         domainsReturned,
         providerActionQueries: collectWebSearchActionQueries(webSearchCalls).filter((query) => !isInternalPromptFragment(query)).slice(0, 4)
@@ -2375,6 +2376,10 @@ async function executeOpenAIWebComparableSearch({
     buyerIntake,
     notes
   });
+  normalizedResult.sourceAcquisitionRecords = reconcileSourceAcquisitionRecords(
+    providerSourceRecords,
+    verifiedSourceRecords
+  );
   normalizedResult.objectMindState = objectMindState;
   return normalizedResult;
 }
@@ -2695,6 +2700,8 @@ async function executeSerperComparableSearch({
       requestRecord.normalizedResultCount = parsed.records.length;
       requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
+      requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
       requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
@@ -2921,6 +2928,8 @@ async function executeObjectMindRefinementSearch({
       requestRecord.normalizedResultCount = parsed.records.length;
       requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
+      requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
       requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
@@ -3247,6 +3256,8 @@ async function executeLimitedResultRetailRecovery({
       requestRecord.normalizedResultCount = parsed.records.length;
       requestRecord.domainsReturned = summarizeSourceLabels(parsed.records.map((record) => record.domain));
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
+      requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
+      requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
       requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
@@ -3856,13 +3867,15 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   const knowledgeGraph = data.knowledgeGraph && typeof data.knowledgeGraph === "object" ? data.knowledgeGraph : null;
 
   organic.forEach((item, index) => {
-    const url = canonicalizeComparableUrl(item.link || item.url);
+    const originalProviderUrl = cleanText(item.link || item.url);
+    const url = canonicalizeComparableUrl(originalProviderUrl);
     if (!url) return;
     records.push(createSerperProviderRecord({
       provider: "serper_google",
       queryRecord,
       title: item.title,
       url,
+      originalProviderUrl,
       snippet: item.snippet,
       displayedPriceText: extractDisplayedPrice([item.title, item.snippet].join(" ")),
       sourceType: "organic",
@@ -3872,13 +3885,15 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   });
 
   shopping.forEach((item, index) => {
-    const url = canonicalizeComparableUrl(item.link || item.url);
+    const originalProviderUrl = cleanText(item.link || item.url);
+    const url = canonicalizeComparableUrl(originalProviderUrl);
     if (!url) return;
     records.push(createSerperProviderRecord({
       provider: "serper_google",
       queryRecord,
       title: item.title,
       url,
+      originalProviderUrl,
       snippet: [item.source, item.seller ? `Seller: ${item.seller}` : "", item.delivery, item.rating ? `Rating ${item.rating}` : "", item.extensions].filter(Boolean).join(" | "),
       displayedPriceText: item.price || extractDisplayedPrice([item.title, item.source].join(" ")),
       sourceType: "shopping",
@@ -3894,13 +3909,15 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   });
 
   if (knowledgeGraph) {
-    const kgUrl = canonicalizeComparableUrl(knowledgeGraph.website || knowledgeGraph.link || knowledgeGraph.url);
+    const originalProviderUrl = cleanText(knowledgeGraph.website || knowledgeGraph.link || knowledgeGraph.url);
+    const kgUrl = canonicalizeComparableUrl(originalProviderUrl);
     if (kgUrl) {
       records.push(createSerperProviderRecord({
         provider: "serper_google",
         queryRecord,
         title: knowledgeGraph.title,
         url: kgUrl,
+        originalProviderUrl,
         snippet: knowledgeGraph.description,
         displayedPriceText: "",
         sourceType: "knowledge_graph_reference",
@@ -3918,16 +3935,26 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   };
 }
 
-function createSerperProviderRecord({ provider, queryRecord, title, url, snippet, displayedPriceText, sourceType, position, date = "", delivery = "", imageUrl = "", rating = "", ratingCount = "", merchantName = "", seller = "", offerCondition = "" }) {
+function createSerperProviderRecord({ provider, queryRecord, title, url, originalProviderUrl = url, snippet, displayedPriceText, sourceType, position, date = "", delivery = "", imageUrl = "", rating = "", ratingCount = "", merchantName = "", seller = "", offerCondition = "" }) {
   const canonicalUrl = canonicalizeComparableUrl(url);
-  return {
+  const queryId = cleanText(queryRecord.objectMindQueryId);
+  const sourceRecordId = stableInternalId("provider-source", {
     provider,
+    queryId: queryId || cleanText(queryRecord.query),
+    url: canonicalUrl,
+    sourceType: cleanText(sourceType)
+  }, 16);
+  return {
+    sourceRecordId,
+    provider,
+    providerKey: provider,
+    acquisitionProvider: provider,
     query: cleanText(queryRecord.query),
     searchPass: cleanText(queryRecord.searchPass),
     searchType: cleanText(queryRecord.searchType || "organic_web"),
     providerEndpoint: cleanText(queryRecord.providerEndpoint || (queryRecord.searchType === "shopping" ? "serper_shopping" : "serper_search")),
     marketplaceDomainsRequested: normalizeStringArray(queryRecord.marketplaceDomains, 8),
-    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindQueryId: queryId,
     objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
     objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
     objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
@@ -3937,6 +3964,8 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
     title: cleanText(title || canonicalUrl),
     url: canonicalUrl,
     canonicalUrl,
+    originalProviderUrl: cleanText(originalProviderUrl),
+    originalUrl: cleanText(originalProviderUrl),
     domain: hostnameFromUrl(canonicalUrl),
     snippet: cleanText(snippet),
     merchantName: cleanText(merchantName),
@@ -3951,7 +3980,14 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, snippet
     delivery: cleanText(delivery),
     imageUrl: cleanText(imageUrl),
     rating: cleanText(rating),
-    ratingCount: cleanText(ratingCount)
+    ratingCount: cleanText(ratingCount),
+    sourceExtractionProvenance: [`SERPER_${cleanText(sourceType || "RESULT").toUpperCase()}`],
+    sourceExtractionObservationCount: 1,
+    extractionDisposition: "PRESERVED",
+    normalizationDisposition: canonicalUrl === cleanText(originalProviderUrl) ? "PRESERVED" : "NORMALIZED",
+    enrichmentDisposition: "PENDING",
+    verificationDisposition: "PENDING",
+    canonicalSelectionDisposition: "PENDING"
   };
 }
 
@@ -4453,7 +4489,16 @@ const SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS = Object.freeze([
   "objectMindExactVisibleFactsUsed",
   "objectMindDiscriminatorTested",
   "objectMindPhase",
-  "objectMindProviderLane"
+  "objectMindProviderLane",
+  "originalProviderUrl",
+  "originalProviderUrls",
+  "sourceExtractionProvenance",
+  "sourceExtractionObservationCount",
+  "extractionDisposition",
+  "normalizationDisposition",
+  "enrichmentDisposition",
+  "verificationDisposition",
+  "canonicalSelectionDisposition"
 ]);
 
 function projectSerperSemanticTransportRecord(record = {}) {
@@ -4495,7 +4540,14 @@ function createSerperTransportMergeSeed(record = {}) {
     directPageProvenanceFound: [...new Set([
       record.directPageProvenance,
       record.directPageSource
-    ].filter(Boolean))].sort()
+    ].filter(Boolean))].sort(),
+    sourceExtractionProvenance: normalizeStringArray(record.sourceExtractionProvenance, 8).sort(),
+    sourceExtractionObservationCount: Number(record.sourceExtractionObservationCount || 1),
+    originalProviderUrls: mergeStringArrays(
+      record.originalProviderUrls,
+      [record.originalProviderUrl],
+      8
+    )
   };
 }
 
@@ -4542,6 +4594,20 @@ function coalesceIdenticalSerperTransportRecords(records = []) {
       [record.directPageProvenance, record.directPageSource],
       12
     ).sort();
+    merged.sourceExtractionProvenance = mergeStringArrays(
+      existing.sourceExtractionProvenance,
+      record.sourceExtractionProvenance,
+      8
+    ).sort();
+    merged.sourceExtractionObservationCount = Math.max(
+      Number(existing.sourceExtractionObservationCount || 1),
+      Number(record.sourceExtractionObservationCount || 1)
+    );
+    merged.originalProviderUrls = mergeStringArrays(
+      existing.originalProviderUrls,
+      record.originalProviderUrls || [record.originalProviderUrl],
+      8
+    );
     byTransportIdentity.set(key, merged);
   }
   return [...byTransportIdentity.entries()]
@@ -4657,6 +4723,7 @@ function normalizeSerperLiveSearchResult({ records, rawProviderRecords, searchSt
     providerRequestRecords,
     providerResponseSummaries,
     providerSourceRecords: records.slice(0, 50),
+    sourceAcquisitionRecords: reconcileSourceAcquisitionRecords(rawProviderRecords, records),
     retailEvidenceAssessments,
     sourcesTargeted: buildSourcesTargeted(sourceRoute),
     sourceCategoriesTargeted: buildSourcesTargeted(sourceRoute),
@@ -6716,6 +6783,8 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
     knowledgeGraphResultCount: parsed.knowledgeGraphResultCount,
     relatedSearchCount: parsed.relatedSearchCount,
     parsedCandidateCount: parsed.records.length,
+    resultingCandidateIds: requestRecord.resultingCandidateIds || [],
+    extractionDispositionCounts: requestRecord.extractionDispositionCounts || {},
     retainedResultCount: requestRecord.retainedResultCount || 0,
     qualifiedResultCount: requestRecord.qualifiedResultCount || 0,
     sourceURLsReturned: requestRecord.sourceURLsReturned || [],
@@ -8408,17 +8477,15 @@ function collectMarketplaceDomainsRequested(providerRequestRecords = []) {
 }
 
 function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true, useSearchControls = true }) {
-  const buyerIntakeText = formatBuyerIntakeForPrompt(buyerIntake);
-  const purposeText = researchPurpose === "listing"
-    ? "Generate Listing price-support research."
-    : "Worth Buying buyer-decision research.";
   const researchPromptInternal = [
     "Use web_search for this one exact query only.",
     "Do not replace the query with the whole instruction block.",
     "Do not invent URLs, prices, sources, sold comps, or platforms.",
     "Never describe active asking prices as confirmed sold prices.",
-    "Classify identity match separately from price evidence type.",
-    "Return only source-backed URL results that came from this query, and put weak or irrelevant URL-cited results in rejectedMatches with reasons."
+    "Acquire a bounded set of source-backed candidate pages; do not decide that any candidate is Exact.",
+    "Classify identity match separately from price evidence type, but leave Exact adjudication to the Object Mind.",
+    "Retain unresolved, compatible, similar, and potentially unrelated candidates so the Object Mind can verify them later.",
+    "Return only source-backed URL results that came from this query, and put clearly irrelevant URL-cited results in rejectedMatches with reasons."
   ].join(" ");
   const tool = { type: "web_search" };
   if (useSearchControls) {
@@ -8440,7 +8507,7 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
         content: [
           {
             type: "input_text",
-            text: "You are a query-bound live comparable search executor. Search exactly the supplied query and return structured JSON."
+            text: "You are a purpose-neutral, query-bound source-candidate acquisition executor. Search exactly the supplied query, preserve source URLs, and return structured JSON without declaring exact identity."
           }
         ]
       },
@@ -8451,7 +8518,6 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
             type: "input_text",
             text: [
               researchPromptInternal,
-              `Research purpose: ${purposeText}`,
               `Search query to execute exactly: ${queryRecord.query}`,
               `Search pass: ${queryRecord.searchPass}`,
               queryRecord.allowedDomains?.length
@@ -8459,14 +8525,10 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
                 : "Allowed domains requested: none (open web search).",
               `Query priority: ${queryRecord.priority}`,
               `Source route requested: ${JSON.stringify(sourceRoute)}`,
-              `Marketplace platform context: ${platform || "No platform selected"}`,
-              `Buyer item notes: ${notes || "No additional notes provided."}`,
-              "Guided Buyer Intake:",
-              buyerIntakeText,
-              `Extracted identity: ${JSON.stringify(identity)}`,
-              "Return every source-backed result reviewed in the correct visibility bucket: strongComparables, partialComparables, itemIdentificationEvidence, referenceResults, weakMatches, or rejectedMatches.",
-              "Exact identity matches without a usable visible price belong in itemIdentificationEvidence, not strongComparables.",
-              "Each result string must include source/platform/site, title, visible price if any, URL, match quality, price evidence type, and why it matches or was rejected."
+              `Purpose-neutral extracted identity context: ${JSON.stringify(identity)}`,
+              "Return every source-backed candidate reviewed in a bounded bucket: itemIdentificationEvidence, referenceResults, weakMatches, or rejectedMatches. Use comparable buckets only for provisional price-type grouping, never as an Exact declaration.",
+              "A source without a usable visible price remains an identity candidate and must not disappear.",
+              "Each result string must include source/platform/site, title, visible price if any, URL, observable identity details, price evidence type, uncertainty, and why it remains plausible or was rejected."
             ].join("\n")
           }
         ]
@@ -10947,14 +11009,10 @@ function formatBuyerIntakeForPrompt(buyerIntake) {
 function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), platform = "") {
   const route = [];
   const purchaseContext = normalizePurchaseContext(buyerIntake.purchase_context);
-  const purchaseIntent = cleanText(buyerIntake.purchase_intent);
-  const selectedPlatform = cleanText(platform);
   const itemCondition = cleanText(buyerIntake.item_condition);
   const conditionConcerns = Array.isArray(buyerIntake.condition_concerns) ? buyerIntake.condition_concerns.join(" ") : "";
   const haystack = [
-    selectedPlatform,
     purchaseContext,
-    purchaseIntent,
     itemCondition,
     conditionConcerns,
     buyerIntake.item_name,
@@ -11023,7 +11081,6 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
 
   const hasIdentifier = hasKnownValue(identity.upcBarcode) || hasKnownValue(identity.model) || hasKnownValue(identity.sku) || hasKnownValue(identity.styleNumber);
   const hasKnownIntakeIdentifier = Boolean(getSearchBarcodeDigits(identity, buyerIntake)) || hasKnownValue(buyerIntake.known_model) || hasKnownValue(buyerIntake.known_sku);
-  const hasResaleIntent = isResaleIntent(purchaseIntent);
   const isSeasonalDecor = /santa|christmas|holiday|seasonal|workshop|hubbard|figurine|boxed|box|resin|ceramic.*figure|decor/.test(haystack);
   const isApparel = /apparel|fashion|dress|shirt|jacket|shoe|pants|skirt|size|style/.test(haystack);
   const isElectronics = /electronics|computer|laptop|tablet|phone|model|processor|battery|charger|refurb/.test(haystack);
@@ -11039,7 +11096,9 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
   const isLocalPrivateContext = isLocalPrivatePurchaseContext(purchaseContext);
   const isOnlineRetailerContext = isOnlineRetailerPurchaseContext(purchaseContext);
   const isResaleMarketplaceContext = isResaleMarketplacePurchaseContext(purchaseContext);
-  const isLocalResalePlatform = hasResaleIntent && /facebook marketplace|craigslist|offerup|local/.test(selectedPlatform.toLowerCase());
+  const hasSecondhandAcquisitionContext = isSecondhandContext
+    || isLocalPrivateContext
+    || isResaleMarketplaceContext;
   const isRetailCurrent = isRetailContext || isOnlineRetailerContext || hasIdentifier || hasKnownIntakeIdentifier || /retail|current|new with tags|brand site|manufacturer|upc|sku|barcode/.test(haystack);
 
   if (isRetailContext) {
@@ -11084,7 +11143,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     return route;
   }
 
-  if (isLocalPrivateContext || isLocalResalePlatform || isFurniture) {
+  if (isLocalPrivateContext || isFurniture) {
     route.push("Facebook Marketplace-style local value logic", "Craigslist / OfferUp / local pickup resale", "local consignment logic");
     if (isElectronics) {
       route.push("electronics model-number sources for better-price checks");
@@ -11103,7 +11162,7 @@ function routeMarketSources(identity, buyerIntake = normalizeBuyerIntake({}), pl
     return route;
   }
 
-  if ((isSecondhandContext || hasResaleIntent) && (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isBrandedMemorabilia || isPromotionalCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
+  if (hasSecondhandAcquisitionContext && (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isBrandedMemorabilia || isPromotionalCollectible || isCookieJarOrContainer || !isRetailCurrent)) {
     route.push("secondhand resale results", "vintage and collector sources", "specialty reference sources", "exact-label web results");
     if (isSeasonalDecor || isVintageCollectible || isOrganizationCollectible || isCookieJarOrContainer) {
       route.push(
@@ -12179,6 +12238,13 @@ function sanitizeProviderRequestRecord(record = {}) {
     knowledgeGraphResultCount: Number(record.knowledgeGraphResultCount || 0),
     domainsReturned: normalizeStringArray(record.domainsReturned, 8),
     sourceURLsReturned: normalizeStringArray(record.sourceURLsReturned, 12),
+    resultingCandidateIds: normalizeStringArray(record.resultingCandidateIds, 12),
+    extractionDispositionCounts: countControlledDispositions(
+      Object.entries(record.extractionDispositionCounts || {}).flatMap(([disposition, count]) => (
+        Array.from({ length: Math.max(0, Math.min(50, Number(count || 0))) }, () => ({ disposition }))
+      )),
+      "disposition"
+    ),
     rawResultCount: Number(record.rawResultCount || 0),
     parsedResultCount: Number(record.parsedResultCount || 0),
     normalizedResultCount: Number(record.normalizedResultCount || 0),
@@ -12221,6 +12287,13 @@ function sanitizeProviderResponseSummary(summary = {}) {
     knowledgeGraphResultCount: Number(summary.knowledgeGraphResultCount || 0),
     relatedSearchCount: Number(summary.relatedSearchCount || 0),
     parsedCandidateCount: Number(summary.parsedCandidateCount || 0),
+    resultingCandidateIds: normalizeStringArray(summary.resultingCandidateIds, 12),
+    extractionDispositionCounts: countControlledDispositions(
+      Object.entries(summary.extractionDispositionCounts || {}).flatMap(([disposition, count]) => (
+        Array.from({ length: Math.max(0, Math.min(50, Number(count || 0))) }, () => ({ disposition }))
+      )),
+      "disposition"
+    ),
     normalizedResultCount: Number(summary.normalizedResultCount || 0),
     retainedResultCount: Number(summary.retainedResultCount || 0),
     qualifiedResultCount: Number(summary.qualifiedResultCount || 0),
@@ -13928,6 +14001,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
         acceptedSources: finalEvidenceResult.acceptedRecords,
         rejectedSources: finalEvidenceResult.rejectedRecords,
         customerVisibleSources: finalEvidenceResult.customerEvidence,
+        sourceAcquisitionRecords: liveSearch.sourceAcquisitionRecords || [],
         subsystemOutcomeFlags: {
           purposeNeutralIdentityFrozen: Boolean(finalObjectMindState.identityStateHash),
           exactIdentityResolved: finalObjectMindState.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",
@@ -19362,9 +19436,12 @@ function collectUrlCitations(data) {
     for (const content of item.content || []) {
       for (const annotation of content.annotations || []) {
         if (annotation.type === "url_citation" && annotation.url) {
+          const originalProviderUrl = cleanText(annotation.url);
           citations.push({
-            url: normalizeUrl(annotation.url),
-            title: cleanText(annotation.title || annotation.url)
+            url: canonicalizeComparableUrl(originalProviderUrl),
+            originalProviderUrl,
+            title: cleanText(annotation.title || annotation.url),
+            annotationType: "url_citation"
           });
         }
       }
@@ -19416,8 +19493,11 @@ function collectWebSearchSourceRecords(data, queryRecord = {}) {
   const records = [];
   for (const call of collectWebSearchCalls(data)) {
     const actionSources = call.action && Array.isArray(call.action.sources) ? call.action.sources : [];
-    for (const source of actionSources) {
-      const record = normalizeProviderSourceRecord(source, queryRecord);
+    for (const [sourceIndex, source] of actionSources.entries()) {
+      const record = normalizeProviderSourceRecord(source, queryRecord, {
+        extractionProvenance: "WEB_SEARCH_ACTION_SOURCE",
+        sourceIndex
+      });
       if (record.url || record.title || record.domain) {
         records.push(record);
       }
@@ -19426,68 +19506,179 @@ function collectWebSearchSourceRecords(data, queryRecord = {}) {
   return dedupeProviderSourceRecords(records).slice(0, 50);
 }
 
-function normalizeProviderSourceRecord(source, queryRecord = {}) {
+function providerSourceDisposition(originalProviderUrl, canonicalUrl) {
+  if (canonicalUrl) return "PRESERVED";
+  if (!originalProviderUrl) return "MALFORMED";
+  return /^https?:\/\//i.test(originalProviderUrl) ? "MALFORMED" : "DISALLOWED";
+}
+
+function normalizeProviderSourceRecord(source, queryRecord = {}, {
+  extractionProvenance = "WEB_SEARCH_ACTION_SOURCE",
+  sourceIndex = 0
+} = {}) {
   const value = typeof source === "string" ? { title: source, url: extractFirstUrl(source) } : source || {};
-  const url = normalizeUrl(cleanText(value.url || value.link || value.uri || ""));
+  const originalProviderUrl = cleanText(value.url || value.link || value.uri || "");
+  const url = canonicalizeComparableUrl(originalProviderUrl);
   const title = cleanText(value.title || value.name || value.source || value.site || url || "");
   const snippet = cleanText(value.snippet || value.description || value.text || value.summary || "");
+  const displayedPriceText = extractDisplayedPrice([title, snippet].join(" "));
   const domain = hostnameFromUrl(url) || sourceLabel(title);
+  const extractionDisposition = providerSourceDisposition(originalProviderUrl, url);
+  const normalizationDisposition = url
+    ? url === originalProviderUrl ? "PRESERVED" : "NORMALIZED"
+    : extractionDisposition;
+  const queryId = cleanText(queryRecord.objectMindQueryId);
+  const sourceRecordId = stableInternalId("provider-source", {
+    provider: "openai_web_search",
+    queryId: queryId || cleanText(queryRecord.query),
+    url: url || originalProviderUrl,
+    title
+  }, 16);
   return {
+    sourceRecordId,
+    provider: "openai_web_search",
+    providerKey: "openai_web_search",
+    acquisitionProvider: "openai_web_search",
+    providerEndpoint: "openai_web_search",
     title,
     url,
+    canonicalUrl: url,
+    originalProviderUrl,
+    originalUrl: originalProviderUrl,
     domain,
     source: domain || title,
     snippet,
-    displayedPriceText: extractDisplayedPrice([title, snippet].join(" ")),
+    displayedPriceText,
+    parsedPrice: parseDisplayedPrice(displayedPriceText),
+    currency: displayedPriceText ? "$" : "",
+    sourceType: "structured_source_candidate",
+    pageType: url && !isLikelyCategoryOrSearchPageUrl(url) ? "product_or_listing" : "reference",
     query: cleanText(queryRecord.query),
     searchPass: cleanText(queryRecord.searchPass),
     allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8),
-    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
+    objectMindQueryId: queryId,
     objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
     objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
     objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
     objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
     objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
-    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane)
+    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
+    sourceExtractionProvenance: [extractionProvenance],
+    sourceExtractionObservationCount: 1,
+    sourceExtractionIndex: Number(sourceIndex || 0),
+    extractionDisposition,
+    normalizationDisposition,
+    enrichmentDisposition: url ? "PENDING" : "NOT_ENRICHABLE",
+    verificationDisposition: "PENDING",
+    canonicalSelectionDisposition: "PENDING"
   };
 }
 
-function sourceRecordFromCitation(citation, queryRecord = {}) {
-  const url = normalizeUrl(citation.url);
-  const title = cleanText(citation.title || url);
-  const domain = hostnameFromUrl(url) || sourceLabelFromCitation(citation);
+function sourceRecordFromCitation(citation, queryRecord = {}, sourceIndex = 0) {
+  return normalizeProviderSourceRecord({
+    title: citation.title,
+    url: citation.originalProviderUrl || citation.url,
+    snippet: "Structured URL citation returned by provider."
+  }, queryRecord, {
+    extractionProvenance: "URL_CITATION_ANNOTATION",
+    sourceIndex
+  });
+}
+
+function mergeProviderSourceRecords(existing = {}, incoming = {}) {
+  const preferred = cleanText(incoming.snippet).length > cleanText(existing.snippet).length
+    ? { ...existing, ...incoming }
+    : { ...incoming, ...existing };
   return {
-    title,
-    url,
-    domain,
-    source: domain || title,
-    snippet: "URL citation returned by provider.",
-    displayedPriceText: "",
-    query: cleanText(queryRecord.query),
-    searchPass: cleanText(queryRecord.searchPass),
-    allowedDomains: normalizeStringArray(queryRecord.allowedDomains, 8),
-    objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
-    objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
-    objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
-    objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
-    objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
-    objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
-    objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane)
+    ...preferred,
+    sourceRecordId: existing.sourceRecordId || incoming.sourceRecordId,
+    sourceExtractionProvenance: mergeStringArrays(
+      existing.sourceExtractionProvenance,
+      incoming.sourceExtractionProvenance,
+      8
+    ).sort(),
+    sourceExtractionObservationCount: Number(existing.sourceExtractionObservationCount || 1)
+      + Number(incoming.sourceExtractionObservationCount || 1),
+    originalProviderUrls: mergeStringArrays(
+      existing.originalProviderUrls || [existing.originalProviderUrl],
+      incoming.originalProviderUrls || [incoming.originalProviderUrl],
+      8
+    ),
+    extractionDisposition: "PRESERVED",
+    normalizationDisposition: existing.normalizationDisposition === "NORMALIZED" || incoming.normalizationDisposition === "NORMALIZED"
+      ? "NORMALIZED"
+      : "PRESERVED"
   };
+}
+
+function collectStructuredProviderSourceRecords(data, queryRecord = {}) {
+  const actionRecords = collectWebSearchSourceRecords(data, queryRecord);
+  const citationRecords = collectUrlCitations(data).map((citation, index) => (
+    sourceRecordFromCitation(citation, queryRecord, index)
+  ));
+  return dedupeProviderSourceRecords([...actionRecords, ...citationRecords]).slice(0, 12);
 }
 
 function dedupeProviderSourceRecords(records = []) {
-  const seen = new Set();
-  const output = [];
+  const bySource = new Map();
   for (const record of records) {
-    const key = `${record.url || ""}|${record.title || ""}|${record.query || ""}`.toLowerCase();
-    if (!key.trim() || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    output.push(record);
+    const canonicalUrl = canonicalizeComparableUrl(record.canonicalUrl || record.url || record.originalProviderUrl);
+    const queryOwner = cleanText(record.objectMindQueryId || record.query).toLowerCase();
+    const provider = cleanText(record.providerKey || record.provider).toLowerCase();
+    const fallbackIdentity = cleanText(record.title || record.domain).toLowerCase();
+    const key = `${provider}|${queryOwner}|${canonicalUrl || fallbackIdentity}`;
+    if (!key.replace(/\|/g, "").trim()) continue;
+    const normalizedRecord = {
+      ...record,
+      url: canonicalUrl,
+      canonicalUrl,
+      normalizationDisposition: canonicalUrl
+        ? record.normalizationDisposition || "PRESERVED"
+        : record.normalizationDisposition || providerSourceDisposition(record.originalProviderUrl, canonicalUrl)
+    };
+    const existing = bySource.get(key);
+    bySource.set(key, existing ? mergeProviderSourceRecords(existing, normalizedRecord) : normalizedRecord);
   }
-  return output;
+  return [...bySource.values()];
+}
+
+function countControlledDispositions(records = [], field = "finalDisposition") {
+  const counts = {};
+  for (const record of records) {
+    const disposition = cleanText(record[field] || "UNKNOWN");
+    counts[disposition] = Number(counts[disposition] || 0) + 1;
+  }
+  return counts;
+}
+
+function reconcileSourceAcquisitionRecords(acquisitionRecords = [], normalizedRecords = []) {
+  const normalizedByObservationId = new Map();
+  for (const record of normalizedRecords) {
+    for (const sourceId of [record.sourceRecordId, ...(record.observationIds || [])].filter(Boolean)) {
+      normalizedByObservationId.set(sourceId, record);
+    }
+  }
+  return dedupeProviderSourceRecords(acquisitionRecords).map((record) => {
+    const normalized = normalizedByObservationId.get(record.sourceRecordId)
+      || normalizedRecords.find((candidate) => (
+        candidate.canonicalUrl === record.canonicalUrl
+        && (candidate.query === record.query || (candidate.queriesFound || []).includes(record.query))
+      ));
+    const verificationDisposition = cleanText(
+      normalized?.objectMindVerificationState
+      || normalized?.objectMindClassification
+      || "NOT_VERIFIED"
+    );
+    return {
+      ...record,
+      normalizationDisposition: normalized
+        ? record.normalizationDisposition === "NORMALIZED" ? "NORMALIZED_AND_PRESERVED" : "PRESERVED"
+        : record.normalizationDisposition,
+      enrichmentDisposition: normalized ? "PASSED_TO_ENRICHMENT" : record.enrichmentDisposition || "NOT_ENRICHABLE",
+      verificationDisposition,
+      canonicalSelectionDisposition: "PENDING"
+    };
+  });
 }
 
 function summarizeSourceLabels(sources) {
@@ -19663,6 +19854,10 @@ export const __queryIntegrityTestHooks = {
   serperTransportSetFields: [...SERPER_TRANSPORT_SET_FIELDS].sort(),
   serperTransportSetPaths: [...SERPER_TRANSPORT_SET_PATHS].sort(),
   parseSerperResponse,
+  collectStructuredProviderSourceRecords,
+  reconcileSourceAcquisitionRecords,
+  canonicalizeComparableUrl,
+  createQueryBoundLiveSearchPayload,
   isStrongComparableEvidenceRecord,
   isNoPriceIdentityReference,
   cleanSerperQuery,
