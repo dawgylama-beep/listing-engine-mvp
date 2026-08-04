@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "RUN-007",
+  "objectId": "OBJ-007",
+  "requestSha256": "78f4239fbc74eb3e8bdea5b31bdd774f0abac10548f5bcce6ea94ea2206ebe81",
+  "handlerStatus": {
+    "statusCode": 502,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    }
+  },
+  "startTimestamp": "2026-08-04T17:28:44.819Z",
+  "endTimestamp": "2026-08-04T17:28:45.183Z",
+  "elapsedMilliseconds": 364.5446000000229,
+  "rawHandlerBodyBase64": "eyJlcnJvciI6IkthdGhlcmluZeKAmXMgRXllIGNvdWxkIG5vdCBjb21wbGV0ZSB0aGUgYW5hbHlzaXMgcmlnaHQgbm93LiBQbGVhc2UgdHJ5IGFnYWluIHNob3J0bHkuIn0=",
+  "rawProductResponse": {
+    "error": "Katherine’s Eye could not complete the analysis right now. Please try again shortly."
+  },
+  "customerFacingReport": {
+    "error": "Katherine’s Eye could not complete the analysis right now. Please try again shortly."
+  },
+  "providerAndSearchErrors": [
+    {
+      "path": "error",
+      "value": "Katherine’s Eye could not complete the analysis right now. Please try again shortly."
+    }
+  ],
+  "providerCallCounts": {},
+  "evidenceRecords": [],
+  "sourceUrls": [],
+  "responseSha256": "9ef6d260a8cf255f6e6ae40900c7b1319b7ba3390b5d03dd09a932964e0601a9"
+}

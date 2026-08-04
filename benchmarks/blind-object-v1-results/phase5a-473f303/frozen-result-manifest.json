@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 1,
+  "executorId": "blind-object-v1-execution-v1",
+  "productCommit": "473f3037751a0b01504a84e1aa61e8135e28ac8f",
+  "benchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
+  "corpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
+  "contractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
+  "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581",
+  "requestCount": 26,
+  "responseCount": 26,
+  "runIds": [
+    "RUN-001",
+    "RUN-002",
+    "RUN-003",
+    "RUN-004",
+    "RUN-005",
+    "RUN-006",
+    "RUN-007",
+    "RUN-008",
+    "RUN-009",
+    "RUN-010",
+    "RUN-011",
+    "RUN-012",
+    "RUN-013",
+    "RUN-014",
+    "RUN-015",
+    "RUN-016",
+    "RUN-017",
+    "RUN-018",
+    "RUN-019",
+    "RUN-020",
+    "RUN-021",
+    "RUN-022",
+    "RUN-023",
+    "RUN-024",
+    "RUN-025",
+    "RUN-026"
+  ],
+  "requests": [
+    {
+      "runId": "RUN-001",
+      "path": "requests/RUN-001.json",
+      "fileSha256": "d7f6217b50483c2e44aad479c957462c43db3e64629dcbf7b2396d3b05d45f6f"
+    },
+    {
+      "runId": "RUN-002",
+      "path": "requests/RUN-002.json",
+      "fileSha256": "4e607d185ad191d4a1bfa9c85deb67d4467ae5205c8a79c734dc20e248d70fff"
+    },
+    {
+      "runId": "RUN-003",
+      "path": "requests/RUN-003.json",
+      "fileSha256": "dd34adf4a8968f4aafc6c6bb311efe7835c6b564c733b205f617ac33b9aff2c7"
+    },
+    {
+      "runId": "RUN-004",
+      "path": "requests/RUN-004.json",
+      "fileSha256": "6c9ae41f0c761261c251796cffe1684f86f53d1a94f0af6e9b2125c421ba1d11"
+    },
+    {
+      "runId": "RUN-005",
+      "path": "requests/RUN-005.json",
+      "fileSha256": "1536d9a6dd5164c539af127852cb930dd7216b53b0f92a6fa06fc5daab8440b6"
+    },
+    {
+      "runId": "RUN-006",
+      "path": "requests/RUN-006.json",
+      "fileSha256": "f45b4a1985522a3feeafbc01e762a009843820a33acf142de787fe9b52f9099c"
+    },
+    {
+      "runId": "RUN-007",
+      "path": "requests/RUN-007.json",
+      "fileSha256": "97ab8b2fbd66b77ad46ce7f9e71dc321f13d371625dd77526035a95642951ab8"
+    },
+    {
+      "runId": "RUN-008",
+      "path": "requests/RUN-008.json",
+      "fileSha256": "a853e48008eed749b03fa3ff11dcf8f0b2eb51960da0256b6e9a916c86d53f39"
+    },
+    {
+      "runId": "RUN-009",
+      "path": "requests/RUN-009.json",
+      "fileSha256": "dd54759a3f49cae8689822abf3f62a13f89cebeaed854c0341826f6961c820db"
+    },
+    {
+      "runId": "RUN-010",
+      "path": "requests/RUN-010.json",
+      "fileSha256": "7bb4423b362589b1fa12745c114e7a25cdd8e6a00465a543b207008686930e45"
+    },
+    {
+      "runId": "RUN-011",
+      "path": "requests/RUN-011.json",
+      "fileSha256": "029898535bf69ddf4b08adaa368cc00f0c5d859c9b57fa9cab998b855d2a1232"
+    },
+    {
+      "runId": "RUN-012",
+      "path": "requests/RUN-012.json",
+      "fileSha256": "1da5656c29d74ab48de9be48a25fb5dd1e89128cea7b06ddc51a57d3f902ad35"
+    },
+    {
+      "runId": "RUN-013",
+      "path": "requests/RUN-013.json",
+      "fileSha256": "1ddd19a15ecc7e6197ee7154ecfd2569a5246fe1824786eae0cb520639fb977f"
+    },
+    {
+      "runId": "RUN-014",
+      "path": "requests/RUN-014.json",
+      "fileSha256": "f16efe8f201e481f85e9b755b01a5b03bd0e3927a07409fcc32b255bdffd95d6"
+    },
+    {
+      "runId": "RUN-015",
+      "path": "requests/RUN-015.json",
+      "fileSha256": "e99be07749fe81d80d93c20c31b93fd197dc69260229287fd5f26031a2582843"
+    },
+    {
+      "runId": "RUN-016",
+      "path": "requests/RUN-016.json",
+      "fileSha256": "efc6c80fbcfa3c0e7a7e90d1822409fc3c7c796e704f61885b180f6a946ce919"
+    },
+    {
+      "runId": "RUN-017",
+      "path": "requests/RUN-017.json",
+      "fileSha256": "33f17e72c08b4f67cb151e1cf88a89a09825abdcb494a7a6c257bbc4ecd326e5"
+    },
+    {
+      "runId": "RUN-018",
+      "path": "requests/RUN-018.json",
+      "fileSha256": "dedd5643ca715e157169bc4dc305a69ebc8fe97b1f6d93d74b5f081bb5795930"
+    },
+    {
+      "runId": "RUN-019",
+      "path": "requests/RUN-019.json",
+      "fileSha256": "4e4a2364e284b2e2745bfea1cebf28042d58d7d3dc5fd898ab760f007cd912dd"
+    },
+    {
+      "runId": "RUN-020",
+      "path": "requests/RUN-020.json",
+      "fileSha256": "544d822917cf447d438269142befdd83007f3d7cd2815a658310d83baaf5073e"
+    },
+    {
+      "runId": "RUN-021",
+      "path": "requests/RUN-021.json",
+      "fileSha256": "7d3260563c41a1fca69aa3630156e1451ed3b12516e9a39b21fd9340799864e9"
+    },
+    {
+      "runId": "RUN-022",
+      "path": "requests/RUN-022.json",
+      "fileSha256": "d925ef66a863817839be2a1e4cc6e2b3e339bf91710dc50bccc25d602889a420"
+    },
+    {
+      "runId": "RUN-023",
+      "path": "requests/RUN-023.json",
+      "fileSha256": "940d4afd9b14ed7f603f3b431e375ff99123f7db69e2db4c2882098d413dd4f3"
+    },
+    {
+      "runId": "RUN-024",
+      "path": "requests/RUN-024.json",
+      "fileSha256": "f3b06e5a37805771fe15aa08e0d98dd31ec2cd7397e2f51a35cc5f104eab14fc"
+    },
+    {
+      "runId": "RUN-025",
+      "path": "requests/RUN-025.json",
+      "fileSha256": "93f9102ff9eef6f551fd6e784d2ab70fc35b03b4ad83fd66af83db66a429577f"
+    },
+    {
+      "runId": "RUN-026",
+      "path": "requests/RUN-026.json",
+      "fileSha256": "daac652283c7800d56530af856a1716b00703565ecdf4999447b5d793392b1dd"
+    }
+  ],
+  "responses": [
+    {
+      "runId": "RUN-001",
+      "path": "responses/RUN-001.json",
+      "fileSha256": "92661c91e7a5995d6980c3bce22208f7f35cc5569b811a6c6ebed374fe9d5007"
+    },
+    {
+      "runId": "RUN-002",
+      "path": "responses/RUN-002.json",
+      "fileSha256": "2c6fa17168384e8c6f982a3c344a2d817479bdb642e7d4a323f81aecb00bbc81"
+    },
+    {
+      "runId": "RUN-003",
+      "path": "responses/RUN-003.json",
+      "fileSha256": "98eeb0bd53c77d909edda989a4f002f3c55b31b2ccf1d6ff15e2d8210a142f21"
+    },
+    {
+      "runId": "RUN-004",
+      "path": "responses/RUN-004.json",
+      "fileSha256": "36d055dfe621a271373fc42898e2dc13ffb3e15fd6dd018e2228301d199659b2"
+    },
+    {
+      "runId": "RUN-005",
+      "path": "responses/RUN-005.json",
+      "fileSha256": "870651d1adc4246921d51ea90967102adf8b1fe1e34e15faa7f0bb4d13a59a53"
+    },
+    {
+      "runId": "RUN-006",
+      "path": "responses/RUN-006.json",
+      "fileSha256": "5a39435e76d2a724cfa497b1bea5062c08f5173d9d3731b292a0e96c74271fc7"
+    },
+    {
+      "runId": "RUN-007",
+      "path": "responses/RUN-007.json",
+      "fileSha256": "d874dfa9f6280b1367f34b222c270cda0d4472200c5123a1f142f4897440ab9d"
+    },
+    {
+      "runId": "RUN-008",
+      "path": "responses/RUN-008.json",
+      "fileSha256": "36012a417a04326c33fd6d18eefb43052e6bd7105a4bb537f07f8f38bf0ba261"
+    },
+    {
+      "runId": "RUN-009",
+      "path": "responses/RUN-009.json",
+      "fileSha256": "15db69a3ddf8bf67afe184b65ee02fa2bbd3f5a4f4bfb957088cf51a75ed58a8"
+    },
+    {
+      "runId": "RUN-010",
+      "path": "responses/RUN-010.json",
+      "fileSha256": "4bdda2ebb6e43e4c65aa68f7d65e117d8724960cfd408be76dfae6107537094b"
+    },
+    {
+      "runId": "RUN-011",
+      "path": "responses/RUN-011.json",
+      "fileSha256": "ae898af401b2aa592e67185e498dcfcd5e43f98a8f48cfc14a112eb17d3060a0"
+    },
+    {
+      "runId": "RUN-012",
+      "path": "responses/RUN-012.json",
+      "fileSha256": "ae672dbb2db0495687bdcc613e231104c6de6f336dde3883d86907681325993f"
+    },
+    {
+      "runId": "RUN-013",
+      "path": "responses/RUN-013.json",
+      "fileSha256": "9d39f46a362ae163e9442126f6952d302cd9802dadd874438802bb319a992ef7"
+    },
+    {
+      "runId": "RUN-014",
+      "path": "responses/RUN-014.json",
+      "fileSha256": "911d68dc52a6cc131bfd4481af7fba9809652f8a703792a2efb9f4ca3324663e"
+    },
+    {
+      "runId": "RUN-015",
+      "path": "responses/RUN-015.json",
+      "fileSha256": "5727707580d7fc444d4d21cd245c2e8fd1ab8c85a3a7d83f9047a0f8669d0fc2"
+    },
+    {
+      "runId": "RUN-016",
+      "path": "responses/RUN-016.json",
+      "fileSha256": "2f575a9f7ceb51f696411bf1d961bf7f56e445886d6c493b52010058e2e0625e"
+    },
+    {
+      "runId": "RUN-017",
+      "path": "responses/RUN-017.json",
+      "fileSha256": "18bd80202c9a4d7dcf756b5902b7cba9911f76738f35cec8f61e1164b66e5a41"
+    },
+    {
+      "runId": "RUN-018",
+      "path": "responses/RUN-018.json",
+      "fileSha256": "dedc6d54f3439a97aac08b6b731ee27e44484b33c17a05f8e1766b74a23c8858"
+    },
+    {
+      "runId": "RUN-019",
+      "path": "responses/RUN-019.json",
+      "fileSha256": "411983ba894a87b0948c9130592f6a4e73907fbef7e7fad455a2072fe21ab7a8"
+    },
+    {
+      "runId": "RUN-020",
+      "path": "responses/RUN-020.json",
+      "fileSha256": "5f0daf3ad46bd65830c98e5aeba9f5deb789b0ba54155dffe1ef8c52daf1265b"
+    },
+    {
+      "runId": "RUN-021",
+      "path": "responses/RUN-021.json",
+      "fileSha256": "7c7a0329650428c0a96ee5176e54b251340775dbbd3e36d350c120a9de9f208e"
+    },
+    {
+      "runId": "RUN-022",
+      "path": "responses/RUN-022.json",
+      "fileSha256": "467a39b31e8bbe36d51d851afa51c3863732bccc13d84c75baea430aa8091a22"
+    },
+    {
+      "runId": "RUN-023",
+      "path": "responses/RUN-023.json",
+      "fileSha256": "32aadcad4c55f0ed60a5bd59edebe0a154be7196ddd5d2a3304283fa8bdb359f"
+    },
+    {
+      "runId": "RUN-024",
+      "path": "responses/RUN-024.json",
+      "fileSha256": "aaa194822737e4124f43bdaa03724ab5dfb1b5b3fde78250c4cdef4ec68b1464"
+    },
+    {
+      "runId": "RUN-025",
+      "path": "responses/RUN-025.json",
+      "fileSha256": "ab07c92a4259b3cc69e3c36c04645ac2c9fc78a922f48c8d76d88b2f677a41f6"
+    },
+    {
+      "runId": "RUN-026",
+      "path": "responses/RUN-026.json",
+      "fileSha256": "35bc25d7a21b62ac05219cad69946ba05de6f2190c3865841491e1eeb0a1baff"
+    }
+  ],
+  "journalSha256": "22430e9d5cde75ac0cd2ecebf32d6f07da31eac45811b559376dce70ad3ad4bb",
+  "aggregateResultSha256": "6d484ef11ca21c68e5a3937ead300afcb0fc729a7f7c7e22b9e0998d1d22a3a5",
+  "rawResponseFreezeTimestamp": "2026-08-04T17:59:30.078Z",
+  "gradingPermitted": true
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-025",
+  "runType": "ANCHOR_PURPOSE",
+  "identityInvariantGroup": "ANCHOR-OBJ-014",
+  "caseId": "OBJ-014",
+  "purpose": "RESALE",
+  "responseHash": "e7070e4f4a1e53f2f38805b5da29f40595dbee1e14ba9988af26e76036eabec9",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 20,
+    "uncertaintyAndAlternatives": 0,
+    "exactEvidenceRecovery": 15,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 5,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 50,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "CONFIDENT_FALSE_EXACT_ON_AMBIGUOUS_CASE",
+      "detail": "An unresolved function was asserted as exact or above the frozen confidence ceiling.",
+      "critical": true
+    },
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "50 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 1,
+  "metrics": {
+    "identityCapable": true,
+    "exactEligible": false,
+    "exactRecoveredAndDistractorRejected": null,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": null,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "roman-pentagonal-dodecahedron-function-unresolved",
+    "confidentFalseExactCount": 1,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}

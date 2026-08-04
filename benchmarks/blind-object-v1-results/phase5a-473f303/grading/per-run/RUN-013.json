@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "blind-object-v1",
+  "runId": "RUN-013",
+  "runType": "PRINCIPAL",
+  "identityInvariantGroup": null,
+  "caseId": "OBJ-013",
+  "purpose": "MARKETPLACE_LISTING",
+  "responseHash": "bc1a36dd99c0badaa78ffb6cdd65f49298786a955b3f0467213b3bc6a304f204",
+  "eventTrace": [
+    "RESPONSE_FINALIZED_AND_HASHED",
+    "PRIVATE_ANSWER_KEY_LOADED",
+    "DETERMINISTIC_SCORING_COMPLETED"
+  ],
+  "answerKeyLoadedOnlyAfterResponseHash": true,
+  "breakdown": {
+    "identity": 0,
+    "uncertaintyAndAlternatives": 5,
+    "exactEvidenceRecovery": 15,
+    "evidenceAssociation": 10,
+    "marketInterpretationAndValuation": 0,
+    "purposeSpecificJudgment": 0,
+    "practicalActionPlan": 0,
+    "confidenceCalibration": 0
+  },
+  "totalScore": 30,
+  "passed": false,
+  "failureReport": [
+    {
+      "code": "UNSAFE_DAMAGED_OBJECT_RECOMMENDATION",
+      "detail": "The required remove-from-service disposition was not preserved.",
+      "critical": true
+    },
+    {
+      "code": "OVERALL_SCORE_BELOW_THRESHOLD",
+      "detail": "30 is below 80.",
+      "critical": false
+    }
+  ],
+  "criticalFailureCount": 1,
+  "metrics": {
+    "identityCapable": false,
+    "exactEligible": false,
+    "exactRecoveredAndDistractorRejected": null,
+    "evidenceAssociationsCorrect": 0,
+    "evidenceAssociationsTotal": 0,
+    "distractorRejected": null,
+    "actionElementsMatched": 0,
+    "actionElementsRequired": 5,
+    "confidenceCalibrated": false,
+    "reportedIdentityKey": "unmapped-product-identity",
+    "confidentFalseExactCount": 0,
+    "wrongKnownAnswerSubstitutionCount": 0,
+    "inventedSourceOrTransactionFactCount": 0
+  }
+}
