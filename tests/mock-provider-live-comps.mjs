@@ -1,4 +1,9 @@
 import handler, { __queryIntegrityTestHooks } from "../api/generate-listing.js";
+import {
+  applyObjectEvidenceVerification,
+  createObjectMindState,
+  createPurposeNeutralObjectInput
+} from "../lib/object-intelligence/index.js";
 
 const leakedPhrase = "Perform source-routed live comparable search";
 const originalFetch = globalThis.fetch;
@@ -672,6 +677,15 @@ try {
     identityConflictNotes: []
   };
   const officeWorksIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch(officeWorksExtractedIdentity, officeWorksIntake);
+  const officeWorksObjectMindState = createObjectMindState({
+    analysisId: "phase5b-mock-retail-exactness",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: officeWorksIntake.buyer_notes,
+      buyerIntake: officeWorksIntake
+    }),
+    extractedIdentity: officeWorksIdentity
+  });
   assert(/Office Works Security Envelopes/i.test(officeWorksIdentity.canonicalProductIdentity.customerFacingTitle), "Canonical identity should preserve Office Works security envelopes.");
   assert(/poster print/i.test(JSON.stringify(officeWorksIdentity.canonicalProductIdentity.conflictingCandidatesRejected)), "Conflicting poster print should be retained only as a rejected diagnostic.");
   assert(!officeWorksIdentity.canonicalProductIdentity.userConfirmationRequired, "Strong UPC/OCR/package evidence should resolve weak visual conflict without interrupting the user.");
@@ -927,6 +941,10 @@ try {
   const enrichedOfficeWorksExactPage = __queryIntegrityTestHooks.enrichExactRetailPageRecord(officeWorksExactPage, officeWorksContext);
   assert(enrichedOfficeWorksExactPage.exactRetailPage === true && enrichedOfficeWorksExactPage.parsedPrice === 2.99, "Likely exact retailer product pages should be enriched and preserve current item price.");
   assert(__queryIntegrityTestHooks.isLikelyExactRetailProductPage(enrichedOfficeWorksExactPage, officeWorksContext), "Exact retailer page recovery should identify product-page URLs with equivalent UPC/GTIN support.");
+  const verifiedOfficeWorksExactPage = applyObjectEvidenceVerification(
+    officeWorksObjectMindState,
+    [enrichedOfficeWorksExactPage]
+  )[0];
   const lowerCompatibleOfficeOffer = retailRecord({
     title: "Security Envelopes Strip and Seal 50 Count",
     domain: "staples.com",
@@ -940,7 +958,8 @@ try {
     snippet: "Current price $1.99. 50 count. Free shipping."
   });
   const exactAndCompatiblePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
-    providerSourceRecords: [lowerCompatibleOfficeOffer, enrichedOfficeWorksExactPage],
+    objectMindState: officeWorksObjectMindState,
+    providerSourceRecords: [lowerCompatibleOfficeOffer, verifiedOfficeWorksExactPage],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
   assert(/kroger/i.test(exactAndCompatiblePrices[0]?.retailerDisplayName || "") && exactAndCompatiblePrices[0].itemPrice === "$2.99", "Exact retailer product price should outrank a cheaper compatible alternative in Where to Buy.");
@@ -948,15 +967,18 @@ try {
   assert(exactAndCompatiblePrices.some((record) => /45-count and 50-count packages.*unit-price comparison/i.test(record.knownDifferences || record.priceContextSummary || "")), "Package-count differences should remain disclosed for compatible alternatives.");
   assert(/Availability unconfirmed/i.test(exactAndCompatiblePrices[0].listingStatus || ""), "Availability must not be inferred solely from a visible price.");
   const recoveryAssessment = __queryIntegrityTestHooks.createRecoveryAssessment({
-    assessments: __queryIntegrityTestHooks.buildRetailEvidenceAssessments([enrichedOfficeWorksExactPage], officeWorksContext),
+    assessments: __queryIntegrityTestHooks.buildRetailEvidenceAssessments([verifiedOfficeWorksExactPage], officeWorksContext),
     providerRequestRecords: officeWorksRequestRecords,
     maxProviderCalls: __queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls
   });
-  assert(recoveryAssessment.preliminaryUsableRecordCount === 1 && recoveryAssessment.preliminaryExactRecordCount === 1, "Limited-result recovery must inspect preliminary qualified acquisition evidence, not raw candidate counts.");
+  assert(
+    recoveryAssessment.preliminaryUsableRecordCount === 1 && recoveryAssessment.preliminaryExactRecordCount === 1,
+    `Limited-result recovery must inspect preliminary qualified acquisition evidence, not raw candidate counts. ${JSON.stringify({ preliminaryUsableRecordCount: recoveryAssessment.preliminaryUsableRecordCount, preliminaryExactRecordCount: recoveryAssessment.preliminaryExactRecordCount })}`
+  );
   const duplicateExactPages = __queryIntegrityTestHooks.dedupeSerperCandidateRecords([
-    enrichedOfficeWorksExactPage,
+    verifiedOfficeWorksExactPage,
     {
-      ...enrichedOfficeWorksExactPage,
+      ...verifiedOfficeWorksExactPage,
       url: "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/0041226087161?utm_source=test"
     }
   ], officeWorksContext);
@@ -964,18 +986,19 @@ try {
   assert(__queryIntegrityTestHooks.shouldRunLimitedResultRetailRecovery({
     context: officeWorksContext,
     providerRequestRecords: officeWorksRequestRecords,
-    records: [enrichedOfficeWorksExactPage],
+    records: [verifiedOfficeWorksExactPage],
     recoveryAssessment
   }), "One-result recovery should trigger when only one customer-visible retailer survives and data-driven retailer targets remain.");
-  const limitedRecoveryQueries = __queryIntegrityTestHooks.buildLimitedResultRetailRecoveryQueries(officeWorksContext, officeWorksRequestRecords, [enrichedOfficeWorksExactPage]);
+  const limitedRecoveryQueries = __queryIntegrityTestHooks.buildLimitedResultRetailRecoveryQueries(officeWorksContext, officeWorksRequestRecords, [verifiedOfficeWorksExactPage]);
   assert(limitedRecoveryQueries.length > 0 && limitedRecoveryQueries.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.limitedResultRecovery, "Limited-result recovery queries must remain bounded.");
   assert(limitedRecoveryQueries.every((record) => record.retailStage === "stage_7_limited_result_recovery" && record.marketplaceDomains.length === 1), "Limited-result recovery should use domain-constrained retailer diversity queries.");
   assert(__queryIntegrityTestHooks.parseCurrencyCents("$5.50") === 550, "Existing $5.50 precision should remain exact.");
   assert(__queryIntegrityTestHooks.retailSizeTokensCompatible("4.12 x 9.5 inches", "4.125 x 9.5 inches"), "Visible 4.12-inch envelope dimensions should compare as mailing size, not become a package count.");
   assert(__queryIntegrityTestHooks.retailSizeTokensCompatible("4.12 x 9.5 inches", "#10"), "Approximate #10 mailing dimensions should be compatible with #10 notation.");
   const multiRetailerOfficePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    objectMindState: officeWorksObjectMindState,
     providerSourceRecords: [
-      enrichedOfficeWorksExactPage,
+      verifiedOfficeWorksExactPage,
       lowerCompatibleOfficeOffer,
       retailRecord({
         title: "Security Envelopes Strip and Seal 45 Count",
@@ -1086,7 +1109,7 @@ try {
   assert(promotedGenericPrices.some((record) => /Local Household Cleaner/i.test(record.title)), "Local-stage priced records should promote to customer prices.");
   assert(promotedGenericPrices.every((record) => record.priceType === "Current retail price"), "Promoted ordinary retail cards should use the canonical current-retail price type.");
   assert(promotedGenericPrices.every((record) => record.retailerDisplayName), "Every promoted retail card should carry a retailer display name.");
-  const directExactHouseholdOffer = enrichedOfficeWorksExactPage;
+  const directExactHouseholdOffer = verifiedOfficeWorksExactPage;
   const aggregatorExactHouseholdOffer = __queryIntegrityTestHooks.enrichExactRetailPageRecord(retailRecord({
     title: "Office Works Strip and Seal Security Envelopes White 45 Count",
     domain: "instacart.com",
@@ -1099,6 +1122,7 @@ try {
     snippet: "Current price $2.99. Retailer: Kroger. 45 count."
   }), officeWorksContext);
   const dedupedCustomerRetailOffers = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    objectMindState: officeWorksObjectMindState,
     providerSourceRecords: [aggregatorExactHouseholdOffer, directExactHouseholdOffer],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
@@ -1115,6 +1139,7 @@ try {
     destinationUrl: directExactHouseholdOffer.destinationUrl
   };
   const dedupedProvenSameUrlOffers = __queryIntegrityTestHooks.buildConsumerPricesFound({
+    objectMindState: officeWorksObjectMindState,
     providerSourceRecords: [duplicateCanonicalDirectOffer, directExactHouseholdOffer],
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity: officeWorksIdentity, buyerIntake: officeWorksIntake });
@@ -1542,6 +1567,11 @@ try {
     priceType: "Active Asking",
     classification: "Exact Match",
     identityMatchStrength: "Exact",
+    objectMindSourceId: `source:${overrides.url || "https://example.com/compatible-tray-active"}`,
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_design", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: [],
     evidenceRole: "Comparable evidence - Active Asking",
     itemTypeCompatible: true,
     itemTypeCompatibilityStatus: "compatible",
@@ -1578,8 +1608,12 @@ try {
     summarizeCanonicalEvidence(deliveredRankingLiveSearch)
   );
   assert(/canonical offer/i.test(spectrumSummary) && /\$6\.00-\$25\.00/.test(spectrumSummary), "Price spectrum summary must project the canonical active-asking range without rebuilding it from display cards.");
-  const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound({ strongComparables: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] }, 10);
-  assert(auctionBid[0].priceType === "Current bid" && !/sold/i.test(auctionBid[0].priceType), "Auction current bid must not be relabeled as final sold value.");
+  const auctionBidLiveSearch = { providerSourceRecords: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] };
+  const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound(auctionBidLiveSearch, 10);
+  assert(
+    auctionBid[0]?.priceType === "Current bid" && !/sold/i.test(auctionBid[0]?.priceType),
+    `Auction current bid must not be relabeled as final sold value. ${JSON.stringify({ accepted: auctionBidLiveSearch.finalEvidenceResult?.acceptedRecords, rejected: auctionBidLiveSearch.finalEvidenceResult?.rejectedRecords })}`
+  );
   const noPriceExactBuckets = __queryIntegrityTestHooks.bucketSerperRecords([{
     title: "WorthPoint Georgia Bulldogs Coca-Cola collector tray reference",
     domain: "worthpoint.com",
@@ -1590,6 +1624,11 @@ try {
     priceEvidenceType: "Reference Without Price",
     priceTypeLabel: "Reference Without Price",
     identityMatchStrength: "Exact",
+    objectMindSourceId: "source:https://www.worthpoint.com/worthopedia/georgia-bulldogs-coca-cola-tray",
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_design", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: [],
     itemTypeCompatible: true,
     itemTypeCompatibilityStatus: "compatible",
     submittedItemType: "serving/decorative tray",
@@ -1603,10 +1642,11 @@ try {
   }]);
   assert(noPriceExactBuckets.strongComparables.length === 1, "Exact secondary-market no-price references may remain visible as source-backed exact evidence.");
   assert(noPriceExactBuckets.itemIdentificationEvidence.length === 0, "Exact secondary-market source evidence should not be buried solely because the source is an archive or marketplace.");
-  const noPriceWorthPointPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(noPriceExactBuckets, 10);
+  const noPriceWorthPointLiveSearch = { providerSourceRecords: noPriceExactBuckets.strongComparables };
+  const noPriceWorthPointPrices = __queryIntegrityTestHooks.buildConsumerPricesFound(noPriceWorthPointLiveSearch, 10);
   assert(noPriceWorthPointPrices.length === 1 && /Reference|Price Unavailable/i.test(noPriceWorthPointPrices[0].priceType) && !Number.isFinite(noPriceWorthPointPrices[0].itemPriceAmount), "Exact no-price reference/archive evidence may be visible but must remain price-unavailable context.");
   assert(__queryIntegrityTestHooks.canSupportPreliminaryAskingRangeFromVisibleRecord(noPriceExactBuckets.strongComparables[0]) === false, "No-price reference/archive evidence must not support Preliminary Asking-Price Range.");
-  assert(summarizeCanonicalEvidence(noPriceExactBuckets).pricedRecordCount === 0, "Exact no-price reference/archive evidence must not become range-setting price evidence.");
+  assert(summarizeCanonicalEvidence(noPriceWorthPointLiveSearch).pricedRecordCount === 0, "Exact no-price reference/archive evidence must not become range-setting price evidence.");
   const mixedSourceRecords = {
     strongComparables: [
       priceRecord({ url: "https://example.com/duplicate?utm_source=a", canonicalUrl: "https://example.com/duplicate", delivery: "Shipping $8.00" }),
@@ -1617,7 +1657,7 @@ try {
     partialComparables: [
       priceRecord({ url: "https://example.com/partial-compatible", canonicalUrl: "https://example.com/partial-compatible", classification: "Partial Comparable", identityMatchStrength: "Partial", itemIdentityDifferences: "Same tray form but exact year is unclear." })
     ],
-    referenceResults: [
+    providerSourceRecords: [
       priceRecord({ url: "https://example.com/no-price", canonicalUrl: "https://example.com/no-price", displayedPrice: "", price: "", priceType: "Reference Without Price" })
     ]
   };
@@ -1848,7 +1888,19 @@ try {
     item_condition: "used",
     buyer_notes: "vintage Coca-Cola Georgia Bulldogs tray"
   });
-  const collectibleIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch(identityFor("georgia"), collectibleIntake);
+  const collectibleIdentity = __queryIntegrityTestHooks.finalizeIdentityForResearch({
+    ...identityFor("georgia"),
+    model: "SYN-TRAY-8042"
+  }, collectibleIntake);
+  const collectibleObjectMindState = createObjectMindState({
+    analysisId: "phase5b-mock-collectible-exactness",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: collectibleIntake.buyer_notes,
+      buyerIntake: collectibleIntake
+    }),
+    extractedIdentity: collectibleIdentity
+  });
   const collectibleRoute = __queryIntegrityTestHooks.routeMarketSources(collectibleIdentity, collectibleIntake, "vintage advertising collectible auction");
   const collectibleContext = __queryIntegrityTestHooks.buildSearchQueryContext(
     collectibleIdentity,
@@ -1940,8 +1992,17 @@ try {
     ],
     shopping: [],
     relatedSearches: []
-  }, collectibleQueryRecord).records;
-  const normalizedAuctionRecords = __queryIntegrityTestHooks.normalizeSerperCandidateRecords(rawAuctionRecords, collectibleIdentity, collectibleContext);
+  }, collectibleQueryRecord).records.map((record) => (
+    /different-1981-tray/i.test(record.url)
+      ? record
+      : { ...record, model: "SYN-TRAY-8042" }
+  ));
+  const normalizedAuctionRecords = __queryIntegrityTestHooks.normalizeSerperCandidateRecords(
+    rawAuctionRecords,
+    collectibleIdentity,
+    collectibleContext,
+    collectibleObjectMindState
+  );
   const auctionRecordFor = (pattern) => normalizedAuctionRecords.find((record) => pattern.test(record.url));
   const liveAuctionBid = auctionRecordFor(/exact-current-bid/);
   const hibidOpeningBid = auctionRecordFor(/exact-opening-bid/);
@@ -1969,22 +2030,21 @@ try {
 
   const auctionBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords);
   const collectiblePrices = __queryIntegrityTestHooks.buildConsumerPricesFound({
-    strongComparables: auctionBuckets.strongComparables,
-    partialComparables: auctionBuckets.partialComparables,
-    itemIdentificationEvidence: auctionBuckets.itemIdentificationEvidence,
-    referenceResults: auctionBuckets.referenceResults
+    objectMindState: collectibleObjectMindState,
+    providerSourceRecords: normalizedAuctionRecords
   }, 10, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
-  assert(collectiblePrices.some((record) => /liveauctioneers\.com\/item\/exact-current-bid/i.test(record.url) && record.priceType === "Current bid"), "Exact auction current bid should reach the primary compact evidence list.");
+  assert(
+    collectiblePrices.some((record) => /liveauctioneers\.com\/item\/exact-current-bid/i.test(record.url) && record.priceType === "Current bid"),
+    "Exact auction current bid should reach the primary compact evidence list."
+  );
   assert(collectiblePrices.some((record) => /ebay\.com\/itm\/exact-buy-it-now/i.test(record.url) && record.priceType === "Buy It Now"), "Exact Buy It Now listing should reach the primary compact evidence list.");
   assert(collectiblePrices.some((record) => /mercari\.com\/us\/item\/exact-price-not-shown/i.test(record.url) && record.priceType === "Price unavailable" && !Number.isFinite(record.itemPriceAmount)), "Exact active listing without visible price should remain showable.");
   assert(!collectiblePrices.some((record) => /different-1981-tray/i.test(record.url)), "Different designs cannot replace exact design evidence in the primary list.");
 
-  const noSoldBuckets = __queryIntegrityTestHooks.bucketSerperRecords(normalizedAuctionRecords.filter((record) => !/auctionzip\.com/i.test(record.url)));
   const noSoldEvidence = summarizeCanonicalEvidence({
-    strongComparables: noSoldBuckets.strongComparables,
-    partialComparables: noSoldBuckets.partialComparables,
-    referenceResults: noSoldBuckets.referenceResults
-  });
+    objectMindState: collectibleObjectMindState,
+    providerSourceRecords: normalizedAuctionRecords.filter((record) => !/auctionzip\.com/i.test(record.url))
+  }, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
   assert(noSoldEvidence.hasVerifiedSoldEvidence === false, "No verified sold evidence should be reported when only Buy It Now, current bids, opening bids, estimates, unsold listings, or no-price listings survive.");
   assert(noSoldEvidence.primaryRangeType !== "verified_market", "Auction bids and estimates cannot establish a verified market range.");
   assert(
@@ -1993,18 +2053,33 @@ try {
     "Buy It Now may support the canonical active-asking group while staying outside verified-market evidence."
   );
   const completedAuctionEvidence = summarizeCanonicalEvidence({
-    strongComparables: [
-      priceRecord({ url: "https://example.com/completed-auction", canonicalUrl: "https://example.com/completed-auction", displayedPrice: "$32.00", priceType: "Completed Auction", rawText: "Completed auction result. Winning bid sold at auction for $32.00.", classification: "Exact Match", identityMatchStrength: "Exact" })
+    objectMindState: collectibleObjectMindState,
+    providerSourceRecords: [
+      priceRecord({
+        url: "https://example.com/completed-auction",
+        canonicalUrl: "https://example.com/completed-auction",
+        displayedPrice: "$32.00",
+        displayedPriceText: "$32.00",
+        parsedPrice: 32,
+        priceType: "Completed Auction",
+        priceEvidenceType: "Completed Auction",
+        model: "SYN-TRAY-8042",
+        snippet: "Completed auction result. Winning bid sold at auction for $32.00.",
+        rawText: "Completed auction result. Winning bid sold at auction for $32.00.",
+        classification: "Exact Match",
+        identityMatchStrength: "Exact"
+      })
     ]
-  });
-  assert(completedAuctionEvidence.primaryRangeType === "verified_market" && completedAuctionEvidence.hasVerifiedSoldEvidence === true, "Completed auction transaction evidence should support the verified-market bucket.");
+  }, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
+  assert(
+    completedAuctionEvidence.primaryRangeType === "verified_market" && completedAuctionEvidence.hasVerifiedSoldEvidence === true,
+    `Completed auction transaction evidence should support the verified-market bucket. ${JSON.stringify({ primaryRangeType: completedAuctionEvidence.primaryRangeType, hasVerifiedSoldEvidence: completedAuctionEvidence.hasVerifiedSoldEvidence, records: completedAuctionEvidence.records })}`
+  );
   const exactNoPriceAndRelated = normalizedAuctionRecords.filter((record) => /exact-price-not-shown|different-1981-tray/i.test(record.url));
-  const relatedOnlyBuckets = __queryIntegrityTestHooks.bucketSerperRecords(exactNoPriceAndRelated);
   const relatedOnlyEvidence = summarizeCanonicalEvidence({
-    strongComparables: relatedOnlyBuckets.strongComparables,
-    partialComparables: relatedOnlyBuckets.partialComparables,
-    referenceResults: relatedOnlyBuckets.referenceResults
-  });
+    objectMindState: collectibleObjectMindState,
+    providerSourceRecords: exactNoPriceAndRelated
+  }, { identity: collectibleIdentity, buyerIntake: collectibleIntake });
   assert(relatedOnlyEvidence.pricedRecordCount === 0 && !relatedOnlyEvidence.primaryRangeType, "Related items cannot create a range when the exact current listing lacks sold-price evidence.");
   assert(__queryIntegrityTestHooks.shouldRunCollectibleExactRecovery(collectibleContext, [differentDesign]), "Exact-result recovery should trigger when only different designs survive.");
   assert(__queryIntegrityTestHooks.shouldRunCollectibleExactRecovery(collectibleContext, [{ ...liveAuctionBid, retained: false, identityMatchStrength: "Rejected" }]), "Exact-result recovery should trigger when exact raw candidates are suppressed before the customer list.");

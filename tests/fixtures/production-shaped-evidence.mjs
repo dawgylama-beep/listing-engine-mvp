@@ -1,3 +1,13 @@
+function verifiedExactAnnotations(sourceId) {
+  return {
+    objectMindSourceId: `source:${sourceId}`,
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: []
+  };
+}
+
 export const retailRecoveryFixture = Object.freeze({
   analysisId: "analysis-handler-retail-001",
   fixedNow: "2026-07-24T16:00:00.000Z",
@@ -147,6 +157,7 @@ export const collectibleLimitedEvidenceFixture = Object.freeze({
     designIdentity: title,
     identityMatchStrength,
     exactIdentity: identityMatchStrength === "Exact",
+    ...(identityMatchStrength === "Exact" ? verifiedExactAnnotations(sourceRecordId) : {}),
     pageType: /category|articles|posts/.test(destinationUrl) ? "category" : "product",
     price,
     priceType
@@ -163,6 +174,7 @@ export const priceConflictFixture = Object.freeze({
       upc: "012345678905",
       quantity: 48,
       exactIdentity: true,
+      ...verifiedExactAnnotations("snippet-observation"),
       pageType: "product",
       price: 5.49,
       priceType: "Current retail price",
@@ -175,6 +187,7 @@ export const priceConflictFixture = Object.freeze({
       upc: "012345678905",
       quantity: 48,
       exactIdentity: true,
+      ...verifiedExactAnnotations("direct-observation"),
       pageType: "product",
       price: 4.99,
       priceType: "Current retail price",
@@ -189,6 +202,7 @@ export const priceConflictFixture = Object.freeze({
       upc: "012345678905",
       quantity: 48,
       exactIdentity: true,
+      ...verifiedExactAnnotations("snippet-a"),
       pageType: "product",
       price: 4.99,
       priceType: "Current retail price",
@@ -201,6 +215,7 @@ export const priceConflictFixture = Object.freeze({
       upc: "012345678905",
       quantity: 48,
       exactIdentity: true,
+      ...verifiedExactAnnotations("snippet-b"),
       pageType: "product",
       price: 6.49,
       priceType: "Current retail price",

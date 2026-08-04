@@ -31,6 +31,13 @@ function observation({
     upc: "012345678905",
     quantity,
     exactIdentity: exact,
+    ...(exact ? {
+      objectMindSourceId: `source:${id}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     identityMatchStrength: exact ? "Exact" : strong ? "Strong" : "Partial",
     pageType,
     price,

@@ -33,6 +33,7 @@ const collectibleIdentity = Object.freeze({
   recognizedTheme: "1999 Champions",
   brand: "RefreshCo",
   manufacturer: "RefreshCo",
+  model: "RFC-1999-CR",
   teamName: "Riverton Falcons",
   schoolName: "Riverton University",
   mascot: "Falcons",
@@ -66,19 +67,19 @@ const collectibleProviderResponse = Object.freeze({
       position: 1,
       title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
       link: "https://market-one.example/item/riverton-1999-champions-tray",
-      snippet: "Exact Coach Rivera and 1999 Champions tray design. Price unavailable."
+      snippet: "Exact Coach Rivera and 1999 Champions tray design. Model RFC-1999-CR. Price unavailable."
     },
     {
       position: 2,
       title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
       link: "https://market-two.example/item/riverton-1999-champions-tray",
-      snippet: "Active listing for the exact collector tray design. Asking price $24.99."
+      snippet: "Active listing for the exact collector tray design, model RFC-1999-CR. Asking price $24.99."
     },
     {
       position: 3,
       title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
       link: "https://market-two.example/item/riverton-1999-champions-tray?tracking=duplicate",
-      snippet: "Duplicate observation of the exact active listing at $24.99."
+      snippet: "Duplicate observation of model RFC-1999-CR exact active listing at $24.99."
     },
     {
       position: 4,
@@ -257,8 +258,8 @@ function directPageResult(url, evidenceMode, retailFixture) {
     finalUrl: url,
     statusCode: 200,
     elapsedMs: 2,
-    html: "<html><body><h1>Riverton Falcons 1999 Champions RefreshCo collector tray</h1><p>Coach Rivera exact design.</p><p>Price unavailable.</p></body></html>",
-    sourceEvidenceText: "Riverton Falcons 1999 Champions RefreshCo collector tray Coach Rivera exact design Price unavailable"
+    html: "<html><body><h1>Riverton Falcons 1999 Champions RefreshCo collector tray</h1><p>Coach Rivera exact design. Model RFC-1999-CR.</p><p>Price unavailable.</p></body></html>",
+    sourceEvidenceText: "Riverton Falcons 1999 Champions RefreshCo collector tray Coach Rivera exact design model RFC-1999-CR Price unavailable"
   };
 }
 

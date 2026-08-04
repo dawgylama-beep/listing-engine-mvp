@@ -28,6 +28,13 @@ function offer({
     price,
     priceType,
     exactIdentity: exact,
+    ...(exact ? {
+      objectMindSourceId: `source:${id}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     identityMatchStrength: match,
     pageType,
     quantity,

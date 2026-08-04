@@ -725,6 +725,7 @@ test("real production handler serializes one active asking offer as one observat
   };
   const identity = {
     brand: "Refreshment Brand",
+    model: "RB-F99-CR",
     productNameOrBoxTitle: "Falcons 1999 Champions Coach Rivera metal advertising sign",
     subjectIdentity: "Commemorative metal advertising sign",
     exactProductIdentity: "Falcons 1999 Champions Coach Rivera metal advertising sign",
@@ -738,13 +739,13 @@ test("real production handler serializes one active asking offer as one observat
     organic: [
       {
         position: 1,
-        title: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+        title: "Refreshment Brand RB-F99-CR Falcons 1999 Champions Coach Rivera metal advertising sign",
         link: "https://www.ebay.com/itm/123456789013",
         snippet: "Exact design reference page. Price unavailable."
       },
       {
         position: 2,
-        title: "Falcons 1999 Champions Coach Rivera metal advertising sign",
+        title: "Refreshment Brand RB-F99-CR Falcons 1999 Champions Coach Rivera metal advertising sign",
         link: "https://www.ebay.com/itm/123456789012",
         snippet: "Buy It Now $24.99. Exact design currently listed for sale."
       }
@@ -798,8 +799,8 @@ test("real production handler serializes one active asking offer as one observat
       finalUrl: url,
       statusCode: 200,
       elapsedMs: 2,
-      html: "<html><body>Falcons 1999 Champions Coach Rivera metal advertising sign. Price unavailable.</body></html>",
-      sourceEvidenceText: "Falcons 1999 Champions Coach Rivera metal advertising sign. Price unavailable."
+      html: "<html><body>Refreshment Brand RB-F99-CR Falcons 1999 Champions Coach Rivera metal advertising sign. Price unavailable.</body></html>",
+      sourceEvidenceText: "Refreshment Brand RB-F99-CR Falcons 1999 Champions Coach Rivera metal advertising sign. Price unavailable."
     }),
     onFinalEvidenceResult: (result) => finalEvidenceResults.push(result)
   });
@@ -883,7 +884,16 @@ test("real production handler serializes one active asking offer as one observat
   assert.deepEqual(report.buyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
   assert.equal(finalEvidenceResult.confidenceResult.pricing.level, "low");
-  assert.notEqual(finalEvidenceResult.confidenceResult.identity.level, finalEvidenceResult.confidenceResult.pricing.level);
+  assert.notEqual(
+    finalEvidenceResult.confidenceResult.identity.level,
+    finalEvidenceResult.confidenceResult.pricing.level,
+    JSON.stringify(finalEvidenceResult.acceptedRecords.map((record) => ({
+      objectMindClassification: record.objectMindClassification,
+      objectMindVerificationState: record.objectMindVerificationState,
+      canonicalMatchQuality: record.canonicalMatchQuality,
+      priceType: record.priceType
+    })))
+  );
   assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "need_more_information");
   assert.equal(finalEvidenceResult.badgeResult.code, "asking_price_context_only");
   assert.equal(report.recommendation, finalEvidenceResult.decisionResult.recommendationLabel);

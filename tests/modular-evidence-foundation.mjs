@@ -27,6 +27,16 @@ function record(overrides = {}) {
   };
 }
 
+function verifiedExact(sourceRecordId, attribute = "synthetic_identifier") {
+  return {
+    objectMindSourceId: sourceRecordId,
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute, status: "SUPPORTED" }],
+    objectMindConflictingAttributes: []
+  };
+}
+
 const envelopeTarget = {
   upc: "041226087161",
   quantity: 45,
@@ -37,6 +47,7 @@ const envelopeTarget = {
 const exactEnvelopeUrl = "https://www.kroger.com/p/office-works-strip-and-seal-security-envelopes-white/0004122608716";
 const envelopeRecords = [
   record({
+    ...verifiedExact("kroger-exact", "barcode"),
     sourceRecordId: "kroger-exact",
     title: "Office Works Strip and Seal Security Envelopes White",
     originalUrl: exactEnvelopeUrl,
@@ -133,6 +144,7 @@ const collectibleTarget = {
 };
 const collectibleRecords = [
   record({
+    ...verifiedExact("ebay-exact", "synthetic_design"),
     sourceRecordId: "ebay-exact",
     title: "Coca-Cola Georgia Bulldogs 1980 National Champions Vince Dooley How 'bout them Dawgs tray",
     originalUrl: "https://www.ebay.com/itm/123456789012",
@@ -144,6 +156,7 @@ const collectibleRecords = [
     priceType: "Active listing"
   }),
   record({
+    ...verifiedExact("auction-exact", "synthetic_design"),
     sourceRecordId: "auction-exact",
     title: "Coca-Cola Georgia Bulldogs 1980 National Champions Vince Dooley How 'bout them Dawgs tray",
     originalUrl: "https://auction.example/lot/55",

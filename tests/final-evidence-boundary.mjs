@@ -21,8 +21,10 @@ const targetIdentity = {
 };
 
 function observation(overrides = {}) {
+  const sourceRecordId = overrides.sourceRecordId || "source-1";
+  const exact = overrides.exactIdentity !== false;
   return {
-    sourceRecordId: "source-1",
+    sourceRecordId,
     title: "Cedarline Security Envelopes 48 Count",
     retailer: "Direct Retail",
     sourceDomain: "direct.example",
@@ -34,6 +36,13 @@ function observation(overrides = {}) {
     designIdentity: "strip and seal security tint",
     exactIdentity: true,
     identityMatchStrength: "Exact",
+    ...(exact ? {
+      objectMindSourceId: `source:${sourceRecordId}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     pageType: "product",
     price: 5.5,
     priceType: "Current retail price",

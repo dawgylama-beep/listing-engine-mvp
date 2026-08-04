@@ -1,4 +1,9 @@
 import { __queryIntegrityTestHooks as hooks } from "../api/generate-listing.js";
+import {
+  applyObjectEvidenceVerification,
+  createObjectMindState,
+  createPurposeNeutralObjectInput
+} from "../lib/object-intelligence/index.js";
 
 function assert(condition, message) {
   if (!condition) {
@@ -51,9 +56,18 @@ function buildRetailFixture() {
     ],
     strongestSearchableIdentifiers: ["012345678905", "Harbor Office Security Envelopes 55 count"]
   }, buyerIntake);
+  const objectMindState = createObjectMindState({
+    analysisId: "phase5b-live-retail-exactness",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: "Harbor Office security envelopes 55 count 4.12 x 9.5 inches self seal",
+      buyerIntake
+    }),
+    extractedIdentity: identity
+  });
   const route = hooks.routeMarketSources(identity, buyerIntake, "Harbor Office security envelopes 55 count");
   const context = hooks.buildSearchQueryContext(identity, route, "Harbor Office security envelopes 55 count", buyerIntake);
-  return { buyerIntake, identity, route, context };
+  return { buyerIntake, identity, objectMindState, route, context };
 }
 
 function retailProviderRecord({
@@ -93,15 +107,15 @@ function retailProviderRecord({
   };
 }
 
-function normalizeRetail(records, identity, context) {
+function normalizeRetail(records, identity, context, objectMindState) {
   return hooks.dedupeSerperCandidateRecords(
-    hooks.normalizeSerperCandidateRecords(records, identity, context),
+    hooks.normalizeSerperCandidateRecords(records, identity, context, objectMindState),
     context
   );
 }
 
 function testRetailObjectFirewallAndExactPageTruth() {
-  const { buyerIntake, identity, context } = buildRetailFixture();
+  const { buyerIntake, identity, objectMindState, context } = buildRetailFixture();
   const pollutedRaw = "AI note: submitted item is Harbor Office security envelopes 55 count 4.12 x 9.5 inches.";
   const exactNoPrice = retailProviderRecord({
     title: "Harbor Office Security Envelopes 55 Count",
@@ -151,9 +165,10 @@ function testRetailObjectFirewallAndExactPageTruth() {
     price: 6.25,
     searchPass: "stage_3_compatible_alternatives"
   });
-  const records = normalizeRetail([exactNoPrice, accessory, stamps, categoryPage, compatible], identity, context);
+  const records = normalizeRetail([exactNoPrice, accessory, stamps, categoryPage, compatible], identity, context, objectMindState);
   const assessments = hooks.buildRetailEvidenceAssessments(records, context);
   const liveSearch = {
+    objectMindState,
     providerSourceRecords: records,
     queriesActuallySent: records.map((record) => record.query),
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
@@ -197,7 +212,7 @@ function testRetailObjectFirewallAndExactPageTruth() {
 }
 
 function testExactRetailPageHtmlEnrichment() {
-  const { identity, context, buyerIntake } = buildRetailFixture();
+  const { identity, objectMindState, context, buyerIntake } = buildRetailFixture();
   const exactPage = retailProviderRecord({
     title: "Harbor Office Security Envelopes 55 Count",
     source: "CornerMart",
@@ -214,8 +229,9 @@ function testExactRetailPageHtmlEnrichment() {
       </head><body><h1>Harbor Office Security Envelopes 55 Count</h1><span>UPC 012345678905</span><span>55 count</span><button>Add to cart</button></body></html>`
   });
   const enriched = hooks.enrichExactRetailPageRecord(exactPage, context);
-  const records = normalizeRetail([enriched], identity, context);
+  const records = normalizeRetail([enriched], identity, context, objectMindState);
   const prices = hooks.buildConsumerPricesFound({
+    objectMindState,
     providerSourceRecords: records,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   }, 5.5, { identity, buyerIntake });
@@ -247,6 +263,7 @@ function buildCollectibleFixture() {
     visualSubjectCategory: "sports advertising collectible tray",
     frontBoxWording: "1997 Victory Classic Coach Lane",
     visualFeatures: "red shield metal tray",
+    model: "RVT-1997-CL",
     visibleText: [
       "Riverton Rockets",
       "1997 Victory Classic",
@@ -258,12 +275,21 @@ function buildCollectibleFixture() {
       "Coach Lane red shield metal tray"
     ]
   }, buyerIntake);
+  const objectMindState = createObjectMindState({
+    analysisId: "phase5b-live-collectible-exactness",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: "Riverton Rockets 1997 Victory Classic Coach Lane red shield metal tray",
+      buyerIntake
+    }),
+    extractedIdentity: identity
+  });
   const route = hooks.routeMarketSources(identity, buyerIntake, "Riverton Rockets 1997 Victory Classic metal tray sold");
   const context = hooks.buildSearchQueryContext(identity, route, "Riverton Rockets 1997 Victory Classic metal tray sold", buyerIntake);
-  return { buyerIntake, identity, route, context };
+  return { buyerIntake, identity, objectMindState, route, context };
 }
 
-function collectibleRecord({ title, url, source, marketplace = source, price, priceType = "Active Asking", classification = "Exact Match", rawExtra = "" } = {}) {
+function collectibleRecord({ title, url, source, marketplace = source, price, priceType = "Active Asking", classification = "Exact Match", model = "", rawExtra = "" } = {}) {
   const priceText = money(price);
   return {
     title,
@@ -280,6 +306,7 @@ function collectibleRecord({ title, url, source, marketplace = source, price, pr
     activeSoldReferenceStatus: priceType,
     classification,
     identityMatchStrength: classification,
+    model,
     itemTypeCompatible: true,
     itemTypeCompatibilityStatus: "compatible",
     submittedItemType: "serving/decorative tray",
@@ -291,7 +318,7 @@ function collectibleRecord({ title, url, source, marketplace = source, price, pr
 }
 
 function testCollectibleCategoryMirrorAndPricingSafety() {
-  const { buyerIntake, identity } = buildCollectibleFixture();
+  const { buyerIntake, identity, objectMindState } = buildCollectibleFixture();
   const genericClassified = collectibleRecord({
     title: "Riverton collectibles for sale",
     source: "Classifieds Example",
@@ -317,6 +344,7 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
     url: "https://market.example/itm/777888999",
     price: 24,
     priceType: "Active Asking",
+    model: "RVT-1997-CL",
     rawExtra: "Seller LaneCollectibles. Active asking price. Original marketplace item id 777888999."
   });
   const mirror = collectibleRecord({
@@ -326,6 +354,7 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
     url: "https://mirror.example/riverton-rockets-victory-classic-tray.html",
     price: 24,
     priceType: "Active Asking",
+    model: "RVT-1997-CL",
     rawExtra: "Mirror of marketplace item id 777888999 from market.example. Seller LaneCollectibles."
   });
   const differentDesign = collectibleRecord({
@@ -338,7 +367,11 @@ function testCollectibleCategoryMirrorAndPricingSafety() {
     rawExtra: "Different design and different year from the submitted tray. Sold for $85."
   });
   const liveSearch = {
-    strongComparables: [genericClassified, eventArticle, activeOriginal, mirror, differentDesign]
+    objectMindState,
+    strongComparables: applyObjectEvidenceVerification(
+      objectMindState,
+      [genericClassified, eventArticle, activeOriginal, mirror, differentDesign]
+    )
   };
   const prices = hooks.buildConsumerPricesFound(liveSearch, 10, { identity, buyerIntake });
   const evidence = hooks.summarizeConsumerVisiblePriceEvidence(liveSearch.finalEvidenceResult);

@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { __queryIntegrityTestHooks as hooks } from "../api/generate-listing.js";
+import {
+  createObjectMindState,
+  createPurposeNeutralObjectInput
+} from "../lib/object-intelligence/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +87,13 @@ function retailRecord({ title, retailer, domain, url, price = null, quantity = 5
     priceEvidenceType: "Current Retail Price",
     classification: exact ? "Exact Match" : "Strong Similar Match",
     identityMatchStrength: exact ? "Exact Identity Match" : "Strong Similar",
+    ...(exact ? {
+      objectMindSourceId: `source:${url}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_identifier", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     itemTypeCompatible: true,
     itemTypeCompatibilityStatus: "compatible",
     submittedItemType: "privacy mailers",
@@ -114,6 +125,7 @@ function buildCollectibleFixture() {
     visualSubjectCategory: "sports advertising collectible sign",
     visualFeatures: "1997 Victory Classic Coach Lane shield design",
     frontBoxWording: "1997 Victory Classic",
+    model: "VC-1997-CL",
     year: "1997",
     visibleText: [
       "Riverton Rockets",
@@ -122,13 +134,23 @@ function buildCollectibleFixture() {
       "metal sign"
     ]
   }, buyerIntake);
+  const objectMindState = createObjectMindState({
+    analysisId: "phase5b-collectible-exactness",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: "Riverton Rockets 1997 Victory Classic Coach Lane commemorative metal sign",
+      buyerIntake
+    }),
+    extractedIdentity: identity
+  });
   const route = hooks.routeMarketSources(identity, buyerIntake, "Riverton Rockets 1997 Victory Classic metal sign auction sold");
   const context = hooks.buildSearchQueryContext(identity, route, "Riverton Rockets 1997 Victory Classic metal sign auction sold", buyerIntake);
-  return { buyerIntake, identity, route, context };
+  return { buyerIntake, identity, objectMindState, route, context };
 }
 
 function collectibleRecord({ title, url, source, price, priceType, classification = "Exact Match", itemTypeCompatible = true, status = "compatible", rawExtra = "" } = {}) {
   const priceText = Number.isFinite(price) ? money(price) : "";
+  const exact = /^Exact\b/i.test(classification);
   return {
     title,
     url,
@@ -144,6 +166,14 @@ function collectibleRecord({ title, url, source, price, priceType, classificatio
     activeSoldReferenceStatus: priceType,
     classification,
     identityMatchStrength: classification,
+    model: exact ? "VC-1997-CL" : "",
+    ...(exact ? {
+      objectMindSourceId: `source:${url}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_design", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     itemTypeCompatible,
     itemTypeCompatibilityStatus: status,
     submittedItemType: "metal sign",
@@ -157,6 +187,15 @@ function collectibleRecord({ title, url, source, price, priceType, classificatio
 
 function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
   const { buyerIntake, identity, context } = buildRetailFixture();
+  const objectMindState = createObjectMindState({
+    analysisId: "phase5b-retail-exact-recovery",
+    photos: [],
+    neutralInput: createPurposeNeutralObjectInput({
+      notes: "Cedarline privacy mailers 48 count 4.12 x 9.5 inches self seal",
+      buyerIntake
+    }),
+    extractedIdentity: identity
+  });
   const noPriceExact = retailRecord({
     title: "Cedarline Privacy Mailers 48 Count - DirectRetail",
     retailer: "DirectRetail",
@@ -185,6 +224,7 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
   });
   const recordsBeforeRecovery = [noPriceExact, compatibleOne, compatibleTwo];
   const initialLiveSearch = {
+    objectMindState,
     providerSourceRecords: recordsBeforeRecovery,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   };
@@ -217,6 +257,7 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
   }), context);
   const deduped = hooks.dedupeSerperCandidateRecords([...recordsBeforeRecovery, recoveredExact], context);
   const finalLiveSearch = {
+    objectMindState,
     providerSourceRecords: deduped,
     searchDiagnostics: { retailEvidenceMode: "current-retail-only" }
   };
@@ -292,7 +333,7 @@ function testRetailerAttributionAndAggregatorTruth() {
 }
 
 function testCollectibleExactSourceAcquisitionAndOrdering() {
-  const { buyerIntake, identity, route, context } = buildCollectibleFixture();
+  const { buyerIntake, identity, objectMindState, route, context } = buildCollectibleFixture();
   const ladder = hooks.buildCollectibleAttributeSearchLadder(context);
   const exactIndex = ladder.findIndex((query) => /1997 Victory Classic|Coach Lane/i.test(query));
   const broadIndex = ladder.findIndex((query) => /\bvintage\b|\bcollectible\b/i.test(query) && !/1997 Victory Classic|Coach Lane/i.test(query));
@@ -345,17 +386,19 @@ function testCollectibleExactSourceAcquisitionAndOrdering() {
     priceType: "Auction Current Bid",
     rawExtra: "Current bid $7."
   });
-  const prices = hooks.buildConsumerPricesFound({
-    strongComparables: [active, sold, bid],
+  const collectibleLiveSearch = {
+    objectMindState,
+    providerSourceRecords: [active, sold, bid],
     searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
-  }, 10, { identity, buyerIntake });
+  };
+  const prices = hooks.buildConsumerPricesFound(collectibleLiveSearch, 10, { identity, buyerIntake });
 
   assertEqual(prices[0].priceType, "Completed auction", "Exact sold/completed auction evidence should lead active asking evidence for collectibles.");
   assert(prices.some((record) => record.priceType === "Current bid"), "Auction exact current bid should reach the primary compact evidence list with the canonical price type.");
 }
 
 function testCollectibleIdentityFirewallAndPriceTypes() {
-  const { buyerIntake, identity } = buildCollectibleFixture();
+  const { buyerIntake, identity, objectMindState } = buildCollectibleFixture();
   const article = collectibleRecord({
     title: "Riverton Rockets 1997 Victory Classic article",
     url: "https://news.example/riverton-rockets-1997-victory-classic-article",
@@ -379,7 +422,8 @@ function testCollectibleIdentityFirewallAndPriceTypes() {
     rawExtra: "Different year and design."
   });
   const noVisible = hooks.buildConsumerPricesFound({
-    strongComparables: [article, differentDesign],
+    objectMindState,
+    providerSourceRecords: [article, differentDesign],
     searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
   }, 10, { identity, buyerIntake });
   assertEqual(noVisible.length, 0, "Related articles and wrong designs cannot influence displayed price evidence.");
@@ -403,7 +447,7 @@ function testCollectibleIdentityFirewallAndPriceTypes() {
 }
 
 function testBuyerDecisionAndDiagnosticTruth() {
-  const { buyerIntake, identity, route, context } = buildCollectibleFixture();
+  const { buyerIntake, identity, objectMindState, route, context } = buildCollectibleFixture();
   const expensiveSold = collectibleRecord({
     title: "Riverton Rockets 1997 Victory Classic metal sign verified sold",
     url: "https://sold.example/riverton-rockets-1997-victory-classic-sign",
@@ -421,7 +465,8 @@ function testBuyerDecisionAndDiagnosticTruth() {
     rawExtra: "Sold for $72. Confirmed sold."
   });
   const soldLiveSearch = {
-    strongComparables: [expensiveSold, secondExpensiveSold],
+    objectMindState,
+    providerSourceRecords: [expensiveSold, secondExpensiveSold],
     searchDiagnostics: { retailEvidenceMode: "collectible-resale" }
   };
   const report = {

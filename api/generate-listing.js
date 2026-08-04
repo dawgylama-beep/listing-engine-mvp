@@ -13927,6 +13927,7 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
         sourcesFound: canonicalObservations,
         acceptedSources: finalEvidenceResult.acceptedRecords,
         rejectedSources: finalEvidenceResult.rejectedRecords,
+        customerVisibleSources: finalEvidenceResult.customerEvidence,
         subsystemOutcomeFlags: {
           purposeNeutralIdentityFrozen: Boolean(finalObjectMindState.identityStateHash),
           exactIdentityResolved: finalObjectMindState.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",

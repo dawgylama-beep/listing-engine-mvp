@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { __queryIntegrityTestHooks as hooks } from "../api/generate-listing.js";
 import { computeCheckDigit } from "../lib/evidence/identity.js";
-import { createFinalEvidenceResult } from "../lib/evidence/index.js";
+import { createFinalEvidenceResult, validateFinalEvidenceResult } from "../lib/evidence/index.js";
 import {
   MAX_EXPERIENCE_RECORD_BYTES,
   OBJECT_EVIDENCE_CLASSIFICATION,
@@ -803,6 +803,179 @@ test("Object Mind classifications feed the existing canonical authority without 
   assert(result.acceptedRecords.some((record) => record.objectMindClassification === OBJECT_EVIDENCE_CLASSIFICATION.EXACT_ITEM));
   assert(result.rejectedRecords.some((record) => /Package count differs/i.test(record.exclusionReason)));
   assert.equal(result.rangeEligible.some((record) => record.objectMindVerificationState === "REJECTED"), false);
+});
+
+test("legacy exact fields, exact-target queries, and canonical acceptance cannot bypass Object Mind exactness", () => {
+  const base = {
+    pageType: "product_or_listing",
+    price: 18,
+    priceType: "Active asking price",
+    exactIdentity: true,
+    identityMatchStrength: "Exact",
+    classification: "Exact Match",
+    matchQuality: "Exact product",
+    query: "synthetic exact-target query",
+    searchPass: "exact_target",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_family", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: []
+  };
+  const observations = [
+    ["unresolved", "INSUFFICIENT_EVIDENCE", "UNRESOLVED"],
+    ["compatible", "COMPATIBLE_ALTERNATIVE", "COMPATIBLE"],
+    ["variation", "EXACT_DESIGN_VARIATION_UNRESOLVED", "UNRESOLVED_VARIATION"],
+    ["similar", "SIMILAR_OBJECT", "REJECTED"],
+    ["unrelated", "UNRELATED", "REJECTED"]
+  ].map(([id, objectMindClassification, objectMindVerificationState]) => ({
+    ...base,
+    sourceRecordId: id,
+    destinationUrl: `https://${id}.example/item/synthetic-object`,
+    title: `Synthetic ${id} object evidence`,
+    objectMindSourceId: `source:${id}`,
+    objectMindClassification,
+    objectMindVerificationState,
+    objectMindRejectionReason: objectMindVerificationState === "VERIFIED" ? "" : `Synthetic ${id} disposition.`
+  }));
+  const result = createFinalEvidenceResult({
+    analysisMode: "collectible",
+    observations,
+    displayLimit: 8,
+    purpose: "personal"
+  });
+  validateFinalEvidenceResult(result);
+  assert.equal(result.customerEvidence.some((record) => record.canonicalMatchLabel === "Exact"), false);
+  assert.equal(result.customerEvidence.some((record) => record.title.includes("unresolved")), true);
+  assert.equal(result.customerEvidence.some((record) => record.title.includes("compatible")), true);
+  assert.equal(result.customerEvidence.find((record) => record.title.includes("variation"))?.canonicalMatchLabel, "Strong compatible");
+  assert.equal(result.customerEvidence.some((record) => /similar|unrelated/.test(record.title)), false);
+  assert(result.rejectedRecords.some((record) => record.objectMindVerificationState === "REJECTED"));
+  assert.deepEqual(result.customerEvidence.map((record) => record.evidenceId), result.views.displayedIds);
+});
+
+test("verified barcode and model evidence, including exact no-price evidence, retains one exactness authority", () => {
+  const barcode = validUpc("76123456789");
+  const barcodeState = stateFor({
+    brand: "Meridian Archive",
+    upcBarcode: barcode,
+    exactProductIdentity: "Meridian Archive Document Case 24 Count",
+    exactProductConfidence: "High",
+    subjectIdentity: "Document case",
+    packageQuantity: "24 count",
+    visibleText: ["Meridian Archive", "24 count", barcode],
+    visualRecognition: { visualSubject: "Document case", visibleWords: ["Meridian Archive", "24 count"] }
+  });
+  const barcodeRecord = applyObjectEvidenceVerification(barcodeState, [source({
+    title: `Meridian Archive Document Case 24 Count ${barcode}`,
+    url: `https://barcode.example/item/${barcode}`,
+    price: ""
+  })])[0];
+  barcodeRecord.parsedPrice = null;
+  barcodeRecord.price = null;
+  barcodeRecord.priceType = "Reference/archive";
+  barcodeRecord.priceEvidenceType = "Reference/archive";
+  barcodeRecord.sourceChannel = "conventional_retail";
+
+  const modelState = stateFor({
+    brand: "Quartz Workshop",
+    model: "QW-8421",
+    exactProductIdentity: "Quartz Workshop QW-8421 Bench Light",
+    exactProductConfidence: "High",
+    subjectIdentity: "Bench light",
+    visibleText: ["Quartz Workshop", "QW-8421"],
+    visualRecognition: { visualSubject: "Bench light", visibleWords: ["Quartz Workshop", "QW-8421"] }
+  });
+  const modelRecord = applyObjectEvidenceVerification(modelState, [source({
+    title: "Quartz Workshop QW-8421 Bench Light",
+    url: "https://model.example/item/qw-8421",
+    price: "$42.00"
+  })])[0];
+
+  for (const [state, record, targetIdentity] of [
+    [barcodeState, barcodeRecord, { upc: barcode, quantity: 24 }],
+    [modelState, modelRecord, { brand: "Quartz Workshop", model: "QW-8421" }]
+  ]) {
+    const result = createFinalEvidenceResult({
+      analysisMode: "collectible",
+      targetIdentity,
+      observations: [record],
+      displayLimit: 8,
+      purpose: "personal"
+    });
+    validateFinalEvidenceResult(result);
+    assert.equal(result.customerEvidence.length, 1);
+    assert.equal(result.customerEvidence[0].canonicalMatchLabel, "Exact");
+    assert.equal(result.acceptedRecords[0].objectMindSourceId, record.objectMindSourceId);
+    assert.equal(result.acceptedRecords[0].objectMindVerificationState, "VERIFIED");
+    const evidenceState = incorporateCandidateEvidence(state, [record], { phase: "CANONICAL_FINALIZATION" });
+    const experience = buildExperienceRecord({
+      state: evidenceState,
+      sourcesFound: [record],
+      acceptedSources: result.acceptedRecords,
+      rejectedSources: result.rejectedRecords,
+      customerVisibleSources: result.customerEvidence
+    });
+    assert.equal(experience.exactEvidenceRecovered.length, 1);
+    assert.equal(experience.sourcesAccepted[0].evidenceId, result.customerEvidence[0].evidenceId);
+    assert.equal(experience.sourcesAccepted[0].canonicalQualificationResult, "QUALIFIED");
+    assert.equal(experience.sourcesAccepted[0].canonicalSelectionResult, "SELECTED_FOR_CUSTOMER");
+    assert.equal(experience.sourcesAccepted[0].finalCustomerClassification, "Exact");
+  }
+  assert.equal(barcodeRecord.objectMindClassification, "EXACT_ITEM");
+  assert.equal(modelRecord.objectMindClassification, "EXACT_ITEM");
+});
+
+test("customer purpose cannot alter verified exactness and zero verified exacts cannot serialize as Exact", () => {
+  const state = stateFor({
+    brand: "Saffron Instruments",
+    model: "SI-730",
+    exactProductIdentity: "Saffron Instruments SI-730 Field Gauge",
+    exactProductConfidence: "High",
+    subjectIdentity: "Field gauge",
+    visibleText: ["Saffron Instruments", "SI-730"],
+    visualRecognition: { visualSubject: "Field gauge", visibleWords: ["Saffron Instruments", "SI-730"] }
+  });
+  const exact = applyObjectEvidenceVerification(state, [source({
+    title: "Saffron Instruments SI-730 Field Gauge",
+    url: "https://gauge.example/item/si-730"
+  })])[0];
+  const classifications = ["personal", "resale", "owner_value", "seller_listing"].map((purpose) => {
+    const result = createFinalEvidenceResult({ observations: [exact], purpose });
+    validateFinalEvidenceResult(result);
+    return result.customerEvidence[0].canonicalMatchLabel;
+  });
+  assert.deepEqual(classifications, ["Exact", "Exact", "Exact", "Exact"]);
+
+  const unresolved = {
+    ...exact,
+    sourceRecordId: "unresolved-copy",
+    destinationUrl: "https://gauge.example/item/si-730-unresolved",
+    canonicalUrl: "https://gauge.example/item/si-730-unresolved",
+    url: "https://gauge.example/item/si-730-unresolved",
+    objectMindSourceId: "source:unresolved-copy",
+    objectMindClassification: "INSUFFICIENT_EVIDENCE",
+    objectMindVerificationState: "UNRESOLVED",
+    objectMindRejectionReason: "The model variant remains unresolved.",
+    exactIdentity: true,
+    identityMatchStrength: "Exact"
+  };
+  const unresolvedResult = createFinalEvidenceResult({ observations: [unresolved], purpose: "personal" });
+  validateFinalEvidenceResult(unresolvedResult);
+  const unresolvedState = incorporateCandidateEvidence(state, [unresolved], { phase: "CANONICAL_FINALIZATION" });
+  const experience = buildExperienceRecord({
+    state: unresolvedState,
+    sourcesFound: [unresolved],
+    acceptedSources: unresolvedResult.acceptedRecords,
+    rejectedSources: unresolvedResult.rejectedRecords,
+    customerVisibleSources: unresolvedResult.customerEvidence
+  });
+  assert.equal(experience.exactEvidenceRecovered.length, 0);
+  assert.equal(unresolvedResult.customerEvidence.some((record) => record.canonicalMatchLabel === "Exact"), false);
+
+  const tampered = createFinalEvidenceResult({ observations: [exact], purpose: "personal" });
+  tampered.acceptedRecords[0].objectMindVerificationState = "UNRESOLVED";
+  assert.throws(
+    () => validateFinalEvidenceResult(tampered),
+    /is Exact without verified Object Mind exactness/
+  );
 });
 
 test("provider and direct-page ceilings remain 12, 28, and 2 with one reserved refinement phase", () => {

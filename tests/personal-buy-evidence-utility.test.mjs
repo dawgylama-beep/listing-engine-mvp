@@ -44,6 +44,13 @@ function observation({
     sourceChannel,
     pageType: "product",
     exactIdentity: exact,
+    ...(exact ? {
+      objectMindSourceId: `source:${sourceToken}`,
+      objectMindClassification: "EXACT_ITEM",
+      objectMindVerificationState: "VERIFIED",
+      objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+      objectMindConflictingAttributes: []
+    } : {}),
     identityMatchStrength: exact ? "Exact" : "Strong",
     quantity,
     packageType: "unit pack",

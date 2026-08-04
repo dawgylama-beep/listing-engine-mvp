@@ -21,6 +21,16 @@ function fixture(overrides = {}) {
   };
 }
 
+function verifiedExact(sourceRecordId) {
+  return {
+    objectMindSourceId: `source:${sourceRecordId}`,
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: []
+  };
+}
+
 const retailTarget = {
   upc: "041226087161",
   quantity: 45,
@@ -35,6 +45,7 @@ const stageOne = [];
 const recovered = [
   fixture({
     sourceRecordId: "recovery-exact",
+    ...verifiedExact("recovery-exact"),
     title: "Strip and seal security envelopes, 45 count",
     originalUrl: exactUrl,
     destinationUrl: exactUrl,
@@ -92,6 +103,7 @@ assert.equal(postRecovery.all.find((record) => record.exactIdentity).displayedPr
 const resolvedConflict = assembleFinalEvidence([
   fixture({
     sourceRecordId: "stale-snippet",
+    ...verifiedExact("stale-snippet"),
     originalUrl: exactUrl,
     destinationUrl: exactUrl,
     retailer: "Retailer A",
@@ -101,6 +113,7 @@ const resolvedConflict = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "direct-page",
+    ...verifiedExact("direct-page"),
     originalUrl: exactUrl,
     destinationUrl: exactUrl,
     retailer: "Retailer A",
@@ -119,6 +132,7 @@ assert.equal(resolvedConflict.all[0].retailer, "Retailer A", "same-offer merge m
 const unresolvedConflict = assembleFinalEvidence([
   fixture({
     sourceRecordId: "snippet-a",
+    ...verifiedExact("snippet-a"),
     originalUrl: exactUrl,
     destinationUrl: exactUrl,
     price: 1.49,
@@ -127,6 +141,7 @@ const unresolvedConflict = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "snippet-b",
+    ...verifiedExact("snippet-b"),
     originalUrl: exactUrl,
     destinationUrl: exactUrl,
     price: 2.99,
@@ -145,6 +160,7 @@ const collectibleTarget = {
 const collectible = assembleFinalEvidence([
   fixture({
     sourceRecordId: "exact-no-price-one",
+    ...verifiedExact("exact-no-price-one"),
     title: "Official Bulldog Tray 1980 National Champions Vince Dooley Coca-Cola",
     originalUrl: "https://market-one.example/item/100",
     destinationUrl: "https://market-one.example/item/100",
@@ -155,6 +171,7 @@ const collectible = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "exact-no-price-two",
+    ...verifiedExact("exact-no-price-two"),
     title: "Official Bulldog Tray 1980 National Champions Vince Dooley Coca-Cola",
     originalUrl: "https://market-two.example/listing/200",
     destinationUrl: "https://market-two.example/listing/200",
@@ -165,6 +182,7 @@ const collectible = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "one-asking",
+    ...verifiedExact("one-asking"),
     title: "Official Bulldog Tray 1980 National Champions Vince Dooley Coca-Cola",
     originalUrl: "https://market-three.example/item/300",
     destinationUrl: "https://market-three.example/item/300",
@@ -233,6 +251,7 @@ assert.equal(deriveDecision(fullDisplay, { askingPrice: 10 }).recommendation, co
 const duplicateAndIndependent = assembleFinalEvidence([
   fixture({
     sourceRecordId: "mirror-one",
+    ...verifiedExact("mirror-one"),
     marketplace: "Marketplace",
     marketplaceItemId: "same-offer",
     originalMarketplaceDomain: "market.example",
@@ -244,6 +263,7 @@ const duplicateAndIndependent = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "mirror-two",
+    ...verifiedExact("mirror-two"),
     marketplace: "Marketplace",
     marketplaceItemId: "same-offer",
     originalMarketplaceDomain: "market.example",
@@ -255,6 +275,7 @@ const duplicateAndIndependent = assembleFinalEvidence([
   }),
   fixture({
     sourceRecordId: "independent",
+    ...verifiedExact("independent"),
     marketplace: "Other Marketplace",
     marketplaceItemId: "different-offer",
     originalUrl: "https://other.example/item/different-offer",

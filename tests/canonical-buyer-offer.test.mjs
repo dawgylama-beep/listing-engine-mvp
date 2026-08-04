@@ -12,6 +12,16 @@ const targetIdentity = Object.freeze({
   designAttributes: ["Northstar", "Champions", "Coach Avery"]
 });
 
+function verifiedExactAnnotations(id) {
+  return {
+    objectMindSourceId: `source:${id}`,
+    objectMindClassification: "EXACT_ITEM",
+    objectMindVerificationState: "VERIFIED",
+    objectMindSupportingAttributes: [{ attribute: "synthetic_identity", status: "SUPPORTED" }],
+    objectMindConflictingAttributes: []
+  };
+}
+
 function observation({
   id,
   price = null,
@@ -35,6 +45,7 @@ function observation({
     designAttributes: ["Northstar", "Champions", "Coach Avery"],
     identityMatchStrength: exactIdentity ? "Exact" : "Partial",
     exactIdentity,
+    ...(exactIdentity ? verifiedExactAnnotations(id) : {}),
     pageType,
     price,
     priceType,
@@ -178,6 +189,7 @@ test("ordinary retail with a lower qualified offer remains comparison-only", () 
       upc: "012345678905",
       quantity: 45,
       exactIdentity: true,
+      ...verifiedExactAnnotations("retail-a"),
       pageType: "product",
       price: 4.99,
       priceType: "Current retail price"
@@ -189,6 +201,7 @@ test("ordinary retail with a lower qualified offer remains comparison-only", () 
       upc: "012345678905",
       quantity: 45,
       exactIdentity: true,
+      ...verifiedExactAnnotations("retail-b"),
       pageType: "product",
       price: 2.99,
       priceType: "Current retail price"
