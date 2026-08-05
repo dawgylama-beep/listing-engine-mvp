@@ -4,6 +4,7 @@ import { createGenerateListingHandler } from "../api/generate-listing.js";
 import { computeCheckDigit } from "../lib/evidence/identity.js";
 import { validateFinalEvidenceResult } from "../lib/evidence/index.js";
 import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
+import { validateGovernorProof } from "../benchmarks/blind-object-v1-execution-v1/scripts/governor-proof-validator.mjs";
 
 await import("../public/customer-evidence.js");
 const { buildCustomerEvidenceViewModel } = globalThis.KatherinesEyeCustomerEvidence;
@@ -269,6 +270,16 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
       assert.equal(cognitive.cognitiveEpisode.linkedExperienceRecordHash, diagnostics.experienceRecord.experienceRecordHash);
       assert.match(cognitive.cognitiveEpisode.cognitiveEpisodeHash, /^[a-f0-9]{64}$/);
       assert.equal(cognitive.lessonCandidate ?? null, null);
+      const proofValidation = validateGovernorProof({
+        proof: cognitive.executionProof,
+        cognitiveEpisode: cognitive.cognitiveEpisode,
+        lessonCandidate: cognitive.lessonCandidate,
+        experienceRecord: diagnostics.experienceRecord
+      });
+      assert.equal(proofValidation.passed, true, `${scenario.name}: ${JSON.stringify(proofValidation.failures)}`);
+      assert.equal(cognitive.executionProof.governorInvocationCount, 1);
+      assert.equal(cognitive.executionProof.authoritativeCognitiveStateCount, 1);
+      assert.equal(cognitive.executionProof.unauthorizedActionCount, 0);
       const actionTypes = cognitive.cognitiveEpisode.actionDecisions.map((record) => record.actionType);
       assert.equal(actionTypes[0], "ACQUIRE_INITIAL_EVIDENCE");
       assert(actionTypes.includes("FINALIZE_EVIDENCE"));

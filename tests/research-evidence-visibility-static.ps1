@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -38,7 +38,7 @@ $checks = @(
   @{ Name = "Styles include source cards"; Text = $styles; Pattern = ".source-result-card" },
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Package version is 1.12.2"; Text = $package; Pattern = '"version": "1.12.2"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }
 )
 

@@ -4,16 +4,17 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-  BENCHMARK_COMMIT, CONTRACT_SHA256, CORPUS_SHA256, PRODUCT_COMMIT,
+  BENCHMARK_COMMIT, CONTRACT_SHA256, CORPUS_SHA256,
   benchmarkRoot, executionRoot, listFilesRecursive, loadRunPlan,
   readJson, repositoryRoot, sha256Bytes
 } from "./execution-common.mjs";
 
 const expectedSchemaHashes = Object.freeze({
-  "request-record.schema.json": "32029359d48fc381158c34ed0fedef22c977ce4ca6abd0cedb6d5b6085848ca9",
-  "response-record.schema.json": "252d9f54d39f127dd3175342435f1b21d7a03d9e01964841a55a4c04a12bd364",
+  "request-record.schema.json": "8bc8852f85df3d64051a7191922164815a7833db991e795b4cb5e5e18ea6cadc",
+  "response-record.schema.json": "795862b9a26915a1053c3b864486995fd65625398105a628a633171cb1b661cb",
   "run-journal.schema.json": "14e81c39957f39c406631dc46fde9096000366ac85cc6f7c2173be55bdf12cf5",
-  "frozen-result-manifest.schema.json": "db85409185c90f113854a53e346321cb54c0fe8f16e3b854c06f18255b3f9472"
+  "frozen-result-manifest.schema.json": "f0a1ed11be5d10f9558c0fab1ce6747b91ed8d80519204adfb2d54c860dcbd12",
+  "invocation-manifest.schema.json": "0beab175e83aad3be2baac74118983bc2662727662517a65028ffa254f0e4d7e"
 });
 const prohibitedPrivateNames = ["ground-truth.json", "exact-source-controls.json", "distractor-controls.json", "scoring-rubric.json"];
 
@@ -32,7 +33,7 @@ async function executorContentHash() {
 }
 
 async function executionImportAudit() {
-  const starts = ["prepare-requests.mjs", "run-baseline.mjs", "freeze-responses.mjs", "verify-result-integrity.mjs"]
+  const starts = ["prepare-requests.mjs", "run-baseline.mjs", "freeze-responses.mjs", "verify-result-integrity.mjs", "grade-governor-results.mjs"]
     .map((name) => path.join(executionRoot, "scripts", name));
   const visited = new Set();
   const visit = async (file) => {
@@ -97,14 +98,24 @@ async function secretScan() {
 async function validate() {
   git(["merge-base", "--is-ancestor", BENCHMARK_COMMIT, "HEAD"]);
   assert.equal(git(["branch", "--show-current"]), "refactor/beta-evidence-pipeline");
-  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.1");
+  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.2");
   const status = git(["status", "--porcelain=v1"]).split(/\r?\n/).filter(Boolean);
-  assert.ok(status.every((entry) => entry.replace(/^\s*[MADRCU?!]{1,2}\s+/, "").replaceAll("\\", "/").startsWith("benchmarks/blind-object-v1-execution-v1/")), "working changes exceed the authorized execution package");
-  const committedProductDiff = git(["diff", "--name-only", `${PRODUCT_COMMIT}..${BENCHMARK_COMMIT}`]).split(/\r?\n/).filter(Boolean);
-  assert.equal(committedProductDiff.length, 44);
-  assert.ok(committedProductDiff.every((file) => file.startsWith("benchmarks/blind-object-v1/")));
+  const authorizedPrefixes = [
+    "api/generate-listing.js",
+    "lib/cognitive-governor/",
+    "benchmarks/blind-object-v1-execution-v1/",
+    "tests/",
+    "package.json",
+    "package-lock.json",
+    "server.ps1",
+    "PRODUCT_ROADMAP.md"
+  ];
+  assert.ok(status.every((entry) => {
+    const file = entry.replace(/^\s*[MADRCU?!]{1,2}\s+/, "").replaceAll("\\", "/");
+    return authorizedPrefixes.some((prefix) => file === prefix || file.startsWith(prefix));
+  }), "working changes exceed the authorized Phase 6A scope");
   assert.equal(git(["diff", "--name-only", "--", "benchmarks/blind-object-v1"]), "");
-  assert.equal(git(["diff", "--name-only", "--", "api", "public", "lib/evidence", "server.ps1", "package.json", "package-lock.json", "vercel.json", ".vercelignore"]), "");
+  assert.equal(git(["diff", "--name-only", "--", "public", "lib/evidence", "vercel.json", ".vercelignore"]), "");
 
   const leakage = runFrozenValidator("scripts/validate-input-leakage.mjs");
   const assets = runFrozenValidator("scripts/validate-assets.mjs");
@@ -145,11 +156,13 @@ async function validate() {
     requestRecord: expectedSchemaHashes["request-record.schema.json"],
     responseRecord: expectedSchemaHashes["response-record.schema.json"],
     runJournal: expectedSchemaHashes["run-journal.schema.json"],
-    frozenResultManifest: expectedSchemaHashes["frozen-result-manifest.schema.json"]
+    frozenResultManifest: expectedSchemaHashes["frozen-result-manifest.schema.json"],
+    invocationManifest: expectedSchemaHashes["invocation-manifest.schema.json"]
   });
   assert.deepEqual(executorFreeze.runIdsInOrder, plan.runs.map((entry) => entry.runId));
   assert.equal(executorFreeze.concurrency, 1);
-  assert.equal(executorFreeze.expectedResultLocation, "benchmarks/blind-object-v1-results/current-a4a7214/");
+  assert.equal(executorFreeze.productUnderTestBinding, "RUNTIME_EXACT_FULL_CLEAN_HEAD");
+  assert.equal(executorFreeze.expectedResultNaming, "benchmarks/blind-object-v1-results/phase6a-<exclusive-approved-id>/");
 
   const bridgeSource = await readFile(path.join(repositoryRoot, "scripts", "local-generate-listing-bridge.mjs"), "utf8");
   const handlerSource = await readFile(path.join(repositoryRoot, "api", "generate-listing.js"), "utf8");
@@ -160,6 +173,9 @@ async function validate() {
   assert.match(handlerSource, /maxProviderCalls:\s*28/);
   assert.match(handlerSource, /directPageEnrichmentMaxAttempts = 2/);
   assert.match(handlerSource, /if \(serperApiKey\)[\s\S]*executeOpenAIWebComparableSearch/);
+  assert.match(handlerSource, /executeGovernorAuthorizedAction/);
+  assert.match(handlerSource, /executeGovernorAuthorizedChildOperation/);
+  assert.match(handlerSource, /LIMITED_RESULT_RECOVERY/);
 
   const auditedExecutionGraph = await executionImportAudit();
   const credentials = await localCredentialPresence();
@@ -174,7 +190,7 @@ async function validate() {
     packageFileCount: content.fileCount + 1,
     executorContentSha256: content.hash,
     frozenBenchmarkFilesChanged: 0,
-    productionFilesChanged: 0,
+    productionFilesChanged: status.filter((entry) => /api\/generate-listing|lib\/cognitive-governor/.test(entry.replaceAll("\\", "/"))).length,
     runPlan: { total: 26, principal: 14, anchorPurpose: 12, exactOrderMatched: true },
     answerKeySeparation: { passed: true, auditedExecutionGraph },
     handler: "scripts/local-generate-listing-bridge.mjs -> api/generate-listing.js#createGenerateListingHandler",

@@ -10,7 +10,7 @@ The only real handler path is `scripts/local-generate-listing-bridge.mjs`, which
 
 `prepare-requests.mjs`, `run-baseline.mjs`, `freeze-responses.mjs`, and `verify-result-integrity.mjs` are statically audited to exclude private answer files. Execution is serial. A request hash is durably written before `STARTED`; a response is durably written and hashed immediately after receipt. A `STARTED` run without a secure response hash becomes `INDETERMINATE` and cannot be retried automatically. A `RESPONSE_HASHED` or `FROZEN` run is never invoked again.
 
-`grade-frozen-results.mjs` is a separate Node process. It first verifies all 26 immutable request and response files, their hashes, the journal, and the aggregate result hash. Only after that boundary does it dynamically load the frozen scorer and private benchmark controls.
+`grade-frozen-results.mjs` remains the separate frozen product grader and is unchanged in scoring behavior. `grade-governor-results.mjs` is a separate offline Governor-integrity report; it validates each stored proof without issuing provider requests or changing the product score.
 
 ## Validation commands
 
@@ -23,15 +23,16 @@ node benchmarks/blind-object-v1-execution-v1/scripts/test-executor.mjs
 
 The tests use only `mock-handler.mjs` and operating-system temporary directories. They do not invoke Katherine's Eye or create repository result artifacts.
 
-## Future authorized baseline
+## Future release-bound baseline
 
-The future result root is `benchmarks/blind-object-v1-results/current-a4a7214/`. A separate Phase 3B authorization must invoke:
+Historical result roots, including `current-a4a7214`, remain readable and immutable. A future expressly authorized Phase 6A run must use a new exclusive `phase6a-*` result identifier and the exact full clean repository HEAD. The release guard records a STARTED invocation manifest before request preparation or any handler/network transmission and rejects a mismatched commit, dirty tree, existing directory, or prior partial/complete manifest for that commit.
 
 ```text
-node benchmarks/blind-object-v1-execution-v1/scripts/run-baseline.mjs --execute-exactly-26 --result-root benchmarks/blind-object-v1-results/current-a4a7214
-node benchmarks/blind-object-v1-execution-v1/scripts/freeze-responses.mjs --result-root benchmarks/blind-object-v1-results/current-a4a7214
-node benchmarks/blind-object-v1-execution-v1/scripts/verify-result-integrity.mjs --result-root benchmarks/blind-object-v1-results/current-a4a7214
-node benchmarks/blind-object-v1-execution-v1/scripts/grade-frozen-results.mjs --result-root benchmarks/blind-object-v1-results/current-a4a7214 --out benchmarks/blind-object-v1-results/current-a4a7214/grading
+node benchmarks/blind-object-v1-execution-v1/scripts/run-baseline.mjs --execute-exactly-26 --expected-product-commit <full-40-character-clean-head> --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id>
+node benchmarks/blind-object-v1-execution-v1/scripts/freeze-responses.mjs --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id>
+node benchmarks/blind-object-v1-execution-v1/scripts/verify-result-integrity.mjs --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id>
+node benchmarks/blind-object-v1-execution-v1/scripts/grade-frozen-results.mjs --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id> --out benchmarks/blind-object-v1-results/phase6a-<approved-id>/product-grading
+node benchmarks/blind-object-v1-execution-v1/scripts/grade-governor-results.mjs --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id> --out benchmarks/blind-object-v1-results/phase6a-<approved-id>/governor-grading
 ```
 
 After a complete valid baseline, the request records, response records, journal, frozen result manifest, per-run scorecards, aggregate score, and grading-boundary record are result artifacts eligible for the separately authorized result-only commit. Any launcher diagnostics or failed synthetic fixtures belong in an operating-system temporary directory and must be removed; no broad ignore entry is needed.

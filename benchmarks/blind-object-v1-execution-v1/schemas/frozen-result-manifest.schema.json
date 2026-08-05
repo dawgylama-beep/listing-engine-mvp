@@ -7,7 +7,7 @@
   "properties": {
     "schemaVersion":{"const":1},
     "executorId":{"const":"blind-object-v1-execution-v1"},
-    "productCommit":{"const":"a4a7214f612314977b8ffd30743b336820fd9372"},
+    "productCommit":{"type":"string", "pattern":"^[a-f0-9]{40}$"},
     "benchmarkCommit":{"const":"3449f9a1a29b98b7422710f9e967770d0655b38c"},
     "corpusSha256":{"const":"c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853"},
     "contractSha256":{"const":"3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f"},

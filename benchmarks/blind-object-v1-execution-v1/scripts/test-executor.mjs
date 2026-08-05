@@ -5,6 +5,7 @@ import path from "node:path";
 import { assertNoSecretMaterial, prepareRequestTemplates, readJson, stableJson } from "./execution-common.mjs";
 import { freezeResponses } from "./freeze-responses.mjs";
 import { gradeFrozenResults } from "./grade-frozen-results.mjs";
+import { gradeGovernorResults } from "./grade-governor-results.mjs";
 import { verifyFrozenResultIntegrity } from "./result-integrity.mjs";
 import { runBaseline } from "./run-baseline.mjs";
 import { latestByRun, loadJournal } from "./run-journal.mjs";
@@ -77,6 +78,12 @@ async function runTests() {
     assert.equal(manifest.responseCount, 26);
     const verified = await verifyFrozenResultIntegrity(resultRoot);
     assert.equal(verified.integrityVerifiedBeforePrivateLoad, true);
+    const governorReport = await gradeGovernorResults({
+      resultRoot,
+      outputRoot: path.join(temporaryRoot, "governor-grade")
+    });
+    assert.equal(governorReport.passed, false, "synthetic legacy responses without Governor proofs must fail honestly");
+    assert.equal(governorReport.failedAnalysisCount, 26);
 
     const gradeAPath = path.join(temporaryRoot, "grade-a");
     const gradeBPath = path.join(temporaryRoot, "grade-b");
@@ -137,6 +144,7 @@ async function runTests() {
       gradingBlockedBeforeFreeze,
       completeSyntheticFreezeResponses: 26,
       gradingPrivateLoadAfterIntegrity: true,
+      separateGovernorReportFailures: governorReport.failedAnalysisCount,
       byteIdenticalGradingPasses: true,
       deliberatelyBadCriticalFailuresReported: true,
       credentialFieldRejectionControls: 3,

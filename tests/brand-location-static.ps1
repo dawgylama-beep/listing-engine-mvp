@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -31,7 +31,7 @@ $activeFiles = @(
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
+  @{ Name = "Package version is 1.12.2"; Text = $package; Pattern = '"version": "1.12.2"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
   @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine" },

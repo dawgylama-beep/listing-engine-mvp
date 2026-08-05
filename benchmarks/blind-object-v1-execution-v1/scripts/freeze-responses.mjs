@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-  BENCHMARK_COMMIT, CONTRACT_SHA256, CORPUS_SHA256, PRODUCT_COMMIT,
+  BENCHMARK_COMMIT, CONTRACT_SHA256, CORPUS_SHA256,
   assertNoSecretMaterial, assertRequestRecord, assertResponseRecord, executionRoot,
   loadLocalSecretValues, loadRunPlan, makeReadOnly, readJson, sha256Bytes,
   writeJsonExclusive
@@ -84,7 +84,7 @@ export async function freezeResponses({ resultRoot, nowIso = () => new Date().to
   const manifest = {
     schemaVersion: 1,
     executorId: "blind-object-v1-execution-v1",
-    productCommit: PRODUCT_COMMIT,
+    productCommit: requests[0].productCommit,
     benchmarkCommit: BENCHMARK_COMMIT,
     corpusSha256: CORPUS_SHA256,
     contractSha256: CONTRACT_SHA256,

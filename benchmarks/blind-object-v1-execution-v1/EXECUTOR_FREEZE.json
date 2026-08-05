@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "executorName": "Katherine's Eye Frozen Blind-Object Baseline Executor",
   "executorId": "blind-object-v1-execution-v1",
-  "executorVersion": "1.0.0",
-  "freezeTimestampUtc": "2026-08-03T16:23:41.964Z",
-  "futureExecutionStatus": "READY_REQUIRES_SEPARATE_PHASE_3B_AUTHORIZATION",
-  "productUnderTestCommit": "a4a7214f612314977b8ffd30743b336820fd9372",
+  "executorVersion": "1.1.0",
+  "freezeTimestampUtc": "2026-08-05T00:00:00.000Z",
+  "futureExecutionStatus": "READY_REQUIRES_SEPARATE_PHASE_6A_BENCHMARK_AUTHORIZATION",
+  "productUnderTestBinding": "RUNTIME_EXACT_FULL_CLEAN_HEAD",
   "frozenBenchmarkCommit": "3449f9a1a29b98b7422710f9e967770d0655b38c",
   "frozenCorpusSha256": "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853",
   "frozenContractSha256": "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f",
@@ -21,10 +21,11 @@
     "adapterScope": "Frontend-equivalent image-envelope preparation and metadata capture only; product input meaning and output bytes are not altered."
   },
   "schemaSha256": {
-    "requestRecord": "32029359d48fc381158c34ed0fedef22c977ce4ca6abd0cedb6d5b6085848ca9",
-    "responseRecord": "252d9f54d39f127dd3175342435f1b21d7a03d9e01964841a55a4c04a12bd364",
+    "requestRecord": "8bc8852f85df3d64051a7191922164815a7833db991e795b4cb5e5e18ea6cadc",
+    "responseRecord": "795862b9a26915a1053c3b864486995fd65625398105a628a633171cb1b661cb",
     "runJournal": "14e81c39957f39c406631dc46fde9096000366ac85cc6f7c2173be55bdf12cf5",
-    "frozenResultManifest": "db85409185c90f113854a53e346321cb54c0fe8f16e3b854c06f18255b3f9472"
+    "frozenResultManifest": "f0a1ed11be5d10f9558c0fab1ce6747b91ed8d80519204adfb2d54c860dcbd12",
+    "invocationManifest": "0beab175e83aad3be2baac74118983bc2662727662517a65028ffa254f0e4d7e"
   },
   "providerCeilingContract": {
     "standardProviderAttempts": 12,
@@ -47,10 +48,12 @@
   "answerKeySeparationPolicy": "Preparation, execution, journal, capture, freeze, and integrity modules have a statically audited import/file-access graph that excludes all private answer files. Only the separate post-freeze grading process may load them.",
   "rawResponseFreezeBoundary": "Exactly 26 validated request/response records, individual hashes, FROZEN journal states, and an aggregate result hash must exist before grading is permitted.",
   "gradingBoundary": "grade-frozen-results.mjs must independently verify the immutable result manifest and aggregate hash before dynamically loading the frozen scorer or any private answer file.",
-  "expectedResultLocation": "benchmarks/blind-object-v1-results/current-a4a7214/",
-  "executorCommitResolution": "At execution time, resolve the immutable executor commit with git log -1 -- EXECUTOR_FREEZE.json and store it in every request record.",
+  "expectedResultNaming": "benchmarks/blind-object-v1-results/phase6a-<exclusive-approved-id>/",
+  "releaseBinding": "Before request preparation, require an explicit full 40-character expected product commit, require exact current HEAD equality and a clean tree, reject existing or prior commit-bound result manifests, and exclusively write a STARTED invocation manifest with zero transmissions.",
+  "executorCommitResolution": "At release binding, resolve the immutable executor commit with git log -1 -- EXECUTOR_FREEZE.json and store it in the invocation manifest and every request record.",
   "executorContentHashAlgorithm": "SHA-256 of lexicographically sorted UTF-8 lines relative-path:file-sha256 for every execution-package file except EXECUTOR_FREEZE.json. This excludes the self-referential freeze file and Git commit.",
-  "executorContentSha256": "82acbea8e5805283d353cd7c9bb9c43eb1f73fc54e9484d0866e8254cd972581",
+  "executorContentSha256": "4e6ab4f10511816fcc941852a4b488fdbc90c60a206014180d98695579408e83",
+  "governorProofValidation": "Every stored analysis is validated offline for one Governor, one authoritative state, decision/execution signatures, provider-attempt ownership, unauthorized-action count, Episode/Experience/Lesson integrity, ceilings, terminal agreement, and proof hash. Product grading remains separate.",
   "constructionAttestation": {
     "realProductRuns": 0,
     "providerCalls": 0,

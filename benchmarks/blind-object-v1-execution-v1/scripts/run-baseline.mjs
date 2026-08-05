@@ -5,11 +5,12 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-  BENCHMARK_COMMIT, PRODUCT_COMMIT, assertRequestRecord, assertResponseRecord,
+  BENCHMARK_COMMIT, HISTORICAL_PRODUCT_COMMIT, assertRequestRecord, assertResponseRecord,
   executionRoot, extractResponseMetadata, hashWithoutField, loadRunPlan,
   prepareRequestTemplates, readJson, repositoryRoot, resolveExecutorCommit,
   writeJsonExclusive
 } from "./execution-common.mjs";
+import { beginReleaseBoundInvocation } from "./release-binding.mjs";
 import {
   appendJournalEvent, initializeJournal, latestByRun, loadJournal, stopOnIndeterminate
 } from "./run-journal.mjs";
@@ -75,6 +76,12 @@ function buildResponseRecord({ request, handlerResult, startTimestamp, endTimest
     rawProductResponse = { unparsedUtf8Body: rawBody.toString("utf8") };
   }
   const customerFacingReport = rawProductResponse?.valuation ?? rawProductResponse?.listing ?? rawProductResponse;
+  const cognitiveDiagnostics = customerFacingReport?.searchDiagnostics?.cognitiveGovernor
+    || rawProductResponse?.searchDiagnostics?.cognitiveGovernor
+    || {};
+  const objectDiagnostics = customerFacingReport?.searchDiagnostics?.objectIntelligence
+    || rawProductResponse?.searchDiagnostics?.objectIntelligence
+    || {};
   const metadata = extractResponseMetadata(rawProductResponse);
   const record = {
     schemaVersion: 1,
@@ -88,6 +95,10 @@ function buildResponseRecord({ request, handlerResult, startTimestamp, endTimest
     rawHandlerBodyBase64: handlerResult.rawBodyBase64,
     rawProductResponse,
     customerFacingReport,
+    governorProof: cognitiveDiagnostics.executionProof || null,
+    cognitiveEpisode: cognitiveDiagnostics.cognitiveEpisode || null,
+    lessonCandidate: cognitiveDiagnostics.lessonCandidate || null,
+    experienceRecord: objectDiagnostics.experienceRecord || null,
     providerAndSearchErrors: metadata.providerAndSearchErrors,
     providerCallCounts: metadata.providerCallCounts,
     evidenceRecords: metadata.evidenceRecords,
@@ -106,10 +117,16 @@ export async function runBaseline({
   mockTracePath = "",
   syntheticCommit = "",
   preparedOverride = null,
+  releaseBinding = null,
   nowIso = () => new Date().toISOString()
 }) {
   assert.ok(resultRoot, "resultRoot is required");
   assert.ok(["real", "mock"].includes(mode));
+  if (mode === "real") {
+    assert.ok(releaseBinding?.productCommit, "real execution requires a completed release binding before request preparation");
+    assert.equal(path.resolve(resultRoot), path.resolve(releaseBinding.resultRoot));
+  }
+  const productCommit = mode === "real" ? releaseBinding.productCommit : HISTORICAL_PRODUCT_COMMIT;
   const [plan, prepared] = await Promise.all([
     loadRunPlan(),
     preparedOverride ? Promise.resolve(preparedOverride) : prepareRequestTemplates()
@@ -135,19 +152,19 @@ export async function runBaseline({
       request = {
         ...template,
         requestTimestamp: nowIso(),
-        productCommit: PRODUCT_COMMIT,
+        productCommit,
         benchmarkCommit: BENCHMARK_COMMIT,
         executorCommit,
         requestSha256: ""
       };
       request.requestSha256 = hashWithoutField(request, "requestSha256");
-      assertRequestRecord(request);
+      assertRequestRecord(request, { expectedProductCommit: productCommit });
       await writeJsonExclusive(path.join(resultRoot, "requests", `${run.runId}.json`), request);
       await appendJournalEvent(resultRoot, { runId: run.runId, state: "PREPARED", timestamp: nowIso(), requestSha256: request.requestSha256 });
     } else {
       assert.equal(latest.state, "PREPARED", `unexpected resumable state for ${run.runId}: ${latest.state}`);
       request = await readJson(path.join(resultRoot, "requests", `${run.runId}.json`));
-      assertRequestRecord(request);
+      assertRequestRecord(request, { expectedProductCommit: productCommit });
       assert.equal(request.runId, template.runId);
       assert.equal(request.objectId, template.objectId);
       assert.equal(request.purpose, template.purpose);
@@ -190,13 +207,18 @@ async function cli() {
   const mock = args.includes("--mock");
   if (!mock) {
     assert.ok(args.includes("--execute-exactly-26"), "real execution requires --execute-exactly-26");
-    assert.equal(path.relative(repositoryRoot, path.resolve(resultRoot)).replaceAll("\\", "/"), "benchmarks/blind-object-v1-results/current-a4a7214");
+    assert.match(value("--expected-product-commit"), /^[a-f0-9]{40}$/, "real execution requires --expected-product-commit <full-40-character-head>");
   }
+  const releaseBinding = mock ? null : await beginReleaseBoundInvocation({
+    expectedProductCommit: value("--expected-product-commit"),
+    resultRoot: path.resolve(resultRoot)
+  });
   const result = await runBaseline({
     resultRoot: path.resolve(resultRoot),
     mode: mock ? "mock" : "real",
     mockMode: value("--mock-mode") || "mixed",
-    mockTracePath: value("--mock-trace") ? path.resolve(value("--mock-trace")) : ""
+    mockTracePath: value("--mock-trace") ? path.resolve(value("--mock-trace")) : "",
+    releaseBinding
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "resultId", "productCommit", "executorCommit", "startedAt", "networkTransmissionCountAtBinding", "handlerInvocationCountAtBinding"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "status": {"const": "STARTED"},
+    "resultId": {"type": "string", "pattern": "^phase6a-[a-z0-9][a-z0-9-]*$"},
+    "productCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "executorCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "networkTransmissionCountAtBinding": {"const": 0},
+    "handlerInvocationCountAtBinding": {"const": 0}
+  }
+}

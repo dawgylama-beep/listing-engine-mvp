@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -20,8 +20,8 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.1"; Text = $package; Pattern = '"version": "1.12.1"' },
-  @{ Name = "Server version is 1.12.1"; Text = $server; Pattern = '$AppVersion = "1.12.1"' },
+  @{ Name = "Package version is 1.12.2"; Text = $package; Pattern = '"version": "1.12.2"' },
+  @{ Name = "Server version is 1.12.2"; Text = $server; Pattern = '$AppVersion = "1.12.2"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Consumer sections include Price Spectrum Summary"; Text = $app; Pattern = '["priceSpectrumSummary", "Price Spectrum Summary"]' },
   @{ Name = "Canonical evidence section uses neutral market-evidence language"; Text = $app; Pattern = 'return isCurrentRetailOnlyReport(report) ? "Where to Buy" : "Market Evidence";' },

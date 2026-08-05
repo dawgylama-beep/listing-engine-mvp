@@ -542,6 +542,15 @@
 - Buying for Myself, Buying to Resell, Value Something I Own, Sell Something I Own, and future Sell It listing-generation foundations remain intact
 - Provider-call impact: the current-retail ceiling remains 28 calls and the non-retail/collectible ceiling remains 12 calls; validation used no live or paid provider searches
 
+## Version 1.12.2 (Completed)
+- Added one canonical per-evaluation Cognitive Governor execution ledger with real Governor-construction, authoritative-state, decision-invocation, controlled-execution, unauthorized-attempt, and provider-request ownership records
+- Enforced fail-closed action authorization before initial acquisition, refinement, direct-page verification, customer-input transition, canonical finalization, purpose judgment, and terminal stopping; provider fallback and limited-result recovery execute only as bounded child operations of eligible selected actions
+- Preserved provider physical attempts and retries beneath stable logical provider-request identities and their parent Governor action signatures without increasing provider, refinement, retry, or direct-page ceilings
+- Added a deterministic durable Governor proof with independently verifiable Cognitive Episode, Experience link, inert Lesson Candidate, capacity, terminal, unauthorized-action, and proof-hash integrity fields
+- Repaired the frozen executor to bind a future expressly authorized run to an explicit exact full clean HEAD, atomically register STARTED before request preparation, reject prior partial/complete commit bindings, and preserve historical result readability
+- Added a separate offline Cognitive Governor validator/report while preserving the frozen product grader, corpus, expected answers, controls, metrics, weights, thresholds, and safety rules unchanged
+- Provider-call impact: the current-retail ceiling remains 28 calls, the non-retail/collectible ceiling remains 12 calls, direct-page enrichment remains capped at 2 attempts, and validation used no live or paid provider searches
+
 ## Version 2.0
 - User accounts
 - Saved listings

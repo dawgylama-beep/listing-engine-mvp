@@ -22,11 +22,17 @@ import {
   buildCognitiveEpisode,
   buildCustomerInputRequest,
   buildLessonCandidate,
+  buildGovernorExecutionProof,
+  bindGovernorProviderRequest,
   continueCognitiveActionOutcome,
   createCognitiveGovernor,
+  createGovernorExecutionLedger,
   createCognitiveState,
   createCustomerMissionContext,
   decideCognitiveAction,
+  executeGovernorAuthorizedAction,
+  executeGovernorAuthorizedChildOperation,
+  assertGovernorProviderRequestOwnership,
   recordCognitiveActionOutcome
 } from "../lib/cognitive-governor/index.js";
 
@@ -1730,6 +1736,9 @@ function requestBoundedRetailProductPage(...args) {
 }
 
 function sanitizeClientVisiblePayload(value, key = "") {
+  if (["executionProof", "cognitiveEpisode", "lessonCandidate", "experienceRecord"].includes(key)) {
+    return value === undefined ? undefined : structuredClone(value);
+  }
   if (key === "researchPromptInternal") {
     return undefined;
   }
@@ -1858,7 +1867,9 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     researchPurpose: "listing",
     analysisId
   });
-  const report = await generateFinalListingReport({ apiKey, model, platform, notes, research });
+  const report = await executePendingPurposeJudgment(research, () => (
+    generateFinalListingReport({ apiKey, model, platform, notes, research })
+  ));
   return completeCognitiveEvaluation(
     research,
     enforceListingResearchHonesty(report, research, platform)
@@ -1934,7 +1945,7 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
   const { identity, sourceRoute, searchQueries, liveSearch } = research;
 
   if (isPersonalUseIntent(intake.purchase_intent)) {
-    const report = await generateFinalConsumerDecisionReport({
+    const report = await executePendingPurposeJudgment(research, () => generateFinalConsumerDecisionReport({
       apiKey,
       model,
       platform,
@@ -1944,7 +1955,7 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
       searchQueries,
       liveSearch,
       buyerIntake: intake
-    });
+    }));
 
     return completeCognitiveEvaluation(
       research,
@@ -1952,7 +1963,9 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
     );
   }
 
-  const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake });
+  const report = await executePendingPurposeJudgment(research, () => generateFinalMarketValueReport({
+    apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake
+  }));
 
   return completeCognitiveEvaluation(
     research,
@@ -1985,9 +1998,11 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   const cognitiveProviderMaximum = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
     ? retailSerperBudgetAllocation.maxProviderCalls
     : 12;
+  const governorExecutionLedger = createGovernorExecutionLedger({ evaluationId: analysisId });
   const cognitiveGovernor = createCognitiveGovernor({
     evaluationId: analysisId,
-    customerMission: createCustomerMissionContext({ ...intake, platform })
+    customerMission: createCustomerMissionContext({ ...intake, platform }),
+    executionLedger: governorExecutionLedger
   });
   const liveSearch = await executeLiveComparableSearch({
     apiKey,
@@ -2029,6 +2044,10 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
       { boundary: COGNITIVE_BOUNDARY.CUSTOMER_INPUT }
     );
     if (customerInputDecision.actionType === COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT && customerInputDecision.executionPermitted) {
+      executeGovernorAuthorizedAction(cognitiveGovernor, customerInputDecision, COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT, {
+        operationPhase: "CUSTOMER_INPUT_TRANSITION",
+        operation: () => customerInputDecision.customerInputRequest
+      });
       recordCognitiveActionOutcome(
         cognitiveGovernor,
         customerInputDecision,
@@ -2045,11 +2064,14 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   if (finalizationDecision.actionType !== COGNITIVE_ACTION.FINALIZE_EVIDENCE || !finalizationDecision.executionPermitted) {
     throw new Error("Cognitive Governor did not authorize the canonical finalization boundary.");
   }
-  buildConsumerPricesFound(
-    liveSearch,
-    getConsumerAskingPriceNumber(intake, identity),
-    { identity, buyerIntake: intake }
-  );
+  executeGovernorAuthorizedAction(cognitiveGovernor, finalizationDecision, COGNITIVE_ACTION.FINALIZE_EVIDENCE, {
+    operationPhase: "CANONICAL_EVIDENCE_FINALIZATION",
+    operation: () => buildConsumerPricesFound(
+      liveSearch,
+      getConsumerAskingPriceNumber(intake, identity),
+      { identity, buyerIntake: intake }
+    )
+  });
   recordCognitiveActionOutcome(
     cognitiveGovernor,
     finalizationDecision,
@@ -2092,6 +2114,18 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     cognitiveProviderMaximum,
     pendingPurposeDecision
   };
+}
+
+function executePendingPurposeJudgment(research = {}, operation) {
+  const governor = research.cognitiveGovernor;
+  const decision = research.pendingPurposeDecision;
+  if (!governor || !decision) {
+    throw new Error("Cognitive Governor purpose authorization is missing.");
+  }
+  return executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT, {
+    operationPhase: "PURPOSE_JUDGMENT",
+    operation
+  });
 }
 
 function cognitiveAttemptCount(providerRequests = [], { directPage = false } = {}) {
@@ -2170,6 +2204,10 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     completedSnapshot,
     { boundary: COGNITIVE_BOUNDARY.TERMINAL }
   );
+  executeGovernorAuthorizedAction(governor, terminalDecision, terminalDecision.actionType, {
+    operationPhase: "TERMINAL_STOP_TRANSITION",
+    operation: () => ({ terminalStatus: "COMPLETE" })
+  });
   recordCognitiveActionOutcome(
     governor,
     terminalDecision,
@@ -2180,6 +2218,15 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
   const cognitiveEpisode = buildCognitiveEpisode(governor, { experienceRecordHash });
   const lessonCandidate = buildLessonCandidate(cognitiveEpisode);
   const lastState = governor.lastState || {};
+  const governorExecutionProof = buildGovernorExecutionProof({
+    governor,
+    cognitiveEpisode,
+    lessonCandidate,
+    experienceRecord: research.liveSearch.experienceRecord,
+    providerRequests: research.liveSearch.providerRequestRecords || [],
+    providerCapacity: lastState.providerCapacity,
+    directPageCapacity: lastState.directPageCapacity
+  });
   const diagnostics = {
     schemaVersion: lastState.schemaVersion,
     objectMindStateId: lastState.objectMindStateId,
@@ -2194,10 +2241,12 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     cycleDetectionCount: governor.cycleDetections.length,
     terminalStatus: cognitiveEpisode.terminalStatus,
     cognitiveEpisode,
-    lessonCandidate
+    lessonCandidate,
+    executionProof: governorExecutionProof
   };
   research.liveSearch.cognitiveEpisode = cognitiveEpisode;
   research.liveSearch.lessonCandidate = lessonCandidate;
+  research.liveSearch.governorExecutionProof = governorExecutionProof;
   research.liveSearch.searchDiagnostics = {
     ...(research.liveSearch.searchDiagnostics || {}),
     cognitiveGovernor: diagnostics
@@ -2294,7 +2343,8 @@ async function executeLiveComparableSearch(args) {
     const fallbackResult = await executeOpenAIWebComparableSearch({
       ...args,
       providerAttemptBudget,
-      cognitiveInitialActionContinuation: true
+      cognitiveInitialActionContinuation: true,
+      cognitiveInitialAuthorizationContext: args.cognitiveGovernor?.initialAcquisitionAuthorizationContext || null
     });
     return annotateOpenAIFallbackResult(fallbackResult, serperResult);
   }
@@ -2332,7 +2382,8 @@ async function executeOpenAIWebComparableSearch({
   directPageRequestAdapter = requestBoundedRetailProductPage,
   cognitiveGovernor = null,
   cognitiveProviderMaximum = 12,
-  cognitiveInitialActionContinuation = false
+  cognitiveInitialActionContinuation = false,
+  cognitiveInitialAuthorizationContext = null
 }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
@@ -2375,12 +2426,8 @@ async function executeOpenAIWebComparableSearch({
         { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
       )
     : null;
-  const initialAcquisitionAuthorized = !initialCognitiveDecision || (
-    initialCognitiveDecision.actionType === COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE
-    && initialCognitiveDecision.executionPermitted
-  );
 
-  const executeQueryRecord = async (queryRecord) => {
+  const executeQueryRecord = async (queryRecord, governorAuthorization = null) => {
     const requestRecord = {
       query: queryRecord.query,
       priority: queryRecord.priority,
@@ -2416,6 +2463,14 @@ async function executeOpenAIWebComparableSearch({
       errorCode: "",
       failureStage: "provider_request_failure"
     };
+    if (cognitiveGovernor) {
+      bindGovernorProviderRequest(cognitiveGovernor, governorAuthorization, requestRecord, {
+        providerPhase: cleanText(governorAuthorization?.operationPhase || queryRecord.objectMindPhase || "PROVIDER_SEARCH")
+      });
+      assertGovernorProviderRequestOwnership(requestRecord);
+    } else {
+      requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
+    }
     providerRequestRecords.push(requestRecord);
 
     try {
@@ -2534,10 +2589,30 @@ async function executeOpenAIWebComparableSearch({
     }
   };
 
-  if (initialAcquisitionAuthorized) {
-    for (const queryRecord of queriesPrioritized.slice()) {
-      await executeQueryRecord(queryRecord);
+  const executeInitialQueries = async (authorization) => {
+    if (cognitiveGovernor && !cognitiveInitialActionContinuation) {
+      Object.defineProperty(cognitiveGovernor, "initialAcquisitionAuthorizationContext", {
+        value: authorization,
+        writable: true,
+        configurable: true,
+        enumerable: false
+      });
     }
+    for (const queryRecord of queriesPrioritized.slice()) await executeQueryRecord(queryRecord, authorization);
+  };
+  if (cognitiveGovernor && initialCognitiveDecision) {
+    await executeGovernorAuthorizedAction(cognitiveGovernor, initialCognitiveDecision, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE, {
+      operationPhase: "INITIAL_PROVIDER_ACQUISITION",
+      operation: executeInitialQueries
+    });
+  } else if (cognitiveGovernor && cognitiveInitialActionContinuation) {
+    await executeGovernorAuthorizedChildOperation(cognitiveGovernor, cognitiveInitialAuthorizationContext, {
+      operationPhase: "PROVIDER_FALLBACK",
+      eligibleParentActionTypes: [COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE],
+      operation: executeInitialQueries
+    });
+  } else {
+    await executeInitialQueries(null);
   }
 
   const initialVerifiedSourceRecords = objectMindState?.objectStateId
@@ -2642,9 +2717,19 @@ async function executeOpenAIWebComparableSearch({
       && refinementCognitiveDecision.executionPermitted
     ) ? refinementQueries : [];
     queriesPrioritized.push(...authorizedRefinementQueries);
-    for (const queryRecord of authorizedRefinementQueries) {
-      if (Number(sharedProviderAttemptBudget.physicalAttemptCount || 0) >= Number(sharedProviderAttemptBudget.maximumAttempts || 0)) break;
-      await executeQueryRecord(queryRecord);
+    const executeRefinementQueries = async (authorization) => {
+      for (const queryRecord of authorizedRefinementQueries) {
+        if (Number(sharedProviderAttemptBudget.physicalAttemptCount || 0) >= Number(sharedProviderAttemptBudget.maximumAttempts || 0)) break;
+        await executeQueryRecord(queryRecord, authorization);
+      }
+    };
+    if (cognitiveGovernor && refinementCognitiveDecision) {
+      await executeGovernorAuthorizedAction(cognitiveGovernor, refinementCognitiveDecision, COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH, {
+        operationPhase: "REFINEMENT_PROVIDER_SEARCH",
+        operation: executeRefinementQueries
+      });
+    } else {
+      await executeRefinementQueries(null);
     }
     verifiedSourceRecords = coalesceIdenticalSerperTransportRecords(
       normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
@@ -3013,10 +3098,7 @@ async function executeSerperComparableSearch({
         { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
       )
     : null;
-  const initialAcquisitionAuthorized = !initialCognitiveDecision || (
-    initialCognitiveDecision.actionType === COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE
-    && initialCognitiveDecision.executionPermitted
-  );
+  let initialAuthorizationContext = null;
 
   providerRequestRecords.forEach((requestRecord, index) => {
     if (!requestRecord.attempted) {
@@ -3027,9 +3109,27 @@ async function executeSerperComparableSearch({
   const executableRequests = providerRequestRecords
     .map((requestRecord, index) => ({ requestRecord, queryRecord: queriesPrioritized[index] }))
     .filter(({ requestRecord }) => requestRecord.attempted);
-  const governedExecutableRequests = initialAcquisitionAuthorized ? executableRequests : [];
-
-  await Promise.all(governedExecutableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
+  const executeInitialProviderRequests = async (authorization) => {
+    initialAuthorizationContext = authorization;
+    if (cognitiveGovernor) {
+      Object.defineProperty(cognitiveGovernor, "initialAcquisitionAuthorizationContext", {
+        value: authorization,
+        writable: true,
+        configurable: true,
+        enumerable: false
+      });
+    }
+    for (const requestRecord of providerRequestRecords) {
+      if (cognitiveGovernor) {
+        bindGovernorProviderRequest(cognitiveGovernor, authorization, requestRecord, {
+          providerPhase: "INITIAL_PROVIDER_ACQUISITION"
+        });
+        assertGovernorProviderRequestOwnership(requestRecord);
+      } else {
+        requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
+      }
+    }
+    await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
     try {
       const response = await requestSerperSearchWithBudget({
         requestRecord,
@@ -3097,7 +3197,16 @@ async function executeSerperComparableSearch({
         errorMessage: diagnostic.message
       });
     }
-  }));
+    }));
+  };
+  if (cognitiveGovernor && initialCognitiveDecision) {
+    await executeGovernorAuthorizedAction(cognitiveGovernor, initialCognitiveDecision, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE, {
+      operationPhase: "INITIAL_PROVIDER_ACQUISITION",
+      operation: executeInitialProviderRequests
+    });
+  } else {
+    await executeInitialProviderRequests(null);
+  }
   rawProviderRecords.push(...rawProviderRecordsByPlan.flatMap((records) => records || []));
   const initialNormalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context, objectMindState);
   const initialDedupedRecords = coalesceIdenticalSerperTransportRecords(initialNormalizedRecords);
@@ -3167,21 +3276,33 @@ async function executeSerperComparableSearch({
     refinementCognitiveDecision.actionType === COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
     && refinementCognitiveDecision.executionPermitted
   ) ? refinement.searchPlan : [];
-  const refinementResult = await executeObjectMindRefinementSearch({
-    serperApiKey,
-    context,
-    identity,
-    sourceRoute,
-    queryRecords: authorizedRefinementPlan,
-    providerRequestRecords,
-    providerResponseSummaries,
-    providerErrors,
-    rawProviderRecords,
-    currentRecords: dedupedRecords,
-    providerAttemptBudget: sharedProviderAttemptBudget,
-    requestAdapter,
-    objectMindState
-  });
+  let refinementAuthorizationContext = null;
+  const runRefinement = (authorization) => {
+    refinementAuthorizationContext = authorization;
+    return executeObjectMindRefinementSearch({
+      serperApiKey,
+      context,
+      identity,
+      sourceRoute,
+      queryRecords: authorizedRefinementPlan,
+      providerRequestRecords,
+      providerResponseSummaries,
+      providerErrors,
+      rawProviderRecords,
+      currentRecords: dedupedRecords,
+      providerAttemptBudget: sharedProviderAttemptBudget,
+      requestAdapter,
+      objectMindState,
+      cognitiveGovernor,
+      governorAuthorizationContext: authorization
+    });
+  };
+  const refinementResult = cognitiveGovernor && refinementCognitiveDecision
+    ? await executeGovernorAuthorizedAction(cognitiveGovernor, refinementCognitiveDecision, COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH, {
+        operationPhase: "REFINEMENT_PROVIDER_SEARCH",
+        operation: runRefinement
+      })
+    : await runRefinement(null);
   dedupedRecords = refinementResult.records;
   objectMindState = refinementResult.objectMindState;
   if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted) {
@@ -3218,7 +3339,8 @@ async function executeSerperComparableSearch({
     serperRequestAdapter: requestAdapter,
     objectMindState,
     cognitiveGovernor,
-    cognitiveProviderMaximum
+    cognitiveProviderMaximum,
+    governorAuthorizationContext: refinementAuthorizationContext || initialAuthorizationContext
   });
   objectMindState = incorporateCandidateEvidence(objectMindState || {}, dedupedRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
@@ -3288,7 +3410,9 @@ async function executeObjectMindRefinementSearch({
   currentRecords = [],
   providerAttemptBudget = createPhysicalAttemptBudget(12, "provider_search"),
   requestAdapter = requestSerperSearch,
-  objectMindState = null
+  objectMindState = null,
+  cognitiveGovernor = null,
+  governorAuthorizationContext = null
 } = {}) {
   const plannedQueries = finalizeObjectMindRefinementQueries(
     context,
@@ -3300,6 +3424,16 @@ async function executeObjectMindRefinementSearch({
     return { records: currentRecords, objectMindState };
   }
   const requestRecords = plannedQueries.map((record) => createSerperRequestRecord(record));
+  for (const requestRecord of requestRecords) {
+    if (cognitiveGovernor) {
+      bindGovernorProviderRequest(cognitiveGovernor, governorAuthorizationContext, requestRecord, {
+        providerPhase: "REFINEMENT_PROVIDER_SEARCH"
+      });
+      assertGovernorProviderRequestOwnership(requestRecord);
+    } else {
+      requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
+    }
+  }
   providerRequestRecords.push(...requestRecords);
   const returnedByPlan = new Array(requestRecords.length);
   for (let index = 0; index < requestRecords.length; index += 1) {
@@ -3586,7 +3720,8 @@ async function executeLimitedResultRetailRecovery({
   directPageRequestAdapter = requestBoundedRetailProductPage,
   objectMindState = null,
   cognitiveGovernor = null,
-  cognitiveProviderMaximum = retailSerperBudgetAllocation.maxProviderCalls
+  cognitiveProviderMaximum = retailSerperBudgetAllocation.maxProviderCalls,
+  governorAuthorizationContext = null
 } = {}) {
   let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
     context,
@@ -3634,6 +3769,9 @@ async function executeLimitedResultRetailRecovery({
     return recordsForRecovery;
   }
   const recoveryRequestRecords = plannedQueries.map((queryRecord) => createSerperRequestRecord(queryRecord));
+  recoveryRequestRecords.forEach((requestRecord) => {
+    requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
+  });
   providerRequestRecords.push(...recoveryRequestRecords);
   recoveryRequestRecords.forEach((requestRecord, index) => {
     if (!requestRecord.attempted) {
@@ -3641,7 +3779,16 @@ async function executeLimitedResultRetailRecovery({
     }
   });
   const recoveredProviderRecordsByPlan = new Array(recoveryRequestRecords.length);
-  await Promise.all(recoveryRequestRecords.map(async (requestRecord, index) => {
+  const executeRecoveryRequests = async (authorization) => {
+    for (const requestRecord of recoveryRequestRecords) {
+      if (cognitiveGovernor) {
+        bindGovernorProviderRequest(cognitiveGovernor, authorization, requestRecord, {
+          providerPhase: "LIMITED_RESULT_RECOVERY"
+        });
+        assertGovernorProviderRequestOwnership(requestRecord);
+      }
+    }
+    await Promise.all(recoveryRequestRecords.map(async (requestRecord, index) => {
     if (!requestRecord.attempted) {
       return;
     }
@@ -3713,7 +3860,20 @@ async function executeLimitedResultRetailRecovery({
         errorMessage: diagnostic.message
       });
     }
-  }));
+    }));
+  };
+  if (cognitiveGovernor) {
+    await executeGovernorAuthorizedChildOperation(cognitiveGovernor, governorAuthorizationContext, {
+      operationPhase: "LIMITED_RESULT_RECOVERY",
+      eligibleParentActionTypes: [
+        COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE,
+        COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
+      ],
+      operation: executeRecoveryRequests
+    });
+  } else {
+    await executeRecoveryRequests(null);
+  }
   rawProviderRecords.push(...recoveredProviderRecordsByPlan.flatMap((records) => records || []));
   const recoveredRecords = coalesceIdenticalSerperTransportRecords(
     [
@@ -3810,6 +3970,7 @@ async function executeExactRetailPageDirectEnrichment({
       continue;
     }
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
+    requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
     requestRecord.resultingCandidateIds = normalizeStringArray(
       members.map((member) => member.objectMindSourceId || member.sourceRecordId),
       12
@@ -3817,36 +3978,55 @@ async function executeExactRetailPageDirectEnrichment({
     priority += 1;
     providerRequestRecords.push(requestRecord);
     requestRecord.logicalQueryAttempted = true;
-    if (!consumePhysicalAttempt(directPageAttemptBudget, requestRecord, {
-      provider: "direct_product_page_fetch"
-    })) {
-      requestRecord.errorCode = "direct_page_attempt_budget_exhausted";
-      requestRecord.failureStage = requestRecord.errorCode;
-      providerErrors.push({
-        category: requestRecord.errorCode,
-        code: requestRecord.errorCode,
-        message: "The bounded direct-page physical-attempt budget was exhausted before another fetch.",
-        query: requestRecord.query,
-        priority: requestRecord.priority
-      });
-      providerResponseSummaries.push({
-        ...createDirectProductPageFetchResponseSummary(requestRecord),
-        errorCode: requestRecord.errorCode,
-        errorMessage: "Direct-page fetch was not attempted because its independent budget was exhausted."
-      });
-      break;
-    }
     try {
-      const result = await requestAdapter(
-        record.destinationUrl || record.url || record.canonicalUrl,
-        context,
-        record,
-        {
-          attemptBudget: directPageAttemptBudget,
-          requestRecord,
-          initialAttemptReserved: true
+      const executeDirectPageRequest = (authorization) => {
+        if (cognitiveGovernor) {
+          bindGovernorProviderRequest(cognitiveGovernor, authorization, requestRecord, {
+            providerPhase: "DIRECT_PAGE_VERIFICATION"
+          });
+          assertGovernorProviderRequestOwnership(requestRecord);
         }
-      );
+        if (!consumePhysicalAttempt(directPageAttemptBudget, requestRecord, {
+          provider: "direct_product_page_fetch"
+        })) {
+          return { directPageBudgetExhausted: true };
+        }
+        return requestAdapter(
+          record.destinationUrl || record.url || record.canonicalUrl,
+          context,
+          record,
+          {
+            attemptBudget: directPageAttemptBudget,
+            requestRecord,
+            initialAttemptReserved: true
+          }
+        );
+      };
+      const result = cognitiveGovernor
+        ? await executeGovernorAuthorizedAction(
+            cognitiveGovernor,
+            directPageCognitiveDecision,
+            COGNITIVE_ACTION.VERIFY_DIRECT_PAGE,
+            { operationPhase: "DIRECT_PAGE_VERIFICATION", operation: executeDirectPageRequest }
+          )
+        : await executeDirectPageRequest(null);
+      if (result?.directPageBudgetExhausted) {
+        requestRecord.errorCode = "direct_page_attempt_budget_exhausted";
+        requestRecord.failureStage = requestRecord.errorCode;
+        providerErrors.push({
+          category: requestRecord.errorCode,
+          code: requestRecord.errorCode,
+          message: "The bounded direct-page physical-attempt budget was exhausted before another fetch.",
+          query: requestRecord.query,
+          priority: requestRecord.priority
+        });
+        providerResponseSummaries.push({
+          ...createDirectProductPageFetchResponseSummary(requestRecord),
+          errorCode: requestRecord.errorCode,
+          errorMessage: "Direct-page fetch was not attempted because its independent budget was exhausted."
+        });
+        break;
+      }
       recordPhysicalAttemptOutcome(requestRecord, "succeeded");
       requestRecord.succeeded = true;
       requestRecord.statusCode = result.statusCode;
@@ -3878,6 +4058,7 @@ async function executeExactRetailPageDirectEnrichment({
         });
       }
     } catch (error) {
+      if (/^Governor authorization rejected:/.test(String(error?.message || ""))) throw error;
       recordPhysicalAttemptOutcome(requestRecord, "failed");
       const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
       requestRecord.succeeded = false;
@@ -12651,6 +12832,12 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
 
 function sanitizeProviderRequestRecord(record = {}) {
   return {
+    governorScopeClassification: cleanText(record.governorScopeClassification || "OUTSIDE_GOVERNOR_SCOPE"),
+    parentGovernorActionType: cleanText(record.parentGovernorActionType),
+    parentGovernorActionSignature: cleanText(record.parentGovernorActionSignature),
+    controlledExecutionEventIdentity: cleanText(record.controlledExecutionEventIdentity),
+    providerOperationPhase: cleanText(record.providerOperationPhase),
+    logicalProviderRequestIdentity: cleanText(record.logicalProviderRequestIdentity),
     query: cleanText(record.query),
     priority: Number(record.priority || 0),
     searchPass: cleanText(record.searchPass),

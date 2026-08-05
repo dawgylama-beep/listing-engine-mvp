@@ -8,11 +8,12 @@ import { fileURLToPath } from "node:url";
 export const executionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const repositoryRoot = path.resolve(executionRoot, "..", "..");
 export const benchmarkRoot = path.join(repositoryRoot, "benchmarks", "blind-object-v1");
-export const PRODUCT_COMMIT = "a4a7214f612314977b8ffd30743b336820fd9372";
+export const HISTORICAL_PRODUCT_COMMIT = "a4a7214f612314977b8ffd30743b336820fd9372";
+export const PRODUCT_COMMIT = HISTORICAL_PRODUCT_COMMIT;
 export const BENCHMARK_COMMIT = "3449f9a1a29b98b7422710f9e967770d0655b38c";
 export const CORPUS_SHA256 = "c22c99f25da2b8bc8a4e032734b1857c82c5bfaf1951ec160b018eb7df5b2853";
 export const CONTRACT_SHA256 = "3ca09be6507ea22478446db09d066117e020d89a02b8dfc08561bc3f6cba2b6f";
-export const RESULT_LOCATION = "benchmarks/blind-object-v1-results/current-a4a7214";
+export const HISTORICAL_RESULT_LOCATION = "benchmarks/blind-object-v1-results/current-a4a7214";
 export const RUN_COUNT = 26;
 
 export const canonical = (value) => {
@@ -228,7 +229,7 @@ export async function prepareRequestTemplates() {
   }
 }
 
-export function assertRequestRecord(record) {
+export function assertRequestRecord(record, { expectedProductCommit = "" } = {}) {
   const required = ["schemaVersion","runId","objectId","runType","purpose","lane","images","description","requestTimestamp","productCommit","benchmarkCommit","executorCommit","handlerRequest","requestSha256"];
   assert.deepEqual(Object.keys(record).sort(), required.sort());
   assert.equal(record.schemaVersion, 1);
@@ -243,7 +244,8 @@ export function assertRequestRecord(record) {
     assert.match(image.imageId, /^OBJ-\d{3}-[A-Z]$/);
     assert.match(image.sha256, /^[a-f0-9]{64}$/);
   }
-  assert.equal(record.productCommit, PRODUCT_COMMIT);
+  assert.match(record.productCommit, /^[a-f0-9]{40}$/);
+  if (expectedProductCommit) assert.equal(record.productCommit, expectedProductCommit);
   assert.equal(record.benchmarkCommit, BENCHMARK_COMMIT);
   assert.match(record.executorCommit, /^[a-f0-9]{40}$/);
   assert.equal(record.handlerRequest.method, "POST");
@@ -255,7 +257,8 @@ export function assertRequestRecord(record) {
 
 export function assertResponseRecord(record) {
   const required = ["schemaVersion","runId","objectId","requestSha256","handlerStatus","startTimestamp","endTimestamp","elapsedMilliseconds","rawHandlerBodyBase64","rawProductResponse","customerFacingReport","providerAndSearchErrors","providerCallCounts","evidenceRecords","sourceUrls","responseSha256"];
-  assert.deepEqual(Object.keys(record).sort(), required.sort());
+  const optional = ["governorProof", "cognitiveEpisode", "lessonCandidate", "experienceRecord"];
+  assert.deepEqual(Object.keys(record).filter((key) => !optional.includes(key)).sort(), required.sort());
   assert.equal(record.schemaVersion, 1);
   assert.match(record.runId, /^RUN-\d{3}$/);
   assert.match(record.objectId, /^OBJ-\d{3}$/);

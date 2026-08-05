@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  CONTRACT_SHA256, CORPUS_SHA256, PRODUCT_COMMIT, BENCHMARK_COMMIT,
-  RUN_COUNT, assertRequestRecord, assertResponseRecord, executionRoot,
+  CONTRACT_SHA256, CORPUS_SHA256, BENCHMARK_COMMIT,
+  RUN_COUNT, assertRequestRecord, assertResponseRecord,
   loadRunPlan, readJson, sha256Bytes, sha256Json
 } from "./execution-common.mjs";
 import { journalPath, latestByRun, loadJournal } from "./run-journal.mjs";
@@ -18,17 +18,16 @@ export function calculateAggregateResultHash(requests, responses) {
 
 export async function verifyFrozenResultIntegrity(resultRoot) {
   const manifestPath = path.join(resultRoot, "frozen-result-manifest.json");
-  const [manifest, plan, freeze] = await Promise.all([
+  const [manifest, plan] = await Promise.all([
     readJson(manifestPath),
-    loadRunPlan(),
-    readJson(path.join(executionRoot, "EXECUTOR_FREEZE.json"))
+    loadRunPlan()
   ]);
   assert.equal(manifest.schemaVersion, 1);
-  assert.equal(manifest.productCommit, PRODUCT_COMMIT);
+  assert.match(manifest.productCommit, /^[a-f0-9]{40}$/);
   assert.equal(manifest.benchmarkCommit, BENCHMARK_COMMIT);
   assert.equal(manifest.corpusSha256, CORPUS_SHA256);
   assert.equal(manifest.contractSha256, CONTRACT_SHA256);
-  assert.equal(manifest.executorContentSha256, freeze.executorContentSha256);
+  assert.match(manifest.executorContentSha256, /^[a-f0-9]{64}$/, "historical and current executor content hashes must remain readable");
   assert.equal(manifest.requestCount, RUN_COUNT);
   assert.equal(manifest.responseCount, RUN_COUNT);
   assert.deepEqual(manifest.runIds, plan.runs.map((entry) => entry.runId));
@@ -45,7 +44,7 @@ export async function verifyFrozenResultIntegrity(resultRoot) {
     assert.equal(sha256Bytes(responseBytes), responseRef.fileSha256);
     const request = JSON.parse(requestBytes.toString("utf8"));
     const response = JSON.parse(responseBytes.toString("utf8"));
-    assertRequestRecord(request);
+    assertRequestRecord(request, { expectedProductCommit: manifest.productCommit });
     assertResponseRecord(response);
     assert.equal(request.requestSha256, response.requestSha256);
     assert.equal(request.objectId, response.objectId);
