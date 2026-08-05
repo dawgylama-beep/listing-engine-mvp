@@ -85,6 +85,19 @@ async function runTests() {
     assert.equal(governorReport.passed, false, "synthetic legacy responses without Governor proofs must fail honestly");
     assert.equal(governorReport.governorProofDisposition, "FAIL");
     assert.equal(governorReport.failedAnalysisCount, 26);
+    for (const familyName of [
+      "cognitiveEpisodeIntegrity",
+      "experienceRecordIntegrity",
+      "lessonCandidateIntegrityAndInertness",
+      "ceilingCompliance",
+      "terminalAgreement"
+    ]) {
+      const family = governorReport.integrityFamilies[familyName];
+      assert.equal(family.totalAnalysesEvaluated, 26);
+      assert.equal(family.analysesFailed, 26);
+      assert.equal(family.disposition, "FAIL");
+      assert.equal(family.failedAnalysisIds.length, 26);
+    }
 
     const gradeAPath = path.join(temporaryRoot, "grade-a");
     const gradeBPath = path.join(temporaryRoot, "grade-b");

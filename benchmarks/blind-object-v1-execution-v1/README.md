@@ -12,6 +12,8 @@ The only real handler path is `scripts/local-generate-listing-bridge.mjs`, which
 
 `grade-frozen-results.mjs` remains the separate frozen product grader and is unchanged in scoring behavior. `grade-governor-results.mjs` is a separate offline Governor-integrity report; it validates each stored proof without issuing provider requests or changing the product score.
 
+Executor 1.2.1 returns and aggregates five explicit validator-owned integrity families for every current proof: Cognitive Episode integrity, Experience Record integrity and linkage, Lesson Candidate integrity and inertness, ceiling compliance, and terminal agreement. Each family carries a structured disposition and evidence; allowed Lesson absence is `NOT_APPLICABLE`. The Governor grader rejects missing current-schema families and aggregates these results without reinterpreting raw proof data or inferring outcomes from failure text.
+
 ## Validation commands
 
 Run these without provider credentials or network access:
@@ -25,7 +27,7 @@ The tests use only `mock-handler.mjs` and operating-system temporary directories
 
 ## Future release-bound baseline
 
-Historical result roots, including `current-a4a7214`, remain readable and immutable. A future expressly authorized post-Phase-6B run must use the established new exclusive `phase6a-*` compatibility result identifier and the exact full clean repository HEAD. The release guard records a STARTED invocation manifest before request preparation or any handler/network transmission and rejects a mismatched commit, dirty tree, existing directory, or prior partial/complete manifest for that commit.
+Historical result roots, including `current-a4a7214`, remain readable and immutable. A future expressly authorized post-Phase-6C run must use the established new exclusive `phase6a-*` compatibility result identifier and the exact full clean repository HEAD. The release guard records a STARTED invocation manifest before request preparation or any handler/network transmission and rejects a mismatched commit, dirty tree, existing directory, or prior partial/complete manifest for that commit.
 
 Governor proof schema 1.1 durably binds lifecycle-derived construction/state counts, evaluation-owned decision and execution identities, selected-signature uniqueness, parent/child execution ownership, logical provider requests, nested physical attempts/retries, semantic validation, and the final proof hash. Prior-schema artifacts remain readable but are never treated as a current-schema semantic pass.
 

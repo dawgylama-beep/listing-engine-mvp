@@ -560,6 +560,14 @@
 - Preserved the 29 frozen images, 14 cases, 26-analysis plan, frozen descriptions, expected answers, purposes, lanes, controls, product metrics, scoring weights, thresholds, safety rules, and historical product grader behavior
 - Provider-call impact: the current-retail ceiling remains 28 calls, the non-retail/collectible ceiling remains 12 calls, direct-page enrichment remains capped at 2 attempts, and validation used no live or paid provider searches
 
+## Version 1.12.4 (Completed)
+- Exposed authoritative Cognitive Episode, Experience Record, Lesson Candidate, ceiling, and terminal-agreement validation as five structured per-analysis integrity families without changing production proof schema 1.1 or runtime telemetry
+- Added explicit PASS, FAIL, and allowed Lesson-absence NOT_APPLICABLE dispositions with deterministic hash, linkage, byte-size, inertness, consumption, maximum, and terminal evidence
+- Added fail-closed aggregate Governor report sections with per-category totals, failed analysis identifiers, and structured failure reasons while preserving every existing Phase 6B integrity field
+- Kept the offline Governor validator as the single semantic authority; the report grader validates result shape and aggregates returned dispositions without reinterpreting raw proof data or parsing failure text
+- Preserved the frozen product grader, 29 images, 14 cases, 26-analysis plan, expected answers, controls, metrics, weights, thresholds, safety rules, customer behavior, production Governor authorization, and provider ceilings unchanged
+- Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, provider, benchmark, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

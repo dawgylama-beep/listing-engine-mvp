@@ -16,8 +16,8 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.3"; Text = $package; Pattern = '"version": "1.12.3"' },
-  @{ Name = "Server version is 1.12.3"; Text = $server; Pattern = '$AppVersion = "1.12.3"' },
+  @{ Name = "Package version is 1.12.4"; Text = $package; Pattern = '"version": "1.12.4"' },
+  @{ Name = "Server version is 1.12.4"; Text = $server; Pattern = '$AppVersion = "1.12.4"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API has non-transactional content gate"; Text = $api; Pattern = "function isNonTransactionalContentRecord" },
   @{ Name = "API has bulk lot unit-price gate"; Text = $api; Pattern = "function isBulkLotReferenceWithoutUnitPrice" },

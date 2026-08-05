@@ -195,6 +195,52 @@ function proofFixture({ withLesson = true, withProvider = true } = {}) {
   return { proof, cognitiveEpisode, lessonCandidate, experienceRecord };
 }
 
+function synchronizeEpisode(fixture, cognitiveEpisode) {
+  fixture.cognitiveEpisode = withHash({ ...cognitiveEpisode, cognitiveEpisodeHash: "" }, "cognitiveEpisodeHash");
+  const bytes = Buffer.byteLength(stableObjectJson(fixture.cognitiveEpisode), "utf8");
+  Object.assign(fixture.proof.cognitiveEpisode, {
+    schemaVersion: fixture.cognitiveEpisode.schemaVersion,
+    storedHash: fixture.cognitiveEpisode.cognitiveEpisodeHash,
+    recalculatedHash: fixture.cognitiveEpisode.cognitiveEpisodeHash,
+    canonicalByteSize: bytes,
+    maximumByteSize: 32768,
+    integrityPassed: true,
+    sizeCompliant: bytes <= 32768
+  });
+  Object.assign(fixture.proof.ceilings.cognitiveEpisode, {
+    maximumBytes: 32768,
+    consumedBytes: bytes,
+    compliant: bytes <= 32768
+  });
+  rehashProof(fixture.proof);
+  return bytes;
+}
+
+function synchronizeLesson(fixture, lessonCandidate) {
+  fixture.lessonCandidate = withHash({ ...lessonCandidate, lessonCandidateHash: "" }, "lessonCandidateHash");
+  const bytes = Buffer.byteLength(stableObjectJson(fixture.lessonCandidate), "utf8");
+  Object.assign(fixture.proof.lessonCandidate, {
+    present: true,
+    schemaVersion: fixture.lessonCandidate.schemaVersion,
+    storedHash: fixture.lessonCandidate.lessonCandidateHash,
+    recalculatedHash: fixture.lessonCandidate.lessonCandidateHash,
+    canonicalByteSize: bytes,
+    maximumByteSize: 8192,
+    status: fixture.lessonCandidate.status,
+    promotionAuthorized: fixture.lessonCandidate.promotionAuthorized === true,
+    inert: fixture.lessonCandidate.status === "UNVALIDATED" && fixture.lessonCandidate.promotionAuthorized === false,
+    integrityPassed: true,
+    sizeCompliant: bytes <= 8192
+  });
+  Object.assign(fixture.proof.ceilings.lessonCandidate, {
+    maximumBytes: 8192,
+    consumedBytes: bytes,
+    compliant: bytes <= 8192
+  });
+  rehashProof(fixture.proof);
+  return bytes;
+}
+
 function validation(fixture) {
   return validateGovernorProof(fixture);
 }
@@ -233,6 +279,17 @@ test("valid current proof independently validates lifecycle, Episode, Experience
     unauthorizedActionCount: 0
   });
   assert(Object.values(result.integrity).every(Boolean));
+  for (const familyName of [
+    "cognitiveEpisodeIntegrity",
+    "experienceRecordIntegrity",
+    "lessonCandidateIntegrityAndInertness",
+    "ceilingCompliance",
+    "terminalAgreement"
+  ]) {
+    assert.ok(result[familyName]);
+    assert.equal(result[familyName].disposition, "PASS");
+  }
+  assert.equal(result.proofSchemaVersion, "1.1");
 });
 
 test("missing Governor lifecycle event fails even when the stored count remains one", () => {
@@ -633,20 +690,129 @@ test("prior-schema artifacts are explicit and never silently pass current valida
 test("Episode mutation and Experience link mismatch fail integrity validation", () => {
   const episodeMutation = proofFixture();
   episodeMutation.cognitiveEpisode.terminalStatus = "INSUFFICIENT_EVIDENCE";
-  assert(failure(episodeMutation, "COGNITIVE_EPISODE_HASH_INVALID"));
+  const episodeResult = validation(episodeMutation);
+  assert(episodeResult.failures.some((entry) => entry.code === "COGNITIVE_EPISODE_HASH_INVALID"));
+  assert.equal(episodeResult.cognitiveEpisodeIntegrity.disposition, "FAIL");
+  assert.equal(episodeResult.cognitiveEpisodeIntegrity.hashMatch, false);
+  assert.equal(episodeResult.passed, false);
   const linkMutation = proofFixture();
   linkMutation.cognitiveEpisode.linkedExperienceRecordHash = "f".repeat(64);
-  assert(failure(linkMutation, "EXPERIENCE_LINK_INVALID"));
+  const experienceResult = validation(linkMutation);
+  assert(experienceResult.failures.some((entry) => entry.code === "EXPERIENCE_LINK_INVALID"));
+  assert.equal(experienceResult.experienceRecordIntegrity.disposition, "FAIL");
+  assert.equal(experienceResult.experienceRecordIntegrity.linkMatch, false);
+  assert.equal(experienceResult.passed, false);
+});
+
+test("Cognitive Episode reports schema, hashes, and byte ceiling explicitly", () => {
+  const valid = validation(proofFixture()).cognitiveEpisodeIntegrity;
+  assert.equal(valid.presence, "PRESENT");
+  assert.equal(valid.schemaVersion, "1.0");
+  assert.equal(valid.hashMatch, true);
+  assert.equal(valid.byteCeilingPassed, true);
+  assert.equal(valid.maximumByteSize, 32768);
+
+  const oversizedFixture = proofFixture();
+  const actual = synchronizeEpisode(oversizedFixture, { ...oversizedFixture.cognitiveEpisode, padding: "x".repeat(33000) });
+  const oversized = validation(oversizedFixture);
+  assert(actual > 32768);
+  assert.equal(oversized.cognitiveEpisodeIntegrity.canonicalByteSize, actual);
+  assert.equal(oversized.cognitiveEpisodeIntegrity.maximumByteSize, 32768);
+  assert.equal(oversized.cognitiveEpisodeIntegrity.byteCeilingPassed, false);
+  assert.equal(oversized.cognitiveEpisodeIntegrity.disposition, "FAIL");
+  assert.equal(oversized.passed, false);
+
+  const schemaFixture = proofFixture();
+  synchronizeEpisode(schemaFixture, { ...schemaFixture.cognitiveEpisode, schemaVersion: "9.9" });
+  const schemaResult = validation(schemaFixture);
+  assert.equal(schemaResult.cognitiveEpisodeIntegrity.schemaMatch, false);
+  assert.equal(schemaResult.cognitiveEpisodeIntegrity.disposition, "FAIL");
+  assert.equal(schemaResult.passed, false);
+});
+
+test("Experience Record reports deterministic hash and Episode linkage", () => {
+  const result = validation(proofFixture());
+  const experience = result.experienceRecordIntegrity;
+  assert.equal(experience.presence, "PRESENT");
+  assert.equal(experience.hashMatch, true);
+  assert.equal(experience.linkMatch, true);
+  assert.equal(experience.recordCount, 1);
+  assert.equal(experience.byteCeilingPassed, true);
+  assert.equal(experience.disposition, "PASS");
 });
 
 test("Lesson mutation, validation status, and promotion are rejected", () => {
   const hashMutation = proofFixture();
   hashMutation.lessonCandidate.status = "MUTATED";
-  assert(failure(hashMutation, "LESSON_HASH_INVALID"));
-  assert(failure(hashMutation, "LESSON_STATUS_INVALID"));
+  const hashResult = validation(hashMutation);
+  assert(hashResult.failures.some((entry) => entry.code === "LESSON_HASH_INVALID"));
+  assert(hashResult.failures.some((entry) => entry.code === "LESSON_STATUS_INVALID"));
+  assert.equal(hashResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
   const promotionMutation = proofFixture();
   promotionMutation.lessonCandidate = withHash({ ...promotionMutation.lessonCandidate, promotionAuthorized: true }, "lessonCandidateHash");
-  assert(failure(promotionMutation, "LESSON_PROMOTION_INVALID"));
+  const promotionResult = validation(promotionMutation);
+  assert(promotionResult.failures.some((entry) => entry.code === "LESSON_PROMOTION_INVALID"));
+  assert.equal(promotionResult.lessonCandidateIntegrityAndInertness.promotionDisabled, false);
+  assert.equal(promotionResult.lessonCandidateIntegrityAndInertness.inertnessDisposition, "FAIL");
+});
+
+test("Lesson Candidate reports valid presence and allowed absence without fabrication", () => {
+  const present = validation(proofFixture()).lessonCandidateIntegrityAndInertness;
+  assert.equal(present.presence, "PRESENT");
+  assert.equal(present.schemaVersion, "1.0");
+  assert.equal(present.hashMatch, true);
+  assert.equal(present.byteCeilingPassed, true);
+  assert.equal(present.status, "UNVALIDATED");
+  assert.equal(present.statusUnvalidated, true);
+  assert.equal(present.promotionAuthorized, false);
+  assert.equal(present.promotionDisabled, true);
+  assert.equal(present.inert, true);
+  assert.equal(present.inertnessDisposition, "PASS");
+
+  const absentResult = validation(proofFixture({ withLesson: false }));
+  const absent = absentResult.lessonCandidateIntegrityAndInertness;
+  assert.equal(absentResult.passed, true, JSON.stringify(absentResult.failures));
+  assert.equal(absent.presence, "ABSENT");
+  assert.equal(absent.allowedAbsence, true);
+  assert.equal(absent.disposition, "NOT_APPLICABLE");
+  assert.equal(absent.status, null);
+  assert.equal(absent.storedHash, null);
+  assert.equal(absent.inertnessDisposition, "NOT_APPLICABLE");
+});
+
+test("Lesson schema, status, promotion, and byte violations remain explicit", () => {
+  const hashFixture = proofFixture();
+  hashFixture.lessonCandidate.lessonCandidateHash = "f".repeat(64);
+  const hashResult = validation(hashFixture);
+  assert.equal(hashResult.lessonCandidateIntegrityAndInertness.hashMatch, false);
+  assert.equal(hashResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
+
+  const schemaFixture = proofFixture();
+  synchronizeLesson(schemaFixture, { ...schemaFixture.lessonCandidate, schemaVersion: "9.9" });
+  const schemaResult = validation(schemaFixture);
+  assert.equal(schemaResult.lessonCandidateIntegrityAndInertness.schemaMatch, false);
+  assert.equal(schemaResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
+
+  const statusFixture = proofFixture();
+  synchronizeLesson(statusFixture, { ...statusFixture.lessonCandidate, status: "VALIDATED" });
+  const statusResult = validation(statusFixture);
+  assert.equal(statusResult.lessonCandidateIntegrityAndInertness.statusUnvalidated, false);
+  assert.equal(statusResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
+
+  const promotionFixture = proofFixture();
+  synchronizeLesson(promotionFixture, { ...promotionFixture.lessonCandidate, promotionAuthorized: true });
+  const promotionResult = validation(promotionFixture);
+  assert.equal(promotionResult.lessonCandidateIntegrityAndInertness.promotionAuthorized, true);
+  assert.equal(promotionResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
+
+  const oversizedFixture = proofFixture();
+  const actual = synchronizeLesson(oversizedFixture, { ...oversizedFixture.lessonCandidate, padding: "x".repeat(8300) });
+  const oversizedResult = validation(oversizedFixture);
+  assert(actual > 8192);
+  assert.equal(oversizedResult.lessonCandidateIntegrityAndInertness.canonicalByteSize, actual);
+  assert.equal(oversizedResult.lessonCandidateIntegrityAndInertness.maximumByteSize, 8192);
+  assert.equal(oversizedResult.lessonCandidateIntegrityAndInertness.byteCeilingPassed, false);
+  assert.equal(oversizedResult.lessonCandidateIntegrityAndInertness.disposition, "FAIL");
 });
 
 test("unauthorized records cannot be concealed by scalar mutation", () => {
@@ -664,8 +830,54 @@ test("provider, refinement, direct-page, retry, Experience, Episode, and Lesson 
     const fixture = proofFixture();
     fixture.proof.ceilings[name].compliant = false;
     rehashProof(fixture.proof);
-    assert(failure(fixture, `${name.toUpperCase()}_CEILING_EXCEEDED`), name);
+    const result = validation(fixture);
+    assert(result.failures.some((entry) => entry.code === `${name.toUpperCase()}_CEILING_EXCEEDED`), name);
+    assert.equal(result.ceilingCompliance.disposition, "FAIL", name);
+    const structuredFailure = result.ceilingCompliance.failures.find((entry) => entry.code === `${name.toUpperCase()}_CEILING_EXCEEDED`);
+    assert.ok(structuredFailure, name);
+    assert.ok(Object.hasOwn(structuredFailure, "actual"), name);
+    assert.ok(Object.hasOwn(structuredFailure, "maximum") || Object.hasOwn(structuredFailure, "maximumPerLogicalProviderRequest"), name);
+    assert.equal(result.passed, false, name);
   }
+});
+
+test("terminal agreement exposes the selected decision and rejects mismatch", () => {
+  const valid = validation(proofFixture()).terminalAgreement;
+  assert.equal(valid.selectedTerminalGovernorAction, "STOP_COMPLETE");
+  assert.equal(valid.terminalDecision.actionType, "STOP_COMPLETE");
+  assert.equal(valid.terminalStatus, "COMPLETE");
+  assert.equal(valid.expectedTerminalStatus, "COMPLETE");
+  assert.equal(valid.terminalTransitionRequired, true);
+  assert.equal(valid.terminalTransitionPresent, true);
+  assert.equal(valid.agreement, true);
+  assert.equal(valid.disposition, "PASS");
+
+  const mismatchFixture = proofFixture();
+  mismatchFixture.proof.terminalStatus = "INSUFFICIENT_EVIDENCE";
+  rehashProof(mismatchFixture.proof);
+  const mismatch = validation(mismatchFixture);
+  assert.equal(mismatch.terminalAgreement.agreement, false);
+  assert.equal(mismatch.terminalAgreement.disposition, "FAIL");
+  assert.equal(mismatch.passed, false);
+
+  const missingTransitionFixture = proofFixture();
+  missingTransitionFixture.proof.controlledExecutionEvents = missingTransitionFixture.proof.controlledExecutionEvents.filter((event) => event.operationPhase !== "TERMINAL_STOP_TRANSITION");
+  rehashProof(missingTransitionFixture.proof);
+  const missingTransition = validation(missingTransitionFixture);
+  assert.equal(missingTransition.terminalAgreement.terminalTransitionRequired, true);
+  assert.equal(missingTransition.terminalAgreement.terminalTransitionPresent, false);
+  assert.equal(missingTransition.terminalAgreement.disposition, "FAIL");
+  assert(missingTransition.failures.some((entry) => entry.code === "TERMINAL_TRANSITION_MISSING"));
+});
+
+test("recomputed outer proof hash cannot conceal structured semantic category failure", () => {
+  const fixture = proofFixture();
+  fixture.proof.cognitiveEpisode.storedHash = "f".repeat(64);
+  rehashProof(fixture.proof);
+  const result = validation(fixture);
+  assert.equal(result.integrity.proofHash, true);
+  assert.equal(result.cognitiveEpisodeIntegrity.disposition, "FAIL");
+  assert.equal(result.passed, false);
 });
 
 test("proof hashing is deterministic", () => {

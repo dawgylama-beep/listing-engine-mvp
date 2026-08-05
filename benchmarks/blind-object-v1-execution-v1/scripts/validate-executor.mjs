@@ -98,7 +98,7 @@ async function secretScan() {
 async function validate() {
   git(["merge-base", "--is-ancestor", BENCHMARK_COMMIT, "HEAD"]);
   assert.equal(git(["branch", "--show-current"]), "refactor/beta-evidence-pipeline");
-  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.3");
+  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.4");
   const status = git(["status", "--porcelain=v1"]).split(/\r?\n/).filter(Boolean);
   const authorizedPrefixes = [
     "api/generate-listing.js",
@@ -113,7 +113,7 @@ async function validate() {
   assert.ok(status.every((entry) => {
     const file = entry.replace(/^\s*[MADRCU?!]{1,2}\s+/, "").replaceAll("\\", "/");
     return authorizedPrefixes.some((prefix) => file === prefix || file.startsWith(prefix));
-  }), "working changes exceed the authorized Phase 6B scope");
+  }), "working changes exceed the authorized Phase 6C scope");
   assert.equal(git(["diff", "--name-only", "--", "benchmarks/blind-object-v1"]), "");
   assert.equal(git(["diff", "--name-only", "--", "public", "lib/evidence", "vercel.json", ".vercelignore"]), "");
 
@@ -161,13 +161,22 @@ async function validate() {
   });
   assert.deepEqual(executorFreeze.runIdsInOrder, plan.runs.map((entry) => entry.runId));
   assert.equal(executorFreeze.concurrency, 1);
-  assert.equal(executorFreeze.executorVersion, "1.2.0");
+  assert.equal(executorFreeze.executorVersion, "1.2.1");
   assert.equal(executorFreeze.governorProofSchemaVersion, "1.1");
+  assert.deepEqual(executorFreeze.governorReportIntegrityFamilies, [
+    "cognitiveEpisodeIntegrity",
+    "experienceRecordIntegrity",
+    "lessonCandidateIntegrityAndInertness",
+    "ceilingCompliance",
+    "terminalAgreement"
+  ]);
   assert.equal(executorFreeze.productUnderTestBinding, "RUNTIME_EXACT_FULL_CLEAN_HEAD");
   assert.equal(executorFreeze.expectedResultNaming, "benchmarks/blind-object-v1-results/phase6a-<exclusive-approved-id>/");
 
   const bridgeSource = await readFile(path.join(repositoryRoot, "scripts", "local-generate-listing-bridge.mjs"), "utf8");
   const handlerSource = await readFile(path.join(repositoryRoot, "api", "generate-listing.js"), "utf8");
+  const governorValidatorSource = await readFile(path.join(executionRoot, "scripts", "governor-proof-validator.mjs"), "utf8");
+  const governorGraderSource = await readFile(path.join(executionRoot, "scripts", "grade-governor-results.mjs"), "utf8");
   assert.match(bridgeSource, /new URL\("\.\.\/api\/generate-listing\.js", import\.meta\.url\)/);
   assert.match(bridgeSource, /createGenerateListingHandler/);
   assert.match(handlerSource, /export function createGenerateListingHandler/);
@@ -178,6 +187,19 @@ async function validate() {
   assert.match(handlerSource, /executeGovernorAuthorizedAction/);
   assert.match(handlerSource, /executeGovernorAuthorizedChildOperation/);
   assert.match(handlerSource, /LIMITED_RESULT_RECOVERY/);
+  for (const familyName of [
+    "cognitiveEpisodeIntegrity",
+    "experienceRecordIntegrity",
+    "lessonCandidateIntegrityAndInertness",
+    "ceilingCompliance",
+    "terminalAgreement"
+  ]) {
+    assert.match(governorValidatorSource, new RegExp(`\\b${familyName}\\b`));
+    assert.match(governorGraderSource, new RegExp(`\\b${familyName}\\b`));
+  }
+  assert.match(governorGraderSource, /assertStructuredGovernorValidationResult/);
+  assert.match(governorGraderSource, /failedAnalysisIds/);
+  assert.match(governorGraderSource, /failureReasons/);
 
   const auditedExecutionGraph = await executionImportAudit();
   const credentials = await localCredentialPresence();
