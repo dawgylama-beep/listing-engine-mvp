@@ -98,7 +98,7 @@ async function secretScan() {
 async function validate() {
   git(["merge-base", "--is-ancestor", BENCHMARK_COMMIT, "HEAD"]);
   assert.equal(git(["branch", "--show-current"]), "refactor/beta-evidence-pipeline");
-  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.2");
+  assert.equal((await readJson(path.join(repositoryRoot, "package.json"))).version, "1.12.3");
   const status = git(["status", "--porcelain=v1"]).split(/\r?\n/).filter(Boolean);
   const authorizedPrefixes = [
     "api/generate-listing.js",
@@ -113,7 +113,7 @@ async function validate() {
   assert.ok(status.every((entry) => {
     const file = entry.replace(/^\s*[MADRCU?!]{1,2}\s+/, "").replaceAll("\\", "/");
     return authorizedPrefixes.some((prefix) => file === prefix || file.startsWith(prefix));
-  }), "working changes exceed the authorized Phase 6A scope");
+  }), "working changes exceed the authorized Phase 6B scope");
   assert.equal(git(["diff", "--name-only", "--", "benchmarks/blind-object-v1"]), "");
   assert.equal(git(["diff", "--name-only", "--", "public", "lib/evidence", "vercel.json", ".vercelignore"]), "");
 
@@ -161,6 +161,8 @@ async function validate() {
   });
   assert.deepEqual(executorFreeze.runIdsInOrder, plan.runs.map((entry) => entry.runId));
   assert.equal(executorFreeze.concurrency, 1);
+  assert.equal(executorFreeze.executorVersion, "1.2.0");
+  assert.equal(executorFreeze.governorProofSchemaVersion, "1.1");
   assert.equal(executorFreeze.productUnderTestBinding, "RUNTIME_EXACT_FULL_CLEAN_HEAD");
   assert.equal(executorFreeze.expectedResultNaming, "benchmarks/blind-object-v1-results/phase6a-<exclusive-approved-id>/");
 

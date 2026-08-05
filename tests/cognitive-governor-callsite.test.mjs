@@ -3,6 +3,23 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = await readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8");
+const policySource = await readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8");
+const authorizationSource = await readFile(new URL("../lib/cognitive-governor/authorization.js", import.meta.url), "utf8");
+
+function occurrences(text, pattern) {
+  return [...text.matchAll(pattern)].length;
+}
+
+test("Governor construction and authoritative-state initialization have one canonical production boundary", () => {
+  assert.equal(occurrences(source, /\bcreateGovernorExecutionLedger\(/g), 1);
+  assert.equal(occurrences(source, /\bcreateCognitiveGovernor\(/g), 1);
+  assert.equal(occurrences(policySource, /\brecordGovernorConstruction\(/g), 1);
+  assert.equal(occurrences(policySource, /\bregisterAuthoritativeCognitiveState\(/g), 1);
+  assert.equal(occurrences(authorizationSource, /export function recordGovernorConstruction\(/g), 1);
+  assert.equal(occurrences(authorizationSource, /export function registerAuthoritativeCognitiveState\(/g), 1);
+  assert.match(policySource, /const construction = recordGovernorConstruction\(ledger, \{ evaluationId \}\)/);
+  assert.match(policySource, /registerAuthoritativeCognitiveState\(governor, state\)/);
+});
 
 test("every production controlled phase is routed through the canonical Governor boundary", () => {
   const parentPhases = [
@@ -21,6 +38,8 @@ test("every production controlled phase is routed through the canonical Governor
     assert.match(source, new RegExp(`executeGovernorAuthorizedChildOperation[\\s\\S]{0,600}operationPhase: \\"${phase}\\"`), phase);
   }
   assert.match(source, /eligibleParentActionTypes:\s*\[\s*COGNITIVE_ACTION\.ACQUIRE_INITIAL_EVIDENCE,\s*COGNITIVE_ACTION\.REFINE_EVIDENCE_SEARCH\s*\]/);
+  assert.equal(occurrences(source, /\bexecuteGovernorAuthorizedAction\(/g), 9);
+  assert.equal(occurrences(source, /\bexecuteGovernorAuthorizedChildOperation\(/g), 2);
 });
 
 test("every Governor-controlled provider path binds durable ownership before its adapter call", () => {
@@ -30,4 +49,6 @@ test("every Governor-controlled provider path binds durable ownership before its
   assert.match(source, /providerPhase: "DIRECT_PAGE_VERIFICATION"[\s\S]{0,700}return requestAdapter/);
   assert.match(source, /parentGovernorActionSignature/);
   assert.match(source, /logicalProviderRequestIdentity/);
+  assert.equal(occurrences(source, /\bbindGovernorProviderRequest\(/g), 5);
+  assert.equal(occurrences(source, /\bassertGovernorProviderRequestOwnership\(/g), 5);
 });

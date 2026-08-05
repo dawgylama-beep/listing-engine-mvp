@@ -83,6 +83,7 @@ async function runTests() {
       outputRoot: path.join(temporaryRoot, "governor-grade")
     });
     assert.equal(governorReport.passed, false, "synthetic legacy responses without Governor proofs must fail honestly");
+    assert.equal(governorReport.governorProofDisposition, "FAIL");
     assert.equal(governorReport.failedAnalysisCount, 26);
 
     const gradeAPath = path.join(temporaryRoot, "grade-a");

@@ -551,6 +551,15 @@
 - Added a separate offline Cognitive Governor validator/report while preserving the frozen product grader, corpus, expected answers, controls, metrics, weights, thresholds, and safety rules unchanged
 - Provider-call impact: the current-retail ceiling remains 28 calls, the non-retail/collectible ceiling remains 12 calls, direct-page enrichment remains capped at 2 attempts, and validation used no live or paid provider searches
 
+## Version 1.12.3 (Completed)
+- Made Governor construction and authoritative Cognitive State initialization durable lifecycle events with evaluation ownership, canonical sequences, independently recalculable identities, and scalar counts derived from the stored event ledger
+- Bound selected decisions and controlled parent/child executions to proof schema 1.1 with independently recalculable identities, contiguous sequence validation, unique selected signatures, and offline rejection of foreign ownership or duplicate parent signature use
+- Preserved phase-scoped parent and child executions that may own multiple logical provider requests while supporting request-specific child identity when applicable, with non-circular logical request hashing and separate proof of the provider-to-execution link
+- Strengthened offline provider validation for evaluation, action, signature, execution, phase, logical request, physical-attempt, retry, fallback, and limited-result-recovery ownership without changing queries, providers, ceilings, evidence, exactness, valuation, confidence, or customer output
+- Added deterministic lifecycle, decision, execution, signature-reuse, child-parent, provider-ownership, matching-hash semantic mutation, runtime authorization, production call-site, and mocked handler integration coverage
+- Preserved the 29 frozen images, 14 cases, 26-analysis plan, frozen descriptions, expected answers, purposes, lanes, controls, product metrics, scoring weights, thresholds, safety rules, and historical product grader behavior
+- Provider-call impact: the current-retail ceiling remains 28 calls, the non-retail/collectible ceiling remains 12 calls, direct-page enrichment remains capped at 2 attempts, and validation used no live or paid provider searches
+
 ## Version 2.0
 - User accounts
 - Saved listings

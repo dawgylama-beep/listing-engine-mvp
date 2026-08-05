@@ -25,7 +25,9 @@ The tests use only `mock-handler.mjs` and operating-system temporary directories
 
 ## Future release-bound baseline
 
-Historical result roots, including `current-a4a7214`, remain readable and immutable. A future expressly authorized Phase 6A run must use a new exclusive `phase6a-*` result identifier and the exact full clean repository HEAD. The release guard records a STARTED invocation manifest before request preparation or any handler/network transmission and rejects a mismatched commit, dirty tree, existing directory, or prior partial/complete manifest for that commit.
+Historical result roots, including `current-a4a7214`, remain readable and immutable. A future expressly authorized post-Phase-6B run must use the established new exclusive `phase6a-*` compatibility result identifier and the exact full clean repository HEAD. The release guard records a STARTED invocation manifest before request preparation or any handler/network transmission and rejects a mismatched commit, dirty tree, existing directory, or prior partial/complete manifest for that commit.
+
+Governor proof schema 1.1 durably binds lifecycle-derived construction/state counts, evaluation-owned decision and execution identities, selected-signature uniqueness, parent/child execution ownership, logical provider requests, nested physical attempts/retries, semantic validation, and the final proof hash. Prior-schema artifacts remain readable but are never treated as a current-schema semantic pass.
 
 ```text
 node benchmarks/blind-object-v1-execution-v1/scripts/run-baseline.mjs --execute-exactly-26 --expected-product-commit <full-40-character-clean-head> --result-root benchmarks/blind-object-v1-results/phase6a-<approved-id>

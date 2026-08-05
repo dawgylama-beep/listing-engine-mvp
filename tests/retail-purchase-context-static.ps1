@@ -16,8 +16,8 @@ $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.2"; Text = $package; Pattern = '"version": "1.12.2"' },
-  @{ Name = "Server version is 1.12.2"; Text = $server; Pattern = '$AppVersion = "1.12.2"' },
+  @{ Name = "Package version is 1.12.3"; Text = $package; Pattern = '"version": "1.12.3"' },
+  @{ Name = "Server version is 1.12.3"; Text = $server; Pattern = '$AppVersion = "1.12.3"' },
   @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Personal Buy context selector exists"; Text = $index; Pattern = 'id="purchase_context"' },
   @{ Name = "Retail store option exists"; Text = $index; Pattern = 'value="retail_store"' },

@@ -3,12 +3,17 @@ import test from "node:test";
 import {
   COGNITIVE_ACTION,
   COGNITIVE_BOUNDARY,
+  GOVERNOR_EXECUTION_PROOF_SCHEMA_VERSION,
   bindGovernorProviderRequest,
+  calculateGovernorExecutionEventIdentity,
+  calculateLogicalProviderRequestIdentity,
   createCognitiveGovernor,
   createCustomerMissionContext,
+  createGovernorExecutionLedger,
   decideCognitiveAction,
   executeGovernorAuthorizedAction,
   executeGovernorAuthorizedChildOperation,
+  recordGovernorConstruction,
   recordCognitiveActionOutcome
 } from "../lib/cognitive-governor/index.js";
 
@@ -61,8 +66,9 @@ function initialDecision(evaluationId = "evaluation-authorization") {
 
 test("canonical ledger counts one Governor, one authoritative state, and every decision invocation", () => {
   const { governor, decision } = initialDecision();
-  assert.equal(governor.executionLedger.governorConstructionEvents.length, 1);
-  assert.equal(governor.executionLedger.authoritativeCognitiveStateEvents.length, 1);
+  assert.equal(governor.executionLedger.lifecycleEvents.filter((event) => event.eventType === "GOVERNOR_CONSTRUCTED").length, 1);
+  assert.equal(governor.executionLedger.lifecycleEvents.filter((event) => event.eventType === "AUTHORITATIVE_COGNITIVE_STATE_INITIALIZED").length, 1);
+  assert(governor.executionLedger.lifecycleEvents.every((event) => event.evaluationIdentity === governor.executionLedger.evaluationIdentity));
   assert.equal(governor.executionLedger.decisionInvocations.length, 1);
   recordCognitiveActionOutcome(governor, decision, snapshot({ providerRequests: [{ physicalAttemptCount: 1 }] }));
   const stopped = decideCognitiveAction(governor, snapshot({ providerRequests: [{ physicalAttemptCount: 1 }], providerBudget: { maximum: 1, consumed: 1 }, customerInputAvailable: false }), { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION });
@@ -70,6 +76,15 @@ test("canonical ledger counts one Governor, one authoritative state, and every d
   assert.ok(stopped.actionType.startsWith("STOP_"));
   assert.equal(governor.executionLedger.decisionInvocations.length, 2);
   assert.equal(governor.executionLedger.decisionInvocations[1].selectedButNonexecutedTerminal, true);
+});
+
+test("the canonical ledger rejects a second Governor construction", () => {
+  const ledger = createGovernorExecutionLedger({ evaluationId: "one-governor" });
+  recordGovernorConstruction(ledger, { evaluationId: "one-governor" });
+  assert.throws(
+    () => recordGovernorConstruction(ledger, { evaluationId: "one-governor" }),
+    /already recorded/
+  );
 });
 
 test("missing and mismatched authorization blocks every controlled action class", () => {
@@ -164,10 +179,49 @@ test("multiple provider requests and retries remain children of one cognitive ac
       bindGovernorProviderRequest(governor, authorization, second);
       assert.equal(first.parentGovernorActionSignature, decision.actionSignature);
       assert.equal(second.parentGovernorActionSignature, decision.actionSignature);
+      assert.equal(first.logicalProviderRequestIdentity, calculateLogicalProviderRequestIdentity(first));
+      assert.equal(second.logicalProviderRequestIdentity, calculateLogicalProviderRequestIdentity(second));
+      assert.notEqual(first.logicalProviderRequestIdentity, second.logicalProviderRequestIdentity);
     }
   });
   assert.equal(governor.executionLedger.decisionInvocations.length, 1);
   assert.equal(governor.executionLedger.controlledExecutionEvents.length, 1);
   assert.equal(governor.executionLedger.providerRequestOwnership.length, 2);
   assert.equal(governor.executionLedger.unauthorizedExecutionAttempts.length, 0);
+  assert.equal("logicalProviderRequestIdentity" in governor.executionLedger.controlledExecutionEvents[0], false);
+});
+
+test("a request-specific child binds its logical provider identity without a circular execution hash", () => {
+  const { governor, decision } = initialDecision("evaluation-request-child");
+  let parentAuthorization;
+  executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE, {
+    operation: (authorization) => { parentAuthorization = authorization; }
+  });
+  const logicalProviderRequestIdentity = calculateLogicalProviderRequestIdentity({
+    proofSchemaVersion: GOVERNOR_EXECUTION_PROOF_SCHEMA_VERSION,
+    evaluationIdentity: governor.executionLedger.evaluationIdentity,
+    providerRequestSequence: 1,
+    parentGovernorActionType: decision.actionType,
+    parentGovernorActionSignature: decision.actionSignature,
+    providerOperationPhase: "LIMITED_RESULT_RECOVERY"
+  });
+  const requestRecord = {
+    query: "request-specific child",
+    physicalAttemptCount: 1,
+    physicalRetryAttemptCount: 0,
+    physicalAttempts: [{ attempt: 1, retry: false }]
+  };
+  executeGovernorAuthorizedChildOperation(governor, parentAuthorization, {
+    operationPhase: "LIMITED_RESULT_RECOVERY",
+    eligibleParentActionTypes: [COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE],
+    logicalProviderRequestIdentity,
+    operation: (authorization) => bindGovernorProviderRequest(governor, authorization, requestRecord, {
+      providerPhase: "LIMITED_RESULT_RECOVERY"
+    })
+  });
+  const child = governor.executionLedger.controlledExecutionEvents.at(-1);
+  assert.equal(child.logicalProviderRequestIdentity, logicalProviderRequestIdentity);
+  assert.equal(child.executionEventIdentity, calculateGovernorExecutionEventIdentity(child));
+  assert.equal(requestRecord.logicalProviderRequestIdentity, logicalProviderRequestIdentity);
+  assert.equal(requestRecord.controlledExecutionEventIdentity, child.executionEventIdentity);
 });

@@ -24,6 +24,22 @@ export async function gradeGovernorResults({ resultRoot, outputRoot }) {
     passedAnalysisCount: analyses.filter((entry) => entry.passed).length,
     failedAnalysisCount: analyses.filter((entry) => !entry.passed).length,
     passed: analyses.every((entry) => entry.passed),
+    governorProofDisposition: analyses.every((entry) => entry.passed) ? "PASS" : "FAIL",
+    recalculatedCounts: {
+      governorInvocationCounts: analyses.map((entry) => entry.recalculated?.governorInvocationCount ?? 0),
+      authoritativeCognitiveStateCounts: analyses.map((entry) => entry.recalculated?.authoritativeCognitiveStateCount ?? 0)
+    },
+    integrity: {
+      lifecycle: analyses.every((entry) => entry.integrity?.lifecycle === true),
+      evaluationIdentity: analyses.every((entry) => entry.integrity?.evaluationIdentity === true),
+      decisionSignatureUniqueness: analyses.every((entry) => entry.integrity?.decisionSignatureUniqueness === true),
+      executionEventIdentity: analyses.every((entry) => entry.integrity?.executionEventIdentity === true),
+      parentSignatureUse: analyses.every((entry) => entry.integrity?.parentSignatureUse === true),
+      childParent: analyses.every((entry) => entry.integrity?.childParent === true),
+      providerOwnership: analyses.every((entry) => entry.integrity?.providerOwnership === true),
+      unauthorizedAction: analyses.every((entry) => entry.integrity?.unauthorizedAction === true),
+      proofHash: analyses.every((entry) => entry.integrity?.proofHash === true)
+    },
     analyses
   };
   await mkdir(outputRoot, { recursive: true });

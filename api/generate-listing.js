@@ -12832,6 +12832,9 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
 
 function sanitizeProviderRequestRecord(record = {}) {
   return {
+    proofSchemaVersion: cleanText(record.proofSchemaVersion),
+    evaluationIdentity: cleanText(record.evaluationIdentity),
+    providerRequestSequence: Number(record.providerRequestSequence || 0),
     governorScopeClassification: cleanText(record.governorScopeClassification || "OUTSIDE_GOVERNOR_SCOPE"),
     parentGovernorActionType: cleanText(record.parentGovernorActionType),
     parentGovernorActionSignature: cleanText(record.parentGovernorActionSignature),

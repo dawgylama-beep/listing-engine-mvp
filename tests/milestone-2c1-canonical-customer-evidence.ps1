@@ -93,7 +93,14 @@ $changed = @($gitChanged.StandardOutput -split "`r?`n" | Where-Object { $_.Lengt
 # Milestone 2C-1 governs canonical customer-evidence selection and
 # serialization authority. Local server transport and local/production
 # handler parity are governed by Milestone 2D-2.
-Require-True (-not ($changed -contains "PRODUCT_ROADMAP.md")) "PRODUCT_ROADMAP.md changed."
+if ($changed -contains "PRODUCT_ROADMAP.md") {
+  $roadmapGitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "PRODUCT_ROADMAP.md")
+  $roadmapDiff = $roadmapGitDiff.StandardOutput
+  $addedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^\+(?!\+\+)' })
+  $removedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^-(?!--)' })
+  Require-True ($removedRoadmapLines.Count -eq 0) "The release roadmap update removed historical content."
+  Require-True ((@($addedRoadmapLines | Where-Object { $_ -ceq '+## Version 1.12.3 (Completed)' }).Count) -eq 1) "The authorized Version 1.12.3 roadmap entry is missing or duplicated."
+}
 
 $gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")
 $productionDiff = $gitProductionDiff.StandardOutput
