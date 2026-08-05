@@ -16,6 +16,19 @@ import {
   stableInternalId,
   withObjectSearchPlan
 } from "../lib/object-intelligence/index.js";
+import {
+  COGNITIVE_ACTION,
+  COGNITIVE_BOUNDARY,
+  buildCognitiveEpisode,
+  buildCustomerInputRequest,
+  buildLessonCandidate,
+  continueCognitiveActionOutcome,
+  createCognitiveGovernor,
+  createCognitiveState,
+  createCustomerMissionContext,
+  decideCognitiveAction,
+  recordCognitiveActionOutcome
+} from "../lib/cognitive-governor/index.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 const MAX_ANALYSIS_PHOTO_COUNT = 6;
@@ -1846,8 +1859,10 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     analysisId
   });
   const report = await generateFinalListingReport({ apiKey, model, platform, notes, research });
-
-  return enforceListingResearchHonesty(report, research, platform);
+  return completeCognitiveEvaluation(
+    research,
+    enforceListingResearchHonesty(report, research, platform)
+  );
 }
 
 async function generateFinalListingReport({ apiKey, model, platform, notes, research }) {
@@ -1931,12 +1946,18 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
       buyerIntake: intake
     });
 
-    return enforceConsumerDecisionHonesty(report, research, intake, platform);
+    return completeCognitiveEvaluation(
+      research,
+      enforceConsumerDecisionHonesty(report, research, intake, platform)
+    );
   }
 
   const report = await generateFinalMarketValueReport({ apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake });
 
-  return enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform);
+  return completeCognitiveEvaluation(
+    research,
+    enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform)
+  );
 }
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
@@ -1960,6 +1981,14 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   objectMindState = withObjectSearchPlan(objectMindState, initialObjectSearchPlan);
   const sourceRoute = routeMarketSources(identity, intake, platform);
   const searchQueries = initialObjectSearchPlan.map((record) => record.query);
+  const searchContext = buildSearchQueryContext(identity, sourceRoute, notes, intake);
+  const cognitiveProviderMaximum = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
+    ? retailSerperBudgetAllocation.maxProviderCalls
+    : 12;
+  const cognitiveGovernor = createCognitiveGovernor({
+    evaluationId: analysisId,
+    customerMission: createCustomerMissionContext({ ...intake, platform })
+  });
   const liveSearch = await executeLiveComparableSearch({
     apiKey,
     model,
@@ -1970,12 +1999,216 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     searchQueries,
     buyerIntake: intake,
     researchPurpose,
-    objectMindState
+    objectMindState,
+    cognitiveGovernor,
+    cognitiveProviderMaximum
   });
   liveSearch.analysisId = analysisId;
   liveSearch.objectMindState = liveSearch.objectMindState || objectMindState;
+  const finalizationSnapshot = buildCognitiveHandlerSnapshot({
+    cognitiveGovernor,
+    objectMindState: liveSearch.objectMindState,
+    liveSearch,
+    initialPlan: initialObjectSearchPlan,
+    providerMaximum: cognitiveProviderMaximum,
+    canonicalEvidenceFinalized: false
+  });
+  const preFinalState = createCognitiveState({
+    ...finalizationSnapshot,
+    actionLedger: cognitiveGovernor.actionLedger,
+    blockedActionSignatures: cognitiveGovernor.blockedActions.map((record) => record.actionSignature)
+  });
+  if (
+    preFinalState.evidenceStateSummary.verifiedExactEvidence === 0
+    && buildCustomerInputRequest(preFinalState)
+    && !preFinalState.customerInputAlreadyRequested
+  ) {
+    const customerInputDecision = decideCognitiveAction(
+      cognitiveGovernor,
+      finalizationSnapshot,
+      { boundary: COGNITIVE_BOUNDARY.CUSTOMER_INPUT }
+    );
+    if (customerInputDecision.actionType === COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT && customerInputDecision.executionPermitted) {
+      recordCognitiveActionOutcome(
+        cognitiveGovernor,
+        customerInputDecision,
+        finalizationSnapshot,
+        { outcomeCode: "STRUCTURED_CUSTOMER_INPUT_REQUEST_RECORDED" }
+      );
+    }
+  }
+  const finalizationDecision = decideCognitiveAction(
+    cognitiveGovernor,
+    finalizationSnapshot,
+    { boundary: COGNITIVE_BOUNDARY.FINALIZATION }
+  );
+  if (finalizationDecision.actionType !== COGNITIVE_ACTION.FINALIZE_EVIDENCE || !finalizationDecision.executionPermitted) {
+    throw new Error("Cognitive Governor did not authorize the canonical finalization boundary.");
+  }
+  buildConsumerPricesFound(
+    liveSearch,
+    getConsumerAskingPriceNumber(intake, identity),
+    { identity, buyerIntake: intake }
+  );
+  recordCognitiveActionOutcome(
+    cognitiveGovernor,
+    finalizationDecision,
+    buildCognitiveHandlerSnapshot({
+      cognitiveGovernor,
+      objectMindState: liveSearch.objectMindState,
+      liveSearch,
+      initialPlan: initialObjectSearchPlan,
+      providerMaximum: cognitiveProviderMaximum,
+      canonicalEvidenceFinalized: true
+    }),
+    { outcomeCode: "CANONICAL_EVIDENCE_FINALIZED" }
+  );
+  const purposeSnapshot = buildCognitiveHandlerSnapshot({
+    cognitiveGovernor,
+    objectMindState: liveSearch.objectMindState,
+    liveSearch,
+    initialPlan: initialObjectSearchPlan,
+    providerMaximum: cognitiveProviderMaximum,
+    canonicalEvidenceFinalized: true
+  });
+  const pendingPurposeDecision = decideCognitiveAction(
+    cognitiveGovernor,
+    purposeSnapshot,
+    { boundary: COGNITIVE_BOUNDARY.PURPOSE_JUDGMENT }
+  );
+  if (pendingPurposeDecision.actionType !== COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT || !pendingPurposeDecision.executionPermitted) {
+    throw new Error("Cognitive Governor did not authorize the downstream purpose boundary.");
+  }
 
-  return { visualRecognition, identity, objectMindState: liveSearch.objectMindState, sourceRoute, searchQueries, liveSearch, buyerIntake: intake };
+  return {
+    visualRecognition,
+    identity,
+    objectMindState: liveSearch.objectMindState,
+    sourceRoute,
+    searchQueries,
+    liveSearch,
+    buyerIntake: intake,
+    cognitiveGovernor,
+    cognitiveProviderMaximum,
+    pendingPurposeDecision
+  };
+}
+
+function cognitiveAttemptCount(providerRequests = [], { directPage = false } = {}) {
+  return normalizeArray(providerRequests)
+    .filter((record) => directPage
+      ? /direct_product_page_fetch/i.test(record.providerEndpoint || "")
+      : !/direct_product_page_fetch/i.test(record.providerEndpoint || ""))
+    .reduce((total, record) => total + Math.max(0, Number(record.physicalAttemptCount || 0)), 0);
+}
+
+function buildCognitiveHandlerSnapshot({
+  cognitiveGovernor,
+  objectMindState,
+  liveSearch = {},
+  initialPlan = [],
+  refinementPlan = [],
+  directPageCandidates = liveSearch.providerSourceRecords || [],
+  providerMaximum = 12,
+  providerAttemptBudget = null,
+  directPageAttemptBudget = null,
+  canonicalEvidenceFinalized = Boolean(liveSearch.finalEvidenceResult),
+  purposeJudgmentCompleted = false,
+  customerInputAvailable = true
+} = {}) {
+  const providerRequests = liveSearch.providerRequestRecords || [];
+  const providerConsumed = providerAttemptBudget
+    ? Number(providerAttemptBudget.physicalAttemptCount || 0)
+    : cognitiveAttemptCount(providerRequests);
+  const directPageConsumed = directPageAttemptBudget
+    ? Number(directPageAttemptBudget.physicalAttemptCount || 0)
+    : cognitiveAttemptCount(providerRequests, { directPage: true });
+  return {
+    evaluationId: cognitiveGovernor?.evaluationId,
+    customerMission: cognitiveGovernor?.customerMission,
+    objectMindState,
+    evidenceRecords: liveSearch.providerSourceRecords || objectMindState?.candidateEvidence || [],
+    providerRequests,
+    initialPlan,
+    refinementPlan,
+    directPageCandidates,
+    providerBudget: {
+      maximum: Number(providerAttemptBudget?.maximumAttempts || providerMaximum || 0),
+      consumed: providerConsumed
+    },
+    directPageBudget: {
+      maximum: Number(directPageAttemptBudget?.maximumAttempts || directPageEnrichmentMaxAttempts),
+      consumed: directPageConsumed
+    },
+    canonicalEvidenceFinalized,
+    purposeJudgmentCompleted,
+    customerInputAvailable
+  };
+}
+
+function completeCognitiveEvaluation(research = {}, report = {}) {
+  const governor = research.cognitiveGovernor;
+  const pendingPurposeDecision = research.pendingPurposeDecision;
+  if (!governor || !pendingPurposeDecision) return report;
+  const completedSnapshot = buildCognitiveHandlerSnapshot({
+    cognitiveGovernor: governor,
+    objectMindState: research.liveSearch.objectMindState,
+    liveSearch: research.liveSearch,
+    initialPlan: research.objectMindState?.searchPlan || [],
+    providerMaximum: research.cognitiveProviderMaximum,
+    canonicalEvidenceFinalized: true,
+    purposeJudgmentCompleted: true
+  });
+  recordCognitiveActionOutcome(
+    governor,
+    pendingPurposeDecision,
+    completedSnapshot,
+    { outcomeCode: "PURPOSE_JUDGMENT_COMPLETED" }
+  );
+  const terminalDecision = decideCognitiveAction(
+    governor,
+    completedSnapshot,
+    { boundary: COGNITIVE_BOUNDARY.TERMINAL }
+  );
+  recordCognitiveActionOutcome(
+    governor,
+    terminalDecision,
+    completedSnapshot,
+    { outcomeCode: "EVALUATION_COMPLETE", terminalStatus: "COMPLETE" }
+  );
+  const experienceRecordHash = research.liveSearch.experienceRecord?.experienceRecordHash || "";
+  const cognitiveEpisode = buildCognitiveEpisode(governor, { experienceRecordHash });
+  const lessonCandidate = buildLessonCandidate(cognitiveEpisode);
+  const lastState = governor.lastState || {};
+  const diagnostics = {
+    schemaVersion: lastState.schemaVersion,
+    objectMindStateId: lastState.objectMindStateId,
+    objectMindSemanticHash: lastState.objectMindSemanticHash,
+    knowledgeStateHash: lastState.knowledgeStateHash,
+    cognitiveStateHash: lastState.cognitiveStateHash,
+    customerMission: lastState.customerMission,
+    providerCapacity: lastState.providerCapacity,
+    directPageCapacity: lastState.directPageCapacity,
+    actionCount: governor.actionLedger.length,
+    blockedActionCount: governor.blockedActions.length,
+    cycleDetectionCount: governor.cycleDetections.length,
+    terminalStatus: cognitiveEpisode.terminalStatus,
+    cognitiveEpisode,
+    lessonCandidate
+  };
+  research.liveSearch.cognitiveEpisode = cognitiveEpisode;
+  research.liveSearch.lessonCandidate = lessonCandidate;
+  research.liveSearch.searchDiagnostics = {
+    ...(research.liveSearch.searchDiagnostics || {}),
+    cognitiveGovernor: diagnostics
+  };
+  return {
+    ...report,
+    searchDiagnostics: {
+      ...(report.searchDiagnostics || {}),
+      cognitiveGovernor: diagnostics
+    }
+  };
 }
 
 async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
@@ -2058,7 +2291,11 @@ async function executeLiveComparableSearch(args) {
       return serperResult;
     }
 
-    const fallbackResult = await executeOpenAIWebComparableSearch({ ...args, providerAttemptBudget });
+    const fallbackResult = await executeOpenAIWebComparableSearch({
+      ...args,
+      providerAttemptBudget,
+      cognitiveInitialActionContinuation: true
+    });
     return annotateOpenAIFallbackResult(fallbackResult, serperResult);
   }
 
@@ -2092,7 +2329,10 @@ async function executeOpenAIWebComparableSearch({
   objectMindState = null,
   providerAttemptBudget,
   requestAdapter = requestOpenAIJson,
-  directPageRequestAdapter = requestBoundedRetailProductPage
+  directPageRequestAdapter = requestBoundedRetailProductPage,
+  cognitiveGovernor = null,
+  cognitiveProviderMaximum = 12,
+  cognitiveInitialActionContinuation = false
 }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
@@ -2120,6 +2360,25 @@ async function executeOpenAIWebComparableSearch({
   let includeFallbackReason = "";
   let searchControlsSupported = true;
   let searchControlsFallbackReason = "";
+  const initialCognitiveDecision = cognitiveGovernor && !cognitiveInitialActionContinuation
+    ? decideCognitiveAction(
+        cognitiveGovernor,
+        buildCognitiveHandlerSnapshot({
+          cognitiveGovernor,
+          objectMindState,
+          liveSearch: { providerRequestRecords, providerSourceRecords },
+          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+          providerMaximum: cognitiveProviderMaximum,
+          providerAttemptBudget: sharedProviderAttemptBudget,
+          directPageAttemptBudget
+        }),
+        { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
+      )
+    : null;
+  const initialAcquisitionAuthorized = !initialCognitiveDecision || (
+    initialCognitiveDecision.actionType === COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE
+    && initialCognitiveDecision.executionPermitted
+  );
 
   const executeQueryRecord = async (queryRecord) => {
     const requestRecord = {
@@ -2275,10 +2534,48 @@ async function executeOpenAIWebComparableSearch({
     }
   };
 
-  for (const queryRecord of queriesPrioritized.slice()) {
-    await executeQueryRecord(queryRecord);
+  if (initialAcquisitionAuthorized) {
+    for (const queryRecord of queriesPrioritized.slice()) {
+      await executeQueryRecord(queryRecord);
+    }
   }
 
+  const initialVerifiedSourceRecords = objectMindState?.objectStateId
+    ? coalesceIdenticalSerperTransportRecords(
+        normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
+      )
+    : providerSourceRecords;
+  if (cognitiveGovernor && initialCognitiveDecision?.executionPermitted) {
+    recordCognitiveActionOutcome(
+      cognitiveGovernor,
+      initialCognitiveDecision,
+      buildCognitiveHandlerSnapshot({
+        cognitiveGovernor,
+        objectMindState,
+        liveSearch: { providerRequestRecords, providerSourceRecords: initialVerifiedSourceRecords },
+        initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+        providerMaximum: cognitiveProviderMaximum,
+        providerAttemptBudget: sharedProviderAttemptBudget,
+        directPageAttemptBudget
+      }),
+      { outcomeCode: providerRequestRecords.some((record) => record.succeeded) ? "INITIAL_ACQUISITION_COMPLETED" : "INITIAL_ACQUISITION_NO_RESULT" }
+    );
+  } else if (cognitiveGovernor && cognitiveInitialActionContinuation) {
+    continueCognitiveActionOutcome(
+      cognitiveGovernor,
+      COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE,
+      buildCognitiveHandlerSnapshot({
+        cognitiveGovernor,
+        objectMindState,
+        liveSearch: { providerRequestRecords, providerSourceRecords: initialVerifiedSourceRecords },
+        initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+        providerMaximum: cognitiveProviderMaximum,
+        providerAttemptBudget: sharedProviderAttemptBudget,
+        directPageAttemptBudget
+      }),
+      { outcomeCode: providerRequestRecords.some((record) => record.succeeded) ? "FALLBACK_ACQUISITION_COMPLETED" : "FALLBACK_ACQUISITION_NO_RESULT" }
+    );
+  }
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
   if (!successfulRecords.length) {
     return buildUnavailableLiveSearchResult({
@@ -2300,11 +2597,7 @@ async function executeOpenAIWebComparableSearch({
     });
   }
 
-  let verifiedSourceRecords = objectMindState?.objectStateId
-    ? coalesceIdenticalSerperTransportRecords(
-        normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
-      )
-    : providerSourceRecords;
+  let verifiedSourceRecords = initialVerifiedSourceRecords;
   if (objectMindState?.objectStateId) {
     const refinement = createEvidenceInformedRefinement(objectMindState, verifiedSourceRecords, {
       attemptedQueries: providerRequestRecords
@@ -2328,8 +2621,28 @@ async function executeOpenAIWebComparableSearch({
           - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
       )
     );
-    queriesPrioritized.push(...refinementQueries);
-    for (const queryRecord of refinementQueries) {
+    const refinementCognitiveDecision = cognitiveGovernor && refinementQueries.length
+      ? decideCognitiveAction(
+          cognitiveGovernor,
+          buildCognitiveHandlerSnapshot({
+            cognitiveGovernor,
+            objectMindState,
+            liveSearch: { providerRequestRecords, providerSourceRecords: verifiedSourceRecords },
+            initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+            refinementPlan: refinementQueries,
+            providerMaximum: cognitiveProviderMaximum,
+            providerAttemptBudget: sharedProviderAttemptBudget,
+            directPageAttemptBudget
+          }),
+          { boundary: COGNITIVE_BOUNDARY.REFINEMENT }
+        )
+      : null;
+    const authorizedRefinementQueries = !refinementCognitiveDecision || (
+      refinementCognitiveDecision.actionType === COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
+      && refinementCognitiveDecision.executionPermitted
+    ) ? refinementQueries : [];
+    queriesPrioritized.push(...authorizedRefinementQueries);
+    for (const queryRecord of authorizedRefinementQueries) {
       if (Number(sharedProviderAttemptBudget.physicalAttemptCount || 0) >= Number(sharedProviderAttemptBudget.maximumAttempts || 0)) break;
       await executeQueryRecord(queryRecord);
     }
@@ -2337,6 +2650,23 @@ async function executeOpenAIWebComparableSearch({
       normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
     );
     objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "REFINEMENT" });
+    if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted) {
+      recordCognitiveActionOutcome(
+        cognitiveGovernor,
+        refinementCognitiveDecision,
+        buildCognitiveHandlerSnapshot({
+          cognitiveGovernor,
+          objectMindState,
+          liveSearch: { providerRequestRecords, providerSourceRecords: verifiedSourceRecords },
+          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+          refinementPlan: authorizedRefinementQueries,
+          providerMaximum: cognitiveProviderMaximum,
+          providerAttemptBudget: sharedProviderAttemptBudget,
+          directPageAttemptBudget
+        }),
+        { outcomeCode: authorizedRefinementQueries.length ? "REFINEMENT_COMPLETED" : "REFINEMENT_NOT_EXECUTED" }
+      );
+    }
     verifiedSourceRecords = await executeExactRetailPageDirectEnrichment({
       context,
       identity,
@@ -2346,7 +2676,9 @@ async function executeOpenAIWebComparableSearch({
       currentRecords: verifiedSourceRecords,
       directPageAttemptBudget,
       requestAdapter: directPageRequestAdapter,
-      objectMindState
+      objectMindState,
+      cognitiveGovernor,
+      cognitiveProviderMaximum
     });
     objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
   }
@@ -2645,7 +2977,9 @@ async function executeSerperComparableSearch({
   researchPurpose = "buyer_decision",
   objectMindState = null,
   providerAttemptBudget,
-  requestAdapter = requestSerperSearch
+  requestAdapter = requestSerperSearch,
+  cognitiveGovernor = null,
+  cognitiveProviderMaximum = 12
 }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
@@ -2664,6 +2998,25 @@ async function executeSerperComparableSearch({
   const providerErrors = [];
   const rawProviderRecords = [];
   const rawProviderRecordsByPlan = [];
+  const initialCognitiveDecision = cognitiveGovernor
+    ? decideCognitiveAction(
+        cognitiveGovernor,
+        buildCognitiveHandlerSnapshot({
+          cognitiveGovernor,
+          objectMindState,
+          liveSearch: { providerRequestRecords: [], providerSourceRecords: [] },
+          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+          providerMaximum: cognitiveProviderMaximum,
+          providerAttemptBudget: sharedProviderAttemptBudget,
+          directPageAttemptBudget
+        }),
+        { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
+      )
+    : null;
+  const initialAcquisitionAuthorized = !initialCognitiveDecision || (
+    initialCognitiveDecision.actionType === COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE
+    && initialCognitiveDecision.executionPermitted
+  );
 
   providerRequestRecords.forEach((requestRecord, index) => {
     if (!requestRecord.attempted) {
@@ -2674,8 +3027,9 @@ async function executeSerperComparableSearch({
   const executableRequests = providerRequestRecords
     .map((requestRecord, index) => ({ requestRecord, queryRecord: queriesPrioritized[index] }))
     .filter(({ requestRecord }) => requestRecord.attempted);
+  const governedExecutableRequests = initialAcquisitionAuthorized ? executableRequests : [];
 
-  await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
+  await Promise.all(governedExecutableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
     try {
       const response = await requestSerperSearchWithBudget({
         requestRecord,
@@ -2745,6 +3099,24 @@ async function executeSerperComparableSearch({
     }
   }));
   rawProviderRecords.push(...rawProviderRecordsByPlan.flatMap((records) => records || []));
+  const initialNormalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context, objectMindState);
+  const initialDedupedRecords = coalesceIdenticalSerperTransportRecords(initialNormalizedRecords);
+  if (cognitiveGovernor && initialCognitiveDecision?.executionPermitted) {
+    recordCognitiveActionOutcome(
+      cognitiveGovernor,
+      initialCognitiveDecision,
+      buildCognitiveHandlerSnapshot({
+        cognitiveGovernor,
+        objectMindState,
+        liveSearch: { providerRequestRecords, providerSourceRecords: initialDedupedRecords },
+        initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+        providerMaximum: cognitiveProviderMaximum,
+        providerAttemptBudget: sharedProviderAttemptBudget,
+        directPageAttemptBudget
+      }),
+      { outcomeCode: providerRequestRecords.some((record) => record.succeeded) ? "INITIAL_ACQUISITION_COMPLETED" : "INITIAL_ACQUISITION_NO_RESULT" }
+    );
+  }
 
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
   const elapsedMs = currentTimeMilliseconds() - requestStartedAtMs;
@@ -2765,8 +3137,7 @@ async function executeSerperComparableSearch({
     });
   }
 
-  const normalizedRecords = normalizeSerperCandidateRecords(rawProviderRecords, identity, context, objectMindState);
-  let dedupedRecords = coalesceIdenticalSerperTransportRecords(normalizedRecords);
+  let dedupedRecords = initialDedupedRecords;
   const refinement = createEvidenceInformedRefinement(objectMindState || {}, dedupedRecords, {
     attemptedQueries: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
     maximumQueries: Math.min(4, Math.max(
@@ -2776,12 +3147,32 @@ async function executeSerperComparableSearch({
     ))
   });
   objectMindState = refinement.state;
+  const refinementCognitiveDecision = cognitiveGovernor && refinement.searchPlan.length
+    ? decideCognitiveAction(
+        cognitiveGovernor,
+        buildCognitiveHandlerSnapshot({
+          cognitiveGovernor,
+          objectMindState,
+          liveSearch: { providerRequestRecords, providerSourceRecords: dedupedRecords },
+          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+          refinementPlan: refinement.searchPlan,
+          providerMaximum: cognitiveProviderMaximum,
+          providerAttemptBudget: sharedProviderAttemptBudget,
+          directPageAttemptBudget
+        }),
+        { boundary: COGNITIVE_BOUNDARY.REFINEMENT }
+      )
+    : null;
+  const authorizedRefinementPlan = !refinementCognitiveDecision || (
+    refinementCognitiveDecision.actionType === COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
+    && refinementCognitiveDecision.executionPermitted
+  ) ? refinement.searchPlan : [];
   const refinementResult = await executeObjectMindRefinementSearch({
     serperApiKey,
     context,
     identity,
     sourceRoute,
-    queryRecords: refinement.searchPlan,
+    queryRecords: authorizedRefinementPlan,
     providerRequestRecords,
     providerResponseSummaries,
     providerErrors,
@@ -2793,6 +3184,23 @@ async function executeSerperComparableSearch({
   });
   dedupedRecords = refinementResult.records;
   objectMindState = refinementResult.objectMindState;
+  if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted) {
+    recordCognitiveActionOutcome(
+      cognitiveGovernor,
+      refinementCognitiveDecision,
+      buildCognitiveHandlerSnapshot({
+        cognitiveGovernor,
+        objectMindState,
+        liveSearch: { providerRequestRecords, providerSourceRecords: dedupedRecords },
+        initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+        refinementPlan: authorizedRefinementPlan,
+        providerMaximum: cognitiveProviderMaximum,
+        providerAttemptBudget: sharedProviderAttemptBudget,
+        directPageAttemptBudget
+      }),
+      { outcomeCode: authorizedRefinementPlan.length ? "REFINEMENT_COMPLETED" : "REFINEMENT_NOT_EXECUTED" }
+    );
+  }
   dedupedRecords = await executeLimitedResultRetailRecovery({
     serperApiKey,
     context,
@@ -2808,7 +3216,9 @@ async function executeSerperComparableSearch({
     providerAttemptBudget: sharedProviderAttemptBudget,
     directPageAttemptBudget,
     serperRequestAdapter: requestAdapter,
-    objectMindState
+    objectMindState,
+    cognitiveGovernor,
+    cognitiveProviderMaximum
   });
   objectMindState = incorporateCandidateEvidence(objectMindState || {}, dedupedRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
   applySerperRecordAccountingToRequests(providerRequestRecords, providerResponseSummaries, dedupedRecords, context);
@@ -3174,7 +3584,9 @@ async function executeLimitedResultRetailRecovery({
   directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
   serperRequestAdapter = requestSerperSearch,
   directPageRequestAdapter = requestBoundedRetailProductPage,
-  objectMindState = null
+  objectMindState = null,
+  cognitiveGovernor = null,
+  cognitiveProviderMaximum = retailSerperBudgetAllocation.maxProviderCalls
 } = {}) {
   let recordsForRecovery = await executeExactRetailPageDirectEnrichment({
     context,
@@ -3185,7 +3597,9 @@ async function executeLimitedResultRetailRecovery({
     currentRecords,
     directPageAttemptBudget,
     requestAdapter: directPageRequestAdapter,
-    objectMindState
+    objectMindState,
+    cognitiveGovernor,
+    cognitiveProviderMaximum
   });
   const recoveryView = buildCanonicalRecoveryViewForRecords(recordsForRecovery, {
     identity,
@@ -3325,7 +3739,9 @@ async function executeExactRetailPageDirectEnrichment({
   currentRecords = [],
   directPageAttemptBudget = createPhysicalAttemptBudget(directPageEnrichmentMaxAttempts, "direct_page_enrichment"),
   requestAdapter = requestBoundedRetailProductPage,
-  objectMindState = null
+  objectMindState = null,
+  cognitiveGovernor = null,
+  cognitiveProviderMaximum = 12
 } = {}) {
   const remainingBudget = Math.max(
     0,
@@ -3336,6 +3752,7 @@ async function executeExactRetailPageDirectEnrichment({
   }
   const candidatesByUrl = new Map();
   for (const record of currentRecords
+    .filter((candidate) => !candidate.objectMindDirectPageVerified)
     .filter((candidate) => candidate.objectMindDirectPageEligible || isLikelyExactRetailProductPage(candidate, context))
     .filter((candidate) => isApprovedRetailProductPageFetchUrl(candidate.destinationUrl || candidate.url || candidate.canonicalUrl, context, candidate))) {
     const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
@@ -3371,6 +3788,27 @@ async function executeExactRetailPageDirectEnrichment({
   let priority = providerRequestRecords.length + 1;
   for (const { url: candidateUrl, members } of candidates) {
     const record = members[0];
+    const directPageCognitiveDecision = cognitiveGovernor
+      ? decideCognitiveAction(
+          cognitiveGovernor,
+          buildCognitiveHandlerSnapshot({
+            cognitiveGovernor,
+            objectMindState,
+            liveSearch: { providerRequestRecords, providerSourceRecords: enrichedRecords },
+            initialPlan: objectMindState?.searchPlan || [],
+            directPageCandidates: members.map((member) => ({ ...member, objectMindDirectPageEligible: true })),
+            providerMaximum: cognitiveProviderMaximum,
+            directPageAttemptBudget
+          }),
+          { boundary: COGNITIVE_BOUNDARY.DIRECT_PAGE }
+        )
+      : null;
+    if (directPageCognitiveDecision && (
+      directPageCognitiveDecision.actionType !== COGNITIVE_ACTION.VERIFY_DIRECT_PAGE
+      || !directPageCognitiveDecision.executionPermitted
+    )) {
+      continue;
+    }
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
     requestRecord.resultingCandidateIds = normalizeStringArray(
       members.map((member) => member.objectMindSourceId || member.sourceRecordId),
@@ -3457,6 +3895,22 @@ async function executeExactRetailPageDirectEnrichment({
         errorCode: requestRecord.errorCode,
         errorMessage: message
       });
+    }
+    if (cognitiveGovernor && directPageCognitiveDecision?.executionPermitted) {
+      recordCognitiveActionOutcome(
+        cognitiveGovernor,
+        directPageCognitiveDecision,
+        buildCognitiveHandlerSnapshot({
+          cognitiveGovernor,
+          objectMindState,
+          liveSearch: { providerRequestRecords, providerSourceRecords: enrichedRecords },
+          initialPlan: objectMindState?.searchPlan || [],
+          directPageCandidates: members.map((member) => ({ ...member, objectMindDirectPageEligible: true })),
+          providerMaximum: cognitiveProviderMaximum,
+          directPageAttemptBudget
+        }),
+        { outcomeCode: requestRecord.succeeded ? "DIRECT_PAGE_VERIFICATION_COMPLETED" : "DIRECT_PAGE_VERIFICATION_NO_RESULT" }
+      );
     }
   }
   const verifiedRecords = normalizeSerperCandidateRecords(enrichedRecords, identity, context, objectMindState);
@@ -13879,6 +14333,9 @@ function attachObjectVerificationToEnrichedCandidates(objectMindState = {}, enri
 }
 
 function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
+  if (liveSearch.finalEvidenceResult && Array.isArray(liveSearch.customerEvidence) && liveSearch.experienceRecord) {
+    return liveSearch.customerEvidence;
+  }
   const searchContext = buildSearchQueryContext(identity, [], "", buyerIntake);
   const currentRetail = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode);
   const objectMindState = liveSearch.objectMindState || null;

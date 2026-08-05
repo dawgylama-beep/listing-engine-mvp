@@ -154,6 +154,7 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
   const finalPurposes = [];
   const identityPrompts = [];
   const reports = [];
+  const cognitiveDiagnostics = [];
   const networkGuard = installHardNetworkDenial();
   try {
     for (const scenario of purposes) {
@@ -256,6 +257,36 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
       assert.match(diagnostics.identityStateHash, /^[a-f0-9]{64}$/);
       assert.match(diagnostics.experienceRecord?.experienceRecordHash || "", /^[a-f0-9]{64}$/);
       identityHashes.push(diagnostics.identityStateHash);
+      const cognitive = report.searchDiagnostics?.cognitiveGovernor;
+      assert(cognitive, `${scenario.name} Cognitive Governor diagnostics missing`);
+      assert.equal(cognitive.objectMindStateId, diagnostics.objectStateId);
+      assert.equal(cognitive.objectMindSemanticHash, diagnostics.identityStateHash);
+      assert.match(cognitive.knowledgeStateHash, /^[a-f0-9]{64}$/);
+      assert.match(cognitive.cognitiveStateHash, /^[a-f0-9]{64}$/);
+      assert.equal(cognitive.terminalStatus, "COMPLETE");
+      assert.equal(cognitive.directPageCapacity.maximum, 2);
+      assert(cognitive.providerCapacity.maximum === 12 || cognitive.providerCapacity.maximum === 28);
+      assert.equal(cognitive.cognitiveEpisode.linkedExperienceRecordHash, diagnostics.experienceRecord.experienceRecordHash);
+      assert.match(cognitive.cognitiveEpisode.cognitiveEpisodeHash, /^[a-f0-9]{64}$/);
+      assert.equal(cognitive.lessonCandidate ?? null, null);
+      const actionTypes = cognitive.cognitiveEpisode.actionDecisions.map((record) => record.actionType);
+      assert.equal(actionTypes[0], "ACQUIRE_INITIAL_EVIDENCE");
+      assert(actionTypes.includes("FINALIZE_EVIDENCE"));
+      assert(actionTypes.includes("PROCEED_TO_PURPOSE_JUDGMENT"));
+      assert.equal(actionTypes.at(-1), "STOP_COMPLETE");
+      assert(
+        actionTypes.indexOf("FINALIZE_EVIDENCE") < actionTypes.indexOf("PROCEED_TO_PURPOSE_JUDGMENT"),
+        `${scenario.name} purpose judgment preceded canonical finalization`
+      );
+      for (const action of cognitive.cognitiveEpisode.actionDecisions) {
+        assert(action.inputCognitiveStateHash);
+        assert(action.actionSignature);
+        assert(action.reasonCodes.length);
+        assert(action.outcomeCode);
+        assert(action.outputCognitiveStateHash);
+        assert.equal(typeof action.materialKnowledgeChanged, "boolean");
+      }
+      cognitiveDiagnostics.push(cognitive);
       assert.equal(report.analysisId, `synthetic-${scenario.name.replace(/\s+/g, "-")}`);
       assert(Array.isArray(report.customerEvidence));
       assert(report.customerEvidenceSummary && typeof report.customerEvidenceSummary === "object");
@@ -293,6 +324,19 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
 
   assert.deepEqual(finalPurposes, purposes.map((scenario) => scenario.expectedPurpose));
   assert.equal(new Set(identityHashes).size, 1, "purpose changed the pre-advice identity-state hash");
+  assert.equal(new Set(cognitiveDiagnostics.map((record) => record.knowledgeStateHash)).size, 1, "purpose changed governed knowledge");
+  const identityEvidenceActionTypes = new Set([
+    "ACQUIRE_INITIAL_EVIDENCE",
+    "REFINE_EVIDENCE_SEARCH",
+    "VERIFY_DIRECT_PAGE",
+    "FINALIZE_EVIDENCE"
+  ]);
+  const governedIdentitySequences = cognitiveDiagnostics.map((record) => record.cognitiveEpisode.actionDecisions
+    .filter((action) => identityEvidenceActionTypes.has(action.actionType))
+    .map((action) => ({ actionType: action.actionType, targetIdentity: action.targetIdentity, reasonCodes: action.reasonCodes })));
+  for (const sequence of governedIdentitySequences.slice(1)) {
+    assert.deepEqual(sequence, governedIdentitySequences[0]);
+  }
   assert.equal(identityPrompts.length, 4);
   for (const prompt of identityPrompts) {
     assert.doesNotMatch(prompt, /personal_use|owner_value|seller_listing|\bresale\b|\$15\.00|Example Depot|90210|Synthetic Market/i);
