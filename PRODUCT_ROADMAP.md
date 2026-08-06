@@ -596,6 +596,15 @@
 - Preserved Phase 6D terminal evidence, Phase 6E Governor stopping and safety policy, retrieval strategy, providers, ceilings, valuation, scoring, public UI, customer memory, personality, and learning behavior unchanged
 - Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
 
+## Version 1.12.8 (Completed)
+- Added a deterministic, read-only post-episode reflection layer that classifies sealed authoritative Experiences, frozen verified diagnostics, and unverified legacy material without rewriting or upgrading historical evidence
+- Added canonical Reflection Observations and purpose-neutral Causal Signatures that preserve the earliest supported loss boundary, distinguish terminal symptoms from causes, and exclude unnecessary customer, object-answer, provider-payload, and source-URL content
+- Added hash-addressed retrospective Lesson Candidates with independent-object support, duplicate and retry suppression, counterevidence, proposed invariants, regression obligations, explicit scope and non-scope, and the only permitted `PROPOSED_ONLY` non-operative status
+- Kept provider, network, customer-input, safety, expected evidence-insufficiency, unresolved, and single-anomaly patterns from becoming internal product-rule lessons without independent authoritative support
+- Added one bounded local historical reflection runner whose output is restricted to ignored `test-results`, verifies frozen aggregate integrity before inspection, and proves every historical source byte remains unchanged
+- Preserved the live Experience producer, Cognitive Episode, existing inert single-episode Lesson Candidate, Governor, evidence authority, finalizer, Phase 6D terminal evidence, Phase 6E executive policy, Phase 6F type coherence, public UI, customer memory, personality, and runtime behavior unchanged
+- Provider-call impact: validation and historical reflection remain deterministic and network-denied; no frozen request, benchmark execution, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

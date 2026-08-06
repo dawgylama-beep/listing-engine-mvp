@@ -13,8 +13,8 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.7"; Text = $package; Pattern = '"version": "1.12.7"' },
-  @{ Name = "Server version is 1.12.7"; Text = $server; Pattern = '$AppVersion = "1.12.7"' },
+  @{ Name = "Package version is 1.12.8"; Text = $package; Pattern = '"version": "1.12.8"' },
+  @{ Name = "Server version is 1.12.8"; Text = $server; Pattern = '$AppVersion = "1.12.8"' },
   @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Purpose heading is customer-centered"; Text = $index; Pattern = "What would you like help with?" },
   @{ Name = "Personal-use submit label matches help"; Text = $index; Pattern = "Analyze Purchase" },
