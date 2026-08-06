@@ -4,6 +4,7 @@ import test from "node:test";
 
 const source = await readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8");
 const policySource = await readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8");
+const stateSource = await readFile(new URL("../lib/cognitive-governor/state.js", import.meta.url), "utf8");
 const authorizationSource = await readFile(new URL("../lib/cognitive-governor/authorization.js", import.meta.url), "utf8");
 const terminalSource = await readFile(new URL("../lib/terminal-evidence.js", import.meta.url), "utf8");
 
@@ -85,4 +86,41 @@ test("one terminal observer covers every risky production stage and the only han
   assert.equal(occurrences(source, /async function handleGenerateListingRequest[\s\S]*?\n}\n/g), 1);
   assert.match(source, /catch \(error\) \{[\s\S]{0,700}buildFailureEnvelope\(currentEvaluationTerminalContext\(\), error/);
   assert.match(source, /const experienceRecord = assembledExperienceRecord \? sealExperienceRecord\(assembledExperienceRecord\) : null;[\s\S]{0,1800}experienceRecord/);
+});
+
+test("executive readiness suspends at one bounded input request before finalization or purpose", () => {
+  assert.doesNotMatch(stateSource, /customerInputAvailable\s*=\s*true/);
+  assert.match(stateSource, /function availableCustomerFacts\(/);
+  assert.match(stateSource, /substantiveFactText\(observation\?\.normalizedValue \|\| observation\?\.value/);
+  assert.match(stateSource, /CUSTOMER_INPUT_STATUS\.REQUIRED_NOT_REQUESTED/);
+  assert.match(stateSource, /CUSTOMER_INPUT_STATUS\.PENDING/);
+  assert.match(policySource, /state\.executiveReadiness\?\.purposeJudgmentAllowed/);
+  assert.match(policySource, /state\.executiveReadiness\?\.stopInsufficientEvidenceEligible/);
+  assert.match(policySource, /state\.executiveReadiness\?\.stopCompleteEligible/);
+
+  const requestBoundary = source.indexOf("const customerInputRequest = buildCustomerInputRequest(preFinalState)");
+  const suspensionBoundary = source.indexOf("if (suspendedForInput || inputRequiredButNotRequested || safetyOnlyOutcome || unresolvedSafety || insufficientBeforePurpose)");
+  const finalizationBoundary = source.indexOf("beginTerminalStage(TERMINAL_STAGE.CANONICAL_EVIDENCE_FINALIZATION)", suspensionBoundary);
+  assert(requestBoundary > 0);
+  assert(suspensionBoundary > requestBoundary);
+  assert(finalizationBoundary > suspensionBoundary);
+  assert.match(source.slice(suspensionBoundary, finalizationBoundary), /sealResearchExperienceRecord\([\s\S]*?return \{/);
+  assert.equal(occurrences(source, /\bsealExperienceRecord\(/g), 1);
+  assert.match(source, /const expectedTerminalAction = research\.executiveDisposition === "SAFETY_ONLY"[\s\S]{0,300}STOP_INSUFFICIENT_EVIDENCE/);
+});
+
+test("one shared safety projection controls both customer outcomes and terminal policy", () => {
+  assert.match(stateSource, /export function deriveSafetyState\(/);
+  assert.match(stateSource, /REMOVE_FROM_SERVICE_REQUIRED/);
+  assert.match(stateSource, /UNRESOLVED_CRITICAL_SAFETY/);
+  assert.match(stateSource, /ordinaryPurposeJudgmentBlocked/);
+  assert.match(source, /function buildControlledExecutiveReport\(/);
+  assert.match(source, /function deriveCustomerOutcomeEvidence\(/);
+  assert.match(source, /customerOutcome: deriveCustomerOutcomeEvidence\(report\)/);
+  assert.match(source, /customerOutcome: deriveCustomerOutcomeEvidence\(report, \{ safetyOnly \}\)/);
+  assert.match(source, /mandatorySafetyDisposition/);
+  assert.match(source, /safetyOnlyOutcomePresent: safetyOnly/);
+  assert.match(source, /customerInputState: lastState\.customerInputState/);
+  assert.match(source, /safetyState: lastState\.safetyState/);
+  assert.match(source, /executiveReadiness: lastState\.executiveReadiness/);
 });

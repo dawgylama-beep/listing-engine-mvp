@@ -577,6 +577,16 @@
 - Preserved production retrieval, Cognitive Governor policy, customer-input and stop semantics, purpose judgment, safety, evidence qualification, valuation, confidence, scoring, and customer recommendations unchanged
 - Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
 
+## Version 1.12.6 (Completed)
+- Added one deterministic Governor executive-readiness projection covering useful knowledge actions, actual requested-field availability, evidence sufficiency, safety blockers, purpose legality, and substantive terminal eligibility with stable reason codes
+- Changed `REQUEST_CUSTOMER_INPUT` into an honest suspended outcome: one bounded structured request is recorded as pending, finalization and purpose judgment do not run, and the terminal decision becomes `STOP_INSUFFICIENT_EVIDENCE` with `AWAITING_CUSTOMER_INPUT`
+- Made `STOP_INSUFFICIENT_EVIDENCE` reachable before purpose judgment for pending input, insufficient identity or evidence, exhausted useful actions, and unresolved critical safety; controlled insufficiency remains a non-5xx customer outcome
+- Restricted `STOP_COMPLETE` to substantively ready purpose outcomes or completed safety-only outcomes, while retaining cautious non-exact completion when the supported advice and limitations are honest
+- Added one shared deterministic safety projection for no blocker, caution, remove-from-service, and unresolved-critical states; critical safety suppresses ordinary commercial guidance and preserves mandatory customer disposition
+- Preserved requested-field, sufficiency, safety, readiness, terminal-reason, suspension, and purpose-execution evidence through the Cognitive Episode, Governor proof integrity, terminal envelope, and handler response
+- Preserved retrieval, queries, providers, ceilings, exactness, evidence qualification, valuation, scoring, public UI, customer memory, personality, and learning behavior unchanged
+- Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

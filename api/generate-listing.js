@@ -2047,6 +2047,9 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     researchPurpose: "listing",
     analysisId
   });
+  if (research.executiveDisposition) {
+    return completeControlledExecutiveEvaluation(research, buildControlledExecutiveReport(research));
+  }
   const report = await executePendingPurposeJudgment(research, () => (
     generateFinalListingReport({ apiKey, model, platform, notes, research })
   ));
@@ -2122,6 +2125,10 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
     analysisId
   });
 
+  if (research.executiveDisposition) {
+    return completeControlledExecutiveEvaluation(research, buildControlledExecutiveReport(research));
+  }
+
   const { identity, sourceRoute, searchQueries, liveSearch } = research;
 
   if (isPersonalUseIntent(intake.purchase_intent)) {
@@ -2151,6 +2158,78 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
     research,
     enforceLiveSearchHonesty(report, liveSearch, intake, identity, platform)
   );
+}
+
+function buildControlledExecutiveReport(research = {}) {
+  const state = research.executiveState || {};
+  const request = research.cognitiveGovernor?.requestedCustomerInput || null;
+  const safety = state.safetyState || {};
+  const awaitingInput = research.executiveDisposition === "AWAITING_CUSTOMER_INPUT";
+  const safetyOnly = research.executiveDisposition === "SAFETY_ONLY";
+  const unresolvedSafety = research.executiveDisposition === "UNRESOLVED_CRITICAL_SAFETY";
+  const knownIdentity = firstKnown(
+    research.identity?.subjectIdentity,
+    research.identity?.likelyItemDescription,
+    state.currentIdentityResolutionStatus !== "UNRESOLVED" ? state.currentIdentityResolutionStatus : ""
+  );
+  const status = safetyOnly
+    ? "SAFETY_ONLY_COMPLETE"
+    : awaitingInput
+      ? "AWAITING_CUSTOMER_INPUT"
+      : "INSUFFICIENT_EVIDENCE";
+  const reasonCodes = awaitingInput
+    ? ["AWAITING_CUSTOMER_INPUT"]
+    : unresolvedSafety
+      ? ["UNRESOLVED_CRITICAL_SAFETY"]
+      : state.executiveReadiness?.stopInsufficientReasonCodes || ["INSUFFICIENT_EVIDENCE"];
+  const nextCustomerAction = awaitingInput
+    ? request?.requestedDetail || "Provide the specific requested object detail before relying on final advice."
+    : safetyOnly
+      ? safety.mandatoryCustomerDisposition
+      : unresolvedSafety
+        ? safety.mandatoryCustomerDisposition || "Obtain qualified inspection before ordinary use, purchase, or sale."
+        : "Provide stronger identity or evidence before relying on a final valuation, purchase, resale, appraisal, or listing judgment.";
+  const report = {
+    analysisStatus: status,
+    requestedPurposeComplete: false,
+    safetyOutcomeComplete: safetyOnly,
+    title: safetyOnly ? "Safety action required" : "More information is needed",
+    description: safetyOnly
+      ? safety.mandatoryCustomerDisposition
+      : "Katherine’s Eye paused before final commercial advice because the current evidence does not support a responsible completed judgment.",
+    executiveOutcome: {
+      schemaVersion: "1.0",
+      status,
+      whatKatherineCurrentlyKnows: knownIdentity ? [knownIdentity] : [],
+      remainingUncertainty: state.unresolvedIdentityDiscriminators || [],
+      responsibleFinalAdvicePaused: !safetyOnly,
+      reasonCodes,
+      customerInputRequest: request,
+      requestedFields: request?.requestedFields || [],
+      safetyDisposition: safety.disposition || "NO_BLOCKING_SAFETY_CONDITION",
+      safetyBlockers: state.executiveReadiness?.executiveBlockers || [],
+      mandatorySafetyDisposition: safety.mandatoryCustomerDisposition || "",
+      nextCustomerAction,
+      purposeJudgmentAllowed: false,
+      purposeJudgmentRan: false,
+      completedPurposeReportEmitted: false,
+      suspendedCustomerRequestEmitted: awaitingInput
+    },
+    missingDetails: request?.requestedDetail ? [request.requestedDetail] : [],
+    nextBestAction: nextCustomerAction,
+    customerEvidence: [],
+    customerEvidenceSummary: {
+      counts: { displayed: 0 },
+      displayedIds: [],
+      displayedCountByMatchClass: {},
+      displayedCountByRetailer: {},
+      displayedCountByPriceType: {}
+    },
+    searchDiagnostics: {
+      ...(research.liveSearch?.searchDiagnostics || {})
+    }
+  };
+  return report;
 }
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
@@ -2217,11 +2296,8 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     actionLedger: cognitiveGovernor.actionLedger,
     blockedActionSignatures: cognitiveGovernor.blockedActions.map((record) => record.actionSignature)
   });
-  if (
-    preFinalState.evidenceStateSummary.verifiedExactEvidence === 0
-    && buildCustomerInputRequest(preFinalState)
-    && !preFinalState.customerInputAlreadyRequested
-  ) {
+  const customerInputRequest = buildCustomerInputRequest(preFinalState);
+  if (customerInputRequest && !preFinalState.customerInputAlreadyRequested) {
     beginTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
     const customerInputDecision = decideCognitiveActionWithTerminalEvidence(
       cognitiveGovernor,
@@ -2241,6 +2317,59 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
       );
     }
     completeTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
+  }
+  const executiveSnapshot = buildCognitiveHandlerSnapshot({
+    cognitiveGovernor,
+    objectMindState: liveSearch.objectMindState,
+    liveSearch,
+    initialPlan: initialObjectSearchPlan,
+    providerMaximum: cognitiveProviderMaximum,
+    canonicalEvidenceFinalized: false
+  });
+  const executiveState = createCognitiveState({
+    ...executiveSnapshot,
+    requestedCustomerInput: cognitiveGovernor.requestedCustomerInput,
+    actionLedger: cognitiveGovernor.actionLedger,
+    blockedActionSignatures: cognitiveGovernor.blockedActions.map((record) => record.actionSignature)
+  });
+  const suspendedForInput = executiveState.customerInputState?.status === "PENDING";
+  const inputRequiredButNotRequested = executiveState.customerInputState?.status === "REQUIRED_NOT_REQUESTED";
+  const safetyOnlyOutcome = executiveState.safetyState?.disposition === "REMOVE_FROM_SERVICE_REQUIRED";
+  const unresolvedSafety = executiveState.safetyState?.disposition === "UNRESOLVED_CRITICAL_SAFETY";
+  const insufficientBeforePurpose = executiveState.executiveReadiness?.stopInsufficientEvidenceEligible
+    && !executiveState.evidenceSufficiency?.evidenceSufficientForPurpose;
+  if (suspendedForInput || inputRequiredButNotRequested || safetyOnlyOutcome || unresolvedSafety || insufficientBeforePurpose) {
+    sealResearchExperienceRecord(liveSearch, {
+      state: liveSearch.objectMindState,
+      sourcesFound: normalizeArray(liveSearch.providerSourceRecords),
+      phase: suspendedForInput || inputRequiredButNotRequested
+        ? "AWAITING_CUSTOMER_INPUT"
+        : safetyOnlyOutcome
+          ? "SAFETY_ONLY_OUTCOME"
+          : unresolvedSafety
+            ? "UNRESOLVED_CRITICAL_SAFETY"
+            : "INSUFFICIENT_EVIDENCE"
+    });
+    return {
+      visualRecognition,
+      identity,
+      objectMindState: liveSearch.objectMindState,
+      sourceRoute,
+      searchQueries,
+      liveSearch,
+      buyerIntake: intake,
+      cognitiveGovernor,
+      cognitiveProviderMaximum,
+      pendingPurposeDecision: null,
+      executiveDisposition: suspendedForInput || inputRequiredButNotRequested
+        ? "AWAITING_CUSTOMER_INPUT"
+        : safetyOnlyOutcome
+          ? "SAFETY_ONLY"
+          : unresolvedSafety
+            ? "UNRESOLVED_CRITICAL_SAFETY"
+            : "INSUFFICIENT_EVIDENCE",
+      executiveState
+    };
   }
   beginTerminalStage(TERMINAL_STAGE.CANONICAL_EVIDENCE_FINALIZATION);
   const finalizationDecision = decideCognitiveActionWithTerminalEvidence(
@@ -2345,7 +2474,8 @@ function buildCognitiveHandlerSnapshot({
   directPageAttemptBudget = null,
   canonicalEvidenceFinalized = Boolean(liveSearch.finalEvidenceResult),
   purposeJudgmentCompleted = false,
-  customerInputAvailable = true
+  customerOutcome = {},
+  reportGenerated = false
 } = {}) {
   const providerRequests = liveSearch.providerRequestRecords || [];
   const providerConsumed = providerAttemptBudget
@@ -2373,14 +2503,72 @@ function buildCognitiveHandlerSnapshot({
     },
     canonicalEvidenceFinalized,
     purposeJudgmentCompleted,
-    customerInputAvailable
+    customerOutcome,
+    reportGenerated
+  };
+}
+
+function deriveCustomerOutcomeEvidence(report = {}, { safetyOnly = false } = {}) {
+  const source = report && typeof report === "object" && !Array.isArray(report) ? report : {};
+  const substantiveReportFields = Object.keys(source).filter((field) => !["analysisId", "searchDiagnostics"].includes(field));
+  const limitationsEvidence = [
+    source.identificationConfidence,
+    source.itemIdentificationConfidence,
+    source.liveCompConfidence,
+    source.valuationConfidence,
+    source.buyerDecisionConfidence,
+    source.pricingConfidence,
+    source.priceConfidence,
+    source.additionalInformationNeeded,
+    source.missingDetails,
+    source.whatToVerifyBeforeBuying,
+    source.reasonsForCaution,
+    source.productOrConditionRisks,
+    source.conditionNotes,
+    source.sellerNotes,
+    source.executiveOutcome?.remainingUncertainty
+  ];
+  const limitationsPresent = limitationsEvidence.some((value) => (
+    Array.isArray(value) ? value.some((item) => Boolean(cleanText(item))) : Boolean(cleanText(value))
+  ));
+  const mandatorySafetyDisposition = cleanText(source.executiveOutcome?.mandatorySafetyDisposition);
+  return {
+    completedCustomerOutcomePresent: !safetyOnly && substantiveReportFields.length > 0,
+    limitationsPresent,
+    safetyOnlyOutcomePresent: safetyOnly && source.safetyOutcomeComplete === true,
+    mandatorySafetyDispositionPresent: safetyOnly
+      && Boolean(mandatorySafetyDisposition)
+      && cleanText(source.description).includes(mandatorySafetyDisposition)
   };
 }
 
 function completeCognitiveEvaluation(research = {}, report = {}) {
+  return finalizeCognitiveTerminalOutcome(research, report, {
+    purposeDecision: research.pendingPurposeDecision,
+    canonicalEvidenceFinalized: true,
+    purposeJudgmentCompleted: true,
+    customerOutcome: deriveCustomerOutcomeEvidence(report)
+  });
+}
+
+function completeControlledExecutiveEvaluation(research = {}, report = {}) {
+  const safetyOnly = research.executiveDisposition === "SAFETY_ONLY";
+  return finalizeCognitiveTerminalOutcome(research, report, {
+    purposeDecision: null,
+    canonicalEvidenceFinalized: false,
+    purposeJudgmentCompleted: false,
+    customerOutcome: deriveCustomerOutcomeEvidence(report, { safetyOnly })
+  });
+}
+
+function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
+  purposeDecision = null,
+  canonicalEvidenceFinalized = false,
+  purposeJudgmentCompleted = false,
+  customerOutcome = {}
+} = {}) {
   const governor = research.cognitiveGovernor;
-  const pendingPurposeDecision = research.pendingPurposeDecision;
-  if (!governor || !pendingPurposeDecision) return report;
+  if (!governor) return report;
   beginTerminalStage(TERMINAL_STAGE.COGNITIVE_EPISODE_PROOF);
   const completedSnapshot = buildCognitiveHandlerSnapshot({
     cognitiveGovernor: governor,
@@ -2388,29 +2576,51 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     liveSearch: research.liveSearch,
     initialPlan: research.objectMindState?.searchPlan || [],
     providerMaximum: research.cognitiveProviderMaximum,
-    canonicalEvidenceFinalized: true,
-    purposeJudgmentCompleted: true
+    canonicalEvidenceFinalized,
+    purposeJudgmentCompleted,
+    customerOutcome,
+    reportGenerated: Boolean(report)
   });
-  recordCognitiveActionOutcome(
-    governor,
-    pendingPurposeDecision,
-    completedSnapshot,
-    { outcomeCode: "PURPOSE_JUDGMENT_COMPLETED" }
-  );
+  if (purposeDecision) {
+    recordCognitiveActionOutcome(
+      governor,
+      purposeDecision,
+      completedSnapshot,
+      { outcomeCode: "PURPOSE_JUDGMENT_COMPLETED" }
+    );
+  }
   const terminalDecision = decideCognitiveActionWithTerminalEvidence(
     governor,
     completedSnapshot,
     { boundary: COGNITIVE_BOUNDARY.TERMINAL }
   );
+  const expectedTerminalAction = research.executiveDisposition === "SAFETY_ONLY"
+    ? COGNITIVE_ACTION.STOP_COMPLETE
+    : research.executiveDisposition
+      ? COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE
+      : COGNITIVE_ACTION.STOP_COMPLETE;
+  if (terminalDecision.actionType !== expectedTerminalAction || !terminalDecision.executionPermitted) {
+    throw Object.assign(new Error("Cognitive Governor terminal decision did not match executive readiness."), {
+      code: "GOVERNOR_TERMINAL_READINESS_MISMATCH"
+    });
+  }
+  const terminalStatus = terminalDecision.actionType === COGNITIVE_ACTION.STOP_COMPLETE
+    ? "COMPLETE"
+    : "INSUFFICIENT_EVIDENCE";
   executeGovernorAuthorizedAction(governor, terminalDecision, terminalDecision.actionType, {
     operationPhase: "TERMINAL_STOP_TRANSITION",
-    operation: () => ({ terminalStatus: "COMPLETE" })
+    operation: () => ({ terminalStatus })
   });
   recordCognitiveActionOutcome(
     governor,
     terminalDecision,
     completedSnapshot,
-    { outcomeCode: "EVALUATION_COMPLETE", terminalStatus: "COMPLETE" }
+    {
+      outcomeCode: terminalDecision.actionType === COGNITIVE_ACTION.STOP_COMPLETE
+        ? research.executiveDisposition === "SAFETY_ONLY" ? "SAFETY_ONLY_OUTCOME_COMPLETE" : "EVALUATION_COMPLETE"
+        : research.executiveDisposition === "AWAITING_CUSTOMER_INPUT" ? "EVALUATION_SUSPENDED_AWAITING_CUSTOMER_INPUT" : "EVALUATION_STOPPED_INSUFFICIENT_EVIDENCE",
+      terminalStatus
+    }
   );
   const experienceRecordHash = research.liveSearch.experienceRecord?.experienceRecordHash || "";
   const cognitiveEpisode = buildCognitiveEpisode(governor, { experienceRecordHash });
@@ -2439,6 +2649,16 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     blockedActionCount: governor.blockedActions.length,
     cycleDetectionCount: governor.cycleDetections.length,
     terminalStatus: cognitiveEpisode.terminalStatus,
+    requestedCustomerInput: governor.requestedCustomerInput,
+    customerInputState: lastState.customerInputState,
+    evidenceSufficiency: lastState.evidenceSufficiency,
+    safetyState: lastState.safetyState,
+    executiveReadiness: lastState.executiveReadiness,
+    terminalReasonCodes: cognitiveEpisode.terminalReasonCodes,
+    executionSuspended: terminalDecision.actionType === COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE,
+    purposeJudgmentAllowed: Boolean(lastState.executiveReadiness?.purposeJudgmentAllowed),
+    purposeJudgmentRan: Boolean(lastState.purposeJudgmentCompleted),
+    customerOutcomeType: research.executiveDisposition || "PURPOSE_COMPLETE",
     cognitiveEpisode,
     lessonCandidate,
     executionProof: governorExecutionProof
@@ -2453,6 +2673,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
   return {
     ...report,
     searchDiagnostics: {
+      ...(research.liveSearch.searchDiagnostics || {}),
       ...(report.searchDiagnostics || {}),
       cognitiveGovernor: diagnostics
     }
@@ -14741,6 +14962,65 @@ function attachObjectVerificationToEnrichedCandidates(objectMindState = {}, enri
   });
 }
 
+function sealResearchExperienceRecord(liveSearch = {}, {
+  state = liveSearch.objectMindState || null,
+  sourcesFound = [],
+  acceptedSources = [],
+  rejectedSources = [],
+  customerVisibleSources = [],
+  phase = "EXECUTIVE_OUTCOME"
+} = {}) {
+  if (liveSearch.experienceRecord) return liveSearch.experienceRecord;
+  beginTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
+  const assembledExperienceRecord = state?.objectStateId
+    ? buildExperienceRecord({
+        state,
+        providerRequests: liveSearch.providerRequestRecords || [],
+        sourcesFound,
+        acceptedSources,
+        rejectedSources,
+        customerVisibleSources,
+        sourceAcquisitionRecords: liveSearch.sourceAcquisitionRecords || [],
+        subsystemOutcomeFlags: {
+          purposeNeutralIdentityFrozen: Boolean(state.identityStateHash),
+          exactIdentityResolved: state.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",
+          exactEvidenceRecovered: acceptedSources.some((record) => (
+            record.objectMindClassification === "EXACT_ITEM"
+            && record.objectMindVerificationState === "VERIFIED"
+          )),
+          distractorsRejected: rejectedSources.some((record) => /SIMILAR_OBJECT|UNRELATED/.test(record.objectMindClassification || "")),
+          refinementCount: Number(state.refinementCount || 0),
+          directPageAttemptCount: normalizeArray(liveSearch.providerRequestRecords).filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || "") && Number(record.physicalAttemptCount || 0) > 0).length,
+          providerErrorObserved: normalizeArray(liveSearch.providerRequestRecords).some((record) => record.errorCode && record.errorCode !== "invalid_query_preflight"),
+          emptySearchResult: sourcesFound.length === 0,
+          executiveOutcomePhase: cleanText(phase)
+        }
+      })
+    : null;
+  const experienceRecord = assembledExperienceRecord ? sealExperienceRecord(assembledExperienceRecord) : null;
+  liveSearch.experienceRecord = experienceRecord;
+  if (state?.objectStateId) {
+    liveSearch.searchDiagnostics = {
+      ...(liveSearch.searchDiagnostics || {}),
+      objectIntelligence: {
+        objectStateSchemaVersion: state.schemaVersion,
+        objectStateId: state.objectStateId,
+        identityStateHash: state.identityStateHash,
+        purposeNeutralBoundary: "identity_and_initial_exact_search_frozen_before_purpose_specific_advice",
+        selectedCandidateId: state.resolvedIdentity?.selectedCandidateId || "",
+        resolvedIdentity: state.resolvedIdentity,
+        identityHypotheses: state.identityHypotheses,
+        searchPlan: state.searchPlan,
+        verifiedEvidenceSummary: state.verifiedEvidenceSummary,
+        resolutionHistory: state.resolutionHistory,
+        experienceRecord
+      }
+    };
+  }
+  completeTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
+  return experienceRecord;
+}
+
 function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { identity = {}, buyerIntake = normalizeBuyerIntake({}) } = {}) {
   if (liveSearch.finalEvidenceResult && Array.isArray(liveSearch.customerEvidence) && liveSearch.experienceRecord) {
     return liveSearch.customerEvidence;
@@ -14859,34 +15139,14 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   if (finalObjectMindState) {
     liveSearch.objectMindState = finalObjectMindState;
   }
-  beginTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
-  const assembledExperienceRecord = finalObjectMindState
-    ? buildExperienceRecord({
-        state: finalObjectMindState,
-        providerRequests: liveSearch.providerRequestRecords || [],
-        sourcesFound: canonicalObservations,
-        acceptedSources: finalEvidenceResult.acceptedRecords,
-        rejectedSources: finalEvidenceResult.rejectedRecords,
-        customerVisibleSources: finalEvidenceResult.customerEvidence,
-        sourceAcquisitionRecords: liveSearch.sourceAcquisitionRecords || [],
-        subsystemOutcomeFlags: {
-          purposeNeutralIdentityFrozen: Boolean(finalObjectMindState.identityStateHash),
-          exactIdentityResolved: finalObjectMindState.resolvedIdentity?.exactnessClassification === "EXACT_ITEM",
-          exactEvidenceRecovered: finalEvidenceResult.acceptedRecords.some((record) => (
-            record.objectMindClassification === "EXACT_ITEM"
-            && record.objectMindVerificationState === "VERIFIED"
-          )),
-          distractorsRejected: finalEvidenceResult.rejectedRecords.some((record) => /SIMILAR_OBJECT|UNRELATED/.test(record.objectMindClassification || "")),
-          refinementCount: Number(finalObjectMindState.refinementCount || 0),
-          directPageAttemptCount: normalizeArray(liveSearch.providerRequestRecords).filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || "") && Number(record.physicalAttemptCount || 0) > 0).length,
-          providerErrorObserved: normalizeArray(liveSearch.providerRequestRecords).some((record) => record.errorCode && record.errorCode !== "invalid_query_preflight"),
-          emptySearchResult: canonicalObservations.length === 0
-        }
-      })
-    : null;
-  const experienceRecord = assembledExperienceRecord ? sealExperienceRecord(assembledExperienceRecord) : null;
-  completeTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
-  liveSearch.experienceRecord = experienceRecord;
+  const experienceRecord = sealResearchExperienceRecord(liveSearch, {
+    state: finalObjectMindState,
+    sourcesFound: canonicalObservations,
+    acceptedSources: finalEvidenceResult.acceptedRecords,
+    rejectedSources: finalEvidenceResult.rejectedRecords,
+    customerVisibleSources: finalEvidenceResult.customerEvidence,
+    phase: "CANONICAL_FINALIZATION"
+  });
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     ...liveSearch.finalEvidenceDiagnostics,

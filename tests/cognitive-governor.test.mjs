@@ -130,6 +130,8 @@ function snapshot(overrides = {}) {
     customerMission: overrides.customerMission || createCustomerMissionContext({ purchase_intent: "personal_use" }),
     canonicalEvidenceFinalized: Boolean(overrides.canonicalEvidenceFinalized),
     purposeJudgmentCompleted: Boolean(overrides.purposeJudgmentCompleted),
+    reportGenerated: Boolean(overrides.reportGenerated),
+    customerOutcome: overrides.customerOutcome || {},
     customerInputAvailable: overrides.customerInputAvailable !== false
   };
 }
@@ -270,7 +272,10 @@ test("qualified information-poor direct pages are selected once and remain cappe
 });
 
 test("a specific missing discriminator creates a structured, non-vague customer request", () => {
-  const state = createCognitiveState(snapshot({ providerRequests: [initialRequest()] }));
+  const state = createCognitiveState(snapshot({
+    objectMindState: objectMindFixture({ exactness: "UNRESOLVED" }),
+    providerRequests: [initialRequest()]
+  }));
   const request = buildCustomerInputRequest(state);
   assert.equal(request.requestType, "MAKER_MARK");
   assert.match(request.whyItMatters, /distinguish/i);
@@ -313,10 +318,21 @@ test("no useful remaining action stops insufficiently and completed purpose stop
     selectNextCognitiveAction(insufficient, { boundary: COGNITIVE_BOUNDARY.TERMINAL }).actionType,
     COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE
   );
-  const complete = createCognitiveState(snapshot({
+  const purposeOnly = createCognitiveState(snapshot({
     providerRequests: [initialRequest()],
     canonicalEvidenceFinalized: true,
     purposeJudgmentCompleted: true
+  }));
+  assert.notEqual(
+    selectNextCognitiveAction(purposeOnly, { boundary: COGNITIVE_BOUNDARY.TERMINAL }).actionType,
+    COGNITIVE_ACTION.STOP_COMPLETE
+  );
+  const complete = createCognitiveState(snapshot({
+    providerRequests: [initialRequest()],
+    canonicalEvidenceFinalized: true,
+    purposeJudgmentCompleted: true,
+    reportGenerated: true,
+    customerOutcome: { completedCustomerOutcomePresent: true, limitationsPresent: true }
   }));
   assert.equal(
     selectNextCognitiveAction(complete, { boundary: COGNITIVE_BOUNDARY.TERMINAL }).actionType,
