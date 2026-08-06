@@ -605,6 +605,15 @@
 - Preserved the live Experience producer, Cognitive Episode, existing inert single-episode Lesson Candidate, Governor, evidence authority, finalizer, Phase 6D terminal evidence, Phase 6E executive policy, Phase 6F type coherence, public UI, customer memory, personality, and runtime behavior unchanged
 - Provider-call impact: validation and historical reflection remain deterministic and network-denied; no frozen request, benchmark execution, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
 
+## Version 1.12.9 (Completed)
+- Added canonical Regression Charters, Regression Evidence Bundles, Lesson Proofs, explicit Approval Receipts, and Approved Lesson Records while preserving immutable Phase 6G Lesson Candidates as the exact source boundary
+- Restricted every proof obligation to a fixed repository-owned regression manifest; candidate and report content cannot select commands, arguments, executables, module paths, dynamic imports, fixture paths, provider identifiers, or network locations
+- Made proof fail closed for unmapped obligations, unresolved counterevidence, incomplete safety or purpose-neutrality coverage, failed or skipped required regressions, source mutation, network-denial failure, and candidate, Charter, fixture, manifest, code, or tree drift
+- Required one exact structured operator authorization after a passing proof, rejected scope or binding mismatch and consumed-receipt replay, and limited approved output to hash-addressed `APPROVED_NON_OPERATIVE` records with runtime, behavioral, code, and deployment installation disabled
+- Added one fixed-path offline historical gate proof that verified the existing Phase 6G report and 513-file historical tree, returned `NO_ELIGIBLE_CANDIDATE`, and created zero real Charters, Evidence Bundles, Proofs, Approval Receipts, or Approved Lesson Records
+- Preserved the live handler, Governor, evidence pipeline, purpose judgment, finalizer, terminal response, Phases 6D through 6G, public UI, customer memory, personality, frozen evidence, and runtime behavior unchanged
+- Provider-call impact: validation and the historical gate remained deterministic and network-denied; no Phase 6G reflection, frozen request, benchmark, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings
