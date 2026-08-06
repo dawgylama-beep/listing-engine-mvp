@@ -568,6 +568,15 @@
 - Preserved the frozen product grader, 29 images, 14 cases, 26-analysis plan, expected answers, controls, metrics, weights, thresholds, safety rules, customer behavior, production Governor authorization, and provider ceilings unchanged
 - Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, provider, benchmark, Preview, or Production request was made
 
+## Version 1.12.5 (Completed)
+- Added one bounded per-evaluation terminal context with deterministic ordered stage events from request acceptance through response emission
+- Replaced evidence-destroying handler failures with independently verifiable, size-bounded, secret-safe terminal envelopes that retain observable stage, partial Governor, and provider-attempt evidence
+- Preserved failed provider attempts and retry telemetry under their existing logical request, controlled execution, action signature, and unchanged provider ceilings
+- Added one immutable authoritative Experience Record seal and independently revalidated the exact response-bound record against its canonical hash-empty preimage, full emitted byte size, Cognitive Episode link, Governor proof, and 65,536-byte ceiling
+- Routed any stale hash, post-seal content change, link mismatch, proof-size mismatch, or proof-hash mismatch through `EXPERIENCE_ATTESTATION_MISMATCH` instead of emitting a false successful attestation
+- Preserved production retrieval, Cognitive Governor policy, customer-input and stop semantics, purpose judgment, safety, evidence qualification, valuation, confidence, scoring, and customer recommendations unchanged
+- Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

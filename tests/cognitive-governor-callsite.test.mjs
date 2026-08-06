@@ -5,6 +5,7 @@ import test from "node:test";
 const source = await readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8");
 const policySource = await readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8");
 const authorizationSource = await readFile(new URL("../lib/cognitive-governor/authorization.js", import.meta.url), "utf8");
+const terminalSource = await readFile(new URL("../lib/terminal-evidence.js", import.meta.url), "utf8");
 
 function occurrences(text, pattern) {
   return [...text.matchAll(pattern)].length;
@@ -51,4 +52,37 @@ test("every Governor-controlled provider path binds durable ownership before its
   assert.match(source, /logicalProviderRequestIdentity/);
   assert.equal(occurrences(source, /\bbindGovernorProviderRequest\(/g), 5);
   assert.equal(occurrences(source, /\bassertGovernorProviderRequestOwnership\(/g), 5);
+});
+
+test("one terminal observer covers every risky production stage and the only handler catch", () => {
+  for (const stage of [
+    "REQUEST_ACCEPTED",
+    "INPUT_VALIDATION",
+    "OBJECT_OBSERVATION",
+    "IDENTITY_FORMATION",
+    "GOVERNOR_CONSTRUCTION",
+    "AUTHORITATIVE_STATE_INITIALIZATION",
+    "INITIAL_ACQUISITION",
+    "REFINEMENT",
+    "DIRECT_PAGE_VERIFICATION",
+    "CUSTOMER_INPUT_TRANSITION",
+    "CANONICAL_EVIDENCE_FINALIZATION",
+    "PURPOSE_JUDGMENT",
+    "EXPERIENCE_RECORD_SEALING",
+    "COGNITIVE_EPISODE_PROOF",
+    "RESPONSE_EMISSION"
+  ]) {
+    assert.match(source, new RegExp(`TERMINAL_STAGE\\.${stage}`), stage);
+    assert.match(terminalSource, new RegExp(`${stage}: \\"${stage}\\"`), stage);
+  }
+  assert.equal(occurrences(source, /\bcreateEvaluationTerminalContext\(/g), 1);
+  assert.equal(occurrences(source, /\bbuildFailureEnvelope\(/g), 1);
+  assert.equal(occurrences(source, /\bsealExperienceRecord\(/g), 1);
+  assert.equal(occurrences(source, /\bassertFinalExperienceAttestation\(/g), 1);
+  assert.equal(occurrences(source, /\bbuildExperienceRecord\(/g), 1);
+  assert.equal(occurrences(source, /\bbuildCognitiveEpisode\(/g), 1);
+  assert.equal(occurrences(source, /\bbuildGovernorExecutionProof\(/g), 1);
+  assert.equal(occurrences(source, /async function handleGenerateListingRequest[\s\S]*?\n}\n/g), 1);
+  assert.match(source, /catch \(error\) \{[\s\S]{0,700}buildFailureEnvelope\(currentEvaluationTerminalContext\(\), error/);
+  assert.match(source, /const experienceRecord = assembledExperienceRecord \? sealExperienceRecord\(assembledExperienceRecord\) : null;[\s\S]{0,1800}experienceRecord/);
 });

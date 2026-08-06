@@ -45,7 +45,7 @@ $checks = @(
   @{ Name = "Frontend carries Ask context seller prices"; Text = $app; Pattern = '"recommendedListingPrice"' },
   @{ Name = "Frontend summary uses canonical valuation metrics"; Text = $app; Pattern = "...valuation.metrics" },
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.4"; Text = $package; Pattern = '"version": "1.12.4"' },
+  @{ Name = "Package version is 1.12.5"; Text = $package; Pattern = '"version": "1.12.5"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Roadmap documents 1.9.1"; Text = $roadmap; Pattern = "Version 1.9.1 (Completed)" }
 )

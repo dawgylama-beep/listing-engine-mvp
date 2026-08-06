@@ -35,8 +35,21 @@ import {
   assertGovernorProviderRequestOwnership,
   recordCognitiveActionOutcome
 } from "../lib/cognitive-governor/index.js";
+import {
+  TERMINAL_STAGE,
+  TERMINAL_TRANSITION,
+  assertFinalExperienceAttestation,
+  attachTerminalGovernor,
+  attachTerminalProviderRecords,
+  buildFailureEnvelope,
+  completeTerminalContext,
+  createEvaluationTerminalContext,
+  recordTerminalStage,
+  sealExperienceRecord
+} from "../lib/terminal-evidence.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
+const evaluationTerminalContext = new AsyncLocalStorage();
 const MAX_ANALYSIS_PHOTO_COUNT = 6;
 const MAX_ANALYSIS_PHOTO_BYTES = 240000;
 const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
@@ -64,7 +77,9 @@ const productionAnalysisAdapters = Object.freeze({
   nowIso: () => new Date().toISOString(),
   createAnalysisId: () => `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   onModelRequestBudget: () => {},
-  onFinalEvidenceResult: () => {}
+  onFinalEvidenceResult: () => {},
+  onTerminalContextCreated: () => {},
+  onTerminalStage: () => {}
 });
 
 function currentAnalysisAdapters() {
@@ -76,10 +91,69 @@ export function createGenerateListingHandler(adapters = {}) {
     ...productionAnalysisAdapters,
     ...adapters
   });
-  return (req, res) => analysisAdapterContext.run(
-    resolvedAdapters,
-    () => handleGenerateListingRequest(req, res)
-  );
+  return (req, res) => analysisAdapterContext.run(resolvedAdapters, () => {
+    let initializationError = null;
+    let evaluationId = requestEvaluationId(req);
+    if (!evaluationId) {
+      try {
+        evaluationId = createServerAnalysisId();
+      } catch (error) {
+        initializationError = error;
+        evaluationId = "analysis-initialization-failed";
+      }
+    }
+    const terminalContext = createEvaluationTerminalContext({ evaluationId });
+    Object.defineProperty(terminalContext, "initializationError", { value: initializationError, enumerable: false });
+    return evaluationTerminalContext.run(
+      terminalContext,
+      () => handleGenerateListingRequest(req, res)
+    );
+  });
+}
+
+function requestEvaluationId(req = {}) {
+  if (req.body && typeof req.body === "object") return cleanText(req.body.analysisId).slice(0, 120);
+  if (typeof req.body !== "string") return "";
+  const match = req.body.match(/"analysisId"\s*:\s*"([^"\\]{1,120})"/);
+  return cleanText(match?.[1]).slice(0, 120);
+}
+
+function currentEvaluationTerminalContext() {
+  return evaluationTerminalContext.getStore();
+}
+
+function transitionTerminalStage(stage, transition, metadata = {}) {
+  const context = currentEvaluationTerminalContext();
+  if (!context) return null;
+  const event = recordTerminalStage(context, stage, transition, metadata);
+  currentAnalysisAdapters().onTerminalStage({ ...event });
+  return event;
+}
+
+function beginTerminalStage(stage, metadata = {}) {
+  return transitionTerminalStage(stage, TERMINAL_TRANSITION.STARTED, metadata);
+}
+
+function completeTerminalStage(stage, metadata = {}) {
+  return transitionTerminalStage(stage, TERMINAL_TRANSITION.COMPLETED, metadata);
+}
+
+function attachCurrentTerminalGovernor(governor) {
+  return attachTerminalGovernor(currentEvaluationTerminalContext(), governor);
+}
+
+function attachCurrentTerminalProviderRecords(records) {
+  return attachTerminalProviderRecords(currentEvaluationTerminalContext(), records);
+}
+
+function decideCognitiveActionWithTerminalEvidence(governor, snapshot, options) {
+  const authoritativeStateMissing = !governor?.executionLedger?.lifecycleEvents?.some((event) => (
+    event.eventType === "AUTHORITATIVE_COGNITIVE_STATE_INITIALIZED"
+  ));
+  if (authoritativeStateMissing) beginTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
+  const decision = decideCognitiveAction(governor, snapshot, options);
+  if (authoritativeStateMissing) completeTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
+  return decision;
 }
 
 const listingSchema = {
@@ -989,16 +1063,32 @@ const consumerDecisionThresholds = {
 };
 
 async function handleGenerateListingRequest(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed." });
-  }
-
   try {
+    beginTerminalStage(TERMINAL_STAGE.REQUEST_ACCEPTED);
+    currentAnalysisAdapters().onTerminalContextCreated({
+      schemaVersion: currentEvaluationTerminalContext().schemaVersion,
+      evaluationIdentity: currentEvaluationTerminalContext().evaluationIdentity
+    });
+    if (currentEvaluationTerminalContext().initializationError) throw currentEvaluationTerminalContext().initializationError;
+    if (req.method !== "POST") {
+      throw createHandlerResponseError({
+        statusCode: 405,
+        code: "METHOD_NOT_ALLOWED",
+        message: "Method not allowed."
+      });
+    }
+    completeTerminalStage(TERMINAL_STAGE.REQUEST_ACCEPTED);
+    beginTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
     const body = parseBody(req.body);
     const action = cleanText(body.action);
 
     if (action === "ask_market_edge") {
-      return await handleAskMarketEdge({ body, res });
+      completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
+      beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      const response = await handleAskMarketEdge({ body, res });
+      completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      completeTerminalContext(currentEvaluationTerminalContext());
+      return response;
     }
 
     const platform = cleanText(body.platform);
@@ -1006,20 +1096,27 @@ async function handleGenerateListingRequest(req, res) {
     const photos = Array.isArray(body.photos) ? body.photos : [];
     const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
     const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : normalizeBuyerIntake(body.sellerIntake);
-    const analysisId = cleanText(body.analysisId || createServerAnalysisId()).slice(0, 120);
+    const analysisId = cleanText(currentEvaluationTerminalContext()?.evaluationId || body.analysisId || createServerAnalysisId()).slice(0, 120);
 
     if (!photos.length) {
-      return res.status(400).json({ error: "Upload at least one item photo." });
+      throw createHandlerResponseError({
+        statusCode: 400,
+        code: "ANALYSIS_PHOTO_REQUIRED",
+        message: "Upload at least one item photo."
+      });
     }
 
     const safePhotos = validateAndNormalizePhotos(photos);
     const apiKey = currentAnalysisAdapters().getOpenAIApiKey();
 
     if (!apiKey) {
-      return res.status(500).json({
-        error: "Katherine\u2019s Eye is not configured for analysis in this environment."
+      throw createHandlerResponseError({
+        statusCode: 500,
+        code: "ANALYSIS_NOT_CONFIGURED",
+        message: "Katherine\u2019s Eye is not configured for analysis in this environment."
       });
     }
+    completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
 
     const report = await generateReportWithOpenAI({
       apiKey,
@@ -1032,36 +1129,70 @@ async function handleGenerateListingRequest(req, res) {
       analysisId
     });
 
+    beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     const safeReport = sanitizeClientVisiblePayload({
       ...report,
       analysisId
     });
-
-    if (reportType === "marketValue") {
-      return res.status(200).json({ valuation: safeReport });
-    }
-
-    return res.status(200).json({ listing: safeReport });
+    const experienceRecord = safeReport.searchDiagnostics?.objectIntelligence?.experienceRecord;
+    const cognitiveDiagnostics = safeReport.searchDiagnostics?.cognitiveGovernor;
+    assertFinalExperienceAttestation({
+      experienceRecord,
+      cognitiveEpisode: cognitiveDiagnostics?.cognitiveEpisode,
+      governorProof: cognitiveDiagnostics?.executionProof
+    });
+    const payload = reportType === "marketValue" ? { valuation: safeReport } : { listing: safeReport };
+    const response = res.status(200).json(payload);
+    completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+    completeTerminalContext(currentEvaluationTerminalContext());
+    return response;
   } catch (error) {
+    const statusCode = error.identityConfirmationRequired
+      ? 409
+      : error.clientSafeCode
+        ? error.clientSafeStatusCode || 413
+        : error.httpStatusCode || 502;
+    const failureEnvelope = buildFailureEnvelope(currentEvaluationTerminalContext(), error, { httpStatus: statusCode });
+    const diagnostics = { terminalFailure: failureEnvelope };
     if (error.identityConfirmationRequired) {
       return res.status(409).json({
         action: "identity_confirmation_required",
         error: error.message,
-        confirmation: sanitizeClientVisiblePayload(error.confirmation || {})
+        confirmation: sanitizeClientVisiblePayload(error.confirmation || {}),
+        diagnostics
       });
     }
 
     if (error.clientSafeCode) {
       return res.status(error.clientSafeStatusCode || 413).json({
         error: error.clientSafeMessage || SAFE_INPUT_TOO_LARGE_MESSAGE,
-        code: error.clientSafeCode
+        code: error.clientSafeCode,
+        diagnostics
+      });
+    }
+
+    if (error.httpStatusCode) {
+      return res.status(error.httpStatusCode).json({
+        error: error.clientSafeMessage || SAFE_PROVIDER_ERROR_MESSAGE,
+        code: failureEnvelope.internalCode,
+        diagnostics
       });
     }
 
     return res.status(502).json({
-      error: SAFE_PROVIDER_ERROR_MESSAGE
+      error: SAFE_PROVIDER_ERROR_MESSAGE,
+      code: failureEnvelope.internalCode,
+      diagnostics
     });
   }
+}
+
+function createHandlerResponseError({ statusCode, code, message }) {
+  const error = new Error(message);
+  error.code = code;
+  error.httpStatusCode = statusCode;
+  error.clientSafeMessage = message;
+  return error;
 }
 
 export default createGenerateListingHandler();
@@ -1453,7 +1584,56 @@ function currentTimeIso() {
 
 function requestOpenAIJson(args) {
   enforceModelRequestBudget(args?.payload);
-  return currentAnalysisAdapters().requestOpenAIJson(args);
+  const purpose = cleanText(args?.payload?.text?.format?.name || "model_request");
+  if (purpose === "live_comparable_search" || !currentEvaluationTerminalContext()) {
+    return currentAnalysisAdapters().requestOpenAIJson(args);
+  }
+  const terminalContext = currentEvaluationTerminalContext();
+  const activeExecution = [...(terminalContext.governor?.executionLedger?.controlledExecutionEvents || [])]
+    .reverse()
+    .find((event) => event.status === "STARTED") || null;
+  const record = {
+    evaluationIdentity: terminalContext.evaluationIdentity,
+    providerKey: "openai_model",
+    providerOperationPhase: cleanText(activeExecution?.operationPhase || terminalContext.currentStage || purpose, 100),
+    governorScopeClassification: activeExecution ? "TERMINAL_OBSERVED_GOVERNED" : "OUTSIDE_GOVERNOR_SCOPE",
+    parentGovernorActionSignature: cleanText(activeExecution?.actionSignature, 100),
+    controlledExecutionEventIdentity: cleanText(activeExecution?.executionEventIdentity, 80),
+    logicalProviderRequestIdentity: stableInternalId("terminal-provider-request", [
+      terminalContext.evaluationIdentity,
+      terminalContext.stageEvents.length,
+      purpose
+    ], 24),
+    logicalQueryAttempted: true,
+    physicalAttemptCount: 1,
+    physicalRetryAttemptCount: 0,
+    physicalAttempts: [{ attempt: 1, retry: false, provider: "openai_model", outcome: "started" }],
+    succeeded: false,
+    statusCode: null,
+    errorCode: "",
+    failureStage: ""
+  };
+  attachCurrentTerminalProviderRecords([record]);
+  const complete = (value) => {
+    record.physicalAttempts[0].outcome = "succeeded";
+    record.succeeded = true;
+    record.statusCode = Number(value?.statusCode || 0) || null;
+    return value;
+  };
+  const fail = (error) => {
+    record.physicalAttempts[0].outcome = "failed";
+    record.succeeded = false;
+    record.statusCode = Number(error?.statusCode || 0) || null;
+    record.errorCode = cleanText(error?.code || error?.name || "model_provider_failure").slice(0, 100);
+    record.failureStage = record.errorCode;
+    throw error;
+  };
+  try {
+    const result = currentAnalysisAdapters().requestOpenAIJson(args);
+    return result && typeof result.then === "function" ? result.then(complete, fail) : complete(result);
+  } catch (error) {
+    return fail(error);
+  }
 }
 
 function enforceModelRequestBudget(payload) {
@@ -1985,6 +2165,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     neutralInput,
     extractedIdentity: identity
   });
+  completeTerminalStage(TERMINAL_STAGE.IDENTITY_FORMATION);
 
   if (identity.canonicalProductIdentity?.userConfirmationRequired && !identityConfirmationMatches(intake, identity.canonicalProductIdentity)) {
     throw createIdentityConfirmationRequiredError(identity.canonicalProductIdentity);
@@ -1998,12 +2179,15 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   const cognitiveProviderMaximum = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
     ? retailSerperBudgetAllocation.maxProviderCalls
     : 12;
+  beginTerminalStage(TERMINAL_STAGE.GOVERNOR_CONSTRUCTION);
   const governorExecutionLedger = createGovernorExecutionLedger({ evaluationId: analysisId });
   const cognitiveGovernor = createCognitiveGovernor({
     evaluationId: analysisId,
     customerMission: createCustomerMissionContext({ ...intake, platform }),
     executionLedger: governorExecutionLedger
   });
+  attachCurrentTerminalGovernor(cognitiveGovernor);
+  completeTerminalStage(TERMINAL_STAGE.GOVERNOR_CONSTRUCTION);
   const liveSearch = await executeLiveComparableSearch({
     apiKey,
     model,
@@ -2038,7 +2222,8 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     && buildCustomerInputRequest(preFinalState)
     && !preFinalState.customerInputAlreadyRequested
   ) {
-    const customerInputDecision = decideCognitiveAction(
+    beginTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
+    const customerInputDecision = decideCognitiveActionWithTerminalEvidence(
       cognitiveGovernor,
       finalizationSnapshot,
       { boundary: COGNITIVE_BOUNDARY.CUSTOMER_INPUT }
@@ -2055,8 +2240,10 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
         { outcomeCode: "STRUCTURED_CUSTOMER_INPUT_REQUEST_RECORDED" }
       );
     }
+    completeTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
   }
-  const finalizationDecision = decideCognitiveAction(
+  beginTerminalStage(TERMINAL_STAGE.CANONICAL_EVIDENCE_FINALIZATION);
+  const finalizationDecision = decideCognitiveActionWithTerminalEvidence(
     cognitiveGovernor,
     finalizationSnapshot,
     { boundary: COGNITIVE_BOUNDARY.FINALIZATION }
@@ -2085,6 +2272,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     }),
     { outcomeCode: "CANONICAL_EVIDENCE_FINALIZED" }
   );
+  completeTerminalStage(TERMINAL_STAGE.CANONICAL_EVIDENCE_FINALIZATION);
   const purposeSnapshot = buildCognitiveHandlerSnapshot({
     cognitiveGovernor,
     objectMindState: liveSearch.objectMindState,
@@ -2093,7 +2281,8 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     providerMaximum: cognitiveProviderMaximum,
     canonicalEvidenceFinalized: true
   });
-  const pendingPurposeDecision = decideCognitiveAction(
+  beginTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
+  const pendingPurposeDecision = decideCognitiveActionWithTerminalEvidence(
     cognitiveGovernor,
     purposeSnapshot,
     { boundary: COGNITIVE_BOUNDARY.PURPOSE_JUDGMENT }
@@ -2122,10 +2311,18 @@ function executePendingPurposeJudgment(research = {}, operation) {
   if (!governor || !decision) {
     throw new Error("Cognitive Governor purpose authorization is missing.");
   }
-  return executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT, {
+  const result = executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT, {
     operationPhase: "PURPOSE_JUDGMENT",
     operation
   });
+  if (result && typeof result.then === "function") {
+    return result.then((value) => {
+      completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
+      return value;
+    });
+  }
+  completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
+  return result;
 }
 
 function cognitiveAttemptCount(providerRequests = [], { directPage = false } = {}) {
@@ -2184,6 +2381,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
   const governor = research.cognitiveGovernor;
   const pendingPurposeDecision = research.pendingPurposeDecision;
   if (!governor || !pendingPurposeDecision) return report;
+  beginTerminalStage(TERMINAL_STAGE.COGNITIVE_EPISODE_PROOF);
   const completedSnapshot = buildCognitiveHandlerSnapshot({
     cognitiveGovernor: governor,
     objectMindState: research.liveSearch.objectMindState,
@@ -2199,7 +2397,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     completedSnapshot,
     { outcomeCode: "PURPOSE_JUDGMENT_COMPLETED" }
   );
-  const terminalDecision = decideCognitiveAction(
+  const terminalDecision = decideCognitiveActionWithTerminalEvidence(
     governor,
     completedSnapshot,
     { boundary: COGNITIVE_BOUNDARY.TERMINAL }
@@ -2227,6 +2425,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
     providerCapacity: lastState.providerCapacity,
     directPageCapacity: lastState.directPageCapacity
   });
+  completeTerminalStage(TERMINAL_STAGE.COGNITIVE_EPISODE_PROOF);
   const diagnostics = {
     schemaVersion: lastState.schemaVersion,
     objectMindStateId: lastState.objectMindStateId,
@@ -2261,6 +2460,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
 }
 
 async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
+  beginTerminalStage(TERMINAL_STAGE.OBJECT_OBSERVATION);
   const userContent = [
     {
       type: "input_text",
@@ -2323,6 +2523,8 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
   });
 
   const response = (await requestOpenAIJson({ apiKey, payload })).json;
+  completeTerminalStage(TERMINAL_STAGE.OBJECT_OBSERVATION);
+  beginTerminalStage(TERMINAL_STAGE.IDENTITY_FORMATION);
   const visualRecognition = normalizeVisualRecognition(response.visualRecognition);
   return normalizeIdentity({ ...response, visualRecognition });
 }
@@ -2401,6 +2603,7 @@ async function executeOpenAIWebComparableSearch({
     objectMindState
   );
   const providerRequestRecords = [];
+  attachCurrentTerminalProviderRecords(providerRequestRecords);
   const providerResponseSummaries = [];
   const providerErrors = [];
   const responseDataList = [];
@@ -2411,8 +2614,9 @@ async function executeOpenAIWebComparableSearch({
   let includeFallbackReason = "";
   let searchControlsSupported = true;
   let searchControlsFallbackReason = "";
+  if (cognitiveGovernor) beginTerminalStage(TERMINAL_STAGE.INITIAL_ACQUISITION);
   const initialCognitiveDecision = cognitiveGovernor && !cognitiveInitialActionContinuation
-    ? decideCognitiveAction(
+    ? decideCognitiveActionWithTerminalEvidence(
         cognitiveGovernor,
         buildCognitiveHandlerSnapshot({
           cognitiveGovernor,
@@ -2564,6 +2768,7 @@ async function executeOpenAIWebComparableSearch({
       const diagnostic = classifyLiveSearchError(error);
       requestRecord.succeeded = false;
       requestRecord.errorCode = diagnostic.code || diagnostic.type || diagnostic.category || "provider_error";
+      requestRecord.statusCode = diagnostic.statusCode || null;
       requestRecord.failureStage = diagnostic.category === "timeout" ? "provider_request_failure" : "provider_request_failure";
       providerErrors.push({
         ...diagnostic,
@@ -2651,6 +2856,7 @@ async function executeOpenAIWebComparableSearch({
       { outcomeCode: providerRequestRecords.some((record) => record.succeeded) ? "FALLBACK_ACQUISITION_COMPLETED" : "FALLBACK_ACQUISITION_NO_RESULT" }
     );
   }
+  if (cognitiveGovernor) completeTerminalStage(TERMINAL_STAGE.INITIAL_ACQUISITION);
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
   if (!successfulRecords.length) {
     return buildUnavailableLiveSearchResult({
@@ -2696,8 +2902,9 @@ async function executeOpenAIWebComparableSearch({
           - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
       )
     );
+    if (cognitiveGovernor && refinementQueries.length) beginTerminalStage(TERMINAL_STAGE.REFINEMENT);
     const refinementCognitiveDecision = cognitiveGovernor && refinementQueries.length
-      ? decideCognitiveAction(
+      ? decideCognitiveActionWithTerminalEvidence(
           cognitiveGovernor,
           buildCognitiveHandlerSnapshot({
             cognitiveGovernor,
@@ -2752,6 +2959,7 @@ async function executeOpenAIWebComparableSearch({
         { outcomeCode: authorizedRefinementQueries.length ? "REFINEMENT_COMPLETED" : "REFINEMENT_NOT_EXECUTED" }
       );
     }
+    if (cognitiveGovernor && refinementQueries.length) completeTerminalStage(TERMINAL_STAGE.REFINEMENT);
     verifiedSourceRecords = await executeExactRetailPageDirectEnrichment({
       context,
       identity,
@@ -3079,12 +3287,14 @@ async function executeSerperComparableSearch({
   );
   const queriesPrioritized = buildSerperSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes, objectMindState });
   const providerRequestRecords = queriesPrioritized.map((queryRecord) => createSerperRequestRecord(queryRecord));
+  attachCurrentTerminalProviderRecords(providerRequestRecords);
   const providerResponseSummaries = [];
   const providerErrors = [];
   const rawProviderRecords = [];
   const rawProviderRecordsByPlan = [];
+  if (cognitiveGovernor) beginTerminalStage(TERMINAL_STAGE.INITIAL_ACQUISITION);
   const initialCognitiveDecision = cognitiveGovernor
-    ? decideCognitiveAction(
+    ? decideCognitiveActionWithTerminalEvidence(
         cognitiveGovernor,
         buildCognitiveHandlerSnapshot({
           cognitiveGovernor,
@@ -3226,6 +3436,7 @@ async function executeSerperComparableSearch({
       { outcomeCode: providerRequestRecords.some((record) => record.succeeded) ? "INITIAL_ACQUISITION_COMPLETED" : "INITIAL_ACQUISITION_NO_RESULT" }
     );
   }
+  if (cognitiveGovernor) completeTerminalStage(TERMINAL_STAGE.INITIAL_ACQUISITION);
 
   const successfulRecords = providerRequestRecords.filter((record) => record.succeeded);
   const elapsedMs = currentTimeMilliseconds() - requestStartedAtMs;
@@ -3256,8 +3467,9 @@ async function executeSerperComparableSearch({
     ))
   });
   objectMindState = refinement.state;
+  if (cognitiveGovernor && refinement.searchPlan.length) beginTerminalStage(TERMINAL_STAGE.REFINEMENT);
   const refinementCognitiveDecision = cognitiveGovernor && refinement.searchPlan.length
-    ? decideCognitiveAction(
+    ? decideCognitiveActionWithTerminalEvidence(
         cognitiveGovernor,
         buildCognitiveHandlerSnapshot({
           cognitiveGovernor,
@@ -3322,6 +3534,7 @@ async function executeSerperComparableSearch({
       { outcomeCode: authorizedRefinementPlan.length ? "REFINEMENT_COMPLETED" : "REFINEMENT_NOT_EXECUTED" }
     );
   }
+  if (cognitiveGovernor && refinement.searchPlan.length) completeTerminalStage(TERMINAL_STAGE.REFINEMENT);
   dedupedRecords = await executeLimitedResultRetailRecovery({
     serperApiKey,
     context,
@@ -3480,6 +3693,7 @@ async function executeObjectMindRefinementSearch({
       const diagnostic = classifySerperError(error);
       requestRecord.succeeded = false;
       requestRecord.errorCode = diagnostic.code || diagnostic.category;
+      requestRecord.statusCode = diagnostic.statusCode || null;
       requestRecord.failureStage = diagnostic.category;
       providerErrors.push({
         ...diagnostic,
@@ -3948,8 +4162,9 @@ async function executeExactRetailPageDirectEnrichment({
   let priority = providerRequestRecords.length + 1;
   for (const { url: candidateUrl, members } of candidates) {
     const record = members[0];
+    if (cognitiveGovernor) beginTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
     const directPageCognitiveDecision = cognitiveGovernor
-      ? decideCognitiveAction(
+      ? decideCognitiveActionWithTerminalEvidence(
           cognitiveGovernor,
           buildCognitiveHandlerSnapshot({
             cognitiveGovernor,
@@ -3967,6 +4182,7 @@ async function executeExactRetailPageDirectEnrichment({
       directPageCognitiveDecision.actionType !== COGNITIVE_ACTION.VERIFY_DIRECT_PAGE
       || !directPageCognitiveDecision.executionPermitted
     )) {
+      completeTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
       continue;
     }
     const requestRecord = createDirectProductPageFetchRequestRecord(record, priority);
@@ -4025,6 +4241,7 @@ async function executeExactRetailPageDirectEnrichment({
           errorCode: requestRecord.errorCode,
           errorMessage: "Direct-page fetch was not attempted because its independent budget was exhausted."
         });
+        if (cognitiveGovernor) completeTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
         break;
       }
       recordPhysicalAttemptOutcome(requestRecord, "succeeded");
@@ -4063,6 +4280,7 @@ async function executeExactRetailPageDirectEnrichment({
       const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
       requestRecord.succeeded = false;
       requestRecord.errorCode = cleanText(error.code || "direct_product_page_fetch_failed");
+      requestRecord.statusCode = Number(error.statusCode || 0) || null;
       requestRecord.failureStage = requestRecord.errorCode;
       providerErrors.push({
         category: requestRecord.errorCode,
@@ -4093,6 +4311,7 @@ async function executeExactRetailPageDirectEnrichment({
         { outcomeCode: requestRecord.succeeded ? "DIRECT_PAGE_VERIFICATION_COMPLETED" : "DIRECT_PAGE_VERIFICATION_NO_RESULT" }
       );
     }
+    if (cognitiveGovernor) completeTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
   }
   const verifiedRecords = normalizeSerperCandidateRecords(enrichedRecords, identity, context, objectMindState);
   return coalesceIdenticalSerperTransportRecords(verifiedRecords);
@@ -14640,7 +14859,8 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   if (finalObjectMindState) {
     liveSearch.objectMindState = finalObjectMindState;
   }
-  const experienceRecord = finalObjectMindState
+  beginTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
+  const assembledExperienceRecord = finalObjectMindState
     ? buildExperienceRecord({
         state: finalObjectMindState,
         providerRequests: liveSearch.providerRequestRecords || [],
@@ -14664,6 +14884,8 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
         }
       })
     : null;
+  const experienceRecord = assembledExperienceRecord ? sealExperienceRecord(assembledExperienceRecord) : null;
+  completeTerminalStage(TERMINAL_STAGE.EXPERIENCE_RECORD_SEALING);
   liveSearch.experienceRecord = experienceRecord;
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),

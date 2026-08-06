@@ -6,7 +6,7 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
-$AppVersion = "1.12.4"
+$AppVersion = "1.12.5"
 $LocalBridgeProtocolVersion = 1
 $LocalBridgePath = Join-Path $RootDir "scripts\local-generate-listing-bridge.mjs"
 $LocalBridgeMaximumEnvelopeCharacters = 64 * 1024 * 1024

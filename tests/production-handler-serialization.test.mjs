@@ -7,6 +7,7 @@ import {
   createGenerateListingHandler
 } from "../api/generate-listing.js";
 import { validateFinalEvidenceResult } from "../lib/evidence/index.js";
+import { validateFinalExperienceAttestation, verifyFailureEnvelope } from "../lib/terminal-evidence.js";
 import { retailRecoveryFixture } from "./fixtures/production-shaped-evidence.mjs";
 import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
 
@@ -249,6 +250,12 @@ test("real production handler serializes canonical evidence IDs through determin
   assert(finalEvidenceResult.acceptedRecords.some((record) => record.displayedPrice === "Price unavailable"));
 
   const report = res.payload.valuation;
+  const emittedAttestation = validateFinalExperienceAttestation({
+    experienceRecord: report.searchDiagnostics.objectIntelligence.experienceRecord,
+    cognitiveEpisode: report.searchDiagnostics.cognitiveGovernor.cognitiveEpisode,
+    governorProof: report.searchDiagnostics.cognitiveGovernor.executionProof
+  });
+  assert.equal(emittedAttestation.valid, true, JSON.stringify(emittedAttestation.mismatches));
   const customerEvidenceViewModel = buildCustomerEvidenceViewModel(
     report.customerEvidence,
     report.customerEvidenceSummary
@@ -549,7 +556,7 @@ test("ordinary browser-sized UPC input completes with dense bounded research con
     networkGuard.restore();
   }
 
-  assert.equal(response.statusCode, 200);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.payload));
   assert(response.payload?.valuation, "ordinary one-photo Personal Buy must complete a valuation report");
   assert.match(JSON.stringify(response.payload.valuation), /041226087161/);
   assert.deepEqual(modelPurposes, ["item_identity", "consumer_purchase_decision"]);
@@ -684,9 +691,11 @@ test("multimodal bounds reject excessive inputs before providers and mask provid
   const providerDetail = "Request too large for gpt-4.1-mini-long-context INTERNAL_ORGANIZATION_MARKER Limit 400000 stack fixture-secret";
   let failingProviderCalls = 0;
   const failingProviderBudgets = [];
+  const terminalContexts = [];
   const providerFailureHandler = createGenerateListingHandler({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     onModelRequestBudget: (observation) => failingProviderBudgets.push(observation),
+    onTerminalContextCreated: (context) => terminalContexts.push(context),
     requestOpenAIJson: async () => {
       failingProviderCalls += 1;
       throw new Error(providerDetail);
@@ -696,10 +705,22 @@ test("multimodal bounds reject excessive inputs before providers and mask provid
   await providerFailureHandler({ method: "POST", body: baseBody }, providerFailureResponse);
   assert.equal(providerFailureResponse.statusCode, 502);
   assert.equal(failingProviderCalls, 1);
+  assert.equal(terminalContexts.length, 1);
   assert.equal(failingProviderBudgets.length, 1);
   assert.equal(failingProviderBudgets[0].guardResult, "pass");
   const customerError = JSON.stringify(providerFailureResponse.payload);
   assert.match(customerError, /Katherine/);
+  const terminalFailure = providerFailureResponse.payload.diagnostics.terminalFailure;
+  assert.equal(terminalFailure.stageAtFailure, "OBJECT_OBSERVATION");
+  assert.equal(terminalFailure.progress.flags.objectObservationBegan, true);
+  assert.equal(terminalFailure.progress.flags.objectObservationCompleted, false);
+  assert.equal(terminalFailure.governorReached, false);
+  assert.equal(terminalFailure.partialGovernorLedgerPresent, false);
+  assert.equal(terminalFailure.logicalProviderRequestBegan, true);
+  assert.equal(terminalFailure.physicalProviderAttemptBegan, true);
+  assert.equal(terminalFailure.partialProviderRecordsPresent, true);
+  assert.equal(terminalFailure.partialProviderRecords[0].physicalAttempts[0].outcome, "failed");
+  assert.equal(verifyFailureEnvelope(terminalFailure).valid, true);
   for (const forbidden of [
     "INTERNAL_ORGANIZATION_MARKER",
     "gpt-4.1-mini-long-context",

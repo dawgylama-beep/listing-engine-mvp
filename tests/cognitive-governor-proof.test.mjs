@@ -14,6 +14,7 @@ import { validateGovernorProof } from "../benchmarks/blind-object-v1-execution-v
 
 const EVALUATION = "governed-evaluation-a";
 const GOVERNOR = "governor-a";
+const benchmarkInventoryBefore = (await readdir(new URL("../benchmarks/blind-object-v1-results/", import.meta.url))).sort();
 
 function withHash(value, field) {
   const unhashed = { ...value, [field]: "" };
@@ -192,7 +193,7 @@ function proofFixture({ withLesson = true, withProvider = true } = {}) {
     providerCapacity: { maximum: 12, consumed: withProvider ? 2 : 0 },
     directPageCapacity: { maximum: 2, consumed: 0 }
   });
-  return { proof, cognitiveEpisode, lessonCandidate, experienceRecord };
+  return { proof, cognitiveEpisode, lessonCandidate, experienceRecord, governor, providerRequests };
 }
 
 function synchronizeEpisode(fixture, cognitiveEpisode) {
@@ -741,6 +742,20 @@ test("Experience Record reports deterministic hash and Episode linkage", () => {
   assert.equal(experience.disposition, "PASS");
 });
 
+test("proof construction rejects stale final Experience content before a PASS proof can exist", () => {
+  const fixture = proofFixture();
+  const staleExperienceRecord = { ...fixture.experienceRecord, objectStateId: "mutated-after-hash" };
+  assert.throws(() => buildGovernorExecutionProof({
+    governor: fixture.governor,
+    cognitiveEpisode: fixture.cognitiveEpisode,
+    lessonCandidate: fixture.lessonCandidate,
+    experienceRecord: staleExperienceRecord,
+    providerRequests: fixture.providerRequests,
+    providerCapacity: { maximum: 12, consumed: 2 },
+    directPageCapacity: { maximum: 2, consumed: 0 }
+  }), (error) => error.code === "EXPERIENCE_ATTESTATION_MISMATCH");
+});
+
 test("Lesson mutation, validation status, and promotion are rejected", () => {
   const hashMutation = proofFixture();
   hashMutation.lessonCandidate.status = "MUTATED";
@@ -885,6 +900,6 @@ test("proof hashing is deterministic", () => {
 });
 
 test("focused proof tests do not create a real benchmark result or invocation registry", async () => {
-  const names = await readdir(new URL("../benchmarks/blind-object-v1-results/", import.meta.url));
-  assert.equal(names.some((name) => name.startsWith("phase6a-") || name.endsWith(".invocation-manifest.json")), false);
+  const names = (await readdir(new URL("../benchmarks/blind-object-v1-results/", import.meta.url))).sort();
+  assert.deepEqual(names, benchmarkInventoryBefore);
 });

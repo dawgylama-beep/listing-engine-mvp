@@ -27,8 +27,8 @@ $approvedLoadingSequencePattern = '(?s)return\s*\[\s*"Reviewing the photographs"
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.4"; Text = $package; Pattern = '"version": "1.12.4"' },
-  @{ Name = "Local server version is 1.12.4"; Text = $server; Pattern = '$AppVersion = "1.12.4"' },
+  @{ Name = "Package version is 1.12.5"; Text = $package; Pattern = '"version": "1.12.5"' },
+  @{ Name = "Local server version is 1.12.5"; Text = $server; Pattern = '$AppVersion = "1.12.5"' },
   @{ Name = "Feedback button exists"; Text = $index; Pattern = 'id="feedback-button"' },
   @{ Name = "Feedback panel exists"; Text = $index; Pattern = 'id="feedback-panel"' },
   @{ Name = "Photo controls explain camera and library"; Text = $index; Pattern = "Choose from Library" },
