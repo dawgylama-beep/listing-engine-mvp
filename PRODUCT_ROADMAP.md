@@ -614,6 +614,12 @@
 - Preserved the live handler, Governor, evidence pipeline, purpose judgment, finalizer, terminal response, Phases 6D through 6G, public UI, customer memory, personality, frozen evidence, and runtime behavior unchanged
 - Provider-call impact: validation and the historical gate remained deterministic and network-denied; no Phase 6G reflection, frozen request, benchmark, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
 
+## Version 1.12.10 (Completed)
+- Prevented exact uncertainty sentinels such as `not verified` and `unverified` from becoming quoted identity terms in the shared Object Mind initial and refinement search plans
+- Preserved useful broader identity searches when uncertain maker, model, or hypothesis fields are suppressed, without changing normalized observations, evidence authority, exactness, type coherence, canonical finalization, Governor policy, or Experience sealing
+- Added generic synthetic coverage across unrelated object classes and customer purposes, including valid exact evidence, adjacent-model and accessory distractor rejection, external provider failure preservation, bounded Experience integrity, reflection/lesson isolation, and hard network denial
+- Provider-call impact: the current-retail 28-call ceiling, non-retail/collectible 12-call ceiling, and direct-page 2-attempt ceiling remain unchanged; validation used no benchmark, frozen request, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request
+
 ## Version 2.0
 - User accounts
 - Saved listings
