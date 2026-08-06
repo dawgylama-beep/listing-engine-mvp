@@ -15,8 +15,8 @@ $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
   @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.6"; Text = $package; Pattern = '"version": "1.12.6"' },
-  @{ Name = "Server version is 1.12.6"; Text = $server; Pattern = '$AppVersion = "1.12.6"' },
+  @{ Name = "Package version is 1.12.7"; Text = $package; Pattern = '"version": "1.12.7"' },
+  @{ Name = "Server version is 1.12.7"; Text = $server; Pattern = '$AppVersion = "1.12.7"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API finalizes canonical identity before routing"; Text = $api; Pattern = "finalizeIdentityForResearch(extractedIdentity, intake)" },
   @{ Name = "API blocks unresolved conflict before live search"; Text = $api; Pattern = "identityConfirmationRequired" },

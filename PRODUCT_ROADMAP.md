@@ -587,6 +587,15 @@
 - Preserved retrieval, queries, providers, ceilings, exactness, evidence qualification, valuation, scoring, public UI, customer memory, personality, and learning behavior unchanged
 - Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
 
+## Version 1.12.7 (Completed)
+- Reconciled weak, missing, or stale submitted item types against stronger purpose-neutral normalized identity before source enrichability and exactness qualification
+- Required candidate type coherence plus source-backed exact evidence from a validated barcode, exact maker/model, exact maker/product ID, or exact name/maker/package combination before a stale type can support exact evidence
+- Kept compatible but non-exact sources explicitly below exact qualification and preserved rejection for genuine cross-product conflicts, brand-adjacent sources, model-like distractors, and exact-looking identifiers attached to the wrong product type
+- Routed the reconciled decision through the existing item-type firewall, Object Mind verification, evidence qualification, retail assessment, and single canonical finalizer without adding another evidence authority
+- Added generic deterministic coverage for stale and unresolved types, genuine conflicts, distractors, exact-source coherence, purpose neutrality, firewall regression, and canonical-finalizer authority
+- Preserved Phase 6D terminal evidence, Phase 6E Governor stopping and safety policy, retrieval strategy, providers, ceilings, valuation, scoring, public UI, customer memory, personality, and learning behavior unchanged
+- Provider-call impact: validation remains deterministic and network-denied; no live handler, OpenAI, web-search, Serper, direct-page, provider, benchmark, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -1825,6 +1825,10 @@ function compactModelResearchRecord(record) {
     "candidateItemType",
     "itemTypeCompatibilityStatus",
     "itemTypeCompatibilityExplanation",
+    "originalSubmittedItemType",
+    "normalizedSubmittedItemType",
+    "itemTypeCoherenceStatus",
+    "authoritativeExactIdentitySignals",
     "packageQuantity",
     "packageQuantityConfidence",
     "packageCompatibility",
@@ -5085,6 +5089,10 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
         candidateItemType: itemTypeCompatibility.candidateItemType,
         itemTypeCompatibilityStatus: itemTypeCompatibility.status,
         itemTypeCompatibilityExplanation: itemTypeCompatibility.explanation,
+        originalSubmittedItemType: itemTypeCompatibility.originalSubmittedItemType || itemTypeCompatibility.submittedItemType,
+        normalizedSubmittedItemType: itemTypeCompatibility.normalizedSubmittedItemType || itemTypeCompatibility.submittedItemType,
+        itemTypeCoherenceStatus: itemTypeCompatibility.itemTypeCoherenceStatus || "",
+        authoritativeExactIdentitySignals: itemTypeCompatibility.authoritativeExactIdentitySignals || [],
         submittedPackQuantity: itemTypeCompatibility.submittedPackQuantity || "",
         candidatePackQuantity: itemTypeCompatibility.candidatePackQuantity || "",
         identityMatchStrength,
@@ -5390,6 +5398,8 @@ const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
   "identityMatchStrength",
   "itemTypeCompatible",
   "itemTypeCompatibilityStatus",
+  "itemTypeCoherenceStatus",
+  "authoritativeExactIdentitySignals",
   "quantityCompatible",
   "dimensionsCompatible",
   "positiveCompatibilityEvidence",
@@ -7911,6 +7921,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
   const yearHit = containsAnyKnownPhrase(haystack, context.years || []);
   const itemTypeHit = isComparableItemTypeValuationSafe(compatibility) || hasItemTypeSupport(haystack, itemType);
   const productHit = containsAnyKnownPhrase(haystack, [context.productTitle, context.subjectIdentity, context.exactProductIdentity, identity.productNameOrBoxTitle]);
+  const exactTypeCoherenceEstablished = !/normalized_type_compatible_not_exact/i.test(cleanText(compatibility.itemTypeCoherenceStatus));
   const hasIdentitySignal = identifierHit
     || exactPhraseHits.length
     || brandHit
@@ -7928,7 +7939,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
   }
 
   if (identifierHit) {
-    return "Exact";
+    return exactTypeCoherenceEstablished ? "Exact" : "Strong Similar";
   }
   if (hasCurrentRetailAlternativeSourceSupport(record, context, compatibility)) {
     return "Strong Similar";
@@ -7948,7 +7959,7 @@ function classifySerperIdentityMatch(record = {}, identity = {}, context = {}, i
     || productHit
     || (organizationHit && (personHit || yearHit));
   if (itemTypeHit && hasDistinctiveExactSupport && (brandHit || organizationHit || productHit) && score >= 7) {
-    return "Exact";
+    return exactTypeCoherenceEstablished ? "Exact" : "Strong Similar";
   }
   if ((itemTypeHit && (brandHit || organizationHit || productHit)) || score >= 5) {
     return "Strong Similar";
@@ -8096,7 +8107,7 @@ const comparableItemTypeDefinitions = [
   { key: "envelope_box", label: "boxed envelope package", priority: 110, patterns: [/\b(?:security|privacy|business|self[- ]?seal|peel[- ]?and[- ]?seal|gummed)?\s*(?:envelopes?|mailers?)\b/i, /\b(?:box|pack|package|carton)\s+of\s+\d{1,5}\s+(?:envelopes?|mailers?)\b/i, /\b\d{1,5}\s*[- ]?(?:count|ct|pack|pk)\s+(?:security\s+|privacy\s+|business\s+)?(?:envelopes?|mailers?)\b/i] },
   { key: "bag", label: "bag, purse, or tote", priority: 104, patterns: [/\bbags?\b/i, /\bpurses?\b/i, /\bhandbags?\b/i, /\btotes?\b/i] },
   { key: "wallet", label: "wallet", priority: 104, patterns: [/\bwallets?\b/i] },
-  { key: "watch", label: "watch", priority: 104, patterns: [/\bwatches?\b/i, /\bwristwatches?\b/i] },
+  { key: "watch", label: "watch", priority: 104, patterns: [/\bwatch(?:es)?\b/i, /\bwristwatch(?:es)?\b/i] },
   { key: "phone", label: "phone", priority: 104, patterns: [/\bphones?\b/i, /\bsmartphones?\b/i, /\biphones?\b/i, /\bandroid\s+phones?\b/i] },
   { key: "laptop", label: "laptop or computer", priority: 104, patterns: [/\blaptops?\b/i, /\bnotebooks?\b/i, /\bcomputers?\b/i, /\bmacbooks?\b/i, /\bchromebooks?\b/i] },
   { key: "electronics_accessory", label: "electronics accessory", priority: 106, patterns: [/\bchargers?\b/i, /\bbatter(?:y|ies)\b/i, /\bkeyboards?\b/i, /\bsleeves?\b/i] },
@@ -8112,12 +8123,217 @@ const comparableItemTypeDefinitions = [
   { key: "furniture", label: "furniture", priority: 102, patterns: [/\bsofas?\b/i, /\bcouches?\b/i, /\bchairs?\b/i, /\btables?\b/i, /\bdressers?\b/i, /\bcabinets?\b/i, /\bdesks?\b/i] }
 ];
 
+function detectAuthoritativeSubmittedItemType(identity = {}, context = {}) {
+  const canonicalProductIdentity = context.canonicalProductIdentity || identity.canonicalProductIdentity || {};
+  const candidates = [
+    ["canonical_product_name", canonicalFieldValue(canonicalProductIdentity, "productName"), 6],
+    ["finalized_search_identity", context.finalizedSearchIdentity, 6],
+    ["canonical_customer_title", context.canonicalCustomerTitle, 5],
+    ["exact_product_identity", firstKnown(context.exactProductIdentity, identity.exactProductIdentity), 5],
+    ["product_title", context.productTitle, 5],
+    ["normalized_product_name", identity.productNameOrBoxTitle, 5],
+    ["normalized_subject_identity", firstKnown(context.subjectIdentity, identity.subjectIdentity), 4],
+    ["normalized_item_description", identity.likelyItemDescription, 3],
+    ["canonical_subcategory", canonicalFieldValue(canonicalProductIdentity, "subcategory"), 3],
+    ["canonical_category", canonicalFieldValue(canonicalProductIdentity, "category"), 2],
+    ["visible_package_wording", canonicalFieldValue(canonicalProductIdentity, "visiblePackageWording"), 2]
+  ].map(([source, value, weight]) => ({
+    source,
+    value: cleanText(value),
+    weight,
+    type: detectCanonicalComparableItemType(value)
+  })).filter((entry) => entry.value && entry.type.key);
+
+  const byType = new Map();
+  for (const entry of candidates) {
+    const aggregate = byType.get(entry.type.key) || {
+      key: entry.type.key,
+      label: entry.type.label,
+      score: 0,
+      sources: [],
+      priority: entry.type.priority || 0
+    };
+    aggregate.score += entry.weight;
+    aggregate.sources.push(entry.source);
+    aggregate.priority = Math.max(aggregate.priority, entry.type.priority || 0);
+    byType.set(entry.type.key, aggregate);
+  }
+  const ranked = [...byType.values()].sort((left, right) => (
+    right.score - left.score
+    || right.sources.length - left.sources.length
+    || right.priority - left.priority
+    || left.key.localeCompare(right.key)
+  ));
+  const selected = ranked[0] || { key: "", label: "", score: 0, sources: [], priority: 0 };
+  const runnerUp = ranked[1] || null;
+  const coherent = Boolean(selected.key) && (!runnerUp || selected.score >= runnerUp.score + 2);
+
+  const barcodeIdentities = normalizeStringArray(
+    context.barcodeIdentitySet || buildBarcodeIdentitySet(firstKnown(
+      context.barcodeDigits,
+      context.upc,
+      identity.upcBarcode,
+      identity.barcodeDigits
+    )),
+    24
+  );
+  const maker = firstKnown(
+    context.manufacturer,
+    context.brand,
+    context.visualBrand,
+    identity.manufacturer,
+    identity.brand,
+    identity.brandSeries
+  );
+  const model = firstKnown(context.model, identity.model, identity.modelOrItemNumber);
+  const modelAuthority = Boolean(maker && /[a-z]/i.test(model) && /\d/.test(model) && cleanText(model).length >= 3);
+  const canonicalProductNameField = canonicalProductIdentity.fields?.productName || {};
+  const canonicalNameAuthority = Boolean(
+    maker
+    && canonicalFieldValue(canonicalProductIdentity, "productName")
+    && /accepted/i.test(cleanText(canonicalProductNameField.status || "accepted"))
+    && /medium|high/i.test(cleanText(canonicalProductNameField.confidence))
+  );
+  const identityAuthoritySignals = [
+    barcodeIdentities.length ? "validated_barcode" : "",
+    modelAuthority ? "maker_and_exact_model" : "",
+    canonicalNameAuthority ? "accepted_canonical_name_and_maker" : ""
+  ].filter(Boolean);
+
+  return {
+    ...selected,
+    coherent,
+    authoritative: coherent && selected.score >= 3 && identityAuthoritySignals.length > 0,
+    identityAuthoritySignals,
+    alternatives: ranked.slice(1, 4).map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      score: entry.score,
+      sources: entry.sources
+    }))
+  };
+}
+
+function normalizedIdentityValueMatches(candidateText = "", value = "") {
+  const candidate = normalizeComparableText(candidateText).replace(/[^a-z0-9]+/g, "");
+  const target = normalizeComparableText(value).replace(/[^a-z0-9]+/g, "");
+  return Boolean(target.length >= 3 && candidate.includes(target));
+}
+
+function normalizedExactNameMatches(candidateText = "", values = []) {
+  const candidateTokens = new Set(normalizeComparableText(candidateText).split(/[^a-z0-9]+/).filter(Boolean));
+  const ignored = new Set(["a", "an", "and", "for", "in", "of", "or", "the", "with"]);
+  return normalizeStringArray(values, 8).some((value) => {
+    const tokens = normalizeComparableText(value)
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 2 && !ignored.has(token));
+    if (tokens.length < 2) return false;
+    const supported = tokens.filter((token) => candidateTokens.has(token));
+    return supported.length >= Math.min(tokens.length, 4) && supported.length / tokens.length >= 0.75;
+  });
+}
+
+function assessAuthoritativeSourceIdentity(record = {}, identity = {}, context = {}) {
+  const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
+  const makerValues = [
+    context.manufacturer,
+    context.brand,
+    context.visualBrand,
+    identity.manufacturer,
+    identity.brand,
+    identity.brandSeries
+  ].map(cleanText).filter(hasKnownValue);
+  const modelValues = [context.model, identity.model, identity.modelOrItemNumber]
+    .map(cleanText)
+    .filter((value) => /[a-z]/i.test(value) && /\d/.test(value) && value.length >= 3);
+  const productIdValues = [context.itemCode, identity.sku, identity.styleNumber]
+    .map(cleanText)
+    .filter((value) => value.length >= 4 && /\d/.test(value));
+  const canonicalProductIdentity = context.canonicalProductIdentity || identity.canonicalProductIdentity || {};
+  const exactNameValues = [
+    canonicalFieldValue(canonicalProductIdentity, "productName"),
+    context.finalizedSearchIdentity,
+    context.exactProductIdentity,
+    context.productTitle,
+    identity.exactProductIdentity,
+    identity.productNameOrBoxTitle
+  ];
+  const makerMatch = containsAnyKnownPhrase(normalizeComparableText(candidateText), makerValues);
+  const modelMatch = modelValues.some((value) => normalizedIdentityValueMatches(candidateText, value));
+  const productIdMatch = productIdValues.some((value) => normalizedIdentityValueMatches(candidateText, value));
+  const submittedBarcode = firstKnown(
+    context.barcodeDigits,
+    context.upc,
+    identity.upcBarcode,
+    identity.barcodeDigits
+  );
+  const barcodeMatch = hasEquivalentBarcodeIdentity(record, {
+    ...context,
+    barcodeDigits: submittedBarcode,
+    barcodeIdentitySet: normalizeStringArray(context.barcodeIdentitySet, 24).length
+      ? context.barcodeIdentitySet
+      : buildBarcodeIdentitySet(submittedBarcode)
+  });
+  const exactNameMatch = normalizedExactNameMatches(candidateText, exactNameValues);
+  const submittedQuantity = extractBestPackQuantityNumber([
+    context.packageQuantity,
+    identity.packageQuantity,
+    canonicalFieldValue(canonicalProductIdentity, "packageQuantity")
+  ]);
+  const candidateQuantity = extractPackQuantityNumber(candidateText);
+  const packageQuantityMatch = Number.isFinite(submittedQuantity)
+    && Number.isFinite(candidateQuantity)
+    && submittedQuantity === candidateQuantity;
+  const packageSize = firstKnown(context.packageSize, identity.packageSize, canonicalFieldValue(canonicalProductIdentity, "dimensionsOrSize"));
+  const packageSizeMatch = Boolean(packageSize && containsNormalizedPhrase(normalizeComparableText(candidateText), packageSize));
+  const packageIdentityMatch = packageQuantityMatch || packageSizeMatch;
+  const exactRelationship = barcodeMatch
+    || (modelMatch && makerMatch)
+    || (productIdMatch && makerMatch)
+    || (exactNameMatch && makerMatch && packageIdentityMatch);
+
+  return {
+    exactRelationship,
+    signals: [
+      barcodeMatch ? "equivalent_validated_barcode" : "",
+      modelMatch && makerMatch ? "exact_model_and_maker" : "",
+      productIdMatch && makerMatch ? "exact_product_id_and_maker" : "",
+      exactNameMatch && makerMatch && packageIdentityMatch ? "exact_name_maker_and_package" : ""
+    ].filter(Boolean)
+  };
+}
+
+function buildItemTypeCompatibilityResult({
+  compatible,
+  status,
+  submitted,
+  candidate,
+  normalizedSubmitted,
+  coherenceStatus,
+  explanation,
+  sourceIdentity
+}) {
+  return {
+    itemTypeCompatible: compatible,
+    status,
+    submittedItemType: (normalizedSubmitted.authoritative ? normalizedSubmitted.label : submitted.label) || "",
+    candidateItemType: candidate.label || "",
+    originalSubmittedItemType: submitted.label || "",
+    normalizedSubmittedItemType: normalizedSubmitted.label || "",
+    itemTypeCoherenceStatus: coherenceStatus,
+    authoritativeExactIdentitySignals: sourceIdentity.signals,
+    explanation
+  };
+}
+
 function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, context = {}) {
   const submittedText = buildSubmittedItemTypeText(identity, context);
   const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
   const submitted = detectCanonicalComparableItemType(submittedText);
   const titleUrlCandidate = detectCanonicalComparableItemType([record.title, record.url, record.canonicalUrl].filter(Boolean).join(" "));
   const candidate = titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
+  const normalizedSubmitted = detectAuthoritativeSubmittedItemType(identity, context);
+  const sourceIdentity = assessAuthoritativeSourceIdentity(record, identity, context);
   const setScope = detectComparableSetScope(submittedText, candidateText);
   const packScope = detectComparablePackScope(submittedText, candidateText, context);
 
@@ -8144,23 +8360,109 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
   }
 
   if (!submitted.key) {
+    if (normalizedSubmitted.authoritative && candidate.key === normalizedSubmitted.key) {
+      return buildItemTypeCompatibilityResult({
+        compatible: true,
+        status: "compatible",
+        submitted,
+        candidate,
+        normalizedSubmitted,
+        coherenceStatus: sourceIdentity.exactRelationship
+          ? "reconciled_missing_or_weak_submitted_type"
+          : "normalized_type_compatible_not_exact",
+        explanation: sourceIdentity.exactRelationship
+          ? `The submitted type was unresolved, while normalized identity and source-backed exact evidence coherently identify ${normalizedSubmitted.label}.`
+          : `The submitted type was unresolved, but normalized identity and the candidate coherently identify ${normalizedSubmitted.label}; exact identity remains unqualified without source-backed exact evidence.`,
+        sourceIdentity
+      });
+    }
     return {
       itemTypeCompatible: false,
       status: "submitted_type_unknown",
       submittedItemType: "",
       candidateItemType: candidate.label,
+      originalSubmittedItemType: "",
+      normalizedSubmittedItemType: normalizedSubmitted.label || "",
+      itemTypeCoherenceStatus: normalizedSubmitted.authoritative ? "authoritative_type_not_source_exact" : "submitted_type_unresolved",
+      authoritativeExactIdentitySignals: sourceIdentity.signals,
       explanation: "No concrete submitted item type could be established, so source prices cannot be treated as exact or strong comparables."
     };
   }
 
   if (!candidate.key) {
+    if (normalizedSubmitted.authoritative && sourceIdentity.exactRelationship) {
+      return buildItemTypeCompatibilityResult({
+        compatible: true,
+        status: "compatible",
+        submitted,
+        candidate: normalizedSubmitted,
+        normalizedSubmitted,
+        coherenceStatus: "reconciled_unknown_candidate_type_exact_identity",
+        explanation: `The candidate type was not explicit, but it exposes source-backed exact identity evidence coherent with normalized ${normalizedSubmitted.label}; no conflicting candidate type was found.`,
+        sourceIdentity
+      });
+    }
     return {
       itemTypeCompatible: false,
       status: "candidate_type_unknown",
       submittedItemType: submitted.label,
       candidateItemType: "",
+      originalSubmittedItemType: submitted.label,
+      normalizedSubmittedItemType: normalizedSubmitted.label || "",
+      itemTypeCoherenceStatus: "candidate_type_unresolved",
+      authoritativeExactIdentitySignals: sourceIdentity.signals,
       explanation: `Candidate product form is unknown; it is not valuation-compatible with the submitted ${submitted.label}.`
     };
+  }
+
+  if (normalizedSubmitted.authoritative && normalizedSubmitted.key !== submitted.key) {
+    if (candidate.key !== normalizedSubmitted.key) {
+      return buildItemTypeCompatibilityResult({
+        compatible: false,
+        status: "normalized_type_mismatch",
+        submitted,
+        candidate,
+        normalizedSubmitted,
+        coherenceStatus: "candidate_conflicts_with_authoritative_normalized_type",
+        explanation: `Candidate product form is ${candidate.label}, while the stronger normalized identity establishes ${normalizedSubmitted.label}.`,
+        sourceIdentity
+      });
+    }
+    if (!sourceIdentity.exactRelationship) {
+      return buildItemTypeCompatibilityResult({
+        compatible: true,
+        status: "compatible",
+        submitted,
+        candidate,
+        normalizedSubmitted,
+        coherenceStatus: "normalized_type_compatible_not_exact",
+        explanation: `The submitted ${submitted.label} is contradicted by stronger normalized ${normalizedSubmitted.label}; the candidate is type-compatible, but exact identity remains unqualified without source-backed exact evidence.`,
+        sourceIdentity
+      });
+    }
+    return buildItemTypeCompatibilityResult({
+      compatible: true,
+      status: "compatible",
+      submitted,
+      candidate,
+      normalizedSubmitted,
+      coherenceStatus: "reconciled_stale_submitted_type",
+      explanation: `The submitted ${submitted.label} is contradicted by stronger normalized identity facts; the candidate type and source-backed exact identity coherently establish ${normalizedSubmitted.label}.`,
+      sourceIdentity
+    });
+  }
+
+  if (normalizedSubmitted.authoritative && candidate.key !== normalizedSubmitted.key) {
+    return buildItemTypeCompatibilityResult({
+      compatible: false,
+      status: "normalized_type_mismatch",
+      submitted,
+      candidate,
+      normalizedSubmitted,
+      coherenceStatus: "candidate_conflicts_with_authoritative_normalized_type",
+      explanation: `Candidate product form is ${candidate.label}, while the stronger normalized identity establishes ${normalizedSubmitted.label}.`,
+      sourceIdentity
+    });
   }
 
   if (candidate.key !== submitted.key) {
@@ -8169,6 +8471,10 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
       status: "item_type_mismatch",
       submittedItemType: submitted.label,
       candidateItemType: candidate.label,
+      originalSubmittedItemType: submitted.label,
+      normalizedSubmittedItemType: normalizedSubmitted.label || "",
+      itemTypeCoherenceStatus: "genuine_item_type_conflict",
+      authoritativeExactIdentitySignals: sourceIdentity.signals,
       explanation: `Product-form mismatch: submitted item appears to be ${articleFor(submitted.label)} ${submitted.label}, but the candidate appears to be ${articleFor(candidate.label)} ${candidate.label}. Shared brand, date, event, or theme wording cannot make different product types comparable.`
     };
   }
@@ -8178,6 +8484,10 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
     status: "compatible",
     submittedItemType: submitted.label,
     candidateItemType: candidate.label,
+    originalSubmittedItemType: submitted.label,
+    normalizedSubmittedItemType: normalizedSubmitted.label || submitted.label,
+    itemTypeCoherenceStatus: "submitted_and_candidate_type_coherent",
+    authoritativeExactIdentitySignals: sourceIdentity.signals,
     explanation: `Candidate product form matches the submitted ${submitted.label}.`
   };
 }
@@ -8186,14 +8496,23 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
   const submittedText = buildSubmittedRetailProductFamilyText(identity, buyerIntake, context);
   const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
   const titleText = cleanText(record.title);
-  const submitted = detectCanonicalComparableItemType(submittedText);
+  const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(record, identity, context);
+  const submitted = detectCanonicalComparableItemType(
+    itemTypeCompatibility.normalizedSubmittedItemType
+      || itemTypeCompatibility.submittedItemType
+      || submittedText
+  );
   const titleCandidate = detectCanonicalComparableItemType(titleText);
   const candidate = titleCandidate.key ? titleCandidate : detectCanonicalComparableItemType(candidateText);
   const positiveCompatibilityEvidence = [];
   const contradictoryEvidence = [];
 
-  if (submitted.key && candidate.key && submitted.key === candidate.key) {
+  if (itemTypeCompatibility.itemTypeCompatible === true && submitted.key && candidate.key && submitted.key === candidate.key) {
     positiveCompatibilityEvidence.push(`Candidate title/source identifies the same product family: ${candidate.label}.`);
+  }
+  if (itemTypeCompatibility.itemTypeCoherenceStatus === "reconciled_stale_submitted_type"
+    || itemTypeCompatibility.itemTypeCoherenceStatus === "reconciled_missing_or_weak_submitted_type") {
+    positiveCompatibilityEvidence.push("Stronger normalized identity and source-backed exact evidence reconcile the weak or stale submitted type.");
   }
   const submittedProduct = normalizeComparableText(firstKnown(context.productTitle, identity.productNameOrBoxTitle, buyerIntake.item_name));
   const candidateNormalized = normalizeComparableText(candidateText);
@@ -8204,13 +8523,21 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
     positiveCompatibilityEvidence.push("Candidate exposes an equivalent UPC/GTIN identity.");
   }
 
-  if (titleCandidate.key && submitted.key && titleCandidate.key !== submitted.key) {
+  if (itemTypeCompatibility.itemTypeCompatible === false
+    && /mismatch|conflict/.test(itemTypeCompatibility.status)
+    && titleCandidate.key && submitted.key && titleCandidate.key !== submitted.key) {
     contradictoryEvidence.push(`Candidate title identifies ${titleCandidate.label}, not ${submitted.label}.`);
-  } else if (candidate.key && submitted.key && candidate.key !== submitted.key) {
+  } else if (itemTypeCompatibility.itemTypeCompatible === false
+    && /mismatch|conflict/.test(itemTypeCompatibility.status)
+    && candidate.key && submitted.key && candidate.key !== submitted.key) {
     contradictoryEvidence.push(`Candidate source identifies ${candidate.label}, not ${submitted.label}.`);
+  } else if (itemTypeCompatibility.itemTypeCompatible === false && /conflict/.test(itemTypeCompatibility.status)) {
+    contradictoryEvidence.push(itemTypeCompatibility.explanation);
   }
 
-  const finalOutcome = contradictoryEvidence.length
+  const typeConflictUnresolved = itemTypeCompatibility.itemTypeCompatible === false
+    && /mismatch|conflict/.test(itemTypeCompatibility.status);
+  const finalOutcome = contradictoryEvidence.length || typeConflictUnresolved
     ? "contradicted"
     : positiveCompatibilityEvidence.length
       ? "compatible"
@@ -8218,7 +8545,7 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
         ? "compatible"
         : "unknown";
   const rejectionReason = finalOutcome === "contradicted"
-    ? `Product-family mismatch: ${contradictoryEvidence[0]} Generic shared words, source query, or visible price cannot override contradictory title evidence.`
+    ? `Product-family mismatch: ${contradictoryEvidence[0] || itemTypeCompatibility.explanation} Generic shared words, source query, or visible price cannot override contradictory title evidence.`
     : finalOutcome === "unknown"
       ? "Product family was not affirmatively established from the candidate title/source."
       : "";
@@ -8230,7 +8557,9 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
     positiveCompatibilityEvidence,
     contradictoryEvidence,
     finalOutcome,
-    rejectionReason
+    rejectionReason,
+    itemTypeCoherenceStatus: itemTypeCompatibility.itemTypeCoherenceStatus,
+    authoritativeExactIdentitySignals: itemTypeCompatibility.authoritativeExactIdentitySignals
   };
 }
 
@@ -13664,6 +13993,10 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     candidateItemType: cleanText(extractLabeledResultPart(rawText, /candidate\s+item\s+type\s*[:=-]\s*([^|;.]+)/i)) || itemTypeCompatibility.candidateItemType,
     itemTypeCompatibilityStatus: itemTypeCompatibility.status,
     itemTypeCompatibilityExplanation: itemTypeCompatibility.explanation,
+    originalSubmittedItemType: itemTypeCompatibility.originalSubmittedItemType || itemTypeCompatibility.submittedItemType,
+    normalizedSubmittedItemType: itemTypeCompatibility.normalizedSubmittedItemType || itemTypeCompatibility.submittedItemType,
+    itemTypeCoherenceStatus: itemTypeCompatibility.itemTypeCoherenceStatus || "",
+    authoritativeExactIdentitySignals: itemTypeCompatibility.authoritativeExactIdentitySignals || [],
     evidenceRole: itemTypeValuationSafe
       ? (identityStrength ? buildEvidenceRoleForIdentityStrength({ priceType, displayedPrice }) : inferEvidenceRole(bucketName, classification))
       : buildSerperEvidenceRole("Reference Only", priceType, itemTypeCompatibility),
@@ -14223,6 +14556,10 @@ function normalizeExistingResearchRecord(item, bucketName) {
     candidateItemType: cleanText(item.candidateItemType),
     itemTypeCompatibilityStatus: cleanText(item.itemTypeCompatibilityStatus),
     itemTypeCompatibilityExplanation: cleanText(item.itemTypeCompatibilityExplanation),
+    originalSubmittedItemType: cleanText(item.originalSubmittedItemType),
+    normalizedSubmittedItemType: cleanText(item.normalizedSubmittedItemType),
+    itemTypeCoherenceStatus: cleanText(item.itemTypeCoherenceStatus),
+    authoritativeExactIdentitySignals: normalizeStringArray(item.authoritativeExactIdentitySignals, 8),
     evidenceRole: nonMarketTransaction ? `Rejected - ${nonMarketReason}` : cleanText(item.evidenceRole) || inferEvidenceRole(bucketName, cleanText(item.classification)),
     matchExplanation: cleanText(item.matchExplanation) || extractMatchExplanation(rawText),
     itemIdentityDifferences: cleanText(item.itemIdentityDifferences) || extractIdentityDifferences(rawText),
@@ -14536,6 +14873,8 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     identityMatchStrength: assessment.customerEvidenceTier === "tier_1" ? "Exact" : "Strong Similar",
     itemTypeCompatible: true,
     itemTypeCompatibilityStatus: "compatible",
+    itemTypeCoherenceStatus: assessment.itemTypeCoherenceStatus,
+    authoritativeExactIdentitySignals: normalizeStringArray(assessment.authoritativeExactIdentitySignals, 8),
     sourceBacked: "URL-cited",
     rawText
   };
@@ -14601,6 +14940,8 @@ function buildRetailAssessmentPriceFoundRecord(assessment = {}, askingPriceNumbe
     positiveCompatibilityEvidence: normalizeStringArray(assessment.positiveCompatibilityEvidence, 8),
     contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 8),
     productFamilyCompatibilityOutcome: assessment.productFamilyCompatibilityOutcome,
+    itemTypeCoherenceStatus: assessment.itemTypeCoherenceStatus,
+    authoritativeExactIdentitySignals: normalizeStringArray(assessment.authoritativeExactIdentitySignals, 8),
     sourceBacked: "URL-cited",
     rawText
   };
@@ -16102,6 +16443,8 @@ function buildRetailEvidenceAssessment(record = {}, context = {}, index = 0) {
     positiveCompatibilityEvidence: productFamilyCompatibility.positiveCompatibilityEvidence,
     contradictoryEvidence: productFamilyCompatibility.contradictoryEvidence,
     productFamilyCompatibilityOutcome: productFamilyCompatibility.finalOutcome,
+    itemTypeCoherenceStatus: productFamilyCompatibility.itemTypeCoherenceStatus,
+    authoritativeExactIdentitySignals: productFamilyCompatibility.authoritativeExactIdentitySignals,
     candidateObjectClassification: candidateObject.classification,
     candidateObjectLabel: candidateObject.label,
     candidateObjectReason: candidateObject.reason,
@@ -16436,6 +16779,8 @@ function sanitizeRetailEvidenceAssessment(assessment = {}) {
     positiveCompatibilityEvidence: normalizeStringArray(assessment.positiveCompatibilityEvidence, 8),
     contradictoryEvidence: normalizeStringArray(assessment.contradictoryEvidence, 8),
     productFamilyCompatibilityOutcome: cleanText(assessment.productFamilyCompatibilityOutcome),
+    itemTypeCoherenceStatus: cleanText(assessment.itemTypeCoherenceStatus),
+    authoritativeExactIdentitySignals: normalizeStringArray(assessment.authoritativeExactIdentitySignals, 8),
     candidateObjectClassification: cleanText(assessment.candidateObjectClassification),
     candidateObjectLabel: cleanText(assessment.candidateObjectLabel),
     candidateObjectReason: cleanText(assessment.candidateObjectReason),
@@ -20170,6 +20515,21 @@ function extractLikelyNamedPeople(text) {
 }
 
 function inferSearchItemType(identity, visualCategory, productTitle, notesText, routeText) {
+  const authoritativeType = detectAuthoritativeSubmittedItemType(identity, {
+    productTitle,
+    exactProductIdentity: identity.exactProductIdentity,
+    subjectIdentity: identity.subjectIdentity,
+    visualCategory,
+    notesText,
+    manufacturer: identity.manufacturer,
+    brand: identity.brand,
+    model: identity.model || identity.modelOrItemNumber,
+    itemCode: identity.sku || identity.styleNumber,
+    barcodeDigits: identity.upcBarcode || identity.barcodeDigits
+  });
+  if (authoritativeType.authoritative) {
+    return authoritativeType.label;
+  }
   const haystack = [
     productTitle,
     identity.category,
@@ -21010,6 +21370,8 @@ export const __queryIntegrityTestHooks = {
   requestBoundedRetailProductPageNetwork,
   directPageEnrichmentMaxAttempts,
   compareObservationPreference,
+  detectAuthoritativeSubmittedItemType,
+  assessAuthoritativeSourceIdentity,
   evaluateComparableItemTypeCompatibility,
   classifySerperIdentityMatch,
   classifySerperPriceEvidence,
