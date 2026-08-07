@@ -637,6 +637,13 @@
 - Kept all V2 code benchmark-local and preserved the Blind Object V2 specification, coverage, scoring, 2-4-photo, private-control, and exactly-once execution contracts without creating a real freeze, consent receipt, invocation reservation, benchmark response, or score
 - Provider-call impact: no executor or provider adapter was added; validation remained hard-network-denied and made no OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, Production, or external-network request
 
+## Version 1.12.13 (Completed)
+- Aligned the customer-visible release badge with the authoritative repository Version and added deterministic build-time validation across package, lockfile, server, HTML, and hosted-build configuration surfaces
+- Added Version-bound public asset identities so a previously cached static asset cannot silently masquerade as the current release on a moving Preview alias
+- Added focused regression coverage for exact alignment, full multi-digit patch preservation, future release advancement, route consistency, stale-literal rejection, cache identity, and unchanged static layout behavior
+- Preserved all object-analysis, evidence, Governor, Experience, reflection, lesson, benchmark, customer-memory, and personality behavior unchanged
+- Provider-call impact: validation is deterministic and network-denied; no object submission, benchmark, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, or Production request is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

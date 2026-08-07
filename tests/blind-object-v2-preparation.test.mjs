@@ -35,7 +35,7 @@ const v2Root = path.join(repositoryRoot, "benchmarks", "blind-object-v2");
 const v1Root = path.join(repositoryRoot, "benchmarks", "blind-object-v1");
 const phase6ARoot = path.join(repositoryRoot, "benchmarks", "blind-object-v1-results", "phase6a-e3caa2fd");
 const SOURCE_COMMIT = "a".repeat(40);
-const VERSION = "1.12.12";
+const VERSION = "1.12.13";
 
 async function loadJson(relativePath) {
   return JSON.parse(await readFile(path.join(repositoryRoot, ...relativePath.split("/")), "utf8"));

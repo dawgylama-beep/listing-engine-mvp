@@ -76,7 +76,7 @@ foreach ($removedAlias in @(
 )) {
   Require-True (($api + $customerSerializer + $validation + $app + $browserModel) -notmatch [regex]::Escape($removedAlias)) "Removed alias remains in production: $removedAlias"
 }
-Require-True ($index -match '<script src="/customer-evidence\.js"></script>\s*<script src="/app\.js"></script>') "Browser presentation model is not loaded before app.js."
+Require-True ($index -match '<script src="/customer-evidence\.js\?v=1\.12\.13"></script>\s*<script src="/app\.js\?v=1\.12\.13"></script>') "Browser presentation model is not loaded before app.js."
 Require-True ($api -match 'maxProviderCalls:\s*28') "Retail provider ceiling changed from 28."
 Require-True ($api -match '\? retailBudget\.maxProviderCalls\s*:\s*12') "Collectible provider ceiling changed from 12."
 Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 53) "Current PowerShell entry-point count is not exactly 53."
@@ -99,7 +99,8 @@ if ($changed -contains "PRODUCT_ROADMAP.md") {
   $addedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^\+(?!\+\+)' })
   $removedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^-(?!--)' })
   Require-True ($removedRoadmapLines.Count -eq 0) "The release roadmap update removed historical content."
-  Require-True ((@($addedRoadmapLines | Where-Object { $_ -ceq '+## Version 1.12.4 (Completed)' }).Count) -eq 1) "The authorized Version 1.12.4 roadmap entry is missing or duplicated."
+  $currentVersionHeading = "+## Version $($package.version) (Completed)"
+  Require-True ((@($addedRoadmapLines | Where-Object { $_ -ceq $currentVersionHeading }).Count) -eq 1) "The current authorized Version roadmap entry is missing or duplicated."
 }
 
 $gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")

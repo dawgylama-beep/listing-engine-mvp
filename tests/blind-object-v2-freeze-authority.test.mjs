@@ -27,7 +27,7 @@ import { expectedFreezeArtifactPath, persistFrozenBenchmark } from "../benchmark
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_HEAD = "b".repeat(40);
-const SOURCE_VERSION = "1.12.12";
+const SOURCE_VERSION = "1.12.13";
 const EXPECTED_SPECIFICATION_HASH = "6e4de31940417832c94d4bb92c4d50a7b87e06a1b0f84ae706af27e20e4df092";
 const EXPECTED_COVERAGE_HASH = "41d74fbdcae25dcf1134bb13925caf78ba4879eae0db016efde13cf2d505e954";
 const EXPECTED_SCORING_HASH = "9378aab5ba97b8a878e3b2fe732c222cbd79eaf18ab17086b181877d1a5eb527";
@@ -182,7 +182,7 @@ test("E-K: release, package, input, control, provenance, plan, specification, an
   const prepared = await build();
   assert.equal(verifyFrozenBenchmark(prepared.frozen, prepared.inputs).valid, true);
   assert.throws(() => verifyFrozenBenchmark(prepared.frozen, { ...prepared.inputs, sourceRepositoryHead: "c".repeat(40) }), /aggregate or bound material changed/);
-  assert.throws(() => verifyFrozenBenchmark(prepared.frozen, { ...prepared.inputs, sourceVersion: "1.12.13" }), /aggregate or bound material changed/);
+  assert.throws(() => verifyFrozenBenchmark(prepared.frozen, { ...prepared.inputs, sourceVersion: "1.12.14" }), /aggregate or bound material changed/);
   for (const field of ["sourcePackageSha256", "packageManifestFileHash", "checksumFileHash"]) {
     const packageBoundary = { ...prepared.inputs.packageBoundary, [field]: sha256Json({ drift: field }) };
     assert.throws(() => verifyFrozenBenchmark(prepared.frozen, { ...prepared.inputs, packageBoundary }), /aggregate or bound material changed/);

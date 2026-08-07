@@ -13,9 +13,9 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $objectResolution = Get-Content (Join-Path $Root "lib/object-intelligence/resolution.js") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.1"; Text = $index; Pattern = "Version 1.12.1" },
-  @{ Name = "Package version is 1.12.12"; Text = $package; Pattern = '"version": "1.12.12"' },
-  @{ Name = "Server version is 1.12.12"; Text = $server; Pattern = '$AppVersion = "1.12.12"' },
+  @{ Name = "Visible app version is 1.12.13"; Text = $index; Pattern = "Version 1.12.13" },
+  @{ Name = "Package version is 1.12.133"; Text = $package; Pattern = '"version": "1.12.13"' },
+  @{ Name = "Server version is 1.12.133"; Text = $server; Pattern = '$AppVersion = "1.12.13"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API reads SERPER_API_KEY server-side"; Text = $api; Pattern = "process.env.SERPER_API_KEY" },
   @{ Name = "API uses Serper host"; Text = $api; Pattern = "https://google.serper.dev/" },
