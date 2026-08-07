@@ -35,7 +35,7 @@ const v2Root = path.join(repositoryRoot, "benchmarks", "blind-object-v2");
 const v1Root = path.join(repositoryRoot, "benchmarks", "blind-object-v1");
 const phase6ARoot = path.join(repositoryRoot, "benchmarks", "blind-object-v1-results", "phase6a-e3caa2fd");
 const SOURCE_COMMIT = "a".repeat(40);
-const VERSION = "1.12.11";
+const VERSION = "1.12.12";
 
 async function loadJson(relativePath) {
   return JSON.parse(await readFile(path.join(repositoryRoot, ...relativePath.split("/")), "utf8"));
@@ -52,6 +52,7 @@ async function contracts() {
 
 function syntheticFixture() {
   const assetBytesByPath = new Map();
+  const sourceOriginalBytesByPath = new Map();
   const purposes = [
     ...Array(4).fill("PERSONAL_BUY"),
     ...Array(4).fill("RESALE"),
@@ -165,7 +166,41 @@ function syntheticFixture() {
       requiredLimitations: ["Disclose unsupported exactness or market evidence"]
     }))
   };
-  return { manifest, privateControls, assetBytesByPath };
+  const candidateSetId = "SYNTHETIC-HOLDOUT-SET-0001";
+  const packageBoundary = {
+    candidateSetId,
+    sourcePackageSha256: sha256Json({ synthetic: "source package" }),
+    sourcePackageBytes: 4096,
+    packageManifestFileHash: sha256Json({ synthetic: "package manifest" }),
+    checksumFileHash: sha256Json({ synthetic: "checksum file" })
+  };
+  const sourceOriginalInventory = objects.flatMap((object) => object.photos.map((photo) => {
+    const relativePath = `source-originals/${photo.assetId.toLowerCase()}.jpg`;
+    const bytes = Buffer.from(`synthetic-source-original-${photo.assetId}`, "utf8");
+    sourceOriginalBytesByPath.set(relativePath, bytes);
+    return {
+      canonicalObjectId: object.objectId,
+      photoId: photo.assetId,
+      evaluatorOnlyRelativePath: relativePath,
+      bytes: bytes.length,
+      sha256: sha256Bytes(bytes)
+    };
+  }));
+  const provenanceRecords = sourceOriginalInventory.map((record) => ({
+    objectId: record.canonicalObjectId,
+    photoId: record.photoId,
+    sourcePage: `https://example.invalid/${record.photoId}`,
+    creator: "Synthetic fixture creator",
+    license: "Synthetic test license",
+    sourceOriginalSha256: record.sha256
+  }));
+  const analysisPlan = {
+    schemaVersion: "1.0",
+    benchmarkId: "blind-object-v2",
+    candidateSetId,
+    analyses: structuredClone(analyses)
+  };
+  return { manifest, privateControls, assetBytesByPath, sourceOriginalInventory, sourceOriginalBytesByPath, provenanceRecords, analysisPlan, packageBoundary };
 }
 
 async function preparedFixture() {
@@ -174,7 +209,16 @@ async function preparedFixture() {
     buildLegacyV1RejectionIndex()
   ]);
   const fixture = syntheticFixture();
-  const inputs = { ...fixture, coverageContract, scoringContract, legacyIndex, sourceCommit: SOURCE_COMMIT, version: VERSION, intakeManifest: fixture.manifest };
+  const inputs = {
+    ...fixture,
+    benchmarkSpec,
+    coverageContract,
+    scoringContract,
+    legacyIndex,
+    sourceRepositoryHead: SOURCE_COMMIT,
+    sourceVersion: VERSION,
+    intakeManifest: fixture.manifest
+  };
   const frozen = freezeBenchmark(inputs);
   return { benchmarkSpec, coverageContract, scoringContract, legacyIndex, fixture, inputs, frozen };
 }
@@ -189,8 +233,8 @@ function consentFor(freezeManifest) {
     privateControlAggregateHash: freezeManifest.privateControlAggregateHash,
     scoringContractHash: freezeManifest.scoringContractHash,
     freezeAggregateHash: freezeManifest.freezeAggregateHash,
-    repositoryCommit: freezeManifest.sourceCommit,
-    version: freezeManifest.version,
+    repositoryCommit: freezeManifest.sourceRepositoryHead,
+    version: freezeManifest.sourceVersion,
     requestCount: freezeManifest.requestCount,
     operatorApprovalId: "CONSENT-V2-SYNTHETIC-0001",
     approvedAt: "2026-08-07T13:00:00.000Z"
@@ -208,8 +252,8 @@ function authorizationFor(freezeManifest, consentReceipt, overrides = {}) {
     privateControlAggregateHash: freezeManifest.privateControlAggregateHash,
     scoringContractHash: freezeManifest.scoringContractHash,
     freezeAggregateHash: freezeManifest.freezeAggregateHash,
-    repositoryCommit: freezeManifest.sourceCommit,
-    version: freezeManifest.version,
+    repositoryCommit: freezeManifest.sourceRepositoryHead,
+    version: freezeManifest.sourceVersion,
     requestCount: freezeManifest.requestCount,
     provider: "OPENAI",
     model: "synthetic-model",
@@ -343,7 +387,7 @@ test("F: input, control, manifest, scoring, and request changes invalidate a fro
   assert.throws(() => verifyFrozenBenchmark(prepared.frozen, { ...prepared.inputs, scoringContract: changedScoring }), /aggregate or bound material changed/);
 
   const changedRequestFreeze = structuredClone(prepared.frozen);
-  changedRequestFreeze.requestContracts[0].description = "tampered after freeze";
+  changedRequestFreeze.requestContracts[0].publicCustomerDescription = "tampered after freeze";
   assert.throws(() => verifyFrozenBenchmark(changedRequestFreeze, prepared.inputs), /request contract changed/);
 });
 
@@ -463,7 +507,7 @@ test("M: Phase 6A, Phase 6G, Phase 6H, and the historical tree remain byte-ident
 });
 
 test("N: absent real inputs return AWAITING_NEW_HOLDOUT_INPUTS and create no frozen requests", async () => {
-  const result = await runPreparation({ sourceCommit: SOURCE_COMMIT, version: VERSION });
+  const result = await runPreparation();
   assert.equal(result.status, "PASS");
   assert.equal(result.state, PREPARATION_STATE.AWAITING_NEW_HOLDOUT_INPUTS);
   assert.equal(result.inputManifestPresent, false);
@@ -479,12 +523,17 @@ test("N: absent real inputs return AWAITING_NEW_HOLDOUT_INPUTS and create no fro
   assert.equal(result.receipt.executionAuthorized, false);
 });
 
+test("N: the real preparation authority rejects caller-supplied release bindings", async () => {
+  await assert.rejects(() => runPreparation({ sourceRepositoryHead: SOURCE_COMMIT }), /release override or unsupported field/);
+  await assert.rejects(() => runPreparation({ sourceVersion: VERSION }), /release override or unsupported field/);
+});
+
 test("all V2 JSON contracts are valid JSON and the coverage contract is exact", async () => {
   const { benchmarkSpec, coverageContract, scoringContract } = await contracts();
   assert.equal(benchmarkSpec.preparationOnly, true);
   assert.equal(validateCoverageContract(coverageContract).valid, true);
   assert.equal(validateScoringContract(scoringContract).valid, true);
-  for (const schema of ["input-intake-manifest", "private-controls", "frozen-request-contract", "frozen-package", "consent-receipt", "execution-authorization", "invocation-registry"]) {
+  for (const schema of ["input-intake-manifest", "private-controls", "frozen-request-contract", "frozen-package", "freeze-receipt", "consent-receipt", "execution-authorization", "invocation-registry"]) {
     const document = await loadJson(`benchmarks/blind-object-v2/schemas/${schema}.schema.json`);
     assert.equal(document.$schema, "https://json-schema.org/draft/2020-12/schema");
     assert.equal(document.additionalProperties, false);

@@ -6,6 +6,10 @@ import path from "node:path";
 
 export const BENCHMARK_ID = "blind-object-v2";
 export const SCHEMA_VERSION = "2.0";
+export const REQUEST_SCHEMA_VERSION = "3.0";
+export const FREEZE_SCHEMA_VERSION = "3.0";
+export const FREEZE_RECEIPT_SCHEMA_VERSION = "1.0";
+export const FREEZE_PROTOCOL_VERSION = "PHASE_7B_R_V1";
 export const PREPARATION_STATE = Object.freeze({
   DRAFT_INTAKE: "DRAFT_INTAKE",
   AWAITING_NEW_HOLDOUT_INPUTS: "AWAITING_NEW_HOLDOUT_INPUTS",
@@ -14,6 +18,14 @@ export const PREPARATION_STATE = Object.freeze({
   FROZEN_AWAITING_CONSENT: "FROZEN_AWAITING_CONSENT",
   CONSENTED_NOT_EXECUTED: "CONSENTED_NOT_EXECUTED",
   CONSUMED: "CONSUMED",
+  INVALID: "INVALID"
+});
+export const FREEZE_CONSTRUCTION_STATE = Object.freeze({
+  DRY_RUN_VALIDATED: "DRY_RUN_VALIDATED",
+  WRITE_PENDING: "WRITE_PENDING",
+  WRITE_FAILED: "WRITE_FAILED",
+  FROZEN_AWAITING_CONSENT: "FROZEN_AWAITING_CONSENT",
+  EXISTING_IDENTICAL_FREEZE_READBACK: "EXISTING_IDENTICAL_FREEZE_READBACK",
   INVALID: "INVALID"
 });
 
@@ -64,23 +76,128 @@ const HASH = /^[a-f0-9]{64}$/;
 const COMMIT = /^[a-f0-9]{40}$/;
 const OBJECT_ID = /^V2-OBJ-(?:00[1-9]|01[0-4])$/;
 const ANALYSIS_ID = /^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$/;
+const CANDIDATE_SET_ID = /^[A-Z0-9][A-Z0-9_-]{7,79}$/;
+const SAFE_RELATIVE_FILE = /^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))(?!.*:)[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/;
 const FORBIDDEN_CONTROL_KEY = /^(?:command|commands|executable|executablePath|module|modulePath|dynamicImport|importPath|environment|environmentName|env|endpoint|providerEndpoint|shell|script|scriptPath|workingDirectory|cwd|arguments|argv)$/i;
 
-export function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+export function canonical(value, location = "$") {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    assert.equal(Number.isFinite(value), true, `canonical JSON rejects non-finite number at ${location}`);
+    return value;
   }
-  return value;
+  if (Array.isArray(value)) {
+    assert.equal(Object.keys(value).length, value.length, `canonical JSON rejects sparse or decorated array at ${location}`);
+    return value.map((entry, index) => canonical(entry, `${location}[${index}]`));
+  }
+  if (value && typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    assert.ok(prototype === Object.prototype || prototype === null, `canonical JSON rejects unsupported object at ${location}`);
+    const keys = Object.keys(value);
+    return Object.fromEntries(keys.sort().map((key) => {
+      assert.equal(typeof value[key] === "undefined" || typeof value[key] === "function" || typeof value[key] === "symbol", false, `canonical JSON rejects unsupported value at ${location}.${key}`);
+      return [key, canonical(value[key], `${location}.${key}`)];
+    }));
+  }
+  assert.fail(`canonical JSON rejects unsupported value at ${location}`);
 }
 
 export const stableJson = (value) => JSON.stringify(canonical(value));
 export const sha256Bytes = (value) => createHash("sha256").update(value).digest("hex");
 export const sha256Json = (value) => sha256Bytes(Buffer.from(stableJson(value), "utf8"));
+
+export function parseJsonStrict(text, label = "JSON document") {
+  assert.equal(typeof text, "string", `${label} must be text`);
+  let index = 0;
+  const fail = (message) => assert.fail(`${label} ${message} at character ${index}`);
+  const whitespace = () => {
+    while (/\s/.test(text[index] || "")) index += 1;
+  };
+  const stringToken = () => {
+    if (text[index] !== '"') fail("requires a string");
+    const start = index;
+    index += 1;
+    while (index < text.length) {
+      if (text[index] === '"') {
+        index += 1;
+        return JSON.parse(text.slice(start, index));
+      }
+      if (text[index] === "\\") index += 1;
+      index += 1;
+    }
+    fail("contains an unterminated string");
+  };
+  const literal = (value) => {
+    if (!text.startsWith(value, index)) fail(`contains an invalid ${value} literal`);
+    index += value.length;
+  };
+  const value = () => {
+    whitespace();
+    if (text[index] === "{") return object();
+    if (text[index] === "[") return array();
+    if (text[index] === '"') { stringToken(); return; }
+    if (text.startsWith("true", index)) return literal("true");
+    if (text.startsWith("false", index)) return literal("false");
+    if (text.startsWith("null", index)) return literal("null");
+    const number = text.slice(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+    if (!number) fail("contains an invalid value");
+    index += number[0].length;
+  };
+  const object = () => {
+    index += 1;
+    whitespace();
+    const keys = new Set();
+    if (text[index] === "}") { index += 1; return; }
+    while (index < text.length) {
+      whitespace();
+      const key = stringToken();
+      assert.equal(keys.has(key), false, `${label} contains duplicate object key ${JSON.stringify(key)}`);
+      keys.add(key);
+      whitespace();
+      if (text[index] !== ":") fail("requires ':' after an object key");
+      index += 1;
+      value();
+      whitespace();
+      if (text[index] === "}") { index += 1; return; }
+      if (text[index] !== ",") fail("requires ',' between object members");
+      index += 1;
+    }
+    fail("contains an unterminated object");
+  };
+  const array = () => {
+    index += 1;
+    whitespace();
+    if (text[index] === "]") { index += 1; return; }
+    while (index < text.length) {
+      value();
+      whitespace();
+      if (text[index] === "]") { index += 1; return; }
+      if (text[index] !== ",") fail("requires ',' between array items");
+      index += 1;
+    }
+    fail("contains an unterminated array");
+  };
+  value();
+  whitespace();
+  if (index !== text.length) fail("contains trailing content");
+  return JSON.parse(text);
+}
+
 export function hashWithoutField(record, field) {
   const copy = structuredClone(record);
   delete copy[field];
   return sha256Json(copy);
+}
+
+export function sealRecord(record, hashField) {
+  assert.equal(Object.hasOwn(record, hashField), false, `${hashField} must be omitted from its canonical preimage`);
+  return Object.freeze({ ...record, [hashField]: sha256Json(record) });
+}
+
+export function validateSealedRecord(record, hashField, label) {
+  assert.match(record?.[hashField] || "", HASH, `${label} ${hashField} must be a SHA-256 hash`);
+  assert.equal(hashWithoutField(record, hashField), record[hashField], `${label} ${hashField} mismatch`);
+  return true;
 }
 
 export function normalizeFingerprintText(value) {
@@ -149,7 +266,7 @@ function asHashSet(values = []) {
 }
 
 async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
+  return parseJsonStrict(await readFile(filePath, "utf8"), filePath);
 }
 
 async function collectHistoricalRequestRecords(resultHistoryRoot) {
@@ -574,7 +691,148 @@ function purposeRequestContract(purpose) {
   return Object.freeze({ method: "POST", path: "/api/generate-listing", reportType: "marketValue", intakeField: "buyerIntake.purchase_intent", intakeValue });
 }
 
-export function buildFrozenRequestContracts({ intakeManifest, legacyIndex }) {
+function validatePackageBoundary(packageBoundary) {
+  exactKeys(packageBoundary, ["candidateSetId", "sourcePackageSha256", "sourcePackageBytes", "packageManifestFileHash", "checksumFileHash"], "source package boundary");
+  assert.match(packageBoundary.candidateSetId || "", CANDIDATE_SET_ID, "candidate-set ID is invalid");
+  for (const key of ["sourcePackageSha256", "packageManifestFileHash", "checksumFileHash"]) assert.match(packageBoundary[key] || "", HASH, `${key} must be a SHA-256 hash`);
+  assert.ok(Number.isInteger(packageBoundary.sourcePackageBytes) && packageBoundary.sourcePackageBytes > 0, "source package byte count is invalid");
+  return Object.freeze({ ...packageBoundary });
+}
+
+function validateAnalysisPlan(analysisPlan, intakeManifest, candidateSetId) {
+  assertNoExecutableControlFields(analysisPlan, "analysis plan");
+  assert.ok(analysisPlan && typeof analysisPlan === "object" && !Array.isArray(analysisPlan), "analysis plan must be an object");
+  assert.ok(Array.isArray(analysisPlan.analyses), "analysis plan requires analyses");
+  if (Object.hasOwn(analysisPlan, "benchmarkId")) assert.equal(analysisPlan.benchmarkId, BENCHMARK_ID);
+  if (Object.hasOwn(analysisPlan, "candidateSetId")) assert.equal(analysisPlan.candidateSetId, candidateSetId);
+  assert.deepEqual(analysisPlan.analyses.map(({ analysisId, objectId, purpose, runType }) => ({ analysisId, objectId, purpose, runType })), intakeManifest.analyses, "analysis plan mapping differs from intake manifest");
+  return true;
+}
+
+function canonicalSourceOriginalInventory({ sourceOriginalInventory, sourceOriginalBytesByPath, intakeManifest }) {
+  assert.ok(Array.isArray(sourceOriginalInventory), "source-original inventory must be an array");
+  assert.ok(sourceOriginalBytesByPath instanceof Map, "source-original bytes must be supplied by fixed path");
+  const expectedPhotoIds = new Set(intakeManifest.objects.flatMap((object) => object.photos.map((photo) => photo.assetId)));
+  const seenPhotoIds = new Set();
+  const seenPaths = new Set();
+  const seenHashes = new Set();
+  const records = sourceOriginalInventory.map((record) => {
+    exactKeys(record, ["canonicalObjectId", "photoId", "evaluatorOnlyRelativePath", "bytes", "sha256"], "source-original inventory record");
+    assert.match(record.canonicalObjectId || "", OBJECT_ID);
+    assert.match(record.photoId || "", /^V2-OBJ-(?:00[1-9]|01[0-4])-[A-D]$/);
+    assert.ok(record.photoId.startsWith(`${record.canonicalObjectId}-`), "source-original photo ID does not match its object");
+    assert.ok(expectedPhotoIds.has(record.photoId), "source-original photo is not an accepted intake photo");
+    assert.match(record.evaluatorOnlyRelativePath || "", SAFE_RELATIVE_FILE, "source-original path is unsafe");
+    assert.match(path.extname(record.evaluatorOnlyRelativePath).toLowerCase(), /^\.(?:jpg|jpeg|png|webp)$/);
+    assert.ok(Number.isInteger(record.bytes) && record.bytes > 0);
+    assert.match(record.sha256 || "", HASH);
+    assert.equal(seenPhotoIds.has(record.photoId), false, "duplicate source-original photo ID");
+    assert.equal(seenPaths.has(record.evaluatorOnlyRelativePath), false, "duplicate source-original path");
+    assert.equal(seenHashes.has(record.sha256), false, "duplicate source-original hash");
+    const supplied = sourceOriginalBytesByPath.get(record.evaluatorOnlyRelativePath);
+    assert.ok(supplied, `${record.evaluatorOnlyRelativePath} source-original bytes are missing`);
+    const bytes = Buffer.isBuffer(supplied) ? supplied : Buffer.from(supplied);
+    assert.equal(bytes.length, record.bytes, `${record.evaluatorOnlyRelativePath} source-original byte count mismatch`);
+    assert.equal(sha256Bytes(bytes), record.sha256, `${record.evaluatorOnlyRelativePath} source-original hash mismatch`);
+    seenPhotoIds.add(record.photoId);
+    seenPaths.add(record.evaluatorOnlyRelativePath);
+    seenHashes.add(record.sha256);
+    return { ...record };
+  }).sort((left, right) => left.canonicalObjectId.localeCompare(right.canonicalObjectId) || left.photoId.localeCompare(right.photoId));
+  assert.equal(records.length, expectedPhotoIds.size, "source-original inventory must bind every sanitized photo exactly once");
+  assert.deepEqual([...seenPhotoIds].sort(), [...expectedPhotoIds].sort(), "source-original inventory photo coverage mismatch");
+  return Object.freeze(records.map(Object.freeze));
+}
+
+function canonicalProvenanceRecords(provenanceRecords, sourceOriginalInventory) {
+  assert.ok(Array.isArray(provenanceRecords), "provenance records must be an array");
+  const expected = new Set(sourceOriginalInventory.map((entry) => `${entry.canonicalObjectId}|${entry.photoId}`));
+  const seen = new Set();
+  const records = provenanceRecords.map((record) => {
+    assertNoExecutableControlFields(record, "provenance record");
+    assert.ok(record && typeof record === "object" && !Array.isArray(record));
+    const canonicalObjectId = record.canonicalObjectId ?? record.objectId;
+    const photoId = record.photoId;
+    assert.match(canonicalObjectId || "", OBJECT_ID, "provenance object ID is invalid");
+    assert.match(photoId || "", /^V2-OBJ-(?:00[1-9]|01[0-4])-[A-D]$/, "provenance photo ID is invalid");
+    const key = `${canonicalObjectId}|${photoId}`;
+    assert.ok(expected.has(key), "provenance record does not bind an accepted source original");
+    assert.equal(seen.has(key), false, "duplicate provenance record");
+    seen.add(key);
+    return structuredClone(record);
+  }).sort((left, right) => String(left.canonicalObjectId ?? left.objectId).localeCompare(String(right.canonicalObjectId ?? right.objectId)) || String(left.photoId).localeCompare(String(right.photoId)));
+  assert.deepEqual([...seen].sort(), [...expected].sort(), "provenance coverage mismatch");
+  return Object.freeze(records.map((entry) => Object.freeze(entry)));
+}
+
+function frozenAssetExtension(mediaType) {
+  const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[mediaType];
+  assert.ok(extension, `unsupported frozen asset media type ${mediaType}`);
+  return extension;
+}
+
+export function validateFrozenRequestContract(request) {
+  assertNoExecutableControlFields(request, "frozen request contract");
+  exactKeys(request, [
+    "schemaVersion", "benchmarkId", "candidateSetId", "canonicalObjectId", "analysisId", "runType", "lane", "customerPurpose",
+    "inputAssets", "publicCustomerDescription", "permittedVisibleMarkings", "handlerContract", "inputFingerprintHash",
+    "sourceRepositoryHead", "sourceVersion", "sourcePackageSha256", "specificationHash", "coverageHash", "scoringHash",
+    "privateControlMaterialIncluded", "executionAuthorized", "requestContractHash"
+  ], "frozen request contract");
+  assert.equal(request.schemaVersion, REQUEST_SCHEMA_VERSION);
+  assert.equal(request.benchmarkId, BENCHMARK_ID);
+  assert.match(request.candidateSetId || "", CANDIDATE_SET_ID);
+  assert.match(request.canonicalObjectId || "", OBJECT_ID);
+  assert.match(request.analysisId || "", ANALYSIS_ID);
+  assert.ok(["PRINCIPAL", "ANCHOR_PURPOSE"].includes(request.runType));
+  assert.ok(LANES.includes(request.lane));
+  assert.ok(PURPOSES.includes(request.customerPurpose));
+  assert.ok(Array.isArray(request.inputAssets) && request.inputAssets.length >= 2 && request.inputAssets.length <= 4);
+  const photoIds = new Set();
+  const paths = new Set();
+  const hashes = new Set();
+  for (const asset of request.inputAssets) {
+    exactKeys(asset, ["photoId", "frozenRelativePath", "bytes", "sha256", "mediaType"], "frozen request input asset");
+    assert.match(asset.photoId || "", /^V2-OBJ-(?:00[1-9]|01[0-4])-[A-D]$/);
+    assert.ok(asset.photoId.startsWith(`${request.canonicalObjectId}-`), "request photo belongs to a different object");
+    assert.match(asset.frozenRelativePath || "", SAFE_RELATIVE_FILE, "request frozen asset path is unsafe");
+    assert.ok(asset.frozenRelativePath.startsWith(`assets/${request.canonicalObjectId}/${asset.photoId}.`), "request frozen asset path is not repository-derived");
+    assert.ok(Number.isInteger(asset.bytes) && asset.bytes > 0);
+    assert.match(asset.sha256 || "", HASH);
+    assert.ok(["image/jpeg", "image/png", "image/webp"].includes(asset.mediaType));
+    assert.equal(photoIds.has(asset.photoId) || paths.has(asset.frozenRelativePath) || hashes.has(asset.sha256), false, "request contains a duplicate photo binding");
+    photoIds.add(asset.photoId); paths.add(asset.frozenRelativePath); hashes.add(asset.sha256);
+  }
+  assert.equal(typeof request.publicCustomerDescription, "string");
+  assert.ok(Array.isArray(request.permittedVisibleMarkings));
+  request.permittedVisibleMarkings.forEach((entry, index) => nonEmptyString(entry, `permittedVisibleMarkings[${index}]`, 1000));
+  exactKeys(request.handlerContract, ["method", "path", "reportType", "intakeField", "intakeValue"], "request handler contract");
+  assert.equal(request.handlerContract.method, "POST");
+  assert.equal(request.handlerContract.path, "/api/generate-listing");
+  assert.deepEqual(request.handlerContract, purposeRequestContract(request.customerPurpose), "request handler contract does not match its customer purpose");
+  for (const key of ["inputFingerprintHash", "sourcePackageSha256", "specificationHash", "coverageHash", "scoringHash", "requestContractHash"]) assert.match(request[key] || "", HASH, `${key} is invalid`);
+  assert.match(request.sourceRepositoryHead || "", COMMIT);
+  assert.match(request.sourceVersion || "", /^1\.12\.\d+$/);
+  assert.equal(request.privateControlMaterialIncluded, false);
+  assert.equal(request.executionAuthorized, false);
+  validateSealedRecord(request, "requestContractHash", "frozen request contract");
+  return Object.freeze({ valid: true, requestContractHash: request.requestContractHash });
+}
+
+export function buildFrozenRequestContracts({
+  intakeManifest,
+  legacyIndex,
+  packageBoundary,
+  sourceRepositoryHead,
+  sourceVersion,
+  specificationHash,
+  coverageHash,
+  scoringHash
+}) {
+  const boundary = validatePackageBoundary(packageBoundary);
+  assert.match(sourceRepositoryHead || "", COMMIT, "request release binding requires repository HEAD");
+  assert.match(sourceVersion || "", /^1\.12\.\d+$/, "request release binding requires Version");
+  for (const [label, hash] of Object.entries({ specificationHash, coverageHash, scoringHash })) assert.match(hash || "", HASH, `${label} is invalid`);
   const objectById = new Map(intakeManifest.objects.map((entry) => [entry.objectId, entry]));
   const requestHashes = new Set();
   return intakeManifest.analyses.map((analysis) => {
@@ -587,78 +845,303 @@ export function buildFrozenRequestContracts({ intakeManifest, legacyIndex }) {
     });
     assertNotLegacyHash("requestInput", inputFingerprintHash, legacyIndex);
     const core = {
-      schemaVersion: SCHEMA_VERSION,
+      schemaVersion: REQUEST_SCHEMA_VERSION,
       benchmarkId: BENCHMARK_ID,
+      candidateSetId: boundary.candidateSetId,
       analysisId: analysis.analysisId,
-      objectId: analysis.objectId,
+      canonicalObjectId: analysis.objectId,
       runType: analysis.runType,
-      purpose: analysis.purpose,
       lane: object.lane,
-      description: object.description,
-      photos: object.photos.map((photo) => ({ assetId: photo.assetId, path: photo.path, mediaType: photo.mediaType, bytes: photo.bytes, sha256: photo.sha256 })),
+      customerPurpose: analysis.purpose,
+      inputAssets: object.photos.map((photo) => ({
+        photoId: photo.assetId,
+        frozenRelativePath: `assets/${object.objectId}/${photo.assetId}.${frozenAssetExtension(photo.mediaType)}`,
+        bytes: photo.bytes,
+        sha256: photo.sha256,
+        mediaType: photo.mediaType
+      })),
+      publicCustomerDescription: object.description,
+      permittedVisibleMarkings: object.lane === "PHOTO_ONLY" ? [] : [object.description],
       handlerContract: purposeRequestContract(analysis.purpose),
       inputFingerprintHash,
+      sourceRepositoryHead,
+      sourceVersion,
+      sourcePackageSha256: boundary.sourcePackageSha256,
+      specificationHash,
+      coverageHash,
+      scoringHash,
       privateControlMaterialIncluded: false,
       executionAuthorized: false
     };
-    const request = { ...core, requestContractHash: sha256Json(core) };
+    const request = sealRecord(core, "requestContractHash");
+    validateFrozenRequestContract(request);
     assert.equal(requestHashes.has(request.requestContractHash), false, `${analysis.analysisId} request contract duplicates another request`);
     requestHashes.add(request.requestContractHash);
-    return Object.freeze(request);
+    return request;
   });
 }
 
 export function freezeBenchmark({
   intakeManifest,
   privateControls,
+  benchmarkSpec,
   coverageContract,
   scoringContract,
   assetBytesByPath,
+  sourceOriginalInventory,
+  sourceOriginalBytesByPath,
+  provenanceRecords,
+  analysisPlan,
+  packageBoundary,
   legacyIndex,
-  sourceCommit,
-  version
+  sourceRepositoryHead,
+  sourceVersion
 }) {
-  assert.match(sourceCommit || "", COMMIT, "freeze requires a full source commit");
-  assert.match(version || "", /^1\.12\.\d+$/, "freeze requires a Katherine's Eye Version");
+  assert.match(sourceRepositoryHead || "", COMMIT, "freeze requires a full source repository HEAD");
+  assert.match(sourceVersion || "", /^1\.12\.\d+$/, "freeze requires a Katherine's Eye Version");
+  assert.equal(benchmarkSpec?.benchmarkId, BENCHMARK_ID);
+  assert.equal(benchmarkSpec?.preparationOnly, true);
+  assert.equal(benchmarkSpec?.preparationSafety?.benchmarkExecutionAuthorized, false);
+  const boundary = validatePackageBoundary(packageBoundary);
   const intake = validateIntakeManifest({ manifest: intakeManifest, coverageContract, assetBytesByPath, legacyIndex });
   const controls = validatePrivateControls({ controls: privateControls, intakeManifest, legacyIndex });
   const coverage = validateCoverageContract(coverageContract);
   const scoring = validateScoringContract(scoringContract);
-  const requestContracts = buildFrozenRequestContracts({ intakeManifest, legacyIndex });
+  const specificationHash = sha256Json(benchmarkSpec);
+  validateAnalysisPlan(analysisPlan, intakeManifest, boundary.candidateSetId);
+  const originals = canonicalSourceOriginalInventory({ sourceOriginalInventory, sourceOriginalBytesByPath, intakeManifest });
+  const provenance = canonicalProvenanceRecords(provenanceRecords, originals);
+  const requestContracts = buildFrozenRequestContracts({
+    intakeManifest,
+    legacyIndex,
+    packageBoundary: boundary,
+    sourceRepositoryHead,
+    sourceVersion,
+    specificationHash,
+    coverageHash: coverage.hash,
+    scoringHash: scoring.hash
+  });
   assert.equal(requestContracts.length, 26);
   const requestContractHashes = requestContracts.map((entry) => entry.requestContractHash);
-  const frozenInputAggregateHash = sha256Json({
-    intakeManifest,
-    verifiedAssets: intakeManifest.objects.flatMap((object) => object.photos.map((photo) => ({ path: photo.path, bytes: photo.bytes, sha256: photo.sha256 }))),
-    requestContractHashes
+  assert.equal(new Set(requestContractHashes).size, 26, "freeze requires 26 unique request hashes");
+  const sanitizedInputInventory = intakeManifest.objects.flatMap((object) => object.photos.map((photo) => ({
+    canonicalObjectId: object.objectId,
+    photoId: photo.assetId,
+    frozenRelativePath: `assets/${object.objectId}/${photo.assetId}.${frozenAssetExtension(photo.mediaType)}`,
+    bytes: photo.bytes,
+    sha256: photo.sha256,
+    mediaType: photo.mediaType
+  })));
+  const sanitizedInputAggregateHash = sha256Json(sanitizedInputInventory);
+  const sourceOriginalAggregateHash = sha256Json(originals);
+  const publicIntakeManifestHash = intake.manifestHash;
+  const provenanceAggregateHash = sha256Json(provenance);
+  const analysisPlanHash = sha256Json(analysisPlan);
+  const requestAggregateHash = sha256Json(requestContracts.map((request) => ({ analysisId: request.analysisId, requestContractHash: request.requestContractHash })));
+  const laneCounts = countBy(intakeManifest.objects, (entry) => entry.lane);
+  const primaryPurposeCounts = countBy(intakeManifest.objects, (entry) => entry.primaryPurpose);
+  const analysisPurposeCounts = countBy(intakeManifest.analyses, (entry) => entry.purpose);
+  const canonicalObjectIdNamespace = "V2-OBJ-001_THROUGH_V2-OBJ-014";
+  const completeCore = {
+    freezeSchemaVersion: FREEZE_SCHEMA_VERSION,
+    benchmarkId: BENCHMARK_ID,
+    candidateSetId: boundary.candidateSetId,
+    canonicalObjectIdNamespace,
+    sourceRepositoryHead,
+    sourceVersion,
+    sourcePackageSha256: boundary.sourcePackageSha256,
+    sourcePackageBytes: boundary.sourcePackageBytes,
+    packageManifestFileHash: boundary.packageManifestFileHash,
+    checksumFileHash: boundary.checksumFileHash,
+    sanitizedInputAggregateHash,
+    sourceOriginalAggregateHash,
+    publicIntakeManifestHash,
+    privateControlAggregateHash: controls.privateControlAggregateHash,
+    provenanceAggregateHash,
+    analysisPlanHash,
+    requestAggregateHash,
+    specificationHash,
+    coverageHash: coverage.hash,
+    scoringHash: scoring.hash,
+    objectCount: intake.objectCount,
+    sanitizedPhotoCount: intake.photoCount,
+    sourceOriginalCount: originals.length,
+    requestCount: requestContracts.length,
+    anchorObjectCount: intakeManifest.purposeInvarianceAnchorObjectIds.length,
+    laneCounts,
+    primaryPurposeCounts,
+    analysisPurposeCounts
+  };
+  const completeFrozenAggregateHash = sha256Json(completeCore);
+  const frozenArtifactRoot = `benchmarks/blind-object-v2/prepared/freezes/${completeFrozenAggregateHash}`;
+  const frozenInputAggregateHash = sha256Json({ publicIntakeManifestHash, sanitizedInputAggregateHash, requestAggregateHash });
+  const absentAuthority = Object.freeze({
+    executionConsent: false,
+    invocationReservation: false,
+    providerSelection: false,
+    modelSelection: false,
+    costAuthorization: false,
+    networkAuthorization: false,
+    executionJournal: false,
+    benchmarkResponses: false,
+    scores: false,
+    productRepairAuthorization: false,
+    deploymentAuthorization: false
   });
   const core = {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: FREEZE_SCHEMA_VERSION,
     benchmarkId: BENCHMARK_ID,
     state: PREPARATION_STATE.FROZEN_AWAITING_CONSENT,
-    sourceCommit,
-    version,
-    inputManifestHash: intake.manifestHash,
+    candidateSetId: boundary.candidateSetId,
+    canonicalObjectIdNamespace,
+    sourceRepositoryHead,
+    sourceVersion,
+    sourcePackageSha256: boundary.sourcePackageSha256,
+    sourcePackageBytes: boundary.sourcePackageBytes,
+    packageManifestFileHash: boundary.packageManifestFileHash,
+    checksumFileHash: boundary.checksumFileHash,
+    sanitizedInputAggregateHash,
+    sourceOriginalAggregateHash,
+    publicIntakeManifestHash,
+    privateControlAggregateHash: controls.privateControlAggregateHash,
+    provenanceAggregateHash,
+    analysisPlanHash,
+    requestAggregateHash,
+    specificationHash,
+    coverageHash: coverage.hash,
+    scoringHash: scoring.hash,
+    objectCount: intake.objectCount,
+    sanitizedPhotoCount: intake.photoCount,
+    sourceOriginalCount: originals.length,
+    requestCount: requestContracts.length,
+    anchorObjectCount: intakeManifest.purposeInvarianceAnchorObjectIds.length,
+    laneCounts,
+    primaryPurposeCounts,
+    analysisPurposeCounts,
+    frozenArtifactRoot,
+    completeFrozenAggregateHash,
+    absentAuthority,
+    requestContractHashes,
+    sourceCommit: sourceRepositoryHead,
+    version: sourceVersion,
+    inputManifestHash: publicIntakeManifestHash,
     coverageContractHash: coverage.hash,
     scoringContractHash: scoring.hash,
-    privateControlAggregateHash: controls.privateControlAggregateHash,
     frozenInputAggregateHash,
-    requestCount: requestContracts.length,
-    requestContractHashes,
+    freezeAggregateHash: completeFrozenAggregateHash,
     executionAuthorized: false,
     consentReceiptHash: null,
     networkRequestCount: 0,
     providerCallCount: 0,
     frozenRequestExecutionCount: 0
   };
-  const freezeManifest = { ...core, freezeAggregateHash: sha256Json(core) };
-  return Object.freeze({
+  const freezeManifest = sealRecord(core, "freezeManifestHash");
+  validateFreezeManifest(freezeManifest);
+  const receiptCore = {
+    schemaVersion: FREEZE_RECEIPT_SCHEMA_VERSION,
+    receiptType: "BENCHMARK_FREEZE_RECEIPT",
+    benchmarkId: BENCHMARK_ID,
+    candidateSetId: boundary.candidateSetId,
+    sourceRepositoryHead,
+    sourceVersion,
+    sourcePackageSha256: boundary.sourcePackageSha256,
+    freezeManifestHash: freezeManifest.freezeManifestHash,
+    completeFrozenAggregateHash,
+    frozenArtifactRoot,
     state: PREPARATION_STATE.FROZEN_AWAITING_CONSENT,
-    freezeManifest: Object.freeze(freezeManifest),
+    createdByProtocolVersion: FREEZE_PROTOCOL_VERSION,
+    executionConsentAuthorized: false,
+    invocationReservationAuthorized: false,
+    providerAccessAuthorized: false,
+    networkAccessAuthorized: false,
+    scoringAuthorized: false,
+    deploymentAuthorized: false
+  };
+  const freezeReceipt = sealRecord(receiptCore, "receiptHash");
+  validateFreezeReceipt(freezeReceipt, freezeManifest);
+  return Object.freeze({
+    constructionState: FREEZE_CONSTRUCTION_STATE.DRY_RUN_VALIDATED,
+    state: PREPARATION_STATE.FROZEN_AWAITING_CONSENT,
+    freezeManifest,
+    freezeReceipt,
     requestContracts: Object.freeze(requestContracts),
+    sanitizedInputInventory: Object.freeze(sanitizedInputInventory.map(Object.freeze)),
+    sourceOriginalInventory: originals,
+    provenanceRecords: provenance,
+    analysisPlan: Object.freeze(structuredClone(analysisPlan)),
+    packageBoundary: boundary,
+    completeFrozenAggregatePreimage: Object.freeze(completeCore),
     privateControlsIncludedInRequests: false,
     executionAuthorized: false
   });
+}
+
+export function validateFreezeManifest(manifest) {
+  exactKeys(manifest, [
+    "schemaVersion", "benchmarkId", "state", "candidateSetId", "canonicalObjectIdNamespace", "sourceRepositoryHead", "sourceVersion",
+    "sourcePackageSha256", "sourcePackageBytes", "packageManifestFileHash", "checksumFileHash", "sanitizedInputAggregateHash",
+    "sourceOriginalAggregateHash", "publicIntakeManifestHash", "privateControlAggregateHash", "provenanceAggregateHash", "analysisPlanHash",
+    "requestAggregateHash", "specificationHash", "coverageHash", "scoringHash", "objectCount", "sanitizedPhotoCount", "sourceOriginalCount",
+    "requestCount", "anchorObjectCount", "laneCounts", "primaryPurposeCounts", "analysisPurposeCounts", "frozenArtifactRoot",
+    "completeFrozenAggregateHash", "absentAuthority", "requestContractHashes", "sourceCommit", "version", "inputManifestHash",
+    "coverageContractHash", "scoringContractHash", "frozenInputAggregateHash", "freezeAggregateHash", "executionAuthorized",
+    "consentReceiptHash", "networkRequestCount", "providerCallCount", "frozenRequestExecutionCount", "freezeManifestHash"
+  ], "freeze manifest");
+  assert.equal(manifest.schemaVersion, FREEZE_SCHEMA_VERSION);
+  assert.equal(manifest.benchmarkId, BENCHMARK_ID);
+  assert.equal(manifest.state, PREPARATION_STATE.FROZEN_AWAITING_CONSENT);
+  assert.match(manifest.candidateSetId || "", CANDIDATE_SET_ID);
+  assert.equal(manifest.canonicalObjectIdNamespace, "V2-OBJ-001_THROUGH_V2-OBJ-014");
+  assert.match(manifest.sourceRepositoryHead || "", COMMIT);
+  assert.match(manifest.sourceVersion || "", /^1\.12\.\d+$/);
+  for (const key of [
+    "sourcePackageSha256", "packageManifestFileHash", "checksumFileHash", "sanitizedInputAggregateHash", "sourceOriginalAggregateHash",
+    "publicIntakeManifestHash", "privateControlAggregateHash", "provenanceAggregateHash", "analysisPlanHash", "requestAggregateHash",
+    "specificationHash", "coverageHash", "scoringHash", "completeFrozenAggregateHash", "inputManifestHash", "coverageContractHash",
+    "scoringContractHash", "frozenInputAggregateHash", "freezeAggregateHash", "freezeManifestHash"
+  ]) assert.match(manifest[key] || "", HASH, `${key} is invalid`);
+  assert.equal(manifest.sourceCommit, manifest.sourceRepositoryHead);
+  assert.equal(manifest.version, manifest.sourceVersion);
+  assert.equal(manifest.inputManifestHash, manifest.publicIntakeManifestHash);
+  assert.equal(manifest.coverageContractHash, manifest.coverageHash);
+  assert.equal(manifest.scoringContractHash, manifest.scoringHash);
+  assert.equal(manifest.freezeAggregateHash, manifest.completeFrozenAggregateHash);
+  assert.equal(manifest.frozenArtifactRoot, `benchmarks/blind-object-v2/prepared/freezes/${manifest.completeFrozenAggregateHash}`);
+  assert.equal(manifest.objectCount, 14);
+  assert.ok(manifest.sanitizedPhotoCount >= 28 && manifest.sanitizedPhotoCount <= 56);
+  assert.equal(manifest.sourceOriginalCount, manifest.sanitizedPhotoCount);
+  assert.equal(manifest.requestCount, 26);
+  assert.equal(manifest.anchorObjectCount, 4);
+  assert.equal(new Set(manifest.requestContractHashes).size, 26);
+  exactKeys(manifest.absentAuthority, ["executionConsent", "invocationReservation", "providerSelection", "modelSelection", "costAuthorization", "networkAuthorization", "executionJournal", "benchmarkResponses", "scores", "productRepairAuthorization", "deploymentAuthorization"], "freeze absent authority");
+  Object.values(manifest.absentAuthority).forEach((value) => assert.equal(value, false));
+  assert.equal(manifest.executionAuthorized, false); assert.equal(manifest.consentReceiptHash, null); assert.equal(manifest.networkRequestCount, 0); assert.equal(manifest.providerCallCount, 0); assert.equal(manifest.frozenRequestExecutionCount, 0);
+  validateSealedRecord(manifest, "freezeManifestHash", "freeze manifest");
+  return Object.freeze({ valid: true, freezeManifestHash: manifest.freezeManifestHash });
+}
+
+export function validateFreezeReceipt(receipt, freezeManifest) {
+  exactKeys(receipt, [
+    "schemaVersion", "receiptType", "benchmarkId", "candidateSetId", "sourceRepositoryHead", "sourceVersion", "sourcePackageSha256",
+    "freezeManifestHash", "completeFrozenAggregateHash", "frozenArtifactRoot", "state", "createdByProtocolVersion",
+    "executionConsentAuthorized", "invocationReservationAuthorized", "providerAccessAuthorized", "networkAccessAuthorized",
+    "scoringAuthorized", "deploymentAuthorized", "receiptHash"
+  ], "freeze receipt");
+  assert.equal(receipt.schemaVersion, FREEZE_RECEIPT_SCHEMA_VERSION);
+  assert.equal(receipt.receiptType, "BENCHMARK_FREEZE_RECEIPT");
+  assert.equal(receipt.benchmarkId, BENCHMARK_ID);
+  assert.equal(receipt.state, PREPARATION_STATE.FROZEN_AWAITING_CONSENT);
+  assert.equal(receipt.createdByProtocolVersion, FREEZE_PROTOCOL_VERSION);
+  for (const key of ["executionConsentAuthorized", "invocationReservationAuthorized", "providerAccessAuthorized", "networkAccessAuthorized", "scoringAuthorized", "deploymentAuthorized"]) assert.equal(receipt[key], false);
+  assert.equal(receipt.candidateSetId, freezeManifest.candidateSetId);
+  assert.equal(receipt.sourceRepositoryHead, freezeManifest.sourceRepositoryHead);
+  assert.equal(receipt.sourceVersion, freezeManifest.sourceVersion);
+  assert.equal(receipt.sourcePackageSha256, freezeManifest.sourcePackageSha256);
+  assert.equal(receipt.freezeManifestHash, freezeManifest.freezeManifestHash);
+  assert.equal(receipt.completeFrozenAggregateHash, freezeManifest.completeFrozenAggregateHash);
+  assert.equal(receipt.frozenArtifactRoot, freezeManifest.frozenArtifactRoot);
+  validateSealedRecord(receipt, "receiptHash", "freeze receipt");
+  return Object.freeze({ valid: true, executionAuthorized: false, receiptHash: receipt.receiptHash });
 }
 
 export function verifyFrozenBenchmark(frozen, inputs) {
@@ -666,7 +1149,8 @@ export function verifyFrozenBenchmark(frozen, inputs) {
   const rebuilt = freezeBenchmark(inputs);
   assert.deepEqual(frozen.freezeManifest, rebuilt.freezeManifest, "frozen benchmark aggregate or bound material changed");
   assert.deepEqual(frozen.requestContracts, rebuilt.requestContracts, "frozen request contract changed");
-  return Object.freeze({ valid: true, state: frozen.state, freezeAggregateHash: frozen.freezeManifest.freezeAggregateHash });
+  assert.deepEqual(frozen.freezeReceipt, rebuilt.freezeReceipt, "freeze receipt changed");
+  return Object.freeze({ valid: true, state: frozen.state, completeFrozenAggregateHash: frozen.freezeManifest.completeFrozenAggregateHash, freezeManifestHash: frozen.freezeManifest.freezeManifestHash, receiptHash: frozen.freezeReceipt.receiptHash });
 }
 
 export function createAwaitingPreparationReceipt({ benchmarkSpec, coverageContract, scoringContract, sourceCommit, version }) {

@@ -1,6 +1,6 @@
 # Katherine's Eye Blind Object Benchmark V2
 
-This package prepares a new independent 14-object, 26-analysis blind holdout benchmark. It contains contracts and deterministic offline validation only. It contains no holdout photographs, descriptions, private controls, frozen executable requests, provider client, or execution authority.
+This benchmark-local package prepares a new independent 14-object, 26-analysis blind holdout. It contains deterministic offline validation and freeze-authority construction only. It contains no provider client, executor, consent consumer, scoring runner, deployment path, or implied execution authority.
 
 ## Current state
 
@@ -10,24 +10,48 @@ Run from the repository root with provider credentials removed and external netw
 node benchmarks/blind-object-v2/scripts/prepare-benchmark.mjs
 ```
 
-Until genuinely new, explicitly authorized real-world inputs exist at the fixed ignored intake paths, the only honest result is `AWAITING_NEW_HOLDOUT_INPUTS`. The command writes no file, creates no invocation registry, and constructs zero frozen request contracts in that state.
+Until a complete, explicitly authorized package exists at every fixed ignored input path, the only honest result is `AWAITING_NEW_HOLDOUT_INPUTS`. That state writes no file, creates no receipt or invocation registry, and constructs zero frozen request contracts.
+
+The default command performs validation and constructs the freeze records only in memory. A dry run is `DRY_RUN_VALIDATED`; it is not a durable freeze. Durable persistence is a separate preparation action selected with `--persist-freeze`, and even successful persistence stops at `FROZEN_AWAITING_CONSENT` with every authority flag false.
 
 ## Fixed private paths
 
-- `intake/input-manifest.json` and `intake/assets/*`: future new holdout input, ignored by default.
-- `private/private-controls.json`: future evaluator-only controls, ignored by default.
-- `prepared/*`, `consent/*`, `invocations/*`, and `results/*`: generated or execution-adjacent material, ignored by default.
+- `intake/input-manifest.json`, `intake/release-boundary.json`, `intake/analysis-plan.json`, and `intake/assets/*`: future authorized holdout input and its fixed package boundary, all ignored.
+- `private/private-controls.json`, `private/provenance.json`, `private/source-originals-manifest.json`, and `private/source-originals/*`: evaluator-only material, all ignored.
+- `prepared/*`, `consent/*`, `invocations/*`, and `results/*`: generated or execution-adjacent material, all ignored.
 
-Future storage or freezing of private photographs requires separate explicit authorization. The local `.gitignore` prevents ordinary staging or accidental commitment.
+Package content cannot choose the repository release binding or an output root. Repository-owned code derives the source HEAD and Version at freeze time. The local `.gitignore` prevents ordinary staging of private and generated material.
 
-## Independence and freeze
+## Request and freeze authority
 
-The preparation module builds a hash-only rejection index from V1. It rejects exact legacy photo hashes, exact or normalized descriptions, object-record fingerprints, identity fingerprints, request-input fingerprints, and available historical request hashes. It does not claim perceptual uniqueness; every future object requires a human attestation that the object and photographs are new and were not used to design a production repair.
+Frozen request schema 3.0 is strict and binds the candidate set, canonical object and analysis, every permitted sanitized photo, public description and visible markings, source package, repository HEAD and Version, and the exact specification, coverage, and scoring hashes. Evaluator controls, answers, provenance, source URLs, credentials, endpoints, commands, modules, environment names, and candidate-selected output paths cannot enter a public request.
 
-A valid freeze binds the input manifest and verified asset bytes, coverage contract, private controls, 26 request contracts, scoring contract, source commit, and Version. Changing any bound value invalidates the freeze. Private controls are reduced to hashes before the public freeze manifest and never enter request contracts.
+Frozen package schema 3.0 binds deterministic aggregates for sanitized inputs, source originals, public intake, evaluator-only controls, evaluator-only provenance, the 26-analysis plan, all 26 frozen request hashes, all three governing contracts, the complete source-package boundary, release identity, counts, and the canonical object namespace. The complete aggregate changes or becomes invalid if any bound byte, path, record, count, mapping, package field, release field, request, or governing contract changes.
 
-## Consent and execution
+All sealed records use the shared stable JSON/SHA-256 rule. Semantically unordered inventories are sorted by repository-owned canonical keys; fixed-order arrays keep their prescribed order; a record hash is computed with its own hash field empty and is revalidated after sealing. Unsupported values, non-finite numbers, ambiguous paths, duplicate artifacts, and candidate-controlled executable fields fail closed.
 
-Preparation, validation, freeze, filenames, environment variables, commit messages, and free-form text never authorize execution. A future run requires both a valid pre-execution consent receipt and a separate exact-scope execution authorization. That authorization must bind every field listed in `benchmark-spec.json` and must be rejected if an invocation registry already contains either its invocation ID or the same frozen aggregate.
+## Durable artifact layout
 
-This package contains no executor. Phase 7B must not advance beyond `FROZEN_AWAITING_CONSENT`, and without new inputs it remains `AWAITING_NEW_HOLDOUT_INPUTS`.
+An authorized future persistence action writes to the ignored repository-owned path:
+
+```text
+prepared/freezes/<completeFrozenAggregateHash>/
+  freeze-manifest.json
+  freeze-receipt.json
+  validation-report.json
+  source-package-boundary.json
+  analysis-plan.json
+  requests/<analysis-id>.json
+  assets/<canonical-object-id>/<photo-id>.<image-ext>
+  evaluator-only/private-controls.json
+  evaluator-only/provenance.json
+  evaluator-only/source-originals/<canonical-object-id>/<photo-id>.<image-ext>
+```
+
+The writer creates a temporary sibling tree, writes and synchronizes every file, validates the pre-receipt tree, writes the receipt last, revalidates all bytes, atomically renames the tree, and validates the final tree again. A failed write removes only its pending tree. It never overwrites an established tree. A byte-identical existing hash-addressed tree returns `EXISTING_IDENTICAL_FREEZE_READBACK`; a partial, corrupt, unexpected, or mismatched tree fails closed.
+
+## Receipt, consent, and execution
+
+Freeze Receipt schema 1.0 is evidence only that durable freeze persistence completed. It binds the candidate set, source release and package, manifest and complete aggregate, artifact root, and protocol version. Its state is `FROZEN_AWAITING_CONSENT`, and its execution-consent, invocation-reservation, provider-access, network-access, scoring, and deployment authority booleans are all false.
+
+Preparation, validation, dry construction, persistence, filenames, environment variables, commit messages, successful tests, free-form text, and receipt existence never authorize execution. A future benchmark run still requires a separate valid pre-execution consent receipt and exact-scope, replay-resistant execution authorization. This package contains no executor and cannot advance beyond freeze authority preparation.

@@ -629,6 +629,14 @@
 - No new authorized holdout photographs or descriptions existed, so preparation remains `AWAITING_NEW_HOLDOUT_INPUTS` with zero frozen requests, consent receipts, invocation reservations, provider calls, network calls, or benchmark executions
 - Provider-call impact: the current-retail 28-call ceiling, non-retail/collectible 12-call ceiling, and direct-page 2-attempt ceiling remain unchanged; no benchmark, frozen request, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
 
+## Version 1.12.12 (Completed)
+- Revised the Blind Object V2 frozen-request and frozen-package contracts to bind the candidate set, complete source-package boundary, repository HEAD and Version, multiview sanitized inputs, source originals, evaluator-only controls and provenance, the exact 26-analysis plan, all request hashes, and unchanged specification, coverage, and scoring contracts
+- Added one canonical non-authorizing Freeze Receipt whose durable state is `FROZEN_AWAITING_CONSENT` and whose consent, reservation, provider, network, scoring, and deployment authority fields are all false
+- Added deterministic hash-addressed persistence under the ignored prepared tree with fixed repository-owned paths, receipt-last atomic publication, full disk readback, failed-pending cleanup, corruption rejection, mismatched-tree no-overwrite behavior, and byte-identical idempotent readback
+- Added generic full-scale synthetic regression coverage for release, package, multiview, input, private-control, provenance, analysis-plan, request, aggregate, receipt, path, persistence, runtime-isolation, arbitrary-execution, dry-run, network-denial, and immutable-contract boundaries
+- Kept all V2 code benchmark-local and preserved the Blind Object V2 specification, coverage, scoring, 2-4-photo, private-control, and exactly-once execution contracts without creating a real freeze, consent receipt, invocation reservation, benchmark response, or score
+- Provider-call impact: no executor or provider adapter was added; validation remained hard-network-denied and made no OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, Production, or external-network request
+
 ## Version 2.0
 - User accounts
 - Saved listings

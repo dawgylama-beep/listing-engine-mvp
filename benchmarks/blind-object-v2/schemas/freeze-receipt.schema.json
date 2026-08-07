@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/freeze-receipt.schema.json",
+  "title": "Blind Object Benchmark V2 freeze receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "receiptType", "benchmarkId", "candidateSetId", "sourceRepositoryHead", "sourceVersion",
+    "sourcePackageSha256", "freezeManifestHash", "completeFrozenAggregateHash", "frozenArtifactRoot", "state",
+    "createdByProtocolVersion", "executionConsentAuthorized", "invocationReservationAuthorized", "providerAccessAuthorized",
+    "networkAccessAuthorized", "scoringAuthorized", "deploymentAuthorized", "receiptHash"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "receiptType": { "const": "BENCHMARK_FREEZE_RECEIPT" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "candidateSetId": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9_-]{7,79}$" },
+    "sourceRepositoryHead": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sourceVersion": { "type": "string", "pattern": "^1\\.12\\.[0-9]+$" },
+    "sourcePackageSha256": { "$ref": "#/$defs/hash" },
+    "freezeManifestHash": { "$ref": "#/$defs/hash" },
+    "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" },
+    "frozenArtifactRoot": { "type": "string", "pattern": "^benchmarks/blind-object-v2/prepared/freezes/[a-f0-9]{64}$" },
+    "state": { "const": "FROZEN_AWAITING_CONSENT" },
+    "createdByProtocolVersion": { "const": "PHASE_7B_R_V1" },
+    "executionConsentAuthorized": { "const": false },
+    "invocationReservationAuthorized": { "const": false },
+    "providerAccessAuthorized": { "const": false },
+    "networkAccessAuthorized": { "const": false },
+    "scoringAuthorized": { "const": false },
+    "deploymentAuthorized": { "const": false },
+    "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

@@ -1,36 +1,43 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "blind-object-v2/frozen-request-contract.schema.json",
-  "title": "Blind Object Benchmark V2 frozen request construction contract",
+  "title": "Blind Object Benchmark V2 release-bound frozen request contract",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "benchmarkId", "analysisId", "objectId", "runType", "purpose", "lane", "description", "photos", "handlerContract", "inputFingerprintHash", "privateControlMaterialIncluded", "executionAuthorized", "requestContractHash"],
+  "required": [
+    "schemaVersion", "benchmarkId", "candidateSetId", "canonicalObjectId", "analysisId", "runType", "lane",
+    "customerPurpose", "inputAssets", "publicCustomerDescription", "permittedVisibleMarkings", "handlerContract",
+    "inputFingerprintHash", "sourceRepositoryHead", "sourceVersion", "sourcePackageSha256", "specificationHash",
+    "coverageHash", "scoringHash", "privateControlMaterialIncluded", "executionAuthorized", "requestContractHash"
+  ],
   "properties": {
-    "schemaVersion": { "const": "2.0" },
+    "schemaVersion": { "const": "3.0" },
     "benchmarkId": { "const": "blind-object-v2" },
+    "candidateSetId": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9_-]{7,79}$" },
+    "canonicalObjectId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])$" },
     "analysisId": { "type": "string", "pattern": "^V2-RUN-(00[1-9]|01[0-9]|02[0-6])$" },
-    "objectId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])$" },
     "runType": { "enum": ["PRINCIPAL", "ANCHOR_PURPOSE"] },
-    "purpose": { "enum": ["PERSONAL_BUY", "RESALE", "WHATS_IT_WORTH", "MARKETPLACE_LISTING"] },
     "lane": { "enum": ["PHOTO_ONLY", "PHOTO_PLUS_VISIBLE_MARKINGS", "BARCODE_OR_MODEL"] },
-    "description": { "type": "string", "maxLength": 1000 },
-    "photos": {
+    "customerPurpose": { "enum": ["PERSONAL_BUY", "RESALE", "WHATS_IT_WORTH", "MARKETPLACE_LISTING"] },
+    "inputAssets": {
       "type": "array",
       "minItems": 2,
       "maxItems": 4,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["assetId", "path", "mediaType", "bytes", "sha256"],
+        "required": ["photoId", "frozenRelativePath", "bytes", "sha256", "mediaType"],
         "properties": {
-          "assetId": { "type": "string" },
-          "path": { "type": "string", "pattern": "^assets/v2-obj-(00[1-9]|01[0-4])-[a-d]\\.(jpg|jpeg|png|webp)$" },
-          "mediaType": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+          "photoId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])-[A-D]$" },
+          "frozenRelativePath": { "type": "string", "pattern": "^assets/V2-OBJ-(00[1-9]|01[0-4])/V2-OBJ-(00[1-9]|01[0-4])-[A-D]\\.(jpg|png|webp)$" },
           "bytes": { "type": "integer", "minimum": 1 },
-          "sha256": { "$ref": "#/$defs/hash" }
+          "sha256": { "$ref": "#/$defs/hash" },
+          "mediaType": { "enum": ["image/jpeg", "image/png", "image/webp"] }
         }
       }
     },
+    "publicCustomerDescription": { "type": "string", "maxLength": 1000 },
+    "permittedVisibleMarkings": { "type": "array", "maxItems": 4, "items": { "type": "string", "minLength": 1, "maxLength": 1000 } },
     "handlerContract": {
       "type": "object",
       "additionalProperties": false,
@@ -44,6 +51,12 @@
       }
     },
     "inputFingerprintHash": { "$ref": "#/$defs/hash" },
+    "sourceRepositoryHead": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "sourceVersion": { "type": "string", "pattern": "^1\\.12\\.[0-9]+$" },
+    "sourcePackageSha256": { "$ref": "#/$defs/hash" },
+    "specificationHash": { "$ref": "#/$defs/hash" },
+    "coverageHash": { "$ref": "#/$defs/hash" },
+    "scoringHash": { "$ref": "#/$defs/hash" },
     "privateControlMaterialIncluded": { "const": false },
     "executionAuthorized": { "const": false },
     "requestContractHash": { "$ref": "#/$defs/hash" }
