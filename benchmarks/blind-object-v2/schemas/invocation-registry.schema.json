@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/invocation-registry.schema.json",
+  "title": "Blind Object Benchmark V2 single-use invocation registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "entries"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["invocationId", "freezeAggregateHash", "authorizationHash", "status", "recordedAt"],
+        "properties": {
+          "invocationId": { "type": "string", "pattern": "^V2-INV-[a-z0-9][a-z0-9-]{7,63}$" },
+          "freezeAggregateHash": { "$ref": "#/$defs/hash" },
+          "authorizationHash": { "$ref": "#/$defs/hash" },
+          "status": { "enum": ["STARTED", "INDETERMINATE", "CONSUMED"] },
+          "recordedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

@@ -620,6 +620,15 @@
 - Added generic synthetic coverage across unrelated object classes and customer purposes, including valid exact evidence, adjacent-model and accessory distractor rejection, external provider failure preservation, bounded Experience integrity, reflection/lesson isolation, and hard network denial
 - Provider-call impact: the current-retail 28-call ceiling, non-retail/collectible 12-call ceiling, and direct-page 2-attempt ceiling remain unchanged; validation used no benchmark, frozen request, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request
 
+## Version 1.12.11 (Completed)
+- Added a preparation-only Blind Object Benchmark V2 protocol for 14 entirely new real-world objects and 26 analyses, with fixed lane, purpose, object-class, ambiguity, customer-input, safety, and purpose-invariance coverage
+- Added hash-only V1 rejection indexing for exact photographs, exact and normalized descriptions, object records, identities, request-input fingerprints, and historical request hashes, while requiring human attestation because perceptual uniqueness is not claimed
+- Added evaluator-only private-control, frozen-request, frozen-package, consent, exactly-once authorization, and invocation-registry contracts with immutable input, control, coverage, scoring, source-commit, Version, provider-ceiling, cost, output, network-policy, and stop-condition bindings
+- Added a 16-capability, 100-weight scoring contract whose zero-applicable denominator is `NOT_APPLICABLE`, never a success, and whose definitions, weights, applicability, thresholds, and critical failures are freeze-hash bound before execution
+- Added deterministic synthetic coverage for legacy rejection, valid intake, duplicates, coverage, control isolation, freeze mutation, no implied consent, replay resistance, arbitrary-execution denial, scoring immutability, runtime isolation, network denial, preserved historical evidence, and the honest no-input state
+- No new authorized holdout photographs or descriptions existed, so preparation remains `AWAITING_NEW_HOLDOUT_INPUTS` with zero frozen requests, consent receipts, invocation reservations, provider calls, network calls, or benchmark executions
+- Provider-call impact: the current-retail 28-call ceiling, non-retail/collectible 12-call ceiling, and direct-page 2-attempt ceiling remain unchanged; no benchmark, frozen request, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, Preview, or Production request was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

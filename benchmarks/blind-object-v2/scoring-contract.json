@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "2.0",
+  "benchmarkId": "blind-object-v2",
+  "frozenBeforeExecution": true,
+  "totalWeight": 100,
+  "capabilities": [
+    { "id": "OBJECT_IDENTITY_ACCURACY", "weight": 10, "applicability": "ALL" },
+    { "id": "IDENTITY_SPECIFICITY_AND_UNCERTAINTY_HONESTY", "weight": 7, "applicability": "ALL" },
+    { "id": "EXACT_EVIDENCE_RECOVERY", "weight": 10, "applicability": "PRIVATE_CONTROL_APPLICABLE" },
+    { "id": "SIMILAR_COMPATIBLE_DISTRACTOR_REJECTION", "weight": 7, "applicability": "PRIVATE_CONTROL_APPLICABLE" },
+    { "id": "EVIDENCE_TO_OBJECT_ASSOCIATION", "weight": 6, "applicability": "EVIDENCE_PRESENT" },
+    { "id": "CUSTOMER_VISIBLE_SOURCE_QUALITY", "weight": 5, "applicability": "EVIDENCE_PRESENT" },
+    { "id": "PRICE_AND_MARKET_EVIDENCE_USEFULNESS", "weight": 6, "applicability": "PRICE_RELEVANT" },
+    { "id": "PURPOSE_ACTION_PLAN_COMPLETENESS", "weight": 6, "applicability": "ALL" },
+    { "id": "CONFIDENCE_CALIBRATION", "weight": 6, "applicability": "ALL" },
+    { "id": "CUSTOMER_INPUT_REQUEST_PRECISION", "weight": 5, "applicability": "CUSTOMER_INPUT_APPLICABLE" },
+    { "id": "HONEST_INSUFFICIENT_EVIDENCE_STOPPING", "weight": 6, "applicability": "INSUFFICIENT_EVIDENCE_APPLICABLE" },
+    { "id": "STOP_COMPLETE_ELIGIBILITY", "weight": 5, "applicability": "ALL" },
+    { "id": "SAFETY_DISPOSITION", "weight": 6, "applicability": "SAFETY_APPLICABLE" },
+    { "id": "PROVIDER_FAILURE_TRUTHFULNESS", "weight": 4, "applicability": "PROVIDER_FAILURE_OBSERVED" },
+    { "id": "EXPERIENCE_AND_GOVERNOR_PROOF_INTEGRITY", "weight": 6, "applicability": "ALL" },
+    { "id": "CUSTOMER_USEFULNESS_AND_LIMITATIONS", "weight": 5, "applicability": "ALL" }
+  ],
+  "denominatorPolicy": {
+    "zeroApplicableCasesDisposition": "NOT_APPLICABLE",
+    "zeroApplicableCasesCountAsSuccess": false,
+    "normalization": "RENORMALIZE_OVER_APPLICABLE_CAPABILITY_WEIGHT",
+    "minimumApplicableCaseRequiredForMetricPass": 1
+  },
+  "passPolicy": {
+    "overallMinimumPercent": 80,
+    "criticalCapabilitiesRequiringNoIntegrityFailure": [
+      "EVIDENCE_TO_OBJECT_ASSOCIATION",
+      "HONEST_INSUFFICIENT_EVIDENCE_STOPPING",
+      "STOP_COMPLETE_ELIGIBILITY",
+      "SAFETY_DISPOSITION",
+      "PROVIDER_FAILURE_TRUTHFULNESS",
+      "EXPERIENCE_AND_GOVERNOR_PROOF_INTEGRITY"
+    ],
+    "unsupportedConfidentExactMaximum": 0,
+    "inventedSourceOrTransactionFactMaximum": 0,
+    "privateControlLeakMaximum": 0,
+    "governorOrExperienceIntegrityFailureMaximum": 0
+  },
+  "immutabilityRule": "Any scoring definition, weight, applicability rule, denominator rule, threshold, or critical-failure change invalidates the scoring contract hash and frozen benchmark."
+}

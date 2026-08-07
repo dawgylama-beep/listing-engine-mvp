@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/execution-authorization.schema.json",
+  "title": "Blind Object Benchmark V2 exactly-once execution authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recordType", "decision", "benchmarkId", "frozenInputAggregateHash", "privateControlAggregateHash", "scoringContractHash", "freezeAggregateHash", "repositoryCommit", "version", "requestCount", "provider", "model", "providerCallCeilings", "maximumAuthorizedCostUsd", "consentReceiptHash", "invocationId", "outputRoot", "networkPolicy", "stopConditions", "authorizedAt", "authorizationHash"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "recordType": { "const": "EXACTLY_ONCE_EXECUTION_AUTHORIZATION" },
+    "decision": { "const": "AUTHORIZE_EXACTLY_ONCE_EXECUTION" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "frozenInputAggregateHash": { "$ref": "#/$defs/hash" },
+    "privateControlAggregateHash": { "$ref": "#/$defs/hash" },
+    "scoringContractHash": { "$ref": "#/$defs/hash" },
+    "freezeAggregateHash": { "$ref": "#/$defs/hash" },
+    "repositoryCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "version": { "type": "string", "pattern": "^1\\.12\\.[0-9]+$" },
+    "requestCount": { "const": 26 },
+    "provider": { "const": "OPENAI" },
+    "model": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+    "providerCallCeilings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalAnalysisRequests", "currentRetailPerAnalysis", "nonRetailPerAnalysis", "directPagePerAnalysis"],
+      "properties": {
+        "totalAnalysisRequests": { "const": 26 },
+        "currentRetailPerAnalysis": { "const": 28 },
+        "nonRetailPerAnalysis": { "const": 12 },
+        "directPagePerAnalysis": { "const": 2 }
+      }
+    },
+    "maximumAuthorizedCostUsd": { "type": "number", "exclusiveMinimum": 0 },
+    "consentReceiptHash": { "$ref": "#/$defs/hash" },
+    "invocationId": { "type": "string", "pattern": "^V2-INV-[a-z0-9][a-z0-9-]{7,63}$" },
+    "outputRoot": { "type": "string", "pattern": "^benchmarks/blind-object-v2-results/v2-[a-z0-9][a-z0-9-]{1,63}$" },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalNetworkAuthorized", "allowedProvider", "webSearchPolicy", "directPagePolicy"],
+      "properties": {
+        "externalNetworkAuthorized": { "const": true },
+        "allowedProvider": { "const": "OPENAI" },
+        "webSearchPolicy": { "const": "BENCHMARK_CONFIGURED_ONLY" },
+        "directPagePolicy": { "const": "PRODUCT_BOUNDED_ONLY" }
+      }
+    },
+    "stopConditions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "enum": ["STOP_ON_ANY_BINDING_MISMATCH", "STOP_ON_EXISTING_INVOCATION", "STOP_ON_INDETERMINATE_ATTEMPT", "STOP_ON_PROVIDER_OR_NETWORK_POLICY_VIOLATION", "STOP_WITHOUT_RETRY_ON_INCOMPLETE_EXECUTION"] }
+    },
+    "authorizedAt": { "type": "string", "format": "date-time" },
+    "authorizationHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

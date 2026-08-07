@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/consent-receipt.schema.json",
+  "title": "Blind Object Benchmark V2 pre-execution consent receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recordType", "decision", "benchmarkId", "frozenInputAggregateHash", "privateControlAggregateHash", "scoringContractHash", "freezeAggregateHash", "repositoryCommit", "version", "requestCount", "operatorApprovalId", "approvedAt", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "recordType": { "const": "PRE_EXECUTION_CONSENT_RECEIPT" },
+    "decision": { "const": "CONSENT_TO_SEPARATELY_AUTHORIZED_EXACTLY_ONCE_EXECUTION" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "frozenInputAggregateHash": { "$ref": "#/$defs/hash" },
+    "privateControlAggregateHash": { "$ref": "#/$defs/hash" },
+    "scoringContractHash": { "$ref": "#/$defs/hash" },
+    "freezeAggregateHash": { "$ref": "#/$defs/hash" },
+    "repositoryCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "version": { "type": "string", "pattern": "^1\\.12\\.[0-9]+$" },
+    "requestCount": { "const": 26 },
+    "operatorApprovalId": { "type": "string", "pattern": "^CONSENT-V2-[A-Z0-9-]{8,64}$" },
+    "approvedAt": { "type": "string", "format": "date-time" },
+    "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

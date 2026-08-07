@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/private-controls.schema.json",
+  "title": "Blind Object Benchmark V2 evaluator-only controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "visibility", "objects", "analyses"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "visibility": { "const": "PRIVATE_EVALUATOR_ONLY" },
+    "objects": { "type": "array", "minItems": 14, "maxItems": 14, "items": { "$ref": "#/$defs/objectControl" } },
+    "analyses": { "type": "array", "minItems": 26, "maxItems": 26, "items": { "$ref": "#/$defs/analysisControl" } }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nonEmptyStrings": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "objectControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objectId", "authoritativeIdentity", "identityFingerprintSha256", "acceptedIdentityBoundaries", "rejectedDistractors", "exactEvidenceExpectations", "customerInputRequirement", "safetyExpectation", "permittedCautiousOutcomes", "prohibitedUnsupportedClaims"],
+      "properties": {
+        "objectId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])$" },
+        "authoritativeIdentity": { "type": "string", "minLength": 1 },
+        "identityFingerprintSha256": { "$ref": "#/$defs/hash" },
+        "acceptedIdentityBoundaries": { "$ref": "#/$defs/nonEmptyStrings" },
+        "rejectedDistractors": { "$ref": "#/$defs/nonEmptyStrings" },
+        "exactEvidenceExpectations": { "$ref": "#/$defs/nonEmptyStrings" },
+        "customerInputRequirement": { "type": "string", "minLength": 1 },
+        "safetyExpectation": { "type": "string", "minLength": 1 },
+        "permittedCautiousOutcomes": { "$ref": "#/$defs/nonEmptyStrings" },
+        "prohibitedUnsupportedClaims": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    },
+    "analysisControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysisId", "purposeObligations", "permittedTerminalStates", "requiredLimitations"],
+      "properties": {
+        "analysisId": { "type": "string", "pattern": "^V2-RUN-(00[1-9]|01[0-9]|02[0-6])$" },
+        "purposeObligations": { "$ref": "#/$defs/nonEmptyStrings" },
+        "permittedTerminalStates": { "type": "array", "minItems": 1, "items": { "enum": ["STOP_COMPLETE", "STOP_INSUFFICIENT_EVIDENCE"] } },
+        "requiredLimitations": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    }
+  }
+}

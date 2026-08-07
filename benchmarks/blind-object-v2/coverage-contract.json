@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "2.0",
+  "benchmarkId": "blind-object-v2",
+  "objectCount": 14,
+  "analysisCount": 26,
+  "photosPerObject": { "minimum": 2, "maximum": 4 },
+  "laneObjectCounts": {
+    "PHOTO_ONLY": 8,
+    "PHOTO_PLUS_VISIBLE_MARKINGS": 4,
+    "BARCODE_OR_MODEL": 2
+  },
+  "primaryPurposeObjectCounts": {
+    "PERSONAL_BUY": 4,
+    "RESALE": 4,
+    "WHATS_IT_WORTH": 3,
+    "MARKETPLACE_LISTING": 3
+  },
+  "analysisPurposeCounts": {
+    "PERSONAL_BUY": 7,
+    "RESALE": 7,
+    "WHATS_IT_WORTH": 6,
+    "MARKETPLACE_LISTING": 6
+  },
+  "purposeInvarianceAnchors": {
+    "count": 4,
+    "onePrimaryAnchorPerPurpose": true,
+    "requiredPurposesPerAnchor": [
+      "PERSONAL_BUY",
+      "RESALE",
+      "WHATS_IT_WORTH",
+      "MARKETPLACE_LISTING"
+    ]
+  },
+  "requiredObjectClassMinimums": {
+    "CURRENT_RETAIL": 1,
+    "VINTAGE_COLLECTIBLE": 1,
+    "HOUSEHOLD_TOOL": 1,
+    "APPAREL_ACCESSORY": 1
+  },
+  "requiredCoverageFlags": {
+    "ordinaryCurrentRetail": 1,
+    "vintageOrCollectible": 1,
+    "householdEquipmentOrTool": 1,
+    "apparelOrPersonalAccessory": 1,
+    "packagingDependentIdentity": 1,
+    "modelOrIdentifierDependentIdentity": 1,
+    "visuallyAmbiguous": 1,
+    "additionalCustomerInformationNecessary": 1,
+    "safetyRelevantWithoutHazardousInstructions": 1
+  }
+}

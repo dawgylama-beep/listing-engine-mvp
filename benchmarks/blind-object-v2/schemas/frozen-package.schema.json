@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/frozen-package.schema.json",
+  "title": "Blind Object Benchmark V2 frozen preparation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "state", "sourceCommit", "version", "inputManifestHash", "coverageContractHash", "scoringContractHash", "privateControlAggregateHash", "frozenInputAggregateHash", "requestCount", "requestContractHashes", "freezeAggregateHash", "executionAuthorized", "consentReceiptHash", "networkRequestCount", "providerCallCount", "frozenRequestExecutionCount"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "state": { "const": "FROZEN_AWAITING_CONSENT" },
+    "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "version": { "type": "string", "pattern": "^1\\.12\\.[0-9]+$" },
+    "inputManifestHash": { "$ref": "#/$defs/hash" },
+    "coverageContractHash": { "$ref": "#/$defs/hash" },
+    "scoringContractHash": { "$ref": "#/$defs/hash" },
+    "privateControlAggregateHash": { "$ref": "#/$defs/hash" },
+    "frozenInputAggregateHash": { "$ref": "#/$defs/hash" },
+    "requestCount": { "const": 26 },
+    "requestContractHashes": { "type": "array", "minItems": 26, "maxItems": 26, "uniqueItems": true, "items": { "$ref": "#/$defs/hash" } },
+    "freezeAggregateHash": { "$ref": "#/$defs/hash" },
+    "executionAuthorized": { "const": false },
+    "consentReceiptHash": { "type": "null" },
+    "networkRequestCount": { "const": 0 },
+    "providerCallCount": { "const": 0 },
+    "frozenRequestExecutionCount": { "const": 0 }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

@@ -1,0 +1,8 @@
+/intake/**
+/private/**
+/prepared/**
+/consent/**
+/invocations/**
+/results/**
+!/intake/.gitkeep
+!/private/.gitkeep

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/input-intake-manifest.schema.json",
+  "title": "Blind Object Benchmark V2 input intake manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "state", "createdAt", "purposeInvarianceAnchorObjectIds", "objects", "analyses"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "state": { "const": "INTAKE_COMPLETE" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "purposeInvarianceAnchorObjectIds": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/objectId" }
+    },
+    "objects": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": { "$ref": "#/$defs/object" }
+    },
+    "analyses": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "items": { "$ref": "#/$defs/analysis" }
+    }
+  },
+  "$defs": {
+    "objectId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])$" },
+    "purpose": { "enum": ["PERSONAL_BUY", "RESALE", "WHATS_IT_WORTH", "MARKETPLACE_LISTING"] },
+    "photo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "path", "mediaType", "bytes", "sha256"],
+      "properties": {
+        "assetId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])-[A-D]$" },
+        "path": { "type": "string", "pattern": "^assets/v2-obj-(00[1-9]|01[0-4])-[a-d]\\.(jpg|jpeg|png|webp)$" },
+        "mediaType": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinaryCurrentRetail", "vintageOrCollectible", "householdEquipmentOrTool", "apparelOrPersonalAccessory", "packagingDependentIdentity", "modelOrIdentifierDependentIdentity", "visuallyAmbiguous", "additionalCustomerInformationNecessary", "safetyRelevantWithoutHazardousInstructions"],
+      "properties": {
+        "ordinaryCurrentRetail": { "type": "boolean" },
+        "vintageOrCollectible": { "type": "boolean" },
+        "householdEquipmentOrTool": { "type": "boolean" },
+        "apparelOrPersonalAccessory": { "type": "boolean" },
+        "packagingDependentIdentity": { "type": "boolean" },
+        "modelOrIdentifierDependentIdentity": { "type": "boolean" },
+        "visuallyAmbiguous": { "type": "boolean" },
+        "additionalCustomerInformationNecessary": { "type": "boolean" },
+        "safetyRelevantWithoutHazardousInstructions": { "type": "boolean" }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attestationId", "attestedAt", "realWorldObjectIsNew", "photographsAreNew", "notPreviouslyBenchmarked", "notUsedToDesignProductionRepair", "perceptualUniquenessReviewedByHuman", "preparationUseAuthorized", "providerTransmissionAuthorized", "benchmarkExecutionAuthorized"],
+      "properties": {
+        "attestationId": { "type": "string", "pattern": "^ATTEST-V2-[A-Z0-9-]{8,64}$" },
+        "attestedAt": { "type": "string", "format": "date-time" },
+        "realWorldObjectIsNew": { "const": true },
+        "photographsAreNew": { "const": true },
+        "notPreviouslyBenchmarked": { "const": true },
+        "notUsedToDesignProductionRepair": { "const": true },
+        "perceptualUniquenessReviewedByHuman": { "const": true },
+        "preparationUseAuthorized": { "const": true },
+        "providerTransmissionAuthorized": { "const": false },
+        "benchmarkExecutionAuthorized": { "const": false }
+      }
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objectId", "lane", "primaryPurpose", "objectClass", "description", "descriptionSha256", "photos", "coverage", "humanAttestation"],
+      "properties": {
+        "objectId": { "$ref": "#/$defs/objectId" },
+        "lane": { "enum": ["PHOTO_ONLY", "PHOTO_PLUS_VISIBLE_MARKINGS", "BARCODE_OR_MODEL"] },
+        "primaryPurpose": { "$ref": "#/$defs/purpose" },
+        "objectClass": { "enum": ["CURRENT_RETAIL", "VINTAGE_COLLECTIBLE", "HOUSEHOLD_TOOL", "APPAREL_ACCESSORY", "OTHER_REAL_WORLD_OBJECT"] },
+        "description": { "type": "string", "maxLength": 1000 },
+        "descriptionSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "photos": { "type": "array", "minItems": 2, "maxItems": 4, "items": { "$ref": "#/$defs/photo" } },
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "humanAttestation": { "$ref": "#/$defs/attestation" }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysisId", "objectId", "purpose", "runType"],
+      "properties": {
+        "analysisId": { "type": "string", "pattern": "^V2-RUN-(00[1-9]|01[0-9]|02[0-6])$" },
+        "objectId": { "$ref": "#/$defs/objectId" },
+        "purpose": { "$ref": "#/$defs/purpose" },
+        "runType": { "enum": ["PRINCIPAL", "ANCHOR_PURPOSE"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "2.0",
+  "benchmarkId": "blind-object-v2",
+  "title": "Katherine's Eye Blind Object Benchmark V2",
+  "preparationOnly": true,
+  "maximumPhase7BState": "FROZEN_AWAITING_CONSENT",
+  "states": [
+    "DRAFT_INTAKE",
+    "AWAITING_NEW_HOLDOUT_INPUTS",
+    "INTAKE_COMPLETE",
+    "VALIDATED",
+    "FROZEN_AWAITING_CONSENT",
+    "CONSENTED_NOT_EXECUTED",
+    "CONSUMED",
+    "INVALID"
+  ],
+  "fixedPaths": {
+    "intakeManifest": "intake/input-manifest.json",
+    "intakeAssets": "intake/assets",
+    "privateControls": "private/private-controls.json",
+    "futureResultsRoot": "benchmarks/blind-object-v2-results"
+  },
+  "holdoutIndependence": {
+    "sourceBenchmarkId": "blind-object-v1",
+    "rejectExactPhotoHashes": true,
+    "rejectExactAndNormalizedDescriptionHashes": true,
+    "rejectObjectRecordHashes": true,
+    "rejectIdentityFingerprints": true,
+    "rejectRequestFingerprintsAndHistoricalRequestHashes": true,
+    "perceptualUniquenessClaimed": false,
+    "humanPerceptualAndRealWorldNoveltyAttestationRequired": true
+  },
+  "preparationSafety": {
+    "benchmarkExecutionAuthorized": false,
+    "providerCallCount": 0,
+    "networkRequestCount": 0,
+    "frozenRequestExecutionCount": 0,
+    "privateControlsInRuntimeRequests": false,
+    "generatedFilesRequiredForAwaitingState": false
+  },
+  "executionBoundary": {
+    "preparationReceiptAuthorizesExecution": false,
+    "freezeAuthorizesExecution": false,
+    "consentReceiptAloneAuthorizesExecution": false,
+    "allowedPrimaryProviderIdentifiers": ["OPENAI"],
+    "requiredBindings": [
+      "benchmarkId",
+      "frozenInputAggregateHash",
+      "privateControlAggregateHash",
+      "scoringContractHash",
+      "freezeAggregateHash",
+      "repositoryCommit",
+      "version",
+      "requestCount",
+      "provider",
+      "model",
+      "providerCallCeilings",
+      "maximumAuthorizedCostUsd",
+      "consentReceiptHash",
+      "invocationId",
+      "outputRoot",
+      "networkPolicy",
+      "stopConditions"
+    ],
+    "providerCallCeilings": {
+      "totalAnalysisRequests": 26,
+      "currentRetailPerAnalysis": 28,
+      "nonRetailPerAnalysis": 12,
+      "directPagePerAnalysis": 2
+    },
+    "requiredStopConditions": [
+      "STOP_ON_ANY_BINDING_MISMATCH",
+      "STOP_ON_EXISTING_INVOCATION",
+      "STOP_ON_INDETERMINATE_ATTEMPT",
+      "STOP_ON_PROVIDER_OR_NETWORK_POLICY_VIOLATION",
+      "STOP_WITHOUT_RETRY_ON_INCOMPLETE_EXECUTION"
+    ],
+    "nonAuthoritySources": [
+      "filename",
+      "environment_variable",
+      "commit_message",
+      "free_form_text",
+      "preparation_receipt",
+      "freeze_manifest",
+      "consent_receipt_without_execution_authorization"
+    ]
+  }
+}

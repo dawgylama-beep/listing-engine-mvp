@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/frozen-request-contract.schema.json",
+  "title": "Blind Object Benchmark V2 frozen request construction contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "analysisId", "objectId", "runType", "purpose", "lane", "description", "photos", "handlerContract", "inputFingerprintHash", "privateControlMaterialIncluded", "executionAuthorized", "requestContractHash"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "analysisId": { "type": "string", "pattern": "^V2-RUN-(00[1-9]|01[0-9]|02[0-6])$" },
+    "objectId": { "type": "string", "pattern": "^V2-OBJ-(00[1-9]|01[0-4])$" },
+    "runType": { "enum": ["PRINCIPAL", "ANCHOR_PURPOSE"] },
+    "purpose": { "enum": ["PERSONAL_BUY", "RESALE", "WHATS_IT_WORTH", "MARKETPLACE_LISTING"] },
+    "lane": { "enum": ["PHOTO_ONLY", "PHOTO_PLUS_VISIBLE_MARKINGS", "BARCODE_OR_MODEL"] },
+    "description": { "type": "string", "maxLength": 1000 },
+    "photos": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assetId", "path", "mediaType", "bytes", "sha256"],
+        "properties": {
+          "assetId": { "type": "string" },
+          "path": { "type": "string", "pattern": "^assets/v2-obj-(00[1-9]|01[0-4])-[a-d]\\.(jpg|jpeg|png|webp)$" },
+          "mediaType": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+          "bytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "$ref": "#/$defs/hash" }
+        }
+      }
+    },
+    "handlerContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path", "reportType", "intakeField", "intakeValue"],
+      "properties": {
+        "method": { "const": "POST" },
+        "path": { "const": "/api/generate-listing" },
+        "reportType": { "enum": ["marketValue", "listing"] },
+        "intakeField": { "enum": ["buyerIntake.purchase_intent", "sellerIntake.purchase_intent"] },
+        "intakeValue": { "enum": ["personal_use", "resale", "owner_value", "seller_listing"] }
+      }
+    },
+    "inputFingerprintHash": { "$ref": "#/$defs/hash" },
+    "privateControlMaterialIncluded": { "const": false },
+    "executionAuthorized": { "const": false },
+    "requestContractHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
