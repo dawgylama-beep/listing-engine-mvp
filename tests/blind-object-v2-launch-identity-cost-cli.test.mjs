@@ -87,7 +87,6 @@ function exactPricing(exactModel = "gpt-4.1-mini", overrides = {}) {
 
 const frozen = await loadPublicFreeze(defaultFreezeRoot);
 const authority = await createSyntheticAuthority(frozen, "launch-cost-cli");
-const productSourceText = await readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8");
 
 test("A-B: key-order-equivalent scopes keep one hash while every domain identity stays separated", () => {
   const reversed = Object.fromEntries(Object.entries(launchInput(authority.launchScope)).reverse());
@@ -102,6 +101,7 @@ test("C-E: release, freeze, request, execution, pricing, cost, network, and auth
   const baseIds = deriveLaunchIdentities(authority.launchScope);
   const fields = [
     ["productSourceHead", "1".repeat(40)], ["productSourceVersion", "9.9.9"], ["executorRuntimeHead", "2".repeat(40)],
+    ["productCostSourceManifestHash", "1".repeat(64)],
     ["qualificationHead", "3".repeat(40)], ["executorRuntimeTreeHash", "4".repeat(40)], ["executionReleaseRecordHash", "2".repeat(64)],
     ["qualificationPolicyVersion", "2.0"], ["executorVersion", "9.9.8"],
     ["completeFrozenAggregateHash", "3".repeat(64)], ["freezeManifestHash", "4".repeat(64)], ["freezeReceiptHash", "5".repeat(64)],
@@ -183,7 +183,7 @@ test("M-P: fixed search blocks, official patch calculation, all frozen images, a
   assert.deepEqual(resolveOutputTokenCeiling(null), { tokens: 32768, basis: "EXACT_MODEL_MAX_OUTPUT_TOKENS" });
 });
 
-test("Q-R: retries are included once in the 728 pool and an unknown call site fails cost eligibility", () => {
+test("Q-R: retries are included once in the 728 pool and caller-selected source authority is rejected", () => {
   const retry = authority.costEnvelope.includedAttemptBoundaries.find((record) => record.category === "COMMITTED_PHYSICAL_RETRY");
   assert.deepEqual(retry, { category: "COMMITTED_PHYSICAL_RETRY", countCeiling: 364, billedVia: "OPENAI_WEB_SEARCH_SHARED_PHYSICAL_POOL", additionalBillableCount: 0, categorySubtotal: 0 });
   assert.equal(authority.costEnvelope.webSearchAccounting.retryAlreadyIncludedInPhysicalPool, true);
@@ -193,16 +193,16 @@ test("Q-R: retries are included once in the 728 pool and an unknown call site fa
     attemptCeiling: authority.attemptCeiling,
     executionProfile: authority.profile,
     pricingProfile: authority.pricingProfile,
-    productSourceText,
+    productSourceText: "caller-selected",
     sourceReachableBillableCategories: ["OBJECT_IDENTITY_MODEL", "UNCLASSIFIED_PROVIDER_CALL"]
-  }), /unknown or unclassified billable category/);
+  }), /caller-selected source|unknown field/);
 });
 
 test("S-T: pricing drift fails closed and repeated exact-frozen envelopes keep the same amount and state", () => {
   assert.equal(validatePricingProfile(authority.pricingProfile, authority.profile).valid, true);
   assert.throws(() => validatePricingProfile(exactPricing("different-model"), authority.profile), /model mismatch/);
   const changedRate = exactPricing("gpt-4.1-mini", { inputTokenRatePerMillion: 0.39 });
-  assert.throws(() => createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: authority.profile, pricingProfile: changedRate, productSourceText }), /0\.39|0\.4|rate/);
+  assert.throws(() => createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: authority.profile, pricingProfile: changedRate }), /0\.39|0\.4|rate/);
   const serperProfile = createExecutionProfile({
     productRuntimeManifestHash: authority.profile.productRuntimeManifestHash,
     ...releaseIdentity(authority.profile),
@@ -215,13 +215,13 @@ test("S-T: pricing drift fails closed and repeated exact-frozen envelopes keep t
   const serperPricing = exactPricing("gpt-4.1-mini", { serperSearchCallRate: 0.001 });
   let serperError;
   try {
-    createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: serperProfile, pricingProfile: serperPricing, productSourceText });
+    createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: serperProfile, pricingProfile: serperPricing });
   } catch (error) {
     serperError = error;
   }
   assert.match(serperError?.message || "", /pooled/);
   assert.equal(serperError?.costEnvelopeState, COST_STATE.INCOMPLETE);
-  const repeated = createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: authority.profile, pricingProfile: authority.pricingProfile, productSourceText });
+  const repeated = createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: authority.profile, pricingProfile: authority.pricingProfile });
   assert.equal(repeated.conservativeMaximumCost, 39.17741232);
   assert.equal(repeated.conservativeMaximumCostMinorUnits, 3918);
   assert.equal(repeated.costState, COST_STATE.WITHIN);
@@ -270,7 +270,7 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.17");
+  assert.equal(EXECUTOR_VERSION, "1.12.18");
 });
 
 test("AC: focused tests leave every real consent, reservation, journal, result, and submission absent", async () => {

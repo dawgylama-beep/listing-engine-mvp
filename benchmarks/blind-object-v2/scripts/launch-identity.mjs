@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 
-export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.0";
+export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.1";
 export const LAUNCH_SCOPE_TYPE = "BLIND_OBJECT_V2_LAUNCH_SCOPE";
 
 export const IDENTITY_DOMAINS = Object.freeze({
@@ -34,6 +34,7 @@ const LAUNCH_SCOPE_CORE_FIELDS = Object.freeze([
   "productSourceHead",
   "productSourceVersion",
   "productRuntimeManifestHash",
+  "productCostSourceManifestHash",
   "executorRuntimeHead",
   "qualificationHead",
   "executorRuntimeTreeHash",
@@ -96,7 +97,7 @@ function validateCore(core) {
   assert.match(core.qualificationPolicyVersion || "", /^\d+\.\d+$/);
   assert.match(core.executorVersion || "", VERSION);
   for (const field of [
-    "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
+    "productCostSourceManifestHash", "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
     "endpointClassAllowlistHash", "environmentNameAllowlistHash", "completeAttemptCeilingHash",
     "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash", "networkPolicyHash"
   ]) assert.match(core[field] || "", HASH, `launch scope ${field} is invalid`);

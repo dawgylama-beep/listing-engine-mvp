@@ -1,10 +1,10 @@
 {
-  "schemaVersion": "2.0",
+  "schemaVersion": "2.1",
   "releaseType": "BENCHMARK_EXECUTOR_RELEASE",
-  "releaseState": "QUALIFIED",
-  "executorRuntimeHead": "f7dd22b3288a86efe9a1fc22d94e8d3c35823be0",
-  "executorVersion": "1.12.17",
-  "executorRuntimeTreeHash": "831dfea0e68de28d9ed8fc404f70bbcd8e3ef7d4",
+  "releaseState": "PENDING_QUALIFICATION_SEAL",
+  "executorRuntimeHead": null,
+  "executorVersion": "1.12.18",
+  "executorRuntimeTreeHash": null,
   "qualificationPolicyVersion": "1.0",
   "requiredQualificationRelationship": "DIRECT_PARENT_ONE_FILE_SEAL",
   "permittedQualificationOverlay": [
@@ -12,6 +12,7 @@
   ],
   "productSourceHead": "7056eb0601dc69c5985703fea6fe665e82c6bed8",
   "productSourceVersion": "1.12.13",
+  "productCostSourceManifestHash": "89dc70128eb7eeda8bf5b40be5e8609172e3f2f6f70c2093136c5244d2ed358b",
   "benchmarkContractIdentity": {
     "benchmarkId": "blind-object-v2",
     "completeFrozenAggregateHash": "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699",
@@ -20,8 +21,8 @@
   },
   "handler": "api/generate-listing.js#createGenerateListingHandler",
   "completePhysicalAttemptCeiling": 832,
-  "launchScopeSchemaVersion": "2.0",
-  "costEnvelopeSchemaVersion": "1.0",
+  "launchScopeSchemaVersion": "2.1",
+  "costEnvelopeSchemaVersion": "1.1",
   "maximumAuthorizedCostMinorUnits": 4000,
   "authorityDeclarations": {
     "consentCreationEnabled": false,
@@ -33,5 +34,5 @@
     "repairAuthorized": false,
     "deploymentAuthorized": false
   },
-  "recordHash": "1ec4936ae755367ca656cbe7fd526a34213b3067470af9c4798694911d1677cd"
+  "recordHash": "86eadc9e39a50e51693d7a5715735e751ab14cfb3c63e01ffabfdf7c0bd59437"
 }

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { sha256Bytes, sha256Json, stableJson } from "./protocol.mjs";
+import {
+  PRODUCT_COST_SOURCE_EXTRACTION_POLICY_VERSION,
+  PRODUCT_HANDLER_SOURCE_PATH,
+  createProductCostSourceManifest,
+  loadCanonicalProductCostSourceAudit
+} from "./product-cost-source.mjs";
 
-export const COST_ENVELOPE_SCHEMA_VERSION = "1.0";
+export const COST_ENVELOPE_SCHEMA_VERSION = "1.1";
 export const COST_ENVELOPE_TYPE = "BLIND_OBJECT_V2_SOURCE_GROUNDED_COST_ENVELOPE";
 export const COST_STATE = Object.freeze({
   WITHIN: "COMPLETE_RUN_WITHIN_AUTHORIZED_COST",
@@ -9,7 +15,8 @@ export const COST_STATE = Object.freeze({
   INCOMPLETE: "COST_ENVELOPE_INCOMPLETE",
   INVALID: "COST_ENVELOPE_INVALID"
 });
-export const EXPECTED_PRODUCT_SOURCE_SHA256 = "bca3ecd47169b478083d8551a5761015f0763e22d4b2c7afd8c09e1087778397";
+export const EXPECTED_PRODUCT_SOURCE_SHA256 = createProductCostSourceManifest().sourceEntries
+  .find((entry) => entry.relativePath === PRODUCT_HANDLER_SOURCE_PATH).canonicalGitBlobSha256;
 export const GPT_4_1_MINI_MODEL_MAX_OUTPUT_TOKENS = 32768;
 export const OPENAI_WEB_SEARCH_CONTENT_INPUT_TOKENS = 8000;
 
@@ -35,7 +42,8 @@ const PRIOR_OUTPUT_RESERIALIZATION_FACTOR = 2;
 const SERIALIZATION_SAFETY_BYTES = 8192;
 const DIRECT_PAGE_MAX_BYTES_PER_ANALYSIS = 2 * 250000;
 const COST_ENVELOPE_FIELDS = Object.freeze([
-  "schemaVersion", "envelopeType", "productSourceSha256", "sourceBindingAggregateHash", "sourceBindings", "frozenRequestByteBounds",
+  "schemaVersion", "envelopeType", "productSourceSha256", "productCostSourceManifestHash", "completeSourceInventoryHash",
+  "extractionPolicyVersion", "sourceBindingAggregateHash", "sourceBindings", "frozenRequestByteBounds",
   "frozenRequestByteBoundAggregateHash", "pricingProfileIdentityHash", "executionProfileIdentityHash", "completeAttemptCeilingHash",
   "completePhysicalAttemptCeiling", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "outputCeilings", "imageAccounting",
   "webSearchAccounting", "carryForwardAccounting", "includedAttemptBoundaries", "billableCategories", "uncertaintyMargin", "currency",
@@ -58,32 +66,6 @@ function rate(profile, field, unit) {
   const record = profile?.[field];
   assert.equal(record?.unit, unit, `${field} unit mismatch`);
   return finiteNonnegative(record.rate, `${field} rate`);
-}
-
-function sourceSlice(sourceText, startMarker, endMarker, label) {
-  const start = sourceText.indexOf(startMarker);
-  assert.ok(start >= 0, `${label} start marker is absent`);
-  const end = sourceText.indexOf(endMarker, start + startMarker.length);
-  assert.ok(end > start, `${label} end marker is absent`);
-  const text = sourceText.slice(start, end);
-  const bytes = Buffer.from(text, "utf8");
-  return Object.freeze({ label, startMarker, endMarker, bytes: bytes.length, sha256: sha256Bytes(bytes) });
-}
-
-function sourceBindings(sourceText) {
-  assert.equal(sha256Bytes(Buffer.from(sourceText, "utf8")), EXPECTED_PRODUCT_SOURCE_SHA256, "frozen product source hash differs from the audited Version 1.12.13 source");
-  const records = [
-    sourceSlice(sourceText, "const itemIdentitySchema =", "async function executeLiveComparableSearch", "OBJECT_IDENTITY_PROMPT_AND_SCHEMA"),
-    sourceSlice(sourceText, "const liveCompsSearchSchema =", "async function handleGenerateListingRequest", "WEB_SEARCH_SCHEMA"),
-    sourceSlice(sourceText, "function createQueryBoundLiveSearchPayload", "function buildPrioritizedQueryRecords", "WEB_SEARCH_PROMPT_AND_PAYLOAD"),
-    sourceSlice(sourceText, "async function requestOpenAIComparableSearchWithBudget", "const onlineRetailerRegistry", "WEB_SEARCH_RETRY_BOUNDARY"),
-    sourceSlice(sourceText, "const listingSchema =", "const valuationSchema =", "LISTING_FINAL_SCHEMA"),
-    sourceSlice(sourceText, "const valuationSchema =", "const askMarketEdgeSchema =", "VALUATION_AND_CONSUMER_FINAL_SCHEMAS"),
-    sourceSlice(sourceText, "async function generateFinalListingReport", "async function generateMarketValueReportWithLiveSearch", "LISTING_FINAL_PROMPT"),
-    sourceSlice(sourceText, "async function generateFinalConsumerDecisionReport", "function createResponsesPayload", "VALUATION_AND_CONSUMER_FINAL_PROMPTS"),
-    sourceSlice(sourceText, "function createResponsesPayload", "async function requestOpenAIJsonNetwork", "COMMON_MODEL_PAYLOAD")
-  ];
-  return Object.freeze({ records: Object.freeze(records), aggregateHash: sha256Json(records) });
 }
 
 function readJpegDimensions(bytes) {
@@ -269,27 +251,23 @@ function imageAccounting(requests, assetCache) {
   });
 }
 
-export function createSourceGroundedCostEnvelope({
-  requests,
-  assetCache,
-  attemptCeiling,
-  executionProfile,
-  pricingProfile,
-  productSourceText,
-  authorizedMaximumMinorUnits = 4000,
-  sourceReachableBillableCategories = EXPECTED_BILLABLE_CATEGORIES
-}) {
+export function createSourceGroundedCostEnvelope(input) {
   try {
+    assert.ok(input && typeof input === "object" && !Array.isArray(input), "cost envelope input must be an object");
+    const allowedInputFields = ["requests", "assetCache", "attemptCeiling", "executionProfile", "pricingProfile", "authorizedMaximumMinorUnits"];
+    assert.equal(Object.keys(input).every((field) => allowedInputFields.includes(field)), true, "cost envelope input contains a caller-selected source or unknown field");
+    for (const field of ["requests", "assetCache", "attemptCeiling", "executionProfile", "pricingProfile"]) assert.equal(Object.hasOwn(input, field), true, `cost envelope input lacks ${field}`);
+    const { requests, assetCache, attemptCeiling, executionProfile, pricingProfile, authorizedMaximumMinorUnits = 4000 } = input;
     assert.equal(requests?.length, 26, "cost envelope requires 26 frozen requests");
     assert.equal(attemptCeiling?.categories?.totalPhysicalAttempts, 832, "physical-attempt ceiling changed");
-    assert.deepEqual([...sourceReachableBillableCategories].sort(), [...EXPECTED_BILLABLE_CATEGORIES].sort(), "unknown or unclassified billable category");
     assertPricingIdentity(pricingProfile, executionProfile);
     assert.equal(executionProfile.exactModelLiteral, "gpt-4.1-mini", "image and output token rules are unproven for the resolved model");
     assert.equal(Number.isInteger(authorizedMaximumMinorUnits), true);
     assert.ok(authorizedMaximumMinorUnits > 0);
-    const bindings = sourceBindings(productSourceText);
-    const sourcesByLabel = new Map(bindings.records.map((record) => [record.label, record]));
-    const sumSource = (...labels) => labels.reduce((sum, label) => sum + sourcesByLabel.get(label).bytes, 0);
+    const sourceAudit = loadCanonicalProductCostSourceAudit();
+    assert.deepEqual([...sourceAudit.providerAudit.billableCategories].sort(), [...EXPECTED_BILLABLE_CATEGORIES].sort(), "unknown or unclassified billable category");
+    const sourcesByLabel = new Map(sourceAudit.sourceBindings.map((record) => [record.label, record]));
+    const sumSource = (...labels) => labels.reduce((sum, label) => sum + sourcesByLabel.get(label).costInputByteCeiling, 0);
     const requestByteBounds = requests.map((request) => ({
       analysisId: request.analysisId,
       requestContractHash: request.requestContractHash,
@@ -389,8 +367,11 @@ export function createSourceGroundedCostEnvelope({
       schemaVersion: COST_ENVELOPE_SCHEMA_VERSION,
       envelopeType: COST_ENVELOPE_TYPE,
       productSourceSha256: EXPECTED_PRODUCT_SOURCE_SHA256,
-      sourceBindingAggregateHash: bindings.aggregateHash,
-      sourceBindings: bindings.records,
+      productCostSourceManifestHash: sourceAudit.manifestHash,
+      completeSourceInventoryHash: sourceAudit.completeSourceInventoryHash,
+      extractionPolicyVersion: PRODUCT_COST_SOURCE_EXTRACTION_POLICY_VERSION,
+      sourceBindingAggregateHash: sourceAudit.sourceBindingAggregateHash,
+      sourceBindings: sourceAudit.sourceBindings,
       frozenRequestByteBounds: requestByteBounds,
       frozenRequestByteBoundAggregateHash: sha256Json(requestByteBounds),
       pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
@@ -448,6 +429,13 @@ export function validateCostEnvelope(envelope, { attemptCeiling, executionProfil
   const core = structuredClone(envelope);
   delete core.costEnvelopeHash;
   assert.equal(sha256Json(core), envelope.costEnvelopeHash, "cost envelope hash mismatch");
+  const sourceAudit = loadCanonicalProductCostSourceAudit();
+  assert.equal(envelope.productSourceSha256, EXPECTED_PRODUCT_SOURCE_SHA256, "cost envelope product source differs");
+  assert.equal(envelope.productCostSourceManifestHash, sourceAudit.manifestHash, "cost envelope Product Cost-Source Manifest differs");
+  assert.equal(envelope.completeSourceInventoryHash, sourceAudit.completeSourceInventoryHash, "cost envelope source inventory differs");
+  assert.equal(envelope.extractionPolicyVersion, PRODUCT_COST_SOURCE_EXTRACTION_POLICY_VERSION, "cost envelope extraction policy differs");
+  assert.equal(envelope.sourceBindingAggregateHash, sourceAudit.sourceBindingAggregateHash, "cost envelope source binding aggregate differs");
+  assert.deepEqual(envelope.sourceBindings, sourceAudit.sourceBindings, "cost envelope source bindings differ");
   assert.equal(envelope.completePhysicalAttemptCeiling, 832);
   if (attemptCeiling) assert.equal(envelope.completeAttemptCeilingHash, attemptCeiling.ceilingHash);
   if (executionProfile) {

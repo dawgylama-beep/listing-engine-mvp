@@ -44,6 +44,8 @@ function publicPreflightRecord(preflight) {
     productSourceHead: preflight.launchScope.productSourceHead,
     productSourceVersion: preflight.launchScope.productSourceVersion,
     productRuntimeManifestHash: preflight.launchScope.productRuntimeManifestHash,
+    productCostSourceManifestHash: preflight.launchScope.productCostSourceManifestHash,
+    completeSourceInventoryHash: preflight.costEnvelope.completeSourceInventoryHash,
     executorRuntimeHead: preflight.launchScope.executorRuntimeHead,
     qualificationHead: preflight.launchScope.qualificationHead,
     executorRuntimeTreeHash: preflight.launchScope.executorRuntimeTreeHash,

@@ -23,7 +23,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.17" },
+    "executorVersion": { "const": "1.12.18" },
     "executionProfileHash": { "$ref": "#/$defs/hash" },
     "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },

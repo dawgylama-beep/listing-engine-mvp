@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createLaunchScope, deriveLaunchIdentities } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 import { parseAuthorizedExecutionArguments } from "../benchmarks/blind-object-v2/scripts/run-authorized-execution.mjs";
+import { createProductCostSourceManifest } from "../benchmarks/blind-object-v2/scripts/product-cost-source.mjs";
 import {
   EXECUTION_RELEASE_RELATIVE_PATH,
   EXECUTION_RELEASE_SCHEMA_VERSION,
@@ -24,6 +25,7 @@ const QUALIFICATION_HEAD = "b".repeat(40);
 const RUNTIME_TREE = "c".repeat(40);
 const OTHER_HEAD = "d".repeat(40);
 const FREEZE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
+const COST_SOURCE_MANIFEST_HASH = createProductCostSourceManifest().manifestHash;
 
 function releaseCore(releaseState, overrides = {}) {
   return {
@@ -31,13 +33,14 @@ function releaseCore(releaseState, overrides = {}) {
     releaseType: EXECUTION_RELEASE_TYPE,
     releaseState,
     executorRuntimeHead: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_HEAD : null,
-    executorVersion: "1.12.17",
+    executorVersion: "1.12.18",
     executorRuntimeTreeHash: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_TREE : null,
     qualificationPolicyVersion: QUALIFICATION_POLICY_VERSION,
     requiredQualificationRelationship: QUALIFICATION_RELATIONSHIP,
     permittedQualificationOverlay: [EXECUTION_RELEASE_RELATIVE_PATH],
     productSourceHead: "7056eb0601dc69c5985703fea6fe665e82c6bed8",
     productSourceVersion: "1.12.13",
+    productCostSourceManifestHash: COST_SOURCE_MANIFEST_HASH,
     benchmarkContractIdentity: {
       benchmarkId: "blind-object-v2",
       completeFrozenAggregateHash: FREEZE,
@@ -46,8 +49,8 @@ function releaseCore(releaseState, overrides = {}) {
     },
     handler: "api/generate-listing.js#createGenerateListingHandler",
     completePhysicalAttemptCeiling: 832,
-    launchScopeSchemaVersion: "2.0",
-    costEnvelopeSchemaVersion: "1.0",
+    launchScopeSchemaVersion: "2.1",
+    costEnvelopeSchemaVersion: "1.1",
     maximumAuthorizedCostMinorUnits: 4000,
     authorityDeclarations: {
       consentCreationEnabled: false,
@@ -81,8 +84,8 @@ function snapshot(overrides = {}) {
     qualificationParents: [RUNTIME_HEAD],
     runtimeObjectType: "commit",
     runtimeTreeHash: RUNTIME_TREE,
-    runtimeVersion: "1.12.17",
-    qualificationVersion: "1.12.17",
+    runtimeVersion: "1.12.18",
+    qualificationVersion: "1.12.18",
     sealDiffStatus: [`M\t${EXECUTION_RELEASE_RELATIVE_PATH}`],
     sealDiffPaths: [EXECUTION_RELEASE_RELATIVE_PATH],
     ...overrides
@@ -96,12 +99,13 @@ function launchInput({ runtimeHead = RUNTIME_HEAD, qualificationHead = QUALIFICA
     productSourceHead: "7056eb0601dc69c5985703fea6fe665e82c6bed8",
     productSourceVersion: "1.12.13",
     productRuntimeManifestHash: "5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8",
+    productCostSourceManifestHash: COST_SOURCE_MANIFEST_HASH,
     executorRuntimeHead: runtimeHead,
     qualificationHead,
     executorRuntimeTreeHash: runtimeTree,
     executionReleaseRecordHash: recordHash,
     qualificationPolicyVersion: "1.0",
-    executorVersion: "1.12.17",
+    executorVersion: "1.12.18",
     completeFrozenAggregateHash: FREEZE,
     freezeManifestHash: "6f99638e26766966d923e24604a350174d0757059c61a38043305d7d845ae4f8",
     freezeReceiptHash: "e7d813e468ae13039b52a029694e4fbfd6d33ca97446d0f02bf6a7df8962a577",
@@ -234,6 +238,7 @@ test("O: product identity, freeze identity, release schema, and all authority de
   for (const record of [pending, qualified]) {
     assert.equal(record.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
     assert.equal(record.productSourceVersion, "1.12.13");
+    assert.equal(record.productCostSourceManifestHash, COST_SOURCE_MANIFEST_HASH);
     assert.equal(record.benchmarkContractIdentity.completeFrozenAggregateHash, FREEZE);
     assert.equal(Object.values(record.authorityDeclarations).every((value) => value === false), true);
   }

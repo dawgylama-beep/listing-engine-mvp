@@ -523,7 +523,7 @@ async function installBrowserGuards(page, scenario) {
 async function configureForm(page, scenario, state) {
   const purpose = purposes[scenario.purpose];
   await page.goto("/");
-  await expect(page.getByText("Version 1.12.17", { exact: true })).toBeVisible();
+  await expect(page.getByText("Version 1.12.18", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: purpose.radioName }).check();
 
   await page.locator("#notes").fill(

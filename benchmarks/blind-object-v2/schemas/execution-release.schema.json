@@ -7,16 +7,16 @@
   "required": [
     "schemaVersion", "releaseType", "releaseState", "executorRuntimeHead", "executorVersion",
     "executorRuntimeTreeHash", "qualificationPolicyVersion", "requiredQualificationRelationship",
-    "permittedQualificationOverlay", "productSourceHead", "productSourceVersion", "benchmarkContractIdentity",
+    "permittedQualificationOverlay", "productSourceHead", "productSourceVersion", "productCostSourceManifestHash", "benchmarkContractIdentity",
     "handler", "completePhysicalAttemptCeiling", "launchScopeSchemaVersion", "costEnvelopeSchemaVersion",
     "maximumAuthorizedCostMinorUnits", "authorityDeclarations", "recordHash"
   ],
   "properties": {
-    "schemaVersion": { "const": "2.0" },
+    "schemaVersion": { "const": "2.1" },
     "releaseType": { "const": "BENCHMARK_EXECUTOR_RELEASE" },
     "releaseState": { "enum": ["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"] },
     "executorRuntimeHead": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
-    "executorVersion": { "const": "1.12.17" },
+    "executorVersion": { "const": "1.12.18" },
     "executorRuntimeTreeHash": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
     "qualificationPolicyVersion": { "const": "1.0" },
     "requiredQualificationRelationship": { "const": "DIRECT_PARENT_ONE_FILE_SEAL" },
@@ -25,6 +25,7 @@
     },
     "productSourceHead": { "const": "7056eb0601dc69c5985703fea6fe665e82c6bed8" },
     "productSourceVersion": { "const": "1.12.13" },
+    "productCostSourceManifestHash": { "const": "89dc70128eb7eeda8bf5b40be5e8609172e3f2f6f70c2093136c5244d2ed358b" },
     "benchmarkContractIdentity": {
       "type": "object",
       "additionalProperties": false,
@@ -38,8 +39,8 @@
     },
     "handler": { "const": "api/generate-listing.js#createGenerateListingHandler" },
     "completePhysicalAttemptCeiling": { "const": 832 },
-    "launchScopeSchemaVersion": { "const": "2.0" },
-    "costEnvelopeSchemaVersion": { "const": "1.0" },
+    "launchScopeSchemaVersion": { "const": "2.1" },
+    "costEnvelopeSchemaVersion": { "const": "1.1" },
     "maximumAuthorizedCostMinorUnits": { "const": 4000 },
     "authorityDeclarations": {
       "type": "object",

@@ -4,8 +4,9 @@ import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { sha256Json } from "./protocol.mjs";
 import { benchmarkRoot, repositoryRoot } from "./execution-store.mjs";
+import { createProductCostSourceManifest } from "./product-cost-source.mjs";
 
-export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.0";
+export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.1";
 export const EXECUTION_RELEASE_TYPE = "BENCHMARK_EXECUTOR_RELEASE";
 export const QUALIFICATION_POLICY_VERSION = "1.0";
 export const QUALIFICATION_RELATIONSHIP = "DIRECT_PARENT_ONE_FILE_SEAL";
@@ -32,6 +33,7 @@ const RELEASE_FIELDS = Object.freeze([
   "permittedQualificationOverlay",
   "productSourceHead",
   "productSourceVersion",
+  "productCostSourceManifestHash",
   "benchmarkContractIdentity",
   "handler",
   "completePhysicalAttemptCeiling",
@@ -107,6 +109,7 @@ function validateReleaseCore(core) {
   assert.deepEqual(core.permittedQualificationOverlay, [EXECUTION_RELEASE_RELATIVE_PATH]);
   assert.match(core.productSourceHead || "", GIT_OBJECT);
   assert.match(core.productSourceVersion || "", VERSION);
+  assert.equal(core.productCostSourceManifestHash, createProductCostSourceManifest().manifestHash, "execution release Product Cost-Source Manifest differs");
   exactKeys(core.benchmarkContractIdentity, CONTRACT_FIELDS, "benchmark contract identity");
   assert.equal(core.benchmarkContractIdentity.benchmarkId, "blind-object-v2");
   for (const field of CONTRACT_FIELDS.filter((field) => field !== "benchmarkId")) {
@@ -114,8 +117,8 @@ function validateReleaseCore(core) {
   }
   assert.equal(core.handler, "api/generate-listing.js#createGenerateListingHandler");
   assert.equal(core.completePhysicalAttemptCeiling, 832);
-  assert.equal(core.launchScopeSchemaVersion, "2.0");
-  assert.equal(core.costEnvelopeSchemaVersion, "1.0");
+  assert.equal(core.launchScopeSchemaVersion, "2.1");
+  assert.equal(core.costEnvelopeSchemaVersion, "1.1");
   assert.equal(core.maximumAuthorizedCostMinorUnits, 4000);
   exactKeys(core.authorityDeclarations, AUTHORITY_FIELDS, "execution release authority declarations");
   AUTHORITY_FIELDS.forEach((field) => assert.equal(core.authorityDeclarations[field], false, `${field} must remain false`));
@@ -182,6 +185,7 @@ export function validateQualificationSnapshot(snapshot, qualifiedRecord, pending
     qualificationHead: snapshot.qualificationHead,
     executorRuntimeTreeHash: qualifiedRecord.executorRuntimeTreeHash,
     executionReleaseRecordHash: qualifiedRecord.recordHash,
+    productCostSourceManifestHash: qualifiedRecord.productCostSourceManifestHash,
     qualificationPolicyVersion: qualifiedRecord.qualificationPolicyVersion,
     executorVersion: qualifiedRecord.executorVersion,
     release: qualifiedRecord

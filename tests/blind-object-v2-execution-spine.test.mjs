@@ -60,6 +60,7 @@ import {
 } from "../benchmarks/blind-object-v2/scripts/execution-profile.mjs";
 import { sha256Json } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
 import { createLaunchScope } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
+import { createProductCostSourceManifest } from "../benchmarks/blind-object-v2/scripts/product-cost-source.mjs";
 
 const EXECUTOR_HEAD = "b".repeat(40);
 const RELEASE_IDENTITY = Object.freeze({
@@ -71,6 +72,7 @@ const RELEASE_IDENTITY = Object.freeze({
 });
 const RUNTIME_HASH = "a".repeat(64);
 const AT = "2026-08-07T12:00:00.000Z";
+const COST_SOURCE_MANIFEST_HASH = createProductCostSourceManifest().manifestHash;
 
 function fakeRequests() {
   const purposes = ["PERSONAL_BUY", "RESALE", "WHATS_IT_WORTH", "MARKETPLACE_LISTING"];
@@ -127,6 +129,7 @@ function consentScope(requests, profile, pricingProfile, ceiling, overrides = {}
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: RUNTIME_HASH,
+    productCostSourceManifestHash: COST_SOURCE_MANIFEST_HASH,
     ...RELEASE_IDENTITY,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: "1".repeat(64),
@@ -302,7 +305,7 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.17");
+  assert.equal(EXECUTOR_VERSION, "1.12.18");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
   assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
@@ -454,7 +457,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.17");
+  assert.equal(terminal.executorVersion, "1.12.18");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -553,7 +556,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.17");
+  assert.equal(EXECUTOR_VERSION, "1.12.18");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {
@@ -716,7 +719,7 @@ test("AA: partial manifests cannot masquerade as complete", () => {
 });
 
 test("all new execution JSON schemas parse strictly and remain top-level closed", async () => {
-  const names = ["launch-scope", "cost-envelope", "execution-profile", "pricing-profile", "consent-receipt", "invocation-registry", "request-execution-journal", "cost-ledger", "terminal-result", "unscored-result-manifest"];
+  const names = ["launch-scope", "cost-envelope", "product-cost-source-manifest", "execution-profile", "pricing-profile", "consent-receipt", "invocation-registry", "request-execution-journal", "cost-ledger", "terminal-result", "unscored-result-manifest"];
   for (const name of names) {
     const document = JSON.parse(await readFile(new URL(`../benchmarks/blind-object-v2/schemas/${name}.schema.json`, import.meta.url), "utf8"));
     assert.equal(document.$schema, "https://json-schema.org/draft/2020-12/schema");

@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import {
   BENCHMARK_ID,
   EXECUTION_MODE,
@@ -67,14 +66,12 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     conservativeUncertaintyMargin: 0.2,
     createdAt: SYNTHETIC_TIME
   });
-  const productSourceText = await readFile(new URL("../../../api/generate-listing.js", import.meta.url), "utf8");
   const costEnvelope = createSourceGroundedCostEnvelope({
     requests: frozen.requests,
     assetCache: frozen.assetCache,
     attemptCeiling: resolved.attemptCeiling,
     executionProfile: resolved.profile,
     pricingProfile,
-    productSourceText,
     authorizedMaximumMinorUnits: 4000
   });
   const launchScope = createLaunchScope({
@@ -83,6 +80,7 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
+    productCostSourceManifestHash: costEnvelope.productCostSourceManifestHash,
     executorRuntimeHead: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeHead,
     qualificationHead: SYNTHETIC_RELEASE_IDENTITY.qualificationHead,
     executorRuntimeTreeHash: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeTreeHash,

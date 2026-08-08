@@ -76,9 +76,9 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, relea
     attemptCeiling: resolved.attemptCeiling,
     executionProfile: resolved.profile,
     pricingProfile,
-    productSourceText,
     authorizedMaximumMinorUnits: AUTHORIZED_MAXIMUM_MINOR_UNITS
   });
+  assert.equal(costEnvelope.productCostSourceManifestHash, releaseIdentity.productCostSourceManifestHash, "cost source manifest differs from the qualified executor release");
   validateCostEnvelope(costEnvelope, { attemptCeiling: resolved.attemptCeiling, executionProfile: resolved.profile, pricingProfile, authorizedMaximumMinorUnits: AUTHORIZED_MAXIMUM_MINOR_UNITS });
   const launchScope = createLaunchScope({
     benchmarkId: BENCHMARK_ID,
@@ -86,6 +86,7 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, relea
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: runtime.productRuntimeManifestHash,
+    productCostSourceManifestHash: costEnvelope.productCostSourceManifestHash,
     executorRuntimeHead: releaseIdentity.executorRuntimeHead,
     qualificationHead: releaseIdentity.qualificationHead,
     executorRuntimeTreeHash: releaseIdentity.executorRuntimeTreeHash,

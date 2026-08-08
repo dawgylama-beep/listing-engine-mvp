@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/blind-object-v2/product-cost-source-manifest.schema.json",
+  "title": "Blind Object V2 Product Cost-Source Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "canonicalSourceByteAuthority", "sourceEntries", "completeSourceInventoryHash", "extractionPolicyVersion", "extractionRules", "billableCallSiteInventory", "manifestHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "manifestType": { "const": "PRODUCT_COST_SOURCE_MANIFEST" },
+    "productSourceHead": { "const": "7056eb0601dc69c5985703fea6fe665e82c6bed8" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "productRuntimeManifestHash": { "const": "5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8" },
+    "canonicalSourceByteAuthority": { "const": "GIT_OBJECT_DATABASE_BLOB_BYTES" },
+    "sourceEntries": {
+      "type": "array", "minItems": 31, "maxItems": 31,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["relativePath", "sourceRole", "canonicalGitBlobSha256", "canonicalByteCount", "encodingExpectation", "classificationRule", "relevantCallCategories", "sourceBoundOutputCeilings"],
+        "properties": {
+          "relativePath": { "type": "string", "pattern": "^(?:api|lib|scripts)/[A-Za-z0-9._/-]+$" },
+          "sourceRole": { "enum": ["PRODUCT_BILLABLE_CALL_PROMPT_AND_CEILING_AUTHORITY", "PRODUCT_HANDLER_PROCESS_BRIDGE", "TRANSITIVE_PRODUCT_RUNTIME_DEPENDENCY"] },
+          "canonicalGitBlobSha256": { "$ref": "#/$defs/hash" },
+          "canonicalByteCount": { "type": "integer", "minimum": 1 },
+          "encodingExpectation": { "const": "UTF-8_NO_BOM_LF" },
+          "classificationRule": { "enum": ["EXACT_BILLABLE_SURFACE_AND_CANONICAL_MARKER_EXTRACTIONS", "FIXED_LOCAL_HANDLER_IMPORT_WITH_NO_BILLABLE_CALL_SITE", "STATIC_IMPORT_CLOSURE_WITH_NO_BILLABLE_CALL_SITE"] },
+          "relevantCallCategories": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/category" } },
+          "sourceBoundOutputCeilings": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 } }
+        }
+      }
+    },
+    "completeSourceInventoryHash": { "$ref": "#/$defs/hash" },
+    "extractionPolicyVersion": { "const": "1.0" },
+    "extractionRules": {
+      "type": "array", "minItems": 9, "maxItems": 9,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["label", "relativePath", "extractionRule", "startMarker", "endMarker", "canonicalGitBlobSha256", "canonicalByteCount", "costInputByteCeiling", "relevantCallCategories", "sourceBoundOutputCeilings"],
+        "properties": {
+          "label": { "type": "string" },
+          "relativePath": { "const": "api/generate-listing.js" },
+          "extractionRule": { "const": "UTF8_CODE_UNIT_SLICE_START_INCLUSIVE_END_EXCLUSIVE" },
+          "startMarker": { "type": "string", "minLength": 1 },
+          "endMarker": { "type": "string", "minLength": 1 },
+          "canonicalGitBlobSha256": { "$ref": "#/$defs/hash" },
+          "canonicalByteCount": { "type": "integer", "minimum": 1 },
+          "costInputByteCeiling": { "type": "integer", "minimum": 1 },
+          "relevantCallCategories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/category" } },
+          "sourceBoundOutputCeilings": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer", "minimum": 1 } }
+        }
+      }
+    },
+    "billableCallSiteInventory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reachableSourceFileCount", "handlerFetchSiteCount", "transitiveDependencyFetchSiteCount", "billableCategories"],
+      "properties": {
+        "reachableSourceFileCount": { "const": 31 },
+        "handlerFetchSiteCount": { "const": 3 },
+        "transitiveDependencyFetchSiteCount": { "const": 0 },
+        "billableCategories": { "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/category" } }
+      }
+    },
+    "manifestHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "category": { "enum": ["OBJECT_IDENTITY_MODEL", "FINAL_PURPOSE_MODEL", "OPENAI_WEB_SEARCH", "SERPER_SEARCH", "SERPER_SHOPPING", "DIRECT_PAGE_RETRIEVAL"] }
+  }
+}

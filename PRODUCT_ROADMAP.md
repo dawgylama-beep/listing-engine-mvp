@@ -676,6 +676,14 @@
 - Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, and preserved the Phase 7C freeze, scoring isolation, and all product behavior unchanged
 - Provider-call impact: qualification and validation are deterministic local Git/filesystem operations; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request is performed
 
+## Version 1.12.18 (Completed)
+- Replaced the checkout-byte cost-source literal with a repository-owned Product Cost-Source Manifest bound to binary-safe canonical Git-object bytes from the exact pinned Version 1.12.13 product commit
+- Inventoried the fixed handler bridge and its complete 31-file source-reachable runtime closure, with exact path, role, canonical SHA-256, byte count, UTF-8/LF expectation, extraction policy, call category, and output-ceiling bindings
+- Bound the Product Cost-Source Manifest hash, complete source-inventory hash, extraction-policy Version, and canonical source slices into the cost envelope, qualified release, Launch Scope, and every domain-separated proposed execution identity
+- Added fail-closed regression coverage for the exact Version 1.12.17 mismatch, Git-blob determinism, checkout line-ending invariance, BOM/encoding, commit/path/content/inventory drift, caller overrides, runtime pinning, stable cost, identity binding, product/freeze isolation, real-run absence, and hard network denial
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; the 832-attempt ceiling and conservative maximum cost of US$39.17741232 are unchanged
+- Provider-call impact: source audit and validation are deterministic local Git/filesystem operations; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Production request, or Production deployment is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings
