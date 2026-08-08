@@ -45,6 +45,8 @@ try {
     executionProfile: authority.profile,
     attemptCeiling: authority.attemptCeiling,
     pricingProfile: authority.pricingProfile,
+    costEnvelope: authority.costEnvelope,
+    launchScope: authority.launchScope,
     consent: authority.consent,
     syntheticHandler: mock.handler,
     allowedEnvironment: authority.allowedEnvironment,

@@ -13,7 +13,6 @@ import {
   RESULT_STATE,
   assertNoSecretMaterial,
   calculateCompleteAttemptCeiling,
-  conservativeMaximumCost,
   createCostLedger,
   createExecutionJournal,
   createInvocationReservation,
@@ -33,6 +32,8 @@ import {
   validateTerminalResult,
   validateUnscoredResultManifest
 } from "./execution-protocol.mjs";
+import { validateCostEnvelope } from "./cost-envelope.mjs";
+import { validateLaunchScope } from "./launch-identity.mjs";
 import {
   classifyResultArtifactInventory,
   computeResultTreeAggregate,
@@ -182,6 +183,7 @@ function terminalRecordInput({
   reservation,
   executionProfile,
   pricingProfile,
+  costEnvelope,
   submissionId,
   submissionState,
   terminalState,
@@ -198,6 +200,9 @@ function terminalRecordInput({
   return {
     requestId: request.analysisId,
     requestHash: request.requestContractHash,
+    launchScopeHash: consent.launchScopeHash,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
     invocationId,
     consentHash: consent.consentHash,
     reservationHash: reservation.reservationHash,
@@ -206,7 +211,10 @@ function terminalRecordInput({
     executorSourceHead: executionProfile.executorSourceHead,
     executorVersion: EXECUTOR_VERSION,
     executionProfileHash: executionProfile.profileHash,
+    executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
+    pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
+    costEnvelopeHash: costEnvelope.costEnvelopeHash,
     physicalSubmissionIdentity: submissionId,
     submissionState,
     terminalState,
@@ -251,14 +259,17 @@ async function finalizeResult({
   ledger,
   executionProfile,
   pricingProfile,
+  costEnvelope,
   terminalRecords,
   resultState,
   integrityFailureCount,
   clock
 }) {
   const authorityPaths = [
+    "launch-scope.json",
     "execution-profile.json",
     "pricing-profile.json",
+    "cost-envelope.json",
     "execution-consent.json",
     "invocation-reservation.json",
     "execution-journal.json",
@@ -275,7 +286,9 @@ async function finalizeResult({
   const normalSuccessCount = terminalRecords.filter((record) => record.terminalState === "NORMAL_SUCCESS").length;
   const productTerminalFailureCount = terminalRecords.filter((record) => record.terminalState === "PRODUCT_TERMINAL_FAILURE").length;
   const manifest = createUnscoredResultManifest({
+    launchScopeHash: consent.launchScopeHash,
     resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
     invocationId: consent.invocationId,
     consentHash: consent.consentHash,
     reservationHash: reservation.reservationHash,
@@ -286,7 +299,10 @@ async function finalizeResult({
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     requestAggregateHash: frozen.manifest.requestAggregateHash,
     executionProfileHash: executionProfile.profileHash,
+    executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
+    pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
+    costEnvelopeHash: costEnvelope.costEnvelopeHash,
     maximumCost: consent.maximumAuthorizedCost,
     costLedgerHash: ledger.ledgerHash,
     requestedCount: 26,
@@ -338,6 +354,8 @@ export async function executeBenchmarkV2({
   executionProfile,
   attemptCeiling,
   pricingProfile,
+  costEnvelope,
+  launchScope,
   consent,
   productRuntimeRoot = null,
   allowedEnvironment = null,
@@ -356,6 +374,7 @@ export async function executeBenchmarkV2({
     assert.equal(runtime.productRuntimeManifestHash, executionProfile.productRuntimeManifestHash);
   }
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
+  validateLaunchScope(launchScope);
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
     executorSourceHead: executionProfile.executorSourceHead,
@@ -366,7 +385,9 @@ export async function executeBenchmarkV2({
     schemaValidatedRecordType: executionProfile.profileType
   });
   validatePricingProfile(pricingProfile, executionProfile);
+  validateCostEnvelope(costEnvelope, { attemptCeiling, executionProfile, pricingProfile, authorizedMaximumMinorUnits: launchScope.maximumAuthorizedCostMinorUnits });
   validateExecutionConsent(consent, {
+    launchScope,
     requiredStatus: CONSENT_STATUS.AUTHORIZED_NOT_CONSUMED,
     bindings: {
       benchmarkId: frozen.manifest.benchmarkId,
@@ -378,44 +399,39 @@ export async function executeBenchmarkV2({
       freezeReceiptHash: frozen.receipt.receiptHash,
       requestAggregateHash: frozen.manifest.requestAggregateHash,
       orderedRequestHashInventory: frozen.manifest.requestContractHashes,
-      executionProfileHash: executionProfile.profileHash,
-      pricingProfileHash: pricingProfile.pricingProfileHash,
+      executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
+      pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
+      costEnvelopeHash: costEnvelope.costEnvelopeHash,
       completePhysicalAttemptCeiling: attemptCeiling.categories.totalPhysicalAttempts,
       authorizedRequestCount: 26
     }
   });
   assert.equal(consent.executorSourceHead, executionProfile.executorSourceHead);
   assert.equal(consent.executorVersion, EXECUTOR_VERSION);
-  const conservativePreRunMaximum = conservativeMaximumCost(attemptCeiling, pricingProfile, executionProfile.acquisitionProviderMode);
+  const conservativePreRunMaximum = costEnvelope.conservativeMaximumCost;
   assert.equal(consent.conservativeMaximumCost, conservativePreRunMaximum, "consent conservative cost differs from sealed pricing and attempt ceiling");
 
   const resultHistoryRoot = resolveResultHistoryRoot(mode, resultHistoryRootOverride);
-  const resultRoot = deriveResultRoot(resultHistoryRoot, consent.resultId);
-  assert.equal(consent.fixedResultRoot, `benchmarks/blind-object-v2-results/${consent.resultId}`);
+  const resultRoot = deriveResultRoot(resultHistoryRoot, consent.resultRootName);
+  assert.equal(consent.fixedResultRoot, `benchmarks/blind-object-v2-results/${consent.resultRootName}`);
   const reservationStoreRoot = reservationStoreRootOverride || path.join(resultHistoryRoot, ".reservations");
   if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) assert.equal(reservationStoreRoot, path.join(resultHistoryRoot, ".reservations"));
-  const reservationScope = {
-    invocationId: consent.invocationId,
-    resultId: consent.resultId,
-    consentHash: consent.consentHash,
+  const reservationInput = {
+    launchScope,
+    consent,
     executionProfileHash: executionProfile.profileHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
-    completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
-    requestAggregateHash: frozen.manifest.requestAggregateHash,
-    productSourceHead: PRODUCT_SOURCE_HEAD,
-    productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: executionProfile.executorSourceHead,
-    executorVersion: EXECUTOR_VERSION,
-    resultRoot: consent.fixedResultRoot,
     createdIdentity: `executor-${executionProfile.executorSourceHead.slice(0, 16)}`
   };
-  let reservation = createInvocationReservation(reservationScope, clock());
+  let reservation = createInvocationReservation(reservationInput, clock());
   const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation);
   assert.equal(createdReservation.status, "CREATED", "execution requires a newly exclusive reservation; readback cannot start execution");
   const reservationFile = createdReservation.filePath;
-  await createExclusiveResultRoot(resultHistoryRoot, consent.resultId);
+  await createExclusiveResultRoot(resultHistoryRoot, consent.resultRootName);
+  await writeResultFile(resultRoot, "launch-scope.json", launchScope);
   await writeResultFile(resultRoot, "execution-profile.json", executionProfile);
   await writeResultFile(resultRoot, "pricing-profile.json", pricingProfile);
+  await writeResultFile(resultRoot, "cost-envelope.json", costEnvelope);
   await writeResultFile(resultRoot, "execution-consent.json", consent);
   await writeResultFile(resultRoot, "invocation-reservation.json", reservation);
   let journal = createExecutionJournal({ invocationId: consent.invocationId, consentHash: consent.consentHash, requests: frozen.requests, nowIso: clock() });
@@ -522,6 +538,7 @@ export async function executeBenchmarkV2({
       reservation,
       executionProfile,
       pricingProfile,
+      costEnvelope,
       submissionId,
       submissionState,
       terminalState,
@@ -566,6 +583,7 @@ export async function executeBenchmarkV2({
     ledger,
     executionProfile,
     pricingProfile,
+    costEnvelope,
     terminalRecords,
     resultState,
     integrityFailureCount,
@@ -591,9 +609,11 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   const root = path.resolve(resultRoot);
   const filesBefore = await listResultFiles(root);
   const artifactInventory = classifyResultArtifactInventory(filesBefore);
-  const [executionProfile, pricingProfile, consent, reservation, journal, ledger, manifest, validationReport] = await Promise.all([
+  const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validationReport] = await Promise.all([
+    readJsonStrictFile(path.join(root, "launch-scope.json")),
     readJsonStrictFile(path.join(root, "execution-profile.json")),
     readJsonStrictFile(path.join(root, "pricing-profile.json")),
+    readJsonStrictFile(path.join(root, "cost-envelope.json")),
     readJsonStrictFile(path.join(root, "execution-consent.json")),
     readJsonStrictFile(path.join(root, "invocation-reservation.json")),
     readJsonStrictFile(path.join(root, "execution-journal.json")),
@@ -603,14 +623,17 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   ]);
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
   const attemptCeiling = calculateCompleteAttemptCeiling(frozen.requests);
+  validateLaunchScope(launchScope);
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
     executorSourceHead: executionProfile.executorSourceHead,
     productRuntimeManifestHash: executionProfile.productRuntimeManifestHash
   });
   validatePricingProfile(pricingProfile, executionProfile);
+  validateCostEnvelope(costEnvelope, { attemptCeiling, executionProfile, pricingProfile, authorizedMaximumMinorUnits: launchScope.maximumAuthorizedCostMinorUnits });
   validateUnscoredResultManifest(manifest);
   validateExecutionConsent(consent, {
+    launchScope,
     requiredStatus: CONSENT_STATUS.CONSUMED,
     bindings: {
       resultId: manifest.resultId,
@@ -621,11 +644,12 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
       executorVersion: manifest.executorVersion,
       completeFrozenAggregateHash: manifest.completeFrozenAggregateHash,
       requestAggregateHash: manifest.requestAggregateHash,
-      executionProfileHash: manifest.executionProfileHash,
-      pricingProfileHash: manifest.pricingProfileHash
+      executionProfileIdentityHash: manifest.executionProfileIdentityHash,
+      pricingProfileIdentityHash: manifest.pricingProfileIdentityHash,
+      costEnvelopeHash: manifest.costEnvelopeHash
     }
   });
-  validateInvocationReservation(reservation);
+  validateInvocationReservation(reservation, { launchScope });
   validateExecutionJournal(journal, frozen.requests);
   validateCostLedger(ledger);
   validateUnscoredValidationReport(validationReport, { manifest });
@@ -633,12 +657,17 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   assert.equal(manifest.reservationHash, reservation.reservationHash);
   assert.equal(manifest.invocationId, reservation.invocationId);
   assert.equal(manifest.resultId, reservation.resultId);
+  assert.equal(manifest.resultRootName, reservation.resultRootName);
+  assert.equal(manifest.launchScopeHash, launchScope.launchScopeHash);
   assert.equal(manifest.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(manifest.productSourceVersion, PRODUCT_SOURCE_VERSION);
   assert.equal(manifest.executorSourceHead, executionProfile.executorSourceHead);
   assert.equal(manifest.executorVersion, EXECUTOR_VERSION);
   assert.equal(manifest.executionProfileHash, executionProfile.profileHash);
+  assert.equal(manifest.executionProfileIdentityHash, executionProfile.executionProfileIdentityHash);
   assert.equal(manifest.pricingProfileHash, pricingProfile.pricingProfileHash);
+  assert.equal(manifest.pricingProfileIdentityHash, pricingProfile.pricingProfileIdentityHash);
+  assert.equal(manifest.costEnvelopeHash, costEnvelope.costEnvelopeHash);
   assert.equal(manifest.costLedgerHash, ledger.ledgerHash);
   assert.equal(manifest.journalAggregate, journal.journalHash);
   assert.equal(manifest.completeFrozenAggregateHash, frozen.manifest.completeFrozenAggregateHash);
@@ -653,15 +682,17 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     const record = await readJsonStrictFile(path.join(root, "responses", `${item.analysisId}.json`));
     const request = frozen.requests.find((candidate) => candidate.analysisId === item.analysisId);
     assert.ok(request, `terminal response ${item.analysisId} does not bind a frozen request`);
-    validateTerminalResult(record, { requestHash: request.requestContractHash, invocationId: manifest.invocationId, consentHash: manifest.consentHash, reservationHash: manifest.reservationHash });
+    validateTerminalResult(record, { requestHash: request.requestContractHash, launchScopeHash: manifest.launchScopeHash, resultId: manifest.resultId, resultRootName: manifest.resultRootName, invocationId: manifest.invocationId, consentHash: manifest.consentHash, reservationHash: manifest.reservationHash });
     assert.equal(record.canonicalResponseHash, item.canonicalResponseHash);
     assert.equal(record.recordHash, item.recordHash);
     terminalRecords.push(record);
   }
   assert.equal(sha256Json(manifest.orderedResponseHashInventory), manifest.responseAggregate);
   const authorityPaths = [
+    "launch-scope.json",
     "execution-profile.json",
     "pricing-profile.json",
+    "cost-envelope.json",
     "execution-consent.json",
     "invocation-reservation.json",
     "execution-journal.json",

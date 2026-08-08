@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
+import { deriveLaunchIdentities, validateLaunchScope } from "./launch-identity.mjs";
 
 export const EXECUTION_SCHEMA_VERSION = "1.0";
-export const CONSENT_SCHEMA_VERSION = "3.0";
+export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.14";
+export const EXECUTOR_VERSION = "1.12.15";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -94,21 +95,42 @@ const EXECUTION_PROFILE_FIELDS = Object.freeze([
   "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses",
   "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis",
   "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch",
-  "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "resolvedAt", "profileHash"
+  "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "executionProfileIdentityHash", "resolvedAt", "profileHash"
+]);
+const CONSENT_FIELDS = Object.freeze([
+  "schemaVersion", "receiptType", "launchScopeHash", "consentId", "invocationId", "reservationId", "resultId", "resultRootName",
+  "benchmarkId", "candidateSetId", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "executorSourceHead",
+  "executorVersion", "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
+  "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
+  "completePhysicalAttemptCeiling", "maximumAuthorizedCostMinorUnits", "maximumAuthorizedCost", "conservativeMaximumCostMinorUnits",
+  "conservativeMaximumCost", "fixedResultRoot", "networkPolicyHash", "authorizedRequestCount", "privateControlsAuthorized",
+  "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized", "status", "statusTransitions",
+  "statusJournalHash", "consentHash", "receiptHash"
+]);
+const RESERVATION_FIELDS = Object.freeze([
+  "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
+  "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
+  "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion",
+  "resultRoot", "createdIdentity", "state", "transitions", "transitionJournalHash", "reservationHash", "recordHash"
+]);
+const PRICING_PROFILE_FIELDS = Object.freeze([
+  "schemaVersion", "provider", "exactModel", "effectiveDate", "inputTokenPricing", "cachedInputTokenPricing", "outputTokenPricing",
+  "webSearchToolPricing", "serperSearchPricing", "directPageCostAssumption", "currency", "conservativeUncertaintyMargin",
+  "pricingProfileId", "pricingProfileIdentityHash", "pricingSourceDescription", "createdAt", "pricingProfileHash"
 ]);
 const TERMINAL_RESULT_FIELDS = Object.freeze([
-  "schemaVersion", "resultRecordType", "requestId", "requestHash", "invocationId", "consentHash", "reservationHash",
-  "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "executionProfileHash",
-  "pricingProfileHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt",
+  "schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash",
+  "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "executionProfileHash", "executionProfileIdentityHash",
+  "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt",
   "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics",
   "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof",
   "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory",
   "canonicalResponseHash", "recordHash"
 ]);
 const UNSCORED_MANIFEST_FIELDS = Object.freeze([
-  "schemaVersion", "manifestType", "resultId", "invocationId", "consentHash", "reservationHash", "productSourceHead",
+  "schemaVersion", "manifestType", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead",
   "productSourceVersion", "executorSourceHead", "executorVersion", "completeFrozenAggregateHash", "requestAggregateHash",
-  "executionProfileHash", "pricingProfileHash", "maximumCost", "costLedgerHash", "requestedCount", "submittedCount",
+  "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "maximumCost", "costLedgerHash", "requestedCount", "submittedCount",
   "terminalCount", "normalSuccessCount", "productTerminalFailureCount", "executionIntegrityFailureCount", "notSubmittedCount",
   "orderedResponseHashInventory", "responseAggregate", "journalAggregate", "resultTreeAggregate", "resultTreeRecords",
   "privateControlsLoaded", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "state", "manifestHash"
@@ -236,7 +258,7 @@ export function createExecutionProfile({
   exactKeys(credentialPresence, ["OPENAI_API_KEY", "OPEN_API_KEY", "SERPER_API_KEY"], "credential presence declarations");
   Object.values(credentialPresence).forEach((value) => assert.equal(typeof value, "boolean"));
   assert.match(attemptCeiling?.ceilingHash || "", HASH);
-  const core = {
+  const identityCore = {
     schemaVersion: EXECUTION_SCHEMA_VERSION,
     profileType: EXECUTION_PROFILE_TYPE,
     productSourceHead: PRODUCT_SOURCE_HEAD,
@@ -270,10 +292,14 @@ export function createExecutionProfile({
       serperWhenCredentialPresent: acquisitionProviderMode === "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK",
       productBoundedDirectPages: true,
       arbitraryEndpoints: false
-    },
+    }
+  };
+  const record = {
+    ...identityCore,
+    executionProfileIdentityHash: sha256Json(identityCore),
     resolvedAt: iso(resolvedAt, "execution profile resolvedAt")
   };
-  return sealed(core, "profileHash");
+  return sealed(record, "profileHash");
 }
 
 export function validateExecutionProfile(profile, { attemptCeiling, executorSourceHead, productRuntimeManifestHash }) {
@@ -292,8 +318,13 @@ export function validateExecutionProfile(profile, { attemptCeiling, executorSour
   assert.match(profile.exactModelLiteral || "", PUBLIC_IDENTITY, "execution profile model identity is invalid");
   profile.fixedProviderEndpointClasses.forEach((value) => assert.match(value, PUBLIC_IDENTITY, "execution profile endpoint class is invalid"));
   assert.equal(profile.networkScope.arbitraryEndpoints, false);
+  const identityCore = structuredClone(profile);
+  delete identityCore.executionProfileIdentityHash;
+  delete identityCore.resolvedAt;
+  delete identityCore.profileHash;
+  assert.equal(sha256Json(identityCore), profile.executionProfileIdentityHash, "execution profile stable identity mismatch");
   validateSeal(profile, "profileHash", "execution profile");
-  return Object.freeze({ valid: true, profileHash: profile.profileHash });
+  return Object.freeze({ valid: true, profileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash });
 }
 
 export function createPricingProfile({
@@ -311,21 +342,20 @@ export function createPricingProfile({
   conservativeUncertaintyMargin,
   createdAt
 }) {
-  assert.match(pricingProfileId || "", SAFE_ID);
+  assert.equal(pricingProfileId, undefined, "pricing profile ID is repository-derived and cannot be caller supplied");
   assert.equal(provider, "OPENAI");
   assert.match(exactModel || "", PUBLIC_IDENTITY);
   assert.match(effectiveDate || "", /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(String(pricingSourceDescription || "").length >= 8 && String(pricingSourceDescription).length <= 500);
-  for (const [label, value] of Object.entries({ inputTokenRatePerMillion, cachedInputTokenRatePerMillion, outputTokenRatePerMillion, webSearchCallRate, serperSearchCallRate, directPageCostAssumption, conservativeUncertaintyMargin })) {
+  for (const [label, value] of Object.entries({ inputTokenRatePerMillion, cachedInputTokenRatePerMillion, outputTokenRatePerMillion, webSearchCallRate, directPageCostAssumption, conservativeUncertaintyMargin })) {
     finiteNonnegative(value, label);
   }
-  const core = {
+  if (serperSearchCallRate !== null) finiteNonnegative(serperSearchCallRate, "serperSearchCallRate");
+  const identityCore = {
     schemaVersion: EXECUTION_SCHEMA_VERSION,
-    pricingProfileId,
     provider,
     exactModel,
     effectiveDate,
-    pricingSourceDescription,
     inputTokenPricing: { unit: "USD_PER_MILLION_TOKENS", rate: inputTokenRatePerMillion },
     cachedInputTokenPricing: { unit: "USD_PER_MILLION_TOKENS", rate: cachedInputTokenRatePerMillion },
     outputTokenPricing: { unit: "USD_PER_MILLION_TOKENS", rate: outputTokenRatePerMillion },
@@ -333,13 +363,21 @@ export function createPricingProfile({
     serperSearchPricing: { unit: "USD_PER_CALL", rate: serperSearchCallRate },
     directPageCostAssumption: { unit: "USD_PER_FETCH", rate: directPageCostAssumption },
     currency: ALLOWED_CURRENCY,
-    conservativeUncertaintyMargin,
+    conservativeUncertaintyMargin
+  };
+  const pricingProfileIdentityHash = sha256Json(identityCore);
+  const core = {
+    ...identityCore,
+    pricingProfileId: `pricing-${pricingProfileIdentityHash.slice(0, 48)}`,
+    pricingProfileIdentityHash,
+    pricingSourceDescription,
     createdAt: iso(createdAt, "pricing profile createdAt")
   };
   return sealed(core, "pricingProfileHash");
 }
 
 export function validatePricingProfile(profile, executionProfile) {
+  exactKeys(profile, PRICING_PROFILE_FIELDS, "pricing profile");
   assert.equal(profile.schemaVersion, EXECUTION_SCHEMA_VERSION);
   assert.equal(profile.provider, executionProfile.modelProvider, "pricing provider mismatch");
   assert.equal(profile.exactModel, executionProfile.exactModelLiteral, "pricing model mismatch");
@@ -349,16 +387,26 @@ export function validatePricingProfile(profile, executionProfile) {
     [profile.cachedInputTokenPricing, "USD_PER_MILLION_TOKENS"],
     [profile.outputTokenPricing, "USD_PER_MILLION_TOKENS"],
     [profile.webSearchToolPricing, "USD_PER_CALL"],
-    [profile.serperSearchPricing, "USD_PER_CALL"],
     [profile.directPageCostAssumption, "USD_PER_FETCH"]
   ];
   for (const [record, unit] of units) {
     assert.equal(record?.unit, unit, `pricing unit must be ${unit}`);
     finiteNonnegative(record.rate, `${unit} rate`);
   }
+  assert.equal(profile.serperSearchPricing?.unit, "USD_PER_CALL");
+  if (executionProfile.acquisitionProviderMode === "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK") finiteNonnegative(profile.serperSearchPricing.rate, "active Serper rate");
+  else assert.ok(profile.serperSearchPricing.rate === null || Number.isFinite(profile.serperSearchPricing.rate), "inactive Serper rate must be null or finite");
   finiteNonnegative(profile.conservativeUncertaintyMargin, "pricing uncertainty margin");
+  const identityCore = structuredClone(profile);
+  delete identityCore.pricingProfileId;
+  delete identityCore.pricingProfileIdentityHash;
+  delete identityCore.pricingSourceDescription;
+  delete identityCore.createdAt;
+  delete identityCore.pricingProfileHash;
+  assert.equal(sha256Json(identityCore), profile.pricingProfileIdentityHash, "pricing stable identity mismatch");
+  assert.equal(profile.pricingProfileId, `pricing-${profile.pricingProfileIdentityHash.slice(0, 48)}`, "pricing profile ID differs from its stable identity");
   validateSeal(profile, "pricingProfileHash", "pricing profile");
-  return Object.freeze({ valid: true, pricingProfileHash: profile.pricingProfileHash });
+  return Object.freeze({ valid: true, pricingProfileHash: profile.pricingProfileHash, pricingProfileIdentityHash: profile.pricingProfileIdentityHash });
 }
 
 export function conservativeAttemptCost(attempt, pricingProfile) {
@@ -386,24 +434,58 @@ export function conservativeMaximumCost(attemptCeiling, pricingProfile, acquisit
   return Number((modelCost + acquisitionCost + directCost).toFixed(8));
 }
 
-export function createExecutionConsent(scope, nowIso) {
-  assert.match(scope.consentId || "", SAFE_ID);
-  assert.match(scope.invocationId || "", SAFE_ID);
-  assert.match(scope.resultId || "", SAFE_ID);
-  assert.equal(scope.benchmarkId, BENCHMARK_ID);
-  assert.equal(scope.productSourceHead, PRODUCT_SOURCE_HEAD);
-  assert.equal(scope.productSourceVersion, PRODUCT_SOURCE_VERSION);
-  assert.equal(scope.executorVersion, EXECUTOR_VERSION);
-  assert.equal(scope.orderedRequestHashInventory?.length, 26);
-  assert.equal(new Set(scope.orderedRequestHashInventory).size, 26);
-  scope.orderedRequestHashInventory.forEach((hash) => assert.match(hash, HASH));
-  assert.equal(scope.authorizedRequestCount, 26);
-  assert.equal(scope.completePhysicalAttemptCeiling, 832);
-  finitePositive(scope.maximumAuthorizedCost, "maximum authorized cost");
-  finiteNonnegative(scope.conservativeMaximumCost, "conservative maximum cost");
-  assert.ok(scope.conservativeMaximumCost <= scope.maximumAuthorizedCost, "conservative maximum exceeds authorized cost");
-  assert.equal(scope.fixedResultRoot, `benchmarks/blind-object-v2-results/${scope.resultId}`);
-  for (const field of ["privateControlsAuthorized", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized"]) assert.equal(scope[field], false);
+export function createExecutionConsent(input, nowIso) {
+  exactKeys(input, ["launchScope", "costEnvelope"], "execution consent constructor input");
+  const { launchScope, costEnvelope } = input;
+  validateLaunchScope(launchScope);
+  assert.equal(launchScope.benchmarkId, BENCHMARK_ID);
+  assert.equal(launchScope.productSourceHead, PRODUCT_SOURCE_HEAD);
+  assert.equal(launchScope.productSourceVersion, PRODUCT_SOURCE_VERSION);
+  assert.equal(launchScope.executorVersion, EXECUTOR_VERSION);
+  assert.equal(launchScope.completePhysicalAttemptCeiling, 832);
+  assert.equal(launchScope.maximumAuthorizedCostMinorUnits, 4000);
+  assert.equal(costEnvelope?.costEnvelopeHash, launchScope.costEnvelopeHash, "consent cost envelope differs from launch scope");
+  assert.equal(costEnvelope?.costState, "COMPLETE_RUN_WITHIN_AUTHORIZED_COST", "cost envelope does not permit consent");
+  assert.equal(costEnvelope?.authorizedMaximumMinorUnits, launchScope.maximumAuthorizedCostMinorUnits);
+  finiteNonnegative(costEnvelope?.conservativeMaximumCost, "conservative maximum cost");
+  assert.ok(costEnvelope.conservativeMaximumCostMinorUnits <= launchScope.maximumAuthorizedCostMinorUnits, "conservative maximum exceeds authorized cost");
+  const identities = deriveLaunchIdentities(launchScope);
+  const scope = {
+    launchScopeHash: launchScope.launchScopeHash,
+    consentId: identities.consentId,
+    invocationId: identities.invocationId,
+    reservationId: identities.reservationId,
+    resultId: identities.resultId,
+    resultRootName: identities.resultRootName,
+    benchmarkId: launchScope.benchmarkId,
+    candidateSetId: launchScope.candidateSetId,
+    productSourceHead: launchScope.productSourceHead,
+    productSourceVersion: launchScope.productSourceVersion,
+    productRuntimeManifestHash: launchScope.productRuntimeManifestHash,
+    executorSourceHead: launchScope.executorSourceHead,
+    executorVersion: launchScope.executorVersion,
+    completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
+    freezeManifestHash: launchScope.freezeManifestHash,
+    freezeReceiptHash: launchScope.freezeReceiptHash,
+    requestAggregateHash: launchScope.requestAggregateHash,
+    orderedRequestHashInventory: launchScope.orderedRequestHashInventory,
+    executionProfileIdentityHash: launchScope.executionProfileIdentityHash,
+    pricingProfileIdentityHash: launchScope.pricingProfileIdentityHash,
+    costEnvelopeHash: launchScope.costEnvelopeHash,
+    completePhysicalAttemptCeiling: launchScope.completePhysicalAttemptCeiling,
+    maximumAuthorizedCostMinorUnits: launchScope.maximumAuthorizedCostMinorUnits,
+    maximumAuthorizedCost: launchScope.maximumAuthorizedCostMinorUnits / 100,
+    conservativeMaximumCostMinorUnits: costEnvelope.conservativeMaximumCostMinorUnits,
+    conservativeMaximumCost: costEnvelope.conservativeMaximumCost,
+    fixedResultRoot: `benchmarks/blind-object-v2-results/${identities.resultRootName}`,
+    networkPolicyHash: launchScope.networkPolicyHash,
+    authorizedRequestCount: 26,
+    privateControlsAuthorized: false,
+    scoringAuthorized: false,
+    reflectionAuthorized: false,
+    repairAuthorized: false,
+    deploymentAuthorized: false
+  };
   const immutable = {
     schemaVersion: CONSENT_SCHEMA_VERSION,
     receiptType: CONSENT_RECEIPT_TYPE,
@@ -422,6 +504,7 @@ export function createExecutionConsent(scope, nowIso) {
 }
 
 export function validateExecutionConsent(consent, scope = {}) {
+  exactKeys(consent, CONSENT_FIELDS, "execution consent");
   assert.equal(consent.schemaVersion, CONSENT_SCHEMA_VERSION, "consent schemaVersion is invalid");
   assert.equal(consent.receiptType, CONSENT_RECEIPT_TYPE, "consent receiptType is invalid");
   assert.match(consent.consentHash || "", HASH);
@@ -429,6 +512,14 @@ export function validateExecutionConsent(consent, scope = {}) {
   assert.equal(consent.statusJournalHash, sha256Json(consent.statusTransitions), "consent status journal mismatch");
   assert.ok(Object.values(CONSENT_STATUS).includes(consent.status));
   if (scope.requiredStatus) assert.equal(consent.status, scope.requiredStatus);
+  if (scope.launchScope) {
+    validateLaunchScope(scope.launchScope);
+    const identities = deriveLaunchIdentities(scope.launchScope);
+    assert.equal(consent.launchScopeHash, scope.launchScope.launchScopeHash, "consent launch scope mismatch");
+    for (const field of ["consentId", "invocationId", "reservationId", "resultId", "resultRootName"]) {
+      assert.equal(consent[field], identities[field], `consent ${field} is not repository-derived`);
+    }
+  }
   for (const [field, value] of Object.entries(scope.bindings || {})) assert.deepEqual(consent[field], value, `consent ${field} mismatch`);
   for (const field of ["privateControlsAuthorized", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized"]) assert.equal(consent[field], false);
   validateSeal(consent, "receiptHash", "execution consent");
@@ -451,14 +542,36 @@ export function transitionConsent(consent, to, at, reason) {
   return sealed(record, "receiptHash");
 }
 
-export function createInvocationReservation(scope, nowIso) {
-  assert.match(scope.invocationId || "", SAFE_ID);
-  assert.match(scope.resultId || "", SAFE_ID);
-  assert.match(scope.consentHash || "", HASH);
-  assert.equal(scope.productSourceHead, PRODUCT_SOURCE_HEAD);
-  assert.equal(scope.productSourceVersion, PRODUCT_SOURCE_VERSION);
-  assert.equal(scope.executorVersion, EXECUTOR_VERSION);
-  assert.equal(scope.resultRoot, `benchmarks/blind-object-v2-results/${scope.resultId}`);
+export function createInvocationReservation(input, nowIso) {
+  exactKeys(input, ["launchScope", "consent", "executionProfileHash", "pricingProfileHash", "createdIdentity"], "invocation reservation constructor input");
+  const { launchScope, consent, executionProfileHash, pricingProfileHash, createdIdentity } = input;
+  validateLaunchScope(launchScope);
+  validateExecutionConsent(consent, { launchScope, requiredStatus: CONSENT_STATUS.AUTHORIZED_NOT_CONSUMED });
+  assert.match(executionProfileHash || "", HASH);
+  assert.match(pricingProfileHash || "", HASH);
+  assert.ok(String(createdIdentity || "").length >= 8 && String(createdIdentity).length <= 120);
+  const identities = deriveLaunchIdentities(launchScope);
+  const scope = {
+    launchScopeHash: launchScope.launchScopeHash,
+    reservationId: identities.reservationId,
+    invocationId: identities.invocationId,
+    resultId: identities.resultId,
+    resultRootName: identities.resultRootName,
+    consentHash: consent.consentHash,
+    executionProfileHash,
+    executionProfileIdentityHash: launchScope.executionProfileIdentityHash,
+    pricingProfileHash,
+    pricingProfileIdentityHash: launchScope.pricingProfileIdentityHash,
+    costEnvelopeHash: launchScope.costEnvelopeHash,
+    completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
+    requestAggregateHash: launchScope.requestAggregateHash,
+    productSourceHead: launchScope.productSourceHead,
+    productSourceVersion: launchScope.productSourceVersion,
+    executorSourceHead: launchScope.executorSourceHead,
+    executorVersion: launchScope.executorVersion,
+    resultRoot: `benchmarks/blind-object-v2-results/${identities.resultRootName}`,
+    createdIdentity
+  };
   const immutable = { schemaVersion: EXECUTION_SCHEMA_VERSION, reservationType: RESERVATION_TYPE, ...structuredClone(scope) };
   const reservationHash = sha256Json(immutable);
   const transition = sealed({ sequence: 1, from: null, to: RESERVATION_STATE.RESERVED_NOT_STARTED, at: iso(nowIso, "reservation transition time"), reason: "EXCLUSIVE_RESERVATION_CREATED" }, "transitionHash");
@@ -473,13 +586,19 @@ export function createInvocationReservation(scope, nowIso) {
 }
 
 export function validateInvocationReservation(reservation, bindings = {}) {
+  exactKeys(reservation, RESERVATION_FIELDS, "invocation reservation");
   assert.equal(reservation.schemaVersion, EXECUTION_SCHEMA_VERSION);
   assert.equal(reservation.reservationType, RESERVATION_TYPE);
   assert.match(reservation.reservationHash || "", HASH);
   assert.equal(sha256Json(immutableReservationCore(reservation)), reservation.reservationHash, "reservation immutable hash mismatch");
   assert.equal(reservation.transitionJournalHash, sha256Json(reservation.transitions), "reservation transition journal mismatch");
   assert.ok(Object.values(RESERVATION_STATE).includes(reservation.state));
-  for (const [field, value] of Object.entries(bindings)) assert.deepEqual(reservation[field], value, `reservation ${field} mismatch`);
+  if (bindings.launchScope) {
+    const identities = deriveLaunchIdentities(bindings.launchScope);
+    assert.equal(reservation.launchScopeHash, bindings.launchScope.launchScopeHash);
+    for (const field of ["reservationId", "invocationId", "resultId", "resultRootName"]) assert.equal(reservation[field], identities[field], `reservation ${field} is not repository-derived`);
+  }
+  for (const [field, value] of Object.entries(bindings)) if (field !== "launchScope") assert.deepEqual(reservation[field], value, `reservation ${field} mismatch`);
   validateSeal(reservation, "recordHash", "invocation reservation");
   return Object.freeze({ valid: true, reservationHash: reservation.reservationHash, state: reservation.state });
 }
@@ -664,6 +783,9 @@ export function createTerminalResult(input) {
   assert.equal(input.schemaVersion, undefined, "terminal input cannot choose schemaVersion");
   assert.match(input.requestId || "", ANALYSIS_ID);
   assert.match(input.requestHash || "", HASH);
+  assert.match(input.launchScopeHash || "", HASH);
+  assert.match(input.resultId || "", SAFE_ID);
+  assert.match(input.resultRootName || "", SAFE_ID);
   assert.match(input.invocationId || "", SAFE_ID);
   assert.match(input.consentHash || "", HASH);
   assert.match(input.reservationHash || "", HASH);
@@ -717,6 +839,9 @@ export function validateUnscoredResultManifest(manifest) {
   exactKeys(manifest, UNSCORED_MANIFEST_FIELDS, "unscored result manifest");
   assert.equal(manifest.schemaVersion, EXECUTION_SCHEMA_VERSION);
   assert.equal(manifest.manifestType, "BENCHMARK_UNSCORED_RESULT_MANIFEST");
+  assert.match(manifest.launchScopeHash || "", HASH);
+  assert.match(manifest.resultId || "", SAFE_ID);
+  assert.match(manifest.resultRootName || "", SAFE_ID);
   assert.ok(Object.values(RESULT_STATE).includes(manifest.state));
   assert.equal(manifest.privateControlsLoaded, false);
   assert.equal(manifest.scoringAuthorized, false);

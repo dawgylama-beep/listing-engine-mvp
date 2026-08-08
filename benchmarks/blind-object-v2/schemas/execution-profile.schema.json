@@ -4,7 +4,7 @@
   "title": "Blind Object Benchmark V2 execution profile",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "profileType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "productRuntimeIdentityType", "executorSourceHead", "executorVersion", "handlerContract", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses", "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis", "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch", "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "resolvedAt", "profileHash"],
+  "required": ["schemaVersion", "profileType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "productRuntimeIdentityType", "executorSourceHead", "executorVersion", "handlerContract", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses", "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis", "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch", "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "executionProfileIdentityHash", "resolvedAt", "profileHash"],
   "properties": {
     "schemaVersion": { "const": "1.0" },
     "profileType": { "const": "BENCHMARK_EXECUTION_PROFILE" },
@@ -13,7 +13,7 @@
     "productRuntimeManifestHash": { "$ref": "#/$defs/hash" },
     "productRuntimeIdentityType": { "const": "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE" },
     "executorSourceHead": { "$ref": "#/$defs/commit" },
-    "executorVersion": { "const": "1.12.14" },
+    "executorVersion": { "const": "1.12.15" },
     "handlerContract": { "type": "object" },
     "modelProvider": { "const": "OPENAI" },
     "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },
@@ -29,6 +29,7 @@
     "completeAggregatePhysicalAttemptCeiling": { "const": 832 },
     "completeAttemptCeilingHash": { "$ref": "#/$defs/hash" },
     "networkScope": { "type": "object" },
+    "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "resolvedAt": { "type": "string", "format": "date-time" },
     "profileHash": { "$ref": "#/$defs/hash" }
   },

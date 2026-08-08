@@ -1,14 +1,17 @@
+import { readFile } from "node:fs/promises";
 import {
   BENCHMARK_ID,
   EXECUTION_MODE,
   EXECUTOR_VERSION,
   PRODUCT_SOURCE_HEAD,
   PRODUCT_SOURCE_VERSION,
-  conservativeMaximumCost,
   createExecutionConsent,
   createPricingProfile
 } from "./execution-protocol.mjs";
+import { createSourceGroundedCostEnvelope } from "./cost-envelope.mjs";
+import { createLaunchScope } from "./launch-identity.mjs";
 import { resolveExecutionProfile } from "./execution-profile.mjs";
+import { sha256Json } from "./protocol.mjs";
 
 export const SYNTHETIC_EXECUTOR_HEAD = "b".repeat(40);
 export const SYNTHETIC_PRODUCT_RUNTIME_HASH = "a".repeat(64);
@@ -39,32 +42,35 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     resolvedAt: SYNTHETIC_TIME
   });
   const pricingProfile = createPricingProfile({
-    pricingProfileId: `synthetic-pricing-${suffix}`,
     provider: "OPENAI",
     exactModel: resolved.profile.exactModelLiteral,
-    effectiveDate: "2026-08-07",
-    pricingSourceDescription: "Synthetic deterministic rates for network-denied execution-spine validation only.",
-    inputTokenRatePerMillion: 0.05,
-    cachedInputTokenRatePerMillion: 0.01,
-    outputTokenRatePerMillion: 0.1,
-    webSearchCallRate: 0.001,
-    serperSearchCallRate: 0.001,
+    effectiveDate: "2026-08-08",
+    pricingSourceDescription: "User-authorized verified pricing effective 2026-08-08; offline validation does not fetch pricing.",
+    inputTokenRatePerMillion: 0.4,
+    cachedInputTokenRatePerMillion: 0.1,
+    outputTokenRatePerMillion: 1.6,
+    webSearchCallRate: 0.01,
+    serperSearchCallRate: null,
     directPageCostAssumption: 0,
-    conservativeUncertaintyMargin: 0.1,
+    conservativeUncertaintyMargin: 0.2,
     createdAt: SYNTHETIC_TIME
   });
-  const conservativeCost = conservativeMaximumCost(resolved.attemptCeiling, pricingProfile, resolved.profile.acquisitionProviderMode);
-  const consentId = `synthetic-consent-${suffix}`;
-  const invocationId = `synthetic-invocation-${suffix}`;
-  const resultId = `synthetic-result-${suffix}`;
-  const consent = createExecutionConsent({
-    consentId,
-    invocationId,
-    resultId,
+  const productSourceText = await readFile(new URL("../../../api/generate-listing.js", import.meta.url), "utf8");
+  const costEnvelope = createSourceGroundedCostEnvelope({
+    requests: frozen.requests,
+    assetCache: frozen.assetCache,
+    attemptCeiling: resolved.attemptCeiling,
+    executionProfile: resolved.profile,
+    pricingProfile,
+    productSourceText,
+    authorizedMaximumMinorUnits: 4000
+  });
+  const launchScope = createLaunchScope({
     benchmarkId: BENCHMARK_ID,
     candidateSetId: frozen.manifest.candidateSetId,
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
+    productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
     executorSourceHead: SYNTHETIC_EXECUTOR_HEAD,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
@@ -72,24 +78,33 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     freezeReceiptHash: frozen.receipt.receiptHash,
     requestAggregateHash: frozen.manifest.requestAggregateHash,
     orderedRequestHashInventory: frozen.manifest.requestContractHashes,
-    executionProfileHash: resolved.profile.profileHash,
-    pricingProfileHash: pricingProfile.pricingProfileHash,
+    handlerContract: resolved.profile.handlerContract,
+    modelProvider: resolved.profile.modelProvider,
+    exactModelLiteral: resolved.profile.exactModelLiteral,
+    acquisitionProviderMode: resolved.profile.acquisitionProviderMode,
+    directPageMode: resolved.profile.directPageMode,
+    endpointClassAllowlistHash: sha256Json(resolved.profile.fixedProviderEndpointClasses),
+    environmentNameAllowlistHash: sha256Json(resolved.profile.fixedEnvironmentVariableNameAllowlist),
     completePhysicalAttemptCeiling: resolved.attemptCeiling.categories.totalPhysicalAttempts,
-    maximumAuthorizedCost: Number((conservativeCost + 1).toFixed(8)),
-    conservativeMaximumCost: conservativeCost,
-    fixedResultRoot: `benchmarks/blind-object-v2-results/${resultId}`,
-    authorizedNetworkScope: resolved.profile.networkScope,
-    authorizedRequestCount: 26,
+    completeAttemptCeilingHash: resolved.attemptCeiling.ceilingHash,
+    executionProfileIdentityHash: resolved.profile.executionProfileIdentityHash,
+    pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
+    costEnvelopeHash: costEnvelope.costEnvelopeHash,
+    maximumAuthorizedCostMinorUnits: 4000,
+    networkPolicyHash: sha256Json(resolved.profile.networkScope),
     privateControlsAuthorized: false,
     scoringAuthorized: false,
     reflectionAuthorized: false,
     repairAuthorized: false,
     deploymentAuthorized: false
-  }, SYNTHETIC_TIME);
+  });
+  const consent = createExecutionConsent({ launchScope, costEnvelope }, SYNTHETIC_TIME);
   return Object.freeze({
     mode: EXECUTION_MODE.SYNTHETIC_TEST_ONLY,
     ...resolved,
     pricingProfile,
+    costEnvelope,
+    launchScope,
     consent,
     environment
   });

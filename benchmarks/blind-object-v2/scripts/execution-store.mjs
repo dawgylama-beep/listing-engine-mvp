@@ -25,6 +25,7 @@ import {
   EXECUTION_MODE,
   validateInvocationReservation
 } from "./execution-protocol.mjs";
+import { assertNoTruncatedIdentityCollision } from "./launch-identity.mjs";
 
 export const benchmarkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const repositoryRoot = path.resolve(benchmarkRoot, "..", "..");
@@ -47,8 +48,10 @@ const PUBLIC_FREEZE_FILES = new Set([
   "validation-report.json"
 ]);
 export const RESULT_ROOT_ARTIFACT_ROLES = Object.freeze({
+  "launch-scope.json": "LAUNCH_SCOPE",
   "execution-profile.json": "EXECUTION_PROFILE",
   "pricing-profile.json": "PRICING_PROFILE",
+  "cost-envelope.json": "COST_ENVELOPE",
   "execution-consent.json": "EXECUTION_CONSENT",
   "invocation-reservation.json": "INVOCATION_RESERVATION",
   "execution-journal.json": "EXECUTION_JOURNAL",
@@ -302,9 +305,13 @@ export async function createExclusiveReservation(storeRoot, reservation) {
   for (const entry of files) {
     const existing = await readJsonStrictFile(path.join(root, entry.name));
     validateInvocationReservation(existing);
+    for (const field of ["invocationId", "reservationId", "resultId", "resultRootName"]) assertNoTruncatedIdentityCollision(existing, reservation, field);
     const sameIdentity = existing.invocationId === reservation.invocationId
+      || existing.reservationId === reservation.reservationId
       || existing.consentHash === reservation.consentHash
       || existing.resultId === reservation.resultId
+      || existing.resultRootName === reservation.resultRootName
+      || existing.launchScopeHash === reservation.launchScopeHash
       || existing.completeFrozenAggregateHash === reservation.completeFrozenAggregateHash;
     if (!sameIdentity) continue;
     if (existing.recordHash === reservation.recordHash) return Object.freeze({ status: "EXISTING_IDENTICAL_READBACK", reservation: existing, filePath: path.join(root, entry.name) });

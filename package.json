@@ -1,6 +1,6 @@
 {
   "name": "katherines-eye",
-  "version": "1.12.14",
+  "version": "1.12.15",
   "packageManager": "npm@11.16.0",
   "private": true,
   "type": "module",

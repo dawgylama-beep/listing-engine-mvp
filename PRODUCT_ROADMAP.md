@@ -652,6 +652,14 @@
 - Preserved the benchmark specification, coverage, scoring, frozen requests, Phase 7C freeze, and all product analysis, Object Mind, evidence, Governor, Experience, reflection, and lesson behavior unchanged
 - Provider-call impact: the complete physical-attempt ceiling is 832, but release validation used only synthetic handlers and hard-network-denied tests; no frozen request reached the real handler and no OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, scoring, Preview analysis, or Production request was performed
 
+## Version 1.12.15 (Completed)
+- Added canonical Launch Scope schema 1.0 with stable execution-profile and pricing-profile identity hashes that exclude timestamps, local worktree paths, process/host values, credentials, and operator text
+- Added domain-separated repository-owned consent, invocation, reservation, result, and result-root identities with caller-ID rejection, collision denial, and fixed safe result-history paths
+- Replaced the generic 360,000-input/6,000-output reservation with a source-grounded complete-run envelope covering the exact frozen requests, all 28 sanitized images and 52 image usages, explicit output ceilings, the fixed 8,000-token web-search block, tool fees, retries, fallbacks, and direct-page carry-forward content while retaining the 832-attempt ceiling
+- Added the fixed `PREFLIGHT`, `CREATE_CONSENT`, `EXECUTE`, and `READBACK` command grammar; consent creation and execution remain disabled until a later separate authorization station
+- Kept the frozen product under test bound to commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, and preserved Phase 7A and Phases 6D-6H behavior unchanged
+- Provider-call impact: deterministic validation and the one permitted real-freeze preflight perform no handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request
+
 ## Version 2.0
 - User accounts
 - Saved listings

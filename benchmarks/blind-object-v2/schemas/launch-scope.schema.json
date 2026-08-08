@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/launch-scope.schema.json",
+  "title": "Blind Object Benchmark V2 stable launch scope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scopeType", "benchmarkId", "candidateSetId", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "executorSourceHead", "executorVersion", "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash", "orderedRequestHashInventory", "handlerContract", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "endpointClassAllowlistHash", "environmentNameAllowlistHash", "completePhysicalAttemptCeiling", "completeAttemptCeilingHash", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash", "maximumAuthorizedCostMinorUnits", "networkPolicyHash", "privateControlsAuthorized", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized", "launchScopeHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "scopeType": { "const": "BLIND_OBJECT_V2_LAUNCH_SCOPE" },
+    "benchmarkId": { "const": "blind-object-v2" },
+    "candidateSetId": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9_-]{7,79}$" },
+    "productSourceHead": { "$ref": "#/$defs/commit" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "productRuntimeManifestHash": { "$ref": "#/$defs/hash" },
+    "executorSourceHead": { "$ref": "#/$defs/commit" },
+    "executorVersion": { "const": "1.12.15" },
+    "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" },
+    "freezeManifestHash": { "$ref": "#/$defs/hash" },
+    "freezeReceiptHash": { "$ref": "#/$defs/hash" },
+    "requestAggregateHash": { "$ref": "#/$defs/hash" },
+    "orderedRequestHashInventory": { "type": "array", "minItems": 26, "maxItems": 26, "uniqueItems": true, "items": { "$ref": "#/$defs/hash" } },
+    "handlerContract": {
+      "type": "object", "additionalProperties": false, "required": ["export", "bridge", "method", "path"],
+      "properties": { "export": { "const": "api/generate-listing.js#createGenerateListingHandler" }, "bridge": { "const": "scripts/local-generate-listing-bridge.mjs" }, "method": { "const": "POST" }, "path": { "const": "/api/generate-listing" } }
+    },
+    "modelProvider": { "const": "OPENAI" },
+    "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },
+    "acquisitionProviderMode": { "enum": ["OPENAI_WEB_SEARCH_ONLY", "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK"] },
+    "directPageMode": { "const": "PRODUCT_BOUNDED_ONLY" },
+    "endpointClassAllowlistHash": { "$ref": "#/$defs/hash" },
+    "environmentNameAllowlistHash": { "$ref": "#/$defs/hash" },
+    "completePhysicalAttemptCeiling": { "const": 832 },
+    "completeAttemptCeilingHash": { "$ref": "#/$defs/hash" },
+    "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
+    "pricingProfileIdentityHash": { "$ref": "#/$defs/hash" },
+    "costEnvelopeHash": { "$ref": "#/$defs/hash" },
+    "maximumAuthorizedCostMinorUnits": { "const": 4000 },
+    "networkPolicyHash": { "$ref": "#/$defs/hash" },
+    "privateControlsAuthorized": { "const": false },
+    "scoringAuthorized": { "const": false },
+    "reflectionAuthorized": { "const": false },
+    "repairAuthorized": { "const": false },
+    "deploymentAuthorized": { "const": false },
+    "launchScopeHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "publicIdentity": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$" }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "releaseType": "BLIND_OBJECT_V2_EXECUTOR_IMPLEMENTATION",
-  "executorVersion": "1.12.14",
+  "executorVersion": "1.12.15",
   "productUnderTest": {
     "sourceHead": "7056eb0601dc69c5985703fea6fe665e82c6bed8",
     "sourceVersion": "1.12.13",
@@ -9,6 +9,11 @@
   },
   "handler": "api/generate-listing.js#createGenerateListingHandler",
   "completePhysicalAttemptCeiling": 832,
+  "launchScopeSchemaVersion": "1.0",
+  "costEnvelopeSchemaVersion": "1.0",
+  "maximumAuthorizedCostMinorUnits": 4000,
+  "consentCreationEnabled": false,
+  "executionEnabled": false,
   "realExecutionAuthorized": false,
   "privateControlsAuthorized": false,
   "scoringAuthorized": false,

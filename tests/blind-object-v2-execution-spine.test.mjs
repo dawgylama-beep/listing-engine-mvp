@@ -59,6 +59,7 @@ import {
   verifyDetachedProductRuntime
 } from "../benchmarks/blind-object-v2/scripts/execution-profile.mjs";
 import { sha256Json } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
+import { createLaunchScope } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 
 const EXECUTOR_HEAD = "b".repeat(40);
 const RUNTIME_HASH = "a".repeat(64);
@@ -95,33 +96,30 @@ function profileAndCeiling(requests = fakeRequests(), overrides = {}) {
 
 function pricing(exactModel = "gpt-4.1-mini", overrides = {}) {
   return createPricingProfile({
-    pricingProfileId: "synthetic-pricing-profile",
     provider: "OPENAI",
     exactModel,
-    effectiveDate: "2026-08-07",
+    effectiveDate: "2026-08-08",
     pricingSourceDescription: "Synthetic deterministic rates used only by offline tests.",
-    inputTokenRatePerMillion: 0.05,
-    cachedInputTokenRatePerMillion: 0.01,
-    outputTokenRatePerMillion: 0.1,
-    webSearchCallRate: 0.001,
-    serperSearchCallRate: 0.001,
+    inputTokenRatePerMillion: 0.4,
+    cachedInputTokenRatePerMillion: 0.1,
+    outputTokenRatePerMillion: 1.6,
+    webSearchCallRate: 0.01,
+    serperSearchCallRate: null,
     directPageCostAssumption: 0,
-    conservativeUncertaintyMargin: 0.1,
+    conservativeUncertaintyMargin: 0.2,
     createdAt: AT,
     ...overrides
   });
 }
 
 function consentScope(requests, profile, pricingProfile, ceiling, overrides = {}) {
-  const conservative = conservativeMaximumCost(ceiling, pricingProfile, profile.acquisitionProviderMode);
-  return {
-    consentId: "synthetic-consent-integrity",
-    invocationId: "synthetic-invocation-integrity",
-    resultId: "synthetic-result-integrity",
+  const costEnvelopeHash = overrides.costEnvelopeHash || "e".repeat(64);
+  const launchScope = createLaunchScope({
     benchmarkId: "blind-object-v2",
     candidateSetId: "SYNTHETIC-HOLDOUT",
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
+    productRuntimeManifestHash: RUNTIME_HASH,
     executorSourceHead: EXECUTOR_HEAD,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: "1".repeat(64),
@@ -129,37 +127,43 @@ function consentScope(requests, profile, pricingProfile, ceiling, overrides = {}
     freezeReceiptHash: "3".repeat(64),
     requestAggregateHash: "4".repeat(64),
     orderedRequestHashInventory: requests.map((request) => request.requestContractHash),
-    executionProfileHash: profile.profileHash,
-    pricingProfileHash: pricingProfile.pricingProfileHash,
+    handlerContract: profile.handlerContract,
+    modelProvider: profile.modelProvider,
+    exactModelLiteral: profile.exactModelLiteral,
+    acquisitionProviderMode: profile.acquisitionProviderMode,
+    directPageMode: profile.directPageMode,
+    endpointClassAllowlistHash: sha256Json(profile.fixedProviderEndpointClasses),
+    environmentNameAllowlistHash: sha256Json(profile.fixedEnvironmentVariableNameAllowlist),
     completePhysicalAttemptCeiling: 832,
-    maximumAuthorizedCost: Number((conservative + 1).toFixed(8)),
-    conservativeMaximumCost: conservative,
-    fixedResultRoot: "benchmarks/blind-object-v2-results/synthetic-result-integrity",
-    authorizedNetworkScope: profile.networkScope,
-    authorizedRequestCount: 26,
-    privateControlsAuthorized: false,
-    scoringAuthorized: false,
-    reflectionAuthorized: false,
-    repairAuthorized: false,
-    deploymentAuthorized: false,
-    ...overrides
+    completeAttemptCeilingHash: ceiling.ceilingHash,
+    executionProfileIdentityHash: profile.executionProfileIdentityHash,
+    pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
+    costEnvelopeHash,
+    maximumAuthorizedCostMinorUnits: 4000,
+    networkPolicyHash: sha256Json(profile.networkScope),
+    privateControlsAuthorized: overrides.privateControlsAuthorized ?? false,
+    scoringAuthorized: overrides.scoringAuthorized ?? false,
+    reflectionAuthorized: overrides.reflectionAuthorized ?? false,
+    repairAuthorized: overrides.repairAuthorized ?? false,
+    deploymentAuthorized: overrides.deploymentAuthorized ?? false
+  });
+  const costEnvelope = {
+    costEnvelopeHash,
+    costState: "COMPLETE_RUN_WITHIN_AUTHORIZED_COST",
+    authorizedMaximumMinorUnits: 4000,
+    conservativeMaximumCostMinorUnits: 100,
+    conservativeMaximumCost: 1
   };
+  return { launchScope, costEnvelope };
 }
 
-function reservationScope(consent, profile, pricingProfile) {
+function reservationScope(requests, consent, profile, pricingProfile, suppliedLaunchScope = null) {
+  const launchScope = suppliedLaunchScope || consentScope(requests, profile, pricingProfile, calculateCompleteAttemptCeiling(requests)).launchScope;
   return {
-    invocationId: consent.invocationId,
-    resultId: consent.resultId,
-    consentHash: consent.consentHash,
+    launchScope,
+    consent,
     executionProfileHash: profile.profileHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
-    completeFrozenAggregateHash: consent.completeFrozenAggregateHash,
-    requestAggregateHash: consent.requestAggregateHash,
-    productSourceHead: PRODUCT_SOURCE_HEAD,
-    productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: EXECUTOR_HEAD,
-    executorVersion: EXECUTOR_VERSION,
-    resultRoot: consent.fixedResultRoot,
     createdIdentity: "executor-synthetic"
   };
 }
@@ -186,10 +190,13 @@ function terminalFixture(overrides = {}) {
   const { profile, attemptCeiling } = profileAndCeiling(requests);
   const rates = pricing();
   const consent = createExecutionConsent(consentScope(requests, profile, rates, attemptCeiling), AT);
-  const reservation = createInvocationReservation(reservationScope(consent, profile, rates), AT);
+  const reservation = createInvocationReservation(reservationScope(requests, consent, profile, rates), AT);
   const terminal = createTerminalResult({
     requestId: "V2-RUN-001",
     requestHash: requests[0].requestContractHash,
+    launchScopeHash: consent.launchScopeHash,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
     invocationId: consent.invocationId,
     consentHash: consent.consentHash,
     reservationHash: reservation.reservationHash,
@@ -198,7 +205,10 @@ function terminalFixture(overrides = {}) {
     executorSourceHead: EXECUTOR_HEAD,
     executorVersion: EXECUTOR_VERSION,
     executionProfileHash: profile.profileHash,
+    executionProfileIdentityHash: profile.executionProfileIdentityHash,
     pricingProfileHash: rates.pricingProfileHash,
+    pricingProfileIdentityHash: rates.pricingProfileIdentityHash,
+    costEnvelopeHash: consent.costEnvelopeHash,
     physicalSubmissionIdentity: "submission-44444444444444444444444444444444",
     submissionState: REQUEST_STATE.TERMINAL,
     terminalState: "NORMAL_SUCCESS",
@@ -227,7 +237,9 @@ function terminalFixture(overrides = {}) {
 
 function unscoredManifestFixture(overrides = {}) {
   return createUnscoredResultManifest({
+    launchScopeHash: "0".repeat(64),
     resultId: "synthetic-result-structural",
+    resultRootName: "result-root-" + "0".repeat(48),
     invocationId: "synthetic-invocation-structural",
     consentHash: "1".repeat(64),
     reservationHash: "2".repeat(64),
@@ -238,7 +250,10 @@ function unscoredManifestFixture(overrides = {}) {
     completeFrozenAggregateHash: "3".repeat(64),
     requestAggregateHash: "4".repeat(64),
     executionProfileHash: "5".repeat(64),
+    executionProfileIdentityHash: "b".repeat(64),
     pricingProfileHash: "6".repeat(64),
+    pricingProfileIdentityHash: "c".repeat(64),
+    costEnvelopeHash: "d".repeat(64),
     maximumCost: 40,
     costLedgerHash: "7".repeat(64),
     requestedCount: 26,
@@ -280,7 +295,7 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.14");
+  assert.equal(EXECUTOR_VERSION, "1.12.15");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
   assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, executorSourceHead: EXECUTOR_HEAD, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
@@ -432,7 +447,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.14");
+  assert.equal(terminal.executorVersion, "1.12.15");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -484,8 +499,8 @@ test("artifact E-F, H-I, K, and M: false authority is valid and true authority i
 
 test("artifact N-P: exact layout, unknown paths, normalization variants, and response grammar are enforced", () => {
   assert.deepEqual(Object.keys(RESULT_ROOT_ARTIFACT_ROLES).sort(), [
-    "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json",
-    "invocation-reservation.json", "pricing-profile.json", "unscored-result-manifest.json", "validation-report.json"
+    "cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json",
+    "invocation-reservation.json", "launch-scope.json", "pricing-profile.json", "unscored-result-manifest.json", "validation-report.json"
   ]);
   const valid = expectedResultArtifactPaths(["V2-RUN-001", "V2-RUN-026"]);
   assert.deepEqual(classifyResultArtifactInventory(valid).relativePaths, valid);
@@ -531,7 +546,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.14");
+  assert.equal(EXECUTOR_VERSION, "1.12.15");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {
@@ -576,12 +591,14 @@ test("L-M: reservation creation is exclusive, idempotent readback is non-mutatin
   const { profile, attemptCeiling } = profileAndCeiling(requests);
   const rates = pricing();
   const consent = createExecutionConsent(consentScope(requests, profile, rates, attemptCeiling), AT);
-  const reservation = createInvocationReservation(reservationScope(consent, profile, rates), AT);
+  const reservation = createInvocationReservation(reservationScope(requests, consent, profile, rates), AT);
   const created = await createExclusiveReservation(root, reservation);
   assert.equal(created.status, "CREATED");
   const readback = await createExclusiveReservation(root, reservation);
   assert.equal(readback.status, "EXISTING_IDENTICAL_READBACK");
-  const mismatched = createInvocationReservation({ ...reservationScope(consent, profile, rates), resultId: "synthetic-result-conflict", resultRoot: "benchmarks/blind-object-v2-results/synthetic-result-conflict" }, AT);
+  const conflictInput = consentScope(requests, profile, rates, attemptCeiling, { costEnvelopeHash: "f".repeat(64) });
+  const conflictConsent = createExecutionConsent(conflictInput, AT);
+  const mismatched = createInvocationReservation(reservationScope(requests, conflictConsent, profile, rates, conflictInput.launchScope), AT);
   await assert.rejects(createExclusiveReservation(root, mismatched), /conflicting reservation/);
 }));
 
@@ -625,17 +642,17 @@ test("T-Y: product failures seal, atomic writes reject overwrite/corruption, and
   const { profile, attemptCeiling } = profileAndCeiling(requests);
   const rates = pricing();
   const consent = createExecutionConsent(consentScope(requests, profile, rates, attemptCeiling), AT);
-  const reservation = createInvocationReservation(reservationScope(consent, profile, rates), AT);
+  const reservation = createInvocationReservation(reservationScope(requests, consent, profile, rates), AT);
   const terminal = createTerminalResult({
-    requestId: "V2-RUN-001", requestHash: requests[0].requestContractHash, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash,
+    requestId: "V2-RUN-001", requestHash: requests[0].requestContractHash, launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash,
     productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION,
-    executionProfileHash: profile.profileHash, pricingProfileHash: rates.pricingProfileHash, physicalSubmissionIdentity: "submission-44444444444444444444444444444444",
+    executionProfileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash, pricingProfileHash: rates.pricingProfileHash, pricingProfileIdentityHash: rates.pricingProfileIdentityHash, costEnvelopeHash: consent.costEnvelopeHash, physicalSubmissionIdentity: "submission-44444444444444444444444444444444",
     submissionState: REQUEST_STATE.TERMINAL, terminalState: "PRODUCT_TERMINAL_FAILURE", startedAt: AT, completedAt: "2026-08-07T12:00:00.001Z", elapsedDurationMs: 1,
     handlerStatus: 502, sanitizedTerminalResponseEnvelope: { statusCode: 502, body: { code: "provider_failure" } }, responseDiagnostics: {}, providerAttemptTelemetry: [], providerIdentities: [], modelIdentity: profile.exactModelLiteral,
     callCeilingTelemetry: {}, costEntry: {}, governorProof: null, cognitiveStateIdentity: "", experienceRecord: null, experienceRecordHash: "", terminalEvidence: null, errorStage: "PRODUCT", errorCategory: "provider_failure"
   });
   assert.equal(validateTerminalResult(terminal).valid, true);
-  const manifest = createUnscoredResultManifest({ resultId: consent.resultId, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash, productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: consent.completeFrozenAggregateHash, requestAggregateHash: consent.requestAggregateHash, executionProfileHash: profile.profileHash, pricingProfileHash: rates.pricingProfileHash, maximumCost: consent.maximumAuthorizedCost, costLedgerHash: "5".repeat(64), requestedCount: 26, submittedCount: 26, terminalCount: 26, normalSuccessCount: 25, productTerminalFailureCount: 1, executionIntegrityFailureCount: 0, notSubmittedCount: 0, orderedResponseHashInventory: [], responseAggregate: "6".repeat(64), journalAggregate: "7".repeat(64), resultTreeAggregate: "8".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING });
+  const manifest = createUnscoredResultManifest({ launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash, productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: consent.completeFrozenAggregateHash, requestAggregateHash: consent.requestAggregateHash, executionProfileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash, pricingProfileHash: rates.pricingProfileHash, pricingProfileIdentityHash: rates.pricingProfileIdentityHash, costEnvelopeHash: consent.costEnvelopeHash, maximumCost: consent.maximumAuthorizedCost, costLedgerHash: "5".repeat(64), requestedCount: 26, submittedCount: 26, terminalCount: 26, normalSuccessCount: 25, productTerminalFailureCount: 1, executionIntegrityFailureCount: 0, notSubmittedCount: 0, orderedResponseHashInventory: [], responseAggregate: "6".repeat(64), journalAggregate: "7".repeat(64), resultTreeAggregate: "8".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING });
   assert.equal(validateUnscoredResultManifest(manifest).state, RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING);
   const history = resolveResultHistoryRoot(EXECUTION_MODE.SYNTHETIC_TEST_ONLY, path.join(root, "history"));
   const resultRoot = await createExclusiveResultRoot(history, "synthetic-result-atomic");
@@ -657,7 +674,7 @@ test("W-X: reservation transition is durable and altered authority is rejected",
   const { profile, attemptCeiling } = profileAndCeiling(requests);
   const rates = pricing();
   const consent = createExecutionConsent(consentScope(requests, profile, rates, attemptCeiling), AT);
-  let reservation = createInvocationReservation(reservationScope(consent, profile, rates), AT);
+  let reservation = createInvocationReservation(reservationScope(requests, consent, profile, rates), AT);
   const created = await createExclusiveReservation(root, reservation);
   reservation = transitionReservation(reservation, RESERVATION_STATE.STARTED, "2026-08-07T12:00:00.001Z", "start");
   await replaceReservation(created.filePath, reservation);
@@ -686,13 +703,13 @@ test("Z and AC-AD: strict operations remain network-denied and no real-run autho
 });
 
 test("AA: partial manifests cannot masquerade as complete", () => {
-  const partial = createUnscoredResultManifest({ resultId: "synthetic-result-partial", invocationId: "synthetic-invocation-partial", consentHash: "1".repeat(64), reservationHash: "2".repeat(64), productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: "3".repeat(64), requestAggregateHash: "4".repeat(64), executionProfileHash: "5".repeat(64), pricingProfileHash: "6".repeat(64), maximumCost: 40, costLedgerHash: "7".repeat(64), requestedCount: 26, submittedCount: 1, terminalCount: 1, normalSuccessCount: 0, productTerminalFailureCount: 0, executionIntegrityFailureCount: 1, notSubmittedCount: 25, orderedResponseHashInventory: [], responseAggregate: "8".repeat(64), journalAggregate: "9".repeat(64), resultTreeAggregate: "a".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP });
+  const partial = createUnscoredResultManifest({ launchScopeHash: "0".repeat(64), resultId: "synthetic-result-partial", resultRootName: `result-root-${"0".repeat(48)}`, invocationId: "synthetic-invocation-partial", consentHash: "1".repeat(64), reservationHash: "2".repeat(64), productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: "3".repeat(64), requestAggregateHash: "4".repeat(64), executionProfileHash: "5".repeat(64), executionProfileIdentityHash: "b".repeat(64), pricingProfileHash: "6".repeat(64), pricingProfileIdentityHash: "c".repeat(64), costEnvelopeHash: "d".repeat(64), maximumCost: 40, costLedgerHash: "7".repeat(64), requestedCount: 26, submittedCount: 1, terminalCount: 1, normalSuccessCount: 0, productTerminalFailureCount: 0, executionIntegrityFailureCount: 1, notSubmittedCount: 25, orderedResponseHashInventory: [], responseAggregate: "8".repeat(64), journalAggregate: "9".repeat(64), resultTreeAggregate: "a".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP });
   assert.equal(validateUnscoredResultManifest(partial).state, RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP);
   assert.throws(() => createUnscoredResultManifest({ ...partial, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING }), /submittedCount|26/);
 });
 
 test("all new execution JSON schemas parse strictly and remain top-level closed", async () => {
-  const names = ["execution-profile", "pricing-profile", "consent-receipt", "invocation-registry", "request-execution-journal", "cost-ledger", "terminal-result", "unscored-result-manifest"];
+  const names = ["launch-scope", "cost-envelope", "execution-profile", "pricing-profile", "consent-receipt", "invocation-registry", "request-execution-journal", "cost-ledger", "terminal-result", "unscored-result-manifest"];
   for (const name of names) {
     const document = JSON.parse(await readFile(new URL(`../benchmarks/blind-object-v2/schemas/${name}.schema.json`, import.meta.url), "utf8"));
     assert.equal(document.$schema, "https://json-schema.org/draft/2020-12/schema");
