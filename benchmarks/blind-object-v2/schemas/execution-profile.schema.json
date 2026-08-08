@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/execution-profile.schema.json",
+  "title": "Blind Object Benchmark V2 execution profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "productRuntimeIdentityType", "executorSourceHead", "executorVersion", "handlerContract", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses", "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis", "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch", "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "resolvedAt", "profileHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "profileType": { "const": "BENCHMARK_EXECUTION_PROFILE" },
+    "productSourceHead": { "$ref": "#/$defs/commit" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "productRuntimeManifestHash": { "$ref": "#/$defs/hash" },
+    "productRuntimeIdentityType": { "const": "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE" },
+    "executorSourceHead": { "$ref": "#/$defs/commit" },
+    "executorVersion": { "const": "1.12.14" },
+    "handlerContract": { "type": "object" },
+    "modelProvider": { "const": "OPENAI" },
+    "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },
+    "acquisitionProviderMode": { "enum": ["OPENAI_WEB_SEARCH_ONLY", "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK"] },
+    "directPageMode": { "const": "PRODUCT_BOUNDED_ONLY" },
+    "fixedProviderEndpointClasses": { "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/publicIdentity" } },
+    "fixedEnvironmentVariableNameAllowlist": { "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true },
+    "credentialPresenceDeclarations": { "type": "object" },
+    "refinementCeilingPerAnalysis": { "const": 1 },
+    "logicalAcquisitionCeilings": { "type": "object" },
+    "directPagePhysicalCeilingPerAnalysis": { "const": 2 },
+    "physicalRetryCeilingPerLogicalSearch": { "const": 1 },
+    "completeAggregatePhysicalAttemptCeiling": { "const": 832 },
+    "completeAttemptCeilingHash": { "$ref": "#/$defs/hash" },
+    "networkScope": { "type": "object" },
+    "resolvedAt": { "type": "string", "format": "date-time" },
+    "profileHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "publicIdentity": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$" }
+  }
+}

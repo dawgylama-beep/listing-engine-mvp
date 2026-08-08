@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/unscored-result-manifest.schema.json",
+  "title": "Blind Object Benchmark V2 unscored result authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestType", "resultId", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "completeFrozenAggregateHash", "requestAggregateHash", "executionProfileHash", "pricingProfileHash", "maximumCost", "costLedgerHash", "requestedCount", "submittedCount", "terminalCount", "normalSuccessCount", "productTerminalFailureCount", "executionIntegrityFailureCount", "notSubmittedCount", "orderedResponseHashInventory", "responseAggregate", "journalAggregate", "resultTreeAggregate", "resultTreeRecords", "privateControlsLoaded", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "state", "manifestHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "manifestType": { "const": "BENCHMARK_UNSCORED_RESULT_MANIFEST" },
+    "resultId": { "type": "string" }, "invocationId": { "type": "string" }, "consentHash": { "$ref": "#/$defs/hash" }, "reservationHash": { "$ref": "#/$defs/hash" }, "productSourceHead": { "type": "string" }, "productSourceVersion": { "const": "1.12.13" }, "executorSourceHead": { "type": "string" }, "executorVersion": { "const": "1.12.14" }, "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" }, "requestAggregateHash": { "$ref": "#/$defs/hash" }, "executionProfileHash": { "$ref": "#/$defs/hash" }, "pricingProfileHash": { "$ref": "#/$defs/hash" }, "maximumCost": { "type": "number", "minimum": 0 }, "costLedgerHash": { "$ref": "#/$defs/hash" },
+    "requestedCount": { "const": 26 }, "submittedCount": { "type": "integer", "minimum": 0, "maximum": 26 }, "terminalCount": { "type": "integer", "minimum": 0, "maximum": 26 }, "normalSuccessCount": { "type": "integer", "minimum": 0, "maximum": 26 }, "productTerminalFailureCount": { "type": "integer", "minimum": 0, "maximum": 26 }, "executionIntegrityFailureCount": { "type": "integer", "minimum": 0 }, "notSubmittedCount": { "type": "integer", "minimum": 0, "maximum": 26 },
+    "orderedResponseHashInventory": { "type": "array" }, "responseAggregate": { "$ref": "#/$defs/hash" }, "journalAggregate": { "$ref": "#/$defs/hash" }, "resultTreeAggregate": { "$ref": "#/$defs/hash" }, "resultTreeRecords": { "type": "array" },
+    "privateControlsLoaded": { "const": false }, "scoringAuthorized": { "const": false }, "reflectionAuthorized": { "const": false }, "repairAuthorized": { "const": false },
+    "state": { "enum": ["EXECUTED_SEALED_AWAITING_SCORING", "PARTIAL_EXECUTION_INTEGRITY_STOP", "FAILED_BEFORE_ANY_SUBMISSION", "INVALID"] },
+    "manifestHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

@@ -644,6 +644,14 @@
 - Preserved all object-analysis, evidence, Governor, Experience, reflection, lesson, benchmark, customer-memory, and personality behavior unchanged
 - Provider-call impact: validation is deterministic and network-denied; no object submission, benchmark, OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, or Production request is performed
 
+## Version 1.12.14 (Completed)
+- Added the benchmark-local Blind Object V2 exactly-once execution spine with separate product and executor release identities, strict consent and reservation binding, durable request-state transitions, bounded cost accounting, terminal result sealing, and unscored result manifests
+- Kept the frozen product under test permanently bound to commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, while advancing only the executor and customer-visible release to Version `1.12.14`
+- Added a strict direct-caller-only repository-state fixture for the no-input preparation regression while preserving the operational Git inspector for CLI and default module use; dirty, staged, conflicted, wrong-root, HEAD-mismatched, Version-mismatched, and failed probes remain fail-closed
+- Added deterministic coverage for exactly-once replay denial, attempt and cost ceilings, provider/model binding, structural result-tree classification, secret scanning, runtime isolation, hard network denial, private-control exclusion, scoring isolation, and immutable Phase 7C freeze readback
+- Preserved the benchmark specification, coverage, scoring, frozen requests, Phase 7C freeze, and all product analysis, Object Mind, evidence, Governor, Experience, reflection, and lesson behavior unchanged
+- Provider-call impact: the complete physical-attempt ceiling is 832, but release validation used only synthetic handlers and hard-network-denied tests; no frozen request reached the real handler and no OpenAI, web-search, Serper, direct-page, live-provider, paid-provider, scoring, Preview analysis, or Production request was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -1,28 +1,35 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "blind-object-v2/invocation-registry.schema.json",
-  "title": "Blind Object Benchmark V2 single-use invocation registry",
+  "title": "Blind Object Benchmark V2 exclusive invocation reservation",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "benchmarkId", "entries"],
+  "required": ["schemaVersion", "reservationType", "invocationId", "resultId", "consentHash", "executionProfileHash", "pricingProfileHash", "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "resultRoot", "createdIdentity", "state", "transitions", "transitionJournalHash", "reservationHash", "recordHash"],
   "properties": {
-    "schemaVersion": { "const": "2.0" },
-    "benchmarkId": { "const": "blind-object-v2" },
-    "entries": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["invocationId", "freezeAggregateHash", "authorizationHash", "status", "recordedAt"],
-        "properties": {
-          "invocationId": { "type": "string", "pattern": "^V2-INV-[a-z0-9][a-z0-9-]{7,63}$" },
-          "freezeAggregateHash": { "$ref": "#/$defs/hash" },
-          "authorizationHash": { "$ref": "#/$defs/hash" },
-          "status": { "enum": ["STARTED", "INDETERMINATE", "CONSUMED"] },
-          "recordedAt": { "type": "string", "format": "date-time" }
-        }
-      }
-    }
+    "schemaVersion": { "const": "1.0" },
+    "reservationType": { "const": "BENCHMARK_INVOCATION_RESERVATION" },
+    "invocationId": { "$ref": "#/$defs/id" },
+    "resultId": { "$ref": "#/$defs/id" },
+    "consentHash": { "$ref": "#/$defs/hash" },
+    "executionProfileHash": { "$ref": "#/$defs/hash" },
+    "pricingProfileHash": { "$ref": "#/$defs/hash" },
+    "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" },
+    "requestAggregateHash": { "$ref": "#/$defs/hash" },
+    "productSourceHead": { "$ref": "#/$defs/commit" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "executorSourceHead": { "$ref": "#/$defs/commit" },
+    "executorVersion": { "const": "1.12.14" },
+    "resultRoot": { "type": "string", "pattern": "^benchmarks/blind-object-v2-results/[a-z0-9][a-z0-9-]{7,95}$" },
+    "createdIdentity": { "type": "string", "minLength": 8, "maxLength": 120 },
+    "state": { "enum": ["RESERVED_NOT_STARTED", "STARTED", "INDETERMINATE", "CONSUMED", "FAILED_BEFORE_START", "INVALID"] },
+    "transitions": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+    "transitionJournalHash": { "$ref": "#/$defs/hash" },
+    "reservationHash": { "$ref": "#/$defs/hash" },
+    "recordHash": { "$ref": "#/$defs/hash" }
   },
-  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" }
+  }
 }

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/pricing-profile.schema.json",
+  "title": "Blind Object Benchmark V2 pricing profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "pricingProfileId", "provider", "exactModel", "effectiveDate", "pricingSourceDescription", "inputTokenPricing", "cachedInputTokenPricing", "outputTokenPricing", "webSearchToolPricing", "serperSearchPricing", "directPageCostAssumption", "currency", "conservativeUncertaintyMargin", "createdAt", "pricingProfileHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "pricingProfileId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" },
+    "provider": { "const": "OPENAI" },
+    "exactModel": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+    "effectiveDate": { "type": "string", "format": "date" },
+    "pricingSourceDescription": { "type": "string", "minLength": 8, "maxLength": 500 },
+    "inputTokenPricing": { "$ref": "#/$defs/tokenRate" },
+    "cachedInputTokenPricing": { "$ref": "#/$defs/tokenRate" },
+    "outputTokenPricing": { "$ref": "#/$defs/tokenRate" },
+    "webSearchToolPricing": { "$ref": "#/$defs/callRate" },
+    "serperSearchPricing": { "$ref": "#/$defs/callRate" },
+    "directPageCostAssumption": { "type": "object", "additionalProperties": false, "required": ["unit", "rate"], "properties": { "unit": { "const": "USD_PER_FETCH" }, "rate": { "type": "number", "minimum": 0 } } },
+    "currency": { "const": "USD" },
+    "conservativeUncertaintyMargin": { "type": "number", "minimum": 0 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "pricingProfileHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "tokenRate": { "type": "object", "additionalProperties": false, "required": ["unit", "rate"], "properties": { "unit": { "const": "USD_PER_MILLION_TOKENS" }, "rate": { "type": "number", "minimum": 0 } } },
+    "callRate": { "type": "object", "additionalProperties": false, "required": ["unit", "rate"], "properties": { "unit": { "const": "USD_PER_CALL" }, "rate": { "type": "number", "minimum": 0 } } }
+  }
+}

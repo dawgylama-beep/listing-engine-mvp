@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile, stat } from "node:fs/promises";
+import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import {
@@ -16,6 +17,21 @@ import { persistFrozenBenchmark } from "./freeze-store.mjs";
 
 const benchmarkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = path.resolve(benchmarkRoot, "..", "..");
+const REPOSITORY_STATE_SCHEMA_VERSION = "1.0";
+const CONTROLLED_REPOSITORY_STATE_PROBES = new WeakSet();
+const REPOSITORY_STATE_FIELDS = Object.freeze([
+  "conflictedPaths",
+  "head",
+  "probeSucceeded",
+  "processRoot",
+  "repositoryRoot",
+  "schemaVersion",
+  "stagedTrackedPaths",
+  "unstagedTrackedPaths",
+  "version"
+]);
+const MAX_REPOSITORY_STATE_PATHS = 4096;
+const MAX_REPOSITORY_PATH_LENGTH = 1024;
 
 async function readJson(filePath) {
   return parseJsonStrict(await readFile(filePath, "utf8"), filePath);
@@ -29,13 +45,125 @@ function currentCommit() {
   return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true }).trim();
 }
 
-function assertTrackedReleaseClean() {
-  execFileSync("git", ["diff", "--quiet"], { cwd: repositoryRoot, windowsHide: true });
-  execFileSync("git", ["diff", "--cached", "--quiet"], { cwd: repositoryRoot, windowsHide: true });
-}
-
 async function currentVersion() {
   return (await readJson(path.join(repositoryRoot, "package.json"))).version;
+}
+
+function normalizedRepositoryPath(value, label) {
+  assert.equal(typeof value, "string", `${label} must be text`);
+  assert.ok(value.length > 0 && value.length <= MAX_REPOSITORY_PATH_LENGTH, `${label} length is invalid`);
+  const resolved = path.resolve(value);
+  assert.equal(value, resolved, `${label} must be an absolute normalized path`);
+  return resolved;
+}
+
+function normalizedTrackedPaths(value, label) {
+  assert.ok(Array.isArray(value), `${label} must be an array`);
+  assert.ok(value.length <= MAX_REPOSITORY_STATE_PATHS, `${label} exceeds its bounded path count`);
+  const normalized = value.map((entry) => {
+    assert.equal(typeof entry, "string", `${label} entries must be text`);
+    assert.ok(entry.length > 0 && entry.length <= MAX_REPOSITORY_PATH_LENGTH, `${label} contains an invalid path length`);
+    assert.doesNotMatch(entry, /\\/, `${label} paths must use repository separators`);
+    assert.equal(path.posix.isAbsolute(entry), false, `${label} paths must be relative`);
+    assert.equal(path.posix.normalize(entry), entry, `${label} contains a non-canonical path`);
+    assert.equal(entry.split("/").some((segment) => segment === ".." || segment === "."), false, `${label} contains a path operator`);
+    return entry;
+  });
+  assert.equal(new Set(normalized).size, normalized.length, `${label} contains duplicate paths`);
+  return Object.freeze([...normalized].sort());
+}
+
+export function validateRepositoryStateRecord(record) {
+  assert.ok(record && typeof record === "object" && !Array.isArray(record), "repository-state record must be an object");
+  assert.deepEqual(Object.keys(record).sort(), [...REPOSITORY_STATE_FIELDS], "repository-state record fields are invalid");
+  assert.equal(record.schemaVersion, REPOSITORY_STATE_SCHEMA_VERSION, "repository-state schema version is invalid");
+  assert.equal(typeof record.probeSucceeded, "boolean", "repository-state probe disposition must be boolean");
+  assert.match(record.head || "", /^[a-f0-9]{40}$/, "repository-state HEAD is invalid");
+  assert.match(record.version || "", /^\d+\.\d+\.\d+$/, "repository-state Version is invalid");
+  return Object.freeze({
+    schemaVersion: record.schemaVersion,
+    probeSucceeded: record.probeSucceeded,
+    repositoryRoot: normalizedRepositoryPath(record.repositoryRoot, "repository-state root"),
+    processRoot: normalizedRepositoryPath(record.processRoot, "repository-state process root"),
+    head: record.head,
+    version: record.version,
+    unstagedTrackedPaths: normalizedTrackedPaths(record.unstagedTrackedPaths, "unstaged tracked paths"),
+    stagedTrackedPaths: normalizedTrackedPaths(record.stagedTrackedPaths, "staged tracked paths"),
+    conflictedPaths: normalizedTrackedPaths(record.conflictedPaths, "conflicted paths")
+  });
+}
+
+function parseTrackedStatus(output) {
+  const unstagedTrackedPaths = new Set();
+  const stagedTrackedPaths = new Set();
+  const conflictedPaths = new Set();
+  const conflicts = new Set(["DD", "AU", "UD", "UA", "DU", "AA", "UU"]);
+  const records = output.split("\0");
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    if (!record) continue;
+    assert.ok(record.length >= 4, "Git returned a malformed repository-state record");
+    const state = record.slice(0, 2);
+    const relativePath = record.slice(3).replaceAll("\\", "/");
+    if (conflicts.has(state)) conflictedPaths.add(relativePath);
+    if (state[0] !== " ") stagedTrackedPaths.add(relativePath);
+    if (state[1] !== " ") unstagedTrackedPaths.add(relativePath);
+    if (state[0] === "R" || state[0] === "C") index += 1;
+  }
+  return { unstagedTrackedPaths: [...unstagedTrackedPaths], stagedTrackedPaths: [...stagedTrackedPaths], conflictedPaths: [...conflictedPaths] };
+}
+
+export async function inspectRepositoryState() {
+  try {
+    const discoveredRoot = path.resolve(execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true }).trim());
+    const head = currentCommit();
+    const version = await currentVersion();
+    const trackedStatus = execFileSync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=no"], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true });
+    return validateRepositoryStateRecord({
+      schemaVersion: REPOSITORY_STATE_SCHEMA_VERSION,
+      probeSucceeded: true,
+      repositoryRoot: discoveredRoot,
+      processRoot: path.resolve(process.cwd()),
+      head,
+      version,
+      ...parseTrackedStatus(trackedStatus)
+    });
+  } catch (error) {
+    throw new Error(`repository-state probe failed closed: ${error.message}`, { cause: error });
+  }
+}
+
+export function createControlledRepositoryStateProbe(record) {
+  const snapshot = validateRepositoryStateRecord(record);
+  const probe = Object.freeze(async () => snapshot);
+  CONTROLLED_REPOSITORY_STATE_PROBES.add(probe);
+  return probe;
+}
+
+function assertRepositoryState(state, requiredIdentity) {
+  assert.equal(state.probeSucceeded, true, "repository-state probe did not complete");
+  assert.equal(state.repositoryRoot, repositoryRoot, "repository identity differs from the required repository root");
+  assert.equal(state.processRoot, repositoryRoot, "the preparation process root is not the repository root");
+  assert.equal(state.head, requiredIdentity.head, "repository HEAD differs from the required HEAD");
+  assert.equal(state.version, requiredIdentity.version, "repository Version differs from the required Version");
+  assert.deepEqual(state.conflictedPaths, [], "unmerged or conflicted tracked paths are forbidden");
+  assert.deepEqual(state.unstagedTrackedPaths, [], "unstaged tracked source changes are forbidden");
+  assert.deepEqual(state.stagedTrackedPaths, [], "staged tracked source changes are forbidden");
+}
+
+async function assertControlledNoInputRoot(root) {
+  const temporaryRoot = path.resolve(os.tmpdir());
+  const resolvedRoot = path.resolve(root);
+  const relative = path.relative(temporaryRoot, resolvedRoot);
+  assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative), "controlled no-input root must remain under the operating-system temporary directory");
+  let current = temporaryRoot;
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment);
+    const currentStat = await lstat(current);
+    assert.equal(currentStat.isSymbolicLink(), false, `controlled no-input root contains a symlink or reparse point: ${current}`);
+    assert.equal(currentStat.isDirectory(), true, `controlled no-input root contains a non-directory entry: ${current}`);
+  }
+  return resolvedRoot;
 }
 
 function assertFixedAssetPath(assetPath) {
@@ -48,36 +176,49 @@ function assertFixedAssetPath(assetPath) {
 }
 
 export async function runPreparation(options = {}) {
-  const allowedOptions = ["persist", "resultHistoryRoot", "root", "storageRootOverrideForTest", "v1Root"];
+  const allowedOptions = ["persist", "repositoryStateProbe", "resultHistoryRoot", "root", "storageRootOverrideForTest", "v1Root"];
   assert.equal(Object.keys(options).every((key) => allowedOptions.includes(key)), true, "preparation options contain a release override or unsupported field");
   const {
     root = benchmarkRoot,
     v1Root = path.join(repositoryRoot, "benchmarks", "blind-object-v1"),
     resultHistoryRoot = path.join(repositoryRoot, "benchmarks", "blind-object-v1-results"),
     persist = false,
+    repositoryStateProbe,
     storageRootOverrideForTest
   } = options;
-  assert.equal(path.resolve(root), benchmarkRoot, "the real preparation command is fixed to the benchmark V2 root");
-  const sourceRepositoryHead = currentCommit();
-  const resolvedVersion = await currentVersion();
+  const controlledState = repositoryStateProbe !== undefined;
+  if (controlledState) {
+    assert.equal(CONTROLLED_REPOSITORY_STATE_PROBES.has(repositoryStateProbe), true, "only a repository-owned controlled state probe may be used by a direct module caller");
+    assert.deepEqual(Object.keys(options).sort(), ["repositoryStateProbe", "root"], "controlled repository state is restricted to the no-input preparation fixture");
+    assert.equal(persist, false, "controlled repository state cannot persist a freeze");
+  } else {
+    assert.equal(path.resolve(root), benchmarkRoot, "the real preparation command is fixed to the benchmark V2 root");
+  }
+  const requiredIdentity = { head: currentCommit(), version: await currentVersion() };
+  const repositoryState = validateRepositoryStateRecord(controlledState ? await repositoryStateProbe() : await inspectRepositoryState());
+  assertRepositoryState(repositoryState, requiredIdentity);
+  const sourceRepositoryHead = repositoryState.head;
+  const resolvedVersion = repositoryState.version;
+  const preparationRoot = controlledState ? await assertControlledNoInputRoot(root) : benchmarkRoot;
   const [benchmarkSpec, coverageContract, scoringContract] = await Promise.all([
-    readJson(path.join(root, "benchmark-spec.json")),
-    readJson(path.join(root, "coverage-contract.json")),
-    readJson(path.join(root, "scoring-contract.json"))
+    readJson(path.join(benchmarkRoot, "benchmark-spec.json")),
+    readJson(path.join(benchmarkRoot, "coverage-contract.json")),
+    readJson(path.join(benchmarkRoot, "scoring-contract.json"))
   ]);
   assert.equal(benchmarkSpec.benchmarkId, BENCHMARK_ID);
   assert.equal(benchmarkSpec.preparationOnly, true);
   assert.equal(benchmarkSpec.preparationSafety.benchmarkExecutionAuthorized, false);
 
-  const intakePath = path.join(root, "intake", "input-manifest.json");
-  const controlsPath = path.join(root, "private", "private-controls.json");
-  const releaseBoundaryPath = path.join(root, "intake", "release-boundary.json");
-  const analysisPlanPath = path.join(root, "intake", "analysis-plan.json");
-  const provenancePath = path.join(root, "private", "provenance.json");
-  const sourceOriginalManifestPath = path.join(root, "private", "source-originals-manifest.json");
+  const intakePath = path.join(preparationRoot, "intake", "input-manifest.json");
+  const controlsPath = path.join(preparationRoot, "private", "private-controls.json");
+  const releaseBoundaryPath = path.join(preparationRoot, "intake", "release-boundary.json");
+  const analysisPlanPath = path.join(preparationRoot, "intake", "analysis-plan.json");
+  const provenancePath = path.join(preparationRoot, "private", "provenance.json");
+  const sourceOriginalManifestPath = path.join(preparationRoot, "private", "source-originals-manifest.json");
   const fixedInputPaths = [intakePath, controlsPath, releaseBoundaryPath, analysisPlanPath, provenancePath, sourceOriginalManifestPath];
   const presence = await Promise.all(fixedInputPaths.map(exists));
   const [intakePresent, controlsPresent] = presence;
+  if (controlledState) assert.equal(presence.every((value) => value === false), true, "controlled repository state may only exercise an empty no-input root");
   if (presence.every((value) => value === false)) {
     const receipt = createAwaitingPreparationReceipt({ benchmarkSpec, coverageContract, scoringContract, sourceCommit: sourceRepositoryHead, version: resolvedVersion });
     return Object.freeze({
@@ -97,8 +238,6 @@ export async function runPreparation(options = {}) {
     });
   }
   assert.equal(presence.every(Boolean), true, "partial freeze intake is INVALID: every fixed release, intake, private-control, plan, provenance, and source-original manifest is required");
-  assertTrackedReleaseClean();
-
   const [intakeManifest, privateControls, packageBoundary, analysisPlan, provenance, sourceOriginalManifest, legacyIndex] = await Promise.all([
     readJson(intakePath),
     readJson(controlsPath),
@@ -121,8 +260,8 @@ export async function runPreparation(options = {}) {
   assert.ok(Array.isArray(sourceOriginalManifest.records));
   const sourceOriginalBytesByPath = new Map();
   for (const record of sourceOriginalManifest.records) {
-    const absolute = path.resolve(root, "private", ...record.evaluatorOnlyRelativePath.split("/"));
-    const privateRoot = path.resolve(root, "private");
+    const absolute = path.resolve(preparationRoot, "private", ...record.evaluatorOnlyRelativePath.split("/"));
+    const privateRoot = path.resolve(preparationRoot, "private");
     const relative = path.relative(privateRoot, absolute);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative), "source-original path escapes the fixed private root");
     sourceOriginalBytesByPath.set(record.evaluatorOnlyRelativePath, await readFile(absolute));

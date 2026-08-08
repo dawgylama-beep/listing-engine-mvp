@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -26,7 +28,12 @@ import {
   validateScoringContract,
   verifyFrozenBenchmark
 } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
-import { runPreparation } from "../benchmarks/blind-object-v2/scripts/prepare-benchmark.mjs";
+import {
+  createControlledRepositoryStateProbe,
+  inspectRepositoryState,
+  runPreparation,
+  validateRepositoryStateRecord
+} from "../benchmarks/blind-object-v2/scripts/prepare-benchmark.mjs";
 import { verifyFrozenResultIntegrity } from "../benchmarks/blind-object-v1-execution-v1/scripts/result-integrity.mjs";
 import { snapshotHistoricalTree } from "../scripts/run-experience-reflection.mjs";
 
@@ -36,6 +43,48 @@ const v1Root = path.join(repositoryRoot, "benchmarks", "blind-object-v1");
 const phase6ARoot = path.join(repositoryRoot, "benchmarks", "blind-object-v1-results", "phase6a-e3caa2fd");
 const SOURCE_COMMIT = "a".repeat(40);
 const VERSION = "1.12.13";
+const PHASE_7D_R_PATHS = Object.freeze([
+  ".gitignore",
+  "benchmarks/blind-object-v2/schemas/consent-receipt.schema.json",
+  "benchmarks/blind-object-v2/schemas/invocation-registry.schema.json",
+  "benchmarks/blind-object-v2/execution-release.json",
+  "benchmarks/blind-object-v2/schemas/cost-ledger.schema.json",
+  "benchmarks/blind-object-v2/schemas/execution-profile.schema.json",
+  "benchmarks/blind-object-v2/schemas/pricing-profile.schema.json",
+  "benchmarks/blind-object-v2/schemas/request-execution-journal.schema.json",
+  "benchmarks/blind-object-v2/schemas/terminal-result.schema.json",
+  "benchmarks/blind-object-v2/schemas/unscored-result-manifest.schema.json",
+  "benchmarks/blind-object-v2/scripts/execution-profile.mjs",
+  "benchmarks/blind-object-v2/scripts/execution-protocol.mjs",
+  "benchmarks/blind-object-v2/scripts/execution-store.mjs",
+  "benchmarks/blind-object-v2/scripts/executor.mjs",
+  "benchmarks/blind-object-v2/scripts/prove-execution-spine.mjs",
+  "benchmarks/blind-object-v2/scripts/synthetic-authority.mjs",
+  "tests/blind-object-v2-execution-spine.test.mjs"
+]);
+
+async function withControlledNoInputState(callback) {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "ke-v2-no-input-"));
+  const root = path.join(temporary, "empty-input-root");
+  await mkdir(root);
+  const liveState = await inspectRepositoryState();
+  const cleanState = validateRepositoryStateRecord({
+    ...liveState,
+    unstagedTrackedPaths: [],
+    stagedTrackedPaths: [],
+    conflictedPaths: []
+  });
+  try {
+    return await callback({
+      root,
+      liveState,
+      cleanState,
+      probeFor: (overrides = {}) => createControlledRepositoryStateProbe({ ...cleanState, ...overrides })
+    });
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
 
 async function loadJson(relativePath) {
   return JSON.parse(await readFile(path.join(repositoryRoot, ...relativePath.split("/")), "utf8"));
@@ -507,20 +556,61 @@ test("M: Phase 6A, Phase 6G, Phase 6H, and the historical tree remain byte-ident
 });
 
 test("N: absent real inputs return AWAITING_NEW_HOLDOUT_INPUTS and create no frozen requests", async () => {
-  const result = await runPreparation();
-  assert.equal(result.status, "PASS");
-  assert.equal(result.state, PREPARATION_STATE.AWAITING_NEW_HOLDOUT_INPUTS);
-  assert.equal(result.inputManifestPresent, false);
-  assert.equal(result.privateControlsPresent, false);
-  assert.equal(result.newAuthorizedObjectCount, 0);
-  assert.equal(result.frozenRequestCount, 0);
-  assert.equal(result.generatedFileCount, 0);
-  assert.equal(result.consentReceiptCreated, false);
-  assert.equal(result.invocationReservationCreated, false);
-  assert.equal(result.benchmarkExecutionCount, 0);
-  assert.equal(result.providerCallCount, 0);
-  assert.equal(result.networkRequestCount, 0);
-  assert.equal(result.receipt.executionAuthorized, false);
+  await withControlledNoInputState(async ({ root, probeFor }) => {
+    const result = await runPreparation({ root, repositoryStateProbe: probeFor() });
+    assert.equal(result.status, "PASS");
+    assert.equal(result.state, PREPARATION_STATE.AWAITING_NEW_HOLDOUT_INPUTS);
+    assert.equal(result.inputManifestPresent, false);
+    assert.equal(result.privateControlsPresent, false);
+    assert.equal(result.newAuthorizedObjectCount, 0);
+    assert.equal(result.frozenRequestCount, 0);
+    assert.equal(result.generatedFileCount, 0);
+    assert.equal(result.consentReceiptCreated, false);
+    assert.equal(result.invocationReservationCreated, false);
+    assert.equal(result.benchmarkExecutionCount, 0);
+    assert.equal(result.providerCallCount, 0);
+    assert.equal(result.networkRequestCount, 0);
+    assert.equal(result.receipt.executionAuthorized, false);
+    assert.deepEqual(await readdir(root), []);
+  });
+});
+
+test("N: repository-state records fail closed for dirty, staged, conflicted, root, HEAD, Version, and probe failures", async () => {
+  await withControlledNoInputState(async ({ root, cleanState, probeFor }) => {
+    const cases = [
+      [{ unstagedTrackedPaths: ["benchmarks/blind-object-v2/scripts/prepare-benchmark.mjs"] }, /unstaged tracked source changes are forbidden/],
+      [{ stagedTrackedPaths: PHASE_7D_R_PATHS }, /staged tracked source changes are forbidden/],
+      [{ conflictedPaths: ["benchmarks/blind-object-v2/scripts/prepare-benchmark.mjs"] }, /unmerged or conflicted tracked paths are forbidden/],
+      [{ repositoryRoot: path.dirname(cleanState.repositoryRoot) }, /repository identity differs/],
+      [{ processRoot: path.dirname(cleanState.processRoot) }, /process root is not the repository root/],
+      [{ head: cleanState.head === "a".repeat(40) ? "b".repeat(40) : "a".repeat(40) }, /HEAD differs from the required HEAD/],
+      [{ version: "9.9.9" }, /Version differs from the required Version/],
+      [{ probeSucceeded: false }, /probe did not complete/]
+    ];
+    for (const [overrides, pattern] of cases) {
+      await assert.rejects(() => runPreparation({ root, repositoryStateProbe: probeFor(overrides) }), pattern);
+    }
+  });
+});
+
+test("N: controlled state is direct-caller-only, no-input-only, strict, bounded, and unavailable to CLI or content", async () => {
+  await withControlledNoInputState(async ({ root, cleanState, probeFor }) => {
+    await assert.rejects(() => runPreparation({ root, repositoryStateProbe: async () => cleanState }), /repository-owned controlled state probe/);
+    for (const key of ["candidate", "intake", "package", "filename", "freeFormText", "environmentName"]) {
+      await assert.rejects(() => runPreparation({ [key]: { repositoryStateProbe: probeFor() } }), /release override or unsupported field/);
+    }
+    await mkdir(path.join(root, "intake"));
+    await writeFile(path.join(root, "intake", "input-manifest.json"), "{}\n", "utf8");
+    await assert.rejects(() => runPreparation({ root, repositoryStateProbe: probeFor() }), /empty no-input root/);
+    assert.throws(() => createControlledRepositoryStateProbe({ ...cleanState, extra: true }), /record fields are invalid/);
+    assert.throws(() => createControlledRepositoryStateProbe({ ...cleanState, unstagedTrackedPaths: Array(4097).fill("same") }), /bounded path count/);
+  });
+  const preparationPath = path.join(v2Root, "scripts", "prepare-benchmark.mjs");
+  const cliAttempt = spawnSync(process.execPath, [preparationPath, "--repository-state-probe"], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true, env: { ...process.env, KATHERINES_EYE_REPOSITORY_STATE_PROBE: "synthetic-clean" } });
+  assert.notEqual(cliAttempt.status, 0);
+  assert.match(cliAttempt.stderr, /usage: node prepare-benchmark\.mjs/);
+  const source = await readFile(preparationPath, "utf8");
+  assert.doesNotMatch(source, /process\.env|KATHERINES_EYE_REPOSITORY_STATE|ALLOW_DIRTY|NODE_ENV/);
 });
 
 test("N: the real preparation authority rejects caller-supplied release bindings", async () => {

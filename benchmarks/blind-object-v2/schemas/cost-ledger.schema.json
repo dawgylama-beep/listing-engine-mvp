@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/cost-ledger.schema.json",
+  "title": "Blind Object Benchmark V2 cost ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "invocationId", "consentHash", "pricingProfileHash", "currency", "maximumAuthorizedCost", "conservativePreRunMaximum", "accruedEstimatedCost", "actualProviderReportedUsage", "actualCalculatedCost", "reservedWorstCaseRemainingCost", "perRequestCostRecords", "perAttemptCostRecords", "stopBeforeNextRequestDecision", "updatedAt", "ledgerHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "invocationId": { "type": "string" },
+    "consentHash": { "$ref": "#/$defs/hash" },
+    "pricingProfileHash": { "$ref": "#/$defs/hash" },
+    "currency": { "const": "USD" },
+    "maximumAuthorizedCost": { "type": "number", "minimum": 0 },
+    "conservativePreRunMaximum": { "type": "number", "minimum": 0 },
+    "accruedEstimatedCost": { "type": "number", "minimum": 0 },
+    "actualProviderReportedUsage": { "type": "array" },
+    "actualCalculatedCost": { "type": "number", "minimum": 0 },
+    "reservedWorstCaseRemainingCost": { "type": "number", "minimum": 0 },
+    "perRequestCostRecords": { "type": "array", "minItems": 26, "maxItems": 26 },
+    "perAttemptCostRecords": { "type": "array" },
+    "stopBeforeNextRequestDecision": { "type": "boolean" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "ledgerHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

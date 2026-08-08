@@ -1,6 +1,6 @@
 # Katherine's Eye Blind Object Benchmark V2
 
-This benchmark-local package prepares a new independent 14-object, 26-analysis blind holdout. It contains deterministic offline validation and freeze-authority construction only. It contains no provider client, executor, consent consumer, scoring runner, deployment path, or implied execution authority.
+This benchmark-local package prepares a new independent 14-object, 26-analysis blind holdout and contains its deterministic exactly-once execution infrastructure. Preparation, freeze construction, execution authority, request submission, result sealing, and later scoring remain separate boundaries. It contains no scoring runner, product-repair path, deployment path, or implied execution authority.
 
 ## Current state
 
@@ -20,7 +20,7 @@ The default command performs validation and constructs the freeze records only i
 - `private/private-controls.json`, `private/provenance.json`, `private/source-originals-manifest.json`, and `private/source-originals/*`: evaluator-only material, all ignored.
 - `prepared/*`, `consent/*`, `invocations/*`, and `results/*`: generated or execution-adjacent material, all ignored.
 
-Package content cannot choose the repository release binding or an output root. Repository-owned code derives the source HEAD and Version at freeze time. The local `.gitignore` prevents ordinary staging of private and generated material.
+Package content cannot choose the repository release binding or an output root. Repository-owned code derives the source HEAD and Version at freeze time. The operational CLI and default module path always use the live Git repository-state inspector and fail on dirty, staged, conflicted, wrong-root, or unavailable repository state. A branded direct-caller fixture exists only for the empty no-input unit regression and cannot persist or process intake content. The local `.gitignore` prevents ordinary staging of private and generated material.
 
 ## Request and freeze authority
 
@@ -54,4 +54,4 @@ The writer creates a temporary sibling tree, writes and synchronizes every file,
 
 Freeze Receipt schema 1.0 is evidence only that durable freeze persistence completed. It binds the candidate set, source release and package, manifest and complete aggregate, artifact root, and protocol version. Its state is `FROZEN_AWAITING_CONSENT`, and its execution-consent, invocation-reservation, provider-access, network-access, scoring, and deployment authority booleans are all false.
 
-Preparation, validation, dry construction, persistence, filenames, environment variables, commit messages, successful tests, free-form text, and receipt existence never authorize execution. A future benchmark run still requires a separate valid pre-execution consent receipt and exact-scope, replay-resistant execution authorization. This package contains no executor and cannot advance beyond freeze authority preparation.
+Preparation, validation, dry construction, persistence, filenames, environment variables, commit messages, successful tests, free-form text, and receipt existence never authorize execution. A benchmark run requires a separate valid pre-execution consent receipt with exact product, executor, freeze, request, model, provider, cost, network, invocation, and result-root bindings. The executor permanently separates the frozen product-under-test identity (commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`) from the executor release (Version `1.12.14`) and enforces a complete physical-attempt ceiling of 832. The current repository contains no real consent, reservation, journal, response, result manifest, or score.

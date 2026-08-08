@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/terminal-result.schema.json",
+  "title": "Blind Object Benchmark V2 sealed terminal result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "executionProfileHash", "pricingProfileHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "canonicalResponseHash", "recordHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "resultRecordType": { "const": "BENCHMARK_TERMINAL_RESULT" },
+    "requestId": { "type": "string" },
+    "requestHash": { "$ref": "#/$defs/hash" },
+    "invocationId": { "type": "string" },
+    "consentHash": { "$ref": "#/$defs/hash" },
+    "reservationHash": { "$ref": "#/$defs/hash" },
+    "productSourceHead": { "type": "string" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "executorSourceHead": { "type": "string" },
+    "executorVersion": { "const": "1.12.14" },
+    "executionProfileHash": { "$ref": "#/$defs/hash" },
+    "pricingProfileHash": { "$ref": "#/$defs/hash" },
+    "physicalSubmissionIdentity": { "type": "string" },
+    "submissionState": { "enum": ["TERMINAL", "UNKNOWN_AFTER_SUBMISSION"] },
+    "terminalState": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "elapsedDurationMs": { "type": "number", "minimum": 0 },
+    "handlerStatus": { "type": ["integer", "null"] },
+    "sanitizedTerminalResponseEnvelope": { "type": "object" },
+    "responseDiagnostics": {}, "providerAttemptTelemetry": { "type": "array" }, "providerIdentities": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/publicIdentity" } }, "modelIdentity": { "$ref": "#/$defs/publicIdentity" }, "callCeilingTelemetry": {}, "costEntry": {}, "governorProof": {}, "cognitiveStateIdentity": { "type": "string" }, "experienceRecord": {}, "experienceRecordHash": { "type": "string" }, "terminalEvidence": {}, "errorStage": { "type": "string" }, "errorCategory": { "type": "string" },
+    "canonicalResponseHash": { "$ref": "#/$defs/hash" },
+    "recordHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "publicIdentity": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$" }
+  }
+}
