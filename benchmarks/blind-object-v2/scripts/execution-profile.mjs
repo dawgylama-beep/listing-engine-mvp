@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { existsSync, statSync } from "node:fs";
+import { lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -20,9 +20,76 @@ import {
 import { repositoryRoot } from "./execution-store.mjs";
 
 const COMMIT = /^[a-f0-9]{40}$/;
+const PRODUCT_RUNTIME_PREFIX = `katherines-eye-v2-product-${PRODUCT_SOURCE_HEAD}-`;
+const PRODUCT_RUNTIME_NAME = new RegExp(`^${PRODUCT_RUNTIME_PREFIX}[A-Za-z0-9_-]{6}$`);
 
 function git(args, cwd = repositoryRoot) {
   return execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true }).trim();
+}
+
+function samePath(left, right) {
+  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function approvedTemporaryRoot() {
+  return realpathSync(os.tmpdir());
+}
+
+function worktreeRecords() {
+  return git(["worktree", "list", "--porcelain"])
+    .split(/\r?\n\r?\n/)
+    .filter(Boolean)
+    .map((block) => Object.fromEntries(block.split(/\r?\n/).map((line) => {
+      const separator = line.indexOf(" ");
+      return separator < 0 ? [line, true] : [line.slice(0, separator), line.slice(separator + 1)];
+    })));
+}
+
+export function assertApprovedProductRuntimePath(runtimeRoot) {
+  assert.equal(typeof runtimeRoot, "string", "detached product runtime path must be a string");
+  assert.equal(path.isAbsolute(runtimeRoot), true, "detached product runtime path must be absolute");
+  assert.doesNotMatch(runtimeRoot.slice(path.parse(runtimeRoot).root.length), /:/, "detached product runtime path cannot contain an ADS separator");
+  const root = path.resolve(runtimeRoot);
+  const temporaryRoot = approvedTemporaryRoot();
+  assert.equal(samePath(path.dirname(root), temporaryRoot), true, "detached product runtime must be a direct child of the canonical OS temporary root");
+  assert.match(path.basename(root), PRODUCT_RUNTIME_NAME, "detached product runtime name is not repository-derived");
+  const rootStat = lstatSync(root, { throwIfNoEntry: false });
+  assert.ok(rootStat, "detached product runtime root is absent");
+  assert.equal(rootStat.isSymbolicLink(), false, "detached product runtime cannot be a symlink or reparse path");
+  assert.equal(rootStat.isDirectory(), true, "detached product runtime root is not a directory");
+  assert.equal(samePath(realpathSync(root), root), true, "detached product runtime canonical path differs");
+  return root;
+}
+
+function assertExpectedWorktreeLinkage(root) {
+  const dotGitPath = path.join(root, ".git");
+  const dotGitStat = lstatSync(dotGitPath, { throwIfNoEntry: false });
+  assert.ok(dotGitStat?.isFile(), "detached product runtime .git linkage is absent");
+  assert.equal(dotGitStat.isSymbolicLink(), false, "detached product runtime .git linkage cannot be a symlink or reparse path");
+  const linkMatch = readFileSync(dotGitPath, "utf8").trim().match(/^gitdir:\s+(.+)$/);
+  assert.ok(linkMatch, "detached product runtime .git linkage is invalid");
+  assert.equal(path.isAbsolute(linkMatch[1]), true, "detached product runtime metadata path must be absolute");
+
+  const commonGitDirectory = realpathSync(path.resolve(repositoryRoot, git(["rev-parse", "--git-common-dir"])));
+  const worktreeMetadataRoot = path.join(commonGitDirectory, "worktrees");
+  const metadataDirectory = path.resolve(linkMatch[1]);
+  assert.equal(samePath(path.dirname(metadataDirectory), worktreeMetadataRoot), true, "detached product runtime links to an unexpected repository");
+  const metadataStat = lstatSync(metadataDirectory, { throwIfNoEntry: false });
+  assert.ok(metadataStat?.isDirectory(), "detached product runtime metadata directory is absent");
+  assert.equal(metadataStat.isSymbolicLink(), false, "detached product runtime metadata cannot be a symlink or reparse path");
+  assert.equal(samePath(realpathSync(metadataDirectory), metadataDirectory), true, "detached product runtime metadata canonical path differs");
+
+  const reverseLink = readFileSync(path.join(metadataDirectory, "gitdir"), "utf8").trim();
+  assert.equal(samePath(reverseLink, dotGitPath), true, "detached product runtime reverse linkage differs");
+  const commonLink = readFileSync(path.join(metadataDirectory, "commondir"), "utf8").trim();
+  assert.equal(samePath(path.resolve(metadataDirectory, commonLink), commonGitDirectory), true, "detached product runtime common repository differs");
+  assert.equal(readFileSync(path.join(metadataDirectory, "HEAD"), "utf8").trim(), PRODUCT_SOURCE_HEAD, "detached product runtime metadata HEAD differs from the frozen product release");
+
+  const registered = worktreeRecords().find((record) => samePath(record.worktree || "", root));
+  assert.ok(registered, "detached product runtime is not registered by the repository");
+  assert.equal(registered.HEAD, PRODUCT_SOURCE_HEAD, "detached product runtime registration HEAD differs from the frozen product release");
+  assert.equal(registered.detached, true, "detached product runtime registration is not detached");
+  return true;
 }
 
 export function auditFrozenProductProviderSurface(sourceText) {
@@ -113,27 +180,12 @@ function parseTreeLine(line) {
   return { mode: match[1], type: match[2], gitObjectId: match[3], relativePath: match[4] };
 }
 
-export function verifyDetachedProductRuntime(runtimeRoot) {
-  const root = path.resolve(runtimeRoot);
-  assert.ok(statSync(root, { throwIfNoEntry: false })?.isDirectory(), "product runtime root is absent");
-  const head = git(["-C", root, "rev-parse", "HEAD"]);
+export function validateProductRuntimeSnapshot({ head, branch, status, records, version }) {
   assert.equal(head, PRODUCT_SOURCE_HEAD, "detached product runtime HEAD differs from the frozen product release");
-  const branch = (() => {
-    try {
-      return git(["-C", root, "symbolic-ref", "--quiet", "--short", "HEAD"]);
-    } catch {
-      return "";
-    }
-  })();
   assert.equal(branch, "", "product runtime must be detached");
-  assert.equal(git(["-C", root, "status", "--porcelain=v1", "--untracked-files=all"]), "", "product runtime worktree is not clean");
-  const records = git(["-C", root, "ls-tree", "-r", "--full-tree", PRODUCT_SOURCE_HEAD])
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map(parseTreeLine);
-  assert.ok(records.length > 100, "product runtime tracked-tree inventory is unexpectedly incomplete");
+  assert.equal(status, "", "product runtime worktree is not clean");
+  assert.ok(Array.isArray(records) && records.length > 100, "product runtime tracked-tree inventory is unexpectedly incomplete");
   assert.equal(records.every((record) => record.type === "blob"), true, "product runtime contains an unsupported submodule or non-blob tree entry");
-  const version = JSON.parse(execFileSync(process.execPath, ["-e", "process.stdout.write(require('fs').readFileSync('package.json','utf8'))"], { cwd: root, encoding: "utf8", windowsHide: true })).version;
   assert.equal(version, PRODUCT_SOURCE_VERSION, "detached product Version differs from the frozen product release");
   const core = {
     identityType: "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE",
@@ -142,15 +194,51 @@ export function verifyDetachedProductRuntime(runtimeRoot) {
     trackedEntryCount: records.length,
     fullTrackedTree: records
   };
-  return Object.freeze({ ...core, productRuntimeManifestHash: sha256Json(core), runtimeRoot: root });
+  return Object.freeze({ ...core, productRuntimeManifestHash: sha256Json(core) });
+}
+
+export function verifyDetachedProductRuntime(runtimeRoot) {
+  const root = assertApprovedProductRuntimePath(runtimeRoot);
+  assertExpectedWorktreeLinkage(root);
+  const head = git(["-C", root, "rev-parse", "HEAD"]);
+  const branch = (() => {
+    try {
+      return git(["-C", root, "symbolic-ref", "--quiet", "--short", "HEAD"]);
+    } catch {
+      return "";
+    }
+  })();
+  const status = git(["-C", root, "status", "--porcelain=v1", "--untracked-files=all"]);
+  const records = git(["-C", root, "ls-tree", "-r", "--full-tree", PRODUCT_SOURCE_HEAD])
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map(parseTreeLine);
+  const version = JSON.parse(execFileSync(process.execPath, ["-e", "process.stdout.write(require('fs').readFileSync('package.json','utf8'))"], { cwd: root, encoding: "utf8", windowsHide: true })).version;
+  const snapshot = validateProductRuntimeSnapshot({ head, branch, status, records, version });
+  return Object.freeze({ ...snapshot, runtimeRoot: root });
 }
 
 export function ensureDetachedProductRuntime() {
-  const runtimeRoot = path.join(os.tmpdir(), `katherines-eye-v2-product-${PRODUCT_SOURCE_HEAD}`);
-  if (!existsSync(runtimeRoot)) {
+  const runtimeRoot = mkdtempSync(path.join(approvedTemporaryRoot(), PRODUCT_RUNTIME_PREFIX));
+  try {
+    assertApprovedProductRuntimePath(runtimeRoot);
     git(["worktree", "add", "--detach", runtimeRoot, PRODUCT_SOURCE_HEAD]);
+    return verifyDetachedProductRuntime(runtimeRoot);
+  } catch (error) {
+    const registered = worktreeRecords().some((record) => samePath(record.worktree || "", runtimeRoot));
+    if (registered) git(["worktree", "remove", "--force", "--", runtimeRoot]);
+    else rmSync(runtimeRoot, { recursive: true, force: true });
+    throw error;
   }
-  return verifyDetachedProductRuntime(runtimeRoot);
+}
+
+export function removeDetachedProductRuntime(runtimeRoot) {
+  const root = assertApprovedProductRuntimePath(runtimeRoot);
+  const registered = worktreeRecords().some((record) => samePath(record.worktree || "", root));
+  assert.equal(registered, true, "detached product runtime is not registered by the repository");
+  git(["worktree", "remove", "--force", "--", root]);
+  assert.equal(statSync(root, { throwIfNoEntry: false }), undefined, "detached product runtime removal was incomplete");
+  return true;
 }
 
 export async function resolveExecutionProfile({

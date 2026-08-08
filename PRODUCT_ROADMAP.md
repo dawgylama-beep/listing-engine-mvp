@@ -660,6 +660,14 @@
 - Kept the frozen product under test bound to commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, and preserved Phase 7A and Phases 6D-6H behavior unchanged
 - Provider-call impact: deterministic validation and the one permitted real-freeze preflight perform no handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request
 
+## Version 1.12.16 (Completed)
+- Replaced reuse of one fixed detached-product directory with a fresh repository-derived worktree beneath the canonical operating-system temporary root for each real launch preflight
+- Added fail-closed path and Git-linkage verification before any command runs inside the detached runtime, including direct-child, ADS, traversal, symlink/reparse, expected-repository, reverse-link, common-directory, detached-HEAD, cleanliness, Version, and full tracked-tree checks
+- Preserved Git ownership protection without adding wildcard, global, system, local, persistent, or command-local `safe.directory` configuration
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, with its 666-entry runtime-manifest hash unchanged
+- Added focused ownership regressions for the reproduced dubious-ownership boundary, fresh equivalent runtimes, stale or foreign linkage, release drift, dirtiness, tracked-file mutation, path attacks, and persistent Git-config immutability
+- Provider-call impact: runtime preparation and validation are local Git/filesystem operations only; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

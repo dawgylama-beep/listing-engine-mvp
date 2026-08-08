@@ -19,7 +19,7 @@
     "productSourceHead": { "type": "string" },
     "productSourceVersion": { "const": "1.12.13" },
     "executorSourceHead": { "type": "string" },
-    "executorVersion": { "const": "1.12.15" },
+    "executorVersion": { "const": "1.12.16" },
     "executionProfileHash": { "$ref": "#/$defs/hash" },
     "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },

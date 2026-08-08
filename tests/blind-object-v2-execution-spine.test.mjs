@@ -295,7 +295,7 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.15");
+  assert.equal(EXECUTOR_VERSION, "1.12.16");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
   assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, executorSourceHead: EXECUTOR_HEAD, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
@@ -447,7 +447,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.15");
+  assert.equal(terminal.executorVersion, "1.12.16");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -546,7 +546,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.15");
+  assert.equal(EXECUTOR_VERSION, "1.12.16");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {

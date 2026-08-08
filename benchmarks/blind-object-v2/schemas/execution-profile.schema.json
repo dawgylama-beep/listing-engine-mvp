@@ -13,7 +13,7 @@
     "productRuntimeManifestHash": { "$ref": "#/$defs/hash" },
     "productRuntimeIdentityType": { "const": "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE" },
     "executorSourceHead": { "$ref": "#/$defs/commit" },
-    "executorVersion": { "const": "1.12.15" },
+    "executorVersion": { "const": "1.12.16" },
     "handlerContract": { "type": "object" },
     "modelProvider": { "const": "OPENAI" },
     "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },

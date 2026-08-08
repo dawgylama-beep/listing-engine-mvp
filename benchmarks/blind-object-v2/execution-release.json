@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "releaseType": "BLIND_OBJECT_V2_EXECUTOR_IMPLEMENTATION",
-  "executorVersion": "1.12.15",
+  "executorVersion": "1.12.16",
   "productUnderTest": {
     "sourceHead": "7056eb0601dc69c5985703fea6fe665e82c6bed8",
     "sourceVersion": "1.12.13",

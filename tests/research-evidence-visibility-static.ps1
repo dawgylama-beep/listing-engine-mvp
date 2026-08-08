@@ -37,8 +37,8 @@ $checks = @(
   @{ Name = "Frontend Ask context carries result buckets"; Text = $app; Pattern = '"resultsFound"' },
   @{ Name = "Styles include source cards"; Text = $styles; Pattern = ".source-result-card" },
   @{ Name = "Styles wrap source links"; Text = $styles; Pattern = "overflow-wrap: anywhere" },
-  @{ Name = "Visible app version is 1.12.15"; Text = $index; Pattern = "Version 1.12.15" },
-  @{ Name = "Package version is 1.12.15"; Text = $package; Pattern = '"version": "1.12.15"' },
+  @{ Name = "Visible app version is 1.12.16"; Text = $index; Pattern = "Version 1.12.16" },
+  @{ Name = "Package version is 1.12.16"; Text = $package; Pattern = '"version": "1.12.16"' },
   @{ Name = "Roadmap documents 1.9.2"; Text = $roadmap; Pattern = "Version 1.9.2 (Completed)" }
 )
 

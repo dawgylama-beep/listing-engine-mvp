@@ -254,10 +254,11 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   const sources = await Promise.all(files.map((name) => readFile(new URL(`../benchmarks/blind-object-v2/scripts/${name}`, import.meta.url), "utf8")));
   const importLines = sources.flatMap((source) => source.split(/\r?\n/).filter((line) => /^import\b|^}\s+from\b/.test(line))).join("\n");
   assert.doesNotMatch(importLines, /private-controls|evaluator-only|scor(?:e|ing)|reflection|lesson|repair/i);
-  assert.match(sources[1], /verifyDetachedProductRuntime/);
+  assert.match(sources[1], /ensureDetachedProductRuntime/);
+  assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.15");
+  assert.equal(EXECUTOR_VERSION, "1.12.16");
 });
 
 test("AC: focused tests leave every real consent, reservation, journal, result, and submission absent", async () => {

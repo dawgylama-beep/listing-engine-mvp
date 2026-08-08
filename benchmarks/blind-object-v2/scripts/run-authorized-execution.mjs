@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import {
   CONSENT_STATUS,
   EXECUTION_MODE,
-  PRODUCT_SOURCE_HEAD,
   createExecutionConsent,
   validateExecutionConsent
 } from "./execution-protocol.mjs";
@@ -131,7 +129,6 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
     return readback;
   }
 
-  const runtimeRoot = path.join(os.tmpdir(), `katherines-eye-v2-product-${PRODUCT_SOURCE_HEAD}`);
   const result = await executeBenchmarkV2({
     mode: EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION,
     freezeRoot: defaultFreezeRoot,
@@ -141,7 +138,7 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
     costEnvelope: preflight.costEnvelope,
     launchScope: preflight.launchScope,
     consent,
-    productRuntimeRoot: runtimeRoot,
+    productRuntimeRoot: preflight.productRuntimeRoot,
     allowedEnvironment: preflight.allowedEnvironment
   });
   await replaceSynced(consentPath, result.consent);

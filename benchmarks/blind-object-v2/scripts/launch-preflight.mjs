@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import {
   BENCHMARK_ID,
@@ -12,7 +11,7 @@ import {
 } from "./execution-protocol.mjs";
 import { COST_STATE, createSourceGroundedCostEnvelope, validateCostEnvelope } from "./cost-envelope.mjs";
 import { createLaunchScope, deriveLaunchIdentities, validateLaunchScope } from "./launch-identity.mjs";
-import { resolveExecutionProfile, verifyDetachedProductRuntime } from "./execution-profile.mjs";
+import { ensureDetachedProductRuntime, resolveExecutionProfile } from "./execution-profile.mjs";
 import { defaultFreezeRoot, loadPublicFreeze, repositoryRoot } from "./execution-store.mjs";
 import { sha256Json } from "./protocol.mjs";
 
@@ -131,11 +130,12 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, execu
 export async function buildRealLaunchPreflight({ environment = process.env, executorSourceHead, resolvedAt = new Date().toISOString() } = {}) {
   assert.match(executorSourceHead || "", /^[a-f0-9]{40}$/, "committed executor source head is required");
   assert.equal(path.basename(defaultFreezeRoot), REAL_FREEZE_AGGREGATE);
-  const runtimeRoot = path.join(os.tmpdir(), `katherines-eye-v2-product-${PRODUCT_SOURCE_HEAD}`);
-  const runtime = verifyDetachedProductRuntime(runtimeRoot);
+  const runtime = ensureDetachedProductRuntime();
+  const runtimeRoot = runtime.runtimeRoot;
   const [frozen, productSourceText] = await Promise.all([
     loadPublicFreeze(defaultFreezeRoot),
     readFile(path.join(runtimeRoot, "api", "generate-listing.js"), "utf8")
   ]);
-  return buildLaunchArtifacts({ frozen, runtime, environment, executorSourceHead, resolvedAt, productSourceText });
+  const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, executorSourceHead, resolvedAt, productSourceText });
+  return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot });
 }
