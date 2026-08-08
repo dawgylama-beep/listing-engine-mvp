@@ -1,10 +1,10 @@
 {
   "schemaVersion": "2.0",
   "releaseType": "BENCHMARK_EXECUTOR_RELEASE",
-  "releaseState": "PENDING_QUALIFICATION_SEAL",
-  "executorRuntimeHead": null,
+  "releaseState": "QUALIFIED",
+  "executorRuntimeHead": "f7dd22b3288a86efe9a1fc22d94e8d3c35823be0",
   "executorVersion": "1.12.17",
-  "executorRuntimeTreeHash": null,
+  "executorRuntimeTreeHash": "831dfea0e68de28d9ed8fc404f70bbcd8e3ef7d4",
   "qualificationPolicyVersion": "1.0",
   "requiredQualificationRelationship": "DIRECT_PARENT_ONE_FILE_SEAL",
   "permittedQualificationOverlay": [
@@ -33,5 +33,5 @@
     "repairAuthorized": false,
     "deploymentAuthorized": false
   },
-  "recordHash": "21b5ef917c3007a2aa90aee106033ea6b91d4a20da9e0554ed5260142bb9f241"
+  "recordHash": "1ec4936ae755367ca656cbe7fd526a34213b3067470af9c4798694911d1677cd"
 }
