@@ -11,16 +11,18 @@ import {
 
 test("authoritative release Version aligns every active presentation surface", async () => {
   const result = await inspectReleaseVersionSurfaces();
-  assert.equal(result.version, "1.12.16");
+  assert.equal(result.version, "1.12.17");
   assert.equal(result.serverVersion, result.version);
   assert.equal(result.indexSurface.documentVersion, result.version);
   assert.equal(result.indexSurface.badgeText, result.label);
+  assert.equal(result.executionReleaseVersion, result.version);
+  assert.ok(["PENDING_QUALIFICATION_SEAL", "QUALIFIED"].includes(result.executionReleaseState));
 });
 
 test("full multi-digit patch Version is preserved in source, DOM text, and asset identities", async () => {
   const indexHtml = await readFile(path.join(repositoryRoot, "public", "index.html"), "utf8");
   const syntheticVersion = "7.8.123";
-  const syntheticHtml = indexHtml.replaceAll("1.12.16", syntheticVersion);
+  const syntheticHtml = indexHtml.replaceAll("1.12.17", syntheticVersion);
   const result = inspectIndexVersionSurface(syntheticHtml, syntheticVersion);
 
   assert.equal(formatReleaseVersion(syntheticVersion), "Version 7.8.123");
@@ -36,7 +38,8 @@ test("no stale active Version literal remains in runtime or public surfaces", as
     "server.ps1",
     "public/index.html",
     "public/app.js",
-    "public/customer-evidence.js"
+    "public/customer-evidence.js",
+    "benchmarks/blind-object-v2/execution-release.json"
   ];
   const activeSources = await Promise.all(activePaths.map((filePath) => readFile(path.join(repositoryRoot, filePath), "utf8")));
   assert.equal(activeSources.some((source) => /Version 1\.12\.1(?!\d)/.test(source)), false);

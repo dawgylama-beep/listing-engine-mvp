@@ -1,23 +1,37 @@
 {
-  "schemaVersion": "1.0",
-  "releaseType": "BLIND_OBJECT_V2_EXECUTOR_IMPLEMENTATION",
-  "executorVersion": "1.12.16",
-  "productUnderTest": {
-    "sourceHead": "7056eb0601dc69c5985703fea6fe665e82c6bed8",
-    "sourceVersion": "1.12.13",
-    "runtimeIdentity": "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE"
+  "schemaVersion": "2.0",
+  "releaseType": "BENCHMARK_EXECUTOR_RELEASE",
+  "releaseState": "PENDING_QUALIFICATION_SEAL",
+  "executorRuntimeHead": null,
+  "executorVersion": "1.12.17",
+  "executorRuntimeTreeHash": null,
+  "qualificationPolicyVersion": "1.0",
+  "requiredQualificationRelationship": "DIRECT_PARENT_ONE_FILE_SEAL",
+  "permittedQualificationOverlay": [
+    "benchmarks/blind-object-v2/execution-release.json"
+  ],
+  "productSourceHead": "7056eb0601dc69c5985703fea6fe665e82c6bed8",
+  "productSourceVersion": "1.12.13",
+  "benchmarkContractIdentity": {
+    "benchmarkId": "blind-object-v2",
+    "completeFrozenAggregateHash": "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699",
+    "freezeManifestHash": "6f99638e26766966d923e24604a350174d0757059c61a38043305d7d845ae4f8",
+    "requestAggregateHash": "8e5be048fa407ab6e659b1ce6f1475aa1c2974e55c5023656cd9b077f55663af"
   },
   "handler": "api/generate-listing.js#createGenerateListingHandler",
   "completePhysicalAttemptCeiling": 832,
-  "launchScopeSchemaVersion": "1.0",
+  "launchScopeSchemaVersion": "2.0",
   "costEnvelopeSchemaVersion": "1.0",
   "maximumAuthorizedCostMinorUnits": 4000,
-  "consentCreationEnabled": false,
-  "executionEnabled": false,
-  "realExecutionAuthorized": false,
-  "privateControlsAuthorized": false,
-  "scoringAuthorized": false,
-  "reflectionAuthorized": false,
-  "repairAuthorized": false,
-  "deploymentAuthorized": false
+  "authorityDeclarations": {
+    "consentCreationEnabled": false,
+    "executionEnabled": false,
+    "realExecutionAuthorized": false,
+    "privateControlsAuthorized": false,
+    "scoringAuthorized": false,
+    "reflectionAuthorized": false,
+    "repairAuthorized": false,
+    "deploymentAuthorized": false
+  },
+  "recordHash": "21b5ef917c3007a2aa90aee106033ea6b91d4a20da9e0554ed5260142bb9f241"
 }

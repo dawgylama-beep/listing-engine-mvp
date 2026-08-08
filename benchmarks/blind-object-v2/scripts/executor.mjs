@@ -208,7 +208,11 @@ function terminalRecordInput({
     reservationHash: reservation.reservationHash,
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: executionProfile.executorSourceHead,
+    executorRuntimeHead: executionProfile.executorRuntimeHead,
+    qualificationHead: executionProfile.qualificationHead,
+    executorRuntimeTreeHash: executionProfile.executorRuntimeTreeHash,
+    executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+    qualificationPolicyVersion: executionProfile.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     executionProfileHash: executionProfile.profileHash,
     executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
@@ -294,7 +298,11 @@ async function finalizeResult({
     reservationHash: reservation.reservationHash,
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: executionProfile.executorSourceHead,
+    executorRuntimeHead: executionProfile.executorRuntimeHead,
+    qualificationHead: executionProfile.qualificationHead,
+    executorRuntimeTreeHash: executionProfile.executorRuntimeTreeHash,
+    executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+    qualificationPolicyVersion: executionProfile.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     requestAggregateHash: frozen.manifest.requestAggregateHash,
@@ -377,7 +385,7 @@ export async function executeBenchmarkV2({
   validateLaunchScope(launchScope);
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
-    executorSourceHead: executionProfile.executorSourceHead,
+    releaseIdentity: executionProfile,
     productRuntimeManifestHash: executionProfile.productRuntimeManifestHash
   });
   assertNoSecretMaterial(executionProfile, {
@@ -406,7 +414,9 @@ export async function executeBenchmarkV2({
       authorizedRequestCount: 26
     }
   });
-  assert.equal(consent.executorSourceHead, executionProfile.executorSourceHead);
+  for (const field of ["executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion"]) {
+    assert.equal(consent[field], executionProfile[field], `consent ${field} differs from execution profile`);
+  }
   assert.equal(consent.executorVersion, EXECUTOR_VERSION);
   const conservativePreRunMaximum = costEnvelope.conservativeMaximumCost;
   assert.equal(consent.conservativeMaximumCost, conservativePreRunMaximum, "consent conservative cost differs from sealed pricing and attempt ceiling");
@@ -421,7 +431,7 @@ export async function executeBenchmarkV2({
     consent,
     executionProfileHash: executionProfile.profileHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
-    createdIdentity: `executor-${executionProfile.executorSourceHead.slice(0, 16)}`
+    createdIdentity: `executor-${executionProfile.executorRuntimeHead.slice(0, 16)}`
   };
   let reservation = createInvocationReservation(reservationInput, clock());
   const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation);
@@ -626,7 +636,7 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   validateLaunchScope(launchScope);
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
-    executorSourceHead: executionProfile.executorSourceHead,
+    releaseIdentity: executionProfile,
     productRuntimeManifestHash: executionProfile.productRuntimeManifestHash
   });
   validatePricingProfile(pricingProfile, executionProfile);
@@ -640,7 +650,11 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
       invocationId: manifest.invocationId,
       productSourceHead: manifest.productSourceHead,
       productSourceVersion: manifest.productSourceVersion,
-      executorSourceHead: manifest.executorSourceHead,
+      executorRuntimeHead: manifest.executorRuntimeHead,
+      qualificationHead: manifest.qualificationHead,
+      executorRuntimeTreeHash: manifest.executorRuntimeTreeHash,
+      executionReleaseRecordHash: manifest.executionReleaseRecordHash,
+      qualificationPolicyVersion: manifest.qualificationPolicyVersion,
       executorVersion: manifest.executorVersion,
       completeFrozenAggregateHash: manifest.completeFrozenAggregateHash,
       requestAggregateHash: manifest.requestAggregateHash,
@@ -661,7 +675,9 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   assert.equal(manifest.launchScopeHash, launchScope.launchScopeHash);
   assert.equal(manifest.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(manifest.productSourceVersion, PRODUCT_SOURCE_VERSION);
-  assert.equal(manifest.executorSourceHead, executionProfile.executorSourceHead);
+  for (const field of ["executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion"]) {
+    assert.equal(manifest[field], executionProfile[field], `manifest ${field} differs from execution profile`);
+  }
   assert.equal(manifest.executorVersion, EXECUTOR_VERSION);
   assert.equal(manifest.executionProfileHash, executionProfile.profileHash);
   assert.equal(manifest.executionProfileIdentityHash, executionProfile.executionProfileIdentityHash);

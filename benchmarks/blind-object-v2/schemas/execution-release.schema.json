@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/blind-object-v2/execution-release.schema.json",
+  "title": "Blind Object V2 Executor Release",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "releaseType", "releaseState", "executorRuntimeHead", "executorVersion",
+    "executorRuntimeTreeHash", "qualificationPolicyVersion", "requiredQualificationRelationship",
+    "permittedQualificationOverlay", "productSourceHead", "productSourceVersion", "benchmarkContractIdentity",
+    "handler", "completePhysicalAttemptCeiling", "launchScopeSchemaVersion", "costEnvelopeSchemaVersion",
+    "maximumAuthorizedCostMinorUnits", "authorityDeclarations", "recordHash"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "releaseType": { "const": "BENCHMARK_EXECUTOR_RELEASE" },
+    "releaseState": { "enum": ["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"] },
+    "executorRuntimeHead": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
+    "executorVersion": { "const": "1.12.17" },
+    "executorRuntimeTreeHash": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
+    "qualificationPolicyVersion": { "const": "1.0" },
+    "requiredQualificationRelationship": { "const": "DIRECT_PARENT_ONE_FILE_SEAL" },
+    "permittedQualificationOverlay": {
+      "const": ["benchmarks/blind-object-v2/execution-release.json"]
+    },
+    "productSourceHead": { "const": "7056eb0601dc69c5985703fea6fe665e82c6bed8" },
+    "productSourceVersion": { "const": "1.12.13" },
+    "benchmarkContractIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmarkId", "completeFrozenAggregateHash", "freezeManifestHash", "requestAggregateHash"],
+      "properties": {
+        "benchmarkId": { "const": "blind-object-v2" },
+        "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" },
+        "freezeManifestHash": { "$ref": "#/$defs/hash" },
+        "requestAggregateHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "handler": { "const": "api/generate-listing.js#createGenerateListingHandler" },
+    "completePhysicalAttemptCeiling": { "const": 832 },
+    "launchScopeSchemaVersion": { "const": "2.0" },
+    "costEnvelopeSchemaVersion": { "const": "1.0" },
+    "maximumAuthorizedCostMinorUnits": { "const": 4000 },
+    "authorityDeclarations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consentCreationEnabled", "executionEnabled", "realExecutionAuthorized", "privateControlsAuthorized", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized"],
+      "properties": {
+        "consentCreationEnabled": { "const": false },
+        "executionEnabled": { "const": false },
+        "realExecutionAuthorized": { "const": false },
+        "privateControlsAuthorized": { "const": false },
+        "scoringAuthorized": { "const": false },
+        "reflectionAuthorized": { "const": false },
+        "repairAuthorized": { "const": false },
+        "deploymentAuthorized": { "const": false }
+      }
+    },
+    "recordHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitObject": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+  }
+}

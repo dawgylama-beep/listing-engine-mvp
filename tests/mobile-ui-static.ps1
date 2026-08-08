@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.16"; Text = $index; Pattern = "Version 1.12.16" },
-  @{ Name = "Package version is 1.12.16"; Text = $package; Pattern = '"version": "1.12.16"' },
-  @{ Name = "Server version is 1.12.16"; Text = $server; Pattern = '$AppVersion = "1.12.16"' },
+  @{ Name = "Visible app version is 1.12.17"; Text = $index; Pattern = "Version 1.12.17" },
+  @{ Name = "Package version is 1.12.17"; Text = $package; Pattern = '"version": "1.12.17"' },
+  @{ Name = "Server version is 1.12.17"; Text = $server; Pattern = '$AppVersion = "1.12.17"' },
   @{ Name = "Roadmap documents compact photo controls"; Text = $roadmap; Pattern = "Photo controls are compacted into camera and library actions" },
   @{ Name = "Photo actions wrapper exists"; Text = $index; Pattern = "photo-inputs photo-actions" },
   @{ Name = "Camera action is explicit"; Text = $index; Pattern = "<span>Take Photo</span>" },

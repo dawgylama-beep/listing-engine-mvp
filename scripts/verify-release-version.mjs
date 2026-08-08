@@ -30,17 +30,19 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
     readFile(path.join(rootDirectory, "public", "index.html"), "utf8"),
-    readFile(path.join(rootDirectory, "vercel.json"), "utf8")
+    readFile(path.join(rootDirectory, "vercel.json"), "utf8"),
+    readFile(path.join(rootDirectory, "benchmarks", "blind-object-v2", "execution-release.json"), "utf8")
   ]);
 
   const packageManifest = JSON.parse(packageText);
   const packageLock = JSON.parse(packageLockText);
   const vercelConfig = JSON.parse(vercelText);
+  const executionRelease = JSON.parse(executionReleaseText);
   const version = String(packageManifest.version || "").trim();
   formatReleaseVersion(version);
 
@@ -51,6 +53,10 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
   assert.equal(serverVersion, version, "server.ps1 Version must equal package Version.");
 
   const indexSurface = inspectIndexVersionSurface(indexHtml, version);
+  assert.equal(executionRelease.schemaVersion, "2.0", "Execution release schema Version must be current.");
+  assert.equal(executionRelease.releaseType, "BENCHMARK_EXECUTOR_RELEASE", "Execution release type must be canonical.");
+  assert.ok(["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"].includes(executionRelease.releaseState), "Execution release state must be explicit.");
+  assert.equal(executionRelease.executorVersion, version, "Execution release Version must equal package Version.");
   assert.equal(vercelConfig.framework, null, "Vercel must remain a framework-neutral static deployment.");
   assert.equal(vercelConfig.outputDirectory, "public", "Vercel must deploy only the public directory.");
   assert.equal(vercelConfig.buildCommand, "npm run build", "Vercel must run the release-Version guard before deployment.");
@@ -61,6 +67,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     label: formatReleaseVersion(version),
     serverVersion,
     indexSurface,
+    executionReleaseVersion: executionRelease.executorVersion,
+    executionReleaseState: executionRelease.releaseState,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };

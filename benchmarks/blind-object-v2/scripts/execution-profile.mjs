@@ -8,8 +8,6 @@ import process from "node:process";
 import { chromium } from "@playwright/test";
 import { sha256Bytes, sha256Json } from "./protocol.mjs";
 import {
-  EXECUTION_MODE,
-  EXECUTOR_VERSION,
   FIXED_ENVIRONMENT_ALLOWLIST,
   PRODUCT_SOURCE_HEAD,
   PRODUCT_SOURCE_VERSION,
@@ -19,7 +17,6 @@ import {
 } from "./execution-protocol.mjs";
 import { repositoryRoot } from "./execution-store.mjs";
 
-const COMMIT = /^[a-f0-9]{40}$/;
 const PRODUCT_RUNTIME_PREFIX = `katherines-eye-v2-product-${PRODUCT_SOURCE_HEAD}-`;
 const PRODUCT_RUNTIME_NAME = new RegExp(`^${PRODUCT_RUNTIME_PREFIX}[A-Za-z0-9_-]{6}$`);
 
@@ -161,19 +158,6 @@ export function readAllowedEnvironment(environment = process.env) {
   });
 }
 
-export function resolveCommittedExecutorHead({ syntheticHead = null, mode = EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION } = {}) {
-  if (mode === EXECUTION_MODE.SYNTHETIC_TEST_ONLY) {
-    assert.match(syntheticHead || "", COMMIT, "synthetic executor head is required");
-    return syntheticHead;
-  }
-  assert.equal(syntheticHead, null, "real execution cannot substitute a synthetic executor head");
-  const head = git(["log", "-1", "--format=%H", "--", "benchmarks/blind-object-v2/execution-release.json"]);
-  assert.match(head, COMMIT, "executor release marker is not committed");
-  const packageVersion = JSON.parse(execFileSync(process.execPath, ["-e", "process.stdout.write(require('fs').readFileSync('package.json','utf8'))"], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true })).version;
-  assert.equal(packageVersion, EXECUTOR_VERSION, "repository Version does not match executor release");
-  return head;
-}
-
 function parseTreeLine(line) {
   const match = line.match(/^(\d{6})\s+(blob|commit)\s+([a-f0-9]{40})\t(.+)$/);
   assert.ok(match, `unrecognized git tree record: ${line}`);
@@ -245,7 +229,7 @@ export async function resolveExecutionProfile({
   freezeRequests,
   environment = process.env,
   productRuntimeManifestHash,
-  executorSourceHead,
+  releaseIdentity,
   resolvedAt,
   productSourceText = null
 }) {
@@ -256,7 +240,11 @@ export async function resolveExecutionProfile({
   const allowed = readAllowedEnvironment(environment);
   const profile = createExecutionProfile({
     productRuntimeManifestHash,
-    executorSourceHead,
+    executorRuntimeHead: releaseIdentity.executorRuntimeHead,
+    qualificationHead: releaseIdentity.qualificationHead,
+    executorRuntimeTreeHash: releaseIdentity.executorRuntimeTreeHash,
+    executionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash,
+    qualificationPolicyVersion: releaseIdentity.qualificationPolicyVersion,
     model: allowed.model,
     acquisitionProviderMode: allowed.acquisitionProviderMode,
     credentialPresence: allowed.credentialPresence,

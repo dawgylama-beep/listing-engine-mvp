@@ -62,6 +62,13 @@ import { sha256Json } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
 import { createLaunchScope } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 
 const EXECUTOR_HEAD = "b".repeat(40);
+const RELEASE_IDENTITY = Object.freeze({
+  executorRuntimeHead: EXECUTOR_HEAD,
+  qualificationHead: "c".repeat(40),
+  executorRuntimeTreeHash: "d".repeat(40),
+  executionReleaseRecordHash: "e".repeat(64),
+  qualificationPolicyVersion: "1.0"
+});
 const RUNTIME_HASH = "a".repeat(64);
 const AT = "2026-08-07T12:00:00.000Z";
 
@@ -83,7 +90,7 @@ function profileAndCeiling(requests = fakeRequests(), overrides = {}) {
   const attemptCeiling = calculateCompleteAttemptCeiling(requests);
   const profile = createExecutionProfile({
     productRuntimeManifestHash: RUNTIME_HASH,
-    executorSourceHead: EXECUTOR_HEAD,
+    ...RELEASE_IDENTITY,
     model: "gpt-4.1-mini",
     acquisitionProviderMode: "OPENAI_WEB_SEARCH_ONLY",
     credentialPresence: { OPENAI_API_KEY: true, OPEN_API_KEY: false, SERPER_API_KEY: false },
@@ -120,7 +127,7 @@ function consentScope(requests, profile, pricingProfile, ceiling, overrides = {}
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: RUNTIME_HASH,
-    executorSourceHead: EXECUTOR_HEAD,
+    ...RELEASE_IDENTITY,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: "1".repeat(64),
     freezeManifestHash: "2".repeat(64),
@@ -202,7 +209,7 @@ function terminalFixture(overrides = {}) {
     reservationHash: reservation.reservationHash,
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: EXECUTOR_HEAD,
+    ...RELEASE_IDENTITY,
     executorVersion: EXECUTOR_VERSION,
     executionProfileHash: profile.profileHash,
     executionProfileIdentityHash: profile.executionProfileIdentityHash,
@@ -245,7 +252,7 @@ function unscoredManifestFixture(overrides = {}) {
     reservationHash: "2".repeat(64),
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
-    executorSourceHead: EXECUTOR_HEAD,
+    ...RELEASE_IDENTITY,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: "3".repeat(64),
     requestAggregateHash: "4".repeat(64),
@@ -295,10 +302,10 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.16");
+  assert.equal(EXECUTOR_VERSION, "1.12.17");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
-  assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, executorSourceHead: EXECUTOR_HEAD, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
+  assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
   assert.throws(() => verifyDetachedProductRuntime(process.cwd()), /detached|clean|frozen product release/i);
 });
 
@@ -309,7 +316,7 @@ test("D-F: execution profile is deterministic, environment-allowlisted, and secr
     freezeRequests: requests,
     environment: { OPENAI_API_KEY: "secret-primary-123", OPENAI_MODEL: "gpt-4.1-mini", UNAPPROVED: "evil" },
     productRuntimeManifestHash: RUNTIME_HASH,
-    executorSourceHead: EXECUTOR_HEAD,
+    releaseIdentity: RELEASE_IDENTITY,
     resolvedAt: AT,
     productSourceText: sourceText
   });
@@ -317,12 +324,12 @@ test("D-F: execution profile is deterministic, environment-allowlisted, and secr
     freezeRequests: requests,
     environment: { OPENAI_API_KEY: "different-secret-456", OPENAI_MODEL: "gpt-4.1-mini", KATHERINES_EYE_HANDLER_ADAPTER_MODULE: "C:/evil.mjs" },
     productRuntimeManifestHash: RUNTIME_HASH,
-    executorSourceHead: EXECUTOR_HEAD,
+    releaseIdentity: RELEASE_IDENTITY,
     resolvedAt: AT,
     productSourceText: sourceText
   });
   assert.equal(first.profile.profileHash, second.profile.profileHash);
-  assert.equal(validateExecutionProfile(first.profile, { attemptCeiling: first.attemptCeiling, executorSourceHead: EXECUTOR_HEAD, productRuntimeManifestHash: RUNTIME_HASH }).valid, true);
+  assert.equal(validateExecutionProfile(first.profile, { attemptCeiling: first.attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH }).valid, true);
   assertNoSecretMaterial(first.profile, {
     knownEnvironment: first.allowedEnvironment.secretValues,
     schemaValidatedRecordType: first.profile.profileType
@@ -353,7 +360,7 @@ test("scanner B and I: exact schema-controlled public identities pass and remain
     assert.match(terminal.recordHash, /^[a-f0-9]{64}$/);
   }
   const { profile, attemptCeiling } = profileAndCeiling(fakeRequests(), { model: "model-2048.multi" });
-  validateExecutionProfile(profile, { attemptCeiling, executorSourceHead: EXECUTOR_HEAD, productRuntimeManifestHash: RUNTIME_HASH });
+  validateExecutionProfile(profile, { attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH });
   assert.equal(assertNoSecretMaterial(profile, {
     knownEnvironment: { ...SCAN_ENVIRONMENT, OPENAI_MODEL: profile.exactModelLiteral },
     schemaValidatedRecordType: profile.profileType
@@ -447,7 +454,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.16");
+  assert.equal(terminal.executorVersion, "1.12.17");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -546,7 +553,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.16");
+  assert.equal(EXECUTOR_VERSION, "1.12.17");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {
@@ -645,14 +652,14 @@ test("T-Y: product failures seal, atomic writes reject overwrite/corruption, and
   const reservation = createInvocationReservation(reservationScope(requests, consent, profile, rates), AT);
   const terminal = createTerminalResult({
     requestId: "V2-RUN-001", requestHash: requests[0].requestContractHash, launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash,
-    productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION,
+    productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, ...RELEASE_IDENTITY, executorVersion: EXECUTOR_VERSION,
     executionProfileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash, pricingProfileHash: rates.pricingProfileHash, pricingProfileIdentityHash: rates.pricingProfileIdentityHash, costEnvelopeHash: consent.costEnvelopeHash, physicalSubmissionIdentity: "submission-44444444444444444444444444444444",
     submissionState: REQUEST_STATE.TERMINAL, terminalState: "PRODUCT_TERMINAL_FAILURE", startedAt: AT, completedAt: "2026-08-07T12:00:00.001Z", elapsedDurationMs: 1,
     handlerStatus: 502, sanitizedTerminalResponseEnvelope: { statusCode: 502, body: { code: "provider_failure" } }, responseDiagnostics: {}, providerAttemptTelemetry: [], providerIdentities: [], modelIdentity: profile.exactModelLiteral,
     callCeilingTelemetry: {}, costEntry: {}, governorProof: null, cognitiveStateIdentity: "", experienceRecord: null, experienceRecordHash: "", terminalEvidence: null, errorStage: "PRODUCT", errorCategory: "provider_failure"
   });
   assert.equal(validateTerminalResult(terminal).valid, true);
-  const manifest = createUnscoredResultManifest({ launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash, productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: consent.completeFrozenAggregateHash, requestAggregateHash: consent.requestAggregateHash, executionProfileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash, pricingProfileHash: rates.pricingProfileHash, pricingProfileIdentityHash: rates.pricingProfileIdentityHash, costEnvelopeHash: consent.costEnvelopeHash, maximumCost: consent.maximumAuthorizedCost, costLedgerHash: "5".repeat(64), requestedCount: 26, submittedCount: 26, terminalCount: 26, normalSuccessCount: 25, productTerminalFailureCount: 1, executionIntegrityFailureCount: 0, notSubmittedCount: 0, orderedResponseHashInventory: [], responseAggregate: "6".repeat(64), journalAggregate: "7".repeat(64), resultTreeAggregate: "8".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING });
+  const manifest = createUnscoredResultManifest({ launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash, productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, ...RELEASE_IDENTITY, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: consent.completeFrozenAggregateHash, requestAggregateHash: consent.requestAggregateHash, executionProfileHash: profile.profileHash, executionProfileIdentityHash: profile.executionProfileIdentityHash, pricingProfileHash: rates.pricingProfileHash, pricingProfileIdentityHash: rates.pricingProfileIdentityHash, costEnvelopeHash: consent.costEnvelopeHash, maximumCost: consent.maximumAuthorizedCost, costLedgerHash: "5".repeat(64), requestedCount: 26, submittedCount: 26, terminalCount: 26, normalSuccessCount: 25, productTerminalFailureCount: 1, executionIntegrityFailureCount: 0, notSubmittedCount: 0, orderedResponseHashInventory: [], responseAggregate: "6".repeat(64), journalAggregate: "7".repeat(64), resultTreeAggregate: "8".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING });
   assert.equal(validateUnscoredResultManifest(manifest).state, RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING);
   const history = resolveResultHistoryRoot(EXECUTION_MODE.SYNTHETIC_TEST_ONLY, path.join(root, "history"));
   const resultRoot = await createExclusiveResultRoot(history, "synthetic-result-atomic");
@@ -703,7 +710,7 @@ test("Z and AC-AD: strict operations remain network-denied and no real-run autho
 });
 
 test("AA: partial manifests cannot masquerade as complete", () => {
-  const partial = createUnscoredResultManifest({ launchScopeHash: "0".repeat(64), resultId: "synthetic-result-partial", resultRootName: `result-root-${"0".repeat(48)}`, invocationId: "synthetic-invocation-partial", consentHash: "1".repeat(64), reservationHash: "2".repeat(64), productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, executorSourceHead: EXECUTOR_HEAD, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: "3".repeat(64), requestAggregateHash: "4".repeat(64), executionProfileHash: "5".repeat(64), executionProfileIdentityHash: "b".repeat(64), pricingProfileHash: "6".repeat(64), pricingProfileIdentityHash: "c".repeat(64), costEnvelopeHash: "d".repeat(64), maximumCost: 40, costLedgerHash: "7".repeat(64), requestedCount: 26, submittedCount: 1, terminalCount: 1, normalSuccessCount: 0, productTerminalFailureCount: 0, executionIntegrityFailureCount: 1, notSubmittedCount: 25, orderedResponseHashInventory: [], responseAggregate: "8".repeat(64), journalAggregate: "9".repeat(64), resultTreeAggregate: "a".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP });
+  const partial = createUnscoredResultManifest({ launchScopeHash: "0".repeat(64), resultId: "synthetic-result-partial", resultRootName: `result-root-${"0".repeat(48)}`, invocationId: "synthetic-invocation-partial", consentHash: "1".repeat(64), reservationHash: "2".repeat(64), productSourceHead: PRODUCT_SOURCE_HEAD, productSourceVersion: PRODUCT_SOURCE_VERSION, ...RELEASE_IDENTITY, executorVersion: EXECUTOR_VERSION, completeFrozenAggregateHash: "3".repeat(64), requestAggregateHash: "4".repeat(64), executionProfileHash: "5".repeat(64), executionProfileIdentityHash: "b".repeat(64), pricingProfileHash: "6".repeat(64), pricingProfileIdentityHash: "c".repeat(64), costEnvelopeHash: "d".repeat(64), maximumCost: 40, costLedgerHash: "7".repeat(64), requestedCount: 26, submittedCount: 1, terminalCount: 1, normalSuccessCount: 0, productTerminalFailureCount: 0, executionIntegrityFailureCount: 1, notSubmittedCount: 25, orderedResponseHashInventory: [], responseAggregate: "8".repeat(64), journalAggregate: "9".repeat(64), resultTreeAggregate: "a".repeat(64), resultTreeRecords: [], privateControlsLoaded: false, scoringAuthorized: false, reflectionAuthorized: false, repairAuthorized: false, state: RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP });
   assert.equal(validateUnscoredResultManifest(partial).state, RESULT_STATE.PARTIAL_EXECUTION_INTEGRITY_STOP);
   assert.throws(() => createUnscoredResultManifest({ ...partial, state: RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING }), /submittedCount|26/);
 });

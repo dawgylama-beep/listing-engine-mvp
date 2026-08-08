@@ -46,6 +46,7 @@ const VERSION = "1.12.13";
 const PHASE_7D_R_PATHS = Object.freeze([
   ".gitignore",
   "benchmarks/blind-object-v2/schemas/consent-receipt.schema.json",
+  "benchmarks/blind-object-v2/schemas/execution-release.schema.json",
   "benchmarks/blind-object-v2/schemas/invocation-registry.schema.json",
   "benchmarks/blind-object-v2/execution-release.json",
   "benchmarks/blind-object-v2/schemas/cost-ledger.schema.json",
@@ -56,11 +57,13 @@ const PHASE_7D_R_PATHS = Object.freeze([
   "benchmarks/blind-object-v2/schemas/unscored-result-manifest.schema.json",
   "benchmarks/blind-object-v2/scripts/execution-profile.mjs",
   "benchmarks/blind-object-v2/scripts/execution-protocol.mjs",
+  "benchmarks/blind-object-v2/scripts/release-qualification.mjs",
   "benchmarks/blind-object-v2/scripts/execution-store.mjs",
   "benchmarks/blind-object-v2/scripts/executor.mjs",
   "benchmarks/blind-object-v2/scripts/prove-execution-spine.mjs",
   "benchmarks/blind-object-v2/scripts/synthetic-authority.mjs",
-  "tests/blind-object-v2-execution-spine.test.mjs"
+  "tests/blind-object-v2-execution-spine.test.mjs",
+  "tests/blind-object-v2-release-qualification.test.mjs"
 ]);
 
 async function withControlledNoInputState(callback) {

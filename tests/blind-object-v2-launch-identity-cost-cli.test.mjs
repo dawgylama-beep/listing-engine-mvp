@@ -57,6 +57,16 @@ function changedScope(scope, changes) {
   return createLaunchScope({ ...launchInput(scope), ...changes });
 }
 
+function releaseIdentity(profile) {
+  return {
+    executorRuntimeHead: profile.executorRuntimeHead,
+    qualificationHead: profile.qualificationHead,
+    executorRuntimeTreeHash: profile.executorRuntimeTreeHash,
+    executionReleaseRecordHash: profile.executionReleaseRecordHash,
+    qualificationPolicyVersion: profile.qualificationPolicyVersion
+  };
+}
+
 function exactPricing(exactModel = "gpt-4.1-mini", overrides = {}) {
   return createPricingProfile({
     provider: "OPENAI",
@@ -91,7 +101,9 @@ test("A-B: key-order-equivalent scopes keep one hash while every domain identity
 test("C-E: release, freeze, request, execution, pricing, cost, network, and authorization drift changes every derived ID", () => {
   const baseIds = deriveLaunchIdentities(authority.launchScope);
   const fields = [
-    ["productSourceHead", "1".repeat(40)], ["productSourceVersion", "9.9.9"], ["executorSourceHead", "2".repeat(40)], ["executorVersion", "9.9.8"],
+    ["productSourceHead", "1".repeat(40)], ["productSourceVersion", "9.9.9"], ["executorRuntimeHead", "2".repeat(40)],
+    ["qualificationHead", "3".repeat(40)], ["executorRuntimeTreeHash", "4".repeat(40)], ["executionReleaseRecordHash", "2".repeat(64)],
+    ["qualificationPolicyVersion", "2.0"], ["executorVersion", "9.9.8"],
     ["completeFrozenAggregateHash", "3".repeat(64)], ["freezeManifestHash", "4".repeat(64)], ["freezeReceiptHash", "5".repeat(64)],
     ["requestAggregateHash", "6".repeat(64)], ["exactModelLiteral", "gpt-4.1-mini-variant"], ["pricingProfileIdentityHash", "7".repeat(64)],
     ["costEnvelopeHash", "8".repeat(64)], ["maximumAuthorizedCostMinorUnits", 3999], ["networkPolicyHash", "9".repeat(64)]
@@ -109,7 +121,7 @@ test("C-E: release, freeze, request, execution, pricing, cost, network, and auth
 test("F: resolvedAt, createdAt, audit descriptions, host values, and local paths cannot destabilize launch identity", () => {
   const firstProfile = createExecutionProfile({
     productRuntimeManifestHash: authority.profile.productRuntimeManifestHash,
-    executorSourceHead: authority.profile.executorSourceHead,
+    ...releaseIdentity(authority.profile),
     model: authority.profile.exactModelLiteral,
     acquisitionProviderMode: authority.profile.acquisitionProviderMode,
     credentialPresence: authority.profile.credentialPresenceDeclarations,
@@ -118,7 +130,7 @@ test("F: resolvedAt, createdAt, audit descriptions, host values, and local paths
   });
   const secondProfile = createExecutionProfile({
     productRuntimeManifestHash: authority.profile.productRuntimeManifestHash,
-    executorSourceHead: authority.profile.executorSourceHead,
+    ...releaseIdentity(authority.profile),
     model: authority.profile.exactModelLiteral,
     acquisitionProviderMode: authority.profile.acquisitionProviderMode,
     credentialPresence: authority.profile.credentialPresenceDeclarations,
@@ -193,7 +205,7 @@ test("S-T: pricing drift fails closed and repeated exact-frozen envelopes keep t
   assert.throws(() => createSourceGroundedCostEnvelope({ requests: frozen.requests, assetCache: frozen.assetCache, attemptCeiling: authority.attemptCeiling, executionProfile: authority.profile, pricingProfile: changedRate, productSourceText }), /0\.39|0\.4|rate/);
   const serperProfile = createExecutionProfile({
     productRuntimeManifestHash: authority.profile.productRuntimeManifestHash,
-    executorSourceHead: authority.profile.executorSourceHead,
+    ...releaseIdentity(authority.profile),
     model: "gpt-4.1-mini",
     acquisitionProviderMode: "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK",
     credentialPresence: { OPENAI_API_KEY: true, OPEN_API_KEY: false, SERPER_API_KEY: true },
@@ -258,7 +270,7 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.16");
+  assert.equal(EXECUTOR_VERSION, "1.12.17");
 });
 
 test("AC: focused tests leave every real consent, reservation, journal, result, and submission absent", async () => {

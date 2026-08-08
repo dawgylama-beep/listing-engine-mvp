@@ -56,7 +56,7 @@ export function createVerifiedPricingProfile({ exactModel, createdAt }) {
   });
 }
 
-export async function buildLaunchArtifacts({ frozen, runtime, environment, executorSourceHead, resolvedAt, productSourceText }) {
+export async function buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, resolvedAt, productSourceText }) {
   assert.equal(frozen.manifest.completeFrozenAggregateHash, REAL_FREEZE_AGGREGATE);
   assert.equal(runtime.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(runtime.productSourceVersion, PRODUCT_SOURCE_VERSION);
@@ -65,7 +65,7 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, execu
     freezeRequests: frozen.requests,
     environment,
     productRuntimeManifestHash: runtime.productRuntimeManifestHash,
-    executorSourceHead,
+    releaseIdentity,
     resolvedAt,
     productSourceText
   });
@@ -86,7 +86,11 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, execu
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: runtime.productRuntimeManifestHash,
-    executorSourceHead,
+    executorRuntimeHead: releaseIdentity.executorRuntimeHead,
+    qualificationHead: releaseIdentity.qualificationHead,
+    executorRuntimeTreeHash: releaseIdentity.executorRuntimeTreeHash,
+    executionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash,
+    qualificationPolicyVersion: releaseIdentity.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     freezeManifestHash: frozen.manifest.freezeManifestHash,
@@ -127,8 +131,9 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, execu
   });
 }
 
-export async function buildRealLaunchPreflight({ environment = process.env, executorSourceHead, resolvedAt = new Date().toISOString() } = {}) {
-  assert.match(executorSourceHead || "", /^[a-f0-9]{40}$/, "committed executor source head is required");
+export async function buildRealLaunchPreflight({ environment = process.env, releaseIdentity, resolvedAt = new Date().toISOString() } = {}) {
+  assert.match(releaseIdentity?.executorRuntimeHead || "", /^[a-f0-9]{40}$/, "committed executor runtime head is required");
+  assert.match(releaseIdentity?.qualificationHead || "", /^[a-f0-9]{40}$/, "committed qualification head is required");
   assert.equal(path.basename(defaultFreezeRoot), REAL_FREEZE_AGGREGATE);
   const runtime = ensureDetachedProductRuntime();
   const runtimeRoot = runtime.runtimeRoot;
@@ -136,6 +141,6 @@ export async function buildRealLaunchPreflight({ environment = process.env, exec
     loadPublicFreeze(defaultFreezeRoot),
     readFile(path.join(runtimeRoot, "api", "generate-listing.js"), "utf8")
   ]);
-  const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, executorSourceHead, resolvedAt, productSourceText });
+  const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, resolvedAt, productSourceText });
   return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot });
 }

@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -11,15 +9,13 @@ import {
   validateExecutionConsent
 } from "./execution-protocol.mjs";
 import { buildRealLaunchPreflight, loadFixedExecutionEnvironment, REAL_FREEZE_AGGREGATE } from "./launch-preflight.mjs";
-import { resolveCommittedExecutorHead } from "./execution-profile.mjs";
+import { inspectQualifiedRepositoryRelease } from "./release-qualification.mjs";
 import {
-  benchmarkRoot,
   defaultFreezeRoot,
   defaultResultHistoryRoot,
   deriveResultRoot,
   readJsonStrictFile,
   replaceSynced,
-  repositoryRoot,
   writeExclusiveSynced
 } from "./execution-store.mjs";
 import { executeBenchmarkV2, verifyResultReadback } from "./executor.mjs";
@@ -27,11 +23,6 @@ import { stableJson } from "./protocol.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
 const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK"]);
-const RELEASE_PATH = path.join(benchmarkRoot, "execution-release.json");
-
-function git(args) {
-  return execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8", windowsHide: true }).trim();
-}
 
 export function parseAuthorizedExecutionArguments(argv) {
   assert.ok(Array.isArray(argv), "CLI arguments must be an array");
@@ -45,22 +36,6 @@ export function parseAuthorizedExecutionArguments(argv) {
   return Object.freeze({ mode, freezeAggregate, consentHash: consentHash || null });
 }
 
-function verifyRepositoryRelease() {
-  assert.equal(git(["branch", "--show-current"]), "refactor/beta-evidence-pipeline", "real execution CLI requires the release branch");
-  assert.equal(git(["status", "--porcelain=v1", "--untracked-files=no"]), "", "real execution CLI requires a clean tracked tree and index");
-  const head = git(["rev-parse", "HEAD"]);
-  assert.equal(resolveCommittedExecutorHead(), head, "executor release marker is not bound to the current committed HEAD");
-  return head;
-}
-
-async function readExecutionRelease() {
-  const release = JSON.parse(await readFile(RELEASE_PATH, "utf8"));
-  assert.equal(release.realExecutionAuthorized, false, "repository release metadata cannot itself imply external real-run authorization");
-  assert.equal(typeof release.consentCreationEnabled, "boolean");
-  assert.equal(typeof release.executionEnabled, "boolean");
-  return release;
-}
-
 function publicPreflightRecord(preflight) {
   return Object.freeze({
     disposition: preflight.preflightDisposition,
@@ -69,7 +44,11 @@ function publicPreflightRecord(preflight) {
     productSourceHead: preflight.launchScope.productSourceHead,
     productSourceVersion: preflight.launchScope.productSourceVersion,
     productRuntimeManifestHash: preflight.launchScope.productRuntimeManifestHash,
-    executorSourceHead: preflight.launchScope.executorSourceHead,
+    executorRuntimeHead: preflight.launchScope.executorRuntimeHead,
+    qualificationHead: preflight.launchScope.qualificationHead,
+    executorRuntimeTreeHash: preflight.launchScope.executorRuntimeTreeHash,
+    executionReleaseRecordHash: preflight.launchScope.executionReleaseRecordHash,
+    qualificationPolicyVersion: preflight.launchScope.qualificationPolicyVersion,
     executorVersion: preflight.launchScope.executorVersion,
     exactModelLiteral: preflight.launchScope.exactModelLiteral,
     acquisitionProviderMode: preflight.launchScope.acquisitionProviderMode,
@@ -92,18 +71,19 @@ function publicPreflightRecord(preflight) {
   });
 }
 
-async function resolvePreflight(environment, executorSourceHead) {
+async function resolvePreflight(environment, releaseIdentity) {
   const fixedEnvironment = await loadFixedExecutionEnvironment(environment);
-  return buildRealLaunchPreflight({ environment: fixedEnvironment, executorSourceHead, resolvedAt: new Date().toISOString() });
+  return buildRealLaunchPreflight({ environment: fixedEnvironment, releaseIdentity, resolvedAt: new Date().toISOString() });
 }
 
 export async function runAuthorizedExecutionCommand(argv, { environment = process.env, output = process.stdout } = {}) {
   const command = parseAuthorizedExecutionArguments(argv);
-  const executorSourceHead = verifyRepositoryRelease();
-  const release = await readExecutionRelease();
-  if (command.mode === "CREATE_CONSENT") assert.equal(release.consentCreationEnabled, true, "CREATE_CONSENT is disabled in this executor release and requires a later separate authorization station");
-  if (command.mode === "EXECUTE") assert.equal(release.executionEnabled, true, "EXECUTE is disabled in this executor release and requires a later separate authorization station");
-  const preflight = await resolvePreflight(environment, executorSourceHead);
+  const releaseIdentity = inspectQualifiedRepositoryRelease(command.mode);
+  const release = releaseIdentity.release;
+  assert.equal(release.authorityDeclarations.realExecutionAuthorized, false, "repository release metadata cannot itself imply external real-run authorization");
+  if (command.mode === "CREATE_CONSENT") assert.equal(release.authorityDeclarations.consentCreationEnabled, true, "CREATE_CONSENT is disabled in this executor release and requires a later separate authorization station");
+  if (command.mode === "EXECUTE") assert.equal(release.authorityDeclarations.executionEnabled, true, "EXECUTE is disabled in this executor release and requires a later separate authorization station");
+  const preflight = await resolvePreflight(environment, releaseIdentity);
   if (command.mode === "PREFLIGHT") {
     const record = publicPreflightRecord(preflight);
     output.write(`${stableJson(record)}\n`);

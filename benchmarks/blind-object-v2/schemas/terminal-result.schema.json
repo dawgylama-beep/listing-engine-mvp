@@ -4,7 +4,7 @@
   "title": "Blind Object Benchmark V2 sealed terminal result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "canonicalResponseHash", "recordHash"],
+  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "canonicalResponseHash", "recordHash"],
   "properties": {
     "schemaVersion": { "const": "1.0" },
     "resultRecordType": { "const": "BENCHMARK_TERMINAL_RESULT" },
@@ -18,8 +18,12 @@
     "reservationHash": { "$ref": "#/$defs/hash" },
     "productSourceHead": { "type": "string" },
     "productSourceVersion": { "const": "1.12.13" },
-    "executorSourceHead": { "type": "string" },
-    "executorVersion": { "const": "1.12.16" },
+    "executorRuntimeHead": { "$ref": "#/$defs/commit" },
+    "qualificationHead": { "$ref": "#/$defs/commit" },
+    "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
+    "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
+    "qualificationPolicyVersion": { "const": "1.0" },
+    "executorVersion": { "const": "1.12.17" },
     "executionProfileHash": { "$ref": "#/$defs/hash" },
     "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },
@@ -39,6 +43,7 @@
   },
   "$defs": {
     "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "publicIdentity": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$" }
   }
 }

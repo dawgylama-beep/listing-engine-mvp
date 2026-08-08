@@ -6,7 +6,7 @@ export const EXECUTION_SCHEMA_VERSION = "1.0";
 export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.16";
+export const EXECUTOR_VERSION = "1.12.17";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -91,7 +91,8 @@ const PUBLIC_IDENTITY_PATHS = Object.freeze({
 });
 const EXECUTION_PROFILE_FIELDS = Object.freeze([
   "schemaVersion", "profileType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash",
-  "productRuntimeIdentityType", "executorSourceHead", "executorVersion", "handlerContract", "modelProvider",
+  "productRuntimeIdentityType", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash",
+  "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "handlerContract", "modelProvider",
   "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses",
   "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis",
   "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch",
@@ -99,8 +100,9 @@ const EXECUTION_PROFILE_FIELDS = Object.freeze([
 ]);
 const CONSENT_FIELDS = Object.freeze([
   "schemaVersion", "receiptType", "launchScopeHash", "consentId", "invocationId", "reservationId", "resultId", "resultRootName",
-  "benchmarkId", "candidateSetId", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "executorSourceHead",
-  "executorVersion", "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
+  "benchmarkId", "candidateSetId", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "executorRuntimeHead",
+  "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
+  "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
   "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "completePhysicalAttemptCeiling", "maximumAuthorizedCostMinorUnits", "maximumAuthorizedCost", "conservativeMaximumCostMinorUnits",
   "conservativeMaximumCost", "fixedResultRoot", "networkPolicyHash", "authorizedRequestCount", "privateControlsAuthorized",
@@ -110,7 +112,8 @@ const CONSENT_FIELDS = Object.freeze([
 const RESERVATION_FIELDS = Object.freeze([
   "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
-  "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion",
+  "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead",
+  "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
   "resultRoot", "createdIdentity", "state", "transitions", "transitionJournalHash", "reservationHash", "recordHash"
 ]);
 const PRICING_PROFILE_FIELDS = Object.freeze([
@@ -120,7 +123,8 @@ const PRICING_PROFILE_FIELDS = Object.freeze([
 ]);
 const TERMINAL_RESULT_FIELDS = Object.freeze([
   "schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash",
-  "productSourceHead", "productSourceVersion", "executorSourceHead", "executorVersion", "executionProfileHash", "executionProfileIdentityHash",
+  "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash",
+  "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash",
   "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt",
   "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics",
   "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof",
@@ -129,7 +133,8 @@ const TERMINAL_RESULT_FIELDS = Object.freeze([
 ]);
 const UNSCORED_MANIFEST_FIELDS = Object.freeze([
   "schemaVersion", "manifestType", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead",
-  "productSourceVersion", "executorSourceHead", "executorVersion", "completeFrozenAggregateHash", "requestAggregateHash",
+  "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash",
+  "qualificationPolicyVersion", "executorVersion", "completeFrozenAggregateHash", "requestAggregateHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "maximumCost", "costLedgerHash", "requestedCount", "submittedCount",
   "terminalCount", "normalSuccessCount", "productTerminalFailureCount", "executionIntegrityFailureCount", "notSubmittedCount",
   "orderedResponseHashInventory", "responseAggregate", "journalAggregate", "resultTreeAggregate", "resultTreeRecords",
@@ -244,7 +249,11 @@ export function validateAttemptCeiling(ceiling, requests) {
 
 export function createExecutionProfile({
   productRuntimeManifestHash,
-  executorSourceHead,
+  executorRuntimeHead,
+  qualificationHead,
+  executorRuntimeTreeHash,
+  executionReleaseRecordHash,
+  qualificationPolicyVersion,
   model,
   acquisitionProviderMode,
   credentialPresence,
@@ -252,7 +261,12 @@ export function createExecutionProfile({
   resolvedAt
 }) {
   assert.match(productRuntimeManifestHash || "", HASH);
-  assert.match(executorSourceHead || "", COMMIT);
+  assert.match(executorRuntimeHead || "", COMMIT);
+  assert.match(qualificationHead || "", COMMIT);
+  assert.notEqual(executorRuntimeHead, qualificationHead, "runtime and qualification heads must be distinct");
+  assert.match(executorRuntimeTreeHash || "", COMMIT);
+  assert.match(executionReleaseRecordHash || "", HASH);
+  assert.match(qualificationPolicyVersion || "", /^\d+\.\d+$/);
   assert.match(model || "", PUBLIC_IDENTITY);
   assert.ok(["OPENAI_WEB_SEARCH_ONLY", "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK"].includes(acquisitionProviderMode));
   exactKeys(credentialPresence, ["OPENAI_API_KEY", "OPEN_API_KEY", "SERPER_API_KEY"], "credential presence declarations");
@@ -265,7 +279,11 @@ export function createExecutionProfile({
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash,
     productRuntimeIdentityType: "CLEAN_DETACHED_GIT_WORKTREE_FULL_TRACKED_TREE",
-    executorSourceHead,
+    executorRuntimeHead,
+    qualificationHead,
+    executorRuntimeTreeHash,
+    executionReleaseRecordHash,
+    qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     handlerContract: {
       export: "api/generate-listing.js#createGenerateListingHandler",
@@ -302,14 +320,16 @@ export function createExecutionProfile({
   return sealed(record, "profileHash");
 }
 
-export function validateExecutionProfile(profile, { attemptCeiling, executorSourceHead, productRuntimeManifestHash }) {
+export function validateExecutionProfile(profile, { attemptCeiling, releaseIdentity, productRuntimeManifestHash }) {
   exactKeys(profile, EXECUTION_PROFILE_FIELDS, "execution profile");
   assert.equal(profile.schemaVersion, EXECUTION_SCHEMA_VERSION);
   assert.equal(profile.profileType, EXECUTION_PROFILE_TYPE);
   assert.equal(profile.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(profile.productSourceVersion, PRODUCT_SOURCE_VERSION);
   assert.equal(profile.executorVersion, EXECUTOR_VERSION);
-  assert.equal(profile.executorSourceHead, executorSourceHead);
+  for (const field of ["executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion"]) {
+    assert.equal(profile[field], releaseIdentity[field], `execution profile ${field} differs from qualified release`);
+  }
   assert.equal(profile.productRuntimeManifestHash, productRuntimeManifestHash, "product runtime manifest hash mismatch");
   assert.equal(profile.completeAttemptCeilingHash, attemptCeiling.ceilingHash);
   assert.equal(profile.completeAggregatePhysicalAttemptCeiling, 832);
@@ -462,7 +482,11 @@ export function createExecutionConsent(input, nowIso) {
     productSourceHead: launchScope.productSourceHead,
     productSourceVersion: launchScope.productSourceVersion,
     productRuntimeManifestHash: launchScope.productRuntimeManifestHash,
-    executorSourceHead: launchScope.executorSourceHead,
+    executorRuntimeHead: launchScope.executorRuntimeHead,
+    qualificationHead: launchScope.qualificationHead,
+    executorRuntimeTreeHash: launchScope.executorRuntimeTreeHash,
+    executionReleaseRecordHash: launchScope.executionReleaseRecordHash,
+    qualificationPolicyVersion: launchScope.qualificationPolicyVersion,
     executorVersion: launchScope.executorVersion,
     completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
     freezeManifestHash: launchScope.freezeManifestHash,
@@ -567,7 +591,11 @@ export function createInvocationReservation(input, nowIso) {
     requestAggregateHash: launchScope.requestAggregateHash,
     productSourceHead: launchScope.productSourceHead,
     productSourceVersion: launchScope.productSourceVersion,
-    executorSourceHead: launchScope.executorSourceHead,
+    executorRuntimeHead: launchScope.executorRuntimeHead,
+    qualificationHead: launchScope.qualificationHead,
+    executorRuntimeTreeHash: launchScope.executorRuntimeTreeHash,
+    executionReleaseRecordHash: launchScope.executionReleaseRecordHash,
+    qualificationPolicyVersion: launchScope.qualificationPolicyVersion,
     executorVersion: launchScope.executorVersion,
     resultRoot: `benchmarks/blind-object-v2-results/${identities.resultRootName}`,
     createdIdentity

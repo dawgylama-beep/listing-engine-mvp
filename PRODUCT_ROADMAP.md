@@ -668,6 +668,14 @@
 - Added focused ownership regressions for the reproduced dubious-ownership boundary, fresh equivalent runtimes, stale or foreign linkage, release drift, dirtiness, tracked-file mutation, path attacks, and persistent Git-config immutability
 - Provider-call impact: runtime preparation and validation are local Git/filesystem operations only; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request is performed
 
+## Version 1.12.17 (Completed)
+- Separated the immutable executor runtime commit from the Git-derived qualification head so a test or release seal cannot self-invalidate by moving the current repository HEAD
+- Added a strict pending/qualified/invalid execution-release record with a sealed record hash, complete runtime Git-tree identity, direct-parent relationship, and exactly one permitted `execution-release.json` qualification overlay
+- Bound the executor runtime head, qualification head, runtime tree, release-record hash, and qualification-policy Version into the stable Launch Scope and every derived consent, invocation, reservation, result, and result-root identity
+- Rejected wrong parents, second descendants, merge commits, extra-file overlays, runtime or Version drift, dirty/staged/conflicted/wrong-repository state, record drift, and caller-controlled release-head selection
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, and preserved the Phase 7C freeze, scoring isolation, and all product behavior unchanged
+- Provider-call impact: qualification and validation are deterministic local Git/filesystem operations; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Preview analysis, or Production request is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

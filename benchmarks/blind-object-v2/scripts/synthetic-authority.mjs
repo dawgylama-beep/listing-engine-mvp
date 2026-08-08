@@ -14,8 +14,20 @@ import { resolveExecutionProfile } from "./execution-profile.mjs";
 import { sha256Json } from "./protocol.mjs";
 
 export const SYNTHETIC_EXECUTOR_HEAD = "b".repeat(40);
+export const SYNTHETIC_QUALIFICATION_HEAD = "c".repeat(40);
+export const SYNTHETIC_EXECUTOR_TREE_HASH = "d".repeat(40);
+export const SYNTHETIC_RELEASE_RECORD_HASH = "e".repeat(64);
 export const SYNTHETIC_PRODUCT_RUNTIME_HASH = "a".repeat(64);
 export const SYNTHETIC_TIME = "2026-08-07T12:00:00.000Z";
+
+export const SYNTHETIC_RELEASE_IDENTITY = Object.freeze({
+  executorRuntimeHead: SYNTHETIC_EXECUTOR_HEAD,
+  qualificationHead: SYNTHETIC_QUALIFICATION_HEAD,
+  executorRuntimeTreeHash: SYNTHETIC_EXECUTOR_TREE_HASH,
+  executionReleaseRecordHash: SYNTHETIC_RELEASE_RECORD_HASH,
+  qualificationPolicyVersion: "1.0",
+  executorVersion: EXECUTOR_VERSION
+});
 
 export function deterministicClock(start = SYNTHETIC_TIME) {
   let current = Date.parse(start);
@@ -38,7 +50,7 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     freezeRequests: frozen.requests,
     environment,
     productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
-    executorSourceHead: SYNTHETIC_EXECUTOR_HEAD,
+    releaseIdentity: SYNTHETIC_RELEASE_IDENTITY,
     resolvedAt: SYNTHETIC_TIME
   });
   const pricingProfile = createPricingProfile({
@@ -71,7 +83,11 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     productSourceHead: PRODUCT_SOURCE_HEAD,
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
-    executorSourceHead: SYNTHETIC_EXECUTOR_HEAD,
+    executorRuntimeHead: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeHead,
+    qualificationHead: SYNTHETIC_RELEASE_IDENTITY.qualificationHead,
+    executorRuntimeTreeHash: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeTreeHash,
+    executionReleaseRecordHash: SYNTHETIC_RELEASE_IDENTITY.executionReleaseRecordHash,
+    qualificationPolicyVersion: SYNTHETIC_RELEASE_IDENTITY.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     freezeManifestHash: frozen.manifest.freezeManifestHash,
