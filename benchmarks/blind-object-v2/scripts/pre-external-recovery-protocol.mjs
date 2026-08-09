@@ -154,9 +154,9 @@ export function validateTerminalFailureManifest(manifest) {
     assert.match(manifest.zeroExternalSupersessionReceiptHash, HASH);
   }
   validateZeroCounts(manifest);
-  assert.equal(manifest.requestedCount, 26);
+  assert.ok([25, 26].includes(manifest.requestedCount), "terminal failure requested count must be 25 or 26");
   assert.equal(manifest.preExternalAbortCount, 1);
-  assert.equal(manifest.notExternallySubmittedCount, 26);
+  assert.equal(manifest.notExternallySubmittedCount, manifest.requestedCount);
   assert.equal(manifest.effectiveConsentStatus, "CONSUMED");
   assert.equal(manifest.resultRootConsentStatus, "CONSUMED");
   assert.ok(["CLOSED_ZERO_SPEND", "CLOSED_PRE_EXTERNAL_ABORT"].includes(manifest.effectiveReservationStatus));

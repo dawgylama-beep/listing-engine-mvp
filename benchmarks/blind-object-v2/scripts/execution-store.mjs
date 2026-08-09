@@ -27,6 +27,7 @@ import {
 } from "./execution-protocol.mjs";
 import { assertNoTruncatedIdentityCollision } from "./launch-identity.mjs";
 import { validateZeroExternalSupersessionReceipt } from "./pre-external-recovery-protocol.mjs";
+import { validateTerminalFailureReceipt } from "./post-handler-reconciliation-protocol.mjs";
 
 export const benchmarkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const repositoryRoot = path.resolve(benchmarkRoot, "..", "..");
@@ -60,13 +61,21 @@ export const RESULT_ROOT_ARTIFACT_ROLES = Object.freeze({
   "unscored-result-manifest.json": "UNSCORED_RESULT_MANIFEST",
   "validation-report.json": "UNSCORED_VALIDATION_REPORT"
 });
+export const OPTIONAL_RESULT_ROOT_ARTIFACT_ROLES = Object.freeze({
+  "continuation-scope.json": "CONTINUATION_SCOPE",
+  "composite-unscored-evidence-manifest.json": "COMPOSITE_UNSCORED_EVIDENCE_MANIFEST"
+});
+export const HANDLER_RETURNED_DIRECTORY = "handler-returned";
 export const TERMINAL_FAILURE_ARTIFACT_ROLES = Object.freeze({
   "zero-external-supersession-receipt.json": "ZERO_EXTERNAL_SUPERSESSION_RECEIPT",
+  "post-handler-reconciliation-receipt.json": "POST_HANDLER_RECONCILIATION_RECEIPT",
+  "reservation-closure-receipt.json": "RESERVATION_CLOSURE_RECEIPT",
   "terminal-failure-manifest.json": "TERMINAL_FAILURE_MANIFEST",
   "terminal-failure-validation-report.json": "TERMINAL_FAILURE_VALIDATION_REPORT"
 });
 export const RESULT_RESPONSE_DIRECTORY = "responses";
 const RESULT_RESPONSE_PATH = /^responses\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
+const HANDLER_RETURNED_PATH = /^handler-returned\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
 const ANALYSIS_ID = /^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$/;
 const WINDOWS_DEVICE_BASENAME = /^(?:con|prn|aux|nul|clock\$|com[1-9]|lpt[1-9])$/i;
 
@@ -108,18 +117,20 @@ export function classifyResultArtifactPath(relativePath, { kind = "file" } = {})
   assert.ok(["file", "directory"].includes(kind), "result artifact kind is invalid");
   assertCanonicalRelativePath(relativePath);
   if (kind === "directory") {
-    assert.equal(relativePath, RESULT_RESPONSE_DIRECTORY, `unknown result-tree directory: ${relativePath}`);
-    return Object.freeze({ relativePath, kind, role: "TERMINAL_RESPONSE_DIRECTORY", analysisId: null });
+    assert.ok([RESULT_RESPONSE_DIRECTORY, HANDLER_RETURNED_DIRECTORY].includes(relativePath), `unknown result-tree directory: ${relativePath}`);
+    return Object.freeze({ relativePath, kind, role: relativePath === RESULT_RESPONSE_DIRECTORY ? "TERMINAL_RESPONSE_DIRECTORY" : "HANDLER_RETURNED_DIRECTORY", analysisId: null });
   }
   assertSafeRelativeFile(relativePath, { extensions: new Set([".json"]) });
-  const rootRole = RESULT_ROOT_ARTIFACT_ROLES[relativePath] || TERMINAL_FAILURE_ARTIFACT_ROLES[relativePath];
+  const rootRole = RESULT_ROOT_ARTIFACT_ROLES[relativePath] || OPTIONAL_RESULT_ROOT_ARTIFACT_ROLES[relativePath] || TERMINAL_FAILURE_ARTIFACT_ROLES[relativePath];
   if (rootRole) return Object.freeze({ relativePath, kind, role: rootRole, analysisId: null });
   const response = relativePath.match(RESULT_RESPONSE_PATH);
-  assert.ok(response, `unknown result-tree artifact: ${relativePath}`);
-  return Object.freeze({ relativePath, kind, role: "TERMINAL_RESPONSE", analysisId: response[1] });
+  if (response) return Object.freeze({ relativePath, kind, role: "TERMINAL_RESPONSE", analysisId: response[1] });
+  const handlerReturned = relativePath.match(HANDLER_RETURNED_PATH);
+  assert.ok(handlerReturned, `unknown result-tree artifact: ${relativePath}`);
+  return Object.freeze({ relativePath, kind, role: "HANDLER_RETURNED_RECEIPT", analysisId: handlerReturned[1] });
 }
 
-export function expectedResultArtifactPaths(responseAnalysisIds) {
+export function expectedResultArtifactPaths(responseAnalysisIds, { handlerReturnedAnalysisIds = responseAnalysisIds, includeContinuationScope = false, includeCompositeEvidence = false } = {}) {
   assert.ok(Array.isArray(responseAnalysisIds), "response analysis IDs must be an array");
   const seen = new Set();
   const responsePaths = responseAnalysisIds.map((analysisId) => {
@@ -128,7 +139,18 @@ export function expectedResultArtifactPaths(responseAnalysisIds) {
     seen.add(analysisId);
     return `${RESULT_RESPONSE_DIRECTORY}/${analysisId}.json`;
   });
-  return Object.freeze([...Object.keys(RESULT_ROOT_ARTIFACT_ROLES), ...responsePaths].sort());
+  assert.ok(Array.isArray(handlerReturnedAnalysisIds), "handler-returned analysis IDs must be an array");
+  const handlerPaths = handlerReturnedAnalysisIds.map((analysisId) => {
+    assert.match(analysisId || "", ANALYSIS_ID, `invalid handler-returned analysis ID ${analysisId}`);
+    return `${HANDLER_RETURNED_DIRECTORY}/${analysisId}.json`;
+  });
+  return Object.freeze([
+    ...Object.keys(RESULT_ROOT_ARTIFACT_ROLES),
+    ...(includeContinuationScope ? ["continuation-scope.json"] : []),
+    ...(includeCompositeEvidence ? ["composite-unscored-evidence-manifest.json"] : []),
+    ...responsePaths,
+    ...handlerPaths
+  ].sort());
 }
 
 export function classifyResultArtifactInventory(relativePaths, { terminalKind = "SUCCESS" } = {}) {
@@ -157,6 +179,7 @@ export function classifyResultArtifactInventory(relativePaths, { terminalKind = 
     for (const forbidden of Object.keys(TERMINAL_FAILURE_ARTIFACT_ROLES)) assert.equal(exactPaths.has(forbidden), false, `successful result contains failure artifact: ${forbidden}`);
   } else {
     for (const forbidden of ["unscored-result-manifest.json", "validation-report.json"]) assert.equal(exactPaths.has(forbidden), false, `terminal failure contains successful-result artifact: ${forbidden}`);
+    assert.equal(exactPaths.has("composite-unscored-evidence-manifest.json"), false, "terminal failure cannot contain composite success evidence");
   }
   records.sort((left, right) => left.relativePath < right.relativePath ? -1 : left.relativePath > right.relativePath ? 1 : 0);
   const canonicalRecords = records.map((record) => ({
@@ -312,12 +335,22 @@ export async function loadPublicFreeze(freezeRoot = defaultFreezeRoot, { onRead 
   return Object.freeze({ root, manifest, receipt, analysisPlan, requests: Object.freeze(requests), assetCache });
 }
 
-export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null } = {}) {
+export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null, terminalFailureReceipt = null } = {}) {
   validateInvocationReservation(reservation);
   if (zeroExternalSupersessionReceipt) {
-    validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
-      receiptId: reservation.zeroExternalSupersessionReceiptId,
-      receiptHash: reservation.zeroExternalSupersessionReceiptHash,
+    validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, terminalFailureReceipt ? {} : {
+        receiptId: reservation.zeroExternalSupersessionReceiptId,
+        receiptHash: reservation.zeroExternalSupersessionReceiptHash,
+        successorExecutionReleaseRecordHash: reservation.executionReleaseRecordHash,
+        successorExecutorRuntimeHead: reservation.executorRuntimeHead,
+        successorQualificationHead: reservation.qualificationHead,
+        successorExecutorVersion: reservation.executorVersion
+      });
+  }
+  if (terminalFailureReceipt) {
+    validateTerminalFailureReceipt(terminalFailureReceipt, {
+      receiptId: reservation.terminalFailureReceiptId,
+      receiptHash: reservation.terminalFailureReceiptHash,
       successorExecutionReleaseRecordHash: reservation.executionReleaseRecordHash,
       successorExecutorRuntimeHead: reservation.executorRuntimeHead,
       successorQualificationHead: reservation.qualificationHead,
@@ -329,9 +362,11 @@ export async function createExclusiveReservation(storeRoot, reservation, { zeroE
   await assertNoReparseChain(root, root);
   const files = (await readdir(root, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.endsWith(".json"));
   let supersededReservationObserved = false;
+  let terminalFailedReservationObserved = false;
   for (const entry of files) {
     const existing = await readJsonStrictFile(path.join(root, entry.name));
     let legacySupersededReservation = false;
+    let legacyContinuationReservation = false;
     try {
       validateInvocationReservation(existing);
     } catch (error) {
@@ -343,8 +378,16 @@ export async function createExclusiveReservation(storeRoot, reservation, { zeroE
         && existing?.reservationHash === zeroExternalSupersessionReceipt.sourceReservationHash
         && existing?.consentHash === zeroExternalSupersessionReceipt.sourceConsentHash
         && existing?.state === "STARTED";
-      if (!legacySupersededReservation) throw error;
-      supersededReservationObserved = true;
+      legacyContinuationReservation = Boolean(terminalFailureReceipt)
+        && existing?.schemaVersion === "1.1"
+        && existing?.executorVersion === "1.12.21"
+        && existing?.invocationId === terminalFailureReceipt.sourceInvocationId
+        && existing?.reservationId === terminalFailureReceipt.sourceReservationId
+        && existing?.reservationHash === terminalFailureReceipt.sourceReservationHash
+        && existing?.state === "STARTED";
+      if (!legacySupersededReservation && !legacyContinuationReservation) throw error;
+      if (legacySupersededReservation) supersededReservationObserved = true;
+      if (legacyContinuationReservation) terminalFailedReservationObserved = true;
     }
     for (const field of ["invocationId", "reservationId", "resultId", "resultRootName"]) assertNoTruncatedIdentityCollision(existing, reservation, field);
     const sameIdentity = existing.invocationId === reservation.invocationId
@@ -359,10 +402,11 @@ export async function createExclusiveReservation(storeRoot, reservation, { zeroE
       assert.equal(zeroExternalSupersessionReceipt, null, "zero-external supersession receipt is already consumed by this reservation");
       return Object.freeze({ status: "EXISTING_IDENTICAL_READBACK", reservation: existing, filePath: path.join(root, entry.name) });
     }
-    if (legacySupersededReservation) continue;
+    if (legacySupersededReservation || legacyContinuationReservation) continue;
     assert.fail("a conflicting reservation already owns the invocation, consent, result, or freeze aggregate");
   }
   if (zeroExternalSupersessionReceipt) assert.equal(supersededReservationObserved, true, "superseded legacy reservation proof is absent");
+  if (terminalFailureReceipt) assert.equal(terminalFailedReservationObserved, true, "terminal Version 1.12.21 reservation proof is absent");
   const filePath = path.join(root, `${reservation.invocationId}.json`);
   await writeExclusiveSynced(filePath, reservation);
   const readback = await readJsonStrictFile(filePath);
@@ -392,6 +436,7 @@ export async function createExclusiveResultRoot(resultHistoryRoot, resultId) {
   assert.equal(resultStat.isDirectory(), true);
   assert.equal(resultStat.isSymbolicLink(), false);
   await mkdir(path.join(resultRoot, "responses"));
+  await mkdir(path.join(resultRoot, HANDLER_RETURNED_DIRECTORY));
   return resultRoot;
 }
 

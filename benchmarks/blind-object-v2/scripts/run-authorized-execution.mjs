@@ -11,12 +11,14 @@ import {
 import { buildRealLaunchPreflight, loadFixedExecutionEnvironment, REAL_FREEZE_AGGREGATE } from "./launch-preflight.mjs";
 import { inspectQualifiedRepositoryRelease } from "./release-qualification.mjs";
 import { removeDetachedProductRuntime } from "./execution-profile.mjs";
-import { reconcileFixedV11220Failure } from "./pre-external-reconciliation.mjs";
+import { reconcileFixedV11221Failure, verifyFixedV11221Reconciliation } from "./post-handler-reconciliation.mjs";
+import { COMPOSITE_STATE, sealCompositeEvidence } from "./composite-evidence.mjs";
 import {
   benchmarkRoot,
   defaultFreezeRoot,
   defaultResultHistoryRoot,
   deriveResultRoot,
+  loadPublicFreeze,
   readJsonStrictFile,
   replaceSynced,
   writeExclusiveSynced
@@ -25,12 +27,12 @@ import { executeBenchmarkV2, verifyResultReadback } from "./executor.mjs";
 import { stableJson } from "./protocol.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
-const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_FAILURE"]);
+const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"]);
 
 export function parseAuthorizedExecutionArguments(argv) {
   assert.ok(Array.isArray(argv), "CLI arguments must be an array");
   const [mode, freezeAggregate, consentHash, ...extra] = argv;
-  assert.ok(MODES.includes(mode), "command mode must be PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, or RECONCILE_FAILURE");
+  assert.ok(MODES.includes(mode), "command mode must be PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, or RECONCILE_V11221");
   assert.match(freezeAggregate || "", HASH, "freeze aggregate must be exactly 64 lowercase hexadecimal characters");
   assert.equal(freezeAggregate, REAL_FREEZE_AGGREGATE, "CLI freeze aggregate differs from the repository-owned real freeze");
   assert.equal(extra.length, 0, "CLI accepts no additional arguments");
@@ -65,6 +67,18 @@ function publicPreflightRecord(preflight) {
     costState: preflight.costEnvelope.costState,
     zeroExternalSupersessionReceiptId: preflight.supersessionReceipt.receiptId,
     zeroExternalSupersessionReceiptHash: preflight.supersessionReceipt.receiptHash,
+    terminalFailureReceiptId: preflight.terminalFailureReceipt.receiptId,
+    terminalFailureReceiptHash: preflight.terminalFailureReceipt.receiptHash,
+    continuationScopeHash: preflight.continuationScope.continuationScopeHash,
+    continuationRequestAggregateHash: preflight.continuationScope.continuationRequestAggregateHash,
+    continuationRequestCount: preflight.continuationScope.authorizedRequestCount,
+    priorPhysicalAttemptCount: preflight.continuationScope.priorPhysicalAttemptCount,
+    continuationPhysicalAttemptCeiling: preflight.continuationScope.continuationPhysicalAttemptCeiling,
+    cumulativePhysicalAttemptCeiling: preflight.continuationScope.priorPhysicalAttemptCount + preflight.continuationScope.continuationPhysicalAttemptCeiling,
+    priorConservativeCost: preflight.continuationScope.priorConservativeCost,
+    continuationConservativeMaximumCost: preflight.continuationScope.continuationConservativeMaximumCost,
+    cumulativeConservativeMaximumCost: preflight.continuationScope.cumulativeConservativeMaximumCost,
+    remainingConservativeCostAuthority: preflight.continuationScope.remainingConservativeCostAuthority,
     launchScopeHash: preflight.launchScope.launchScopeHash,
     proposedConsentId: preflight.identities.consentId,
     proposedInvocationId: preflight.identities.invocationId,
@@ -90,9 +104,9 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
   assert.equal(release.authorityDeclarations.realExecutionAuthorized, false, "repository release metadata cannot itself imply external real-run authorization");
   if (command.mode === "CREATE_CONSENT") assert.equal(release.authorityDeclarations.consentCreationEnabled, true, "CREATE_CONSENT is disabled in this executor release and requires a later separate authorization station");
   if (command.mode === "EXECUTE") assert.equal(release.authorityDeclarations.executionEnabled, true, "EXECUTE is disabled in this executor release and requires a later separate authorization station");
-  if (command.mode === "RECONCILE_FAILURE") {
-    assert.equal(release.authorityDeclarations.preExternalReconciliationEnabled, true, "pre-external reconciliation is disabled");
-    const reconciliation = await reconcileFixedV11220Failure({ releaseIdentity });
+  if (command.mode === "RECONCILE_V11221") {
+    assert.equal(release.authorityDeclarations.postHandlerReconciliationEnabled, true, "post-handler reconciliation is disabled");
+    const reconciliation = await reconcileFixedV11221Failure({ releaseIdentity });
     output.write(`${stableJson(reconciliation)}\n`);
     return reconciliation;
   }
@@ -119,8 +133,38 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
     if (command.mode === "READBACK") {
       const resultRoot = deriveResultRoot(defaultResultHistoryRoot, preflight.identities.resultRootName);
       const readback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
-      output.write(`${stableJson({ disposition: "READBACK_COMPLETE_NO_EXECUTION", ...readback })}\n`);
-      return readback;
+      assert.equal(readback.state, "EXECUTED_SEALED_AWAITING_SCORING", "composite evidence requires a complete unscored continuation result");
+      assert.equal(readback.responseCount, 25, "composite evidence requires exactly 25 continuation responses");
+      assert.equal(readback.compositeManifestHash, null, "composite evidence already exists; READBACK is exactly-once");
+      const terminalFailure = await verifyFixedV11221Reconciliation({ releaseIdentity });
+      const frozen = await loadPublicFreeze(defaultFreezeRoot);
+      const [launchScope, continuationScope, resultConsent, resultManifest, ledger] = await Promise.all([
+        readJsonStrictFile(path.join(resultRoot, "launch-scope.json")),
+        readJsonStrictFile(path.join(resultRoot, "continuation-scope.json")),
+        readJsonStrictFile(path.join(resultRoot, "execution-consent.json")),
+        readJsonStrictFile(path.join(resultRoot, "unscored-result-manifest.json")),
+        readJsonStrictFile(path.join(resultRoot, "cost-ledger.json"))
+      ]);
+      const handlerReturnedReceipts = await Promise.all(
+        continuationScope.orderedRequestIds.map((analysisId) => readJsonStrictFile(path.join(resultRoot, "handler-returned", `${analysisId}.json`)))
+      );
+      const composite = await sealCompositeEvidence(resultRoot, {
+        frozen,
+        terminalFailureReceipt: terminalFailure.receipt,
+        terminalFailureTreeAggregate: terminalFailure.terminalFailureTreeAggregate,
+        continuationScope,
+        launchScope,
+        consent: resultConsent,
+        resultManifest,
+        ledger,
+        handlerReturnedReceipts
+      });
+      assert.equal(composite.state, COMPOSITE_STATE);
+      const sealedReadback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
+      assert.equal(sealedReadback.compositeManifestHash, composite.manifestHash);
+      const record = { disposition: "READBACK_COMPLETE_COMPOSITE_UNSCORED_SEALED", ...sealedReadback };
+      output.write(`${stableJson(record)}\n`);
+      return record;
     }
 
     const result = await executeBenchmarkV2({
@@ -131,10 +175,12 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
       pricingProfile: preflight.pricingProfile,
       costEnvelope: preflight.costEnvelope,
       launchScope: preflight.launchScope,
+      continuationScope: preflight.continuationScope,
       consent,
       productRuntimeRoot: preflight.productRuntimeRoot,
       allowedEnvironment: preflight.allowedEnvironment,
       zeroExternalSupersessionReceipt: preflight.supersessionReceipt,
+      terminalFailureReceipt: preflight.terminalFailureReceipt,
       onConsentTransition: async (nextConsent) => replaceSynced(consentPath, nextConsent)
     });
     await replaceSynced(consentPath, result.consent);

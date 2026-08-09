@@ -248,7 +248,7 @@ test("V-Z: fixed CLI grammar is inert by mode and rejects IDs, paths, providers,
     assert.deepEqual(parseAuthorizedExecutionArguments(["CREATE_CONSENT", HASH]), { mode: "CREATE_CONSENT", freezeAggregate: HASH, consentHash: null });
     assert.deepEqual(parseAuthorizedExecutionArguments(["EXECUTE", HASH, "a".repeat(64)]), { mode: "EXECUTE", freezeAggregate: HASH, consentHash: "a".repeat(64) });
     assert.deepEqual(parseAuthorizedExecutionArguments(["READBACK", HASH, "b".repeat(64)]), { mode: "READBACK", freezeAggregate: HASH, consentHash: "b".repeat(64) });
-    assert.deepEqual(parseAuthorizedExecutionArguments(["RECONCILE_FAILURE", HASH]), { mode: "RECONCILE_FAILURE", freezeAggregate: HASH, consentHash: null });
+    assert.deepEqual(parseAuthorizedExecutionArguments(["RECONCILE_V11221", HASH]), { mode: "RECONCILE_V11221", freezeAggregate: HASH, consentHash: null });
     for (const args of [
       ["EXECUTE", HASH], ["PREFLIGHT", HASH, "a".repeat(64)], ["EXECUTE", HASH, "caller-id"], ["EXECUTE", HASH, "a".repeat(64), "gpt-4.1-mini"],
       ["https://evil.invalid", HASH], ["EXECUTE", "../freeze", "a".repeat(64)], ["EXECUTE", HASH, "a".repeat(64), "C:/output"]
@@ -276,7 +276,7 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.21");
+  assert.equal(EXECUTOR_VERSION, "1.12.22");
 });
 
 test("AC: focused tests cannot touch the preserved failed root or create their synthetic authority", async () => {

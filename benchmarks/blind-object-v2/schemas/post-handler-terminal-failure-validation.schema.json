@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/post-handler-terminal-failure-validation.schema.json",
+  "title": "Blind Object V2 post-handler terminal-failure validation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "validationType", "resultId", "manifestHash", "state", "validatedAt", "handlerReturnedReceiptHash", "publicResponseArtifactCommitted", "replayPermitted", "effectiveConsentStatus", "effectiveReservationStatus", "handlerInvocationCount", "providerAttemptCount", "physicalProviderAttemptCount", "conservativeConsumedCost", "actualBilledCostStatus", "privateControlsLoaded", "scoringPerformed", "reflectionPerformed", "repairPerformed", "validationHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "validationType": { "const": "POST_HANDLER_TERMINAL_FAILURE_VALIDATION" },
+    "resultId": { "$ref": "#/$defs/id" },
+    "manifestHash": { "$ref": "#/$defs/hash" },
+    "state": { "const": "ABORTED_POST_HANDLER_SANITIZATION_RESPONSE_NOT_PERSISTED" },
+    "validatedAt": { "type": "string", "format": "date-time" },
+    "handlerReturnedReceiptHash": { "$ref": "#/$defs/hash" },
+    "publicResponseArtifactCommitted": { "const": false },
+    "replayPermitted": { "const": false },
+    "effectiveConsentStatus": { "const": "CONSUMED" },
+    "effectiveReservationStatus": { "const": "CLOSED_CONSERVATIVE_COST_ACCOUNTED" },
+    "handlerInvocationCount": { "const": 1 },
+    "providerAttemptCount": { "type": "integer", "minimum": 0 },
+    "physicalProviderAttemptCount": { "type": "integer", "minimum": 0 },
+    "conservativeConsumedCost": { "type": "number", "minimum": 0 },
+    "actualBilledCostStatus": { "const": "UNKNOWN" },
+    "privateControlsLoaded": { "const": false },
+    "scoringPerformed": { "const": false },
+    "reflectionPerformed": { "const": false },
+    "repairPerformed": { "const": false },
+    "validationHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" }
+  }
+}

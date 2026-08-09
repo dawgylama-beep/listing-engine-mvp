@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/handler-returned-receipt.schema.json",
+  "title": "Blind Object V2 handler-returned durability receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "receiptId", "executionReleaseRecordHash", "executorRuntimeHead", "qualificationHead", "executorVersion", "launchScopeHash", "continuationScopeHash", "consentId", "consentHash", "invocationId", "reservationId", "reservationHash", "resultId", "resultRootName", "requestId", "requestHash", "physicalSubmissionIdentity", "handlerOutcome", "handlerStatus", "handlerInvocationCount", "providerAttemptCount", "physicalProviderAttemptCount", "cumulativeConservativeCost", "canonicalHandlerResultHash", "returnedAt", "transactionState", "publicResponseArtifactCommitted", "replayPermitted", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "receiptType": { "const": "HANDLER_RETURNED_DURABILITY_RECEIPT" }, "receiptId": { "type": "string", "pattern": "^handler-returned-[a-f0-9]{48}$" },
+    "executionReleaseRecordHash": { "$ref": "#/$defs/hash" }, "executorRuntimeHead": { "$ref": "#/$defs/commit" }, "qualificationHead": { "$ref": "#/$defs/commit" }, "executorVersion": { "type": "string" }, "launchScopeHash": { "$ref": "#/$defs/hash" }, "continuationScopeHash": { "oneOf": [{ "$ref": "#/$defs/hash" }, { "type": "null" }] },
+    "consentId": { "type": "string" }, "consentHash": { "$ref": "#/$defs/hash" }, "invocationId": { "type": "string" }, "reservationId": { "type": "string" }, "reservationHash": { "$ref": "#/$defs/hash" }, "resultId": { "type": "string" }, "resultRootName": { "type": "string" }, "requestId": { "type": "string" }, "requestHash": { "$ref": "#/$defs/hash" }, "physicalSubmissionIdentity": { "type": "string" },
+    "handlerOutcome": { "enum": ["NORMAL_SUCCESS", "PRODUCT_TERMINAL_FAILURE"] }, "handlerStatus": { "type": "integer" }, "handlerInvocationCount": { "const": 1 }, "providerAttemptCount": { "type": "integer", "minimum": 0 }, "physicalProviderAttemptCount": { "type": "integer", "minimum": 0 }, "cumulativeConservativeCost": { "type": "number", "minimum": 0 }, "canonicalHandlerResultHash": { "$ref": "#/$defs/hash" }, "returnedAt": { "type": "string", "format": "date-time" }, "transactionState": { "const": "HANDLER_RETURNED_RESPONSE_NOT_PERSISTED" }, "publicResponseArtifactCommitted": { "const": false }, "replayPermitted": { "const": false }, "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

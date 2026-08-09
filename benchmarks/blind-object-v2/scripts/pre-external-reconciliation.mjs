@@ -311,3 +311,17 @@ export async function loadFixedZeroExternalSupersessionReceipt(releaseIdentity) 
   const readback = await verifyFixedFailureReconciliation({ releaseIdentity });
   return readback.receipt;
 }
+
+export async function loadHistoricalV11221ZeroExternalSupersessionReceipt() {
+  const authority = await loadFixedFailureAuthority();
+  const resultRoot = path.join(defaultResultHistoryRoot, authority.sourceResultRootName);
+  const receipt = await readJsonStrictFile(path.join(resultRoot, FIXED_FAILURE_APPEND_PATHS[0]));
+  validateZeroExternalSupersessionReceipt(receipt, {
+    failureAuthorityHash: authority.recordHash,
+    successorExecutionReleaseRecordHash: "ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013",
+    successorExecutorRuntimeHead: "017f65678ef9d0606c47451dfb0b655f856e2bbd",
+    successorQualificationHead: "5ac4e65b82b83f74331d1571009eb24a08809d2e",
+    successorExecutorVersion: "1.12.21"
+  });
+  return Object.freeze(receipt);
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 
-export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.2";
+export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.3";
 export const LAUNCH_SCOPE_TYPE = "BLIND_OBJECT_V2_LAUNCH_SCOPE";
 
 export const IDENTITY_DOMAINS = Object.freeze({
@@ -60,6 +60,19 @@ const LAUNCH_SCOPE_CORE_FIELDS = Object.freeze([
   "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId",
   "zeroExternalSupersessionReceiptHash",
+  "continuationScopeHash",
+  "continuationRequestAggregateHash",
+  "continuationOrderedRequestHashInventory",
+  "terminalFailureReceiptId",
+  "terminalFailureReceiptHash",
+  "priorPhysicalAttemptCount",
+  "priorConservativeCost",
+  "remainingPhysicalAttemptAuthority",
+  "remainingConservativeCostAuthority",
+  "continuationPhysicalAttemptCeiling",
+  "continuationConservativeMaximumCost",
+  "cumulativeConservativeMaximumCost",
+  "authorizedRequestCount",
   "maximumAuthorizedCostMinorUnits",
   "networkPolicyHash",
   ...AUTHORITY_FIELDS
@@ -117,6 +130,29 @@ function validateCore(core) {
   assert.ok(["OPENAI_WEB_SEARCH_ONLY", "SERPER_WITH_OPENAI_WEB_SEARCH_FALLBACK"].includes(core.acquisitionProviderMode));
   assert.equal(core.directPageMode, "PRODUCT_BOUNDED_ONLY");
   assert.equal(core.completePhysicalAttemptCeiling, 832);
+  assert.ok([25, 26].includes(core.authorizedRequestCount));
+  if (core.authorizedRequestCount === 25) {
+    for (const field of ["continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptHash"]) assert.match(core[field] || "", HASH, `launch scope ${field} is invalid`);
+    assert.match(core.terminalFailureReceiptId || "", /^terminal-failure-[a-f0-9]{48}$/, "launch scope terminal failure receipt ID is invalid");
+    assert.equal(core.continuationOrderedRequestHashInventory?.length, 25);
+    assert.equal(new Set(core.continuationOrderedRequestHashInventory).size, 25);
+    core.continuationOrderedRequestHashInventory.forEach((hash) => assert.match(hash || "", HASH));
+    assert.equal(core.priorPhysicalAttemptCount, 9);
+    assert.equal(core.priorConservativeCost, 1.50682355);
+    assert.equal(core.remainingPhysicalAttemptAuthority, 823);
+    assert.equal(core.remainingConservativeCostAuthority, 38.49317645);
+    assert.equal(core.continuationPhysicalAttemptCeiling, 800);
+    assert.equal(core.continuationConservativeMaximumCost, 37.67058877);
+    assert.equal(core.cumulativeConservativeMaximumCost, 39.17741232);
+  } else {
+    for (const field of ["continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash", "continuationConservativeMaximumCost", "cumulativeConservativeMaximumCost"]) assert.equal(core[field], null, `synthetic full scope ${field} must be null`);
+    assert.deepEqual(core.continuationOrderedRequestHashInventory, []);
+    assert.equal(core.priorPhysicalAttemptCount, 0);
+    assert.equal(core.priorConservativeCost, 0);
+    assert.equal(core.remainingPhysicalAttemptAuthority, 832);
+    assert.equal(core.remainingConservativeCostAuthority, 40);
+    assert.equal(core.continuationPhysicalAttemptCeiling, 832);
+  }
   assert.equal(Number.isInteger(core.maximumAuthorizedCostMinorUnits), true);
   assert.ok(core.maximumAuthorizedCostMinorUnits > 0);
   AUTHORITY_FIELDS.forEach((field) => assert.equal(core[field], false));

@@ -4,7 +4,7 @@
   "title": "Blind Object Benchmark V2 sealed terminal result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "canonicalResponseHash", "recordHash"],
+  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "typedPublicIdentifierProvenance", "canonicalResponseHash", "recordHash"],
   "properties": {
     "schemaVersion": { "const": "1.1" },
     "resultRecordType": { "const": "BENCHMARK_TERMINAL_RESULT" },
@@ -23,7 +23,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.21" },
+    "executorVersion": { "const": "1.12.22" },
     "executionProfileHash": { "$ref": "#/$defs/hash" },
     "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },
@@ -38,6 +38,7 @@
     "handlerStatus": { "type": ["integer", "null"] },
     "sanitizedTerminalResponseEnvelope": { "type": "object" },
     "responseDiagnostics": {}, "providerAttemptTelemetry": { "type": "array" }, "providerIdentities": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/publicIdentity" } }, "modelIdentity": { "$ref": "#/$defs/publicIdentity" }, "callCeilingTelemetry": {}, "costEntry": {}, "governorProof": {}, "cognitiveStateIdentity": { "type": "string" }, "experienceRecord": {}, "experienceRecordHash": { "type": "string" }, "terminalEvidence": {}, "errorStage": { "type": "string" }, "errorCategory": { "type": "string" },
+    "typedPublicIdentifierProvenance": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "normalizedSchemaPath", "identifierType", "identityAlgorithm", "publicPreimagePath", "provenanceMode", "identifierHash"], "properties": { "path": { "type": "string" }, "normalizedSchemaPath": { "type": "string" }, "identifierType": { "const": "CANONICAL_PUBLIC_OFFER_IDENTITY_V1" }, "identityAlgorithm": { "const": "lib/evidence/dedupe.js#underlyingOfferKey" }, "publicPreimagePath": { "type": "string" }, "provenanceMode": { "enum": ["RECOMPUTED_FROM_SIBLING_PUBLIC_SOURCE", "HASH_BOUND_REFERENCE_TO_RECOMPUTED_PUBLIC_SOURCE"] }, "identifierHash": { "$ref": "#/$defs/hash" } } } },
     "canonicalResponseHash": { "$ref": "#/$defs/hash" },
     "recordHash": { "$ref": "#/$defs/hash" }
   },

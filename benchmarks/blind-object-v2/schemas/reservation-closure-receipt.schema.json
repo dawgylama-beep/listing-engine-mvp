@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/reservation-closure-receipt.schema.json",
+  "title": "Conservative-cost reservation closure receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "closureId", "terminalFailureReceiptId", "terminalFailureReceiptHash", "sourceInvocationId", "sourceReservationId", "sourceReservationHash", "sourceReservationRecordHash", "fromState", "effectiveState", "conservativeAccountedCost", "actualBilledCostStatus", "physicalProviderAttemptCount", "closedAt", "closureHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "receiptType": { "const": "CONSERVATIVE_COST_RESERVATION_CLOSURE_RECEIPT" }, "closureId": { "type": "string", "pattern": "^reservation-closure-[a-f0-9]{48}$" },
+    "terminalFailureReceiptId": { "type": "string", "pattern": "^terminal-failure-[a-f0-9]{48}$" }, "terminalFailureReceiptHash": { "$ref": "#/$defs/hash" }, "sourceInvocationId": { "$ref": "#/$defs/id" }, "sourceReservationId": { "$ref": "#/$defs/id" }, "sourceReservationHash": { "$ref": "#/$defs/hash" }, "sourceReservationRecordHash": { "$ref": "#/$defs/hash" }, "fromState": { "const": "STARTED" }, "effectiveState": { "const": "CLOSED_CONSERVATIVE_COST_ACCOUNTED" }, "conservativeAccountedCost": { "const": 1.50682355 }, "actualBilledCostStatus": { "const": "UNKNOWN" }, "physicalProviderAttemptCount": { "const": 9 }, "closedAt": { "type": "string", "format": "date-time" }, "closureHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" } }
+}

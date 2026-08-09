@@ -1,10 +1,10 @@
 {
-  "schemaVersion": "2.2",
+  "schemaVersion": "2.3",
   "releaseType": "BENCHMARK_EXECUTOR_RELEASE",
-  "releaseState": "QUALIFIED",
-  "executorRuntimeHead": "017f65678ef9d0606c47451dfb0b655f856e2bbd",
-  "executorVersion": "1.12.21",
-  "executorRuntimeTreeHash": "7e1c9555cfabaa579085994ab1eb780d17d2ab03",
+  "releaseState": "PENDING_QUALIFICATION_SEAL",
+  "executorRuntimeHead": null,
+  "executorVersion": "1.12.22",
+  "executorRuntimeTreeHash": null,
   "qualificationPolicyVersion": "1.0",
   "requiredQualificationRelationship": "DIRECT_PARENT_ONE_FILE_SEAL",
   "permittedQualificationOverlay": [
@@ -14,6 +14,7 @@
   "productSourceVersion": "1.12.13",
   "productCostSourceManifestHash": "89dc70128eb7eeda8bf5b40be5e8609172e3f2f6f70c2093136c5244d2ed358b",
   "preExternalFailureAuthorityHash": "084cea4676da753ce48a177472c36043f216802c9c97b9cc3a188b8abc17885d",
+  "postHandlerFailureAuthorityHash": "915089ed141f32dd38530df9ee1bd89288aa7bb4a2e5b2abe8cf4f96a24202b7",
   "benchmarkContractIdentity": {
     "benchmarkId": "blind-object-v2",
     "completeFrozenAggregateHash": "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699",
@@ -22,14 +23,16 @@
   },
   "handler": "api/generate-listing.js#createGenerateListingHandler",
   "completePhysicalAttemptCeiling": 832,
-  "launchScopeSchemaVersion": "2.2",
+  "launchScopeSchemaVersion": "2.3",
   "costEnvelopeSchemaVersion": "1.1",
   "maximumAuthorizedCostMinorUnits": 4000,
   "authorityDeclarations": {
     "consentCreationEnabled": true,
     "executionEnabled": true,
-    "preExternalReconciliationEnabled": true,
-    "zeroExternalSupersessionEnabled": true,
+    "preExternalReconciliationEnabled": false,
+    "zeroExternalSupersessionEnabled": false,
+    "postHandlerReconciliationEnabled": true,
+    "continuationExecutionEnabled": true,
     "realExecutionAuthorized": false,
     "privateControlsAuthorized": false,
     "scoringAuthorized": false,
@@ -37,5 +40,5 @@
     "repairAuthorized": false,
     "deploymentAuthorized": false
   },
-  "recordHash": "ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013"
+  "recordHash": "144790e1886db8f8285b4d6e5811884a1ec9ade798987b3909e36b0f935c1596"
 }

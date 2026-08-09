@@ -30,6 +30,9 @@ const FREEZE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
 const FAILED_ROOT_NAME = "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9";
 const FAILED_CONSENT_NAME = "consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45.json";
 const FAILED_RESERVATION_NAME = "invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65.json";
+const POST_HANDLER_ROOT_NAME = "result-root-f65ebb9d361c4977ac76755f8c7059375ae6d8d3fb4b0464";
+const POST_HANDLER_CONSENT_NAME = "consent-ebe3e1f4d0d1b781fcc3f408bc2989fd74739fe7bd79faae.json";
+const POST_HANDLER_RESERVATION_NAME = "invocation-3540a4bf98950418b6f5fbea2f6b82388e2b03a8d6c02909.json";
 const ORIGINAL_FAILURE_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
 const CANONICAL_HANDLER_SHA256 = "971194eb5be57c54176244516953237f3fb4dd6fcb4d00dfdc9c36358202c958";
 
@@ -162,14 +165,38 @@ test("M-O: product/freeze isolation, real-run absence, and hard network denial r
     const frozen = await loadPublicFreeze(defaultFreezeRoot);
     assert.equal(frozen.requests.length, 26);
     assert.equal(frozen.requests.every((request) => request.executionAuthorized === false), true);
-    assert.deepEqual((await readdir(path.join(benchmarkRoot, "consent"))).sort(), [FAILED_CONSENT_NAME]);
-    assert.deepEqual((await readdir(defaultResultHistoryRoot)).sort(), [".reservations", FAILED_ROOT_NAME].sort());
-    assert.deepEqual(await readdir(path.join(defaultResultHistoryRoot, ".reservations")), [FAILED_RESERVATION_NAME]);
+    const consentNames = (await readdir(path.join(benchmarkRoot, "consent"))).sort();
+    const successorConsentNames = consentNames.filter((name) => ![FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].includes(name));
+    assert.deepEqual(consentNames.filter((name) => [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].includes(name)), [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].sort());
+    assert.ok(successorConsentNames.length <= 1, "at most one Version 1.12.22 continuation consent may exist");
+    if (successorConsentNames.length === 1) {
+      assert.match(successorConsentNames[0], /^consent-[a-f0-9]{48}\.json$/);
+      const successorConsent = JSON.parse(await readFile(path.join(benchmarkRoot, "consent", successorConsentNames[0]), "utf8"));
+      assert.equal(successorConsent.executorVersion, "1.12.22");
+      assert.equal(successorConsent.authorizedRequestCount, 25);
+    }
+
+    const resultRootNames = (await readdir(defaultResultHistoryRoot)).sort();
+    const successorResultRootNames = resultRootNames.filter((name) => ![".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].includes(name));
+    assert.deepEqual(resultRootNames.filter((name) => [".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].includes(name)), [".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].sort());
+    assert.ok(successorResultRootNames.length <= 1, "at most one Version 1.12.22 continuation result root may exist");
+    if (successorResultRootNames.length === 1) assert.match(successorResultRootNames[0], /^result-root-[a-f0-9]{48}$/);
+
+    const reservationNames = (await readdir(path.join(defaultResultHistoryRoot, ".reservations"))).sort();
+    const successorReservationNames = reservationNames.filter((name) => ![FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].includes(name));
+    assert.deepEqual(reservationNames.filter((name) => [FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].includes(name)), [FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].sort());
+    assert.ok(successorReservationNames.length <= 1, "at most one Version 1.12.22 continuation reservation may exist");
+    if (successorReservationNames.length === 1) assert.match(successorReservationNames[0], /^invocation-[a-f0-9]{48}\.json$/);
     const failedRoot = path.join(defaultResultHistoryRoot, FAILED_ROOT_NAME);
     assert.equal((await computeResultTreeAggregate(failedRoot, ORIGINAL_FAILURE_PATHS)).aggregate, "788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf");
-    for (const name of ["zero-external-supersession-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"]) {
-      await assert.rejects(lstat(path.join(failedRoot, name)), /ENOENT/, `premature failure reconciliation exists: ${name}`);
-    }
+    for (const name of ["zero-external-supersession-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"]) assert.equal((await lstat(path.join(failedRoot, name))).isFile(), true);
+    const postHandlerRoot = path.join(defaultResultHistoryRoot, POST_HANDLER_ROOT_NAME);
+    assert.equal((await computeResultTreeAggregate(postHandlerRoot, ORIGINAL_FAILURE_PATHS)).aggregate, "9a837c740e2d47d6d0febd721dc16237e2934bc697f0a840223449862ce2ec7b");
+    const reconciliationNames = ["post-handler-reconciliation-receipt.json", "reservation-closure-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"];
+    const reconciliationPresence = await Promise.all(reconciliationNames.map(async (name) => {
+      try { return (await lstat(path.join(postHandlerRoot, name))).isFile(); } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
+    }));
+    assert.ok(reconciliationPresence.every(Boolean) || reconciliationPresence.every((present) => !present), "Version 1.12.21 reconciliation must be absent or complete, never partial");
     for (const name of ["invocations", "results"]) await assert.rejects(lstat(path.join(benchmarkRoot, name)), /ENOENT/, `premature successor authority exists: ${name}`);
     assert.equal(loadCanonicalProductCostSourceAudit().providerAudit.inventory.totalFetchSites, 3);
     assert.equal(guard.attempts.length, 0);

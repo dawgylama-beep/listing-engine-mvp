@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/continuation-scope.schema.json",
+  "title": "Phase 7C Version 1.12.22 continuation scope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scopeType", "completeFrozenAggregateHash", "freezeRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash", "excludedRequestId", "excludedDisposition", "excludedReplayPermitted", "orderedRequestIds", "orderedRequestHashInventory", "continuationRequestAggregateHash", "priorPhysicalAttemptCount", "priorConservativeCost", "maximumCumulativePhysicalAttempts", "maximumCumulativeCost", "remainingPhysicalAttemptAuthority", "remainingConservativeCostAuthority", "continuationPhysicalAttemptCeiling", "continuationConservativeMaximumCost", "cumulativeConservativeMaximumCost", "authorizedRequestCount", "continuationScopeHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "scopeType": { "const": "PHASE_7C_VERSION_1_12_22_CONTINUATION_SCOPE" }, "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" }, "freezeRequestAggregateHash": { "$ref": "#/$defs/hash" }, "terminalFailureReceiptId": { "type": "string", "pattern": "^terminal-failure-[a-f0-9]{48}$" }, "terminalFailureReceiptHash": { "$ref": "#/$defs/hash" }, "excludedRequestId": { "const": "V2-RUN-001" }, "excludedDisposition": { "const": "INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY" }, "excludedReplayPermitted": { "const": false }, "orderedRequestIds": { "type": "array", "minItems": 25, "maxItems": 25, "uniqueItems": true }, "orderedRequestHashInventory": { "type": "array", "minItems": 25, "maxItems": 25, "uniqueItems": true, "items": { "$ref": "#/$defs/hash" } }, "continuationRequestAggregateHash": { "$ref": "#/$defs/hash" }, "priorPhysicalAttemptCount": { "const": 9 }, "priorConservativeCost": { "const": 1.50682355 }, "maximumCumulativePhysicalAttempts": { "const": 832 }, "maximumCumulativeCost": { "const": 40 }, "remainingPhysicalAttemptAuthority": { "const": 823 }, "remainingConservativeCostAuthority": { "const": 38.49317645 }, "continuationPhysicalAttemptCeiling": { "const": 800 }, "continuationConservativeMaximumCost": { "const": 37.67058877 }, "cumulativeConservativeMaximumCost": { "const": 39.17741232 }, "authorizedRequestCount": { "const": 25 }, "continuationScopeHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

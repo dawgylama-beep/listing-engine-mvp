@@ -61,6 +61,12 @@ import {
 import { sha256Json } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
 import { createLaunchScope } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 import { createProductCostSourceManifest } from "../benchmarks/blind-object-v2/scripts/product-cost-source.mjs";
+import { underlyingOfferKey } from "../lib/evidence/dedupe.js";
+import {
+  DECLARED_PUBLIC_EVIDENCE_REFERENCE_FIELDS,
+  DECLARED_PUBLIC_SOURCE_COLLECTIONS,
+  DECLARED_TYPED_TERMINAL_ROOTS
+} from "../benchmarks/blind-object-v2/scripts/typed-public-identifier.mjs";
 
 const EXECUTOR_HEAD = "b".repeat(40);
 const RELEASE_IDENTITY = Object.freeze({
@@ -151,6 +157,19 @@ function consentScope(requests, profile, pricingProfile, ceiling, overrides = {}
     costEnvelopeHash,
     zeroExternalSupersessionReceiptId: `supersession-${"8".repeat(48)}`,
     zeroExternalSupersessionReceiptHash: "8".repeat(64),
+    continuationScopeHash: null,
+    continuationRequestAggregateHash: null,
+    continuationOrderedRequestHashInventory: [],
+    terminalFailureReceiptId: null,
+    terminalFailureReceiptHash: null,
+    priorPhysicalAttemptCount: 0,
+    priorConservativeCost: 0,
+    remainingPhysicalAttemptAuthority: 832,
+    remainingConservativeCostAuthority: 40,
+    continuationPhysicalAttemptCeiling: 832,
+    continuationConservativeMaximumCost: null,
+    cumulativeConservativeMaximumCost: null,
+    authorizedRequestCount: 26,
     maximumAuthorizedCostMinorUnits: 4000,
     networkPolicyHash: sha256Json(profile.networkScope),
     privateControlsAuthorized: overrides.privateControlsAuthorized ?? false,
@@ -277,6 +296,8 @@ function unscoredManifestFixture(overrides = {}) {
     notSubmittedCount: 0,
     orderedResponseHashInventory: [],
     responseAggregate: "8".repeat(64),
+    orderedHandlerReturnedReceiptInventory: [],
+    handlerReturnedAggregate: sha256Json([]),
     journalAggregate: "9".repeat(64),
     resultTreeAggregate: "a".repeat(64),
     resultTreeRecords: [],
@@ -307,7 +328,7 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.21");
+  assert.equal(EXECUTOR_VERSION, "1.12.22");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
   assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
@@ -353,6 +374,62 @@ test("scanner A: the pre-repair known-value rule reproduces the public-model fal
     () => legacyAssertNoSecretMaterial(terminal, Object.values(SCAN_ENVIRONMENT)),
     /known secret value/
   );
+});
+
+test("scanner A2: the rejected public-offer identifier class passes only through recomputed typed provenance", () => {
+  const publicSource = {
+    canonicalUrl: "https://example.com/public/listing/12345?color=blue",
+    marketplaceItemId: "12345",
+    seller: "Public Seller"
+  };
+  publicSource.evidenceId = underlyingOfferKey(publicSource);
+  publicSource.underlyingOfferId = publicSource.evidenceId;
+  assert.match(publicSource.evidenceId, /%/);
+
+  const collectionSurface = Object.fromEntries(
+    DECLARED_PUBLIC_SOURCE_COLLECTIONS.map((field) => [field, [structuredClone(publicSource)]])
+  );
+  const referenceSurface = Object.fromEntries(
+    DECLARED_PUBLIC_EVIDENCE_REFERENCE_FIELDS.map((field) => [field, field === "observedEvidenceId" || field === "selectedEvidenceId" ? publicSource.evidenceId : [publicSource.evidenceId]])
+  );
+  const rootSurface = Object.fromEntries(DECLARED_TYPED_TERMINAL_ROOTS.map((root) => [root, {
+    ...structuredClone(collectionSurface),
+    ...structuredClone(referenceSurface)
+  }]));
+  rootSurface.sanitizedTerminalResponseEnvelope = {
+    statusCode: 200,
+    headers: { "content-type": "application/json" },
+    body: { ...structuredClone(collectionSurface), ...structuredClone(referenceSurface) }
+  };
+  const { terminal } = terminalFixture(rootSurface);
+  assert.equal(scanValidatedTerminal(terminal), true);
+  assert.ok(terminal.typedPublicIdentifierProvenance.length >= DECLARED_TYPED_TERMINAL_ROOTS.length * DECLARED_PUBLIC_SOURCE_COLLECTIONS.length);
+  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.identifierType === "CANONICAL_PUBLIC_OFFER_IDENTITY_V1"), true);
+  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.identityAlgorithm === "lib/evidence/dedupe.js#underlyingOfferKey"), true);
+  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.publicPreimagePath.includes("canonicalUrl")), true);
+});
+
+test("scanner A3: wrong paths, caller declarations, and credential shapes remain fail-closed in evidenceId", () => {
+  const publicSource = { canonicalUrl: "https://example.com/public/listing/98765", marketplaceItemId: "98765", seller: "Public Seller" };
+  publicSource.evidenceId = underlyingOfferKey(publicSource);
+  const wrongPath = terminalFixture({ experienceRecord: { callerSelectedPublicRecords: [publicSource] } }).terminal;
+  validateTerminalResult(wrongPath);
+  assert.throws(() => scanValidatedTerminal(wrongPath), /high-entropy credential-like material/);
+  assert.throws(() => terminalFixture({ typedPublicIdentifierProvenance: [{ callerDeclaredPublic: true }] }), /cannot declare public identifier provenance/);
+
+  const credentialShapes = [
+    "sk-proj-A1b2C3d4E5f6G7h8I9j0K1l2",
+    "Bearer AbCdEf0123456789+/=",
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.AbCdEfGhIjKlMnOpQrStUv",
+    "sessionid=AbCdEf0123456789+/=",
+    "-----BEGIN PRIVATE KEY-----\nAbCdEf0123456789\n-----END PRIVATE KEY-----"
+  ];
+  for (const evidenceId of credentialShapes) {
+    const terminal = terminalFixture({ experienceRecord: { sourcesAccepted: [{ ...publicSource, evidenceId }] } }).terminal;
+    validateTerminalResult(terminal);
+    assert.equal(terminal.typedPublicIdentifierProvenance.some((entry) => entry.path.endsWith(".evidenceId")), false);
+    assert.throws(() => scanValidatedTerminal(terminal), /API key|bearer|JWT|cookie|session|private key/i);
+  }
 });
 
 test("scanner B and I: exact schema-controlled public identities pass and remain sealed", () => {
@@ -459,7 +536,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.21");
+  assert.equal(terminal.executorVersion, "1.12.22");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -558,7 +635,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.21");
+  assert.equal(EXECUTOR_VERSION, "1.12.22");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {

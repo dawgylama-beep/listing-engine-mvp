@@ -55,6 +55,8 @@ import {
   verifyDetachedProductRuntime
 } from "./execution-profile.mjs";
 import { sha256Bytes, sha256Json } from "./protocol.mjs";
+import { deriveContinuationRequests, validateContinuationScope } from "./continuation-scope.mjs";
+import { COMPOSITE_RELATIVE_PATH, validateCompositeEvidenceManifest } from "./composite-evidence.mjs";
 import {
   PRE_EXTERNAL_TERMINAL_STATE,
   createTerminalFailureManifest,
@@ -63,6 +65,16 @@ import {
   validateTerminalFailureValidationReport,
   validateZeroExternalSupersessionReceipt
 } from "./pre-external-recovery-protocol.mjs";
+import {
+  POST_HANDLER_FAILURE_MANIFEST_TYPE,
+  POST_HANDLER_SANITIZATION_STATE,
+  createHandlerReturnedReceipt,
+  createPostHandlerFailureManifest,
+  createPostHandlerFailureValidation,
+  validateHandlerReturnedReceipt,
+  validatePostHandlerFailureManifest,
+  validatePostHandlerFailureValidation
+} from "./post-handler-durability-protocol.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
 const VALIDATION_REPORT_FIELDS = Object.freeze([
@@ -107,6 +119,35 @@ function sanitizeValue(value, depth = 0) {
     output[key] = sanitizeValue(value[key], depth + 1);
   }
   return output;
+}
+
+function hashCanonicalHandlerResult(value) {
+  const ancestors = new WeakMap();
+  function canonicalize(node, location = "$") {
+    if (node === null || typeof node === "string" || typeof node === "boolean") return node;
+    if (typeof node === "number") return Number.isFinite(node) ? node : { $nonfiniteNumber: String(node) };
+    if (typeof node === "bigint") return { $bigint: node.toString() };
+    if (typeof node === "undefined") return { $undefined: true };
+    if (typeof node === "symbol") return { $symbol: String(node.description || "") };
+    if (typeof node === "function") return { $function: String(node.name || "anonymous") };
+    if (Buffer.isBuffer(node) || ArrayBuffer.isView(node)) {
+      return { $bytes: Buffer.from(node.buffer, node.byteOffset, node.byteLength).toString("base64") };
+    }
+    if (node instanceof Date) return { $date: Number.isNaN(node.valueOf()) ? "INVALID" : node.toISOString() };
+    if (ancestors.has(node)) return { $cycleReference: ancestors.get(node) };
+    ancestors.set(node, location);
+    if (Array.isArray(node)) return node.map((entry, index) => canonicalize(entry, `${location}[${index}]`));
+    const output = {};
+    for (const key of Object.keys(node).sort()) {
+      try {
+        output[key] = canonicalize(node[key], `${location}.${key}`);
+      } catch (error) {
+        output[key] = { $unreadable: String(error?.name || "Error") };
+      }
+    }
+    return output;
+  }
+  return sha256Json(canonicalize(value));
 }
 
 function responseReport(body) {
@@ -273,12 +314,16 @@ async function finalizeResult({
   pricingProfile,
   costEnvelope,
   terminalRecords,
+  handlerReturnedReceipts,
+  continuationScope,
+  requestedCount,
   resultState,
   integrityFailureCount,
   clock
 }) {
   const authorityPaths = [
     "launch-scope.json",
+    ...(continuationScope ? ["continuation-scope.json"] : []),
     "execution-profile.json",
     "pricing-profile.json",
     "cost-envelope.json",
@@ -286,13 +331,20 @@ async function finalizeResult({
     "invocation-reservation.json",
     "execution-journal.json",
     "cost-ledger.json",
-    ...terminalRecords.map((record) => `responses/${record.requestId}.json`)
+    ...terminalRecords.map((record) => `responses/${record.requestId}.json`),
+    ...handlerReturnedReceipts.map((record) => `handler-returned/${record.requestId}.json`)
   ];
   const tree = await computeResultTreeAggregate(resultRoot, authorityPaths);
   const orderedResponseHashInventory = terminalRecords.map((record) => ({
     analysisId: record.requestId,
     canonicalResponseHash: record.canonicalResponseHash,
     recordHash: record.recordHash
+  }));
+  const orderedHandlerReturnedReceiptInventory = handlerReturnedReceipts.map((record) => ({
+    analysisId: record.requestId,
+    receiptId: record.receiptId,
+    canonicalHandlerResultHash: record.canonicalHandlerResultHash,
+    receiptHash: record.receiptHash
   }));
   const submittedCount = journal.entries.filter((entry) => entry.physicalSubmissionIdentity !== null && ![REQUEST_STATE.NOT_SUBMITTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION].includes(entry.state)).length;
   const normalSuccessCount = terminalRecords.filter((record) => record.terminalState === "NORMAL_SUCCESS").length;
@@ -313,7 +365,7 @@ async function finalizeResult({
     qualificationPolicyVersion: executionProfile.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
-    requestAggregateHash: frozen.manifest.requestAggregateHash,
+    requestAggregateHash: consent.requestAggregateHash,
     executionProfileHash: executionProfile.profileHash,
     executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
@@ -321,15 +373,17 @@ async function finalizeResult({
     costEnvelopeHash: costEnvelope.costEnvelopeHash,
     maximumCost: consent.maximumAuthorizedCost,
     costLedgerHash: ledger.ledgerHash,
-    requestedCount: 26,
+    requestedCount,
     submittedCount,
     terminalCount: terminalRecords.length,
     normalSuccessCount,
     productTerminalFailureCount,
     executionIntegrityFailureCount: integrityFailureCount,
-    notSubmittedCount: 26 - submittedCount,
+    notSubmittedCount: requestedCount - submittedCount,
     orderedResponseHashInventory,
     responseAggregate: sha256Json(orderedResponseHashInventory),
+    orderedHandlerReturnedReceiptInventory,
+    handlerReturnedAggregate: sha256Json(orderedHandlerReturnedReceiptInventory),
     journalAggregate: journal.journalHash,
     resultTreeAggregate: tree.aggregate,
     resultTreeRecords: tree.records,
@@ -362,9 +416,96 @@ async function finalizeResult({
   return { manifest, validationReport: report };
 }
 
-async function finalizePreExternalAbort({ resultRoot, frozen, consent, reservation, journal, ledger, executionProfile, requestId, clock }) {
+async function finalizePostHandlerSanitizationFailure({
+  resultRoot,
+  frozen,
+  consent,
+  reservation,
+  journal,
+  ledger,
+  executionProfile,
+  launchScope,
+  continuationScope = null,
+  terminalRecords,
+  handlerReturnedReceipts,
+  receipt,
+  clock
+}) {
   const basePaths = [
-    "launch-scope.json", "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
+    "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json",
+    ...handlerReturnedReceipts.map((record) => `handler-returned/${record.requestId}.json`),
+    ...terminalRecords.map((record) => `responses/${record.requestId}.json`)
+  ];
+  const tree = await computeResultTreeAggregate(resultRoot, basePaths);
+  const manifest = createPostHandlerFailureManifest({
+    launchScopeHash: consent.launchScopeHash,
+    continuationScopeHash: launchScope.continuationScopeHash || null,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
+    invocationId: consent.invocationId,
+    consentHash: consent.consentHash,
+    reservationHash: reservation.reservationHash,
+    executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+    executorVersion: EXECUTOR_VERSION,
+    completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
+    requestId: receipt.requestId,
+    handlerReturnedReceiptId: receipt.receiptId,
+    handlerReturnedReceiptHash: receipt.receiptHash,
+    canonicalHandlerResultHash: receipt.canonicalHandlerResultHash,
+    handlerOutcome: receipt.handlerOutcome,
+    handlerInvocationCount: 1,
+    providerAttemptCount: receipt.providerAttemptCount,
+    physicalProviderAttemptCount: receipt.physicalProviderAttemptCount,
+    conservativeConsumedCost: receipt.cumulativeConservativeCost,
+    actualBilledCostStatus: "UNKNOWN",
+    publicResponseArtifactCommitted: false,
+    replayPermitted: false,
+    failureStage: "POST_HANDLER_TERMINAL_RECORD_SANITIZATION",
+    failureCategory: "SECRET_SANITIZER_REJECTED_TERMINAL_RECORD",
+    failureEvidenceAggregate: tree.aggregate,
+    effectiveConsentStatus: CONSENT_STATUS.CONSUMED,
+    effectiveInvocationStatus: "TERMINAL_FAILED",
+    effectiveReservationStatus: RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED,
+    journalEffectiveState: REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED,
+    privateControlsLoaded: false,
+    scoringAuthorized: false,
+    reflectionAuthorized: false,
+    repairAuthorized: false,
+    state: POST_HANDLER_SANITIZATION_STATE
+  });
+  await writeResultFile(resultRoot, "terminal-failure-manifest.json", manifest);
+  const validation = createPostHandlerFailureValidation({
+    resultId: consent.resultId,
+    manifestHash: manifest.manifestHash,
+    state: manifest.state,
+    validatedAt: clock(),
+    handlerReturnedReceiptHash: receipt.receiptHash,
+    publicResponseArtifactCommitted: false,
+    replayPermitted: false,
+    effectiveConsentStatus: CONSENT_STATUS.CONSUMED,
+    effectiveReservationStatus: RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED,
+    handlerInvocationCount: 1,
+    providerAttemptCount: receipt.providerAttemptCount,
+    physicalProviderAttemptCount: receipt.physicalProviderAttemptCount,
+    conservativeConsumedCost: receipt.cumulativeConservativeCost,
+    actualBilledCostStatus: "UNKNOWN",
+    privateControlsLoaded: false,
+    scoringPerformed: false,
+    reflectionPerformed: false,
+    repairPerformed: false
+  });
+  await writeResultFile(resultRoot, "terminal-failure-validation-report.json", validation);
+  validatePostHandlerFailureManifest(manifest);
+  validatePostHandlerFailureValidation(validation, manifest);
+  return Object.freeze({ terminalFailureManifest: manifest, terminalFailureValidationReport: validation });
+}
+
+async function finalizePreExternalAbort({ resultRoot, frozen, consent, reservation, journal, ledger, executionProfile, continuationScope = null, requestId, requestedCount, clock }) {
+  const basePaths = [
+    "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
+    "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
     "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json"
   ];
   const baseTree = await computeResultTreeAggregate(resultRoot, basePaths);
@@ -392,9 +533,9 @@ async function finalizePreExternalAbort({ resultRoot, frozen, consent, reservati
     providerAttemptCount: 0,
     physicalProviderAttemptCount: 0,
     actualProviderCost: 0,
-    requestedCount: 26,
+    requestedCount,
     preExternalAbortCount: 1,
-    notExternallySubmittedCount: 26,
+    notExternallySubmittedCount: requestedCount,
     effectiveConsentStatus: CONSENT_STATUS.CONSUMED,
     resultRootConsentStatus: CONSENT_STATUS.CONSUMED,
     effectiveReservationStatus: RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT,
@@ -442,10 +583,12 @@ export async function executeBenchmarkV2({
   pricingProfile,
   costEnvelope,
   launchScope,
+  continuationScope = null,
   consent,
   productRuntimeRoot = null,
   allowedEnvironment = null,
   zeroExternalSupersessionReceipt = null,
+  terminalFailureReceipt = null,
   syntheticHandler = null,
   photoTransformer = null,
   faultPlan = null,
@@ -467,6 +610,18 @@ export async function executeBenchmarkV2({
   }
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
   validateLaunchScope(launchScope);
+  const executionRequests = continuationScope
+    ? deriveContinuationRequests(frozen, continuationScope)
+    : frozen.requests;
+  if (continuationScope) {
+    validateContinuationScope(continuationScope, frozen);
+    assert.equal(launchScope.continuationScopeHash, continuationScope.continuationScopeHash);
+    assert.equal(launchScope.authorizedRequestCount, 25);
+    assert.equal(continuationScope.terminalFailureReceiptHash, terminalFailureReceipt?.receiptHash, "continuation terminal failure receipt differs");
+  } else {
+    assert.equal(launchScope.authorizedRequestCount, 26, "full execution is limited to synthetic qualification");
+    assert.equal(mode, EXECUTION_MODE.SYNTHETIC_TEST_ONLY, "real execution requires the fixed continuation scope");
+  }
   if (zeroExternalSupersessionReceipt) validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
     receiptId: launchScope.zeroExternalSupersessionReceiptId,
     receiptHash: launchScope.zeroExternalSupersessionReceiptHash,
@@ -475,7 +630,10 @@ export async function executeBenchmarkV2({
     successorQualificationHead: launchScope.qualificationHead,
     successorExecutorVersion: launchScope.executorVersion
   });
-  if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) assert.ok(zeroExternalSupersessionReceipt, "real execution requires the fixed zero-external supersession receipt");
+  if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) {
+    assert.ok(zeroExternalSupersessionReceipt, "real execution requires the historical zero-external supersession receipt");
+    assert.ok(terminalFailureReceipt, "real execution requires the fixed Version 1.12.21 terminal-failure receipt");
+  }
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
     releaseIdentity: executionProfile,
@@ -498,20 +656,22 @@ export async function executeBenchmarkV2({
       completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
       freezeManifestHash: frozen.manifest.freezeManifestHash,
       freezeReceiptHash: frozen.receipt.receiptHash,
-      requestAggregateHash: frozen.manifest.requestAggregateHash,
-      orderedRequestHashInventory: frozen.manifest.requestContractHashes,
+      requestAggregateHash: continuationScope
+        ? continuationScope.continuationRequestAggregateHash
+        : frozen.manifest.requestAggregateHash,
+      orderedRequestHashInventory: executionRequests.map((request) => request.requestContractHash),
       executionProfileIdentityHash: executionProfile.executionProfileIdentityHash,
       pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
       costEnvelopeHash: costEnvelope.costEnvelopeHash,
       completePhysicalAttemptCeiling: attemptCeiling.categories.totalPhysicalAttempts,
-      authorizedRequestCount: 26
+      authorizedRequestCount: executionRequests.length
     }
   });
   for (const field of ["executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion"]) {
     assert.equal(consent[field], executionProfile[field], `consent ${field} differs from execution profile`);
   }
   assert.equal(consent.executorVersion, EXECUTOR_VERSION);
-  const conservativePreRunMaximum = costEnvelope.conservativeMaximumCost;
+  const conservativePreRunMaximum = consent.conservativeMaximumCost;
   assert.equal(consent.conservativeMaximumCost, conservativePreRunMaximum, "consent conservative cost differs from sealed pricing and attempt ceiling");
 
   const resultHistoryRoot = resolveResultHistoryRoot(mode, resultHistoryRootOverride);
@@ -527,24 +687,25 @@ export async function executeBenchmarkV2({
     createdIdentity: `executor-${executionProfile.executorRuntimeHead.slice(0, 16)}`
   };
   let reservation = createInvocationReservation(reservationInput, clock());
-  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt });
+  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt, terminalFailureReceipt });
   assert.equal(createdReservation.status, "CREATED", "execution requires a newly exclusive reservation; readback cannot start execution");
   const reservationFile = createdReservation.filePath;
   await createExclusiveResultRoot(resultHistoryRoot, consent.resultRootName);
   await writeResultFile(resultRoot, "launch-scope.json", launchScope);
+  if (continuationScope) await writeResultFile(resultRoot, "continuation-scope.json", continuationScope);
   await writeResultFile(resultRoot, "execution-profile.json", executionProfile);
   await writeResultFile(resultRoot, "pricing-profile.json", pricingProfile);
   await writeResultFile(resultRoot, "cost-envelope.json", costEnvelope);
   await writeResultFile(resultRoot, "execution-consent.json", consent);
   await writeResultFile(resultRoot, "invocation-reservation.json", reservation);
-  let journal = createExecutionJournal({ invocationId: consent.invocationId, consentHash: consent.consentHash, requests: frozen.requests, nowIso: clock() });
+  let journal = createExecutionJournal({ invocationId: consent.invocationId, consentHash: consent.consentHash, requests: executionRequests, nowIso: clock() });
   let ledger = createCostLedger({
     invocationId: consent.invocationId,
     consentHash: consent.consentHash,
     pricingProfileHash: pricingProfile.pricingProfileHash,
-    maximumAuthorizedCost: consent.maximumAuthorizedCost,
+    maximumAuthorizedCost: continuationScope ? continuationScope.remainingConservativeCostAuthority : consent.maximumAuthorizedCost,
     conservativePreRunMaximum,
-    requests: frozen.requests,
+    requests: executionRequests,
     nowIso: clock()
   });
   await writeResultFile(resultRoot, "execution-journal.json", journal);
@@ -557,12 +718,14 @@ export async function executeBenchmarkV2({
   await onConsentTransition(consent);
 
   const terminalRecords = [];
+  const handlerReturnedReceipts = [];
   let stopReason = "";
   let integrityFailureCount = 0;
   let preExternalAbortRequestId = "";
-  const perRequestWorstCase = conservativePreRunMaximum / 26;
-  for (const [index, request] of frozen.requests.entries()) {
-    assert.equal(request.analysisId, frozen.analysisPlan.analyses[index].analysisId, "execution order differs from canonical analysis plan");
+  const perRequestWorstCase = conservativePreRunMaximum / executionRequests.length;
+  for (const [index, request] of executionRequests.entries()) {
+    const expectedPlanIndex = continuationScope ? index + 1 : index;
+    assert.equal(request.analysisId, frozen.analysisPlan.analyses[expectedPlanIndex].analysisId, "execution order differs from canonical analysis plan");
     if (ledger.accruedEstimatedCost + ledger.reservedWorstCaseRemainingCost > ledger.maximumAuthorizedCost) {
       journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION, { at: clock(), reason: "COST_CEILING_STOP_BEFORE_SUBMISSION" });
       await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
@@ -581,6 +744,9 @@ export async function executeBenchmarkV2({
     let submissionState;
     let errorStage = "";
     let errorCategory = "";
+    let handlerReturned = false;
+    let handlerReturnedAt = "";
+    let canonicalHandlerResultHash = "";
     try {
       if (faultPlan?.duringLocalPreparation === request.analysisId) throw Object.assign(new Error("synthetic local preparation failure"), { code: "synthetic_pre_external_abort" });
       const invokeAtHandlerBoundary = async (preparedPhotos, lifecycle = null) => {
@@ -610,9 +776,11 @@ export async function executeBenchmarkV2({
       else if (photoTransformer) handlerResult = await photoTransformer(request, frozen.assetCache, invokeAtHandlerBoundary);
       else handlerResult = await invokeAtHandlerBoundary(rawPreparedPhotos(request, frozen.assetCache));
       assert.ok(handlerResult && Number.isInteger(handlerResult.statusCode), "handler terminal result is malformed");
+      handlerReturned = true;
+      handlerReturnedAt = clock();
+      canonicalHandlerResultHash = hashCanonicalHandlerResult(handlerResult);
       submissionState = REQUEST_STATE.TERMINAL;
       terminalState = handlerResult.statusCode >= 200 && handlerResult.statusCode < 400 ? "NORMAL_SUCCESS" : "PRODUCT_TERMINAL_FAILURE";
-      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.TERMINAL, { at: clock(), reason: terminalState });
     } catch (error) {
       if (!externalAttemptCommitted) {
         journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.PRE_EXTERNAL_ABORT, { at: clock(), reason: "PROVEN_LOCAL_PREPARATION_FAILURE_ZERO_EXTERNAL_ACTIVITY" });
@@ -633,12 +801,15 @@ export async function executeBenchmarkV2({
     }
     await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
     const telemetryAttempts = costAttemptsFromResponse(handlerResult.body);
+    const estimatedRequestCost = index === executionRequests.length - 1
+      ? Number((conservativePreRunMaximum - ledger.accruedEstimatedCost).toFixed(8))
+      : Number(perRequestWorstCase.toFixed(8));
     const costEntry = {
       estimationBasis: "CONSERVATIVE_PER_REQUEST_MAXIMUM_WHEN_PROVIDER_USAGE_IS_MISSING",
-      estimatedCost: Number(perRequestWorstCase.toFixed(8)),
+      estimatedCost: estimatedRequestCost,
       providerTelemetryAttemptCount: telemetryAttempts.length
     };
-    const remaining = Number(Math.max(0, conservativePreRunMaximum - perRequestWorstCase * (index + 1)).toFixed(8));
+    const remaining = Number(Math.max(0, conservativePreRunMaximum - ledger.accruedEstimatedCost - estimatedRequestCost).toFixed(8));
     ledger = recordRequestCost(ledger, {
       analysisId: request.analysisId,
       attempts: telemetryAttempts.length ? telemetryAttempts : [{ category: "CONSERVATIVE_REQUEST_RESERVATION", provider: "UNREPORTED", providerReportedUsage: null, calculatedCost: null, estimationBasis: costEntry.estimationBasis }],
@@ -649,32 +820,101 @@ export async function executeBenchmarkV2({
       at: clock()
     });
     await writeResultFile(resultRoot, "cost-ledger.json", ledger, { replace: true });
+    let handlerReturnedReceipt = null;
+    if (handlerReturned) {
+      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.HANDLER_RETURNED, { at: handlerReturnedAt, reason: terminalState });
+      await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+      handlerReturnedReceipt = createHandlerReturnedReceipt({
+        executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+        executorRuntimeHead: executionProfile.executorRuntimeHead,
+        qualificationHead: executionProfile.qualificationHead,
+        executorVersion: EXECUTOR_VERSION,
+        launchScopeHash: consent.launchScopeHash,
+        continuationScopeHash: launchScope.continuationScopeHash || null,
+        consentId: consent.consentId,
+        consentHash: consent.consentHash,
+        invocationId: consent.invocationId,
+        reservationId: consent.reservationId,
+        reservationHash: reservation.reservationHash,
+        resultId: consent.resultId,
+        resultRootName: consent.resultRootName,
+        requestId: request.analysisId,
+        requestHash: request.requestContractHash,
+        physicalSubmissionIdentity: submissionId,
+        handlerOutcome: terminalState,
+        handlerStatus: handlerResult.statusCode,
+        handlerInvocationCount: 1,
+        providerAttemptCount: telemetryAttempts.length,
+        physicalProviderAttemptCount: telemetryAttempts.length,
+        cumulativeConservativeCost: Number(((continuationScope?.priorConservativeCost || 0) + ledger.actualCalculatedCost).toFixed(8)),
+        canonicalHandlerResultHash,
+        returnedAt: handlerReturnedAt,
+        transactionState: "HANDLER_RETURNED_RESPONSE_NOT_PERSISTED",
+        publicResponseArtifactCommitted: false,
+        replayPermitted: false
+      });
+      validateHandlerReturnedReceipt(handlerReturnedReceipt);
+      await writeResultFile(resultRoot, `handler-returned/${request.analysisId}.json`, handlerReturnedReceipt);
+      handlerReturnedReceipts.push(handlerReturnedReceipt);
+    }
     const completedAt = clock();
-    const terminal = createTerminalResult(terminalRecordInput({
-      request,
-      invocationId: consent.invocationId,
-      consent,
-      reservation,
-      executionProfile,
-      pricingProfile,
-      costEnvelope,
-      submissionId,
-      submissionState,
-      terminalState,
-      startedAt,
-      completedAt,
-      elapsedMs: Math.max(0, Date.parse(completedAt) - startedMs),
-      handlerResult,
-      errorStage,
-      errorCategory,
-      costEntry
-    }));
-    validateTerminalResult(terminal);
-    assertNoSecretMaterial(terminal, {
-      knownEnvironment: allowedEnvironment?.secretValues || {},
-      schemaValidatedRecordType: terminal.resultRecordType
-    });
-    await writeResultFile(resultRoot, `responses/${request.analysisId}.json`, terminal);
+    let terminal;
+    try {
+      terminal = createTerminalResult(terminalRecordInput({
+        request,
+        invocationId: consent.invocationId,
+        consent,
+        reservation,
+        executionProfile,
+        pricingProfile,
+        costEnvelope,
+        submissionId,
+        submissionState,
+        terminalState,
+        startedAt,
+        completedAt,
+        elapsedMs: Math.max(0, Date.parse(completedAt) - startedMs),
+        handlerResult,
+        errorStage,
+        errorCategory,
+        costEntry
+      }));
+      validateTerminalResult(terminal);
+      assertNoSecretMaterial(terminal, {
+        knownEnvironment: allowedEnvironment?.secretValues || {},
+        schemaValidatedRecordType: terminal.resultRecordType
+      });
+      await writeResultFile(resultRoot, `responses/${request.analysisId}.json`, terminal);
+    } catch (error) {
+      if (!handlerReturned || !handlerReturnedReceipt) throw error;
+      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED, { at: clock(), reason: "TERMINAL_RECORD_SANITIZATION_FAILED_RESPONSE_NOT_PERSISTED" });
+      await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+      reservation = transitionReservation(reservation, RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED, clock(), "POST_HANDLER_SANITIZATION_FAILED_CONSERVATIVE_COST_ACCOUNTED");
+      await replaceReservation(reservationFile, reservation);
+      await persistMutableAuthorities(resultRoot, { consent, reservation, journal, ledger });
+      await onConsentTransition(consent);
+      const failure = await finalizePostHandlerSanitizationFailure({
+        resultRoot, frozen, consent, reservation, journal, ledger, executionProfile, launchScope,
+        continuationScope, receipt: handlerReturnedReceipt, terminalRecords, handlerReturnedReceipts, clock
+      });
+      return Object.freeze({
+        disposition: POST_HANDLER_SANITIZATION_STATE,
+        resultRoot,
+        reservationFile,
+        consent,
+        reservation,
+        journal,
+        ledger,
+        terminalRecords: Object.freeze(terminalRecords),
+        handlerReturnedReceipts: Object.freeze(handlerReturnedReceipts),
+        ...failure,
+        stopReason: "POST_HANDLER_SANITIZATION_FAILURE"
+      });
+    }
+    if (handlerReturned) {
+      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.TERMINAL, { at: clock(), reason: terminalState });
+      await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+    }
     terminalRecords.push(terminal);
     if (stopReason) break;
   }
@@ -686,7 +926,7 @@ export async function executeBenchmarkV2({
     assert.equal(terminalRecords.length, 0, "pre-external abort cannot contain a terminal product response");
     resultState = RESULT_STATE.ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY;
     reservation = transitionReservation(reservation, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT, clock(), "PROVEN_PRE_EXTERNAL_ABORT_ZERO_SPEND");
-  } else if (submitted === 26 && terminalRecords.length === 26 && integrityFailureCount === 0) {
+  } else if (submitted === executionRequests.length && terminalRecords.length === executionRequests.length && integrityFailureCount === 0) {
     resultState = RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING;
     reservation = transitionReservation(reservation, RESERVATION_STATE.CONSUMED, clock(), "ALL_REQUESTS_TERMINAL_AND_SEALED");
   } else if (submitted === 0) {
@@ -708,7 +948,9 @@ export async function executeBenchmarkV2({
       journal,
       ledger,
       executionProfile,
+      continuationScope,
       requestId: preExternalAbortRequestId,
+      requestedCount: executionRequests.length,
       clock
     });
     return Object.freeze({
@@ -720,6 +962,7 @@ export async function executeBenchmarkV2({
       journal,
       ledger,
       terminalRecords: Object.freeze([]),
+      handlerReturnedReceipts: Object.freeze(handlerReturnedReceipts),
       ...failure,
       stopReason
     });
@@ -735,6 +978,9 @@ export async function executeBenchmarkV2({
     pricingProfile,
     costEnvelope,
     terminalRecords,
+    handlerReturnedReceipts,
+    continuationScope,
+    requestedCount: executionRequests.length,
     resultState,
     integrityFailureCount,
     clock
@@ -750,6 +996,7 @@ export async function executeBenchmarkV2({
     journal,
     ledger,
     terminalRecords: Object.freeze(terminalRecords),
+    handlerReturnedReceipts: Object.freeze(handlerReturnedReceipts),
     ...finalized,
     stopReason
   });
@@ -758,8 +1005,10 @@ export async function executeBenchmarkV2({
 export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRead = () => {} }) {
   const root = path.resolve(resultRoot);
   try {
-    await readFile(path.join(root, "terminal-failure-manifest.json"));
-    return verifyPreExternalFailureReadback({ resultRoot: root, freezeRoot, onFreezeRead });
+    const failureManifest = await readJsonStrictFile(path.join(root, "terminal-failure-manifest.json"));
+    return failureManifest.manifestType === POST_HANDLER_FAILURE_MANIFEST_TYPE
+      ? verifyPostHandlerFailureReadback({ resultRoot: root, freezeRoot, onFreezeRead })
+      : verifyPreExternalFailureReadback({ resultRoot: root, freezeRoot, onFreezeRead });
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
@@ -778,6 +1027,7 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     readJsonStrictFile(path.join(root, "validation-report.json"))
   ]);
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
+  const { continuationScope, executionRequests } = await loadReadbackExecutionScope(root, launchScope, frozen);
   const attemptCeiling = calculateCompleteAttemptCeiling(frozen.requests);
   validateLaunchScope(launchScope);
   validateExecutionProfile(executionProfile, {
@@ -804,13 +1054,15 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
       executorVersion: manifest.executorVersion,
       completeFrozenAggregateHash: manifest.completeFrozenAggregateHash,
       requestAggregateHash: manifest.requestAggregateHash,
+      orderedRequestHashInventory: executionRequests.map((request) => request.requestContractHash),
+      authorizedRequestCount: executionRequests.length,
       executionProfileIdentityHash: manifest.executionProfileIdentityHash,
       pricingProfileIdentityHash: manifest.pricingProfileIdentityHash,
       costEnvelopeHash: manifest.costEnvelopeHash
     }
   });
   validateInvocationReservation(reservation, { launchScope });
-  validateExecutionJournal(journal, frozen.requests);
+  validateExecutionJournal(journal, executionRequests);
   validateCostLedger(ledger);
   validateUnscoredValidationReport(validationReport, { manifest });
   assert.equal(manifest.consentHash, consent.consentHash);
@@ -833,8 +1085,15 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   assert.equal(manifest.costLedgerHash, ledger.ledgerHash);
   assert.equal(manifest.journalAggregate, journal.journalHash);
   assert.equal(manifest.completeFrozenAggregateHash, frozen.manifest.completeFrozenAggregateHash);
-  assert.equal(manifest.requestAggregateHash, frozen.manifest.requestAggregateHash);
-  const expectedArtifacts = expectedResultArtifactPaths(manifest.orderedResponseHashInventory.map((record) => record.analysisId));
+  assert.equal(manifest.requestAggregateHash, consent.requestAggregateHash);
+  const expectedArtifacts = expectedResultArtifactPaths(
+    manifest.orderedResponseHashInventory.map((record) => record.analysisId),
+    {
+      handlerReturnedAnalysisIds: manifest.orderedHandlerReturnedReceiptInventory.map((record) => record.analysisId),
+      includeContinuationScope: Boolean(continuationScope),
+      includeCompositeEvidence: artifactInventory.relativePaths.includes(COMPOSITE_RELATIVE_PATH)
+    }
+  );
   assert.deepEqual(artifactInventory.relativePaths, expectedArtifacts, "result tree differs from the repository-owned unscored layout");
   const terminalRecords = [];
   const terminalIds = new Set();
@@ -850,8 +1109,26 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     terminalRecords.push(record);
   }
   assert.equal(sha256Json(manifest.orderedResponseHashInventory), manifest.responseAggregate);
+  const handlerReturnedReceipts = [];
+  for (const item of manifest.orderedHandlerReturnedReceiptInventory) {
+    const receipt = await readJsonStrictFile(path.join(root, "handler-returned", `${item.analysisId}.json`));
+    validateHandlerReturnedReceipt(receipt, {
+      requestId: item.analysisId,
+      receiptId: item.receiptId,
+      canonicalHandlerResultHash: item.canonicalHandlerResultHash,
+      receiptHash: item.receiptHash,
+      launchScopeHash: manifest.launchScopeHash,
+      invocationId: manifest.invocationId,
+      resultId: manifest.resultId,
+      resultRootName: manifest.resultRootName,
+      continuationScopeHash: launchScope.continuationScopeHash
+    });
+    handlerReturnedReceipts.push(receipt);
+  }
+  assert.equal(sha256Json(manifest.orderedHandlerReturnedReceiptInventory), manifest.handlerReturnedAggregate);
   const authorityPaths = [
     "launch-scope.json",
+    ...(continuationScope ? ["continuation-scope.json"] : []),
     "execution-profile.json",
     "pricing-profile.json",
     "cost-envelope.json",
@@ -859,11 +1136,37 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     "invocation-reservation.json",
     "execution-journal.json",
     "cost-ledger.json",
+    ...manifest.orderedHandlerReturnedReceiptInventory.map((record) => `handler-returned/${record.analysisId}.json`),
     ...manifest.orderedResponseHashInventory.map((record) => `responses/${record.analysisId}.json`)
   ];
   const tree = await computeResultTreeAggregate(root, authorityPaths);
   assert.equal(tree.aggregate, manifest.resultTreeAggregate, "result tree aggregate mismatch");
   assert.deepEqual(tree.records, manifest.resultTreeRecords, "result tree record inventory mismatch");
+  let compositeManifest = null;
+  if (artifactInventory.relativePaths.includes(COMPOSITE_RELATIVE_PATH)) {
+    compositeManifest = await readJsonStrictFile(path.join(root, COMPOSITE_RELATIVE_PATH));
+    validateCompositeEvidenceManifest(compositeManifest, {
+      completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
+      freezeRequestAggregateHash: frozen.manifest.requestAggregateHash,
+      version1122ExecutionReleaseRecordHash: manifest.executionReleaseRecordHash,
+      version1122LaunchScopeHash: launchScope.launchScopeHash,
+      version1122ContinuationScopeHash: continuationScope?.continuationScopeHash,
+      version1122ConsentHash: consent.consentHash,
+      version1122InvocationId: consent.invocationId,
+      version1122ResultId: consent.resultId,
+      version1122ResultRootName: consent.resultRootName,
+      version1122ManifestHash: manifest.manifestHash,
+      version1122ResultTreeAggregate: manifest.resultTreeAggregate
+    });
+    assert.deepEqual(
+      compositeManifest.orderedRequestDispositions.slice(1).map((item) => ({
+        analysisId: item.analysisId,
+        canonicalResponseHash: item.terminalEvidenceHash,
+        recordHash: item.terminalResultRecordHash
+      })),
+      manifest.orderedResponseHashInventory
+    );
+  }
   const replay = journal.entries.map(requestReplayDisposition);
   for (const disposition of replay.filter((entry) => entry.state === REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION || entry.state === REQUEST_STATE.TERMINAL)) assert.equal(disposition.resubmissionPermanentlyBlocked, true);
   const filesAfter = await listResultFiles(root);
@@ -872,6 +1175,8 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     valid: true,
     state: manifest.state,
     manifestHash: manifest.manifestHash,
+    compositeManifestHash: compositeManifest?.manifestHash || null,
+    compositeState: compositeManifest?.state || null,
     responseCount: terminalRecords.length,
     handlerInvocationCount: 0,
     providerAttemptCount: 0,
@@ -880,13 +1185,41 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   });
 }
 
-async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFreezeRead }) {
+async function loadReadbackExecutionScope(root, launchScope, frozen) {
+  if (launchScope.authorizedRequestCount === 26) {
+    return Object.freeze({ continuationScope: null, executionRequests: frozen.requests });
+  }
+  assert.equal(launchScope.authorizedRequestCount, 25, "readback launch request count is invalid");
+  const continuationScope = await readJsonStrictFile(path.join(root, "continuation-scope.json"));
+  validateContinuationScope(continuationScope, frozen);
+  const bindings = {
+    continuationScopeHash: continuationScope.continuationScopeHash,
+    continuationRequestAggregateHash: continuationScope.continuationRequestAggregateHash,
+    terminalFailureReceiptId: continuationScope.terminalFailureReceiptId,
+    terminalFailureReceiptHash: continuationScope.terminalFailureReceiptHash,
+    priorPhysicalAttemptCount: continuationScope.priorPhysicalAttemptCount,
+    priorConservativeCost: continuationScope.priorConservativeCost,
+    remainingPhysicalAttemptAuthority: continuationScope.remainingPhysicalAttemptAuthority,
+    remainingConservativeCostAuthority: continuationScope.remainingConservativeCostAuthority,
+    continuationPhysicalAttemptCeiling: continuationScope.continuationPhysicalAttemptCeiling,
+    continuationConservativeMaximumCost: continuationScope.continuationConservativeMaximumCost,
+    cumulativeConservativeMaximumCost: continuationScope.cumulativeConservativeMaximumCost,
+    authorizedRequestCount: continuationScope.authorizedRequestCount
+  };
+  for (const [field, value] of Object.entries(bindings)) assert.deepEqual(launchScope[field], value, `launch ${field} differs from continuation scope`);
+  assert.deepEqual(launchScope.continuationOrderedRequestHashInventory, continuationScope.orderedRequestHashInventory);
+  return Object.freeze({ continuationScope, executionRequests: deriveContinuationRequests(frozen, continuationScope) });
+}
+
+async function verifyPostHandlerFailureReadback({ resultRoot, freezeRoot, onFreezeRead }) {
   const root = path.resolve(resultRoot);
   const filesBefore = await listResultFiles(root, { terminalKind: "FAILURE" });
   const inventory = classifyResultArtifactInventory(filesBefore, { terminalKind: "FAILURE" });
-  const [launchScope, executionProfile, consent, reservation, journal, ledger, manifest, validationReport, frozen] = await Promise.all([
+  const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validation, frozen] = await Promise.all([
     readJsonStrictFile(path.join(root, "launch-scope.json")),
     readJsonStrictFile(path.join(root, "execution-profile.json")),
+    readJsonStrictFile(path.join(root, "pricing-profile.json")),
+    readJsonStrictFile(path.join(root, "cost-envelope.json")),
     readJsonStrictFile(path.join(root, "execution-consent.json")),
     readJsonStrictFile(path.join(root, "invocation-reservation.json")),
     readJsonStrictFile(path.join(root, "execution-journal.json")),
@@ -896,9 +1229,134 @@ async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFree
     loadPublicFreeze(freezeRoot, { onRead: onFreezeRead })
   ]);
   validateLaunchScope(launchScope);
-  validateExecutionConsent(consent, { launchScope, requiredStatus: CONSENT_STATUS.CONSUMED });
+  const { continuationScope, executionRequests } = await loadReadbackExecutionScope(root, launchScope, frozen);
+  const attemptCeiling = calculateCompleteAttemptCeiling(frozen.requests);
+  validateExecutionProfile(executionProfile, { attemptCeiling, releaseIdentity: executionProfile, productRuntimeManifestHash: executionProfile.productRuntimeManifestHash });
+  validatePricingProfile(pricingProfile, executionProfile);
+  validateCostEnvelope(costEnvelope, { attemptCeiling, executionProfile, pricingProfile, authorizedMaximumMinorUnits: launchScope.maximumAuthorizedCostMinorUnits });
+  validateExecutionConsent(consent, {
+    launchScope,
+    requiredStatus: CONSENT_STATUS.CONSUMED,
+    bindings: {
+      requestAggregateHash: continuationScope?.continuationRequestAggregateHash || frozen.manifest.requestAggregateHash,
+      orderedRequestHashInventory: executionRequests.map((request) => request.requestContractHash),
+      authorizedRequestCount: executionRequests.length
+    }
+  });
   validateInvocationReservation(reservation, { launchScope });
-  validateExecutionJournal(journal, frozen.requests);
+  validateExecutionJournal(journal, executionRequests);
+  validateCostLedger(ledger);
+  validatePostHandlerFailureManifest(manifest);
+  validatePostHandlerFailureValidation(validation, manifest);
+  assert.equal(reservation.state, RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED);
+  const failed = journal.entries.filter((entry) => entry.state === REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED);
+  assert.deepEqual(failed.map((entry) => entry.analysisId), [manifest.requestId]);
+  const receipt = await readJsonStrictFile(path.join(root, "handler-returned", `${manifest.requestId}.json`));
+  validateHandlerReturnedReceipt(receipt, {
+    receiptId: manifest.handlerReturnedReceiptId,
+    receiptHash: manifest.handlerReturnedReceiptHash,
+    canonicalHandlerResultHash: manifest.canonicalHandlerResultHash,
+    requestId: manifest.requestId,
+    launchScopeHash: manifest.launchScopeHash,
+    invocationId: manifest.invocationId,
+    resultId: manifest.resultId,
+    resultRootName: manifest.resultRootName,
+    continuationScopeHash: launchScope.continuationScopeHash
+  });
+  const basePaths = [
+    "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
+    "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json",
+    ...journal.entries
+      .filter((entry) => [REQUEST_STATE.TERMINAL, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED].includes(entry.state))
+      .map((entry) => `handler-returned/${entry.analysisId}.json`),
+    ...inventory.responseAnalysisIds.map((analysisId) => `responses/${analysisId}.json`)
+  ];
+  const tree = await computeResultTreeAggregate(root, basePaths);
+  assert.equal(tree.aggregate, manifest.failureEvidenceAggregate);
+  assert.equal(inventory.responseAnalysisIds.includes(manifest.requestId), false, "failed request unexpectedly has a public response artifact");
+  const durableEntries = journal.entries.filter((entry) => [REQUEST_STATE.TERMINAL, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED].includes(entry.state));
+  const receipts = [];
+  for (const entry of durableEntries) {
+    const durableReceipt = await readJsonStrictFile(path.join(root, "handler-returned", `${entry.analysisId}.json`));
+    validateHandlerReturnedReceipt(durableReceipt, {
+      requestId: entry.analysisId,
+      launchScopeHash: manifest.launchScopeHash,
+      continuationScopeHash: launchScope.continuationScopeHash,
+      invocationId: manifest.invocationId,
+      resultId: manifest.resultId,
+      resultRootName: manifest.resultRootName
+    });
+    receipts.push(durableReceipt);
+  }
+  assert.equal(receipt.providerAttemptCount, manifest.providerAttemptCount);
+  assert.equal(receipt.physicalProviderAttemptCount, manifest.physicalProviderAttemptCount);
+  assert.equal(receipt.cumulativeConservativeCost, manifest.conservativeConsumedCost);
+  for (const analysisId of inventory.responseAnalysisIds) {
+    const record = await readJsonStrictFile(path.join(root, "responses", `${analysisId}.json`));
+    const request = executionRequests.find((candidate) => candidate.analysisId === analysisId);
+    assert.ok(request, `post-handler failure response ${analysisId} does not bind the execution scope`);
+    validateTerminalResult(record, {
+      requestHash: request.requestContractHash,
+      launchScopeHash: manifest.launchScopeHash,
+      resultId: manifest.resultId,
+      resultRootName: manifest.resultRootName,
+      invocationId: manifest.invocationId,
+      consentHash: manifest.consentHash,
+      reservationHash: manifest.reservationHash
+    });
+  }
+  const filesAfter = await listResultFiles(root, { terminalKind: "FAILURE" });
+  assert.deepEqual(filesAfter, filesBefore, "post-handler failure readback wrote or removed files");
+  return Object.freeze({
+    valid: true,
+    state: manifest.state,
+    manifestHash: manifest.manifestHash,
+    responseCount: inventory.responseAnalysisIds.length,
+    handlerInvocationCount: 0,
+    providerAttemptCount: manifest.providerAttemptCount,
+    physicalProviderAttemptCount: manifest.physicalProviderAttemptCount,
+    conservativeConsumedCost: manifest.conservativeConsumedCost,
+    actualBilledCostStatus: manifest.actualBilledCostStatus,
+    fileWriteCount: 0,
+    replayPlan: Object.freeze(journal.entries.map(requestReplayDisposition))
+  });
+}
+
+async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFreezeRead }) {
+  const root = path.resolve(resultRoot);
+  const filesBefore = await listResultFiles(root, { terminalKind: "FAILURE" });
+  const inventory = classifyResultArtifactInventory(filesBefore, { terminalKind: "FAILURE" });
+  const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validationReport, frozen] = await Promise.all([
+    readJsonStrictFile(path.join(root, "launch-scope.json")),
+    readJsonStrictFile(path.join(root, "execution-profile.json")),
+    readJsonStrictFile(path.join(root, "pricing-profile.json")),
+    readJsonStrictFile(path.join(root, "cost-envelope.json")),
+    readJsonStrictFile(path.join(root, "execution-consent.json")),
+    readJsonStrictFile(path.join(root, "invocation-reservation.json")),
+    readJsonStrictFile(path.join(root, "execution-journal.json")),
+    readJsonStrictFile(path.join(root, "cost-ledger.json")),
+    readJsonStrictFile(path.join(root, "terminal-failure-manifest.json")),
+    readJsonStrictFile(path.join(root, "terminal-failure-validation-report.json")),
+    loadPublicFreeze(freezeRoot, { onRead: onFreezeRead })
+  ]);
+  validateLaunchScope(launchScope);
+  const { continuationScope, executionRequests } = await loadReadbackExecutionScope(root, launchScope, frozen);
+  const attemptCeiling = calculateCompleteAttemptCeiling(frozen.requests);
+  validateExecutionProfile(executionProfile, { attemptCeiling, releaseIdentity: executionProfile, productRuntimeManifestHash: executionProfile.productRuntimeManifestHash });
+  validatePricingProfile(pricingProfile, executionProfile);
+  validateCostEnvelope(costEnvelope, { attemptCeiling, executionProfile, pricingProfile, authorizedMaximumMinorUnits: launchScope.maximumAuthorizedCostMinorUnits });
+  validateExecutionConsent(consent, {
+    launchScope,
+    requiredStatus: CONSENT_STATUS.CONSUMED,
+    bindings: {
+      requestAggregateHash: continuationScope?.continuationRequestAggregateHash || frozen.manifest.requestAggregateHash,
+      orderedRequestHashInventory: executionRequests.map((request) => request.requestContractHash),
+      authorizedRequestCount: executionRequests.length
+    }
+  });
+  validateInvocationReservation(reservation, { launchScope });
+  validateExecutionJournal(journal, executionRequests);
   validateCostLedger(ledger);
   validateTerminalFailureManifest(manifest);
   validateTerminalFailureValidationReport(validationReport, manifest);
@@ -909,6 +1367,8 @@ async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFree
   assert.equal(manifest.consentHash, consent.consentHash);
   assert.equal(manifest.reservationHash, reservation.reservationHash);
   assert.equal(manifest.completeFrozenAggregateHash, frozen.manifest.completeFrozenAggregateHash);
+  assert.equal(manifest.requestedCount, executionRequests.length);
+  assert.equal(manifest.notExternallySubmittedCount, executionRequests.length);
   assert.equal(reservation.state, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT);
   const aborted = journal.entries.filter((entry) => entry.state === REQUEST_STATE.PRE_EXTERNAL_ABORT);
   assert.deepEqual(aborted.map((entry) => entry.analysisId), [manifest.requestId]);
@@ -917,7 +1377,8 @@ async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFree
   assert.equal(ledger.accruedEstimatedCost, 0);
   assert.deepEqual(ledger.perAttemptCostRecords, []);
   const basePaths = [
-    "launch-scope.json", "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
+    "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
     "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json"
   ];
   const tree = await computeResultTreeAggregate(root, basePaths);

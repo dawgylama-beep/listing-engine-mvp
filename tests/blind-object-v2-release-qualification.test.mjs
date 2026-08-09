@@ -33,7 +33,7 @@ function releaseCore(releaseState, overrides = {}) {
     releaseType: EXECUTION_RELEASE_TYPE,
     releaseState,
     executorRuntimeHead: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_HEAD : null,
-    executorVersion: "1.12.21",
+    executorVersion: "1.12.22",
     executorRuntimeTreeHash: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_TREE : null,
     qualificationPolicyVersion: QUALIFICATION_POLICY_VERSION,
     requiredQualificationRelationship: QUALIFICATION_RELATIONSHIP,
@@ -42,6 +42,7 @@ function releaseCore(releaseState, overrides = {}) {
     productSourceVersion: "1.12.13",
     productCostSourceManifestHash: COST_SOURCE_MANIFEST_HASH,
     preExternalFailureAuthorityHash: "084cea4676da753ce48a177472c36043f216802c9c97b9cc3a188b8abc17885d",
+    postHandlerFailureAuthorityHash: "915089ed141f32dd38530df9ee1bd89288aa7bb4a2e5b2abe8cf4f96a24202b7",
     benchmarkContractIdentity: {
       benchmarkId: "blind-object-v2",
       completeFrozenAggregateHash: FREEZE,
@@ -50,14 +51,16 @@ function releaseCore(releaseState, overrides = {}) {
     },
     handler: "api/generate-listing.js#createGenerateListingHandler",
     completePhysicalAttemptCeiling: 832,
-    launchScopeSchemaVersion: "2.2",
+    launchScopeSchemaVersion: "2.3",
     costEnvelopeSchemaVersion: "1.1",
     maximumAuthorizedCostMinorUnits: 4000,
     authorityDeclarations: {
       consentCreationEnabled: true,
       executionEnabled: true,
-      preExternalReconciliationEnabled: true,
-      zeroExternalSupersessionEnabled: true,
+      preExternalReconciliationEnabled: false,
+      zeroExternalSupersessionEnabled: false,
+      postHandlerReconciliationEnabled: true,
+      continuationExecutionEnabled: true,
       realExecutionAuthorized: false,
       privateControlsAuthorized: false,
       scoringAuthorized: false,
@@ -87,8 +90,8 @@ function snapshot(overrides = {}) {
     qualificationParents: [RUNTIME_HEAD],
     runtimeObjectType: "commit",
     runtimeTreeHash: RUNTIME_TREE,
-    runtimeVersion: "1.12.21",
-    qualificationVersion: "1.12.21",
+    runtimeVersion: "1.12.22",
+    qualificationVersion: "1.12.22",
     sealDiffStatus: [`M\t${EXECUTION_RELEASE_RELATIVE_PATH}`],
     sealDiffPaths: [EXECUTION_RELEASE_RELATIVE_PATH],
     ...overrides
@@ -108,7 +111,7 @@ function launchInput({ runtimeHead = RUNTIME_HEAD, qualificationHead = QUALIFICA
     executorRuntimeTreeHash: runtimeTree,
     executionReleaseRecordHash: recordHash,
     qualificationPolicyVersion: "1.0",
-    executorVersion: "1.12.21",
+    executorVersion: "1.12.22",
     completeFrozenAggregateHash: FREEZE,
     freezeManifestHash: "6f99638e26766966d923e24604a350174d0757059c61a38043305d7d845ae4f8",
     freezeReceiptHash: "e7d813e468ae13039b52a029694e4fbfd6d33ca97446d0f02bf6a7df8962a577",
@@ -128,6 +131,19 @@ function launchInput({ runtimeHead = RUNTIME_HEAD, qualificationHead = QUALIFICA
     costEnvelopeHash: "6".repeat(64),
     zeroExternalSupersessionReceiptId: `supersession-${"8".repeat(48)}`,
     zeroExternalSupersessionReceiptHash: "8".repeat(64),
+    continuationScopeHash: null,
+    continuationRequestAggregateHash: null,
+    continuationOrderedRequestHashInventory: [],
+    terminalFailureReceiptId: null,
+    terminalFailureReceiptHash: null,
+    priorPhysicalAttemptCount: 0,
+    priorConservativeCost: 0,
+    remainingPhysicalAttemptAuthority: 832,
+    remainingConservativeCostAuthority: 40,
+    continuationPhysicalAttemptCeiling: 832,
+    continuationConservativeMaximumCost: null,
+    cumulativeConservativeMaximumCost: null,
+    authorizedRequestCount: 26,
     maximumAuthorizedCostMinorUnits: 4000,
     networkPolicyHash: "7".repeat(64),
     privateControlsAuthorized: false,
@@ -156,7 +172,7 @@ test("A: the old anchor-equals-HEAD rule reproduces the qualification-descendant
 
 test("B: PENDING_QUALIFICATION_SEAL blocks PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, and reconciliation", () => {
   const { pending } = records();
-  for (const mode of ["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_FAILURE"]) {
+  for (const mode of ["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"]) {
     assert.throws(() => assertQualifiedReleaseState(pending, mode), /requires a QUALIFIED executor release/);
   }
   assert.equal(pending.authorityDeclarations.realExecutionAuthorized, false);
@@ -248,8 +264,10 @@ test("O: product identity, freeze identity, release schema, and only bounded exe
     assert.deepEqual(record.authorityDeclarations, {
       consentCreationEnabled: true,
       executionEnabled: true,
-      preExternalReconciliationEnabled: true,
-      zeroExternalSupersessionEnabled: true,
+      preExternalReconciliationEnabled: false,
+      zeroExternalSupersessionEnabled: false,
+      postHandlerReconciliationEnabled: true,
+      continuationExecutionEnabled: true,
       realExecutionAuthorized: false,
       privateControlsAuthorized: false,
       scoringAuthorized: false,

@@ -26,6 +26,11 @@ import {
   loadFixedFailureAuthority
 } from "../benchmarks/blind-object-v2/scripts/pre-external-reconciliation.mjs";
 import {
+  FIXED_POST_HANDLER_APPEND_PATHS,
+  loadFixedPostHandlerAuthority,
+  reconcileFixedV11221Failure
+} from "../benchmarks/blind-object-v2/scripts/post-handler-reconciliation.mjs";
+import {
   benchmarkRoot,
   computeResultTreeAggregate,
   createExclusiveReservation,
@@ -161,7 +166,7 @@ test("failure after EXTERNAL_ATTEMPT_COMMITTED remains ambiguous and permanently
   assert.equal(result.reservation.state, RESERVATION_STATE.INDETERMINATE);
 }));
 
-test("zero-external supersession permits one successor reservation and rejects activity, uncertainty, and reuse", async () => withTemp("ke-v121-supersession-", async (root) => {
+test("historical zero-external supersession remains pinned to Version 1.12.21 and cannot authorize Version 1.12.22 by itself", async () => withTemp("ke-v121-supersession-", async (root) => {
   const fixed = await loadFixedFailureAuthority();
   const authority = await createSyntheticAuthority(frozen, "supersession-store");
   const receiptInput = {
@@ -206,50 +211,53 @@ test("zero-external supersession permits one successor reservation and rejects a
   const reservation = createInvocationReservation({ launchScope, consent, executionProfileHash: authority.profile.profileHash, pricingProfileHash: authority.pricingProfile.pricingProfileHash, createdIdentity: "executor-supersession-test" }, "2026-08-09T20:00:02.000Z");
   const legacy = path.join(defaultResultHistoryRoot, ".reservations", `${fixed.sourceInvocationId}.json`);
   await copyFile(legacy, path.join(root, `${fixed.sourceInvocationId}.json`));
-  const created = await createExclusiveReservation(root, reservation, { zeroExternalSupersessionReceipt: receipt });
-  assert.equal(created.status, "CREATED");
-  await assert.rejects(createExclusiveReservation(root, reservation, { zeroExternalSupersessionReceipt: receipt }), /already consumed/);
+  await assert.rejects(
+    createExclusiveReservation(root, reservation, { zeroExternalSupersessionReceipt: receipt }),
+    /successorExecutorVersion mismatch/
+  );
 }));
 
-test("actual RECONCILE_FAILURE CLI appends only three artifacts in isolation and fails closed on a second invocation", { timeout: 180_000 }, async () => withTemp("ke-v121-reconcile-cli-", async (root) => {
-  const failedRoot = path.join(defaultResultHistoryRoot, "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9");
-  const realBefore = await computeResultTreeAggregate(failedRoot, ORIGINAL_PATHS);
-  assert.equal(realBefore.aggregate, "788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf");
-  for (const relativePath of FIXED_FAILURE_APPEND_PATHS) await assert.rejects(readFile(path.join(failedRoot, relativePath)), /ENOENT/);
-  const clone = path.join(root, "repository");
-  const cloned = await run("git", ["clone", "--quiet", "--no-local", "--depth", "2", "--branch", "refactor/beta-evidence-pipeline", repositoryRoot, clone]);
-  assert.equal(cloned.code, 0, cloned.stderr);
-  const isolatedRoot = path.join(clone, "benchmarks", "blind-object-v2-results", "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9");
+test("Version 1.12.21 reconciliation appends exactly four terminal artifacts, preserves all old bytes, and fails closed on reuse", async () => withTemp("ke-v122-reconcile-", async (root) => {
+  const authority = await loadFixedPostHandlerAuthority();
+  const realRoot = path.join(defaultResultHistoryRoot, authority.sourceResultRootName);
+  const originalPaths = authority.originalArtifactRecords.map((record) => record.relativePath);
+  const realBefore = await computeResultTreeAggregate(realRoot, originalPaths);
+  const historyRoot = path.join(root, "benchmarks", "blind-object-v2-results");
+  const isolatedRoot = path.join(historyRoot, authority.sourceResultRootName);
   await mkdir(path.join(isolatedRoot, "responses"), { recursive: true });
-  for (const relativePath of ORIGINAL_PATHS) await copyFile(path.join(failedRoot, relativePath), path.join(isolatedRoot, relativePath));
-  await mkdir(path.join(clone, "benchmarks", "blind-object-v2", "consent"), { recursive: true });
-  await copyFile(path.join(benchmarkRoot, "consent", "consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45.json"), path.join(clone, "benchmarks", "blind-object-v2", "consent", "consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45.json"));
-  await mkdir(path.join(clone, "benchmarks", "blind-object-v2-results", ".reservations"), { recursive: true });
-  await copyFile(path.join(defaultResultHistoryRoot, ".reservations", "invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65.json"), path.join(clone, "benchmarks", "blind-object-v2-results", ".reservations", "invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65.json"));
-  const nodeModules = path.join(repositoryRoot, "node_modules");
-  const isolatedModules = path.join(clone, "node_modules");
-  await symlink(nodeModules, isolatedModules, "junction");
-  const guardLog = path.join(root, "guard.jsonl");
-  const env = { ...process.env, KATHERINES_EYE_CLI_GUARD_LOG: guardLog, NODE_OPTIONS: `--require=${path.join(clone, "tests", "helpers", "blind-object-v2-cli-isolation-guard.cjs")}` };
-  try {
-    const cli = path.join(clone, "benchmarks", "blind-object-v2", "scripts", "run-authorized-execution.mjs");
-    const first = await run(process.execPath, [cli, "RECONCILE_FAILURE", FREEZE], { cwd: clone, env });
-    assert.equal(first.code, 0, `${first.stdout}\n${first.stderr}`);
-    const output = JSON.parse(first.stdout.trim().split(/\r?\n/).find((line) => line.startsWith("{")));
-    assert.equal(output.disposition, "VERSION_1_12_20_FAILURE_RECONCILED_SEALED");
-    assert.equal(output.handlerAttemptCount, 0);
-    assert.equal(output.providerAttemptCount, 0);
-    const isolatedOriginal = await computeResultTreeAggregate(isolatedRoot, ORIGINAL_PATHS);
-    assert.deepEqual(isolatedOriginal, realBefore);
-    assert.deepEqual((await readdir(isolatedRoot)).sort(), [...ORIGINAL_PATHS, ...FIXED_FAILURE_APPEND_PATHS, "responses"].sort());
-    const second = await run(process.execPath, [cli, "RECONCILE_FAILURE", FREEZE], { cwd: clone, env });
-    assert.notEqual(second.code, 0);
-    assert.match(second.stderr, /already exists/);
-    const guardEvents = await readFile(guardLog, "utf8").catch((error) => error.code === "ENOENT" ? "" : Promise.reject(error));
-    assert.equal(guardEvents, "");
-  } finally {
-    await rm(isolatedModules, { force: true });
-  }
-  const realAfter = await computeResultTreeAggregate(failedRoot, ORIGINAL_PATHS);
-  assert.deepEqual(realAfter, realBefore);
+  for (const relativePath of originalPaths) await copyFile(path.join(realRoot, relativePath), path.join(isolatedRoot, relativePath));
+  await mkdir(path.join(root, "benchmarks", "blind-object-v2", "consent"), { recursive: true });
+  await copyFile(path.join(realRoot, "execution-consent.json"), path.join(root, "benchmarks", "blind-object-v2", "consent", `${authority.sourceConsentId}.json`));
+  await mkdir(path.join(historyRoot, ".reservations"), { recursive: true });
+  await copyFile(path.join(realRoot, "invocation-reservation.json"), path.join(historyRoot, ".reservations", `${authority.sourceInvocationId}.json`));
+  const releaseIdentity = {
+    executorVersion: "1.12.22",
+    executionReleaseRecordHash: "1".repeat(64),
+    executorRuntimeHead: "2".repeat(40),
+    qualificationHead: "3".repeat(40),
+    release: {
+      postHandlerFailureAuthorityHash: authority.recordHash,
+      authorityDeclarations: { postHandlerReconciliationEnabled: true }
+    }
+  };
+  const first = await reconcileFixedV11221Failure({
+    releaseIdentity,
+    nowIso: "2026-08-09T22:00:00.000Z",
+    testOnlyResultHistoryRoot: historyRoot
+  });
+  assert.equal(first.disposition, "VERSION_1_12_21_POST_HANDLER_FAILURE_RECONCILED_SEALED");
+  assert.equal(first.terminalState, "ABORTED_POST_HANDLER_SANITIZATION_RESPONSE_NOT_PERSISTED");
+  assert.equal(first.handlerInvocationCount, 1);
+  assert.equal(first.providerAttemptCount, 9);
+  assert.equal(first.physicalProviderAttemptCount, 9);
+  assert.equal(first.conservativeAccountedCost, 1.50682355);
+  assert.equal(first.actualBilledCostStatus, "UNKNOWN");
+  assert.equal(first.originalArtifactsByteIdentical, true);
+  assert.deepEqual(await computeResultTreeAggregate(isolatedRoot, originalPaths), realBefore);
+  assert.deepEqual((await readdir(isolatedRoot)).sort(), [...originalPaths, ...FIXED_POST_HANDLER_APPEND_PATHS, "responses"].sort());
+  await assert.rejects(
+    reconcileFixedV11221Failure({ releaseIdentity, nowIso: "2026-08-09T22:00:01.000Z", testOnlyResultHistoryRoot: historyRoot }),
+    /already exists/
+  );
+  assert.deepEqual(await computeResultTreeAggregate(realRoot, originalPaths), realBefore);
 }));

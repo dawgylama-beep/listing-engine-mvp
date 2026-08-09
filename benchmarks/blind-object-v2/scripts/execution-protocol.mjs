@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 import { deriveLaunchIdentities, validateLaunchScope } from "./launch-identity.mjs";
+import { deriveTypedPublicIdentifierProvenance, typedPublicIdentifierPaths } from "./typed-public-identifier.mjs";
 
 export const EXECUTION_SCHEMA_VERSION = "1.1";
 export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.21";
+export const EXECUTOR_VERSION = "1.12.22";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -27,6 +28,7 @@ export const RESERVATION_STATE = Object.freeze({
   CONSUMED: "CONSUMED",
   FAILED_BEFORE_START: "FAILED_BEFORE_START",
   CLOSED_PRE_EXTERNAL_ABORT: "CLOSED_PRE_EXTERNAL_ABORT",
+  CLOSED_CONSERVATIVE_COST_ACCOUNTED: "CLOSED_CONSERVATIVE_COST_ACCOUNTED",
   INVALID: "INVALID"
 });
 
@@ -35,6 +37,8 @@ export const REQUEST_STATE = Object.freeze({
   LOCAL_PREPARATION_STARTED: "LOCAL_PREPARATION_STARTED",
   LOCAL_PREPARATION_COMPLETED: "LOCAL_PREPARATION_COMPLETED",
   EXTERNAL_ATTEMPT_COMMITTED: "EXTERNAL_ATTEMPT_COMMITTED",
+  HANDLER_RETURNED: "HANDLER_RETURNED",
+  POST_HANDLER_SANITIZATION_FAILED: "POST_HANDLER_SANITIZATION_FAILED",
   PRE_EXTERNAL_ABORT: "PRE_EXTERNAL_ABORT",
   SUBMISSION_INTENT_RECORDED: "SUBMISSION_INTENT_RECORDED",
   SUBMISSION_STARTED: "SUBMISSION_STARTED",
@@ -111,6 +115,9 @@ const CONSENT_FIELDS = Object.freeze([
   "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
   "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
+  "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
+  "priorPhysicalAttemptCount", "priorConservativeCost", "remainingPhysicalAttemptAuthority", "remainingConservativeCostAuthority",
+  "continuationPhysicalAttemptCeiling", "cumulativeConservativeMaximumCost",
   "completePhysicalAttemptCeiling", "maximumAuthorizedCostMinorUnits", "maximumAuthorizedCost", "conservativeMaximumCostMinorUnits",
   "conservativeMaximumCost", "fixedResultRoot", "networkPolicyHash", "authorizedRequestCount", "privateControlsAuthorized",
   "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized", "status", "statusTransitions",
@@ -120,6 +127,7 @@ const RESERVATION_FIELDS = Object.freeze([
   "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
+  "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
   "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead",
   "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
   "resultRoot", "createdIdentity", "state", "transitions", "transitionJournalHash", "reservationHash", "recordHash"
@@ -137,7 +145,7 @@ const TERMINAL_RESULT_FIELDS = Object.freeze([
   "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics",
   "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof",
   "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory",
-  "canonicalResponseHash", "recordHash"
+  "typedPublicIdentifierProvenance", "canonicalResponseHash", "recordHash"
 ]);
 const UNSCORED_MANIFEST_FIELDS = Object.freeze([
   "schemaVersion", "manifestType", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead",
@@ -145,7 +153,7 @@ const UNSCORED_MANIFEST_FIELDS = Object.freeze([
   "qualificationPolicyVersion", "executorVersion", "completeFrozenAggregateHash", "requestAggregateHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "maximumCost", "costLedgerHash", "requestedCount", "submittedCount",
   "terminalCount", "normalSuccessCount", "productTerminalFailureCount", "executionIntegrityFailureCount", "notSubmittedCount",
-  "orderedResponseHashInventory", "responseAggregate", "journalAggregate", "resultTreeAggregate", "resultTreeRecords",
+  "orderedResponseHashInventory", "responseAggregate", "orderedHandlerReturnedReceiptInventory", "handlerReturnedAggregate", "journalAggregate", "resultTreeAggregate", "resultTreeRecords",
   "privateControlsLoaded", "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "state", "manifestHash"
 ]);
 
@@ -477,6 +485,11 @@ export function createExecutionConsent(input, nowIso) {
   assert.equal(costEnvelope?.authorizedMaximumMinorUnits, launchScope.maximumAuthorizedCostMinorUnits);
   finiteNonnegative(costEnvelope?.conservativeMaximumCost, "conservative maximum cost");
   assert.ok(costEnvelope.conservativeMaximumCostMinorUnits <= launchScope.maximumAuthorizedCostMinorUnits, "conservative maximum exceeds authorized cost");
+  const continuation = launchScope.authorizedRequestCount === 25;
+  if (continuation) {
+    assert.equal(costEnvelope.conservativeMaximumCost, launchScope.cumulativeConservativeMaximumCost, "complete canonical cost differs from cumulative continuation accounting");
+    assert.equal(launchScope.continuationConservativeMaximumCost <= launchScope.remainingConservativeCostAuthority, true, "continuation cost exceeds remaining authority");
+  }
   const identities = deriveLaunchIdentities(launchScope);
   const scope = {
     launchScopeHash: launchScope.launchScopeHash,
@@ -499,21 +512,31 @@ export function createExecutionConsent(input, nowIso) {
     completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
     freezeManifestHash: launchScope.freezeManifestHash,
     freezeReceiptHash: launchScope.freezeReceiptHash,
-    requestAggregateHash: launchScope.requestAggregateHash,
-    orderedRequestHashInventory: launchScope.orderedRequestHashInventory,
+    requestAggregateHash: continuation ? launchScope.continuationRequestAggregateHash : launchScope.requestAggregateHash,
+    orderedRequestHashInventory: continuation ? launchScope.continuationOrderedRequestHashInventory : launchScope.orderedRequestHashInventory,
     executionProfileIdentityHash: launchScope.executionProfileIdentityHash,
     pricingProfileIdentityHash: launchScope.pricingProfileIdentityHash,
     costEnvelopeHash: launchScope.costEnvelopeHash,
     zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
+    continuationScopeHash: launchScope.continuationScopeHash,
+    continuationRequestAggregateHash: launchScope.continuationRequestAggregateHash,
+    terminalFailureReceiptId: launchScope.terminalFailureReceiptId,
+    terminalFailureReceiptHash: launchScope.terminalFailureReceiptHash,
+    priorPhysicalAttemptCount: launchScope.priorPhysicalAttemptCount,
+    priorConservativeCost: launchScope.priorConservativeCost,
+    remainingPhysicalAttemptAuthority: launchScope.remainingPhysicalAttemptAuthority,
+    remainingConservativeCostAuthority: launchScope.remainingConservativeCostAuthority,
+    continuationPhysicalAttemptCeiling: launchScope.continuationPhysicalAttemptCeiling,
+    cumulativeConservativeMaximumCost: launchScope.cumulativeConservativeMaximumCost,
     completePhysicalAttemptCeiling: launchScope.completePhysicalAttemptCeiling,
     maximumAuthorizedCostMinorUnits: launchScope.maximumAuthorizedCostMinorUnits,
     maximumAuthorizedCost: launchScope.maximumAuthorizedCostMinorUnits / 100,
-    conservativeMaximumCostMinorUnits: costEnvelope.conservativeMaximumCostMinorUnits,
-    conservativeMaximumCost: costEnvelope.conservativeMaximumCost,
+    conservativeMaximumCostMinorUnits: continuation ? Math.ceil(launchScope.continuationConservativeMaximumCost * 100) : costEnvelope.conservativeMaximumCostMinorUnits,
+    conservativeMaximumCost: continuation ? launchScope.continuationConservativeMaximumCost : costEnvelope.conservativeMaximumCost,
     fixedResultRoot: `benchmarks/blind-object-v2-results/${identities.resultRootName}`,
     networkPolicyHash: launchScope.networkPolicyHash,
-    authorizedRequestCount: 26,
+    authorizedRequestCount: launchScope.authorizedRequestCount,
     privateControlsAuthorized: false,
     scoringAuthorized: false,
     reflectionAuthorized: false,
@@ -599,8 +622,14 @@ export function createInvocationReservation(input, nowIso) {
     costEnvelopeHash: launchScope.costEnvelopeHash,
     zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
+    continuationScopeHash: launchScope.continuationScopeHash,
+    continuationRequestAggregateHash: launchScope.continuationRequestAggregateHash,
+    terminalFailureReceiptId: launchScope.terminalFailureReceiptId,
+    terminalFailureReceiptHash: launchScope.terminalFailureReceiptHash,
     completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
-    requestAggregateHash: launchScope.requestAggregateHash,
+    requestAggregateHash: launchScope.authorizedRequestCount === 25
+      ? launchScope.continuationRequestAggregateHash
+      : launchScope.requestAggregateHash,
     productSourceHead: launchScope.productSourceHead,
     productSourceVersion: launchScope.productSourceVersion,
     executorRuntimeHead: launchScope.executorRuntimeHead,
@@ -647,10 +676,11 @@ export function transitionReservation(reservation, to, at, reason) {
   validateInvocationReservation(reservation);
   const allowed = {
     [RESERVATION_STATE.RESERVED_NOT_STARTED]: [RESERVATION_STATE.STARTED, RESERVATION_STATE.FAILED_BEFORE_START, RESERVATION_STATE.INVALID],
-    [RESERVATION_STATE.STARTED]: [RESERVATION_STATE.INDETERMINATE, RESERVATION_STATE.CONSUMED, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT, RESERVATION_STATE.INVALID],
+    [RESERVATION_STATE.STARTED]: [RESERVATION_STATE.INDETERMINATE, RESERVATION_STATE.CONSUMED, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT, RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED, RESERVATION_STATE.INVALID],
     [RESERVATION_STATE.INDETERMINATE]: [RESERVATION_STATE.CONSUMED, RESERVATION_STATE.INVALID],
     [RESERVATION_STATE.FAILED_BEFORE_START]: [],
     [RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT]: [],
+    [RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED]: [],
     [RESERVATION_STATE.CONSUMED]: [],
     [RESERVATION_STATE.INVALID]: []
   };
@@ -671,7 +701,7 @@ function sealJournalEntry(entry) {
 export function createExecutionJournal({ invocationId, consentHash, requests, nowIso }) {
   assert.match(invocationId || "", SAFE_ID);
   assert.match(consentHash || "", HASH);
-  assert.equal(requests.length, 26);
+  assert.ok(requests.length >= 1 && requests.length <= 26, "execution journal request count must be between 1 and 26");
   const entries = requests.map((request, index) => sealJournalEntry({
     order: index + 1,
     analysisId: request.analysisId,
@@ -688,7 +718,8 @@ export function validateExecutionJournal(journal, requests = null) {
   assert.ok(["1.0", EXECUTION_SCHEMA_VERSION].includes(journal.schemaVersion), "execution journal schemaVersion is invalid");
   assert.match(journal.invocationId || "", SAFE_ID);
   assert.match(journal.consentHash || "", HASH);
-  assert.equal(journal.entries.length, 26);
+  assert.ok(journal.entries.length >= 1 && journal.entries.length <= 26, "execution journal entry count must be between 1 and 26");
+  if (requests) assert.equal(journal.entries.length, requests.length, "execution journal request count differs");
   const physicalIds = new Set();
   for (const [index, entry] of journal.entries.entries()) {
     assert.equal(entry.order, index + 1);
@@ -724,7 +755,9 @@ export function transitionRequest(journal, analysisId, to, { at, reason, physica
     [REQUEST_STATE.NOT_SUBMITTED]: [REQUEST_STATE.LOCAL_PREPARATION_STARTED, REQUEST_STATE.SUBMISSION_INTENT_RECORDED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION],
     [REQUEST_STATE.LOCAL_PREPARATION_STARTED]: [REQUEST_STATE.LOCAL_PREPARATION_COMPLETED, REQUEST_STATE.PRE_EXTERNAL_ABORT],
     [REQUEST_STATE.LOCAL_PREPARATION_COMPLETED]: [REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, REQUEST_STATE.PRE_EXTERNAL_ABORT],
-    [REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED]: [REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION],
+    [REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED]: [REQUEST_STATE.HANDLER_RETURNED, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION],
+    [REQUEST_STATE.HANDLER_RETURNED]: [REQUEST_STATE.TERMINAL, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED],
+    [REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED]: [],
     [REQUEST_STATE.PRE_EXTERNAL_ABORT]: [],
     [REQUEST_STATE.SUBMISSION_INTENT_RECORDED]: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION],
     [REQUEST_STATE.SUBMISSION_STARTED]: [REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION],
@@ -757,7 +790,7 @@ export function requestReplayDisposition(entry) {
     state: entry.state,
     eligible,
     requiresPreExternalReconciliation,
-    resubmissionPermanentlyBlocked: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION].includes(entry.state),
+    resubmissionPermanentlyBlocked: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, REQUEST_STATE.HANDLER_RETURNED, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED, REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION].includes(entry.state),
     reason: eligible ? "NO_EXTERNAL_ATTEMPT_COULD_HAVE_OCCURRED" : requiresPreExternalReconciliation ? "PRE_EXTERNAL_STATE_REQUIRES_DETERMINISTIC_RECONCILIATION" : "SUBMITTED_OR_POSSIBLY_SUBMITTED_REQUEST_CANNOT_BE_REPLAYED"
   });
 }
@@ -768,7 +801,7 @@ export function createCostLedger({ invocationId, consentHash, pricingProfileHash
   assert.match(pricingProfileHash || "", HASH);
   finitePositive(maximumAuthorizedCost, "maximum authorized cost");
   finiteNonnegative(conservativePreRunMaximum, "conservative pre-run maximum");
-  assert.equal(requests.length, 26);
+  assert.ok(requests.length >= 1 && requests.length <= 26, "cost ledger request count must be between 1 and 26");
   const core = {
     schemaVersion: EXECUTION_SCHEMA_VERSION,
     invocationId,
@@ -793,7 +826,7 @@ export function validateCostLedger(ledger) {
   assert.ok(["1.0", EXECUTION_SCHEMA_VERSION].includes(ledger.schemaVersion), "cost ledger schemaVersion is invalid");
   assert.equal(ledger.currency, ALLOWED_CURRENCY);
   for (const field of ["maximumAuthorizedCost", "conservativePreRunMaximum", "accruedEstimatedCost", "actualCalculatedCost", "reservedWorstCaseRemainingCost"]) finiteNonnegative(ledger[field], `ledger ${field}`);
-  assert.equal(ledger.perRequestCostRecords.length, 26);
+  assert.ok(ledger.perRequestCostRecords.length >= 1 && ledger.perRequestCostRecords.length <= 26, "cost ledger request count must be between 1 and 26");
   assert.equal(typeof ledger.stopBeforeNextRequestDecision, "boolean");
   validateSeal(ledger, "ledgerHash", "cost ledger");
   return Object.freeze({ valid: true, ledgerHash: ledger.ledgerHash });
@@ -828,6 +861,7 @@ export function recordRequestCost(ledger, { analysisId, attempts, estimatedCost,
 
 export function createTerminalResult(input) {
   assert.equal(input.schemaVersion, undefined, "terminal input cannot choose schemaVersion");
+  assert.equal(input.typedPublicIdentifierProvenance, undefined, "terminal input cannot declare public identifier provenance");
   assert.match(input.requestId || "", ANALYSIS_ID);
   assert.match(input.requestHash || "", HASH);
   assert.match(input.launchScopeHash || "", HASH);
@@ -840,11 +874,15 @@ export function createTerminalResult(input) {
   assert.ok([REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION].includes(input.submissionState));
   finiteNonnegative(input.elapsedDurationMs, "terminal elapsed duration");
   const responseHash = sha256Json(input.sanitizedTerminalResponseEnvelope);
-  const core = {
+  const untypedCore = {
     schemaVersion: EXECUTION_SCHEMA_VERSION,
     resultRecordType: RESULT_RECORD_TYPE,
     ...structuredClone(input),
     canonicalResponseHash: responseHash
+  };
+  const core = {
+    ...untypedCore,
+    typedPublicIdentifierProvenance: deriveTypedPublicIdentifierProvenance(untypedCore)
   };
   return sealed(core, "recordHash");
 }
@@ -860,23 +898,32 @@ export function validateTerminalResult(record, bindings = {}) {
   assert.ok(Array.isArray(record.providerIdentities), "terminal result provider identities must be an array");
   record.providerIdentities.forEach((value) => assert.match(value, PUBLIC_IDENTITY, "terminal result provider identity is invalid"));
   assert.equal(record.canonicalResponseHash, sha256Json(record.sanitizedTerminalResponseEnvelope));
+  const provenanceSource = structuredClone(record);
+  delete provenanceSource.typedPublicIdentifierProvenance;
+  delete provenanceSource.recordHash;
+  assert.deepEqual(record.typedPublicIdentifierProvenance, deriveTypedPublicIdentifierProvenance(provenanceSource), "terminal typed public identifier provenance differs from repository derivation");
   for (const [field, value] of Object.entries(bindings)) assert.deepEqual(record[field], value, `terminal result ${field} mismatch`);
   validateSeal(record, "recordHash", "terminal result");
   return Object.freeze({ valid: true, recordHash: record.recordHash });
 }
 
 export function createUnscoredResultManifest(input) {
+  input = {
+    ...structuredClone(input),
+    orderedHandlerReturnedReceiptInventory: input.orderedHandlerReturnedReceiptInventory || [],
+    handlerReturnedAggregate: input.handlerReturnedAggregate || sha256Json(input.orderedHandlerReturnedReceiptInventory || [])
+  };
   assert.ok(Object.values(RESULT_STATE).includes(input.state));
   assert.equal(input.privateControlsLoaded, false);
   for (const field of ["scoringAuthorized", "reflectionAuthorized", "repairAuthorized"]) assert.equal(input[field], false);
   for (const field of ["requestedCount", "submittedCount", "terminalCount", "normalSuccessCount", "productTerminalFailureCount", "executionIntegrityFailureCount", "notSubmittedCount"]) {
     assert.ok(Number.isInteger(input[field]) && input[field] >= 0, `${field} must be a nonnegative integer`);
   }
-  assert.equal(input.requestedCount, 26);
+  assert.ok(input.requestedCount >= 1 && input.requestedCount <= 26, "requested count must be between 1 and 26");
   assert.equal(input.submittedCount + input.notSubmittedCount, input.requestedCount);
   if (input.state === RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING) {
-    assert.equal(input.submittedCount, 26);
-    assert.equal(input.terminalCount, 26);
+    assert.equal(input.submittedCount, input.requestedCount);
+    assert.equal(input.terminalCount, input.requestedCount);
     assert.equal(input.executionIntegrityFailureCount, 0);
   }
   return sealed({ schemaVersion: EXECUTION_SCHEMA_VERSION, manifestType: "BENCHMARK_UNSCORED_RESULT_MANIFEST", ...structuredClone(input) }, "manifestHash");
@@ -926,10 +973,13 @@ function highEntropyCredentialLike(value) {
   return entropy >= 4;
 }
 
-function assertSafeString(value, location, knownSecretValues) {
+function assertSafeString(value, location, knownSecretValues, { typedPublicIdentifier = false } = {}) {
   assert.doesNotMatch(value, /\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{8,}\b/i, `record exposes an API key at ${location}`);
+  assert.doesNotMatch(value, /\b(?:AIza[0-9A-Za-z_-]{20,}|(?:gh[oprsu]|github_pat)_[0-9A-Za-z_]{20,}|xox[baprs]-[0-9A-Za-z-]{10,})\b/, `record exposes an API-key-shaped value at ${location}`);
   assert.doesNotMatch(value, /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/i, `record exposes bearer authorization at ${location}`);
   assert.doesNotMatch(value, /\bBasic\s+[A-Za-z0-9+/]{8,}={0,2}/i, `record exposes Basic authorization at ${location}`);
+  assert.doesNotMatch(value, /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\b/, `record exposes JWT-shaped material at ${location}`);
+  assert.doesNotMatch(value, /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, `record exposes private key material at ${location}`);
   assert.doesNotMatch(value, /\b(?:session(?:id)?|cookie|auth(?:orization)?|token|api[_-]?key)\s*=\s*[^;\s]{8,}/i, `record exposes cookie, session, or credential material at ${location}`);
   assert.doesNotMatch(value, /\b(?:OPENAI_API_KEY|OPEN_API_KEY|SERPER_API_KEY)\s*=\s*\S+/i, `record exposes an environment dump at ${location}`);
   for (const urlText of value.match(/https?:\/\/[^\s"'<>]+/gi) || []) {
@@ -939,7 +989,7 @@ function assertSafeString(value, location, knownSecretValues) {
       assert.doesNotMatch(name, /^(?:api[-_]?key|access[-_]?token|auth(?:orization)?|credential|password|secret|session|sig(?:nature)?|x-amz-signature)$/i, `record exposes a signed or credential-bearing URL at ${location}`);
     }
   }
-  assert.equal(highEntropyCredentialLike(value), false, `record exposes high-entropy credential-like material at ${location}`);
+  if (!typedPublicIdentifier) assert.equal(highEntropyCredentialLike(value), false, `record exposes high-entropy credential-like material at ${location}`);
   for (const secret of knownSecretValues) assert.equal(value.includes(secret), false, `record contains a known secret value at ${location}`);
 }
 
@@ -959,12 +1009,19 @@ export function assertNoSecretMaterial(value, options = {}) {
   const recordType = value?.resultRecordType || value?.profileType || null;
   const publicPaths = PUBLIC_IDENTITY_PATHS[recordType] || null;
   if (publicPaths) assert.equal(normalizedOptions.schemaValidatedRecordType, recordType, `${recordType} public identity scan requires prior strict schema validation`);
+  if (recordType === RESULT_RECORD_TYPE) {
+    const provenanceSource = structuredClone(value);
+    delete provenanceSource.typedPublicIdentifierProvenance;
+    delete provenanceSource.recordHash;
+    assert.deepEqual(value.typedPublicIdentifierProvenance, deriveTypedPublicIdentifierProvenance(provenanceSource), "terminal typed public identifier provenance must be repository-derived before secret scanning");
+  }
+  const typedPaths = recordType === RESULT_RECORD_TYPE ? typedPublicIdentifierPaths(value) : new Set();
 
   function visit(node, location) {
     if (typeof node === "string") {
       const normalizedPath = location.replace(/\[\d+\]/g, "[*]");
       if (publicPaths?.has(normalizedPath)) assert.match(node, PUBLIC_IDENTITY, `public identity at ${location} is invalid`);
-      assertSafeString(node, location, knownSecretValues);
+      assertSafeString(node, location, knownSecretValues, { typedPublicIdentifier: typedPaths.has(location) });
       return;
     }
     if (node === null || typeof node === "boolean" || typeof node === "number") return;

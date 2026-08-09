@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/post-handler-failure-authority.schema.json",
+  "title": "Fixed Version 1.12.21 post-handler failure authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authorityType", "sourceExecutionReleaseRecordHash", "sourceExecutorVersion", "sourceResultRootName", "sourcePartialArtifactAggregate", "sourceJournalHash", "sourceLedgerHash", "sourceConsentId", "sourceConsentHash", "sourceConsentReceiptHash", "sourceInvocationId", "sourceReservationId", "sourceReservationHash", "sourceReservationRecordHash", "sourceResultId", "sourceRequestId", "sourceSubmissionIdentity", "handlerOutcome", "handlerInvocationCount", "providerAttemptCount", "physicalProviderAttemptCount", "providerReportedUsageRecordCount", "actualBilledCostStatus", "conservativeAccountedCost", "sanitizerRejectedPath", "sanitizerFailureCategory", "handlerResultBytesStatus", "publicResponseArtifactStatus", "successfulManifestStatus", "successorExecutorVersion", "originalArtifactRecords", "recordHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "authorityType": { "const": "FIXED_VERSION_1_12_21_POST_HANDLER_FAILURE_RECONCILIATION" },
+    "sourceExecutionReleaseRecordHash": { "$ref": "#/$defs/hash" },
+    "sourceExecutorVersion": { "const": "1.12.21" },
+    "sourceResultRootName": { "$ref": "#/$defs/id" },
+    "sourcePartialArtifactAggregate": { "$ref": "#/$defs/hash" },
+    "sourceJournalHash": { "$ref": "#/$defs/hash" },
+    "sourceLedgerHash": { "$ref": "#/$defs/hash" },
+    "sourceConsentId": { "$ref": "#/$defs/id" },
+    "sourceConsentHash": { "$ref": "#/$defs/hash" },
+    "sourceConsentReceiptHash": { "$ref": "#/$defs/hash" },
+    "sourceInvocationId": { "$ref": "#/$defs/id" },
+    "sourceReservationId": { "$ref": "#/$defs/id" },
+    "sourceReservationHash": { "$ref": "#/$defs/hash" },
+    "sourceReservationRecordHash": { "$ref": "#/$defs/hash" },
+    "sourceResultId": { "$ref": "#/$defs/id" },
+    "sourceRequestId": { "const": "V2-RUN-001" },
+    "sourceSubmissionIdentity": { "type": "string", "pattern": "^submission-[a-f0-9]{32}$" },
+    "handlerOutcome": { "const": "NORMAL_SUCCESS" },
+    "handlerInvocationCount": { "const": 1 },
+    "providerAttemptCount": { "const": 9 },
+    "physicalProviderAttemptCount": { "const": 9 },
+    "providerReportedUsageRecordCount": { "const": 0 },
+    "actualBilledCostStatus": { "const": "UNKNOWN" },
+    "conservativeAccountedCost": { "const": 1.50682355 },
+    "sanitizerRejectedPath": { "const": "$.experienceRecord.sourcesAccepted[0].evidenceId" },
+    "sanitizerFailureCategory": { "const": "HIGH_ENTROPY_CREDENTIAL_LIKE_FALSE_POSITIVE" },
+    "handlerResultBytesStatus": { "const": "NOT_DURABLY_CAPTURED" },
+    "publicResponseArtifactStatus": { "const": "ABSENT" },
+    "successfulManifestStatus": { "const": "ABSENT" },
+    "successorExecutorVersion": { "const": "1.12.22" },
+    "originalArtifactRecords": {
+      "type": "array", "minItems": 8, "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["relativePath", "bytes", "sha256"],
+        "properties": { "relativePath": { "type": "string" }, "bytes": { "type": "integer", "minimum": 1 }, "sha256": { "$ref": "#/$defs/hash" } }
+      }
+    },
+    "recordHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" }
+  }
+}

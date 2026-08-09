@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/reconciled-post-handler-failure-validation.schema.json",
+  "title": "Reconciled Version 1.12.21 post-handler failure validation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "validationType", "terminalFailureReceiptHash", "reservationClosureHash", "manifestHash", "state", "validatedAt", "originalArtifactsByteIdentical", "effectiveConsentStatus", "effectiveInvocationStatus", "effectiveReservationStatus", "handlerInvocationCount", "providerAttemptCount", "physicalProviderAttemptCount", "providerReportedUsageRecordCount", "conservativeAccountedCost", "actualBilledCostStatus", "publicResponseArtifactCommitted", "successfulManifestPresent", "replayPermitted", "privateControlsLoaded", "scoringPerformed", "reflectionPerformed", "repairPerformed", "validationHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "validationType": { "const": "RECONCILED_POST_HANDLER_TERMINAL_FAILURE_VALIDATION" }, "terminalFailureReceiptHash": { "$ref": "#/$defs/hash" }, "reservationClosureHash": { "$ref": "#/$defs/hash" }, "manifestHash": { "$ref": "#/$defs/hash" }, "state": { "const": "ABORTED_POST_HANDLER_SANITIZATION_RESPONSE_NOT_PERSISTED" }, "validatedAt": { "type": "string", "format": "date-time" }, "originalArtifactsByteIdentical": { "const": true }, "effectiveConsentStatus": { "const": "CONSUMED" }, "effectiveInvocationStatus": { "const": "TERMINAL_FAILED" }, "effectiveReservationStatus": { "const": "CLOSED_CONSERVATIVE_COST_ACCOUNTED" }, "handlerInvocationCount": { "const": 1 }, "providerAttemptCount": { "const": 9 }, "physicalProviderAttemptCount": { "const": 9 }, "providerReportedUsageRecordCount": { "const": 0 }, "conservativeAccountedCost": { "const": 1.50682355 }, "actualBilledCostStatus": { "const": "UNKNOWN" }, "publicResponseArtifactCommitted": { "const": false }, "successfulManifestPresent": { "const": false }, "replayPermitted": { "const": false }, "privateControlsLoaded": { "const": false }, "scoringPerformed": { "const": false }, "reflectionPerformed": { "const": false }, "repairPerformed": { "const": false }, "validationHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
