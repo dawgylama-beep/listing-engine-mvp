@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 import { validateTerminalFailureReceipt } from "./post-handler-reconciliation-protocol.mjs";
+import {
+  VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH,
+  VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH,
+  validateUnusedV11222ConsentRevocationReceipt
+} from "./consent-revocation.mjs";
 
-export const CONTINUATION_SCOPE_TYPE = "PHASE_7C_VERSION_1_12_22_CONTINUATION_SCOPE";
-export const CONTINUATION_SCOPE_SCHEMA_VERSION = "1.0";
+export const CONTINUATION_SCOPE_TYPE = "PHASE_7C_VERSION_1_12_23_CONTINUATION_SCOPE";
+export const CONTINUATION_SCOPE_SCHEMA_VERSION = "1.1";
 export const EXCLUDED_REQUEST_ID = "V2-RUN-001";
 export const CONTINUATION_REQUEST_IDS = Object.freeze(Array.from({ length: 25 }, (_, index) => `V2-RUN-${String(index + 2).padStart(3, "0")}`));
 export const PRIOR_PHYSICAL_ATTEMPTS = 9;
@@ -19,6 +24,8 @@ export const CUMULATIVE_CONSERVATIVE_MAXIMUM_COST = 39.17741232;
 const HASH = /^[a-f0-9]{64}$/;
 const FIELDS = Object.freeze([
   "schemaVersion", "scopeType", "completeFrozenAggregateHash", "freezeRequestAggregateHash",
+  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "currentExecutionReleaseRecordHash",
+  "releaseChainHash", "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash",
   "terminalFailureReceiptId", "terminalFailureReceiptHash", "excludedRequestId", "excludedDisposition",
   "excludedReplayPermitted", "orderedRequestIds", "orderedRequestHashInventory", "continuationRequestAggregateHash",
   "priorPhysicalAttemptCount", "priorConservativeCost", "maximumCumulativePhysicalAttempts",
@@ -45,9 +52,14 @@ export function deriveContinuationRequests(frozen, scope) {
   return Object.freeze(requests);
 }
 
-export function createContinuationScope({ frozen, terminalFailureReceipt }) {
+export function createContinuationScope({ frozen, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseChain }) {
   assert.equal(frozen?.requests?.length, 26, "continuation scope requires the immutable complete freeze");
   validateTerminalFailureReceipt(terminalFailureReceipt);
+  validateUnusedV11222ConsentRevocationReceipt(unusedConsentRevocationReceipt);
+  assert.equal(releaseChain?.version1121ExecutionReleaseRecordHash, VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH);
+  assert.equal(releaseChain?.version1122ExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH);
+  assert.match(releaseChain?.version1123ExecutionReleaseRecordHash || "", HASH);
+  assert.match(releaseChain?.releaseChainHash || "", HASH);
   const byId = new Map(frozen.requests.map((request) => [request.analysisId, request]));
   assert.deepEqual(frozen.requests.map((request) => request.analysisId), [EXCLUDED_REQUEST_ID, ...CONTINUATION_REQUEST_IDS]);
   const orderedRequestHashInventory = CONTINUATION_REQUEST_IDS.map((analysisId) => byId.get(analysisId).requestContractHash);
@@ -56,6 +68,12 @@ export function createContinuationScope({ frozen, terminalFailureReceipt }) {
     scopeType: CONTINUATION_SCOPE_TYPE,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     freezeRequestAggregateHash: frozen.manifest.requestAggregateHash,
+    historicalExecutionReleaseRecordHash: releaseChain.version1121ExecutionReleaseRecordHash,
+    predecessorExecutionReleaseRecordHash: releaseChain.version1122ExecutionReleaseRecordHash,
+    currentExecutionReleaseRecordHash: releaseChain.version1123ExecutionReleaseRecordHash,
+    releaseChainHash: releaseChain.releaseChainHash,
+    unusedConsentRevocationReceiptId: unusedConsentRevocationReceipt.receiptId,
+    unusedConsentRevocationReceiptHash: unusedConsentRevocationReceipt.receiptHash,
     terminalFailureReceiptId: terminalFailureReceipt.receiptId,
     terminalFailureReceiptHash: terminalFailureReceipt.receiptHash,
     excludedRequestId: EXCLUDED_REQUEST_ID,
@@ -84,7 +102,11 @@ export function validateContinuationScope(scope, frozen = null) {
   exactKeys(scope, FIELDS, "continuation scope");
   assert.equal(scope.schemaVersion, CONTINUATION_SCOPE_SCHEMA_VERSION);
   assert.equal(scope.scopeType, CONTINUATION_SCOPE_TYPE);
-  for (const field of ["completeFrozenAggregateHash", "freezeRequestAggregateHash", "terminalFailureReceiptHash", "continuationRequestAggregateHash", "continuationScopeHash"]) assert.match(scope[field] || "", HASH);
+  for (const field of ["completeFrozenAggregateHash", "freezeRequestAggregateHash", "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "currentExecutionReleaseRecordHash", "releaseChainHash", "unusedConsentRevocationReceiptHash", "terminalFailureReceiptHash", "continuationRequestAggregateHash", "continuationScopeHash"]) assert.match(scope[field] || "", HASH);
+  assert.equal(scope.historicalExecutionReleaseRecordHash, VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH);
+  assert.equal(scope.predecessorExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH);
+  assert.notEqual(scope.currentExecutionReleaseRecordHash, scope.predecessorExecutionReleaseRecordHash);
+  assert.match(scope.unusedConsentRevocationReceiptId || "", /^consent-revocation-[a-f0-9]{48}$/);
   assert.match(scope.terminalFailureReceiptId || "", /^terminal-failure-[a-f0-9]{48}$/);
   assert.equal(scope.excludedRequestId, EXCLUDED_REQUEST_ID);
   assert.equal(scope.excludedDisposition, "INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY");

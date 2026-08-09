@@ -33,6 +33,7 @@ const FAILED_RESERVATION_NAME = "invocation-0d5a024913e582fdd3a65cd44923d217ce2e
 const POST_HANDLER_ROOT_NAME = "result-root-f65ebb9d361c4977ac76755f8c7059375ae6d8d3fb4b0464";
 const POST_HANDLER_CONSENT_NAME = "consent-ebe3e1f4d0d1b781fcc3f408bc2989fd74739fe7bd79faae.json";
 const POST_HANDLER_RESERVATION_NAME = "invocation-3540a4bf98950418b6f5fbea2f6b82388e2b03a8d6c02909.json";
+const UNUSED_V11222_CONSENT_NAME = "consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f.json";
 const ORIGINAL_FAILURE_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
 const CANONICAL_HANDLER_SHA256 = "971194eb5be57c54176244516953237f3fb4dd6fcb4d00dfdc9c36358202c958";
 
@@ -166,26 +167,29 @@ test("M-O: product/freeze isolation, real-run absence, and hard network denial r
     assert.equal(frozen.requests.length, 26);
     assert.equal(frozen.requests.every((request) => request.executionAuthorized === false), true);
     const consentNames = (await readdir(path.join(benchmarkRoot, "consent"))).sort();
-    const successorConsentNames = consentNames.filter((name) => ![FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].includes(name));
+    const successorConsentNames = consentNames.filter((name) => ![FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, UNUSED_V11222_CONSENT_NAME].includes(name));
     assert.deepEqual(consentNames.filter((name) => [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].includes(name)), [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].sort());
-    assert.ok(successorConsentNames.length <= 1, "at most one Version 1.12.22 continuation consent may exist");
+    const unusedConsent = JSON.parse(await readFile(path.join(benchmarkRoot, "consent", UNUSED_V11222_CONSENT_NAME), "utf8"));
+    assert.equal(unusedConsent.executorVersion, "1.12.22");
+    assert.equal(unusedConsent.status, "AUTHORIZED_NOT_CONSUMED");
+    assert.ok(successorConsentNames.length <= 1, "at most one Version 1.12.23 continuation consent may exist");
     if (successorConsentNames.length === 1) {
       assert.match(successorConsentNames[0], /^consent-[a-f0-9]{48}\.json$/);
       const successorConsent = JSON.parse(await readFile(path.join(benchmarkRoot, "consent", successorConsentNames[0]), "utf8"));
-      assert.equal(successorConsent.executorVersion, "1.12.22");
+      assert.equal(successorConsent.executorVersion, "1.12.23");
       assert.equal(successorConsent.authorizedRequestCount, 25);
     }
 
     const resultRootNames = (await readdir(defaultResultHistoryRoot)).sort();
-    const successorResultRootNames = resultRootNames.filter((name) => ![".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].includes(name));
+    const successorResultRootNames = resultRootNames.filter((name) => ![".reservations", ".consent-revocations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].includes(name));
     assert.deepEqual(resultRootNames.filter((name) => [".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].includes(name)), [".reservations", FAILED_ROOT_NAME, POST_HANDLER_ROOT_NAME].sort());
-    assert.ok(successorResultRootNames.length <= 1, "at most one Version 1.12.22 continuation result root may exist");
+    assert.ok(successorResultRootNames.length <= 1, "at most one Version 1.12.23 continuation result root may exist");
     if (successorResultRootNames.length === 1) assert.match(successorResultRootNames[0], /^result-root-[a-f0-9]{48}$/);
 
     const reservationNames = (await readdir(path.join(defaultResultHistoryRoot, ".reservations"))).sort();
     const successorReservationNames = reservationNames.filter((name) => ![FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].includes(name));
     assert.deepEqual(reservationNames.filter((name) => [FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].includes(name)), [FAILED_RESERVATION_NAME, POST_HANDLER_RESERVATION_NAME].sort());
-    assert.ok(successorReservationNames.length <= 1, "at most one Version 1.12.22 continuation reservation may exist");
+    assert.ok(successorReservationNames.length <= 1, "at most one Version 1.12.23 continuation reservation may exist");
     if (successorReservationNames.length === 1) assert.match(successorReservationNames[0], /^invocation-[a-f0-9]{48}\.json$/);
     const failedRoot = path.join(defaultResultHistoryRoot, FAILED_ROOT_NAME);
     assert.equal((await computeResultTreeAggregate(failedRoot, ORIGINAL_FAILURE_PATHS)).aggregate, "788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf");

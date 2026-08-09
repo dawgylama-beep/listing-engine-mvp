@@ -62,9 +62,9 @@ import {
   createTerminalFailureManifest,
   createTerminalFailureValidationReport,
   validateTerminalFailureManifest,
-  validateTerminalFailureValidationReport,
-  validateZeroExternalSupersessionReceipt
+  validateTerminalFailureValidationReport
 } from "./pre-external-recovery-protocol.mjs";
+import { validateContinuationReleaseChain } from "./consent-revocation.mjs";
 import {
   POST_HANDLER_FAILURE_MANIFEST_TYPE,
   POST_HANDLER_SANITIZATION_STATE,
@@ -589,6 +589,8 @@ export async function executeBenchmarkV2({
   allowedEnvironment = null,
   zeroExternalSupersessionReceipt = null,
   terminalFailureReceipt = null,
+  unusedConsentRevocationReceipt = null,
+  releaseIdentity = null,
   syntheticHandler = null,
   photoTransformer = null,
   faultPlan = null,
@@ -618,21 +620,22 @@ export async function executeBenchmarkV2({
     assert.equal(launchScope.continuationScopeHash, continuationScope.continuationScopeHash);
     assert.equal(launchScope.authorizedRequestCount, 25);
     assert.equal(continuationScope.terminalFailureReceiptHash, terminalFailureReceipt?.receiptHash, "continuation terminal failure receipt differs");
+    assert.equal(continuationScope.unusedConsentRevocationReceiptHash, unusedConsentRevocationReceipt?.receiptHash, "continuation unused consent revocation receipt differs");
   } else {
     assert.equal(launchScope.authorizedRequestCount, 26, "full execution is limited to synthetic qualification");
     assert.equal(mode, EXECUTION_MODE.SYNTHETIC_TEST_ONLY, "real execution requires the fixed continuation scope");
   }
-  if (zeroExternalSupersessionReceipt) validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
-    receiptId: launchScope.zeroExternalSupersessionReceiptId,
-    receiptHash: launchScope.zeroExternalSupersessionReceiptHash,
-    successorExecutionReleaseRecordHash: launchScope.executionReleaseRecordHash,
-    successorExecutorRuntimeHead: launchScope.executorRuntimeHead,
-    successorQualificationHead: launchScope.qualificationHead,
-    successorExecutorVersion: launchScope.executorVersion
-  });
+  if (zeroExternalSupersessionReceipt || terminalFailureReceipt || unusedConsentRevocationReceipt) {
+    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+    assert.equal(launchScope.releaseChainHash, releaseChain.releaseChainHash);
+    assert.equal(launchScope.historicalExecutionReleaseRecordHash, releaseChain.version1121ExecutionReleaseRecordHash);
+    assert.equal(launchScope.predecessorExecutionReleaseRecordHash, releaseChain.version1122ExecutionReleaseRecordHash);
+  }
   if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) {
     assert.ok(zeroExternalSupersessionReceipt, "real execution requires the historical zero-external supersession receipt");
     assert.ok(terminalFailureReceipt, "real execution requires the fixed Version 1.12.21 terminal-failure receipt");
+    assert.ok(unusedConsentRevocationReceipt, "real execution requires the unused Version 1.12.22 consent revocation receipt");
+    assert.ok(releaseIdentity, "real execution requires the qualified Version 1.12.23 release identity");
   }
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
@@ -687,7 +690,7 @@ export async function executeBenchmarkV2({
     createdIdentity: `executor-${executionProfile.executorRuntimeHead.slice(0, 16)}`
   };
   let reservation = createInvocationReservation(reservationInput, clock());
-  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt, terminalFailureReceipt });
+  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseIdentity });
   assert.equal(createdReservation.status, "CREATED", "execution requires a newly exclusive reservation; readback cannot start execution");
   const reservationFile = createdReservation.filePath;
   await createExclusiveResultRoot(resultHistoryRoot, consent.resultRootName);

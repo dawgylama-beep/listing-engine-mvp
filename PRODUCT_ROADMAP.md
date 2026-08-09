@@ -691,6 +691,15 @@
 - Retained the direct-child exact one-file qualification seal, fixed CLI grammar, repository-derived identities, exactly-once reservation and journal guards, cost-ledger stop-before-next-request behavior, deterministic result readback, and hard private-control isolation
 - Provider-call impact: deterministic release qualification is network-denied; the separately approved one-run station may execute only the 26 immutable public requests under the sealed attempt and cost ceilings
 
+## Version 1.12.23 (Completed)
+- Replaced terminal public-identifier root/collection cross-product authority with one closed registry of 213 complete normalized product-contract paths and schema-constrained, traversal-derived provenance
+- Preserved credential-first rejection and required deterministic repository-owned `underlyingOfferKey` recomputation or a hash-bound reference to a recomputed public source at every authorized path
+- Repaired the continuation chain so Version 1.12.21 reconciliation, Version 1.12.22 failure and unused-consent evidence, and Version 1.12.23 artifacts validate against their own immutable release authorities
+- Added an append-only, exactly-once revocation receipt for the unused Version 1.12.22 consent without consuming it or creating its proposed invocation, reservation, result, or result root
+- Added actual production-CLI offline qualification with hard network denial, durable reservations and `HANDLER_RETURNED` receipts, valid public-identifier sanitization, intentional post-handler sanitizer failure sealing, rollback evidence, and release-chain negative cases
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; private controls, scoring, reflection, lesson work, product mutation, merge, Preview, and Production remain unauthorized
+- Provider-call impact: release qualification is deterministic and hard-network-denied; only the separately authorized one 25-request continuation may perform live provider activity after seal readback
+
 ## Version 2.0
 - User accounts
 - Saved listings

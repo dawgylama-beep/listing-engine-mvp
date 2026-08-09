@@ -42,6 +42,15 @@ import {
 } from "../benchmarks/blind-object-v2/scripts/executor.mjs";
 import { sha256Json } from "../benchmarks/blind-object-v2/scripts/protocol.mjs";
 import { createSyntheticAuthority, deterministicClock } from "../benchmarks/blind-object-v2/scripts/synthetic-authority.mjs";
+import { loadHistoricalV11221ZeroExternalSupersessionReceipt } from "../benchmarks/blind-object-v2/scripts/pre-external-reconciliation.mjs";
+import { loadFixedV11221TerminalFailureReceipt } from "../benchmarks/blind-object-v2/scripts/post-handler-reconciliation.mjs";
+import {
+  UNUSED_VERSION_1_12_22_CONSENT_PATH,
+  UNUSED_VERSION_1_12_22_CONSENT_AUTHORITY_HASH,
+  createUnusedV11222ConsentRevocationReceipt,
+  validateContinuationReleaseChain
+} from "../benchmarks/blind-object-v2/scripts/consent-revocation.mjs";
+import { underlyingOfferKey } from "../lib/evidence/dedupe.js";
 
 const frozen = await loadPublicFreeze(defaultFreezeRoot);
 
@@ -58,50 +67,48 @@ function launchInput(scope) {
   return input;
 }
 
-function terminalFailureReceipt(authority) {
-  return createTerminalFailureReceipt({
-    failureAuthorityHash: "1".repeat(64),
-    sourceExecutionReleaseRecordHash: "2".repeat(64),
-    sourceExecutorVersion: "1.12.21",
-    sourceResultRootName: `result-root-${"3".repeat(48)}`,
-    sourcePartialArtifactAggregate: "4".repeat(64),
-    sourceJournalHash: "5".repeat(64),
-    sourceLedgerHash: "6".repeat(64),
-    sourceConsentId: `consent-${"7".repeat(48)}`,
-    sourceConsentHash: "8".repeat(64),
-    sourceInvocationId: `invocation-${"9".repeat(48)}`,
-    sourceReservationId: `reservation-${"a".repeat(48)}`,
-    sourceReservationHash: "b".repeat(64),
-    sourceResultId: `result-${"c".repeat(48)}`,
-    sourceRequestId: "V2-RUN-001",
-    sourceSubmissionIdentity: `submission-${"d".repeat(32)}`,
-    handlerOutcome: "NORMAL_SUCCESS",
-    handlerInvocationCount: 1,
-    providerAttemptCount: 9,
-    physicalProviderAttemptCount: 9,
-    providerReportedUsageRecordCount: 0,
-    actualBilledCostStatus: "UNKNOWN",
-    conservativeAccountedCost: PRIOR_CONSERVATIVE_COST,
-    handlerResultBytesStatus: "NOT_DURABLY_CAPTURED",
-    publicResponseArtifactStatus: "ABSENT",
-    successfulManifestStatus: "ABSENT",
-    terminalState: POST_HANDLER_SANITIZATION_STATE,
-    replayPermitted: false,
-    effectiveConsentStatus: "CONSUMED",
-    effectiveInvocationStatus: "TERMINAL_FAILED",
-    effectiveReservationStatus: "CLOSED_CONSERVATIVE_COST_ACCOUNTED",
-    successorExecutionReleaseRecordHash: authority.profile.executionReleaseRecordHash,
-    successorExecutorRuntimeHead: authority.profile.executorRuntimeHead,
-    successorQualificationHead: authority.profile.qualificationHead,
-    successorExecutorVersion: "1.12.22",
-    createdAt: "2026-08-09T21:00:00.000Z"
+function releaseIdentity(authority) {
+  return Object.freeze({
+    executorRuntimeHead: authority.profile.executorRuntimeHead,
+    qualificationHead: authority.profile.qualificationHead,
+    executorRuntimeTreeHash: authority.profile.executorRuntimeTreeHash,
+    executionReleaseRecordHash: authority.profile.executionReleaseRecordHash,
+    qualificationPolicyVersion: authority.profile.qualificationPolicyVersion,
+    executorVersion: authority.profile.executorVersion,
+    release: Object.freeze({
+      predecessorExecutionReleaseRecordHash: "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294",
+      historicalExecutionReleaseRecordHash: "ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013",
+      unusedConsentAuthorityHash: UNUSED_VERSION_1_12_22_CONSENT_AUTHORITY_HASH,
+      historicalZeroExternalSupersessionReceiptHash: "684d208b4be3a002a5eabcb7f997cf4eb0af18c37f0d7bd33617248cdb3da81d",
+      historicalTerminalFailureReceiptHash: "f5534106a7857f919d174adc5b9d39697d8380842f9a0564e88177d0a76257fc",
+      postHandlerFailureAuthorityHash: "915089ed141f32dd38530df9ee1bd89288aa7bb4a2e5b2abe8cf4f96a24202b7"
+    })
   });
 }
 
-function continuationAuthority(authority, receipt) {
-  const continuationScope = createContinuationScope({ frozen, terminalFailureReceipt: receipt });
+async function continuationAuthority(authority) {
+  const currentReleaseIdentity = releaseIdentity(authority);
+  const [zeroExternalSupersessionReceipt, terminalFailureReceipt, consentBytes] = await Promise.all([
+    loadHistoricalV11221ZeroExternalSupersessionReceipt(),
+    loadFixedV11221TerminalFailureReceipt(currentReleaseIdentity),
+    readFile(UNUSED_VERSION_1_12_22_CONSENT_PATH)
+  ]);
+  const unusedConsentRevocationReceipt = createUnusedV11222ConsentRevocationReceipt({
+    consentBytes,
+    releaseIdentity: currentReleaseIdentity,
+    revokedAt: "2026-08-09T21:00:00.000Z"
+  });
+  const releaseChain = validateContinuationReleaseChain({ releaseIdentity: currentReleaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+  const continuationScope = createContinuationScope({ frozen, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseChain });
   const launchScope = createLaunchScope({
     ...launchInput(authority.launchScope),
+    zeroExternalSupersessionReceiptId: zeroExternalSupersessionReceipt.receiptId,
+    zeroExternalSupersessionReceiptHash: zeroExternalSupersessionReceipt.receiptHash,
+    historicalExecutionReleaseRecordHash: releaseChain.version1121ExecutionReleaseRecordHash,
+    predecessorExecutionReleaseRecordHash: releaseChain.version1122ExecutionReleaseRecordHash,
+    releaseChainHash: releaseChain.releaseChainHash,
+    unusedConsentRevocationReceiptId: unusedConsentRevocationReceipt.receiptId,
+    unusedConsentRevocationReceiptHash: unusedConsentRevocationReceipt.receiptHash,
     continuationScopeHash: continuationScope.continuationScopeHash,
     continuationRequestAggregateHash: continuationScope.continuationRequestAggregateHash,
     continuationOrderedRequestHashInventory: continuationScope.orderedRequestHashInventory,
@@ -117,25 +124,39 @@ function continuationAuthority(authority, receipt) {
     authorizedRequestCount: 25
   });
   const consent = createExecutionConsent({ launchScope, costEnvelope: authority.costEnvelope }, "2026-08-09T21:00:01.000Z");
-  return { continuationScope, launchScope, consent };
+  return { continuationScope, launchScope, consent, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseIdentity: currentReleaseIdentity };
 }
 
-async function seedLegacyReservation(root, receipt) {
+async function seedLegacyReservations(root, terminalReceipt, zeroReceipt) {
   await mkdir(root, { recursive: true });
   const legacy = {
     schemaVersion: "1.1",
     executorVersion: "1.12.21",
-    invocationId: receipt.sourceInvocationId,
-    reservationId: receipt.sourceReservationId,
-    reservationHash: receipt.sourceReservationHash,
-    resultId: receipt.sourceResultId,
-    resultRootName: receipt.sourceResultRootName,
-    consentHash: receipt.sourceConsentHash,
+    invocationId: terminalReceipt.sourceInvocationId,
+    reservationId: terminalReceipt.sourceReservationId,
+    reservationHash: terminalReceipt.sourceReservationHash,
+    resultId: terminalReceipt.sourceResultId,
+    resultRootName: terminalReceipt.sourceResultRootName,
+    consentHash: terminalReceipt.sourceConsentHash,
     launchScopeHash: "e".repeat(64),
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     state: "STARTED"
   };
-  await writeFile(path.join(root, `${receipt.sourceInvocationId}.json`), `${JSON.stringify(legacy)}\n`, { flag: "wx" });
+  const preExternalLegacy = {
+    schemaVersion: "1.0",
+    executorVersion: "1.12.20",
+    invocationId: zeroReceipt.supersededInvocationId,
+    reservationId: zeroReceipt.supersededReservationId,
+    reservationHash: zeroReceipt.sourceReservationHash,
+    resultId: zeroReceipt.supersededResultId,
+    resultRootName: zeroReceipt.sourceResultRootName,
+    consentHash: zeroReceipt.sourceConsentHash,
+    launchScopeHash: "d".repeat(64),
+    completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
+    state: "STARTED"
+  };
+  await writeFile(path.join(root, `${terminalReceipt.sourceInvocationId}.json`), `${JSON.stringify(legacy)}\n`, { flag: "wx" });
+  await writeFile(path.join(root, `${zeroReceipt.supersededInvocationId}.json`), `${JSON.stringify(preExternalLegacy)}\n`, { flag: "wx" });
 }
 
 test("a full mock execution durably records all 26 handler returns before sealing 26 responses", async () => withTemp("ke-v122-full-mock-", async (root) => {
@@ -256,8 +277,8 @@ test("continuation is exactly V2-RUN-002..026 and carries prior accounting throu
   const network = installHardNetworkDenial();
   try {
     const authority = await createSyntheticAuthority(frozen, "v122-continuation-exact-25");
-    const receipt = terminalFailureReceipt(authority);
-    const continuation = continuationAuthority(authority, receipt);
+    const continuation = await continuationAuthority(authority);
+    const receipt = continuation.terminalFailureReceipt;
     assert.deepEqual(continuation.continuationScope.orderedRequestIds, CONTINUATION_REQUEST_IDS);
     assert.deepEqual(deriveContinuationRequests(frozen, continuation.continuationScope).map((request) => request.analysisId), CONTINUATION_REQUEST_IDS);
     assert.equal(continuation.continuationScope.orderedRequestIds.includes("V2-RUN-001"), false);
@@ -280,8 +301,19 @@ test("continuation is exactly V2-RUN-002..026 and carries prior accounting throu
     }
 
     const reservationRoot = path.join(root, "reservations");
-    await seedLegacyReservation(reservationRoot, receipt);
+    await seedLegacyReservations(reservationRoot, receipt, continuation.zeroExternalSupersessionReceipt);
     const mock = createSyntheticMockHandler();
+    const publicSource = { canonicalUrl: "https://example.com/public/listing/offline-qualified", marketplaceItemId: "offline-qualified", seller: "Public Seller" };
+    publicSource.evidenceId = underlyingOfferKey(publicSource);
+    const qualifiedHandler = async (...args) => {
+      const response = await mock.handler(...args);
+      if (args[0].request.analysisId === "V2-RUN-002") {
+        const report = response.body.valuation || response.body.listing;
+        report.customerEvidence = [structuredClone(publicSource)];
+        report.searchDiagnostics = { objectIntelligence: { experienceRecord: { sourcesAccepted: [{ evidenceId: publicSource.evidenceId, url: publicSource.canonicalUrl }] } } };
+      }
+      return response;
+    };
     const result = await executeBenchmarkV2({
       mode: EXECUTION_MODE.SYNTHETIC_TEST_ONLY,
       freezeRoot: defaultFreezeRoot,
@@ -295,7 +327,10 @@ test("continuation is exactly V2-RUN-002..026 and carries prior accounting throu
       continuationScope: continuation.continuationScope,
       consent: continuation.consent,
       terminalFailureReceipt: receipt,
-      syntheticHandler: mock.handler,
+      zeroExternalSupersessionReceipt: continuation.zeroExternalSupersessionReceipt,
+      unusedConsentRevocationReceipt: continuation.unusedConsentRevocationReceipt,
+      releaseIdentity: continuation.releaseIdentity,
+      syntheticHandler: qualifiedHandler,
       allowedEnvironment: authority.allowedEnvironment,
       clock: deterministicClock()
     });
@@ -303,6 +338,7 @@ test("continuation is exactly V2-RUN-002..026 and carries prior accounting throu
     assert.equal(mock.invocations.some((item) => item.analysisId === "V2-RUN-001"), false);
     assert.equal(result.terminalRecords.length, 25);
     assert.equal(result.handlerReturnedReceipts.length, 25);
+    assert.equal(result.terminalRecords[0].typedPublicIdentifierProvenance.some((entry) => entry.path === "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidence[0].evidenceId" || entry.path === "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidence[0].evidenceId"), true);
     assert.equal(result.handlerReturnedReceipts.at(-1).cumulativeConservativeCost, 39.17741232);
     assert.equal(result.ledger.actualCalculatedCost, 37.67058877);
     assert.equal(result.ledger.maximumAuthorizedCost, 38.49317645);

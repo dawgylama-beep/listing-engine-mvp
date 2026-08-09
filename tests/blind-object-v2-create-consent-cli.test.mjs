@@ -33,6 +33,8 @@ const POST_HANDLER_ROOT_NAME = "result-root-f65ebb9d361c4977ac76755f8c7059375ae6
 const POST_HANDLER_CONSENT_NAME = "consent-ebe3e1f4d0d1b781fcc3f408bc2989fd74739fe7bd79faae.json";
 const POST_HANDLER_RESERVATION_NAME = "invocation-3540a4bf98950418b6f5fbea2f6b82388e2b03a8d6c02909.json";
 const POST_HANDLER_ORIGINAL_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
+const POST_HANDLER_APPEND_PATHS = Object.freeze(["post-handler-reconciliation-receipt.json", "reservation-closure-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"]);
+const UNUSED_V11222_CONSENT_NAME = "consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f.json";
 const TEMP_PREFIX = "katherines-eye-create-consent-cli-";
 const PRODUCT_RUNTIME_PREFIX = `katherines-eye-v2-product-${PRODUCT_HEAD}-`;
 const PUBLIC_FREEZE_FILES = Object.freeze([
@@ -174,7 +176,7 @@ async function createIsolatedRepository(cloneRoot) {
   await writeFile(pendingPath, `${JSON.stringify(pendingRecord, null, 2)}\n`);
   for (const [args, label] of [
     [["add", "-A"], "runtime stage"],
-    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.22 runtime"], "runtime commit"]
+    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.23 runtime"], "runtime commit"]
   ]) {
     const result = await run("git", args, { cwd: cloneRoot });
     assert.equal(result.code, 0, `${label} failed: ${result.stderr}`);
@@ -192,7 +194,7 @@ async function createIsolatedRepository(cloneRoot) {
   await writeFile(pendingPath, `${JSON.stringify(qualifiedRecord, null, 2)}\n`);
   for (const [args, label] of [
     [["add", "--", "benchmarks/blind-object-v2/execution-release.json"], "seal stage"],
-    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.22 qualification seal"], "seal commit"]
+    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.23 qualification seal"], "seal commit"]
   ]) {
     const result = await run("git", args, { cwd: cloneRoot });
     assert.equal(result.code, 0, `${label} failed: ${result.stderr}`);
@@ -212,7 +214,7 @@ async function createIsolatedRepository(cloneRoot) {
   await cp(path.join(sourceHistoryRoot, ".reservations", ZERO_EXTERNAL_RESERVATION_NAME), path.join(isolatedHistoryRoot, ".reservations", ZERO_EXTERNAL_RESERVATION_NAME), { errorOnExist: true, force: false });
   const isolatedPostHandlerRoot = path.join(isolatedHistoryRoot, POST_HANDLER_ROOT_NAME);
   await mkdir(path.join(isolatedPostHandlerRoot, "responses"), { recursive: true });
-  for (const relativePath of POST_HANDLER_ORIGINAL_PATHS) {
+  for (const relativePath of [...POST_HANDLER_ORIGINAL_PATHS, ...POST_HANDLER_APPEND_PATHS]) {
     await cp(path.join(sourceHistoryRoot, POST_HANDLER_ROOT_NAME, relativePath), path.join(isolatedPostHandlerRoot, relativePath), { errorOnExist: true, force: false });
   }
   await cp(path.join(sourceHistoryRoot, ".reservations", POST_HANDLER_RESERVATION_NAME), path.join(isolatedHistoryRoot, ".reservations", POST_HANDLER_RESERVATION_NAME), { errorOnExist: true, force: false });
@@ -220,6 +222,7 @@ async function createIsolatedRepository(cloneRoot) {
   await mkdir(isolatedConsentRoot, { recursive: true });
   await cp(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent", ZERO_EXTERNAL_CONSENT_NAME), path.join(isolatedConsentRoot, ZERO_EXTERNAL_CONSENT_NAME), { errorOnExist: true, force: false });
   await cp(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent", POST_HANDLER_CONSENT_NAME), path.join(isolatedConsentRoot, POST_HANDLER_CONSENT_NAME), { errorOnExist: true, force: false });
+  await cp(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent", UNUSED_V11222_CONSENT_NAME), path.join(isolatedConsentRoot, UNUSED_V11222_CONSENT_NAME), { errorOnExist: true, force: false });
 
   const sourceDependencies = path.join(repositoryRoot, "node_modules");
   assert.equal(await exists(path.join(sourceDependencies, "@playwright", "test")), true, "qualified workspace dependency is absent");
@@ -266,16 +269,26 @@ test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark
     assert.match(rejectedOverride.stderr, /accepts no consent hash or other argument/);
     assert.equal(await exists(callerSelectedRoot), false, "caller-selected benchmark root was created");
 
-    const reconciled = jsonOutput(await run(process.execPath, [cliPath, "RECONCILE_V11221", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated Version 1.12.21 reconciliation");
-    assert.equal(reconciled.disposition, "VERSION_1_12_21_POST_HANDLER_FAILURE_RECONCILED_SEALED");
-    assert.equal(reconciled.handlerInvocationCount, 1);
-    assert.equal(reconciled.providerAttemptCount, 9);
-    assert.equal(reconciled.physicalProviderAttemptCount, 9);
-    assert.equal(reconciled.conservativeAccountedCost, 1.50682355);
-    assert.equal(reconciled.actualBilledCostStatus, "UNKNOWN");
+    const revoked = jsonOutput(await run(process.execPath, [cliPath, "REVOKE_V11222_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated Version 1.12.22 consent revocation");
+    assert.equal(revoked.disposition, "SUPERSEDED_UNUSED_WITHOUT_CONSUMPTION");
+    assert.equal(revoked.sourceConsentId, UNUSED_V11222_CONSENT_NAME.replace(/\.json$/, ""));
+
+    const qualifiedOffline = jsonOutput(await run(process.execPath, [cliPath, "QUALIFY_OFFLINE", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated offline production CLI qualification");
+    assert.equal(qualifiedOffline.disposition, "VERSION_1_12_23_OFFLINE_PRODUCTION_CLI_EXECUTOR_QUALIFIED");
+    assert.equal(qualifiedOffline.successfulRequestCount, 25);
+    assert.equal(qualifiedOffline.successfulHandlerReturnedCount, 25);
+    assert.equal(qualifiedOffline.intentionalFailureHandlerReturnedCount, 1);
+    assert.equal(qualifiedOffline.intentionalFailureResponseCount, 0);
+    assert.equal(qualifiedOffline.transactionRollbackState, "CLOSED_CONSERVATIVE_COST_ACCOUNTED");
+    assert.equal(qualifiedOffline.negativeReleaseChainCases.length, 10);
+    assert.equal(qualifiedOffline.reusedVersion1122ConsentRejected, true);
+    assert.equal(qualifiedOffline.handlerInvocationCount, 26);
+    assert.equal(qualifiedOffline.providerAttemptCount, 0);
+    assert.equal(qualifiedOffline.physicalProviderAttemptCount, 0);
+    assert.equal(qualifiedOffline.networkAttemptCount, 0);
 
     const preflight = jsonOutput(await run(process.execPath, [cliPath, "PREFLIGHT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated PREFLIGHT");
-    assert.equal(preflight.executorVersion, "1.12.22");
+    assert.equal(preflight.executorVersion, "1.12.23");
     assert.equal(preflight.handlerInvocationCount, 0);
     assert.equal(preflight.providerAttemptCount, 0);
     assert.equal(preflight.continuationRequestCount, 25);
@@ -291,7 +304,7 @@ test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark
 
     const canonicalConsentRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2", "consent");
     const consentEntries = await readdir(canonicalConsentRoot, { withFileTypes: true });
-    assert.deepEqual(consentEntries.map((entry) => entry.name).sort(), [ZERO_EXTERNAL_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, `${created.consentId}.json`].sort());
+    assert.deepEqual(consentEntries.map((entry) => entry.name).sort(), [ZERO_EXTERNAL_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, UNUSED_V11222_CONSENT_NAME, `${created.consentId}.json`].sort());
     assert.equal(consentEntries.every((entry) => entry.isFile()), true);
     const consentPath = path.join(canonicalConsentRoot, `${created.consentId}.json`);
     const consentBytes = await readFile(consentPath);
@@ -309,7 +322,7 @@ test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark
     assert.notEqual(duplicate.code, 0, "duplicate CREATE_CONSENT unexpectedly succeeded");
     assert.match(duplicate.stderr, /EEXIST|already exists|exclusive/i);
     assert.deepEqual(await readFile(consentPath), consentBytes, "duplicate invocation changed the consent artifact");
-    assert.equal((await readdir(canonicalConsentRoot)).length, 3);
+    assert.equal((await readdir(canonicalConsentRoot)).length, 4);
 
     assert.equal(await exists(guardLog), false, "provider, handler, evaluator-only, or private-control guard recorded an attempt");
     assert.equal(await exists(callerSelectedRoot), false);

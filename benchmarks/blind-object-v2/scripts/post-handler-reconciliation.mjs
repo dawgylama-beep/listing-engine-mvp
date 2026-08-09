@@ -166,6 +166,14 @@ function validateSuccessorRelease(authority, releaseIdentity) {
   assert.equal(releaseIdentity.release.authorityDeclarations.postHandlerReconciliationEnabled, true);
 }
 
+function validateReadbackRelease(authority, releaseIdentity) {
+  if (!releaseIdentity) return;
+  assert.equal(releaseIdentity.release?.postHandlerFailureAuthorityHash, authority.recordHash);
+  if (releaseIdentity.executorVersion === "1.12.22") return validateSuccessorRelease(authority, releaseIdentity);
+  assert.equal(releaseIdentity.executorVersion, "1.12.23");
+  assert.equal(releaseIdentity.release.predecessorExecutionReleaseRecordHash, "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294");
+}
+
 export async function reconcileFixedV11221Failure({ releaseIdentity, nowIso = new Date().toISOString(), testOnlyResultHistoryRoot = null }) {
   const authority = await loadFixedPostHandlerAuthority();
   validateSuccessorRelease(authority, releaseIdentity);
@@ -296,11 +304,22 @@ export async function reconcileFixedV11221Failure({ releaseIdentity, nowIso = ne
 
 export async function verifyFixedV11221Reconciliation({ releaseIdentity, testOnlyResultHistoryRoot = null }) {
   const authority = await loadFixedPostHandlerAuthority();
-  validateSuccessorRelease(authority, releaseIdentity);
+  validateReadbackRelease(authority, releaseIdentity);
   const resultHistoryRoot = resolveResultHistoryRootForReconciliation(testOnlyResultHistoryRoot);
   const evidence = await inspectOriginalEvidence(authority, resultHistoryRoot);
   const [receipt, closure, manifest, validation] = await Promise.all(FIXED_POST_HANDLER_APPEND_PATHS.map((relativePath) => readJsonStrictFile(path.join(evidence.resultRoot, relativePath))));
-  validateTerminalFailureReceipt(receipt, { failureAuthorityHash: authority.recordHash, successorExecutionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash, successorExecutorRuntimeHead: releaseIdentity.executorRuntimeHead, successorQualificationHead: releaseIdentity.qualificationHead });
+  const fixedSuccessor = releaseIdentity?.executorVersion === "1.12.22" ? releaseIdentity : {
+    executionReleaseRecordHash: "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294",
+    executorRuntimeHead: "5ac7b85ee8f3888ccda1d4725c0eebfa5d8b1f62",
+    qualificationHead: "acf1b356bb851f41aac4f2ee40ee3e55ec9de2d1"
+  };
+  validateTerminalFailureReceipt(receipt, {
+    failureAuthorityHash: authority.recordHash,
+    successorExecutionReleaseRecordHash: fixedSuccessor.executionReleaseRecordHash,
+    successorExecutorRuntimeHead: fixedSuccessor.executorRuntimeHead,
+    successorQualificationHead: fixedSuccessor.qualificationHead,
+    successorExecutorVersion: "1.12.22"
+  });
   validateReservationClosureReceipt(closure, { terminalFailureReceiptId: receipt.receiptId, terminalFailureReceiptHash: receipt.receiptHash });
   const failureTree = await computeResultTreeAggregate(evidence.resultRoot, [...evidence.originalPaths, ...FIXED_POST_HANDLER_APPEND_PATHS.slice(0, 2)]);
   validateReconciledFailureManifest(manifest);

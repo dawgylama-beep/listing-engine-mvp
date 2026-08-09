@@ -4,47 +4,1398 @@
   "title": "Blind Object Benchmark V2 sealed terminal result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "typedPublicIdentifierProvenance", "canonicalResponseHash", "recordHash"],
+  "required": [
+    "schemaVersion",
+    "resultRecordType",
+    "requestId",
+    "requestHash",
+    "launchScopeHash",
+    "resultId",
+    "resultRootName",
+    "invocationId",
+    "consentHash",
+    "reservationHash",
+    "productSourceHead",
+    "productSourceVersion",
+    "executorRuntimeHead",
+    "qualificationHead",
+    "executorRuntimeTreeHash",
+    "executionReleaseRecordHash",
+    "qualificationPolicyVersion",
+    "executorVersion",
+    "executionProfileHash",
+    "executionProfileIdentityHash",
+    "pricingProfileHash",
+    "pricingProfileIdentityHash",
+    "costEnvelopeHash",
+    "physicalSubmissionIdentity",
+    "submissionState",
+    "terminalState",
+    "startedAt",
+    "completedAt",
+    "elapsedDurationMs",
+    "handlerStatus",
+    "sanitizedTerminalResponseEnvelope",
+    "responseDiagnostics",
+    "providerAttemptTelemetry",
+    "providerIdentities",
+    "modelIdentity",
+    "callCeilingTelemetry",
+    "costEntry",
+    "governorProof",
+    "cognitiveStateIdentity",
+    "experienceRecord",
+    "experienceRecordHash",
+    "terminalEvidence",
+    "errorStage",
+    "errorCategory",
+    "typedPublicIdentifierProvenance",
+    "canonicalResponseHash",
+    "recordHash"
+  ],
   "properties": {
-    "schemaVersion": { "const": "1.1" },
-    "resultRecordType": { "const": "BENCHMARK_TERMINAL_RESULT" },
-    "requestId": { "type": "string" },
-    "requestHash": { "$ref": "#/$defs/hash" },
-    "launchScopeHash": { "$ref": "#/$defs/hash" },
-    "resultId": { "type": "string", "pattern": "^result-[a-f0-9]{48}$" },
-    "resultRootName": { "type": "string", "pattern": "^result-root-[a-f0-9]{48}$" },
-    "invocationId": { "type": "string" },
-    "consentHash": { "$ref": "#/$defs/hash" },
-    "reservationHash": { "$ref": "#/$defs/hash" },
-    "productSourceHead": { "type": "string" },
-    "productSourceVersion": { "const": "1.12.13" },
-    "executorRuntimeHead": { "$ref": "#/$defs/commit" },
-    "qualificationHead": { "$ref": "#/$defs/commit" },
-    "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
-    "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
-    "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.22" },
-    "executionProfileHash": { "$ref": "#/$defs/hash" },
-    "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
-    "pricingProfileHash": { "$ref": "#/$defs/hash" },
-    "pricingProfileIdentityHash": { "$ref": "#/$defs/hash" },
-    "costEnvelopeHash": { "$ref": "#/$defs/hash" },
-    "physicalSubmissionIdentity": { "type": "string" },
-    "submissionState": { "enum": ["TERMINAL", "UNKNOWN_AFTER_SUBMISSION"] },
-    "terminalState": { "type": "string" },
-    "startedAt": { "type": "string", "format": "date-time" },
-    "completedAt": { "type": "string", "format": "date-time" },
-    "elapsedDurationMs": { "type": "number", "minimum": 0 },
-    "handlerStatus": { "type": ["integer", "null"] },
-    "sanitizedTerminalResponseEnvelope": { "type": "object" },
-    "responseDiagnostics": {}, "providerAttemptTelemetry": { "type": "array" }, "providerIdentities": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/publicIdentity" } }, "modelIdentity": { "$ref": "#/$defs/publicIdentity" }, "callCeilingTelemetry": {}, "costEntry": {}, "governorProof": {}, "cognitiveStateIdentity": { "type": "string" }, "experienceRecord": {}, "experienceRecordHash": { "type": "string" }, "terminalEvidence": {}, "errorStage": { "type": "string" }, "errorCategory": { "type": "string" },
-    "typedPublicIdentifierProvenance": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "normalizedSchemaPath", "identifierType", "identityAlgorithm", "publicPreimagePath", "provenanceMode", "identifierHash"], "properties": { "path": { "type": "string" }, "normalizedSchemaPath": { "type": "string" }, "identifierType": { "const": "CANONICAL_PUBLIC_OFFER_IDENTITY_V1" }, "identityAlgorithm": { "const": "lib/evidence/dedupe.js#underlyingOfferKey" }, "publicPreimagePath": { "type": "string" }, "provenanceMode": { "enum": ["RECOMPUTED_FROM_SIBLING_PUBLIC_SOURCE", "HASH_BOUND_REFERENCE_TO_RECOMPUTED_PUBLIC_SOURCE"] }, "identifierHash": { "$ref": "#/$defs/hash" } } } },
-    "canonicalResponseHash": { "$ref": "#/$defs/hash" },
-    "recordHash": { "$ref": "#/$defs/hash" }
+    "schemaVersion": {
+      "const": "1.1"
+    },
+    "resultRecordType": {
+      "const": "BENCHMARK_TERMINAL_RESULT"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "requestHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "launchScopeHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "resultId": {
+      "type": "string",
+      "pattern": "^result-[a-f0-9]{48}$"
+    },
+    "resultRootName": {
+      "type": "string",
+      "pattern": "^result-root-[a-f0-9]{48}$"
+    },
+    "invocationId": {
+      "type": "string"
+    },
+    "consentHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "reservationHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "productSourceHead": {
+      "type": "string"
+    },
+    "productSourceVersion": {
+      "const": "1.12.13"
+    },
+    "executorRuntimeHead": {
+      "$ref": "#/$defs/commit"
+    },
+    "qualificationHead": {
+      "$ref": "#/$defs/commit"
+    },
+    "executorRuntimeTreeHash": {
+      "$ref": "#/$defs/commit"
+    },
+    "executionReleaseRecordHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "qualificationPolicyVersion": {
+      "const": "1.0"
+    },
+    "executorVersion": {
+      "const": "1.12.23"
+    },
+    "executionProfileHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "executionProfileIdentityHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "pricingProfileHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "pricingProfileIdentityHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "costEnvelopeHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "physicalSubmissionIdentity": {
+      "type": "string"
+    },
+    "submissionState": {
+      "enum": [
+        "TERMINAL",
+        "UNKNOWN_AFTER_SUBMISSION"
+      ]
+    },
+    "terminalState": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "elapsedDurationMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "handlerStatus": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "sanitizedTerminalResponseEnvelope": {
+      "type": "object"
+    },
+    "responseDiagnostics": {},
+    "providerAttemptTelemetry": {
+      "type": "array"
+    },
+    "providerIdentities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/publicIdentity"
+      }
+    },
+    "modelIdentity": {
+      "$ref": "#/$defs/publicIdentity"
+    },
+    "callCeilingTelemetry": {},
+    "costEntry": {},
+    "governorProof": {},
+    "cognitiveStateIdentity": {
+      "type": "string"
+    },
+    "experienceRecord": {},
+    "experienceRecordHash": {
+      "type": "string"
+    },
+    "terminalEvidence": {},
+    "errorStage": {
+      "type": "string"
+    },
+    "errorCategory": {
+      "type": "string"
+    },
+    "typedPublicIdentifierProvenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "normalizedSchemaPath",
+          "registryContractId",
+          "terminalSchemaNode",
+          "requiredValueType",
+          "identifierType",
+          "identityAlgorithm",
+          "publicPreimagePath",
+          "provenanceMode",
+          "identifierHash"
+        ],
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "pattern": "^\\$\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalBadgeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalBadgeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalBuyerOfferSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalBuyerOfferSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalCustomerEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalDecisionSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalDecisionSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalIdentityConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalIdentityConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalPricingConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalPricingConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalRangeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalRangeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalRetailLimitSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.canonicalRetailLimitSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.displayedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.displayedRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.finalizedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.acceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.decisionSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.recoveryStoppingSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.recoveryTriggeringSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.stoppingAcceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.stoppingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.recoveryAssessment\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.badgeResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.badgeResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.badgeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.badgeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.quantityContext\\.retailLimitQuantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.quantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.rangeSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.retailLimitSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.confidenceResult\\.identity\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.confidenceResult\\.identity\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.confidenceResult\\.pricing\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.confidenceResult\\.pricing\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.acceptedIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.customerEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.decisionEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.displayedIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.displayEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.exactMatchIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.priceBearingIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidenceSummary\\.rangeEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.canonicalComparisonResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.canonicalComparisonResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.rangeSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.retailLimitSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.decisionSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.identityConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.identityConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.pricingConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.pricingConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeResult\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeResult\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeResults\\.currentRetail\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeResults\\.currentRetail\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeSupportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeSupportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.rangeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitResult\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitResult\\.quantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitResult\\.selectedEvidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitResult\\.selectedUnderlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitResult\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailLimitSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailPriceLimitSupportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.retailPriceLimitSupportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalBadgeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalBadgeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalBuyerOfferSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalBuyerOfferSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalCustomerEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalDecisionSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalDecisionSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalIdentityConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalIdentityConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalPricingConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalPricingConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalRangeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalRangeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalRetailLimitSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.canonicalRetailLimitSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.displayedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.displayedRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.finalizedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.acceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.decisionSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.recoveryStoppingSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.recoveryTriggeringSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.stoppingAcceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.stoppingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.recoveryAssessment\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.badgeResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.badgeResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.badgeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.badgeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.quantityContext\\.retailLimitQuantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.quantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.rangeSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.retailLimitSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.confidenceResult\\.identity\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.confidenceResult\\.identity\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.confidenceResult\\.pricing\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.confidenceResult\\.pricing\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.acceptedIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.customerEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.decisionEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.displayedIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.displayEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.exactMatchIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.priceBearingIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidenceSummary\\.rangeEligibleIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.canonicalComparisonResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.canonicalComparisonResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.rangeSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.retailLimitSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.supportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionResult\\.supportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.decisionSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.identityConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.identityConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.pricingConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.pricingConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeResult\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeResult\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeResults\\.currentRetail\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeResults\\.currentRetail\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeSupportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeSupportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.rangeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitResult\\.evidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitResult\\.quantityContext\\.supportQuantities\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitResult\\.selectedEvidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitResult\\.selectedUnderlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitResult\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailLimitSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailPriceLimitSupportingEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.retailPriceLimitSupportingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalBadgeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalBadgeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalBuyerOfferSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalBuyerOfferSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalCustomerEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalDecisionSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalDecisionSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalIdentityConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalIdentityConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalPricingConfidenceSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalPricingConfidenceSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalRangeSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalRangeSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalRetailLimitSupportEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.canonicalRetailLimitSupportUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.displayedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.displayedRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.finalizedCustomerRecordIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.evidenceId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.personalBuyEvidenceUtilityDecisions\\[(?:0|[1-9][0-9]*)\\]\\.underlyingOfferId$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.acceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.decisionSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.recoveryStoppingSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.recoveryTriggeringSupportIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.stoppingAcceptedEvidenceIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.stoppingUnderlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.recoveryAssessment\\.underlyingOfferIds\\[(?:0|[1-9][0-9]*)\\]$"
+              }
+            ]
+          },
+          "normalizedSchemaPath": {
+            "enum": [
+              "$.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "$.experienceRecord.sourcesAccepted[*].evidenceId",
+              "$.responseDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "$.responseDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.diagnosticSample[*].evidenceId",
+              "$.responseDiagnostics.displayedCustomerRecordIds[*]",
+              "$.responseDiagnostics.displayedRecordIds[*]",
+              "$.responseDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "$.responseDiagnostics.finalizedCustomerRecordIds[*]",
+              "$.responseDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "$.responseDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "$.responseDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "$.responseDiagnostics.recoveryAssessment.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.badgeResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.badgeResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.badgeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.badgeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.quantityContext.retailLimitQuantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.quantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.rangeSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.retailLimitSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportRecords[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportRecords[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.identity.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.identity.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.pricing.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.pricing.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidence[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidence[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.acceptedIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.customerEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.decisionEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.displayedIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.displayEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.exactMatchIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.priceBearingIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.rangeEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.canonicalComparisonResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.canonicalComparisonResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.rangeSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.retailLimitSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.decisionSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.identityConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.identityConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.pricesFound[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.pricesFound[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.pricingConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.pricingConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeResult.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeResult.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeResults.currentRetail.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeResults.currentRetail.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.quantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.selectedEvidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.selectedUnderlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailPriceLimitSupportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.retailPriceLimitSupportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.diagnosticSample[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.displayedCustomerRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.displayedRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.finalizedCustomerRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.badgeResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.badgeResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.badgeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.badgeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.quantityContext.retailLimitQuantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.quantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.rangeSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.retailLimitSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportRecords[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportRecords[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.identity.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.identity.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.pricing.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.pricing.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidence[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidence[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.acceptedIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.customerEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.decisionEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.displayedIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.displayEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.exactMatchIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.priceBearingIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.rangeEligibleIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.canonicalComparisonResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.canonicalComparisonResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.rangeSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.retailLimitSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.supportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.supportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.decisionSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.identityConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.identityConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.pricesFound[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.pricesFound[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.pricingConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.pricingConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResult.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResult.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResults.currentRetail.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResults.currentRetail.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.evidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.quantityContext.supportQuantities[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.selectedEvidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.selectedUnderlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.underlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailPriceLimitSupportingEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.retailPriceLimitSupportingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.diagnosticSample[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.displayedCustomerRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.displayedRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.finalizedCustomerRecordIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.underlyingOfferIds[*]"
+            ]
+          },
+          "registryContractId": {
+            "enum": [
+              "typed-public-identifier:$.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "typed-public-identifier:$.experienceRecord.sourcesAccepted[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.diagnosticSample[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.displayedCustomerRecordIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.displayedRecordIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.finalizedCustomerRecordIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "typed-public-identifier:$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.responseDiagnostics.recoveryAssessment.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.badgeResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.badgeResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.badgeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.badgeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.quantityContext.retailLimitQuantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.quantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.rangeSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.retailLimitSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportRecords[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportRecords[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.buyerOfferSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.identity.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.identity.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.pricing.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.confidenceResult.pricing.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidence[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidence[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.acceptedIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.customerEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.decisionEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.displayedIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.displayEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.exactMatchIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.priceBearingIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.customerEvidenceSummary.rangeEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.canonicalComparisonResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.canonicalComparisonResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.rangeSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.retailLimitSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.decisionSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.identityConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.identityConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.pricesFound[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.pricesFound[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.pricingConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.pricingConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeResult.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeResult.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeResults.currentRetail.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeResults.currentRetail.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.rangeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.quantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.selectedEvidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.selectedUnderlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitResult.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailLimitSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailPriceLimitSupportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.retailPriceLimitSupportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.diagnosticSample[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.displayedCustomerRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.displayedRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.finalizedCustomerRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.listing.searchDiagnostics.recoveryAssessment.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.badgeResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.badgeResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.badgeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.badgeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.quantityContext.retailLimitQuantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.quantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.rangeSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.retailLimitSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportRecords[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportRecords[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.buyerOfferSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.identity.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.identity.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.pricing.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.confidenceResult.pricing.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidence[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidence[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.acceptedIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.customerEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.decisionEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.displayedIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.displayEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.exactMatchIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.priceBearingIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.customerEvidenceSummary.rangeEligibleIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.canonicalComparisonResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.canonicalComparisonResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.rangeSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.retailLimitSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.supportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionResult.supportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.decisionSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.identityConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.identityConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.pricesFound[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.pricesFound[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.pricingConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.pricingConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResult.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResult.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResults.currentRetail.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeResults.currentRetail.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.rangeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.evidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.quantityContext.supportQuantities[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.selectedEvidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.selectedUnderlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitResult.underlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailLimitSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailPriceLimitSupportingEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.retailPriceLimitSupportingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalCustomerEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRangeSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.diagnosticSample[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.displayedCustomerRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.displayedRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.finalizedCustomerClassifications[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.finalizedCustomerRecordIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.decisionSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
+              "typed-public-identifier:$.sanitizedTerminalResponseEnvelope.body.valuation.searchDiagnostics.recoveryAssessment.underlyingOfferIds[*]"
+            ]
+          },
+          "terminalSchemaNode": {
+            "enum": [
+              "BENCHMARK_TERMINAL_RESULT.experienceRecord",
+              "BENCHMARK_TERMINAL_RESULT.responseDiagnostics",
+              "HANDLER_SUCCESS_ENVELOPE.body.listing",
+              "HANDLER_SUCCESS_ENVELOPE.body.valuation"
+            ]
+          },
+          "requiredValueType": {
+            "const": "string"
+          },
+          "identifierType": {
+            "const": "CANONICAL_PUBLIC_OFFER_IDENTITY_V1"
+          },
+          "identityAlgorithm": {
+            "const": "lib/evidence/dedupe.js#underlyingOfferKey"
+          },
+          "publicPreimagePath": {
+            "anyOf": [
+              {
+                "pattern": "^\\$\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.responseDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.listing\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.buyerOfferSupportRecords\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.customerEvidence\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.pricesFound\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.diagnosticSample\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.finalizedCustomerClassifications\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.exactEvidenceRecovered\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              },
+              {
+                "pattern": "^\\$\\.sanitizedTerminalResponseEnvelope\\.body\\.valuation\\.searchDiagnostics\\.objectIntelligence\\.experienceRecord\\.sourcesAccepted\\[(?:0|[1-9][0-9]*)\\]\\.(?:canonicalUrl|destinationUrl|url|sourceUrl)$"
+              }
+            ]
+          },
+          "provenanceMode": {
+            "enum": [
+              "RECOMPUTED_FROM_SIBLING_PUBLIC_SOURCE",
+              "HASH_BOUND_REFERENCE_TO_RECOMPUTED_PUBLIC_SOURCE"
+            ]
+          },
+          "identifierHash": {
+            "$ref": "#/$defs/hash"
+          }
+        }
+      }
+    },
+    "canonicalResponseHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "recordHash": {
+      "$ref": "#/$defs/hash"
+    }
   },
   "$defs": {
-    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-    "publicIdentity": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$" }
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "publicIdentity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,78}[A-Za-z0-9])?$"
+    }
   }
 }

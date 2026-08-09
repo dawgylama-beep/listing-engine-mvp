@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 
-export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.3";
+export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.4";
 export const LAUNCH_SCOPE_TYPE = "BLIND_OBJECT_V2_LAUNCH_SCOPE";
 
 export const IDENTITY_DOMAINS = Object.freeze({
@@ -60,6 +60,11 @@ const LAUNCH_SCOPE_CORE_FIELDS = Object.freeze([
   "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId",
   "zeroExternalSupersessionReceiptHash",
+  "historicalExecutionReleaseRecordHash",
+  "predecessorExecutionReleaseRecordHash",
+  "releaseChainHash",
+  "unusedConsentRevocationReceiptId",
+  "unusedConsentRevocationReceiptHash",
   "continuationScopeHash",
   "continuationRequestAggregateHash",
   "continuationOrderedRequestHashInventory",
@@ -132,7 +137,11 @@ function validateCore(core) {
   assert.equal(core.completePhysicalAttemptCeiling, 832);
   assert.ok([25, 26].includes(core.authorizedRequestCount));
   if (core.authorizedRequestCount === 25) {
-    for (const field of ["continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptHash"]) assert.match(core[field] || "", HASH, `launch scope ${field} is invalid`);
+    for (const field of ["historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash", "unusedConsentRevocationReceiptHash", "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptHash"]) assert.match(core[field] || "", HASH, `launch scope ${field} is invalid`);
+    assert.equal(core.historicalExecutionReleaseRecordHash, "ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013");
+    assert.equal(core.predecessorExecutionReleaseRecordHash, "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294");
+    assert.notEqual(core.executionReleaseRecordHash, core.predecessorExecutionReleaseRecordHash);
+    assert.match(core.unusedConsentRevocationReceiptId || "", /^consent-revocation-[a-f0-9]{48}$/);
     assert.match(core.terminalFailureReceiptId || "", /^terminal-failure-[a-f0-9]{48}$/, "launch scope terminal failure receipt ID is invalid");
     assert.equal(core.continuationOrderedRequestHashInventory?.length, 25);
     assert.equal(new Set(core.continuationOrderedRequestHashInventory).size, 25);
@@ -145,7 +154,7 @@ function validateCore(core) {
     assert.equal(core.continuationConservativeMaximumCost, 37.67058877);
     assert.equal(core.cumulativeConservativeMaximumCost, 39.17741232);
   } else {
-    for (const field of ["continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash", "continuationConservativeMaximumCost", "cumulativeConservativeMaximumCost"]) assert.equal(core[field], null, `synthetic full scope ${field} must be null`);
+    for (const field of ["historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash", "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash", "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash", "continuationConservativeMaximumCost", "cumulativeConservativeMaximumCost"]) assert.equal(core[field], null, `synthetic full scope ${field} must be null`);
     assert.deepEqual(core.continuationOrderedRequestHashInventory, []);
     assert.equal(core.priorPhysicalAttemptCount, 0);
     assert.equal(core.priorConservativeCost, 0);
@@ -161,6 +170,14 @@ function validateCore(core) {
 }
 
 export function createLaunchScope(input) {
+  input = {
+    historicalExecutionReleaseRecordHash: null,
+    predecessorExecutionReleaseRecordHash: null,
+    releaseChainHash: null,
+    unusedConsentRevocationReceiptId: null,
+    unusedConsentRevocationReceiptHash: null,
+    ...input
+  };
   exactKeys(input, LAUNCH_SCOPE_CORE_FIELDS.filter((field) => !["schemaVersion", "scopeType"].includes(field)), "launch scope input");
   const core = {
     schemaVersion: LAUNCH_SCOPE_SCHEMA_VERSION,

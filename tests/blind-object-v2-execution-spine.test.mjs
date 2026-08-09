@@ -63,9 +63,7 @@ import { createLaunchScope } from "../benchmarks/blind-object-v2/scripts/launch-
 import { createProductCostSourceManifest } from "../benchmarks/blind-object-v2/scripts/product-cost-source.mjs";
 import { underlyingOfferKey } from "../lib/evidence/dedupe.js";
 import {
-  DECLARED_PUBLIC_EVIDENCE_REFERENCE_FIELDS,
-  DECLARED_PUBLIC_SOURCE_COLLECTIONS,
-  DECLARED_TYPED_TERMINAL_ROOTS
+  AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY
 } from "../benchmarks/blind-object-v2/scripts/typed-public-identifier.mjs";
 
 const EXECUTOR_HEAD = "b".repeat(40);
@@ -328,7 +326,7 @@ function scanValidatedTerminal(terminal, knownEnvironment = SCAN_ENVIRONMENT) {
 test("A-C: frozen product release and executor release stay distinct and runtime drift fails closed", async () => {
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.22");
+  assert.equal(EXECUTOR_VERSION, "1.12.23");
   const { profile, attemptCeiling } = profileAndCeiling();
   assert.notEqual(profile.productSourceVersion, profile.executorVersion);
   assert.throws(() => validateExecutionProfile({ ...profile, productRuntimeManifestHash: "c".repeat(64) }, { attemptCeiling, releaseIdentity: RELEASE_IDENTITY, productRuntimeManifestHash: RUNTIME_HASH }), /runtime|hash|mismatch/i);
@@ -376,46 +374,80 @@ test("scanner A: the pre-repair known-value rule reproduces the public-model fal
   );
 });
 
-test("scanner A2: the rejected public-offer identifier class passes only through recomputed typed provenance", () => {
+test("scanner A2: a pinned-contract public identifier passes only at one exact registered full path", () => {
   const publicSource = {
     canonicalUrl: "https://example.com/public/listing/12345?color=blue",
     marketplaceItemId: "12345",
     seller: "Public Seller"
   };
   publicSource.evidenceId = underlyingOfferKey(publicSource);
-  publicSource.underlyingOfferId = publicSource.evidenceId;
   assert.match(publicSource.evidenceId, /%/);
 
-  const collectionSurface = Object.fromEntries(
-    DECLARED_PUBLIC_SOURCE_COLLECTIONS.map((field) => [field, [structuredClone(publicSource)]])
-  );
-  const referenceSurface = Object.fromEntries(
-    DECLARED_PUBLIC_EVIDENCE_REFERENCE_FIELDS.map((field) => [field, field === "observedEvidenceId" || field === "selectedEvidenceId" ? publicSource.evidenceId : [publicSource.evidenceId]])
-  );
-  const rootSurface = Object.fromEntries(DECLARED_TYPED_TERMINAL_ROOTS.map((root) => [root, {
-    ...structuredClone(collectionSurface),
-    ...structuredClone(referenceSurface)
-  }]));
-  rootSurface.sanitizedTerminalResponseEnvelope = {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    body: { ...structuredClone(collectionSurface), ...structuredClone(referenceSurface) }
-  };
-  const { terminal } = terminalFixture(rootSurface);
+  const independentlyRecomputed = underlyingOfferKey({
+    canonicalUrl: new URL(publicSource.canonicalUrl).toString(),
+    marketplaceItemId: publicSource.marketplaceItemId,
+    seller: publicSource.seller
+  });
+  assert.equal(publicSource.evidenceId, independentlyRecomputed);
+  const { terminal } = terminalFixture({ experienceRecord: { sourcesAccepted: [publicSource] } });
   assert.equal(scanValidatedTerminal(terminal), true);
-  assert.ok(terminal.typedPublicIdentifierProvenance.length >= DECLARED_TYPED_TERMINAL_ROOTS.length * DECLARED_PUBLIC_SOURCE_COLLECTIONS.length);
-  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.identifierType === "CANONICAL_PUBLIC_OFFER_IDENTITY_V1"), true);
-  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.identityAlgorithm === "lib/evidence/dedupe.js#underlyingOfferKey"), true);
-  assert.equal(terminal.typedPublicIdentifierProvenance.every((entry) => entry.publicPreimagePath.includes("canonicalUrl")), true);
+  assert.deepEqual(terminal.typedPublicIdentifierProvenance.map((entry) => entry.path), ["$.experienceRecord.sourcesAccepted[0].evidenceId"]);
+  assert.equal(terminal.typedPublicIdentifierProvenance[0].normalizedSchemaPath, "$.experienceRecord.sourcesAccepted[*].evidenceId");
+  assert.equal(terminal.typedPublicIdentifierProvenance[0].registryContractId, "typed-public-identifier:$.experienceRecord.sourcesAccepted[*].evidenceId");
+  assert.equal(terminal.typedPublicIdentifierProvenance[0].requiredValueType, "string");
+  assert.equal(terminal.typedPublicIdentifierProvenance[0].publicPreimagePath, "$.experienceRecord.sourcesAccepted[0].canonicalUrl");
+  assert.equal(AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.every((entry) => entry.completePropertyPath === entry.normalizedSchemaPath), true);
+  assert.equal(AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.some((entry) => entry.normalizedSchemaPath.includes("arbitraryUndeclaredNesting")), false);
 });
 
-test("scanner A3: wrong paths, caller declarations, and credential shapes remain fail-closed in evidenceId", () => {
+test("scanner A3: undeclared complete paths cannot borrow source collection or field-name authority", () => {
   const publicSource = { canonicalUrl: "https://example.com/public/listing/98765", marketplaceItemId: "98765", seller: "Public Seller" };
   publicSource.evidenceId = underlyingOfferKey(publicSource);
-  const wrongPath = terminalFixture({ experienceRecord: { callerSelectedPublicRecords: [publicSource] } }).terminal;
-  validateTerminalResult(wrongPath);
-  assert.throws(() => scanValidatedTerminal(wrongPath), /high-entropy credential-like material/);
+  const wrongSurfaces = [
+    { experienceRecord: { arbitraryUndeclaredNesting: { sourcesAccepted: [publicSource] } } },
+    { experienceRecord: { extra: { exactEvidenceRecovered: [publicSource] } } },
+    { governorProof: { sourcesAccepted: [publicSource] } },
+    { experienceRecord: { sourceAccepted: [publicSource] } },
+    { experienceRecord: { callerSelectedPublicRecords: [publicSource] } }
+  ];
+  for (const surface of wrongSurfaces) {
+    const terminal = terminalFixture(surface).terminal;
+    validateTerminalResult(terminal);
+    assert.equal(terminal.typedPublicIdentifierProvenance.length, 0);
+    assert.throws(() => scanValidatedTerminal(terminal), /high-entropy credential-like material/);
+  }
+});
+
+test("scanner A4: caller-forged actual and normalized provenance paths fail closed", () => {
+  const publicSource = { canonicalUrl: "https://example.com/public/listing/98765", marketplaceItemId: "98765", seller: "Public Seller" };
+  publicSource.evidenceId = underlyingOfferKey(publicSource);
   assert.throws(() => terminalFixture({ typedPublicIdentifierProvenance: [{ callerDeclaredPublic: true }] }), /cannot declare public identifier provenance/);
+
+  const legitimate = terminalFixture({ experienceRecord: { sourcesAccepted: [publicSource] } }).terminal;
+  const forgedActual = structuredClone(terminalFixture({ experienceRecord: { arbitraryUndeclaredNesting: { sourcesAccepted: [publicSource] } } }).terminal);
+  forgedActual.typedPublicIdentifierProvenance = structuredClone(legitimate.typedPublicIdentifierProvenance);
+  delete forgedActual.recordHash;
+  forgedActual.recordHash = sha256Json(forgedActual);
+  assert.throws(() => validateTerminalResult(forgedActual), /provenance differs/);
+
+  const forgedNormalized = structuredClone(legitimate);
+  forgedNormalized.typedPublicIdentifierProvenance[0].normalizedSchemaPath = "$.experienceRecord.arbitraryUndeclaredNesting.sourcesAccepted[*].evidenceId";
+  delete forgedNormalized.recordHash;
+  forgedNormalized.recordHash = sha256Json(forgedNormalized);
+  assert.throws(() => validateTerminalResult(forgedNormalized), /provenance differs/);
+});
+
+test("scanner A5: preimage, seller partition, credential shapes, entropy, and value type remain fail-closed", () => {
+  const publicSource = { canonicalUrl: "https://example.com/public/listing/98765", marketplaceItemId: "98765", seller: "Public Seller" };
+  publicSource.evidenceId = underlyingOfferKey(publicSource);
+  const urlBoundSource = { canonicalUrl: "https://example.com/public/listing/url-bound", seller: "Public Seller" };
+  urlBoundSource.evidenceId = underlyingOfferKey(urlBoundSource);
+  const wrongUrl = terminalFixture({ experienceRecord: { sourcesAccepted: [{ ...urlBoundSource, canonicalUrl: "https://example.com/public/listing/different" }] } }).terminal;
+  assert.equal(wrongUrl.typedPublicIdentifierProvenance.length, 0);
+  assert.throws(() => scanValidatedTerminal(wrongUrl), /high-entropy credential-like material/);
+  const wrongSeller = terminalFixture({ experienceRecord: { sourcesAccepted: [{ ...publicSource, seller: "Different Seller" }] } }).terminal;
+  assert.equal(wrongSeller.typedPublicIdentifierProvenance.length, 0);
+  assert.throws(() => scanValidatedTerminal(wrongSeller), /high-entropy credential-like material/);
 
   const credentialShapes = [
     "sk-proj-A1b2C3d4E5f6G7h8I9j0K1l2",
@@ -430,6 +462,13 @@ test("scanner A3: wrong paths, caller declarations, and credential shapes remain
     assert.equal(terminal.typedPublicIdentifierProvenance.some((entry) => entry.path.endsWith(".evidenceId")), false);
     assert.throws(() => scanValidatedTerminal(terminal), /API key|bearer|JWT|cookie|session|private key/i);
   }
+  const unexplained = terminalFixture({ experienceRecord: { sourcesAccepted: [{ ...publicSource, evidenceId: "Public%AbCdEf0123456789+/=-Unexplained" }] } }).terminal;
+  assert.equal(unexplained.typedPublicIdentifierProvenance.length, 0);
+  assert.throws(() => scanValidatedTerminal(unexplained), /high-entropy credential-like material/);
+  assert.throws(
+    () => terminalFixture({ experienceRecord: { sourcesAccepted: [{ ...publicSource, evidenceId: 12345 }] } }),
+    /must be a string/
+  );
 });
 
 test("scanner B and I: exact schema-controlled public identities pass and remain sealed", () => {
@@ -536,7 +575,7 @@ test("scanner J: product identity and frozen benchmark authority remain isolated
   const { terminal } = terminalFixture();
   assert.equal(terminal.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(terminal.productSourceVersion, "1.12.13");
-  assert.equal(terminal.executorVersion, "1.12.22");
+  assert.equal(terminal.executorVersion, "1.12.23");
   assert.equal(scanValidatedTerminal(terminal), true);
 });
 
@@ -635,7 +674,7 @@ test("artifact S-T: readback remains non-executing and product/freeze identities
   assert.match(executorSource, /fileWriteCount:\s*0/);
   assert.equal(PRODUCT_SOURCE_HEAD, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
   assert.equal(PRODUCT_SOURCE_VERSION, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.22");
+  assert.equal(EXECUTOR_VERSION, "1.12.23");
 });
 
 test("G: complete attempt accounting names every boundary and totals 832", async () => {
@@ -804,4 +843,20 @@ test("all new execution JSON schemas parse strictly and remain top-level closed"
     assert.equal(document.$schema, "https://json-schema.org/draft/2020-12/schema");
     assert.equal(document.additionalProperties, false);
   }
+});
+
+test("terminal provenance schema accepts exactly the closed full-path registry surfaces", async () => {
+  const document = JSON.parse(await readFile(new URL("../benchmarks/blind-object-v2/schemas/terminal-result.schema.json", import.meta.url), "utf8"));
+  const provenance = document.properties.typedPublicIdentifierProvenance.items;
+  const normalizedPaths = AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.map((entry) => entry.normalizedSchemaPath);
+  assert.deepEqual(provenance.properties.normalizedSchemaPath.enum, normalizedPaths);
+  assert.deepEqual(provenance.properties.registryContractId.enum, AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.map((entry) => entry.registryContractId));
+  assert.equal(provenance.properties.path.anyOf.length, AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.length);
+  assert.equal(provenance.required.includes("registryContractId"), true);
+  assert.equal(provenance.required.includes("terminalSchemaNode"), true);
+  assert.equal(provenance.required.includes("requiredValueType"), true);
+  const actualPatterns = provenance.properties.path.anyOf.map(({ pattern }) => new RegExp(pattern));
+  assert.equal(actualPatterns.some((pattern) => pattern.test("$.experienceRecord.sourcesAccepted[0].evidenceId")), true);
+  assert.equal(actualPatterns.some((pattern) => pattern.test("$.experienceRecord.arbitraryUndeclaredNesting.sourcesAccepted[0].evidenceId")), false);
+  assert.equal(actualPatterns.some((pattern) => pattern.test("$.experienceRecord.sourcesAccepted[0].extra.evidenceId")), false);
 });

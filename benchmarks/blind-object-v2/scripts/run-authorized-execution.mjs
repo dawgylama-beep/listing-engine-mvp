@@ -25,14 +25,16 @@ import {
 } from "./execution-store.mjs";
 import { executeBenchmarkV2, verifyResultReadback } from "./executor.mjs";
 import { stableJson } from "./protocol.mjs";
+import { revokeUnusedV11222Consent } from "./consent-revocation.mjs";
+import { runOfflineExecutionQualification } from "./offline-execution-qualification.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
-const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"]);
+const MODES = Object.freeze(["REVOKE_V11222_CONSENT", "QUALIFY_OFFLINE", "PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"]);
 
 export function parseAuthorizedExecutionArguments(argv) {
   assert.ok(Array.isArray(argv), "CLI arguments must be an array");
   const [mode, freezeAggregate, consentHash, ...extra] = argv;
-  assert.ok(MODES.includes(mode), "command mode must be PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, or RECONCILE_V11221");
+  assert.ok(MODES.includes(mode), "command mode must be REVOKE_V11222_CONSENT, QUALIFY_OFFLINE, PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, or RECONCILE_V11221");
   assert.match(freezeAggregate || "", HASH, "freeze aggregate must be exactly 64 lowercase hexadecimal characters");
   assert.equal(freezeAggregate, REAL_FREEZE_AGGREGATE, "CLI freeze aggregate differs from the repository-owned real freeze");
   assert.equal(extra.length, 0, "CLI accepts no additional arguments");
@@ -67,6 +69,12 @@ function publicPreflightRecord(preflight) {
     costState: preflight.costEnvelope.costState,
     zeroExternalSupersessionReceiptId: preflight.supersessionReceipt.receiptId,
     zeroExternalSupersessionReceiptHash: preflight.supersessionReceipt.receiptHash,
+    historicalExecutionReleaseRecordHash: preflight.releaseChain.version1121ExecutionReleaseRecordHash,
+    predecessorExecutionReleaseRecordHash: preflight.releaseChain.version1122ExecutionReleaseRecordHash,
+    currentExecutionReleaseRecordHash: preflight.releaseChain.version1123ExecutionReleaseRecordHash,
+    releaseChainHash: preflight.releaseChain.releaseChainHash,
+    unusedConsentRevocationReceiptId: preflight.unusedConsentRevocationReceipt.receiptId,
+    unusedConsentRevocationReceiptHash: preflight.unusedConsentRevocationReceipt.receiptHash,
     terminalFailureReceiptId: preflight.terminalFailureReceipt.receiptId,
     terminalFailureReceiptHash: preflight.terminalFailureReceipt.receiptHash,
     continuationScopeHash: preflight.continuationScope.continuationScopeHash,
@@ -104,6 +112,11 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
   assert.equal(release.authorityDeclarations.realExecutionAuthorized, false, "repository release metadata cannot itself imply external real-run authorization");
   if (command.mode === "CREATE_CONSENT") assert.equal(release.authorityDeclarations.consentCreationEnabled, true, "CREATE_CONSENT is disabled in this executor release and requires a later separate authorization station");
   if (command.mode === "EXECUTE") assert.equal(release.authorityDeclarations.executionEnabled, true, "EXECUTE is disabled in this executor release and requires a later separate authorization station");
+  if (command.mode === "REVOKE_V11222_CONSENT") {
+    const receipt = await revokeUnusedV11222Consent({ releaseIdentity });
+    output.write(`${stableJson({ disposition: receipt.disposition, receiptId: receipt.receiptId, receiptHash: receipt.receiptHash, sourceConsentId: receipt.sourceConsentId })}\n`);
+    return receipt;
+  }
   if (command.mode === "RECONCILE_V11221") {
     assert.equal(release.authorityDeclarations.postHandlerReconciliationEnabled, true, "post-handler reconciliation is disabled");
     const reconciliation = await reconcileFixedV11221Failure({ releaseIdentity });
@@ -112,6 +125,11 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
   }
   const preflight = await resolvePreflight(environment, releaseIdentity);
   try {
+    if (command.mode === "QUALIFY_OFFLINE") {
+      const record = await runOfflineExecutionQualification({ preflight });
+      output.write(`${stableJson(record)}\n`);
+      return record;
+    }
     if (command.mode === "PREFLIGHT") {
       const record = publicPreflightRecord(preflight);
       output.write(`${stableJson(record)}\n`);
@@ -181,6 +199,8 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
       allowedEnvironment: preflight.allowedEnvironment,
       zeroExternalSupersessionReceipt: preflight.supersessionReceipt,
       terminalFailureReceipt: preflight.terminalFailureReceipt,
+      unusedConsentRevocationReceipt: preflight.unusedConsentRevocationReceipt,
+      releaseIdentity: preflight.releaseIdentity,
       onConsentTransition: async (nextConsent) => replaceSynced(consentPath, nextConsent)
     });
     await replaceSynced(consentPath, result.consent);

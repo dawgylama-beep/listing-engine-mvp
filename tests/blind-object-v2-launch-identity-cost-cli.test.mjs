@@ -276,7 +276,7 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.22");
+  assert.equal(EXECUTOR_VERSION, "1.12.23");
 });
 
 test("AC: focused tests cannot touch the preserved failed root or create their synthetic authority", async () => {

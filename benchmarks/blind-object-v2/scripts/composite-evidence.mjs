@@ -80,7 +80,7 @@ export function createCompositeEvidenceManifest({
       disposition: "COGNITIVE_RESULT_AVAILABLE_UNSCORED",
       cognitiveResultAvailable: true,
       replayPermitted: false,
-      sourceVersion: "1.12.22",
+      sourceVersion: "1.12.23",
       terminalEvidenceHash: item.canonicalResponseHash,
       terminalResultRecordHash: item.recordHash
     }))
@@ -158,7 +158,7 @@ export function validateCompositeEvidenceManifest(manifest, bindings = {}) {
     } else {
       assert.equal(item.disposition, "COGNITIVE_RESULT_AVAILABLE_UNSCORED");
       assert.equal(item.cognitiveResultAvailable, true);
-      assert.equal(item.sourceVersion, "1.12.22");
+      assert.equal(item.sourceVersion, "1.12.23");
       assert.match(item.terminalResultRecordHash || "", HASH);
     }
   }

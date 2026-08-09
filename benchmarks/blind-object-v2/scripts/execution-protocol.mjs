@@ -7,7 +7,7 @@ export const EXECUTION_SCHEMA_VERSION = "1.1";
 export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.22";
+export const EXECUTOR_VERSION = "1.12.23";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -115,6 +115,8 @@ const CONSENT_FIELDS = Object.freeze([
   "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
   "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
+  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash",
+  "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash",
   "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
   "priorPhysicalAttemptCount", "priorConservativeCost", "remainingPhysicalAttemptAuthority", "remainingConservativeCostAuthority",
   "continuationPhysicalAttemptCeiling", "cumulativeConservativeMaximumCost",
@@ -127,6 +129,8 @@ const RESERVATION_FIELDS = Object.freeze([
   "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
+  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash",
+  "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash",
   "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
   "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead",
   "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
@@ -519,6 +523,11 @@ export function createExecutionConsent(input, nowIso) {
     costEnvelopeHash: launchScope.costEnvelopeHash,
     zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
+    historicalExecutionReleaseRecordHash: launchScope.historicalExecutionReleaseRecordHash,
+    predecessorExecutionReleaseRecordHash: launchScope.predecessorExecutionReleaseRecordHash,
+    releaseChainHash: launchScope.releaseChainHash,
+    unusedConsentRevocationReceiptId: launchScope.unusedConsentRevocationReceiptId,
+    unusedConsentRevocationReceiptHash: launchScope.unusedConsentRevocationReceiptHash,
     continuationScopeHash: launchScope.continuationScopeHash,
     continuationRequestAggregateHash: launchScope.continuationRequestAggregateHash,
     terminalFailureReceiptId: launchScope.terminalFailureReceiptId,
@@ -622,6 +631,11 @@ export function createInvocationReservation(input, nowIso) {
     costEnvelopeHash: launchScope.costEnvelopeHash,
     zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
+    historicalExecutionReleaseRecordHash: launchScope.historicalExecutionReleaseRecordHash,
+    predecessorExecutionReleaseRecordHash: launchScope.predecessorExecutionReleaseRecordHash,
+    releaseChainHash: launchScope.releaseChainHash,
+    unusedConsentRevocationReceiptId: launchScope.unusedConsentRevocationReceiptId,
+    unusedConsentRevocationReceiptHash: launchScope.unusedConsentRevocationReceiptHash,
     continuationScopeHash: launchScope.continuationScopeHash,
     continuationRequestAggregateHash: launchScope.continuationRequestAggregateHash,
     terminalFailureReceiptId: launchScope.terminalFailureReceiptId,

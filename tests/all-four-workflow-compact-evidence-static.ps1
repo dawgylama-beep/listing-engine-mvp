@@ -45,7 +45,7 @@ foreach ($title in @(
   Require-Contains "Workflow title remains available: $title" $app $title
 }
 
-Require-Regex "Canonical browser model loads before app.js" $index '<script src="/customer-evidence\.js\?v=1\.12\.22"></script>\s*<script src="/app\.js\?v=1\.12\.22"></script>'
+Require-Regex "Canonical browser model loads before app.js" $index '<script src="/customer-evidence\.js\?v=1\.12\.23"></script>\s*<script src="/app\.js\?v=1\.12\.23"></script>'
 Require-Contains "One pure presentation-model authority exists" $model "function buildCustomerEvidenceViewModel"
 Require-Contains "Presentation model consumes displayed IDs" $model "customerEvidenceSummary.displayedIds"
 Require-Contains "Presentation model preserves canonical order" $model "cards: customerEvidence.map(buildCard)"

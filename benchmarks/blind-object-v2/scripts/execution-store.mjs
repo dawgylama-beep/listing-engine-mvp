@@ -26,8 +26,6 @@ import {
   validateInvocationReservation
 } from "./execution-protocol.mjs";
 import { assertNoTruncatedIdentityCollision } from "./launch-identity.mjs";
-import { validateZeroExternalSupersessionReceipt } from "./pre-external-recovery-protocol.mjs";
-import { validateTerminalFailureReceipt } from "./post-handler-reconciliation-protocol.mjs";
 
 export const benchmarkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const repositoryRoot = path.resolve(benchmarkRoot, "..", "..");
@@ -335,27 +333,29 @@ export async function loadPublicFreeze(freezeRoot = defaultFreezeRoot, { onRead 
   return Object.freeze({ root, manifest, receipt, analysisPlan, requests: Object.freeze(requests), assetCache });
 }
 
-export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null, terminalFailureReceipt = null } = {}) {
+export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null, terminalFailureReceipt = null, unusedConsentRevocationReceipt = null, releaseIdentity = null } = {}) {
   validateInvocationReservation(reservation);
-  if (zeroExternalSupersessionReceipt) {
-    validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, terminalFailureReceipt ? {} : {
-        receiptId: reservation.zeroExternalSupersessionReceiptId,
-        receiptHash: reservation.zeroExternalSupersessionReceiptHash,
-        successorExecutionReleaseRecordHash: reservation.executionReleaseRecordHash,
-        successorExecutorRuntimeHead: reservation.executorRuntimeHead,
-        successorQualificationHead: reservation.qualificationHead,
-        successorExecutorVersion: reservation.executorVersion
-      });
-  }
-  if (terminalFailureReceipt) {
-    validateTerminalFailureReceipt(terminalFailureReceipt, {
-      receiptId: reservation.terminalFailureReceiptId,
-      receiptHash: reservation.terminalFailureReceiptHash,
+  if (zeroExternalSupersessionReceipt && !terminalFailureReceipt && !unusedConsentRevocationReceipt) {
+    const { validateZeroExternalSupersessionReceipt } = await import("./pre-external-recovery-protocol.mjs");
+    validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
+      receiptId: reservation.zeroExternalSupersessionReceiptId,
+      receiptHash: reservation.zeroExternalSupersessionReceiptHash,
       successorExecutionReleaseRecordHash: reservation.executionReleaseRecordHash,
       successorExecutorRuntimeHead: reservation.executorRuntimeHead,
       successorQualificationHead: reservation.qualificationHead,
       successorExecutorVersion: reservation.executorVersion
     });
+  } else if (zeroExternalSupersessionReceipt || terminalFailureReceipt || unusedConsentRevocationReceipt) {
+    const { validateContinuationReleaseChain } = await import("./consent-revocation.mjs");
+    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+    assert.equal(reservation.zeroExternalSupersessionReceiptId, zeroExternalSupersessionReceipt.receiptId);
+    assert.equal(reservation.zeroExternalSupersessionReceiptHash, zeroExternalSupersessionReceipt.receiptHash);
+    assert.equal(reservation.terminalFailureReceiptId, terminalFailureReceipt.receiptId);
+    assert.equal(reservation.terminalFailureReceiptHash, terminalFailureReceipt.receiptHash);
+    assert.equal(reservation.unusedConsentRevocationReceiptId, unusedConsentRevocationReceipt.receiptId);
+    assert.equal(reservation.unusedConsentRevocationReceiptHash, unusedConsentRevocationReceipt.receiptHash);
+    assert.equal(reservation.releaseChainHash, releaseChain.releaseChainHash);
+    assert.equal(reservation.executionReleaseRecordHash, releaseChain.version1123ExecutionReleaseRecordHash);
   }
   const root = path.resolve(storeRoot);
   await mkdir(root, { recursive: true });
