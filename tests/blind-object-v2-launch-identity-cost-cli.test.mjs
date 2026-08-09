@@ -270,7 +270,7 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.18");
+  assert.equal(EXECUTOR_VERSION, "1.12.19");
 });
 
 test("AC: focused tests leave every real consent, reservation, journal, result, and submission absent", async () => {

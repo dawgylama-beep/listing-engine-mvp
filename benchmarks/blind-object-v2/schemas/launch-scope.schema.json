@@ -19,7 +19,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.18" },
+    "executorVersion": { "const": "1.12.19" },
     "completeFrozenAggregateHash": { "$ref": "#/$defs/hash" },
     "freezeManifestHash": { "$ref": "#/$defs/hash" },
     "freezeReceiptHash": { "$ref": "#/$defs/hash" },

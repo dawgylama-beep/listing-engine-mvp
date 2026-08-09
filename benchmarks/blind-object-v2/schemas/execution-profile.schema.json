@@ -17,7 +17,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.18" },
+    "executorVersion": { "const": "1.12.19" },
     "handlerContract": { "type": "object" },
     "modelProvider": { "const": "OPENAI" },
     "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },

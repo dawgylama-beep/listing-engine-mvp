@@ -59,6 +59,16 @@ const AUTHORITY_FIELDS = Object.freeze([
   "repairAuthorized",
   "deploymentAuthorized"
 ]);
+const AUTHORITY_EXPECTATIONS = Object.freeze({
+  consentCreationEnabled: true,
+  executionEnabled: true,
+  realExecutionAuthorized: false,
+  privateControlsAuthorized: false,
+  scoringAuthorized: false,
+  reflectionAuthorized: false,
+  repairAuthorized: false,
+  deploymentAuthorized: false
+});
 const SNAPSHOT_FIELDS = Object.freeze([
   "repositoryRoot",
   "expectedRepositoryRoot",
@@ -121,7 +131,9 @@ function validateReleaseCore(core) {
   assert.equal(core.costEnvelopeSchemaVersion, "1.1");
   assert.equal(core.maximumAuthorizedCostMinorUnits, 4000);
   exactKeys(core.authorityDeclarations, AUTHORITY_FIELDS, "execution release authority declarations");
-  AUTHORITY_FIELDS.forEach((field) => assert.equal(core.authorityDeclarations[field], false, `${field} must remain false`));
+  for (const field of AUTHORITY_FIELDS) {
+    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.19 authority`);
+  }
 
   if (core.releaseState === EXECUTION_RELEASE_STATE.PENDING) {
     assert.equal(core.executorRuntimeHead, null, "pending release cannot predeclare its own runtime commit");

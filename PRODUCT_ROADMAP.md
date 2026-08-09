@@ -684,6 +684,13 @@
 - Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; the 832-attempt ceiling and conservative maximum cost of US$39.17741232 are unchanged
 - Provider-call impact: source audit and validation are deterministic local Git/filesystem operations; no frozen request, handler, OpenAI, web-search, Serper, direct-page, paid-provider, scoring, Production request, or Production deployment is performed
 
+## Version 1.12.19 (Completed)
+- Enabled only the existing bounded `CREATE_CONSENT` and `EXECUTE` operations in the strict executor-release authority record; repository metadata still cannot imply external real-run authorization
+- Kept private-control loading, scoring, reflection, lesson extraction or promotion, repair, product mutation, merge, and deployment authority disabled
+- Preserved the Version 1.12.13 product commit and runtime manifest, the complete Phase 7C freeze, the Product Cost-Source Manifest and inventory hashes, the 832 physical-attempt ceiling, and the US$40.00 absolute cost ceiling
+- Retained the direct-child exact one-file qualification seal, fixed CLI grammar, repository-derived identities, exactly-once reservation and journal guards, cost-ledger stop-before-next-request behavior, deterministic result readback, and hard private-control isolation
+- Provider-call impact: deterministic release qualification is network-denied; the separately approved one-run station may execute only the 26 immutable public requests under the sealed attempt and cost ceilings
+
 ## Version 2.0
 - User accounts
 - Saved listings

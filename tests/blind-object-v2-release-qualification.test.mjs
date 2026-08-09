@@ -33,7 +33,7 @@ function releaseCore(releaseState, overrides = {}) {
     releaseType: EXECUTION_RELEASE_TYPE,
     releaseState,
     executorRuntimeHead: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_HEAD : null,
-    executorVersion: "1.12.18",
+    executorVersion: "1.12.19",
     executorRuntimeTreeHash: releaseState === EXECUTION_RELEASE_STATE.QUALIFIED ? RUNTIME_TREE : null,
     qualificationPolicyVersion: QUALIFICATION_POLICY_VERSION,
     requiredQualificationRelationship: QUALIFICATION_RELATIONSHIP,
@@ -53,8 +53,8 @@ function releaseCore(releaseState, overrides = {}) {
     costEnvelopeSchemaVersion: "1.1",
     maximumAuthorizedCostMinorUnits: 4000,
     authorityDeclarations: {
-      consentCreationEnabled: false,
-      executionEnabled: false,
+      consentCreationEnabled: true,
+      executionEnabled: true,
       realExecutionAuthorized: false,
       privateControlsAuthorized: false,
       scoringAuthorized: false,
@@ -84,8 +84,8 @@ function snapshot(overrides = {}) {
     qualificationParents: [RUNTIME_HEAD],
     runtimeObjectType: "commit",
     runtimeTreeHash: RUNTIME_TREE,
-    runtimeVersion: "1.12.18",
-    qualificationVersion: "1.12.18",
+    runtimeVersion: "1.12.19",
+    qualificationVersion: "1.12.19",
     sealDiffStatus: [`M\t${EXECUTION_RELEASE_RELATIVE_PATH}`],
     sealDiffPaths: [EXECUTION_RELEASE_RELATIVE_PATH],
     ...overrides
@@ -105,7 +105,7 @@ function launchInput({ runtimeHead = RUNTIME_HEAD, qualificationHead = QUALIFICA
     executorRuntimeTreeHash: runtimeTree,
     executionReleaseRecordHash: recordHash,
     qualificationPolicyVersion: "1.0",
-    executorVersion: "1.12.18",
+    executorVersion: "1.12.19",
     completeFrozenAggregateHash: FREEZE,
     freezeManifestHash: "6f99638e26766966d923e24604a350174d0757059c61a38043305d7d845ae4f8",
     freezeReceiptHash: "e7d813e468ae13039b52a029694e4fbfd6d33ca97446d0f02bf6a7df8962a577",
@@ -233,14 +233,23 @@ test("M: callers cannot select either release head through CLI, environment, pac
   assert.throws(() => validateQualificationSnapshot({ ...snapshot(), callerSelectedHead: OTHER_HEAD }, records().qualified, records().pending), /fields differ/);
 });
 
-test("O: product identity, freeze identity, release schema, and all authority declarations remain isolated", async () => {
+test("O: product identity, freeze identity, release schema, and only bounded execution authority are enabled", async () => {
   const { pending, qualified } = records();
   for (const record of [pending, qualified]) {
     assert.equal(record.productSourceHead, "7056eb0601dc69c5985703fea6fe665e82c6bed8");
     assert.equal(record.productSourceVersion, "1.12.13");
     assert.equal(record.productCostSourceManifestHash, COST_SOURCE_MANIFEST_HASH);
     assert.equal(record.benchmarkContractIdentity.completeFrozenAggregateHash, FREEZE);
-    assert.equal(Object.values(record.authorityDeclarations).every((value) => value === false), true);
+    assert.deepEqual(record.authorityDeclarations, {
+      consentCreationEnabled: true,
+      executionEnabled: true,
+      realExecutionAuthorized: false,
+      privateControlsAuthorized: false,
+      scoringAuthorized: false,
+      reflectionAuthorized: false,
+      repairAuthorized: false,
+      deploymentAuthorized: false
+    });
   }
   const schema = JSON.parse(await readFile(new URL("../benchmarks/blind-object-v2/schemas/execution-release.schema.json", import.meta.url), "utf8"));
   assert.equal(schema.additionalProperties, false);
