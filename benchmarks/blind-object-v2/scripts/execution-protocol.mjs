@@ -7,7 +7,7 @@ export const EXECUTION_SCHEMA_VERSION = "1.1";
 export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.23";
+export const EXECUTOR_VERSION = "1.12.24";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -115,7 +115,7 @@ const CONSENT_FIELDS = Object.freeze([
   "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
   "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
-  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash",
+  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "immediatePredecessorExecutionReleaseRecordHash", "version1123FailureEvidenceHash", "releaseChainHash",
   "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash",
   "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
   "priorPhysicalAttemptCount", "priorConservativeCost", "remainingPhysicalAttemptAuthority", "remainingConservativeCostAuthority",
@@ -129,7 +129,7 @@ const RESERVATION_FIELDS = Object.freeze([
   "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
   "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
-  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "releaseChainHash",
+  "historicalExecutionReleaseRecordHash", "predecessorExecutionReleaseRecordHash", "immediatePredecessorExecutionReleaseRecordHash", "version1123FailureEvidenceHash", "releaseChainHash",
   "unusedConsentRevocationReceiptId", "unusedConsentRevocationReceiptHash",
   "continuationScopeHash", "continuationRequestAggregateHash", "terminalFailureReceiptId", "terminalFailureReceiptHash",
   "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead",
@@ -489,7 +489,7 @@ export function createExecutionConsent(input, nowIso) {
   assert.equal(costEnvelope?.authorizedMaximumMinorUnits, launchScope.maximumAuthorizedCostMinorUnits);
   finiteNonnegative(costEnvelope?.conservativeMaximumCost, "conservative maximum cost");
   assert.ok(costEnvelope.conservativeMaximumCostMinorUnits <= launchScope.maximumAuthorizedCostMinorUnits, "conservative maximum exceeds authorized cost");
-  const continuation = launchScope.authorizedRequestCount === 25;
+  const continuation = launchScope.authorizedRequestCount === 24;
   if (continuation) {
     assert.equal(costEnvelope.conservativeMaximumCost, launchScope.cumulativeConservativeMaximumCost, "complete canonical cost differs from cumulative continuation accounting");
     assert.equal(launchScope.continuationConservativeMaximumCost <= launchScope.remainingConservativeCostAuthority, true, "continuation cost exceeds remaining authority");
@@ -525,6 +525,8 @@ export function createExecutionConsent(input, nowIso) {
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
     historicalExecutionReleaseRecordHash: launchScope.historicalExecutionReleaseRecordHash,
     predecessorExecutionReleaseRecordHash: launchScope.predecessorExecutionReleaseRecordHash,
+    immediatePredecessorExecutionReleaseRecordHash: launchScope.immediatePredecessorExecutionReleaseRecordHash,
+    version1123FailureEvidenceHash: launchScope.version1123FailureEvidenceHash,
     releaseChainHash: launchScope.releaseChainHash,
     unusedConsentRevocationReceiptId: launchScope.unusedConsentRevocationReceiptId,
     unusedConsentRevocationReceiptHash: launchScope.unusedConsentRevocationReceiptHash,
@@ -633,6 +635,8 @@ export function createInvocationReservation(input, nowIso) {
     zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
     historicalExecutionReleaseRecordHash: launchScope.historicalExecutionReleaseRecordHash,
     predecessorExecutionReleaseRecordHash: launchScope.predecessorExecutionReleaseRecordHash,
+    immediatePredecessorExecutionReleaseRecordHash: launchScope.immediatePredecessorExecutionReleaseRecordHash,
+    version1123FailureEvidenceHash: launchScope.version1123FailureEvidenceHash,
     releaseChainHash: launchScope.releaseChainHash,
     unusedConsentRevocationReceiptId: launchScope.unusedConsentRevocationReceiptId,
     unusedConsentRevocationReceiptHash: launchScope.unusedConsentRevocationReceiptHash,
@@ -641,7 +645,7 @@ export function createInvocationReservation(input, nowIso) {
     terminalFailureReceiptId: launchScope.terminalFailureReceiptId,
     terminalFailureReceiptHash: launchScope.terminalFailureReceiptHash,
     completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
-    requestAggregateHash: launchScope.authorizedRequestCount === 25
+    requestAggregateHash: launchScope.authorizedRequestCount === 24
       ? launchScope.continuationRequestAggregateHash
       : launchScope.requestAggregateHash,
     productSourceHead: launchScope.productSourceHead,

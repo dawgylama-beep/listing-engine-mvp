@@ -108,7 +108,7 @@
       "const": "1.0"
     },
     "executorVersion": {
-      "const": "1.12.23"
+      "const": "1.12.24"
     },
     "executionProfileHash": {
       "$ref": "#/$defs/hash"

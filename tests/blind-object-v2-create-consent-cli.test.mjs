@@ -35,6 +35,7 @@ const POST_HANDLER_RESERVATION_NAME = "invocation-3540a4bf98950418b6f5fbea2f6b82
 const POST_HANDLER_ORIGINAL_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
 const POST_HANDLER_APPEND_PATHS = Object.freeze(["post-handler-reconciliation-receipt.json", "reservation-closure-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"]);
 const UNUSED_V11222_CONSENT_NAME = "consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f.json";
+const VERSION_1123_FAILURE_ROOT_NAME = "result-root-1b8675557a5c786630a1f72ea5e157236cbdc4d9bacec149";
 const TEMP_PREFIX = "katherines-eye-create-consent-cli-";
 const PRODUCT_RUNTIME_PREFIX = `katherines-eye-v2-product-${PRODUCT_HEAD}-`;
 const PUBLIC_FREEZE_FILES = Object.freeze([
@@ -176,7 +177,7 @@ async function createIsolatedRepository(cloneRoot) {
   await writeFile(pendingPath, `${JSON.stringify(pendingRecord, null, 2)}\n`);
   for (const [args, label] of [
     [["add", "-A"], "runtime stage"],
-    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.23 runtime"], "runtime commit"]
+    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.24 runtime"], "runtime commit"]
   ]) {
     const result = await run("git", args, { cwd: cloneRoot });
     assert.equal(result.code, 0, `${label} failed: ${result.stderr}`);
@@ -194,7 +195,7 @@ async function createIsolatedRepository(cloneRoot) {
   await writeFile(pendingPath, `${JSON.stringify(qualifiedRecord, null, 2)}\n`);
   for (const [args, label] of [
     [["add", "--", "benchmarks/blind-object-v2/execution-release.json"], "seal stage"],
-    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.23 qualification seal"], "seal commit"]
+    [["-c", "user.name=Katherine Eye Tests", "-c", "user.email=tests@invalid.example", "commit", "--quiet", "-m", "test: isolated Version 1.12.24 qualification seal"], "seal commit"]
   ]) {
     const result = await run("git", args, { cwd: cloneRoot });
     assert.equal(result.code, 0, `${label} failed: ${result.stderr}`);
@@ -218,6 +219,10 @@ async function createIsolatedRepository(cloneRoot) {
     await cp(path.join(sourceHistoryRoot, POST_HANDLER_ROOT_NAME, relativePath), path.join(isolatedPostHandlerRoot, relativePath), { errorOnExist: true, force: false });
   }
   await cp(path.join(sourceHistoryRoot, ".reservations", POST_HANDLER_RESERVATION_NAME), path.join(isolatedHistoryRoot, ".reservations", POST_HANDLER_RESERVATION_NAME), { errorOnExist: true, force: false });
+  await cp(path.join(sourceHistoryRoot, VERSION_1123_FAILURE_ROOT_NAME), path.join(isolatedHistoryRoot, VERSION_1123_FAILURE_ROOT_NAME), { recursive: true, errorOnExist: true, force: false });
+  const isolatedRevocationRoot = path.join(isolatedHistoryRoot, ".consent-revocations");
+  await mkdir(isolatedRevocationRoot, { recursive: true });
+  await cp(path.join(sourceHistoryRoot, ".consent-revocations", UNUSED_V11222_CONSENT_NAME), path.join(isolatedRevocationRoot, UNUSED_V11222_CONSENT_NAME), { errorOnExist: true, force: false });
   const isolatedConsentRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2", "consent");
   await mkdir(isolatedConsentRoot, { recursive: true });
   await cp(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent", ZERO_EXTERNAL_CONSENT_NAME), path.join(isolatedConsentRoot, ZERO_EXTERNAL_CONSENT_NAME), { errorOnExist: true, force: false });
@@ -269,32 +274,32 @@ test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark
     assert.match(rejectedOverride.stderr, /accepts no consent hash or other argument/);
     assert.equal(await exists(callerSelectedRoot), false, "caller-selected benchmark root was created");
 
-    const revoked = jsonOutput(await run(process.execPath, [cliPath, "REVOKE_V11222_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated Version 1.12.22 consent revocation");
-    assert.equal(revoked.disposition, "SUPERSEDED_UNUSED_WITHOUT_CONSUMPTION");
-    assert.equal(revoked.sourceConsentId, UNUSED_V11222_CONSENT_NAME.replace(/\.json$/, ""));
+    const disabledRevocation = await run(process.execPath, [cliPath, "REVOKE_V11222_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment });
+    assert.notEqual(disabledRevocation.code, 0, "historical Version 1.12.22 consent revocation unexpectedly remained enabled");
+    assert.match(disabledRevocation.stderr, /disabled/i);
 
     const qualifiedOffline = jsonOutput(await run(process.execPath, [cliPath, "QUALIFY_OFFLINE", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated offline production CLI qualification");
-    assert.equal(qualifiedOffline.disposition, "VERSION_1_12_23_OFFLINE_PRODUCTION_CLI_EXECUTOR_QUALIFIED");
-    assert.equal(qualifiedOffline.successfulRequestCount, 25);
-    assert.equal(qualifiedOffline.successfulHandlerReturnedCount, 25);
+    assert.equal(qualifiedOffline.disposition, "VERSION_1_12_24_COGNITIVE_LIFECYCLE_GOVERNOR_OFFLINE_QUALIFIED");
+    assert.equal(qualifiedOffline.successfulRequestCount, 24);
+    assert.equal(qualifiedOffline.successfulHandlerReturnedCount, 24);
     assert.equal(qualifiedOffline.intentionalFailureHandlerReturnedCount, 1);
     assert.equal(qualifiedOffline.intentionalFailureResponseCount, 0);
     assert.equal(qualifiedOffline.transactionRollbackState, "CLOSED_CONSERVATIVE_COST_ACCOUNTED");
-    assert.equal(qualifiedOffline.negativeReleaseChainCases.length, 10);
+    assert.equal(qualifiedOffline.negativeReleaseChainCases.length, 11);
     assert.equal(qualifiedOffline.reusedVersion1122ConsentRejected, true);
-    assert.equal(qualifiedOffline.handlerInvocationCount, 26);
+    assert.equal(qualifiedOffline.handlerInvocationCount, 25);
     assert.equal(qualifiedOffline.providerAttemptCount, 0);
     assert.equal(qualifiedOffline.physicalProviderAttemptCount, 0);
     assert.equal(qualifiedOffline.networkAttemptCount, 0);
 
     const preflight = jsonOutput(await run(process.execPath, [cliPath, "PREFLIGHT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated PREFLIGHT");
-    assert.equal(preflight.executorVersion, "1.12.23");
+    assert.equal(preflight.executorVersion, "1.12.24");
     assert.equal(preflight.handlerInvocationCount, 0);
     assert.equal(preflight.providerAttemptCount, 0);
-    assert.equal(preflight.continuationRequestCount, 25);
-    assert.equal(preflight.priorPhysicalAttemptCount, 9);
-    assert.equal(preflight.priorConservativeCost, 1.50682355);
-    assert.equal(preflight.continuationConservativeMaximumCost, 37.67058877);
+    assert.equal(preflight.continuationRequestCount, 24);
+    assert.equal(preflight.priorPhysicalAttemptCount, 16);
+    assert.equal(preflight.priorConservativeCost, 3.0136471);
+    assert.equal(preflight.continuationConservativeMaximumCost, 36.16376522);
     assert.equal(preflight.cumulativeConservativeMaximumCost, 39.17741232);
 
     const created = jsonOutput(await run(process.execPath, [cliPath, "CREATE_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated CREATE_CONSENT");

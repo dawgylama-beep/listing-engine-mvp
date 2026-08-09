@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/handler-return-quarantine-receipt.schema.json",
+  "title": "Restricted exact handler-return quarantine receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "artifactId", "executionReleaseRecordHash", "consentId", "consentHash", "invocationId", "reservationId", "reservationHash", "resultId", "resultRootName", "requestId", "requestHash", "physicalSubmissionIdentity", "canonicalHandlerResultHash", "canonicalHandlerResultBytes", "encryption", "ciphertextHash", "ciphertextBytes", "envelopeHash", "accessControl", "publicArtifact", "gitTracked", "rawContentLogged", "createdAt", "receiptId", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "receiptType": { "const": "HANDLER_RETURN_QUARANTINE_RECEIPT" },
+    "artifactId": { "type": "string", "pattern": "^handler-quarantine-[a-f0-9]{48}$" },
+    "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
+    "consentId": { "type": "string" }, "consentHash": { "$ref": "#/$defs/hash" },
+    "invocationId": { "type": "string" }, "reservationId": { "type": "string" }, "reservationHash": { "$ref": "#/$defs/hash" },
+    "resultId": { "type": "string" }, "resultRootName": { "type": "string" },
+    "requestId": { "type": "string", "pattern": "^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$" }, "requestHash": { "$ref": "#/$defs/hash" },
+    "physicalSubmissionIdentity": { "type": "string" },
+    "canonicalHandlerResultHash": { "$ref": "#/$defs/hash" }, "canonicalHandlerResultBytes": { "type": "integer", "minimum": 1 },
+    "encryption": { "const": "AES-256-GCM_WITH_WINDOWS_DPAPI_CURRENT_USER_KEY_PROTECTION" },
+    "ciphertextHash": { "$ref": "#/$defs/hash" }, "ciphertextBytes": { "type": "integer", "minimum": 1 }, "envelopeHash": { "$ref": "#/$defs/hash" },
+    "accessControl": { "const": "OWNER_PROCESS_CONTEXT_AND_DPAPI_CURRENT_USER" },
+    "publicArtifact": { "const": false }, "gitTracked": { "const": false }, "rawContentLogged": { "const": false },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "receiptId": { "type": "string", "pattern": "^quarantine-receipt-[a-f0-9]{48}$" }, "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

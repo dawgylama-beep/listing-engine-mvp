@@ -700,6 +700,18 @@
 - Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; private controls, scoring, reflection, lesson work, product mutation, merge, Preview, and Production remain unauthorized
 - Provider-call impact: release qualification is deterministic and hard-network-denied; only the separately authorized one 25-request continuation may perform live provider activity after seal readback
 
+## Version 1.12.24 (Completed)
+- Installed a versioned, forward-only Cognitive Lifecycle Governor whose canonical manifest owns every release, preflight, consent, reservation, per-request handler, quarantine, sanitizer, terminal, readback, composite, ready, and terminal-stop transition
+- Added exact canonical handler-return quarantine before sanitization using AES-256-GCM with a random per-artifact key protected by Windows DPAPI CurrentUser, exclusive append-only writes, full identity substitution protection, and independent decrypt/hash/length readback
+- Added safe sanitizer decision receipts for every request, including all traversal-derived rejected locations, normalized contract paths, schema nodes, value digests and lengths, classifier/rule inventories, credential and entropy classifications, and public-preimage verification without raw rejected values
+- Replaced independent public-identifier path authorities with one 213-contract manifest that generates runtime matching, provenance schema restrictions, positive and negative fixtures, contract IDs, and qualification/documentation inventory
+- Added a durable 12-class lifecycle invariant catalog, known downstream-only deterministic recovery from the same quarantined bytes, novel-condition stop receipts, and bounded non-replay repair dossiers
+- Carried forward two permanent infrastructure failures, 16 physical attempts, and US$3.01364710 conservative cost; the only executable continuation is the 24-request set V2-RUN-003 through V2-RUN-026
+- Replaced count-specific completion authority with a 26-disposition unscored composite whose only complete state is 24 cognitive results, 2 infrastructure failures, and 0 not submitted
+- Added actual production CLI/executor/governor/persistence/sanitizer/readback/composite offline qualification with restart-prefix reconstruction, substitution and transition mutation, credential mutation, deterministic downstream recovery, rollback, exact quarantine readback, and hard network denial
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; evaluator controls, scoring, reflection, diagnosis, lesson promotion, product mutation, merge, Preview, and Production remain unauthorized
+- Provider-call impact: qualification remains deterministic and network-denied; only the separately authorized exactly-once 24-request continuation may perform live provider activity after the qualified one-file release seal
+
 ## Version 2.0
 - User accounts
 - Saved listings

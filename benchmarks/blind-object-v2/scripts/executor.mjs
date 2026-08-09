@@ -75,6 +75,33 @@ import {
   validatePostHandlerFailureManifest,
   validatePostHandlerFailureValidation
 } from "./post-handler-durability-protocol.mjs";
+import {
+  canonicalHandlerResultHash as deriveCanonicalHandlerResultHash,
+  quarantineHandlerReturn,
+  readQuarantinedHandlerReturn
+} from "./handler-return-quarantine.mjs";
+import {
+  createSanitizerDecisionReceipt,
+  inspectTerminalSanitizer,
+  validateSanitizerDecisionReceipt
+} from "./sanitizer-decision.mjs";
+import {
+  advanceGovernor,
+  createBoundedRepairDossier,
+  createLifecycleTransitionManifest,
+  reconstructGovernorEpisode,
+  stopGovernor,
+  validateLifecycleTransitionManifest
+} from "./cognitive-lifecycle-governor.mjs";
+import {
+  COGNITIVE_LIFECYCLE_INVARIANT_CATALOG,
+  consultLifecycleInvariant,
+  validateInvariantCatalog
+} from "./cognitive-lifecycle-invariants.mjs";
+import {
+  PUBLIC_IDENTIFIER_CONTRACT_MANIFEST,
+  validatePublicIdentifierContractManifest
+} from "./public-identifier-contract-manifest.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
 const VALIDATION_REPORT_FIELDS = Object.freeze([
@@ -119,35 +146,6 @@ function sanitizeValue(value, depth = 0) {
     output[key] = sanitizeValue(value[key], depth + 1);
   }
   return output;
-}
-
-function hashCanonicalHandlerResult(value) {
-  const ancestors = new WeakMap();
-  function canonicalize(node, location = "$") {
-    if (node === null || typeof node === "string" || typeof node === "boolean") return node;
-    if (typeof node === "number") return Number.isFinite(node) ? node : { $nonfiniteNumber: String(node) };
-    if (typeof node === "bigint") return { $bigint: node.toString() };
-    if (typeof node === "undefined") return { $undefined: true };
-    if (typeof node === "symbol") return { $symbol: String(node.description || "") };
-    if (typeof node === "function") return { $function: String(node.name || "anonymous") };
-    if (Buffer.isBuffer(node) || ArrayBuffer.isView(node)) {
-      return { $bytes: Buffer.from(node.buffer, node.byteOffset, node.byteLength).toString("base64") };
-    }
-    if (node instanceof Date) return { $date: Number.isNaN(node.valueOf()) ? "INVALID" : node.toISOString() };
-    if (ancestors.has(node)) return { $cycleReference: ancestors.get(node) };
-    ancestors.set(node, location);
-    if (Array.isArray(node)) return node.map((entry, index) => canonicalize(entry, `${location}[${index}]`));
-    const output = {};
-    for (const key of Object.keys(node).sort()) {
-      try {
-        output[key] = canonicalize(node[key], `${location}.${key}`);
-      } catch (error) {
-        output[key] = { $unreadable: String(error?.name || "Error") };
-      }
-    }
-    return output;
-  }
-  return sha256Json(canonicalize(value));
 }
 
 function responseReport(body) {
@@ -315,6 +313,9 @@ async function finalizeResult({
   costEnvelope,
   terminalRecords,
   handlerReturnedReceipts,
+  sanitizerDecisionReceipts,
+  governorDecisionReceipts,
+  governorRecoveryDecisions,
   continuationScope,
   requestedCount,
   resultState,
@@ -331,8 +332,15 @@ async function finalizeResult({
     "invocation-reservation.json",
     "execution-journal.json",
     "cost-ledger.json",
+    "cognitive-lifecycle-transition-manifest.json",
+    "cognitive-lifecycle-invariant-catalog.json",
+    "public-identifier-contract-manifest.json",
     ...terminalRecords.map((record) => `responses/${record.requestId}.json`),
-    ...handlerReturnedReceipts.map((record) => `handler-returned/${record.requestId}.json`)
+    ...handlerReturnedReceipts.map((record) => `handler-returned/${record.requestId}.json`),
+    ...handlerReturnedReceipts.map((record) => `handler-quarantine-receipts/${record.requestId}.json`),
+    ...sanitizerDecisionReceipts.map((record) => `sanitizer-decisions/${record.requestId}.json`),
+    ...governorDecisionReceipts.map((record) => `governor-decisions/${String(record.sequence).padStart(6, "0")}.json`),
+    ...governorRecoveryDecisions.map((record) => `governor-recoveries/${record.requestId}.json`)
   ];
   const tree = await computeResultTreeAggregate(resultRoot, authorityPaths);
   const orderedResponseHashInventory = terminalRecords.map((record) => ({
@@ -428,6 +436,10 @@ async function finalizePostHandlerSanitizationFailure({
   continuationScope = null,
   terminalRecords,
   handlerReturnedReceipts,
+  sanitizerDecisionReceipts = [],
+  governorDecisionReceipts = [],
+  governorRecoveryDecisions = [],
+  includeBoundedRepairDossier = false,
   receipt,
   clock
 }) {
@@ -435,8 +447,14 @@ async function finalizePostHandlerSanitizationFailure({
     "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
     "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
     "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json",
+    "cognitive-lifecycle-transition-manifest.json", "cognitive-lifecycle-invariant-catalog.json", "public-identifier-contract-manifest.json",
     ...handlerReturnedReceipts.map((record) => `handler-returned/${record.requestId}.json`),
-    ...terminalRecords.map((record) => `responses/${record.requestId}.json`)
+    ...handlerReturnedReceipts.map((record) => `handler-quarantine-receipts/${record.requestId}.json`),
+    ...terminalRecords.map((record) => `responses/${record.requestId}.json`),
+    ...sanitizerDecisionReceipts.map((record) => `sanitizer-decisions/${record.requestId}.json`),
+    ...governorDecisionReceipts.map((record) => `governor-decisions/${String(record.sequence).padStart(6, "0")}.json`),
+    ...governorRecoveryDecisions.map((record) => `governor-recoveries/${record.requestId}.json`),
+    ...(includeBoundedRepairDossier ? ["bounded-repair-dossier.json"] : [])
   ];
   const tree = await computeResultTreeAggregate(resultRoot, basePaths);
   const manifest = createPostHandlerFailureManifest({
@@ -578,6 +596,7 @@ export async function executeBenchmarkV2({
   freezeRoot,
   resultHistoryRootOverride = null,
   reservationStoreRootOverride = null,
+  handlerReturnQuarantineRootOverride = null,
   executionProfile,
   attemptCeiling,
   pricingProfile,
@@ -590,6 +609,7 @@ export async function executeBenchmarkV2({
   zeroExternalSupersessionReceipt = null,
   terminalFailureReceipt = null,
   unusedConsentRevocationReceipt = null,
+  version1123FailureEvidence = null,
   releaseIdentity = null,
   syntheticHandler = null,
   photoTransformer = null,
@@ -606,6 +626,7 @@ export async function executeBenchmarkV2({
     assert.equal(syntheticHandler, null, "real execution cannot accept a mock or arbitrary handler");
     assert.equal(photoTransformer, null, "real execution cannot accept a caller-selected photo transformer");
     assert.equal(faultPlan, null, "real execution cannot accept synthetic fault injection");
+    assert.equal(handlerReturnQuarantineRootOverride, null, "real execution cannot override the restricted quarantine root");
     assert.ok(productRuntimeRoot, "real execution requires the pinned product runtime");
     const runtime = verifyDetachedProductRuntime(productRuntimeRoot);
     assert.equal(runtime.productRuntimeManifestHash, executionProfile.productRuntimeManifestHash);
@@ -618,7 +639,7 @@ export async function executeBenchmarkV2({
   if (continuationScope) {
     validateContinuationScope(continuationScope, frozen);
     assert.equal(launchScope.continuationScopeHash, continuationScope.continuationScopeHash);
-    assert.equal(launchScope.authorizedRequestCount, 25);
+    assert.equal(launchScope.authorizedRequestCount, 24);
     assert.equal(continuationScope.terminalFailureReceiptHash, terminalFailureReceipt?.receiptHash, "continuation terminal failure receipt differs");
     assert.equal(continuationScope.unusedConsentRevocationReceiptHash, unusedConsentRevocationReceipt?.receiptHash, "continuation unused consent revocation receipt differs");
   } else {
@@ -626,7 +647,7 @@ export async function executeBenchmarkV2({
     assert.equal(mode, EXECUTION_MODE.SYNTHETIC_TEST_ONLY, "real execution requires the fixed continuation scope");
   }
   if (zeroExternalSupersessionReceipt || terminalFailureReceipt || unusedConsentRevocationReceipt) {
-    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence });
     assert.equal(launchScope.releaseChainHash, releaseChain.releaseChainHash);
     assert.equal(launchScope.historicalExecutionReleaseRecordHash, releaseChain.version1121ExecutionReleaseRecordHash);
     assert.equal(launchScope.predecessorExecutionReleaseRecordHash, releaseChain.version1122ExecutionReleaseRecordHash);
@@ -635,7 +656,8 @@ export async function executeBenchmarkV2({
     assert.ok(zeroExternalSupersessionReceipt, "real execution requires the historical zero-external supersession receipt");
     assert.ok(terminalFailureReceipt, "real execution requires the fixed Version 1.12.21 terminal-failure receipt");
     assert.ok(unusedConsentRevocationReceipt, "real execution requires the unused Version 1.12.22 consent revocation receipt");
-    assert.ok(releaseIdentity, "real execution requires the qualified Version 1.12.23 release identity");
+    assert.ok(version1123FailureEvidence, "real execution requires the immutable Version 1.12.23 failure evidence");
+    assert.ok(releaseIdentity, "real execution requires the qualified Version 1.12.24 release identity");
   }
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
@@ -690,7 +712,7 @@ export async function executeBenchmarkV2({
     createdIdentity: `executor-${executionProfile.executorRuntimeHead.slice(0, 16)}`
   };
   let reservation = createInvocationReservation(reservationInput, clock());
-  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseIdentity });
+  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence, releaseIdentity });
   assert.equal(createdReservation.status, "CREATED", "execution requires a newly exclusive reservation; readback cannot start execution");
   const reservationFile = createdReservation.filePath;
   await createExclusiveResultRoot(resultHistoryRoot, consent.resultRootName);
@@ -701,6 +723,50 @@ export async function executeBenchmarkV2({
   await writeResultFile(resultRoot, "cost-envelope.json", costEnvelope);
   await writeResultFile(resultRoot, "execution-consent.json", consent);
   await writeResultFile(resultRoot, "invocation-reservation.json", reservation);
+  validateInvariantCatalog();
+  validatePublicIdentifierContractManifest();
+  const lifecycleManifest = createLifecycleTransitionManifest({
+    releaseRecordHash: executionProfile.executionReleaseRecordHash,
+    consentId: consent.consentId,
+    invocationId: consent.invocationId,
+    reservationId: consent.reservationId,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
+    orderedRequestIds: executionRequests.map((request) => request.analysisId)
+  });
+  const governorIdentities = Object.freeze({
+    releaseRecordHash: executionProfile.executionReleaseRecordHash,
+    consentId: consent.consentId,
+    invocationId: consent.invocationId,
+    reservationId: consent.reservationId,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName
+  });
+  const governorDecisionReceipts = [];
+  const governorRecoveryDecisions = [];
+  const sanitizerDecisionReceipts = [];
+  const persistGovernorAdvance = async ({ observedEvidenceType, observedEvidence, handlerResultHash = null, terminalResultHash = null, invariantDecision = null }) => {
+    const receipt = advanceGovernor({
+      manifest: lifecycleManifest,
+      priorReceipts: governorDecisionReceipts,
+      observedEvidenceType,
+      observedEvidence,
+      identities: governorIdentities,
+      handlerResultHash,
+      terminalResultHash,
+      invariantDecision,
+      decidedAt: clock()
+    });
+    await writeResultFile(resultRoot, `governor-decisions/${String(receipt.sequence).padStart(6, "0")}.json`, receipt);
+    governorDecisionReceipts.push(receipt);
+    return receipt;
+  };
+  await writeResultFile(resultRoot, "cognitive-lifecycle-transition-manifest.json", lifecycleManifest);
+  await writeResultFile(resultRoot, "cognitive-lifecycle-invariant-catalog.json", COGNITIVE_LIFECYCLE_INVARIANT_CATALOG);
+  await writeResultFile(resultRoot, "public-identifier-contract-manifest.json", PUBLIC_IDENTIFIER_CONTRACT_MANIFEST);
+  await persistGovernorAdvance({ observedEvidenceType: "QUALIFIED_RELEASE_AND_OFFLINE_PREFLIGHT", observedEvidence: { releaseRecordHash: executionProfile.executionReleaseRecordHash, profileHash: executionProfile.profileHash } });
+  await persistGovernorAdvance({ observedEvidenceType: "NEW_TOP_LEVEL_CONSENT_AUTHORITY", observedEvidence: { consentId: consent.consentId, consentHash: consent.consentHash, status: consent.status } });
+  await persistGovernorAdvance({ observedEvidenceType: "EXCLUSIVE_RESERVATION_CREATED", observedEvidence: { reservationId: reservation.reservationId, reservationHash: reservation.reservationHash, state: reservation.state } });
   let journal = createExecutionJournal({ invocationId: consent.invocationId, consentHash: consent.consentHash, requests: executionRequests, nowIso: clock() });
   let ledger = createCostLedger({
     invocationId: consent.invocationId,
@@ -722,12 +788,13 @@ export async function executeBenchmarkV2({
 
   const terminalRecords = [];
   const handlerReturnedReceipts = [];
+  const quarantineRoot = handlerReturnQuarantineRootOverride || path.join(resultHistoryRoot, ".handler-return-quarantine");
   let stopReason = "";
   let integrityFailureCount = 0;
   let preExternalAbortRequestId = "";
   const perRequestWorstCase = conservativePreRunMaximum / executionRequests.length;
   for (const [index, request] of executionRequests.entries()) {
-    const expectedPlanIndex = continuationScope ? index + 1 : index;
+    const expectedPlanIndex = continuationScope ? index + 2 : index;
     assert.equal(request.analysisId, frozen.analysisPlan.analyses[expectedPlanIndex].analysisId, "execution order differs from canonical analysis plan");
     if (ledger.accruedEstimatedCost + ledger.reservedWorstCaseRemainingCost > ledger.maximumAuthorizedCost) {
       journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION, { at: clock(), reason: "COST_CEILING_STOP_BEFORE_SUBMISSION" });
@@ -750,6 +817,8 @@ export async function executeBenchmarkV2({
     let handlerReturned = false;
     let handlerReturnedAt = "";
     let canonicalHandlerResultHash = "";
+    let quarantineReceipt = null;
+    let quarantineBindings = null;
     try {
       if (faultPlan?.duringLocalPreparation === request.analysisId) throw Object.assign(new Error("synthetic local preparation failure"), { code: "synthetic_pre_external_abort" });
       const invokeAtHandlerBoundary = async (preparedPhotos, lifecycle = null) => {
@@ -762,6 +831,11 @@ export async function executeBenchmarkV2({
         externalAttemptCommitted = true;
         startedAt = clock();
         startedMs = Date.parse(startedAt);
+        await persistGovernorAdvance({
+          observedEvidenceType: "AT_MOST_ONCE_HANDLER_SUBMISSION_COMMITTED",
+          observedEvidence: { requestId: request.analysisId, requestHash: request.requestContractHash, physicalSubmissionIdentity: submissionId },
+          terminalResultHash: null
+        });
         if (faultPlan?.afterExternalAttemptCommitted === request.analysisId || faultPlan?.afterSubmissionStarted === request.analysisId) {
           throw Object.assign(new Error("synthetic ambiguous interruption"), { code: "synthetic_unknown_after_submission" });
         }
@@ -781,9 +855,37 @@ export async function executeBenchmarkV2({
       assert.ok(handlerResult && Number.isInteger(handlerResult.statusCode), "handler terminal result is malformed");
       handlerReturned = true;
       handlerReturnedAt = clock();
-      canonicalHandlerResultHash = hashCanonicalHandlerResult(handlerResult);
+      canonicalHandlerResultHash = deriveCanonicalHandlerResultHash(handlerResult);
       submissionState = REQUEST_STATE.TERMINAL;
       terminalState = handlerResult.statusCode >= 200 && handlerResult.statusCode < 400 ? "NORMAL_SUCCESS" : "PRODUCT_TERMINAL_FAILURE";
+      quarantineBindings = {
+        executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+        consentId: consent.consentId,
+        consentHash: consent.consentHash,
+        invocationId: consent.invocationId,
+        reservationId: consent.reservationId,
+        reservationHash: reservation.reservationHash,
+        resultId: consent.resultId,
+        resultRootName: consent.resultRootName,
+        requestId: request.analysisId,
+        requestHash: request.requestContractHash,
+        physicalSubmissionIdentity: submissionId
+      };
+      const quarantined = await quarantineHandlerReturn({
+        handlerResult,
+        bindings: quarantineBindings,
+        quarantineRoot,
+        createdAt: handlerReturnedAt
+      });
+      quarantineReceipt = quarantined.receipt;
+      await writeResultFile(resultRoot, `handler-quarantine-receipts/${request.analysisId}.json`, quarantineReceipt);
+      handlerResult = quarantined.handlerResult;
+      canonicalHandlerResultHash = quarantineReceipt.canonicalHandlerResultHash;
+      await persistGovernorAdvance({
+        observedEvidenceType: "EXACT_HANDLER_RETURN_QUARANTINED_AND_READ_BACK",
+        observedEvidence: { requestId: request.analysisId, quarantineReceiptHash: quarantineReceipt.receiptHash, canonicalHandlerResultBytes: quarantineReceipt.canonicalHandlerResultBytes },
+        handlerResultHash: canonicalHandlerResultHash
+      });
     } catch (error) {
       if (!externalAttemptCommitted) {
         journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.PRE_EXTERNAL_ABORT, { at: clock(), reason: "PROVEN_LOCAL_PREPARATION_FAILURE_ZERO_EXTERNAL_ACTIVITY" });
@@ -851,6 +953,12 @@ export async function executeBenchmarkV2({
         physicalProviderAttemptCount: telemetryAttempts.length,
         cumulativeConservativeCost: Number(((continuationScope?.priorConservativeCost || 0) + ledger.actualCalculatedCost).toFixed(8)),
         canonicalHandlerResultHash,
+        quarantineReceiptId: quarantineReceipt.receiptId,
+        quarantineReceiptHash: quarantineReceipt.receiptHash,
+        quarantineArtifactId: quarantineReceipt.artifactId,
+        quarantinedByteLength: quarantineReceipt.canonicalHandlerResultBytes,
+        quarantineEncryption: quarantineReceipt.encryption,
+        quarantineReadbackVerified: true,
         returnedAt: handlerReturnedAt,
         transactionState: "HANDLER_RETURNED_RESPONSE_NOT_PERSISTED",
         publicResponseArtifactCommitted: false,
@@ -859,11 +967,74 @@ export async function executeBenchmarkV2({
       validateHandlerReturnedReceipt(handlerReturnedReceipt);
       await writeResultFile(resultRoot, `handler-returned/${request.analysisId}.json`, handlerReturnedReceipt);
       handlerReturnedReceipts.push(handlerReturnedReceipt);
+      if (faultPlan?.knownDownstreamRecovery === request.analysisId) {
+        const invariantDecision = consultLifecycleInvariant("TERMINAL_SANITIZER_FALSE_POSITIVE_RISK", {
+          quarantineVerified: true,
+          sourceCodeMutationRequired: false,
+          policyMutationRequired: false,
+          contractMatch: true,
+          credentialClassifierFired: false,
+          publicPreimageRecomputed: true,
+          identityBindingsVerified: true
+        });
+        assert.equal(invariantDecision.decision, "AUTOMATIC_DOWNSTREAM_RECOVERY_AUTHORIZED");
+        const recovered = await readQuarantinedHandlerReturn({ receipt: quarantineReceipt, bindings: quarantineBindings, quarantineRoot });
+        assert.equal(recovered.canonicalHandlerResultHash, canonicalHandlerResultHash);
+        handlerResult = recovered.handlerResult;
+        const recoveryRecord = Object.freeze({
+          schemaVersion: "1.0",
+          recordType: "COGNITIVE_LIFECYCLE_AUTOMATIC_RECOVERY",
+          requestId: request.analysisId,
+          invariantDecisionHash: invariantDecision.decisionHash,
+          quarantineReceiptHash: quarantineReceipt.receiptHash,
+          canonicalHandlerResultHash,
+          handlerOrProviderReplayPerformed: false,
+          sourceCodeMutationPerformed: false,
+          policyMutationPerformed: false,
+          recoveredAt: clock(),
+          recordHash: sha256Json({ requestId: request.analysisId, invariantDecisionHash: invariantDecision.decisionHash, quarantineReceiptHash: quarantineReceipt.receiptHash, canonicalHandlerResultHash })
+        });
+        await writeResultFile(resultRoot, `governor-recoveries/${request.analysisId}.json`, recoveryRecord);
+        governorRecoveryDecisions.push(recoveryRecord);
+      }
+    }
+    if (!handlerReturned) {
+      const invariantDecision = consultLifecycleInvariant("HANDLER_RESPONSE_LOST_BEFORE_PERSISTENCE", {
+        externalAttemptCommitted,
+        physicalSubmissionIdentity: submissionId,
+        quarantineVerified: false,
+        handlerOrProviderReplayRequired: true,
+        identityBindingsVerified: true
+      });
+      const stopReceipt = stopGovernor({
+        manifest: lifecycleManifest,
+        priorReceipts: governorDecisionReceipts,
+        observedEvidenceType: "AMBIGUOUS_AFTER_EXTERNAL_ATTEMPT_NO_HANDLER_RETURN",
+        observedEvidence: { requestId: request.analysisId, requestHash: request.requestContractHash, physicalSubmissionIdentity: submissionId, journalHash: journal.journalHash },
+        identities: governorIdentities,
+        invariantDecision,
+        decidedAt: clock()
+      });
+      await writeResultFile(resultRoot, `governor-decisions/${String(stopReceipt.sequence).padStart(6, "0")}.json`, stopReceipt);
+      governorDecisionReceipts.push(stopReceipt);
+      const repairDossier = createBoundedRepairDossier({
+        manifest: lifecycleManifest,
+        receipts: governorDecisionReceipts,
+        sanitizerDecisionReceipt: null,
+        quarantineReceipt: null,
+        failureId: "HANDLER_RESPONSE_LOST_BEFORE_PERSISTENCE",
+        identities: governorIdentities,
+        createdAt: clock()
+      });
+      await writeResultFile(resultRoot, "bounded-repair-dossier.json", repairDossier);
+      break;
     }
     const completedAt = clock();
     let terminal;
+    let terminalCandidate = null;
+    let sanitizerDecisionReceipt = null;
     try {
-      terminal = createTerminalResult(terminalRecordInput({
+      terminalCandidate = terminalRecordInput({
         request,
         invocationId: consent.invocationId,
         consent,
@@ -881,15 +1052,118 @@ export async function executeBenchmarkV2({
         errorStage,
         errorCategory,
         costEntry
-      }));
+      });
+      terminal = createTerminalResult(terminalCandidate);
       validateTerminalResult(terminal);
+      const sanitizerInspection = inspectTerminalSanitizer(terminal, { knownEnvironment: allowedEnvironment?.secretValues || {} });
+      sanitizerDecisionReceipt = createSanitizerDecisionReceipt({
+        inspection: sanitizerInspection,
+        bindings: { ...governorIdentities, requestId: request.analysisId, requestHash: request.requestContractHash },
+        quarantineReceiptHash: quarantineReceipt.receiptHash,
+        terminalCandidateHash: terminal.recordHash,
+        decidedAt: clock(),
+        recoveryAttempt: faultPlan?.knownDownstreamRecovery === request.analysisId ? 1 : 0
+      });
+      await writeResultFile(resultRoot, `sanitizer-decisions/${request.analysisId}.json`, sanitizerDecisionReceipt);
+      sanitizerDecisionReceipts.push(sanitizerDecisionReceipt);
+      await persistGovernorAdvance({
+        observedEvidenceType: "SAFE_TERMINAL_SANITIZER_DECISION",
+        observedEvidence: { requestId: request.analysisId, sanitizerDecisionReceiptHash: sanitizerDecisionReceipt.receiptHash, decision: sanitizerDecisionReceipt.decision },
+        handlerResultHash: canonicalHandlerResultHash,
+        terminalResultHash: terminal.recordHash
+      });
+      if (sanitizerInspection.decision !== "ACCEPTED") throw Object.assign(new Error("terminal sanitizer rejected the public result"), { code: "terminal_sanitizer_rejected", sanitizerInspection });
       assertNoSecretMaterial(terminal, {
         knownEnvironment: allowedEnvironment?.secretValues || {},
         schemaValidatedRecordType: terminal.resultRecordType
       });
       await writeResultFile(resultRoot, `responses/${request.analysisId}.json`, terminal);
+      await persistGovernorAdvance({
+        observedEvidenceType: "PUBLIC_TERMINAL_RESULT_PERSISTED",
+        observedEvidence: { requestId: request.analysisId, recordHash: terminal.recordHash },
+        handlerResultHash: canonicalHandlerResultHash,
+        terminalResultHash: terminal.recordHash
+      });
+      const persistedTerminal = await readJsonStrictFile(path.join(resultRoot, "responses", `${request.analysisId}.json`));
+      validateTerminalResult(persistedTerminal, { requestHash: request.requestContractHash, launchScopeHash: consent.launchScopeHash, resultId: consent.resultId, resultRootName: consent.resultRootName, invocationId: consent.invocationId, consentHash: consent.consentHash, reservationHash: reservation.reservationHash });
+      assert.equal(persistedTerminal.recordHash, terminal.recordHash);
+      await persistGovernorAdvance({
+        observedEvidenceType: "INDEPENDENT_TERMINAL_READBACK_VERIFIED",
+        observedEvidence: { requestId: request.analysisId, recordHash: persistedTerminal.recordHash },
+        handlerResultHash: canonicalHandlerResultHash,
+        terminalResultHash: terminal.recordHash
+      });
     } catch (error) {
       if (!handlerReturned || !handlerReturnedReceipt) throw error;
+      if (!sanitizerDecisionReceipt) {
+        const rejectedCandidate = terminal || terminalCandidate || { terminalConstructionFailure: String(error?.code || error?.name || "unknown") };
+        const inspection = inspectTerminalSanitizer(rejectedCandidate, { knownEnvironment: allowedEnvironment?.secretValues || {} });
+        const rejectionInspection = inspection.decision === "REJECTED" ? inspection : {
+          ...inspection,
+          decision: "REJECTED",
+          rejectedLocations: [{
+            path: "$",
+            normalizedSchemaPath: "$",
+            terminalSchemaNode: "TERMINAL_RESULT_CONSTRUCTION",
+            registryContractId: "NO_CONTRACT_MATCH",
+            valueType: "object",
+            byteLength: 0,
+            valueDigest: sha256Json({ code: String(error?.code || error?.name || "unknown") }),
+            ruleIds: ["TERMINAL_SCHEMA_OR_CONSTRUCTION_REJECTION"],
+            credentialShapeClassification: "NONE",
+            entropyClassification: "NOT_HIGH_ENTROPY",
+            publicPreimageAvailable: false,
+            publicPreimageRecomputationResult: "NOT_AVAILABLE",
+            sellerPartitionVerificationResult: "NOT_APPLICABLE",
+            rejectionDisposition: "PUBLIC_IDENTIFIER_CONTRACT_OR_SCHEMA_MISMATCH_REJECTED"
+          }]
+        };
+        sanitizerDecisionReceipt = createSanitizerDecisionReceipt({
+          inspection: rejectionInspection,
+          bindings: { ...governorIdentities, requestId: request.analysisId, requestHash: request.requestContractHash },
+          quarantineReceiptHash: quarantineReceipt.receiptHash,
+          terminalCandidateHash: sha256Json(rejectedCandidate),
+          decidedAt: clock()
+        });
+        await writeResultFile(resultRoot, `sanitizer-decisions/${request.analysisId}.json`, sanitizerDecisionReceipt);
+        sanitizerDecisionReceipts.push(sanitizerDecisionReceipt);
+        await persistGovernorAdvance({
+          observedEvidenceType: "SAFE_TERMINAL_SANITIZER_REJECTION",
+          observedEvidence: { requestId: request.analysisId, sanitizerDecisionReceiptHash: sanitizerDecisionReceipt.receiptHash, rejectionCount: sanitizerDecisionReceipt.rejectedLocationCount },
+          handlerResultHash: canonicalHandlerResultHash,
+          terminalResultHash: terminal?.recordHash || null
+        });
+      }
+      const invariantDecision = consultLifecycleInvariant("NOVEL_DOWNSTREAM_CONDITION", {
+        quarantineVerified: true,
+        sanitizerDecisionReceiptHash: sanitizerDecisionReceipt.receiptHash,
+        sourceCodeMutationRequired: true,
+        policyMutationRequired: true,
+        replayRequired: false
+      });
+      const stopReceipt = stopGovernor({
+        manifest: lifecycleManifest,
+        priorReceipts: governorDecisionReceipts,
+        observedEvidenceType: "NOVEL_DOWNSTREAM_TERMINAL_STOP",
+        observedEvidence: { requestId: request.analysisId, sanitizerDecisionReceiptHash: sanitizerDecisionReceipt.receiptHash },
+        identities: governorIdentities,
+        handlerResultHash: canonicalHandlerResultHash,
+        terminalResultHash: terminal?.recordHash || null,
+        invariantDecision,
+        decidedAt: clock()
+      });
+      await writeResultFile(resultRoot, `governor-decisions/${String(stopReceipt.sequence).padStart(6, "0")}.json`, stopReceipt);
+      governorDecisionReceipts.push(stopReceipt);
+      const repairDossier = createBoundedRepairDossier({
+        manifest: lifecycleManifest,
+        receipts: governorDecisionReceipts,
+        sanitizerDecisionReceipt,
+        quarantineReceipt,
+        failureId: "NOVEL_DOWNSTREAM_CONDITION",
+        identities: governorIdentities,
+        createdAt: clock()
+      });
+      await writeResultFile(resultRoot, "bounded-repair-dossier.json", repairDossier);
       journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED, { at: clock(), reason: "TERMINAL_RECORD_SANITIZATION_FAILED_RESPONSE_NOT_PERSISTED" });
       await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
       reservation = transitionReservation(reservation, RESERVATION_STATE.CLOSED_CONSERVATIVE_COST_ACCOUNTED, clock(), "POST_HANDLER_SANITIZATION_FAILED_CONSERVATIVE_COST_ACCOUNTED");
@@ -898,7 +1172,9 @@ export async function executeBenchmarkV2({
       await onConsentTransition(consent);
       const failure = await finalizePostHandlerSanitizationFailure({
         resultRoot, frozen, consent, reservation, journal, ledger, executionProfile, launchScope,
-        continuationScope, receipt: handlerReturnedReceipt, terminalRecords, handlerReturnedReceipts, clock
+        continuationScope, receipt: handlerReturnedReceipt, terminalRecords, handlerReturnedReceipts,
+        sanitizerDecisionReceipts, governorDecisionReceipts, governorRecoveryDecisions,
+        includeBoundedRepairDossier: true, clock
       });
       return Object.freeze({
         disposition: POST_HANDLER_SANITIZATION_STATE,
@@ -910,6 +1186,9 @@ export async function executeBenchmarkV2({
         ledger,
         terminalRecords: Object.freeze(terminalRecords),
         handlerReturnedReceipts: Object.freeze(handlerReturnedReceipts),
+        sanitizerDecisionReceipts: Object.freeze(sanitizerDecisionReceipts),
+        governorDecisionReceipts: Object.freeze(governorDecisionReceipts),
+        boundedRepairDossier: repairDossier,
         ...failure,
         stopReason: "POST_HANDLER_SANITIZATION_FAILURE"
       });
@@ -982,6 +1261,9 @@ export async function executeBenchmarkV2({
     costEnvelope,
     terminalRecords,
     handlerReturnedReceipts,
+    sanitizerDecisionReceipts,
+    governorDecisionReceipts,
+    governorRecoveryDecisions,
     continuationScope,
     requestedCount: executionRequests.length,
     resultState,
@@ -1000,6 +1282,10 @@ export async function executeBenchmarkV2({
     ledger,
     terminalRecords: Object.freeze(terminalRecords),
     handlerReturnedReceipts: Object.freeze(handlerReturnedReceipts),
+    sanitizerDecisionReceipts: Object.freeze(sanitizerDecisionReceipts),
+    governorDecisionReceipts: Object.freeze(governorDecisionReceipts),
+    governorRecoveryDecisions: Object.freeze(governorRecoveryDecisions),
+    governorEpisode: reconstructGovernorEpisode(lifecycleManifest, governorDecisionReceipts),
     ...finalized,
     stopReason
   });
@@ -1017,7 +1303,7 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   }
   const filesBefore = await listResultFiles(root);
   const artifactInventory = classifyResultArtifactInventory(filesBefore);
-  const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validationReport] = await Promise.all([
+  const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validationReport, lifecycleManifest, invariantCatalog, identifierContractManifest] = await Promise.all([
     readJsonStrictFile(path.join(root, "launch-scope.json")),
     readJsonStrictFile(path.join(root, "execution-profile.json")),
     readJsonStrictFile(path.join(root, "pricing-profile.json")),
@@ -1027,7 +1313,10 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     readJsonStrictFile(path.join(root, "execution-journal.json")),
     readJsonStrictFile(path.join(root, "cost-ledger.json")),
     readJsonStrictFile(path.join(root, "unscored-result-manifest.json")),
-    readJsonStrictFile(path.join(root, "validation-report.json"))
+    readJsonStrictFile(path.join(root, "validation-report.json")),
+    readJsonStrictFile(path.join(root, "cognitive-lifecycle-transition-manifest.json")),
+    readJsonStrictFile(path.join(root, "cognitive-lifecycle-invariant-catalog.json")),
+    readJsonStrictFile(path.join(root, "public-identifier-contract-manifest.json"))
   ]);
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
   const { continuationScope, executionRequests } = await loadReadbackExecutionScope(root, launchScope, frozen);
@@ -1068,6 +1357,11 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   validateExecutionJournal(journal, executionRequests);
   validateCostLedger(ledger);
   validateUnscoredValidationReport(validationReport, { manifest });
+  validateLifecycleTransitionManifest(lifecycleManifest);
+  validateInvariantCatalog(invariantCatalog);
+  validatePublicIdentifierContractManifest(identifierContractManifest);
+  assert.deepEqual(invariantCatalog, COGNITIVE_LIFECYCLE_INVARIANT_CATALOG, "result invariant catalog differs from the runtime catalog");
+  assert.deepEqual(identifierContractManifest, PUBLIC_IDENTIFIER_CONTRACT_MANIFEST, "result public-identifier contract manifest differs from the runtime manifest");
   assert.equal(manifest.consentHash, consent.consentHash);
   assert.equal(manifest.reservationHash, reservation.reservationHash);
   assert.equal(manifest.invocationId, reservation.invocationId);
@@ -1094,7 +1388,12 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     {
       handlerReturnedAnalysisIds: manifest.orderedHandlerReturnedReceiptInventory.map((record) => record.analysisId),
       includeContinuationScope: Boolean(continuationScope),
-      includeCompositeEvidence: artifactInventory.relativePaths.includes(COMPOSITE_RELATIVE_PATH)
+      includeCompositeEvidence: artifactInventory.relativePaths.includes(COMPOSITE_RELATIVE_PATH),
+      includeLifecycleEvidence: true,
+      governorDecisionCount: 3 + (5 * manifest.orderedHandlerReturnedReceiptInventory.length) + (artifactInventory.relativePaths.includes(COMPOSITE_RELATIVE_PATH) ? 2 : 0),
+      governorRecoveryAnalysisIds: artifactInventory.relativePaths
+        .filter((relativePath) => relativePath.startsWith("governor-recoveries/"))
+        .map((relativePath) => path.basename(relativePath, ".json"))
     }
   );
   assert.deepEqual(artifactInventory.relativePaths, expectedArtifacts, "result tree differs from the repository-owned unscored layout");
@@ -1128,20 +1427,34 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     });
     handlerReturnedReceipts.push(receipt);
   }
+  const sanitizerDecisionReceipts = [];
+  for (const receipt of handlerReturnedReceipts) {
+    const sanitizerReceipt = await readJsonStrictFile(path.join(root, "sanitizer-decisions", `${receipt.requestId}.json`));
+    validateSanitizerDecisionReceipt(sanitizerReceipt);
+    assert.equal(sanitizerReceipt.quarantineReceiptHash, receipt.quarantineReceiptHash);
+    assert.equal(sanitizerReceipt.decision, "ACCEPTED");
+    sanitizerDecisionReceipts.push(sanitizerReceipt);
+    const quarantineBindings = {
+      executionReleaseRecordHash: receipt.executionReleaseRecordHash,
+      consentId: receipt.consentId,
+      consentHash: receipt.consentHash,
+      invocationId: receipt.invocationId,
+      reservationId: receipt.reservationId,
+      reservationHash: receipt.reservationHash,
+      resultId: receipt.resultId,
+      resultRootName: receipt.resultRootName,
+      requestId: receipt.requestId,
+      requestHash: receipt.requestHash,
+      physicalSubmissionIdentity: receipt.physicalSubmissionIdentity
+    };
+    const quarantineReceipt = await readJsonStrictFile(path.join(root, "handler-quarantine-receipts", `${receipt.requestId}.json`));
+    assert.equal(quarantineReceipt.receiptId, receipt.quarantineReceiptId);
+    assert.equal(quarantineReceipt.receiptHash, receipt.quarantineReceiptHash);
+    const quarantineReadback = await readQuarantinedHandlerReturn({ receipt: quarantineReceipt, bindings: quarantineBindings, quarantineRoot: path.join(path.dirname(root), ".handler-return-quarantine") });
+    assert.equal(quarantineReadback.canonicalHandlerResultHash, receipt.canonicalHandlerResultHash);
+  }
   assert.equal(sha256Json(manifest.orderedHandlerReturnedReceiptInventory), manifest.handlerReturnedAggregate);
-  const authorityPaths = [
-    "launch-scope.json",
-    ...(continuationScope ? ["continuation-scope.json"] : []),
-    "execution-profile.json",
-    "pricing-profile.json",
-    "cost-envelope.json",
-    "execution-consent.json",
-    "invocation-reservation.json",
-    "execution-journal.json",
-    "cost-ledger.json",
-    ...manifest.orderedHandlerReturnedReceiptInventory.map((record) => `handler-returned/${record.analysisId}.json`),
-    ...manifest.orderedResponseHashInventory.map((record) => `responses/${record.analysisId}.json`)
-  ];
+  const authorityPaths = manifest.resultTreeRecords.map((record) => record.relativePath);
   const tree = await computeResultTreeAggregate(root, authorityPaths);
   assert.equal(tree.aggregate, manifest.resultTreeAggregate, "result tree aggregate mismatch");
   assert.deepEqual(tree.records, manifest.resultTreeRecords, "result tree record inventory mismatch");
@@ -1151,18 +1464,20 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     validateCompositeEvidenceManifest(compositeManifest, {
       completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
       freezeRequestAggregateHash: frozen.manifest.requestAggregateHash,
-      version1122ExecutionReleaseRecordHash: manifest.executionReleaseRecordHash,
-      version1122LaunchScopeHash: launchScope.launchScopeHash,
-      version1122ContinuationScopeHash: continuationScope?.continuationScopeHash,
-      version1122ConsentHash: consent.consentHash,
-      version1122InvocationId: consent.invocationId,
-      version1122ResultId: consent.resultId,
-      version1122ResultRootName: consent.resultRootName,
-      version1122ManifestHash: manifest.manifestHash,
-      version1122ResultTreeAggregate: manifest.resultTreeAggregate
+      version1124ExecutionReleaseRecordHash: manifest.executionReleaseRecordHash,
+      version1124LaunchScopeHash: launchScope.launchScopeHash,
+      version1124ContinuationScopeHash: continuationScope?.continuationScopeHash,
+      version1124ConsentHash: consent.consentHash,
+      version1124InvocationId: consent.invocationId,
+      version1124ResultId: consent.resultId,
+      version1124ResultRootName: consent.resultRootName,
+      version1124ManifestHash: manifest.manifestHash,
+      version1124ResultTreeAggregate: manifest.resultTreeAggregate,
+      lifecycleTransitionManifestHash: lifecycleManifest.manifestHash,
+      lifecycleInvariantCatalogHash: invariantCatalog.catalogHash
     });
     assert.deepEqual(
-      compositeManifest.orderedRequestDispositions.slice(1).map((item) => ({
+      compositeManifest.orderedRequestDispositions.slice(2).map((item) => ({
         analysisId: item.analysisId,
         canonicalResponseHash: item.terminalEvidenceHash,
         recordHash: item.terminalResultRecordHash
@@ -1170,6 +1485,19 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
       manifest.orderedResponseHashInventory
     );
   }
+  const governorDecisionPaths = artifactInventory.relativePaths.filter((relativePath) => relativePath.startsWith("governor-decisions/"));
+  const governorDecisions = [];
+  for (const relativePath of governorDecisionPaths) governorDecisions.push(await readJsonStrictFile(path.join(root, ...relativePath.split("/"))));
+  if (compositeManifest) {
+    assert.equal(governorDecisions.length >= 2, true, "sealed composite is missing final governor decisions");
+    assert.equal(
+      compositeManifest.governorDecisionAggregateHash,
+      sha256Json(governorDecisions.slice(0, -2).map((receipt) => receipt.receiptHash)),
+      "composite governor pre-seal decision aggregate differs"
+    );
+  }
+  const governorEpisode = reconstructGovernorEpisode(lifecycleManifest, governorDecisions);
+  assert.equal(governorEpisode.currentPhase, compositeManifest ? "COGNITIVE_EVALUATION_READY" : "READBACK_VERIFIED");
   const replay = journal.entries.map(requestReplayDisposition);
   for (const disposition of replay.filter((entry) => entry.state === REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION || entry.state === REQUEST_STATE.TERMINAL)) assert.equal(disposition.resubmissionPermanentlyBlocked, true);
   const filesAfter = await listResultFiles(root);
@@ -1180,6 +1508,9 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
     manifestHash: manifest.manifestHash,
     compositeManifestHash: compositeManifest?.manifestHash || null,
     compositeState: compositeManifest?.state || null,
+    governorDecisionCount: governorDecisions.length,
+    governorCurrentPhase: governorEpisode.currentPhase,
+    governorDecisionAggregateHash: governorEpisode.decisionAggregateHash,
     responseCount: terminalRecords.length,
     handlerInvocationCount: 0,
     providerAttemptCount: 0,
@@ -1192,7 +1523,7 @@ async function loadReadbackExecutionScope(root, launchScope, frozen) {
   if (launchScope.authorizedRequestCount === 26) {
     return Object.freeze({ continuationScope: null, executionRequests: frozen.requests });
   }
-  assert.equal(launchScope.authorizedRequestCount, 25, "readback launch request count is invalid");
+  assert.equal(launchScope.authorizedRequestCount, 24, "readback launch request count is invalid");
   const continuationScope = await readJsonStrictFile(path.join(root, "continuation-scope.json"));
   validateContinuationScope(continuationScope, frozen);
   const bindings = {
@@ -1266,15 +1597,7 @@ async function verifyPostHandlerFailureReadback({ resultRoot, freezeRoot, onFree
     resultRootName: manifest.resultRootName,
     continuationScopeHash: launchScope.continuationScopeHash
   });
-  const basePaths = [
-    "launch-scope.json", ...(continuationScope ? ["continuation-scope.json"] : []),
-    "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
-    "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json",
-    ...journal.entries
-      .filter((entry) => [REQUEST_STATE.TERMINAL, REQUEST_STATE.POST_HANDLER_SANITIZATION_FAILED].includes(entry.state))
-      .map((entry) => `handler-returned/${entry.analysisId}.json`),
-    ...inventory.responseAnalysisIds.map((analysisId) => `responses/${analysisId}.json`)
-  ];
+  const basePaths = inventory.relativePaths.filter((relativePath) => !["terminal-failure-manifest.json", "terminal-failure-validation-report.json"].includes(relativePath));
   const tree = await computeResultTreeAggregate(root, basePaths);
   assert.equal(tree.aggregate, manifest.failureEvidenceAggregate);
   assert.equal(inventory.responseAnalysisIds.includes(manifest.requestId), false, "failed request unexpectedly has a public response artifact");

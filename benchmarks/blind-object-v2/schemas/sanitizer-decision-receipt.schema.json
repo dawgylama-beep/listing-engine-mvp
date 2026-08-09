@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/sanitizer-decision-receipt.schema.json",
+  "title": "Safe terminal sanitizer decision receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "contractManifestHash", "releaseRecordHash", "consentId", "invocationId", "reservationId", "resultId", "resultRootName", "requestId", "requestHash", "quarantineReceiptHash", "terminalCandidateHash", "recoveryAttempt", "decision", "examinedValueCount", "rejectedLocationCount", "rejectedLocations", "rawRejectedValuesIncluded", "decidedAt", "receiptId", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "receiptType": { "const": "TERMINAL_SANITIZER_DECISION_RECEIPT" },
+    "contractManifestHash": { "$ref": "#/$defs/hash" },
+    "releaseRecordHash": { "$ref": "#/$defs/hash" },
+    "consentId": { "type": "string" },
+    "invocationId": { "type": "string" },
+    "reservationId": { "type": "string" },
+    "resultId": { "type": "string" },
+    "resultRootName": { "type": "string" },
+    "requestId": { "type": "string", "pattern": "^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$" },
+    "requestHash": { "$ref": "#/$defs/hash" },
+    "quarantineReceiptHash": { "$ref": "#/$defs/hash" },
+    "terminalCandidateHash": { "$ref": "#/$defs/hash" },
+    "recoveryAttempt": { "type": "integer", "minimum": 0 },
+    "decision": { "enum": ["ACCEPTED", "REJECTED"] },
+    "examinedValueCount": { "type": "integer", "minimum": 1 },
+    "rejectedLocationCount": { "type": "integer", "minimum": 0 },
+    "rejectedLocations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "normalizedSchemaPath", "terminalSchemaNode", "registryContractId", "valueType", "byteLength", "valueDigest", "ruleIds", "credentialShapeClassification", "entropyClassification", "publicPreimageAvailable", "publicPreimageRecomputationResult", "sellerPartitionVerificationResult", "rejectionDisposition"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^\\$" },
+          "normalizedSchemaPath": { "type": "string", "pattern": "^\\$" },
+          "terminalSchemaNode": { "type": "string" },
+          "registryContractId": { "type": "string" },
+          "valueType": { "enum": ["string", "number", "boolean", "object", "array", "null", "bytes", "undefined", "bigint", "symbol", "function"] },
+          "byteLength": { "type": "integer", "minimum": 0 },
+          "valueDigest": { "$ref": "#/$defs/hash" },
+          "ruleIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+          "credentialShapeClassification": { "type": "string" },
+          "entropyClassification": { "enum": ["HIGH_ENTROPY", "NOT_HIGH_ENTROPY"] },
+          "publicPreimageAvailable": { "type": "boolean" },
+          "publicPreimageRecomputationResult": { "type": "string" },
+          "sellerPartitionVerificationResult": { "type": "string" },
+          "rejectionDisposition": { "enum": ["ACTUAL_OR_SHAPED_CREDENTIAL_REJECTED", "UNDECLARED_IDENTIFIER_OR_SECRET_LOCATION_REJECTED", "PUBLIC_IDENTIFIER_CONTRACT_OR_SCHEMA_MISMATCH_REJECTED", "UNEXPLAINED_HIGH_ENTROPY_VALUE_REJECTED"] }
+        }
+      }
+    },
+    "rawRejectedValuesIncluded": { "const": false },
+    "decidedAt": { "type": "string", "format": "date-time" },
+    "receiptId": { "type": "string", "pattern": "^sanitizer-decision-[a-f0-9]{48}$" },
+    "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

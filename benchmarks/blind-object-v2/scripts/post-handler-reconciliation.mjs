@@ -170,8 +170,10 @@ function validateReadbackRelease(authority, releaseIdentity) {
   if (!releaseIdentity) return;
   assert.equal(releaseIdentity.release?.postHandlerFailureAuthorityHash, authority.recordHash);
   if (releaseIdentity.executorVersion === "1.12.22") return validateSuccessorRelease(authority, releaseIdentity);
-  assert.equal(releaseIdentity.executorVersion, "1.12.23");
-  assert.equal(releaseIdentity.release.predecessorExecutionReleaseRecordHash, "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294");
+  assert.ok(["1.12.23", "1.12.24"].includes(releaseIdentity.executorVersion));
+  assert.equal(releaseIdentity.release.predecessorExecutionReleaseRecordHash, releaseIdentity.executorVersion === "1.12.23"
+    ? "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294"
+    : "f1074a67e5898493a2c5b4022ae2157635f653fdafe093be64cd4593a7867558");
 }
 
 export async function reconcileFixedV11221Failure({ releaseIdentity, nowIso = new Date().toISOString(), testOnlyResultHistoryRoot = null }) {

@@ -21,6 +21,7 @@ import {
   loadUnusedV11222ConsentRevocationReceipt,
   validateContinuationReleaseChain
 } from "./consent-revocation.mjs";
+import { loadVersion1123FailureEvidence } from "./version1123-failure-evidence.mjs";
 
 export const AUTHORIZED_MAXIMUM_MINOR_UNITS = 4000;
 export const REAL_FREEZE_AGGREGATE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
@@ -63,13 +64,13 @@ export function createVerifiedPricingProfile({ exactModel, createdAt }) {
   });
 }
 
-export async function buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, resolvedAt, productSourceText }) {
+export async function buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence, resolvedAt, productSourceText }) {
   assert.equal(frozen.manifest.completeFrozenAggregateHash, REAL_FREEZE_AGGREGATE);
   assert.equal(runtime.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(runtime.productSourceVersion, PRODUCT_SOURCE_VERSION);
   assert.equal(runtime.productRuntimeManifestHash, "5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8");
   assert.equal(supersessionReceipt.successorExecutorVersion, "1.12.21");
-  const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt: supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+  const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt: supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence });
   const resolved = await resolveExecutionProfile({
     freezeRequests: frozen.requests,
     environment,
@@ -90,7 +91,7 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, relea
   assert.equal(costEnvelope.productCostSourceManifestHash, releaseIdentity.productCostSourceManifestHash, "cost source manifest differs from the qualified executor release");
   validateCostEnvelope(costEnvelope, { attemptCeiling: resolved.attemptCeiling, executionProfile: resolved.profile, pricingProfile, authorizedMaximumMinorUnits: AUTHORIZED_MAXIMUM_MINOR_UNITS });
   assert.equal(costEnvelope.conservativeMaximumCost, 39.17741232, "canonical complete cost changed before continuation derivation");
-  const continuationScope = createContinuationScope({ frozen, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseChain });
+  const continuationScope = createContinuationScope({ frozen, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence, releaseChain });
   const launchScope = createLaunchScope({
     benchmarkId: BENCHMARK_ID,
     candidateSetId: frozen.manifest.candidateSetId,
@@ -125,6 +126,8 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, relea
     zeroExternalSupersessionReceiptHash: supersessionReceipt.receiptHash,
     historicalExecutionReleaseRecordHash: releaseChain.version1121ExecutionReleaseRecordHash,
     predecessorExecutionReleaseRecordHash: releaseChain.version1122ExecutionReleaseRecordHash,
+    immediatePredecessorExecutionReleaseRecordHash: releaseChain.version1123ExecutionReleaseRecordHash,
+    version1123FailureEvidenceHash: releaseChain.version1123FailureEvidenceHash,
     releaseChainHash: releaseChain.releaseChainHash,
     unusedConsentRevocationReceiptId: unusedConsentRevocationReceipt.receiptId,
     unusedConsentRevocationReceiptHash: unusedConsentRevocationReceipt.receiptHash,
@@ -169,10 +172,11 @@ export async function buildRealLaunchPreflight({ environment = process.env, rele
   assert.match(releaseIdentity?.executorRuntimeHead || "", /^[a-f0-9]{40}$/, "committed executor runtime head is required");
   assert.match(releaseIdentity?.qualificationHead || "", /^[a-f0-9]{40}$/, "committed qualification head is required");
   assert.equal(path.basename(defaultFreezeRoot), REAL_FREEZE_AGGREGATE);
-  const [supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt] = await Promise.all([
+  const [supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence] = await Promise.all([
     loadHistoricalV11221ZeroExternalSupersessionReceipt(),
     loadFixedV11221TerminalFailureReceipt(releaseIdentity),
-    loadUnusedV11222ConsentRevocationReceipt(releaseIdentity)
+    loadUnusedV11222ConsentRevocationReceipt(releaseIdentity),
+    loadVersion1123FailureEvidence()
   ]);
   const runtime = ensureDetachedProductRuntime();
   const runtimeRoot = runtime.runtimeRoot;
@@ -181,8 +185,8 @@ export async function buildRealLaunchPreflight({ environment = process.env, rele
       loadPublicFreeze(defaultFreezeRoot),
       readFile(path.join(runtimeRoot, "api", "generate-listing.js"), "utf8")
     ]);
-    const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, resolvedAt, productSourceText });
-    return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, releaseIdentity });
+    const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence, resolvedAt, productSourceText });
+    return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot, supersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence, releaseIdentity });
   } catch (error) {
     removeDetachedProductRuntime(runtimeRoot);
     throw error;

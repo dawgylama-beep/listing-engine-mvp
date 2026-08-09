@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.23"; Text = $index; Pattern = "Version 1.12.23" },
-  @{ Name = "Package version is 1.12.23"; Text = $package; Pattern = '"version": "1.12.23"' },
-  @{ Name = "Server version is 1.12.23"; Text = $server; Pattern = '$AppVersion = "1.12.23"' },
+  @{ Name = "Visible app version is 1.12.24"; Text = $index; Pattern = "Version 1.12.24" },
+  @{ Name = "Package version is 1.12.24"; Text = $package; Pattern = '"version": "1.12.24"' },
+  @{ Name = "Server version is 1.12.24"; Text = $server; Pattern = '$AppVersion = "1.12.24"' },
   @{ Name = "Roadmap documents cents preservation"; Text = $roadmap; Pattern = "Currency parsing and report formatting now preserve cents" },
   @{ Name = "Price input allows decimal entry"; Text = $index; Pattern = 'inputmode="decimal"' },
   @{ Name = "Frontend parses cents before submit"; Text = $app; Pattern = "function parseCurrencyCentsFromText" },

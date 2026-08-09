@@ -11,7 +11,7 @@ const COMMIT = /^[a-f0-9]{40}$/;
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{7,95}$/;
 const ANALYSIS_ID = /^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$/;
 
-const HANDLER_RECEIPT_INPUT_FIELDS = Object.freeze([
+const LEGACY_HANDLER_RECEIPT_INPUT_FIELDS = Object.freeze([
   "executionReleaseRecordHash", "executorRuntimeHead", "qualificationHead", "executorVersion",
   "launchScopeHash", "continuationScopeHash", "consentId", "consentHash", "invocationId",
   "reservationId", "reservationHash", "resultId", "resultRootName", "requestId", "requestHash",
@@ -20,9 +20,13 @@ const HANDLER_RECEIPT_INPUT_FIELDS = Object.freeze([
   "canonicalHandlerResultHash", "returnedAt", "transactionState", "publicResponseArtifactCommitted",
   "replayPermitted"
 ]);
-const HANDLER_RECEIPT_FIELDS = Object.freeze([
-  "schemaVersion", "receiptType", "receiptId", ...HANDLER_RECEIPT_INPUT_FIELDS, "receiptHash"
+const QUARANTINE_BINDING_FIELDS = Object.freeze([
+  "quarantineReceiptId", "quarantineReceiptHash", "quarantineArtifactId",
+  "quarantinedByteLength", "quarantineEncryption", "quarantineReadbackVerified"
 ]);
+const HANDLER_RECEIPT_INPUT_FIELDS = Object.freeze([...LEGACY_HANDLER_RECEIPT_INPUT_FIELDS, ...QUARANTINE_BINDING_FIELDS]);
+const LEGACY_HANDLER_RECEIPT_FIELDS = Object.freeze(["schemaVersion", "receiptType", "receiptId", ...LEGACY_HANDLER_RECEIPT_INPUT_FIELDS, "receiptHash"]);
+const HANDLER_RECEIPT_FIELDS = Object.freeze(["schemaVersion", "receiptType", "receiptId", ...HANDLER_RECEIPT_INPUT_FIELDS, "receiptHash"]);
 const FAILURE_INPUT_FIELDS = Object.freeze([
   "launchScopeHash", "continuationScopeHash", "resultId", "resultRootName", "invocationId",
   "consentHash", "reservationHash", "executionReleaseRecordHash", "executorVersion",
@@ -59,7 +63,8 @@ function nonnegative(value, label) {
 }
 
 export function createHandlerReturnedReceipt(input) {
-  exactKeys(input, HANDLER_RECEIPT_INPUT_FIELDS, "handler-returned receipt input");
+  const durableQuarantine = QUARANTINE_BINDING_FIELDS.every((field) => Object.hasOwn(input, field));
+  exactKeys(input, durableQuarantine ? HANDLER_RECEIPT_INPUT_FIELDS : LEGACY_HANDLER_RECEIPT_INPUT_FIELDS, "handler-returned receipt input");
   const identityHash = sha256Json({
     receiptType: HANDLER_RETURNED_RECEIPT_TYPE,
     launchScopeHash: input.launchScopeHash,
@@ -69,7 +74,7 @@ export function createHandlerReturnedReceipt(input) {
     canonicalHandlerResultHash: input.canonicalHandlerResultHash
   });
   const core = {
-    schemaVersion: "1.0",
+    schemaVersion: durableQuarantine ? "1.1" : "1.0",
     receiptType: HANDLER_RETURNED_RECEIPT_TYPE,
     receiptId: `handler-returned-${identityHash.slice(0, 48)}`,
     ...structuredClone(input)
@@ -80,8 +85,8 @@ export function createHandlerReturnedReceipt(input) {
 }
 
 export function validateHandlerReturnedReceipt(receipt, bindings = {}) {
-  exactKeys(receipt, HANDLER_RECEIPT_FIELDS, "handler-returned receipt");
-  assert.equal(receipt.schemaVersion, "1.0");
+  assert.ok(["1.0", "1.1"].includes(receipt.schemaVersion));
+  exactKeys(receipt, receipt.schemaVersion === "1.1" ? HANDLER_RECEIPT_FIELDS : LEGACY_HANDLER_RECEIPT_FIELDS, "handler-returned receipt");
   assert.equal(receipt.receiptType, HANDLER_RETURNED_RECEIPT_TYPE);
   assert.match(receipt.receiptId || "", /^handler-returned-[a-f0-9]{48}$/);
   for (const field of ["executionReleaseRecordHash", "launchScopeHash", "consentHash", "reservationHash", "requestHash", "canonicalHandlerResultHash", "receiptHash"]) assert.match(receipt[field] || "", HASH, `${field} is invalid`);
@@ -99,6 +104,14 @@ export function validateHandlerReturnedReceipt(receipt, bindings = {}) {
   assert.equal(receipt.transactionState, "HANDLER_RETURNED_RESPONSE_NOT_PERSISTED");
   assert.equal(receipt.publicResponseArtifactCommitted, false);
   assert.equal(receipt.replayPermitted, false);
+  if (receipt.schemaVersion === "1.1") {
+    assert.match(receipt.quarantineReceiptId || "", /^quarantine-receipt-[a-f0-9]{48}$/);
+    assert.match(receipt.quarantineReceiptHash || "", HASH);
+    assert.match(receipt.quarantineArtifactId || "", /^handler-quarantine-[a-f0-9]{48}$/);
+    assert.ok(Number.isInteger(receipt.quarantinedByteLength) && receipt.quarantinedByteLength > 0);
+    assert.equal(receipt.quarantineEncryption, "AES-256-GCM_WITH_WINDOWS_DPAPI_CURRENT_USER_KEY_PROTECTION");
+    assert.equal(receipt.quarantineReadbackVerified, true);
+  }
   const core = structuredClone(receipt);
   delete core.receiptHash;
   assert.equal(sha256Json(core), receipt.receiptHash, "handler-returned receipt hash mismatch");

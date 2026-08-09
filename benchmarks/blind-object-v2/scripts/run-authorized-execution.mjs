@@ -21,12 +21,14 @@ import {
   loadPublicFreeze,
   readJsonStrictFile,
   replaceSynced,
+  writeResultFile,
   writeExclusiveSynced
 } from "./execution-store.mjs";
 import { executeBenchmarkV2, verifyResultReadback } from "./executor.mjs";
 import { stableJson } from "./protocol.mjs";
 import { revokeUnusedV11222Consent } from "./consent-revocation.mjs";
 import { runOfflineExecutionQualification } from "./offline-execution-qualification.mjs";
+import { advanceGovernor, reconstructGovernorEpisode } from "./cognitive-lifecycle-governor.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
 const MODES = Object.freeze(["REVOKE_V11222_CONSENT", "QUALIFY_OFFLINE", "PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"]);
@@ -71,7 +73,9 @@ function publicPreflightRecord(preflight) {
     zeroExternalSupersessionReceiptHash: preflight.supersessionReceipt.receiptHash,
     historicalExecutionReleaseRecordHash: preflight.releaseChain.version1121ExecutionReleaseRecordHash,
     predecessorExecutionReleaseRecordHash: preflight.releaseChain.version1122ExecutionReleaseRecordHash,
-    currentExecutionReleaseRecordHash: preflight.releaseChain.version1123ExecutionReleaseRecordHash,
+    immediatePredecessorExecutionReleaseRecordHash: preflight.releaseChain.version1123ExecutionReleaseRecordHash,
+    currentExecutionReleaseRecordHash: preflight.releaseChain.version1124ExecutionReleaseRecordHash,
+    version1123FailureEvidenceHash: preflight.releaseChain.version1123FailureEvidenceHash,
     releaseChainHash: preflight.releaseChain.releaseChainHash,
     unusedConsentRevocationReceiptId: preflight.unusedConsentRevocationReceipt.receiptId,
     unusedConsentRevocationReceiptHash: preflight.unusedConsentRevocationReceipt.receiptHash,
@@ -152,7 +156,7 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
       const resultRoot = deriveResultRoot(defaultResultHistoryRoot, preflight.identities.resultRootName);
       const readback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
       assert.equal(readback.state, "EXECUTED_SEALED_AWAITING_SCORING", "composite evidence requires a complete unscored continuation result");
-      assert.equal(readback.responseCount, 25, "composite evidence requires exactly 25 continuation responses");
+      assert.equal(readback.responseCount, 24, "composite evidence requires exactly 24 continuation responses");
       assert.equal(readback.compositeManifestHash, null, "composite evidence already exists; READBACK is exactly-once");
       const terminalFailure = await verifyFixedV11221Reconciliation({ releaseIdentity });
       const frozen = await loadPublicFreeze(defaultFreezeRoot);
@@ -166,6 +170,8 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
       const handlerReturnedReceipts = await Promise.all(
         continuationScope.orderedRequestIds.map((analysisId) => readJsonStrictFile(path.join(resultRoot, "handler-returned", `${analysisId}.json`)))
       );
+      const lifecycleManifest = await readJsonStrictFile(path.join(resultRoot, "cognitive-lifecycle-transition-manifest.json"));
+      const lifecycleInvariantCatalog = await readJsonStrictFile(path.join(resultRoot, "cognitive-lifecycle-invariant-catalog.json"));
       const composite = await sealCompositeEvidence(resultRoot, {
         frozen,
         terminalFailureReceipt: terminalFailure.receipt,
@@ -175,9 +181,30 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
         consent: resultConsent,
         resultManifest,
         ledger,
-        handlerReturnedReceipts
+        handlerReturnedReceipts,
+        version1123FailureEvidence: preflight.version1123FailureEvidence,
+        lifecycleTransitionManifestHash: lifecycleManifest.manifestHash,
+        lifecycleInvariantCatalogHash: lifecycleInvariantCatalog.catalogHash,
+        governorDecisionAggregateHash: readback.governorDecisionAggregateHash
       });
       assert.equal(composite.state, COMPOSITE_STATE);
+      const decisionPaths = Array.from({ length: readback.governorDecisionCount }, (_, index) => path.join(resultRoot, "governor-decisions", `${String(index + 1).padStart(6, "0")}.json`));
+      const governorDecisions = await Promise.all(decisionPaths.map((decisionPath) => readJsonStrictFile(decisionPath)));
+      const governorIdentities = {
+        releaseRecordHash: resultManifest.executionReleaseRecordHash,
+        consentId: resultConsent.consentId,
+        invocationId: resultConsent.invocationId,
+        reservationId: resultConsent.reservationId,
+        resultId: resultConsent.resultId,
+        resultRootName: resultConsent.resultRootName
+      };
+      const compositeDecision = advanceGovernor({ manifest: lifecycleManifest, priorReceipts: governorDecisions, observedEvidenceType: "COUNT_BEARING_UNSCORED_COMPOSITE_SEALED", observedEvidence: { manifestHash: composite.manifestHash }, identities: governorIdentities, decidedAt: new Date().toISOString() });
+      await writeResultFile(resultRoot, `governor-decisions/${String(compositeDecision.sequence).padStart(6, "0")}.json`, compositeDecision);
+      governorDecisions.push(compositeDecision);
+      const readyDecision = advanceGovernor({ manifest: lifecycleManifest, priorReceipts: governorDecisions, observedEvidenceType: "COMPOSITE_INDEPENDENT_READBACK_VERIFIED", observedEvidence: { manifestHash: composite.manifestHash, state: composite.state }, identities: governorIdentities, decidedAt: new Date().toISOString() });
+      await writeResultFile(resultRoot, `governor-decisions/${String(readyDecision.sequence).padStart(6, "0")}.json`, readyDecision);
+      governorDecisions.push(readyDecision);
+      assert.equal(reconstructGovernorEpisode(lifecycleManifest, governorDecisions).currentPhase, "COGNITIVE_EVALUATION_READY");
       const sealedReadback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
       assert.equal(sealedReadback.compositeManifestHash, composite.manifestHash);
       const record = { disposition: "READBACK_COMPLETE_COMPOSITE_UNSCORED_SEALED", ...sealedReadback };
@@ -200,6 +227,7 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
       zeroExternalSupersessionReceipt: preflight.supersessionReceipt,
       terminalFailureReceipt: preflight.terminalFailureReceipt,
       unusedConsentRevocationReceipt: preflight.unusedConsentRevocationReceipt,
+      version1123FailureEvidence: preflight.version1123FailureEvidence,
       releaseIdentity: preflight.releaseIdentity,
       onConsentTransition: async (nextConsent) => replaceSynced(consentPath, nextConsent)
     });

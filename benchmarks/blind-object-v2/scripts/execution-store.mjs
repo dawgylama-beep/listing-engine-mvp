@@ -61,9 +61,17 @@ export const RESULT_ROOT_ARTIFACT_ROLES = Object.freeze({
 });
 export const OPTIONAL_RESULT_ROOT_ARTIFACT_ROLES = Object.freeze({
   "continuation-scope.json": "CONTINUATION_SCOPE",
-  "composite-unscored-evidence-manifest.json": "COMPOSITE_UNSCORED_EVIDENCE_MANIFEST"
+  "composite-unscored-evidence-manifest.json": "COMPOSITE_UNSCORED_EVIDENCE_MANIFEST",
+  "cognitive-lifecycle-transition-manifest.json": "COGNITIVE_LIFECYCLE_TRANSITION_MANIFEST",
+  "cognitive-lifecycle-invariant-catalog.json": "COGNITIVE_LIFECYCLE_INVARIANT_CATALOG",
+  "public-identifier-contract-manifest.json": "PUBLIC_IDENTIFIER_CONTRACT_MANIFEST",
+  "bounded-repair-dossier.json": "BOUNDED_COGNITIVE_LIFECYCLE_REPAIR_DOSSIER"
 });
 export const HANDLER_RETURNED_DIRECTORY = "handler-returned";
+export const HANDLER_QUARANTINE_RECEIPT_DIRECTORY = "handler-quarantine-receipts";
+export const GOVERNOR_DECISION_DIRECTORY = "governor-decisions";
+export const SANITIZER_DECISION_DIRECTORY = "sanitizer-decisions";
+export const GOVERNOR_RECOVERY_DIRECTORY = "governor-recoveries";
 export const TERMINAL_FAILURE_ARTIFACT_ROLES = Object.freeze({
   "zero-external-supersession-receipt.json": "ZERO_EXTERNAL_SUPERSESSION_RECEIPT",
   "post-handler-reconciliation-receipt.json": "POST_HANDLER_RECONCILIATION_RECEIPT",
@@ -74,6 +82,10 @@ export const TERMINAL_FAILURE_ARTIFACT_ROLES = Object.freeze({
 export const RESULT_RESPONSE_DIRECTORY = "responses";
 const RESULT_RESPONSE_PATH = /^responses\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
 const HANDLER_RETURNED_PATH = /^handler-returned\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
+const HANDLER_QUARANTINE_RECEIPT_PATH = /^handler-quarantine-receipts\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
+const GOVERNOR_DECISION_PATH = /^governor-decisions\/(\d{6})\.json$/;
+const SANITIZER_DECISION_PATH = /^sanitizer-decisions\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
+const GOVERNOR_RECOVERY_PATH = /^governor-recoveries\/(V2-RUN-(?:00[1-9]|01[0-9]|02[0-6]))\.json$/;
 const ANALYSIS_ID = /^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$/;
 const WINDOWS_DEVICE_BASENAME = /^(?:con|prn|aux|nul|clock\$|com[1-9]|lpt[1-9])$/i;
 
@@ -115,8 +127,16 @@ export function classifyResultArtifactPath(relativePath, { kind = "file" } = {})
   assert.ok(["file", "directory"].includes(kind), "result artifact kind is invalid");
   assertCanonicalRelativePath(relativePath);
   if (kind === "directory") {
-    assert.ok([RESULT_RESPONSE_DIRECTORY, HANDLER_RETURNED_DIRECTORY].includes(relativePath), `unknown result-tree directory: ${relativePath}`);
-    return Object.freeze({ relativePath, kind, role: relativePath === RESULT_RESPONSE_DIRECTORY ? "TERMINAL_RESPONSE_DIRECTORY" : "HANDLER_RETURNED_DIRECTORY", analysisId: null });
+    const directoryRoles = {
+      [RESULT_RESPONSE_DIRECTORY]: "TERMINAL_RESPONSE_DIRECTORY",
+      [HANDLER_RETURNED_DIRECTORY]: "HANDLER_RETURNED_DIRECTORY",
+      [HANDLER_QUARANTINE_RECEIPT_DIRECTORY]: "HANDLER_QUARANTINE_RECEIPT_DIRECTORY",
+      [GOVERNOR_DECISION_DIRECTORY]: "GOVERNOR_DECISION_DIRECTORY",
+      [SANITIZER_DECISION_DIRECTORY]: "SANITIZER_DECISION_DIRECTORY",
+      [GOVERNOR_RECOVERY_DIRECTORY]: "GOVERNOR_RECOVERY_DIRECTORY"
+    };
+    assert.ok(directoryRoles[relativePath], `unknown result-tree directory: ${relativePath}`);
+    return Object.freeze({ relativePath, kind, role: directoryRoles[relativePath], analysisId: null });
   }
   assertSafeRelativeFile(relativePath, { extensions: new Set([".json"]) });
   const rootRole = RESULT_ROOT_ARTIFACT_ROLES[relativePath] || OPTIONAL_RESULT_ROOT_ARTIFACT_ROLES[relativePath] || TERMINAL_FAILURE_ARTIFACT_ROLES[relativePath];
@@ -124,11 +144,19 @@ export function classifyResultArtifactPath(relativePath, { kind = "file" } = {})
   const response = relativePath.match(RESULT_RESPONSE_PATH);
   if (response) return Object.freeze({ relativePath, kind, role: "TERMINAL_RESPONSE", analysisId: response[1] });
   const handlerReturned = relativePath.match(HANDLER_RETURNED_PATH);
-  assert.ok(handlerReturned, `unknown result-tree artifact: ${relativePath}`);
-  return Object.freeze({ relativePath, kind, role: "HANDLER_RETURNED_RECEIPT", analysisId: handlerReturned[1] });
+  if (handlerReturned) return Object.freeze({ relativePath, kind, role: "HANDLER_RETURNED_RECEIPT", analysisId: handlerReturned[1] });
+  const handlerQuarantine = relativePath.match(HANDLER_QUARANTINE_RECEIPT_PATH);
+  if (handlerQuarantine) return Object.freeze({ relativePath, kind, role: "HANDLER_QUARANTINE_RECEIPT", analysisId: handlerQuarantine[1] });
+  const governorDecision = relativePath.match(GOVERNOR_DECISION_PATH);
+  if (governorDecision) return Object.freeze({ relativePath, kind, role: "GOVERNOR_DECISION_RECEIPT", analysisId: null });
+  const sanitizerDecision = relativePath.match(SANITIZER_DECISION_PATH);
+  if (sanitizerDecision) return Object.freeze({ relativePath, kind, role: "SANITIZER_DECISION_RECEIPT", analysisId: sanitizerDecision[1] });
+  const governorRecovery = relativePath.match(GOVERNOR_RECOVERY_PATH);
+  assert.ok(governorRecovery, `unknown result-tree artifact: ${relativePath}`);
+  return Object.freeze({ relativePath, kind, role: "GOVERNOR_RECOVERY_DECISION", analysisId: governorRecovery[1] });
 }
 
-export function expectedResultArtifactPaths(responseAnalysisIds, { handlerReturnedAnalysisIds = responseAnalysisIds, includeContinuationScope = false, includeCompositeEvidence = false } = {}) {
+export function expectedResultArtifactPaths(responseAnalysisIds, { handlerReturnedAnalysisIds = responseAnalysisIds, includeContinuationScope = false, includeCompositeEvidence = false, includeLifecycleEvidence = false, governorDecisionCount = 0, governorRecoveryAnalysisIds = [] } = {}) {
   assert.ok(Array.isArray(responseAnalysisIds), "response analysis IDs must be an array");
   const seen = new Set();
   const responsePaths = responseAnalysisIds.map((analysisId) => {
@@ -146,6 +174,15 @@ export function expectedResultArtifactPaths(responseAnalysisIds, { handlerReturn
     ...Object.keys(RESULT_ROOT_ARTIFACT_ROLES),
     ...(includeContinuationScope ? ["continuation-scope.json"] : []),
     ...(includeCompositeEvidence ? ["composite-unscored-evidence-manifest.json"] : []),
+    ...(includeLifecycleEvidence ? [
+      "cognitive-lifecycle-transition-manifest.json",
+      "cognitive-lifecycle-invariant-catalog.json",
+      "public-identifier-contract-manifest.json",
+      ...Array.from({ length: governorDecisionCount }, (_, index) => `${GOVERNOR_DECISION_DIRECTORY}/${String(index + 1).padStart(6, "0")}.json`),
+      ...handlerReturnedAnalysisIds.map((analysisId) => `${SANITIZER_DECISION_DIRECTORY}/${analysisId}.json`),
+      ...handlerReturnedAnalysisIds.map((analysisId) => `${HANDLER_QUARANTINE_RECEIPT_DIRECTORY}/${analysisId}.json`),
+      ...governorRecoveryAnalysisIds.map((analysisId) => `${GOVERNOR_RECOVERY_DIRECTORY}/${analysisId}.json`)
+    ] : []),
     ...responsePaths,
     ...handlerPaths
   ].sort());
@@ -333,7 +370,7 @@ export async function loadPublicFreeze(freezeRoot = defaultFreezeRoot, { onRead 
   return Object.freeze({ root, manifest, receipt, analysisPlan, requests: Object.freeze(requests), assetCache });
 }
 
-export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null, terminalFailureReceipt = null, unusedConsentRevocationReceipt = null, releaseIdentity = null } = {}) {
+export async function createExclusiveReservation(storeRoot, reservation, { zeroExternalSupersessionReceipt = null, terminalFailureReceipt = null, unusedConsentRevocationReceipt = null, version1123FailureEvidence = null, releaseIdentity = null } = {}) {
   validateInvocationReservation(reservation);
   if (zeroExternalSupersessionReceipt && !terminalFailureReceipt && !unusedConsentRevocationReceipt) {
     const { validateZeroExternalSupersessionReceipt } = await import("./pre-external-recovery-protocol.mjs");
@@ -347,7 +384,7 @@ export async function createExclusiveReservation(storeRoot, reservation, { zeroE
     });
   } else if (zeroExternalSupersessionReceipt || terminalFailureReceipt || unusedConsentRevocationReceipt) {
     const { validateContinuationReleaseChain } = await import("./consent-revocation.mjs");
-    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt });
+    const releaseChain = validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence });
     assert.equal(reservation.zeroExternalSupersessionReceiptId, zeroExternalSupersessionReceipt.receiptId);
     assert.equal(reservation.zeroExternalSupersessionReceiptHash, zeroExternalSupersessionReceipt.receiptHash);
     assert.equal(reservation.terminalFailureReceiptId, terminalFailureReceipt.receiptId);
@@ -355,7 +392,7 @@ export async function createExclusiveReservation(storeRoot, reservation, { zeroE
     assert.equal(reservation.unusedConsentRevocationReceiptId, unusedConsentRevocationReceipt.receiptId);
     assert.equal(reservation.unusedConsentRevocationReceiptHash, unusedConsentRevocationReceipt.receiptHash);
     assert.equal(reservation.releaseChainHash, releaseChain.releaseChainHash);
-    assert.equal(reservation.executionReleaseRecordHash, releaseChain.version1123ExecutionReleaseRecordHash);
+    assert.equal(reservation.executionReleaseRecordHash, releaseChain.version1124ExecutionReleaseRecordHash);
   }
   const root = path.resolve(storeRoot);
   await mkdir(root, { recursive: true });

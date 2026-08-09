@@ -37,7 +37,7 @@ export function deterministicClock(start = SYNTHETIC_TIME) {
   };
 }
 
-export async function createSyntheticAuthority(frozen, suffix = "compatibility") {
+export async function createSyntheticAuthority(frozen, suffix = "compatibility", releaseIdentity = SYNTHETIC_RELEASE_IDENTITY) {
   const environment = {
     OPENAI_API_KEY: "synthetic-secret-never-persisted",
     OPENAI_MODEL: "gpt-4.1-mini",
@@ -49,7 +49,7 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     freezeRequests: frozen.requests,
     environment,
     productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
-    releaseIdentity: SYNTHETIC_RELEASE_IDENTITY,
+    releaseIdentity,
     resolvedAt: SYNTHETIC_TIME
   });
   const pricingProfile = createPricingProfile({
@@ -81,11 +81,11 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     productSourceVersion: PRODUCT_SOURCE_VERSION,
     productRuntimeManifestHash: SYNTHETIC_PRODUCT_RUNTIME_HASH,
     productCostSourceManifestHash: costEnvelope.productCostSourceManifestHash,
-    executorRuntimeHead: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeHead,
-    qualificationHead: SYNTHETIC_RELEASE_IDENTITY.qualificationHead,
-    executorRuntimeTreeHash: SYNTHETIC_RELEASE_IDENTITY.executorRuntimeTreeHash,
-    executionReleaseRecordHash: SYNTHETIC_RELEASE_IDENTITY.executionReleaseRecordHash,
-    qualificationPolicyVersion: SYNTHETIC_RELEASE_IDENTITY.qualificationPolicyVersion,
+    executorRuntimeHead: releaseIdentity.executorRuntimeHead,
+    qualificationHead: releaseIdentity.qualificationHead,
+    executorRuntimeTreeHash: releaseIdentity.executorRuntimeTreeHash,
+    executionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash,
+    qualificationPolicyVersion: releaseIdentity.qualificationPolicyVersion,
     executorVersion: EXECUTOR_VERSION,
     completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
     freezeManifestHash: frozen.manifest.freezeManifestHash,

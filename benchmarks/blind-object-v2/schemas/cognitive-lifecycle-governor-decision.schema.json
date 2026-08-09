@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/cognitive-lifecycle-governor-decision.schema.json",
+  "title": "Cognitive lifecycle governor decision receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "governorVersion", "transitionManifestHash", "sequence", "predecessorReceiptHash", "fromNodeId", "toNodeId", "toPhase", "requestId", "decisionKind", "observedEvidenceType", "observedEvidenceDigest", "invariantFailureId", "invariantDecisionHash", "releaseRecordHash", "consentId", "invocationId", "reservationId", "resultId", "resultRootName", "handlerResultHash", "terminalResultHash", "decidedAt", "receiptId", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "receiptType": { "const": "COGNITIVE_LIFECYCLE_GOVERNOR_DECISION" }, "governorVersion": { "const": "1.0" },
+    "transitionManifestHash": { "$ref": "#/$defs/hash" }, "sequence": { "type": "integer", "minimum": 1 }, "predecessorReceiptHash": { "$ref": "#/$defs/nullableHash" },
+    "fromNodeId": { "type": "string" }, "toNodeId": { "type": "string" }, "toPhase": { "type": "string" }, "requestId": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "decisionKind": { "enum": ["MONOTONIC_FORWARD", "TERMINAL_STOP"] },
+    "observedEvidenceType": { "type": "string" }, "observedEvidenceDigest": { "$ref": "#/$defs/hash" }, "invariantFailureId": { "oneOf": [{ "type": "string" }, { "type": "null" }] }, "invariantDecisionHash": { "$ref": "#/$defs/nullableHash" },
+    "releaseRecordHash": { "$ref": "#/$defs/hash" }, "consentId": { "type": "string" }, "invocationId": { "type": "string" }, "reservationId": { "type": "string" }, "resultId": { "type": "string" }, "resultRootName": { "type": "string" },
+    "handlerResultHash": { "$ref": "#/$defs/nullableHash" }, "terminalResultHash": { "$ref": "#/$defs/nullableHash" }, "decidedAt": { "type": "string", "format": "date-time" },
+    "receiptId": { "type": "string", "pattern": "^governor-decision-[a-f0-9]{48}$" }, "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "nullableHash": { "oneOf": [{ "$ref": "#/$defs/hash" }, { "type": "null" }] } }
+}

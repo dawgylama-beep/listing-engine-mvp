@@ -10,6 +10,12 @@ import {
   readJsonStrictFile,
   writeExclusiveSynced
 } from "./execution-store.mjs";
+import {
+  VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH,
+  VERSION_1_12_23_QUALIFICATION_HEAD,
+  VERSION_1_12_23_RUNTIME_HEAD,
+  validateVersion1123FailureEvidence
+} from "./version1123-failure-evidence.mjs";
 
 export const VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH = "ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013";
 export const VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH = "a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294";
@@ -90,12 +96,19 @@ export function validateUnusedV11222ConsentBytes(bytes) {
 }
 
 function validateCurrentReleaseIdentity(releaseIdentity) {
-  assert.equal(releaseIdentity?.executorVersion, "1.12.23");
+  assert.equal(releaseIdentity?.executorVersion, "1.12.24");
   assert.match(releaseIdentity?.executionReleaseRecordHash || "", HASH);
   assert.match(releaseIdentity?.executorRuntimeHead || "", COMMIT);
   assert.match(releaseIdentity?.qualificationHead || "", COMMIT);
-  assert.equal(releaseIdentity?.release?.predecessorExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH);
+  assert.equal(releaseIdentity.executionReleaseRecordHash, releaseIdentity.release?.recordHash, "current release identity hash differs from its sealed record");
+  const releaseCore = structuredClone(releaseIdentity.release); delete releaseCore.recordHash;
+  assert.equal(sha256Json(releaseCore), releaseIdentity.release.recordHash, "current sealed release record hash differs");
+  assert.equal(releaseIdentity.executorRuntimeHead, releaseIdentity.release.executorRuntimeHead);
+  assert.equal(releaseIdentity.executorRuntimeTreeHash, releaseIdentity.release.executorRuntimeTreeHash);
+  assert.equal(releaseIdentity.executorVersion, releaseIdentity.release.executorVersion);
+  assert.equal(releaseIdentity?.release?.predecessorExecutionReleaseRecordHash, VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH);
   assert.equal(releaseIdentity?.release?.historicalExecutionReleaseRecordHash, VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH);
+  assert.equal(releaseIdentity?.release?.version1122ExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH);
   assert.equal(releaseIdentity?.release?.unusedConsentAuthorityHash, UNUSED_VERSION_1_12_22_CONSENT_AUTHORITY_HASH);
   assert.equal(releaseIdentity?.release?.historicalZeroExternalSupersessionReceiptHash, VERSION_1_12_21_ZERO_EXTERNAL_SUPERSESSION_RECEIPT_HASH);
   assert.equal(releaseIdentity?.release?.historicalTerminalFailureReceiptHash, VERSION_1_12_21_TERMINAL_FAILURE_RECEIPT_HASH);
@@ -187,6 +200,9 @@ export function validateUnusedV11222ConsentRevocationReceipt(receipt, { releaseI
     sourceExecutorVersion: authority.sourceExecutorVersion
   })) assert.equal(receipt[field], value, `unused consent revocation ${field} differs`);
   assert.equal(receipt.successorExecutorVersion, "1.12.23");
+  assert.equal(receipt.successorExecutionReleaseRecordHash, VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH);
+  assert.equal(receipt.successorExecutorRuntimeHead, VERSION_1_12_23_RUNTIME_HEAD);
+  assert.equal(receipt.successorQualificationHead, VERSION_1_12_23_QUALIFICATION_HEAD);
   assert.equal(receipt.disposition, "SUPERSEDED_UNUSED_WITHOUT_CONSUMPTION");
   for (const field of ["invocationArtifactCreated", "reservationArtifactCreated", "resultArtifactCreated", "resultRootCreated", "consentConsumed", "consentReusePermitted"]) assert.equal(receipt[field], false);
   assert.equal(receipt.evidenceMode, "APPEND_ONLY_RECEIPT_SOURCE_CONSENT_BYTES_UNCHANGED");
@@ -197,16 +213,15 @@ export function validateUnusedV11222ConsentRevocationReceipt(receipt, { releaseI
   delete core.receiptHash;
   assert.equal(sha256Json(core), receipt.receiptHash, "unused consent revocation receipt hash differs");
   if (releaseIdentity) {
-    validateCurrentReleaseIdentity(releaseIdentity);
+    assert.equal(releaseIdentity.executorVersion, "1.12.23", "the immutable revocation receipt can bind only its Version 1.12.23 successor");
     assert.equal(receipt.successorExecutionReleaseRecordHash, releaseIdentity.executionReleaseRecordHash);
-    assert.equal(receipt.successorExecutorRuntimeHead, releaseIdentity.executorRuntimeHead);
-    assert.equal(receipt.successorQualificationHead, releaseIdentity.qualificationHead);
   }
   return Object.freeze({ valid: true, receiptId: receipt.receiptId, receiptHash: receipt.receiptHash });
 }
 
-export function validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt }) {
+export function validateContinuationReleaseChain({ releaseIdentity, zeroExternalSupersessionReceipt, terminalFailureReceipt, unusedConsentRevocationReceipt, version1123FailureEvidence }) {
   validateCurrentReleaseIdentity(releaseIdentity);
+  validateVersion1123FailureEvidence(version1123FailureEvidence);
   validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
     successorExecutionReleaseRecordHash: VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH,
     successorExecutorRuntimeHead: "017f65678ef9d0606c47451dfb0b655f856e2bbd",
@@ -221,21 +236,26 @@ export function validateContinuationReleaseChain({ releaseIdentity, zeroExternal
     successorExecutorVersion: "1.12.22",
     receiptHash: VERSION_1_12_21_TERMINAL_FAILURE_RECEIPT_HASH
   });
-  validateUnusedV11222ConsentRevocationReceipt(unusedConsentRevocationReceipt, { releaseIdentity });
+  validateUnusedV11222ConsentRevocationReceipt(unusedConsentRevocationReceipt);
   assert.notEqual(VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH);
-  assert.notEqual(VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH, releaseIdentity.executionReleaseRecordHash);
+  assert.notEqual(VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH, VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH);
+  assert.notEqual(VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH, releaseIdentity.executionReleaseRecordHash);
   return Object.freeze({
     valid: true,
     version1121ExecutionReleaseRecordHash: VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH,
     version1122ExecutionReleaseRecordHash: VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH,
-    version1123ExecutionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash,
+    version1123ExecutionReleaseRecordHash: VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH,
+    version1123FailureEvidenceHash: version1123FailureEvidence.evidenceHash,
+    version1124ExecutionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash,
     releaseChainHash: sha256Json({
       version1121ExecutionReleaseRecordHash: VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH,
       zeroExternalSupersessionReceiptHash: zeroExternalSupersessionReceipt.receiptHash,
       version1122ExecutionReleaseRecordHash: VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH,
       terminalFailureReceiptHash: terminalFailureReceipt.receiptHash,
       unusedConsentRevocationReceiptHash: unusedConsentRevocationReceipt.receiptHash,
-      version1123ExecutionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash
+      version1123ExecutionReleaseRecordHash: VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH,
+      version1123FailureEvidenceHash: version1123FailureEvidence.evidenceHash,
+      version1124ExecutionReleaseRecordHash: releaseIdentity.executionReleaseRecordHash
     })
   });
 }
@@ -269,6 +289,6 @@ export async function loadUnusedV11222ConsentRevocationReceipt(releaseIdentity) 
   validateUnusedV11222ConsentBytes(await readFile(UNUSED_VERSION_1_12_22_CONSENT_PATH));
   await assertUnusedConsentHasNoDownstreamArtifacts();
   const receipt = await readJsonStrictFile(UNUSED_VERSION_1_12_22_CONSENT_REVOCATION_PATH);
-  validateUnusedV11222ConsentRevocationReceipt(receipt, { releaseIdentity });
+  validateUnusedV11222ConsentRevocationReceipt(receipt);
   return Object.freeze(receipt);
 }

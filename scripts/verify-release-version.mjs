@@ -53,11 +53,11 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
   assert.equal(serverVersion, version, "server.ps1 Version must equal package Version.");
 
   const indexSurface = inspectIndexVersionSurface(indexHtml, version);
-  assert.equal(executionRelease.schemaVersion, "2.4", "Execution release schema Version must be current.");
+  assert.equal(executionRelease.schemaVersion, "2.5", "Execution release schema Version must be current.");
   assert.equal(executionRelease.releaseType, "BENCHMARK_EXECUTOR_RELEASE", "Execution release type must be canonical.");
   assert.ok(["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"].includes(executionRelease.releaseState), "Execution release state must be explicit.");
   assert.equal(executionRelease.executorVersion, version, "Execution release Version must equal package Version.");
-  assert.equal(executionRelease.launchScopeSchemaVersion, "2.4", "Launch Scope schema Version must be current.");
+  assert.equal(executionRelease.launchScopeSchemaVersion, "2.5", "Launch Scope schema Version must be current.");
   assert.equal(executionRelease.costEnvelopeSchemaVersion, "1.1", "Cost envelope schema Version must be current.");
   assert.match(executionRelease.productCostSourceManifestHash || "", /^[a-f0-9]{64}$/, "Product Cost-Source Manifest hash must be release-bound.");
   assert.equal(vercelConfig.framework, null, "Vercel must remain a framework-neutral static deployment.");

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/public-identifier-contract-manifest.schema.json",
+  "title": "Canonical public identifier contract manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestType", "identifierType", "generatingContract", "credentialPrecedence", "contracts", "contractAggregateHash", "qualificationInventory", "qualificationInventoryHash", "manifestHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "manifestType": { "const": "PUBLIC_IDENTIFIER_CONTRACT_MANIFEST" },
+    "identifierType": { "const": "CANONICAL_PUBLIC_OFFER_IDENTITY_V1" }, "generatingContract": { "const": "lib/evidence/dedupe.js#underlyingOfferKey" },
+    "credentialPrecedence": { "const": "CREDENTIAL_CLASSIFIERS_ALWAYS_REJECT_BEFORE_PUBLIC_IDENTIFIER_ACCEPTANCE" },
+    "contracts": { "type": "array", "minItems": 213, "maxItems": 213, "items": { "$ref": "#/$defs/contract" } },
+    "contractAggregateHash": { "$ref": "#/$defs/hash" },
+    "qualificationInventory": { "type": "array", "minItems": 213, "maxItems": 213, "items": { "$ref": "#/$defs/inventory" } },
+    "qualificationInventoryHash": { "$ref": "#/$defs/hash" }, "manifestHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "fixture": { "type": "object", "additionalProperties": false, "required": ["fixtureId", "actualPath", "expectedContractId"], "properties": { "fixtureId": { "type": "string" }, "actualPath": { "type": "string", "pattern": "^\\$" }, "expectedContractId": { "type": "string" } } },
+    "contract": { "type": "object", "additionalProperties": false, "required": ["registryContractId", "normalizedSchemaPath", "terminalRoot", "completePropertyPath", "arrayIndexSegments", "canonicalIndexNormalization", "terminalPropertyName", "requiredValueType", "identifierType", "generatingContract", "requiredPublicPreimage", "recomputationInputs", "credentialPrecedence", "applicableTerminalSchemaNode", "role"], "properties": { "registryContractId": { "type": "string" }, "normalizedSchemaPath": { "type": "string", "pattern": "^\\$" }, "terminalRoot": { "type": "string" }, "completePropertyPath": { "type": "string", "pattern": "^\\$" }, "arrayIndexSegments": { "type": "array", "items": { "type": "string" } }, "canonicalIndexNormalization": { "const": "DECLARED_NUMERIC_ARRAY_SEGMENTS_TO_WILDCARD_ONLY" }, "terminalPropertyName": { "type": "string" }, "requiredValueType": { "const": "string" }, "identifierType": { "const": "CANONICAL_PUBLIC_OFFER_IDENTITY_V1" }, "generatingContract": { "const": "lib/evidence/dedupe.js#underlyingOfferKey" }, "requiredPublicPreimage": { "type": "string" }, "recomputationInputs": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "credentialPrecedence": { "const": "CREDENTIAL_CLASSIFIERS_ALWAYS_REJECT_BEFORE_PUBLIC_IDENTIFIER_ACCEPTANCE" }, "applicableTerminalSchemaNode": { "type": "string" }, "role": { "type": "string" } } },
+    "inventory": { "type": "object", "additionalProperties": false, "required": ["ordinal", "registryContractId", "normalizedSchemaPath", "positiveFixture", "negativeFixtures", "documentationInventoryEntry"], "properties": { "ordinal": { "type": "integer", "minimum": 1, "maximum": 213 }, "registryContractId": { "type": "string" }, "normalizedSchemaPath": { "type": "string", "pattern": "^\\$" }, "positiveFixture": { "$ref": "#/$defs/fixture" }, "negativeFixtures": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/fixture" } }, "documentationInventoryEntry": { "type": "string" } } }
+  }
+}

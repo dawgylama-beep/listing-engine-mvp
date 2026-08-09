@@ -1,225 +1,35 @@
 import assert from "node:assert/strict";
 import { underlyingOfferKey } from "../../../lib/evidence/dedupe.js";
 import { sha256Json } from "./protocol.mjs";
+import {
+  PUBLIC_EVIDENCE_IDENTIFIER_ALGORITHM,
+  PUBLIC_EVIDENCE_IDENTIFIER_TYPE,
+  PUBLIC_IDENTIFIER_CONTRACT_MANIFEST,
+  PUBLIC_IDENTIFIER_CONTRACT_MANIFEST_VERSION,
+  actualPathPatternSource,
+  validatePublicIdentifierContractManifest
+} from "./public-identifier-contract-manifest.mjs";
 
-export const PUBLIC_EVIDENCE_IDENTIFIER_TYPE = "CANONICAL_PUBLIC_OFFER_IDENTITY_V1";
-export const PUBLIC_EVIDENCE_IDENTIFIER_ALGORITHM = "lib/evidence/dedupe.js#underlyingOfferKey";
-export const PUBLIC_IDENTIFIER_REGISTRY_VERSION = "1.0";
+export { PUBLIC_EVIDENCE_IDENTIFIER_TYPE, PUBLIC_EVIDENCE_IDENTIFIER_ALGORITHM };
+export const PUBLIC_IDENTIFIER_REGISTRY_VERSION = PUBLIC_IDENTIFIER_CONTRACT_MANIFEST_VERSION;
 
 const CREDENTIAL_QUERY_NAME = /^(?:api[-_]?key|access[-_]?token|auth(?:orization)?|credential|password|secret|session|sig(?:nature)?|x-amz-signature)$/i;
 
-const DIRECT_SOURCE_PATHS = Object.freeze([
-  "$.experienceRecord.exactEvidenceRecovered[*].evidenceId",
-  "$.experienceRecord.sourcesAccepted[*].evidenceId",
-  "$.responseDiagnostics.diagnosticSample[*].evidenceId",
-  "$.responseDiagnostics.finalizedCustomerClassifications[*].evidenceId",
-  "$.responseDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
-  "$.responseDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId"
-]);
-
-const DIRECT_REFERENCE_PATHS = Object.freeze([
-  "$.responseDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalCustomerEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalRangeSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
-  "$.responseDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.displayedCustomerRecordIds[*]",
-  "$.responseDiagnostics.displayedRecordIds[*]",
-  "$.responseDiagnostics.finalizedCustomerRecordIds[*]",
-  "$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
-  "$.responseDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
-  "$.responseDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.decisionSupportIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
-  "$.responseDiagnostics.recoveryAssessment.underlyingOfferIds[*]"
-]);
-
-const REPORT_SOURCE_SUFFIXES = Object.freeze([
-  "buyerOfferSupportRecords[*].evidenceId",
-  "customerEvidence[*].evidenceId",
-  "pricesFound[*].evidenceId",
-  "searchDiagnostics.diagnosticSample[*].evidenceId",
-  "searchDiagnostics.finalizedCustomerClassifications[*].evidenceId",
-  "searchDiagnostics.objectIntelligence.experienceRecord.exactEvidenceRecovered[*].evidenceId",
-  "searchDiagnostics.objectIntelligence.experienceRecord.sourcesAccepted[*].evidenceId"
-]);
-
-const REPORT_REFERENCE_SUFFIXES = Object.freeze([
-  "badgeResult.supportingEvidenceIds[*]",
-  "badgeResult.supportingUnderlyingOfferIds[*]",
-  "badgeSupportEvidenceIds[*]",
-  "badgeSupportUnderlyingOfferIds[*]",
-  "buyerOfferResult.quantityContext.retailLimitQuantityContext.supportQuantities[*].evidenceId",
-  "buyerOfferResult.quantityContext.supportQuantities[*].evidenceId",
-  "buyerOfferResult.rangeSupportIds[*]",
-  "buyerOfferResult.retailLimitSupportIds[*]",
-  "buyerOfferResult.supportingEvidenceIds[*]",
-  "buyerOfferResult.supportingUnderlyingOfferIds[*]",
-  "buyerOfferSupportEvidenceIds[*]",
-  "buyerOfferSupportRecords[*].underlyingOfferId",
-  "buyerOfferSupportUnderlyingOfferIds[*]",
-  "confidenceResult.identity.supportingEvidenceIds[*]",
-  "confidenceResult.identity.supportingUnderlyingOfferIds[*]",
-  "confidenceResult.pricing.supportingEvidenceIds[*]",
-  "confidenceResult.pricing.supportingUnderlyingOfferIds[*]",
-  "customerEvidenceSummary.acceptedIds[*]",
-  "customerEvidenceSummary.customerEligibleIds[*]",
-  "customerEvidenceSummary.decisionEligibleIds[*]",
-  "customerEvidenceSummary.displayEligibleIds[*]",
-  "customerEvidenceSummary.displayedIds[*]",
-  "customerEvidenceSummary.exactMatchIds[*]",
-  "customerEvidenceSummary.priceBearingIds[*]",
-  "customerEvidenceSummary.rangeEligibleIds[*]",
-  "customerEvidence[*].underlyingOfferId",
-  "decisionResult.canonicalComparisonResult.supportingEvidenceIds[*]",
-  "decisionResult.canonicalComparisonResult.supportingUnderlyingOfferIds[*]",
-  "decisionResult.rangeSupportIds[*]",
-  "decisionResult.retailLimitSupportIds[*]",
-  "decisionResult.supportingEvidenceIds[*]",
-  "decisionResult.supportingUnderlyingOfferIds[*]",
-  "decisionSupportEvidenceIds[*]",
-  "decisionSupportUnderlyingOfferIds[*]",
-  "identityConfidenceSupportEvidenceIds[*]",
-  "identityConfidenceSupportUnderlyingOfferIds[*]",
-  "pricesFound[*].underlyingOfferId",
-  "pricingConfidenceSupportEvidenceIds[*]",
-  "pricingConfidenceSupportUnderlyingOfferIds[*]",
-  "rangeResult.evidenceIds[*]",
-  "rangeResult.underlyingOfferIds[*]",
-  "rangeResults.currentRetail.evidenceIds[*]",
-  "rangeResults.currentRetail.underlyingOfferIds[*]",
-  "rangeSupportEvidenceIds[*]",
-  "rangeSupportUnderlyingOfferIds[*]",
-  "rangeSupportingEvidenceIds[*]",
-  "rangeSupportingUnderlyingOfferIds[*]",
-  "retailLimitResult.evidenceIds[*]",
-  "retailLimitResult.quantityContext.supportQuantities[*].evidenceId",
-  "retailLimitResult.selectedEvidenceId",
-  "retailLimitResult.selectedUnderlyingOfferId",
-  "retailLimitResult.underlyingOfferIds[*]",
-  "retailLimitSupportEvidenceIds[*]",
-  "retailLimitSupportUnderlyingOfferIds[*]",
-  "retailPriceLimitSupportingEvidenceIds[*]",
-  "retailPriceLimitSupportingUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalBadgeSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalBadgeSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalBuyerOfferSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalCustomerEvidenceIds[*]",
-  "searchDiagnostics.canonicalDecisionSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalDecisionSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalIdentityConfidenceSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalIdentityConfidenceSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalPricingConfidenceSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalPricingConfidenceSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalRangeSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalRangeSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.canonicalRetailLimitSupportEvidenceIds[*]",
-  "searchDiagnostics.canonicalRetailLimitSupportUnderlyingOfferIds[*]",
-  "searchDiagnostics.displayedCustomerRecordIds[*]",
-  "searchDiagnostics.displayedRecordIds[*]",
-  "searchDiagnostics.finalizedCustomerRecordIds[*]",
-  "searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].evidenceId",
-  "searchDiagnostics.personalBuyEvidenceUtilityDecisions[*].underlyingOfferId",
-  "searchDiagnostics.recoveryAssessment.acceptedEvidenceIds[*]",
-  "searchDiagnostics.recoveryAssessment.decisionSupportIds[*]",
-  "searchDiagnostics.recoveryAssessment.recoveryStoppingSupportIds[*]",
-  "searchDiagnostics.recoveryAssessment.recoveryTriggeringSupportIds[*]",
-  "searchDiagnostics.recoveryAssessment.stoppingAcceptedEvidenceIds[*]",
-  "searchDiagnostics.recoveryAssessment.stoppingUnderlyingOfferIds[*]",
-  "searchDiagnostics.recoveryAssessment.underlyingOfferIds[*]"
-]);
-
-function terminalRootFor(normalizedSchemaPath) {
-  return normalizedSchemaPath.slice(2).split(/[.[]/, 1)[0];
-}
-
-function terminalPropertyFor(normalizedSchemaPath) {
-  return normalizedSchemaPath.split(".").at(-1).replace("[*]", "");
-}
-
-function arraySegmentsFor(normalizedSchemaPath) {
-  return Object.freeze([...normalizedSchemaPath.matchAll(/([^.[\]]+)\[\*\]/g)].map((match) => match[1]));
-}
-
-function registryEntry(normalizedSchemaPath, role) {
-  const terminalRoot = terminalRootFor(normalizedSchemaPath);
-  return Object.freeze({
-    registryContractId: `typed-public-identifier:${normalizedSchemaPath}`,
-    normalizedSchemaPath,
-    terminalRoot,
-    completePropertyPath: normalizedSchemaPath,
-    arrayIndexSegments: arraySegmentsFor(normalizedSchemaPath),
-    canonicalIndexNormalization: "DECLARED_NUMERIC_ARRAY_SEGMENTS_TO_WILDCARD_ONLY",
-    terminalPropertyName: terminalPropertyFor(normalizedSchemaPath),
-    requiredValueType: "string",
-    identifierType: PUBLIC_EVIDENCE_IDENTIFIER_TYPE,
-    generatingContract: PUBLIC_EVIDENCE_IDENTIFIER_ALGORITHM,
-    requiredPublicPreimage: "SIBLING_PUBLIC_HTTP_OR_HTTPS_URL_WITHOUT_CREDENTIALS",
-    recomputationInputs: Object.freeze(["complete source record", "canonical public URL", "seller partition where present"]),
-    applicableTerminalSchemaNode: terminalRoot === "sanitizedTerminalResponseEnvelope"
-      ? normalizedSchemaPath.includes(".body.valuation.") ? "HANDLER_SUCCESS_ENVELOPE.body.valuation" : "HANDLER_SUCCESS_ENVELOPE.body.listing"
-      : `BENCHMARK_TERMINAL_RESULT.${terminalRoot}`,
-    role
-  });
-}
-
-const reportEntries = [];
-for (const envelope of ["valuation", "listing"]) {
-  for (const suffix of REPORT_SOURCE_SUFFIXES) reportEntries.push(registryEntry(
-    `$.sanitizedTerminalResponseEnvelope.body.${envelope}.${suffix}`,
-    suffix.startsWith("searchDiagnostics.") ? "PUBLIC_SOURCE_OR_HASH_BOUND_REFERENCE" : "PUBLIC_SOURCE"
-  ));
-  for (const suffix of REPORT_REFERENCE_SUFFIXES) reportEntries.push(registryEntry(`$.sanitizedTerminalResponseEnvelope.body.${envelope}.${suffix}`, "HASH_BOUND_REFERENCE"));
-}
-
-export const AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY = Object.freeze([
-  ...DIRECT_SOURCE_PATHS.map((path) => registryEntry(path, "PUBLIC_SOURCE_OR_HASH_BOUND_REFERENCE")),
-  ...DIRECT_REFERENCE_PATHS.map((path) => registryEntry(path, "HASH_BOUND_REFERENCE")),
-  ...reportEntries
-].sort((left, right) => left.normalizedSchemaPath.localeCompare(right.normalizedSchemaPath)));
-
-assert.equal(
-  new Set(AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.map((entry) => entry.normalizedSchemaPath)).size,
-  AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.length,
-  "typed public identifier registry contains duplicate complete paths"
+validatePublicIdentifierContractManifest();
+export const AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY = Object.freeze(
+  PUBLIC_IDENTIFIER_CONTRACT_MANIFEST.contracts.map((entry) => Object.freeze(structuredClone(entry)))
 );
 
 export const AUTHORIZED_NORMALIZED_PUBLIC_IDENTIFIER_PATHS = Object.freeze(
   AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.map((entry) => entry.normalizedSchemaPath)
 );
 
-function escapePattern(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function actualPathPattern(normalizedSchemaPath) {
-  const source = normalizedSchemaPath
-    .split("[*]")
-    .map(escapePattern)
-    .join("\\[(?:0|[1-9]\\d*)\\]");
-  return new RegExp(`^${source}$`);
-}
-
 const COMPILED_REGISTRY = Object.freeze(AUTHORIZED_PUBLIC_IDENTIFIER_PATH_REGISTRY.map((entry) => Object.freeze({
   entry,
-  actualPathPattern: actualPathPattern(entry.normalizedSchemaPath)
+  actualPathPattern: new RegExp(actualPathPatternSource(entry.normalizedSchemaPath))
 })));
 
-function contractForActualPath(path) {
+export function publicIdentifierContractForActualPath(path) {
   return COMPILED_REGISTRY.find(({ actualPathPattern: pattern }) => pattern.test(path))?.entry || null;
 }
 
@@ -273,7 +83,7 @@ export function deriveTypedPublicIdentifierProvenance(record) {
   const primaryByPath = new Map();
 
   walk(record, (value, path, parent) => {
-    const contract = contractForActualPath(path);
+    const contract = publicIdentifierContractForActualPath(path);
     if (!contract || !contract.role.startsWith("PUBLIC_SOURCE") || !assertDeclaredValueType(value, path, contract) || !value) return;
     assert.ok(parent && typeof parent === "object" && !Array.isArray(parent), `typed public source at ${path} must be an object property`);
     let publicUrl;
@@ -300,7 +110,7 @@ export function deriveTypedPublicIdentifierProvenance(record) {
 
   const entries = [...primaryByPath.values()];
   walk(record, (value, path) => {
-    const contract = contractForActualPath(path);
+    const contract = publicIdentifierContractForActualPath(path);
     if (!contract || !contract.role.includes("HASH_BOUND_REFERENCE") || !assertDeclaredValueType(value, path, contract) || !value || primaryByPath.has(path)) return;
     const sources = catalog.get(value);
     if (!sources?.length) return;
@@ -324,4 +134,70 @@ export function typedPublicIdentifierPaths(record) {
     for (const field of Object.keys(entry)) paths.add(`$.typedPublicIdentifierProvenance[${index}].${field}`);
   }
   return Object.freeze(paths);
+}
+
+export function inspectPublicIdentifierAtLocation({ record, path, value, parent }) {
+  const contract = publicIdentifierContractForActualPath(path);
+  if (!contract) return Object.freeze({
+    normalizedSchemaPath: path.replace(/\[(?:0|[1-9]\d*)\]/g, "[*]"),
+    terminalSchemaNode: "NO_CONTRACT_MATCH",
+    registryContractId: "NO_CONTRACT_MATCH",
+    requiredValueType: null,
+    publicPreimageAvailable: false,
+    publicPreimageRecomputationResult: "NOT_APPLICABLE_NO_CONTRACT",
+    sellerPartitionVerificationResult: "NOT_APPLICABLE_NO_CONTRACT",
+    typedPublicIdentifierAccepted: false
+  });
+  if (typeof value !== contract.requiredValueType) return Object.freeze({
+    normalizedSchemaPath: contract.normalizedSchemaPath,
+    terminalSchemaNode: contract.applicableTerminalSchemaNode,
+    registryContractId: contract.registryContractId,
+    requiredValueType: contract.requiredValueType,
+    publicPreimageAvailable: false,
+    publicPreimageRecomputationResult: "VALUE_TYPE_MISMATCH",
+    sellerPartitionVerificationResult: "VALUE_TYPE_MISMATCH",
+    typedPublicIdentifierAccepted: false
+  });
+  if (contract.role.startsWith("PUBLIC_SOURCE")) {
+    try {
+      const publicUrl = publicUrlFromSource(parent);
+      const recomputed = underlyingOfferKey(parent);
+      const accepted = Boolean(value) && recomputed === value;
+      return Object.freeze({
+        normalizedSchemaPath: contract.normalizedSchemaPath,
+        terminalSchemaNode: contract.applicableTerminalSchemaNode,
+        registryContractId: contract.registryContractId,
+        requiredValueType: contract.requiredValueType,
+        publicPreimageAvailable: true,
+        publicPreimageRecomputationResult: accepted ? "MATCH" : "MISMATCH",
+        sellerPartitionVerificationResult: accepted ? "MATCH" : "MISMATCH",
+        publicPreimagePath: `${path.slice(0, path.lastIndexOf("."))}.${publicUrl.urlField}`,
+        typedPublicIdentifierAccepted: accepted
+      });
+    } catch {
+      return Object.freeze({
+        normalizedSchemaPath: contract.normalizedSchemaPath,
+        terminalSchemaNode: contract.applicableTerminalSchemaNode,
+        registryContractId: contract.registryContractId,
+        requiredValueType: contract.requiredValueType,
+        publicPreimageAvailable: false,
+        publicPreimageRecomputationResult: "UNAVAILABLE_OR_INVALID",
+        sellerPartitionVerificationResult: "UNAVAILABLE_OR_INVALID",
+        typedPublicIdentifierAccepted: false
+      });
+    }
+  }
+  let provenance = [];
+  try { provenance = deriveTypedPublicIdentifierProvenance(record); } catch { provenance = []; }
+  const accepted = provenance.some((entry) => entry.path === path && entry.identifierHash === sha256Json(value));
+  return Object.freeze({
+    normalizedSchemaPath: contract.normalizedSchemaPath,
+    terminalSchemaNode: contract.applicableTerminalSchemaNode,
+    registryContractId: contract.registryContractId,
+    requiredValueType: contract.requiredValueType,
+    publicPreimageAvailable: accepted,
+    publicPreimageRecomputationResult: accepted ? "HASH_BOUND_REFERENCE_MATCH" : "HASH_BOUND_REFERENCE_UNRESOLVED",
+    sellerPartitionVerificationResult: accepted ? "MATCH_VIA_BOUND_SOURCE" : "UNRESOLVED",
+    typedPublicIdentifierAccepted: accepted
+  });
 }

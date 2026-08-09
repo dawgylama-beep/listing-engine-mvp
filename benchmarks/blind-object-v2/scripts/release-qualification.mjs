@@ -12,8 +12,13 @@ import {
   VERSION_1_12_21_ZERO_EXTERNAL_SUPERSESSION_RECEIPT_HASH,
   VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH
 } from "./consent-revocation.mjs";
+import { VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH, VERSION_1_12_23_FAILURE_EVIDENCE_HASH } from "./version1123-failure-evidence.mjs";
+import { PUBLIC_IDENTIFIER_CONTRACT_MANIFEST } from "./public-identifier-contract-manifest.mjs";
+import { COGNITIVE_LIFECYCLE_INVARIANT_CATALOG } from "./cognitive-lifecycle-invariants.mjs";
+import { COGNITIVE_LIFECYCLE_GOVERNOR_VERSION } from "./cognitive-lifecycle-governor.mjs";
+import { QUARANTINE_ENCRYPTION } from "./handler-return-quarantine.mjs";
 
-export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.4";
+export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.5";
 export const EXECUTION_RELEASE_TYPE = "BENCHMARK_EXECUTOR_RELEASE";
 export const QUALIFICATION_POLICY_VERSION = "1.0";
 export const QUALIFICATION_RELATIONSHIP = "DIRECT_PARENT_ONE_FILE_SEAL";
@@ -45,6 +50,12 @@ const RELEASE_FIELDS = Object.freeze([
   "postHandlerFailureAuthorityHash",
   "historicalExecutionReleaseRecordHash",
   "predecessorExecutionReleaseRecordHash",
+  "version1122ExecutionReleaseRecordHash",
+  "version1123FailureEvidenceHash",
+  "publicIdentifierContractManifestHash",
+  "lifecycleInvariantCatalogHash",
+  "cognitiveLifecycleGovernorVersion",
+  "handlerReturnQuarantineEncryption",
   "unusedConsentAuthorityHash",
   "historicalZeroExternalSupersessionReceiptHash",
   "historicalTerminalFailureReceiptHash",
@@ -84,7 +95,7 @@ const AUTHORITY_EXPECTATIONS = Object.freeze({
   preExternalReconciliationEnabled: false,
   zeroExternalSupersessionEnabled: false,
   postHandlerReconciliationEnabled: false,
-  unusedConsentRevocationEnabled: true,
+  unusedConsentRevocationEnabled: false,
   continuationExecutionEnabled: true,
   realExecutionAuthorized: false,
   privateControlsAuthorized: false,
@@ -147,7 +158,13 @@ function validateReleaseCore(core) {
   assert.equal(core.preExternalFailureAuthorityHash, "084cea4676da753ce48a177472c36043f216802c9c97b9cc3a188b8abc17885d", "execution release pre-external failure authority differs");
   assert.equal(core.postHandlerFailureAuthorityHash, "915089ed141f32dd38530df9ee1bd89288aa7bb4a2e5b2abe8cf4f96a24202b7", "execution release post-handler failure authority differs");
   assert.equal(core.historicalExecutionReleaseRecordHash, VERSION_1_12_21_EXECUTION_RELEASE_RECORD_HASH, "execution release historical Version 1.12.21 authority differs");
-  assert.equal(core.predecessorExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH, "execution release predecessor Version 1.12.22 authority differs");
+  assert.equal(core.predecessorExecutionReleaseRecordHash, VERSION_1_12_23_EXECUTION_RELEASE_RECORD_HASH, "execution release immediate predecessor Version 1.12.23 authority differs");
+  assert.equal(core.version1122ExecutionReleaseRecordHash, VERSION_1_12_22_EXECUTION_RELEASE_RECORD_HASH, "execution release Version 1.12.22 chain authority differs");
+  assert.equal(core.version1123FailureEvidenceHash, VERSION_1_12_23_FAILURE_EVIDENCE_HASH, "execution release Version 1.12.23 failure evidence differs");
+  assert.equal(core.publicIdentifierContractManifestHash, PUBLIC_IDENTIFIER_CONTRACT_MANIFEST.manifestHash);
+  assert.equal(core.lifecycleInvariantCatalogHash, COGNITIVE_LIFECYCLE_INVARIANT_CATALOG.catalogHash);
+  assert.equal(core.cognitiveLifecycleGovernorVersion, COGNITIVE_LIFECYCLE_GOVERNOR_VERSION);
+  assert.equal(core.handlerReturnQuarantineEncryption, QUARANTINE_ENCRYPTION);
   assert.equal(core.unusedConsentAuthorityHash, UNUSED_VERSION_1_12_22_CONSENT_AUTHORITY_HASH, "execution release unused Version 1.12.22 consent authority differs");
   assert.equal(core.historicalZeroExternalSupersessionReceiptHash, VERSION_1_12_21_ZERO_EXTERNAL_SUPERSESSION_RECEIPT_HASH, "execution release historical supersession receipt differs");
   assert.equal(core.historicalTerminalFailureReceiptHash, VERSION_1_12_21_TERMINAL_FAILURE_RECEIPT_HASH, "execution release historical terminal-failure receipt differs");
@@ -158,12 +175,12 @@ function validateReleaseCore(core) {
   }
   assert.equal(core.handler, "api/generate-listing.js#createGenerateListingHandler");
   assert.equal(core.completePhysicalAttemptCeiling, 832);
-  assert.equal(core.launchScopeSchemaVersion, "2.4");
+  assert.equal(core.launchScopeSchemaVersion, "2.5");
   assert.equal(core.costEnvelopeSchemaVersion, "1.1");
   assert.equal(core.maximumAuthorizedCostMinorUnits, 4000);
   exactKeys(core.authorityDeclarations, AUTHORITY_FIELDS, "execution release authority declarations");
   for (const field of AUTHORITY_FIELDS) {
-    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.23 authority`);
+    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.24 authority`);
   }
 
   if (core.releaseState === EXECUTION_RELEASE_STATE.PENDING) {

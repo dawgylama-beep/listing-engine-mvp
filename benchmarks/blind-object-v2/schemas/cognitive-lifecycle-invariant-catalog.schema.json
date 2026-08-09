@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/cognitive-lifecycle-invariant-catalog.schema.json",
+  "title": "Cognitive lifecycle invariant catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "catalogType", "records", "recordAggregateHash", "catalogHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "catalogType": { "const": "COGNITIVE_LIFECYCLE_INVARIANT_CATALOG" },
+    "records": { "type": "array", "minItems": 12, "uniqueItems": true, "items": { "type": "object", "additionalProperties": false, "required": ["failureId", "generalizedRule", "affectedLifecycleStates", "affectedComponents", "legalAutomaticRecovery", "prohibitedRecovery", "regressionFixture", "recurrenceDetector", "escalationRule"], "properties": { "failureId": { "type": "string" }, "generalizedRule": { "type": "string" }, "affectedLifecycleStates": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "affectedComponents": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "legalAutomaticRecovery": { "type": "string" }, "prohibitedRecovery": { "type": "string" }, "regressionFixture": { "type": "string" }, "recurrenceDetector": { "type": "string" }, "escalationRule": { "type": "string" } } } },
+    "recordAggregateHash": { "$ref": "#/$defs/hash" }, "catalogHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
