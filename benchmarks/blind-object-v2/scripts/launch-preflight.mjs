@@ -11,9 +11,10 @@ import {
 } from "./execution-protocol.mjs";
 import { COST_STATE, createSourceGroundedCostEnvelope, validateCostEnvelope } from "./cost-envelope.mjs";
 import { createLaunchScope, deriveLaunchIdentities, validateLaunchScope } from "./launch-identity.mjs";
-import { ensureDetachedProductRuntime, resolveExecutionProfile } from "./execution-profile.mjs";
+import { ensureDetachedProductRuntime, removeDetachedProductRuntime, resolveExecutionProfile } from "./execution-profile.mjs";
 import { defaultFreezeRoot, loadPublicFreeze, repositoryRoot } from "./execution-store.mjs";
 import { sha256Json } from "./protocol.mjs";
+import { loadFixedZeroExternalSupersessionReceipt } from "./pre-external-reconciliation.mjs";
 
 export const AUTHORIZED_MAXIMUM_MINOR_UNITS = 4000;
 export const REAL_FREEZE_AGGREGATE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
@@ -56,11 +57,14 @@ export function createVerifiedPricingProfile({ exactModel, createdAt }) {
   });
 }
 
-export async function buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, resolvedAt, productSourceText }) {
+export async function buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, resolvedAt, productSourceText }) {
   assert.equal(frozen.manifest.completeFrozenAggregateHash, REAL_FREEZE_AGGREGATE);
   assert.equal(runtime.productSourceHead, PRODUCT_SOURCE_HEAD);
   assert.equal(runtime.productSourceVersion, PRODUCT_SOURCE_VERSION);
   assert.equal(runtime.productRuntimeManifestHash, "5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8");
+  assert.equal(supersessionReceipt.successorExecutionReleaseRecordHash, releaseIdentity.executionReleaseRecordHash);
+  assert.equal(supersessionReceipt.successorExecutorRuntimeHead, releaseIdentity.executorRuntimeHead);
+  assert.equal(supersessionReceipt.successorQualificationHead, releaseIdentity.qualificationHead);
   const resolved = await resolveExecutionProfile({
     freezeRequests: frozen.requests,
     environment,
@@ -110,6 +114,8 @@ export async function buildLaunchArtifacts({ frozen, runtime, environment, relea
     executionProfileIdentityHash: resolved.profile.executionProfileIdentityHash,
     pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
     costEnvelopeHash: costEnvelope.costEnvelopeHash,
+    zeroExternalSupersessionReceiptId: supersessionReceipt.receiptId,
+    zeroExternalSupersessionReceiptHash: supersessionReceipt.receiptHash,
     maximumAuthorizedCostMinorUnits: AUTHORIZED_MAXIMUM_MINOR_UNITS,
     networkPolicyHash: sha256Json(resolved.profile.networkScope),
     privateControlsAuthorized: false,
@@ -136,12 +142,18 @@ export async function buildRealLaunchPreflight({ environment = process.env, rele
   assert.match(releaseIdentity?.executorRuntimeHead || "", /^[a-f0-9]{40}$/, "committed executor runtime head is required");
   assert.match(releaseIdentity?.qualificationHead || "", /^[a-f0-9]{40}$/, "committed qualification head is required");
   assert.equal(path.basename(defaultFreezeRoot), REAL_FREEZE_AGGREGATE);
+  const supersessionReceipt = await loadFixedZeroExternalSupersessionReceipt(releaseIdentity);
   const runtime = ensureDetachedProductRuntime();
   const runtimeRoot = runtime.runtimeRoot;
-  const [frozen, productSourceText] = await Promise.all([
-    loadPublicFreeze(defaultFreezeRoot),
-    readFile(path.join(runtimeRoot, "api", "generate-listing.js"), "utf8")
-  ]);
-  const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, resolvedAt, productSourceText });
-  return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot });
+  try {
+    const [frozen, productSourceText] = await Promise.all([
+      loadPublicFreeze(defaultFreezeRoot),
+      readFile(path.join(runtimeRoot, "api", "generate-listing.js"), "utf8")
+    ]);
+    const artifacts = await buildLaunchArtifacts({ frozen, runtime, environment, releaseIdentity, supersessionReceipt, resolvedAt, productSourceText });
+    return Object.freeze({ ...artifacts, productRuntimeRoot: runtimeRoot, supersessionReceipt });
+  } catch (error) {
+    removeDetachedProductRuntime(runtimeRoot);
+    throw error;
+  }
 }

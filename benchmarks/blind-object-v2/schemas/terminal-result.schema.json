@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "resultRecordType", "requestId", "requestHash", "launchScopeHash", "resultId", "resultRootName", "invocationId", "consentHash", "reservationHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash", "physicalSubmissionIdentity", "submissionState", "terminalState", "startedAt", "completedAt", "elapsedDurationMs", "handlerStatus", "sanitizedTerminalResponseEnvelope", "responseDiagnostics", "providerAttemptTelemetry", "providerIdentities", "modelIdentity", "callCeilingTelemetry", "costEntry", "governorProof", "cognitiveStateIdentity", "experienceRecord", "experienceRecordHash", "terminalEvidence", "errorStage", "errorCategory", "canonicalResponseHash", "recordHash"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "const": "1.1" },
     "resultRecordType": { "const": "BENCHMARK_TERMINAL_RESULT" },
     "requestId": { "type": "string" },
     "requestHash": { "$ref": "#/$defs/hash" },
@@ -23,7 +23,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.20" },
+    "executorVersion": { "const": "1.12.21" },
     "executionProfileHash": { "$ref": "#/$defs/hash" },
     "executionProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },

@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "profileType", "productSourceHead", "productSourceVersion", "productRuntimeManifestHash", "productRuntimeIdentityType", "executorRuntimeHead", "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion", "handlerContract", "modelProvider", "exactModelLiteral", "acquisitionProviderMode", "directPageMode", "fixedProviderEndpointClasses", "fixedEnvironmentVariableNameAllowlist", "credentialPresenceDeclarations", "refinementCeilingPerAnalysis", "logicalAcquisitionCeilings", "directPagePhysicalCeilingPerAnalysis", "physicalRetryCeilingPerLogicalSearch", "completeAggregatePhysicalAttemptCeiling", "completeAttemptCeilingHash", "networkScope", "executionProfileIdentityHash", "resolvedAt", "profileHash"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "const": "1.1" },
     "profileType": { "const": "BENCHMARK_EXECUTION_PROFILE" },
     "productSourceHead": { "$ref": "#/$defs/commit" },
     "productSourceVersion": { "const": "1.12.13" },
@@ -17,7 +17,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.20" },
+    "executorVersion": { "const": "1.12.21" },
     "handlerContract": { "type": "object" },
     "modelProvider": { "const": "OPENAI" },
     "exactModelLiteral": { "$ref": "#/$defs/publicIdentity" },

@@ -55,6 +55,14 @@ import {
   verifyDetachedProductRuntime
 } from "./execution-profile.mjs";
 import { sha256Bytes, sha256Json } from "./protocol.mjs";
+import {
+  PRE_EXTERNAL_TERMINAL_STATE,
+  createTerminalFailureManifest,
+  createTerminalFailureValidationReport,
+  validateTerminalFailureManifest,
+  validateTerminalFailureValidationReport,
+  validateZeroExternalSupersessionReceipt
+} from "./pre-external-recovery-protocol.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
 const VALIDATION_REPORT_FIELDS = Object.freeze([
@@ -354,6 +362,76 @@ async function finalizeResult({
   return { manifest, validationReport: report };
 }
 
+async function finalizePreExternalAbort({ resultRoot, frozen, consent, reservation, journal, ledger, executionProfile, requestId, clock }) {
+  const basePaths = [
+    "launch-scope.json", "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json"
+  ];
+  const baseTree = await computeResultTreeAggregate(resultRoot, basePaths);
+  assert.equal(ledger.actualCalculatedCost, 0);
+  assert.equal(ledger.accruedEstimatedCost, 0);
+  assert.deepEqual(ledger.actualProviderReportedUsage, []);
+  assert.deepEqual(ledger.perAttemptCostRecords, []);
+  const manifest = createTerminalFailureManifest({
+    failureClassification: PRE_EXTERNAL_TERMINAL_STATE,
+    launchScopeHash: consent.launchScopeHash,
+    resultId: consent.resultId,
+    resultRootName: consent.resultRootName,
+    invocationId: consent.invocationId,
+    consentHash: consent.consentHash,
+    reservationHash: reservation.reservationHash,
+    executionReleaseRecordHash: executionProfile.executionReleaseRecordHash,
+    executorVersion: EXECUTOR_VERSION,
+    completeFrozenAggregateHash: frozen.manifest.completeFrozenAggregateHash,
+    requestId,
+    originalPartialArtifactAggregate: baseTree.aggregate,
+    failureEvidenceAggregate: baseTree.aggregate,
+    zeroExternalSupersessionReceiptId: consent.zeroExternalSupersessionReceiptId,
+    zeroExternalSupersessionReceiptHash: consent.zeroExternalSupersessionReceiptHash,
+    handlerAttemptCount: 0,
+    providerAttemptCount: 0,
+    physicalProviderAttemptCount: 0,
+    actualProviderCost: 0,
+    requestedCount: 26,
+    preExternalAbortCount: 1,
+    notExternallySubmittedCount: 26,
+    effectiveConsentStatus: CONSENT_STATUS.CONSUMED,
+    resultRootConsentStatus: CONSENT_STATUS.CONSUMED,
+    effectiveReservationStatus: RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT,
+    journalEffectiveState: REQUEST_STATE.PRE_EXTERNAL_ABORT,
+    originalArtifactsByteIdentical: true,
+    privateControlsLoaded: false,
+    scoringAuthorized: false,
+    reflectionAuthorized: false,
+    repairAuthorized: false,
+    state: PRE_EXTERNAL_TERMINAL_STATE
+  });
+  await writeResultFile(resultRoot, "terminal-failure-manifest.json", manifest);
+  const report = createTerminalFailureValidationReport({
+    resultId: consent.resultId,
+    manifestHash: manifest.manifestHash,
+    state: manifest.state,
+    validatedAt: clock(),
+    originalArtifactsByteIdentical: true,
+    effectiveCanonicalConsentStatus: CONSENT_STATUS.CONSUMED,
+    resultRootConsentStatus: CONSENT_STATUS.CONSUMED,
+    effectiveReservationStatus: RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT,
+    journalEffectiveState: REQUEST_STATE.PRE_EXTERNAL_ABORT,
+    handlerAttemptCount: 0,
+    providerAttemptCount: 0,
+    physicalProviderAttemptCount: 0,
+    actualProviderCost: 0,
+    privateControlsLoaded: false,
+    scoringPerformed: false,
+    reflectionPerformed: false,
+    repairPerformed: false
+  });
+  await writeResultFile(resultRoot, "terminal-failure-validation-report.json", report);
+  validateTerminalFailureManifest(manifest);
+  validateTerminalFailureValidationReport(report, manifest);
+  return Object.freeze({ terminalFailureManifest: manifest, terminalFailureValidationReport: report });
+}
+
 export async function executeBenchmarkV2({
   mode,
   freezeRoot,
@@ -367,15 +445,21 @@ export async function executeBenchmarkV2({
   consent,
   productRuntimeRoot = null,
   allowedEnvironment = null,
+  zeroExternalSupersessionReceipt = null,
   syntheticHandler = null,
+  photoTransformer = null,
   faultPlan = null,
+  onConsentTransition = async () => {},
   onFreezeRead = () => {},
   clock = defaultClock
 }) {
   assert.ok(Object.values(EXECUTION_MODE).includes(mode));
   assert.equal(mode === EXECUTION_MODE.SYNTHETIC_TEST_ONLY, typeof syntheticHandler === "function", "synthetic mode requires exactly one fixed mock handler function");
+  assert.ok(photoTransformer === null || typeof photoTransformer === "function", "photo transformer must be a function or null");
+  assert.equal(typeof onConsentTransition, "function", "consent transition persistence callback is required");
   if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) {
     assert.equal(syntheticHandler, null, "real execution cannot accept a mock or arbitrary handler");
+    assert.equal(photoTransformer, null, "real execution cannot accept a caller-selected photo transformer");
     assert.equal(faultPlan, null, "real execution cannot accept synthetic fault injection");
     assert.ok(productRuntimeRoot, "real execution requires the pinned product runtime");
     const runtime = verifyDetachedProductRuntime(productRuntimeRoot);
@@ -383,6 +467,15 @@ export async function executeBenchmarkV2({
   }
   const frozen = await loadPublicFreeze(freezeRoot, { onRead: onFreezeRead });
   validateLaunchScope(launchScope);
+  if (zeroExternalSupersessionReceipt) validateZeroExternalSupersessionReceipt(zeroExternalSupersessionReceipt, {
+    receiptId: launchScope.zeroExternalSupersessionReceiptId,
+    receiptHash: launchScope.zeroExternalSupersessionReceiptHash,
+    successorExecutionReleaseRecordHash: launchScope.executionReleaseRecordHash,
+    successorExecutorRuntimeHead: launchScope.executorRuntimeHead,
+    successorQualificationHead: launchScope.qualificationHead,
+    successorExecutorVersion: launchScope.executorVersion
+  });
+  if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) assert.ok(zeroExternalSupersessionReceipt, "real execution requires the fixed zero-external supersession receipt");
   validateExecutionProfile(executionProfile, {
     attemptCeiling,
     releaseIdentity: executionProfile,
@@ -434,7 +527,7 @@ export async function executeBenchmarkV2({
     createdIdentity: `executor-${executionProfile.executorRuntimeHead.slice(0, 16)}`
   };
   let reservation = createInvocationReservation(reservationInput, clock());
-  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation);
+  const createdReservation = await createExclusiveReservation(reservationStoreRoot, reservation, { zeroExternalSupersessionReceipt });
   assert.equal(createdReservation.status, "CREATED", "execution requires a newly exclusive reservation; readback cannot start execution");
   const reservationFile = createdReservation.filePath;
   await createExclusiveResultRoot(resultHistoryRoot, consent.resultRootName);
@@ -461,10 +554,12 @@ export async function executeBenchmarkV2({
   await replaceReservation(reservationFile, reservation);
   consent = transitionConsent(consent, CONSENT_STATUS.CONSUMED, clock(), "INVOCATION_RESERVATION_STARTED");
   await persistMutableAuthorities(resultRoot, { consent, reservation, journal, ledger });
+  await onConsentTransition(consent);
 
   const terminalRecords = [];
   let stopReason = "";
   let integrityFailureCount = 0;
+  let preExternalAbortRequestId = "";
   const perRequestWorstCase = conservativePreRunMaximum / 26;
   for (const [index, request] of frozen.requests.entries()) {
     assert.equal(request.analysisId, frozen.analysisPlan.analyses[index].analysisId, "execution order differs from canonical analysis plan");
@@ -475,50 +570,64 @@ export async function executeBenchmarkV2({
       integrityFailureCount += 1;
       break;
     }
-    const submissionId = submissionIdentity(consent.invocationId, request);
-    journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.SUBMISSION_INTENT_RECORDED, { at: clock(), reason: "DURABLE_SUBMISSION_INTENT", physicalSubmissionIdentity: submissionId });
+    journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.LOCAL_PREPARATION_STARTED, { at: clock(), reason: "LOCAL_PHOTO_PREPARATION_STARTED" });
     await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
-    if (faultPlan?.beforeSubmissionStarted === request.analysisId) {
-      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION, { at: clock(), reason: "SYNTHETIC_INTERRUPTION_BEFORE_SUBMISSION_STARTED" });
-      await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
-      stopReason = "INTERRUPTED_BEFORE_SUBMISSION_STARTED";
-      integrityFailureCount += 1;
-      break;
-    }
-    journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.SUBMISSION_STARTED, { at: clock(), reason: "IMMEDIATELY_BEFORE_HANDLER_INVOCATION" });
-    await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
-    const startedAt = clock();
-    const startedMs = Date.parse(startedAt);
+    let submissionId = null;
+    let externalAttemptCommitted = false;
+    let startedAt = "";
+    let startedMs = 0;
     let handlerResult;
     let terminalState;
     let submissionState;
     let errorStage = "";
     let errorCategory = "";
     try {
-      if (faultPlan?.afterSubmissionStarted === request.analysisId) throw Object.assign(new Error("synthetic ambiguous interruption"), { code: "synthetic_unknown_after_submission" });
-      const preparedPhotos = mode === EXECUTION_MODE.SYNTHETIC_TEST_ONLY
-        ? rawPreparedPhotos(request, frozen.assetCache)
-        : await transformPhotosForProduct(request, frozen.assetCache);
-      const body = handlerRequestBody(request, preparedPhotos);
-      handlerResult = mode === EXECUTION_MODE.SYNTHETIC_TEST_ONLY
-        ? await syntheticHandler(Object.freeze({ request, body, preparedPhotos, invocationId: consent.invocationId, submissionId }))
-        : await invokePinnedProductHandler({
-            runtimeRoot: productRuntimeRoot,
-            requestBody: body,
-            allowedEnvironment,
-            correlationId: `ke-local-${sha256Json({ submissionId }).slice(0, 32)}`
-          });
+      if (faultPlan?.duringLocalPreparation === request.analysisId) throw Object.assign(new Error("synthetic local preparation failure"), { code: "synthetic_pre_external_abort" });
+      const invokeAtHandlerBoundary = async (preparedPhotos, lifecycle = null) => {
+        if (lifecycle) assert.deepEqual(lifecycle, { pageOpen: true, contextOwnsPage: true, browserConnected: true }, "browser lifecycle is invalid at the handler boundary");
+        journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.LOCAL_PREPARATION_COMPLETED, { at: clock(), reason: "LOCAL_PHOTO_PREPARATION_COMPLETED" });
+        await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+        submissionId = submissionIdentity(consent.invocationId, request);
+        journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, { at: clock(), reason: "IMMEDIATELY_BEFORE_HANDLER_INVOCATION", physicalSubmissionIdentity: submissionId });
+        await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+        externalAttemptCommitted = true;
+        startedAt = clock();
+        startedMs = Date.parse(startedAt);
+        if (faultPlan?.afterExternalAttemptCommitted === request.analysisId || faultPlan?.afterSubmissionStarted === request.analysisId) {
+          throw Object.assign(new Error("synthetic ambiguous interruption"), { code: "synthetic_unknown_after_submission" });
+        }
+        const body = handlerRequestBody(request, preparedPhotos);
+        return mode === EXECUTION_MODE.SYNTHETIC_TEST_ONLY
+          ? syntheticHandler(Object.freeze({ request, body, preparedPhotos, invocationId: consent.invocationId, submissionId }))
+          : invokePinnedProductHandler({
+              runtimeRoot: productRuntimeRoot,
+              requestBody: body,
+              allowedEnvironment,
+              correlationId: `ke-local-${sha256Json({ submissionId }).slice(0, 32)}`
+            });
+      };
+      if (mode === EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION) handlerResult = await transformPhotosForProduct(request, frozen.assetCache, invokeAtHandlerBoundary);
+      else if (photoTransformer) handlerResult = await photoTransformer(request, frozen.assetCache, invokeAtHandlerBoundary);
+      else handlerResult = await invokeAtHandlerBoundary(rawPreparedPhotos(request, frozen.assetCache));
       assert.ok(handlerResult && Number.isInteger(handlerResult.statusCode), "handler terminal result is malformed");
       submissionState = REQUEST_STATE.TERMINAL;
       terminalState = handlerResult.statusCode >= 200 && handlerResult.statusCode < 400 ? "NORMAL_SUCCESS" : "PRODUCT_TERMINAL_FAILURE";
       journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.TERMINAL, { at: clock(), reason: terminalState });
     } catch (error) {
+      if (!externalAttemptCommitted) {
+        journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.PRE_EXTERNAL_ABORT, { at: clock(), reason: "PROVEN_LOCAL_PREPARATION_FAILURE_ZERO_EXTERNAL_ACTIVITY" });
+        await writeResultFile(resultRoot, "execution-journal.json", journal, { replace: true });
+        stopReason = "PRE_EXTERNAL_ABORT_ZERO_EXTERNAL_ACTIVITY";
+        preExternalAbortRequestId = request.analysisId;
+        integrityFailureCount += 1;
+        break;
+      }
       submissionState = REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION;
       terminalState = "EXECUTION_INTEGRITY_UNKNOWN_AFTER_SUBMISSION";
-      errorStage = "HANDLER_INVOCATION_AFTER_SUBMISSION_STARTED";
+      errorStage = "HANDLER_INVOCATION_AFTER_EXTERNAL_ATTEMPT_COMMITTED";
       errorCategory = String(error?.code || "unknown_after_submission").slice(0, 120);
       handlerResult = { statusCode: null, headers: {}, body: { error: "Submission may have reached the handler; replay is permanently prohibited.", code: errorCategory } };
-      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION, { at: clock(), reason: "AMBIGUOUS_AFTER_SUBMISSION_STARTED_NO_RETRY" });
+      journal = transitionRequest(journal, request.analysisId, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION, { at: clock(), reason: "AMBIGUOUS_AFTER_EXTERNAL_ATTEMPT_NO_RETRY" });
       stopReason = "UNKNOWN_AFTER_SUBMISSION";
       integrityFailureCount += 1;
     }
@@ -572,7 +681,12 @@ export async function executeBenchmarkV2({
 
   const submitted = journal.entries.filter((entry) => entry.physicalSubmissionIdentity && ![REQUEST_STATE.NOT_SUBMITTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION].includes(entry.state)).length;
   let resultState;
-  if (submitted === 26 && terminalRecords.length === 26 && integrityFailureCount === 0) {
+  if (preExternalAbortRequestId) {
+    assert.equal(submitted, 0, "pre-external abort cannot contain an external submission identity");
+    assert.equal(terminalRecords.length, 0, "pre-external abort cannot contain a terminal product response");
+    resultState = RESULT_STATE.ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY;
+    reservation = transitionReservation(reservation, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT, clock(), "PROVEN_PRE_EXTERNAL_ABORT_ZERO_SPEND");
+  } else if (submitted === 26 && terminalRecords.length === 26 && integrityFailureCount === 0) {
     resultState = RESULT_STATE.EXECUTED_SEALED_AWAITING_SCORING;
     reservation = transitionReservation(reservation, RESERVATION_STATE.CONSUMED, clock(), "ALL_REQUESTS_TERMINAL_AND_SEALED");
   } else if (submitted === 0) {
@@ -584,6 +698,32 @@ export async function executeBenchmarkV2({
   }
   await replaceReservation(reservationFile, reservation);
   await persistMutableAuthorities(resultRoot, { consent, reservation, journal, ledger });
+  await onConsentTransition(consent);
+  if (preExternalAbortRequestId) {
+    const failure = await finalizePreExternalAbort({
+      resultRoot,
+      frozen,
+      consent,
+      reservation,
+      journal,
+      ledger,
+      executionProfile,
+      requestId: preExternalAbortRequestId,
+      clock
+    });
+    return Object.freeze({
+      disposition: PRE_EXTERNAL_TERMINAL_STATE,
+      resultRoot,
+      reservationFile,
+      consent,
+      reservation,
+      journal,
+      ledger,
+      terminalRecords: Object.freeze([]),
+      ...failure,
+      stopReason
+    });
+  }
   const finalized = await finalizeResult({
     resultRoot,
     frozen,
@@ -617,6 +757,12 @@ export async function executeBenchmarkV2({
 
 export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRead = () => {} }) {
   const root = path.resolve(resultRoot);
+  try {
+    await readFile(path.join(root, "terminal-failure-manifest.json"));
+    return verifyPreExternalFailureReadback({ resultRoot: root, freezeRoot, onFreezeRead });
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
   const filesBefore = await listResultFiles(root);
   const artifactInventory = classifyResultArtifactInventory(filesBefore);
   const [launchScope, executionProfile, pricingProfile, costEnvelope, consent, reservation, journal, ledger, manifest, validationReport] = await Promise.all([
@@ -734,6 +880,66 @@ export async function verifyResultReadback({ resultRoot, freezeRoot, onFreezeRea
   });
 }
 
+async function verifyPreExternalFailureReadback({ resultRoot, freezeRoot, onFreezeRead }) {
+  const root = path.resolve(resultRoot);
+  const filesBefore = await listResultFiles(root, { terminalKind: "FAILURE" });
+  const inventory = classifyResultArtifactInventory(filesBefore, { terminalKind: "FAILURE" });
+  const [launchScope, executionProfile, consent, reservation, journal, ledger, manifest, validationReport, frozen] = await Promise.all([
+    readJsonStrictFile(path.join(root, "launch-scope.json")),
+    readJsonStrictFile(path.join(root, "execution-profile.json")),
+    readJsonStrictFile(path.join(root, "execution-consent.json")),
+    readJsonStrictFile(path.join(root, "invocation-reservation.json")),
+    readJsonStrictFile(path.join(root, "execution-journal.json")),
+    readJsonStrictFile(path.join(root, "cost-ledger.json")),
+    readJsonStrictFile(path.join(root, "terminal-failure-manifest.json")),
+    readJsonStrictFile(path.join(root, "terminal-failure-validation-report.json")),
+    loadPublicFreeze(freezeRoot, { onRead: onFreezeRead })
+  ]);
+  validateLaunchScope(launchScope);
+  validateExecutionConsent(consent, { launchScope, requiredStatus: CONSENT_STATUS.CONSUMED });
+  validateInvocationReservation(reservation, { launchScope });
+  validateExecutionJournal(journal, frozen.requests);
+  validateCostLedger(ledger);
+  validateTerminalFailureManifest(manifest);
+  validateTerminalFailureValidationReport(validationReport, manifest);
+  assert.equal(manifest.executionReleaseRecordHash, executionProfile.executionReleaseRecordHash);
+  assert.equal(manifest.executorVersion, EXECUTOR_VERSION);
+  assert.equal(manifest.resultId, consent.resultId);
+  assert.equal(manifest.invocationId, consent.invocationId);
+  assert.equal(manifest.consentHash, consent.consentHash);
+  assert.equal(manifest.reservationHash, reservation.reservationHash);
+  assert.equal(manifest.completeFrozenAggregateHash, frozen.manifest.completeFrozenAggregateHash);
+  assert.equal(reservation.state, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT);
+  const aborted = journal.entries.filter((entry) => entry.state === REQUEST_STATE.PRE_EXTERNAL_ABORT);
+  assert.deepEqual(aborted.map((entry) => entry.analysisId), [manifest.requestId]);
+  assert.equal(journal.entries.every((entry) => entry.physicalSubmissionIdentity === null), true);
+  assert.equal(ledger.actualCalculatedCost, 0);
+  assert.equal(ledger.accruedEstimatedCost, 0);
+  assert.deepEqual(ledger.perAttemptCostRecords, []);
+  const basePaths = [
+    "launch-scope.json", "execution-profile.json", "pricing-profile.json", "cost-envelope.json",
+    "execution-consent.json", "invocation-reservation.json", "execution-journal.json", "cost-ledger.json"
+  ];
+  const tree = await computeResultTreeAggregate(root, basePaths);
+  assert.equal(tree.aggregate, manifest.originalPartialArtifactAggregate);
+  assert.equal(tree.aggregate, manifest.failureEvidenceAggregate);
+  assert.equal(inventory.responseAnalysisIds.length, 0);
+  const filesAfter = await listResultFiles(root, { terminalKind: "FAILURE" });
+  assert.deepEqual(filesAfter, filesBefore, "terminal failure readback wrote or removed files");
+  return Object.freeze({
+    valid: true,
+    state: manifest.state,
+    manifestHash: manifest.manifestHash,
+    responseCount: 0,
+    handlerInvocationCount: 0,
+    providerAttemptCount: 0,
+    physicalProviderAttemptCount: 0,
+    actualProviderCost: 0,
+    fileWriteCount: 0,
+    replayPlan: Object.freeze(journal.entries.map(requestReplayDisposition))
+  });
+}
+
 export function createSyntheticMockHandler() {
   let invocationCount = 0;
   const invocations = [];
@@ -742,7 +948,8 @@ export function createSyntheticMockHandler() {
     assert.equal(body.analysisId, request.analysisId);
     assert.equal(preparedPhotos.length, 2);
     assert.deepEqual(preparedPhotos.map((photo) => photo.photoId), request.inputAssets.map((asset) => asset.photoId));
-    assert.deepEqual(preparedPhotos.map((photo) => photo.sourceSha256), request.inputAssets.map((asset) => asset.sha256));
+    assert.equal(preparedPhotos.every((photo) => /^data:image\/jpeg;base64,/.test(photo.dataUrl || "")), true);
+    if (preparedPhotos.every((photo) => photo.sourceSha256)) assert.deepEqual(preparedPhotos.map((photo) => photo.sourceSha256), request.inputAssets.map((asset) => asset.sha256));
     invocations.push({ analysisId: request.analysisId, submissionId, photoIds: preparedPhotos.map((photo) => photo.photoId) });
     const outcomes = {
       "V2-RUN-002": { statusCode: 200, body: { valuation: { disposition: "STOP_INSUFFICIENT_EVIDENCE" } } },

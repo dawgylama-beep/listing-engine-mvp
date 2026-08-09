@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 import { deriveLaunchIdentities, validateLaunchScope } from "./launch-identity.mjs";
 
-export const EXECUTION_SCHEMA_VERSION = "1.0";
+export const EXECUTION_SCHEMA_VERSION = "1.1";
 export const CONSENT_SCHEMA_VERSION = "4.0";
 export const PRODUCT_SOURCE_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
 export const PRODUCT_SOURCE_VERSION = "1.12.13";
-export const EXECUTOR_VERSION = "1.12.20";
+export const EXECUTOR_VERSION = "1.12.21";
 export const BENCHMARK_ID = "blind-object-v2";
 export const EXECUTION_PROFILE_TYPE = "BENCHMARK_EXECUTION_PROFILE";
 export const CONSENT_RECEIPT_TYPE = "BENCHMARK_EXECUTION_CONSENT";
@@ -26,11 +26,16 @@ export const RESERVATION_STATE = Object.freeze({
   INDETERMINATE: "INDETERMINATE",
   CONSUMED: "CONSUMED",
   FAILED_BEFORE_START: "FAILED_BEFORE_START",
+  CLOSED_PRE_EXTERNAL_ABORT: "CLOSED_PRE_EXTERNAL_ABORT",
   INVALID: "INVALID"
 });
 
 export const REQUEST_STATE = Object.freeze({
   NOT_SUBMITTED: "NOT_SUBMITTED",
+  LOCAL_PREPARATION_STARTED: "LOCAL_PREPARATION_STARTED",
+  LOCAL_PREPARATION_COMPLETED: "LOCAL_PREPARATION_COMPLETED",
+  EXTERNAL_ATTEMPT_COMMITTED: "EXTERNAL_ATTEMPT_COMMITTED",
+  PRE_EXTERNAL_ABORT: "PRE_EXTERNAL_ABORT",
   SUBMISSION_INTENT_RECORDED: "SUBMISSION_INTENT_RECORDED",
   SUBMISSION_STARTED: "SUBMISSION_STARTED",
   TERMINAL: "TERMINAL",
@@ -42,6 +47,7 @@ export const RESULT_STATE = Object.freeze({
   EXECUTED_SEALED_AWAITING_SCORING: "EXECUTED_SEALED_AWAITING_SCORING",
   PARTIAL_EXECUTION_INTEGRITY_STOP: "PARTIAL_EXECUTION_INTEGRITY_STOP",
   FAILED_BEFORE_ANY_SUBMISSION: "FAILED_BEFORE_ANY_SUBMISSION",
+  ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY: "ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY",
   INVALID: "INVALID"
 });
 
@@ -104,6 +110,7 @@ const CONSENT_FIELDS = Object.freeze([
   "qualificationHead", "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
   "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
   "orderedRequestHashInventory", "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash",
+  "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
   "completePhysicalAttemptCeiling", "maximumAuthorizedCostMinorUnits", "maximumAuthorizedCost", "conservativeMaximumCostMinorUnits",
   "conservativeMaximumCost", "fixedResultRoot", "networkPolicyHash", "authorizedRequestCount", "privateControlsAuthorized",
   "scoringAuthorized", "reflectionAuthorized", "repairAuthorized", "deploymentAuthorized", "status", "statusTransitions",
@@ -112,6 +119,7 @@ const CONSENT_FIELDS = Object.freeze([
 const RESERVATION_FIELDS = Object.freeze([
   "schemaVersion", "reservationType", "launchScopeHash", "reservationId", "invocationId", "resultId", "resultRootName", "consentHash",
   "executionProfileHash", "executionProfileIdentityHash", "pricingProfileHash", "pricingProfileIdentityHash", "costEnvelopeHash",
+  "zeroExternalSupersessionReceiptId", "zeroExternalSupersessionReceiptHash",
   "completeFrozenAggregateHash", "requestAggregateHash", "productSourceHead", "productSourceVersion", "executorRuntimeHead", "qualificationHead",
   "executorRuntimeTreeHash", "executionReleaseRecordHash", "qualificationPolicyVersion", "executorVersion",
   "resultRoot", "createdIdentity", "state", "transitions", "transitionJournalHash", "reservationHash", "recordHash"
@@ -496,6 +504,8 @@ export function createExecutionConsent(input, nowIso) {
     executionProfileIdentityHash: launchScope.executionProfileIdentityHash,
     pricingProfileIdentityHash: launchScope.pricingProfileIdentityHash,
     costEnvelopeHash: launchScope.costEnvelopeHash,
+    zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
+    zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
     completePhysicalAttemptCeiling: launchScope.completePhysicalAttemptCeiling,
     maximumAuthorizedCostMinorUnits: launchScope.maximumAuthorizedCostMinorUnits,
     maximumAuthorizedCost: launchScope.maximumAuthorizedCostMinorUnits / 100,
@@ -587,6 +597,8 @@ export function createInvocationReservation(input, nowIso) {
     pricingProfileHash,
     pricingProfileIdentityHash: launchScope.pricingProfileIdentityHash,
     costEnvelopeHash: launchScope.costEnvelopeHash,
+    zeroExternalSupersessionReceiptId: launchScope.zeroExternalSupersessionReceiptId,
+    zeroExternalSupersessionReceiptHash: launchScope.zeroExternalSupersessionReceiptHash,
     completeFrozenAggregateHash: launchScope.completeFrozenAggregateHash,
     requestAggregateHash: launchScope.requestAggregateHash,
     productSourceHead: launchScope.productSourceHead,
@@ -635,9 +647,10 @@ export function transitionReservation(reservation, to, at, reason) {
   validateInvocationReservation(reservation);
   const allowed = {
     [RESERVATION_STATE.RESERVED_NOT_STARTED]: [RESERVATION_STATE.STARTED, RESERVATION_STATE.FAILED_BEFORE_START, RESERVATION_STATE.INVALID],
-    [RESERVATION_STATE.STARTED]: [RESERVATION_STATE.INDETERMINATE, RESERVATION_STATE.CONSUMED, RESERVATION_STATE.INVALID],
+    [RESERVATION_STATE.STARTED]: [RESERVATION_STATE.INDETERMINATE, RESERVATION_STATE.CONSUMED, RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT, RESERVATION_STATE.INVALID],
     [RESERVATION_STATE.INDETERMINATE]: [RESERVATION_STATE.CONSUMED, RESERVATION_STATE.INVALID],
     [RESERVATION_STATE.FAILED_BEFORE_START]: [],
+    [RESERVATION_STATE.CLOSED_PRE_EXTERNAL_ABORT]: [],
     [RESERVATION_STATE.CONSUMED]: [],
     [RESERVATION_STATE.INVALID]: []
   };
@@ -672,7 +685,7 @@ export function createExecutionJournal({ invocationId, consentHash, requests, no
 }
 
 export function validateExecutionJournal(journal, requests = null) {
-  assert.equal(journal.schemaVersion, EXECUTION_SCHEMA_VERSION);
+  assert.ok(["1.0", EXECUTION_SCHEMA_VERSION].includes(journal.schemaVersion), "execution journal schemaVersion is invalid");
   assert.match(journal.invocationId || "", SAFE_ID);
   assert.match(journal.consentHash || "", HASH);
   assert.equal(journal.entries.length, 26);
@@ -708,7 +721,11 @@ export function transitionRequest(journal, analysisId, to, { at, reason, physica
   assert.ok(index >= 0, `journal request ${analysisId} is absent`);
   const entry = journal.entries[index];
   const allowed = {
-    [REQUEST_STATE.NOT_SUBMITTED]: [REQUEST_STATE.SUBMISSION_INTENT_RECORDED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION],
+    [REQUEST_STATE.NOT_SUBMITTED]: [REQUEST_STATE.LOCAL_PREPARATION_STARTED, REQUEST_STATE.SUBMISSION_INTENT_RECORDED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION],
+    [REQUEST_STATE.LOCAL_PREPARATION_STARTED]: [REQUEST_STATE.LOCAL_PREPARATION_COMPLETED, REQUEST_STATE.PRE_EXTERNAL_ABORT],
+    [REQUEST_STATE.LOCAL_PREPARATION_COMPLETED]: [REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, REQUEST_STATE.PRE_EXTERNAL_ABORT],
+    [REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED]: [REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION],
+    [REQUEST_STATE.PRE_EXTERNAL_ABORT]: [],
     [REQUEST_STATE.SUBMISSION_INTENT_RECORDED]: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION],
     [REQUEST_STATE.SUBMISSION_STARTED]: [REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION],
     [REQUEST_STATE.TERMINAL]: [],
@@ -717,7 +734,7 @@ export function transitionRequest(journal, analysisId, to, { at, reason, physica
   };
   assert.ok(allowed[entry.state].includes(to), `request transition ${entry.state} -> ${to} is forbidden`);
   let submissionIdentity = entry.physicalSubmissionIdentity;
-  if (to === REQUEST_STATE.SUBMISSION_INTENT_RECORDED) {
+  if ([REQUEST_STATE.SUBMISSION_INTENT_RECORDED, REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED].includes(to)) {
     assert.match(physicalSubmissionIdentity || "", /^submission-[a-f0-9]{32}$/);
     assert.equal(journal.entries.some((candidate) => candidate.physicalSubmissionIdentity === physicalSubmissionIdentity), false, "physical submission identity is already present");
     submissionIdentity = physicalSubmissionIdentity;
@@ -732,14 +749,16 @@ export function transitionRequest(journal, analysisId, to, { at, reason, physica
 }
 
 export function requestReplayDisposition(entry) {
-  const eligible = [REQUEST_STATE.NOT_SUBMITTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION].includes(entry.state)
+  const eligible = [REQUEST_STATE.NOT_SUBMITTED, REQUEST_STATE.BLOCKED_BEFORE_SUBMISSION, REQUEST_STATE.PRE_EXTERNAL_ABORT].includes(entry.state)
     && entry.physicalSubmissionIdentity === null;
+  const requiresPreExternalReconciliation = [REQUEST_STATE.LOCAL_PREPARATION_STARTED, REQUEST_STATE.LOCAL_PREPARATION_COMPLETED, REQUEST_STATE.PRE_EXTERNAL_ABORT].includes(entry.state);
   return Object.freeze({
     analysisId: entry.analysisId,
     state: entry.state,
     eligible,
-    resubmissionPermanentlyBlocked: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION].includes(entry.state),
-    reason: eligible ? "NO_SUBMISSION_COULD_HAVE_OCCURRED" : "SUBMITTED_OR_POSSIBLY_SUBMITTED_REQUEST_CANNOT_BE_REPLAYED"
+    requiresPreExternalReconciliation,
+    resubmissionPermanentlyBlocked: [REQUEST_STATE.SUBMISSION_STARTED, REQUEST_STATE.EXTERNAL_ATTEMPT_COMMITTED, REQUEST_STATE.TERMINAL, REQUEST_STATE.UNKNOWN_AFTER_SUBMISSION].includes(entry.state),
+    reason: eligible ? "NO_EXTERNAL_ATTEMPT_COULD_HAVE_OCCURRED" : requiresPreExternalReconciliation ? "PRE_EXTERNAL_STATE_REQUIRES_DETERMINISTIC_RECONCILIATION" : "SUBMITTED_OR_POSSIBLY_SUBMITTED_REQUEST_CANNOT_BE_REPLAYED"
   });
 }
 
@@ -771,7 +790,7 @@ export function createCostLedger({ invocationId, consentHash, pricingProfileHash
 }
 
 export function validateCostLedger(ledger) {
-  assert.equal(ledger.schemaVersion, EXECUTION_SCHEMA_VERSION);
+  assert.ok(["1.0", EXECUTION_SCHEMA_VERSION].includes(ledger.schemaVersion), "cost ledger schemaVersion is invalid");
   assert.equal(ledger.currency, ALLOWED_CURRENCY);
   for (const field of ["maximumAuthorizedCost", "conservativePreRunMaximum", "accruedEstimatedCost", "actualCalculatedCost", "reservedWorstCaseRemainingCost"]) finiteNonnegative(ledger[field], `ledger ${field}`);
   assert.equal(ledger.perRequestCostRecords.length, 26);

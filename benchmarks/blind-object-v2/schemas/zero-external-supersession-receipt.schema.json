@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/zero-external-supersession-receipt.schema.json",
+  "title": "Exactly-once zero-external supersession receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "supersessionIdentityHash", "receiptId", "failureAuthorityHash", "sourceExecutionReleaseRecordHash", "sourceExecutorVersion", "sourceResultRootName", "sourcePartialArtifactAggregate", "sourceJournalHash", "sourceLedgerHash", "sourceConsentHash", "sourceReservationHash", "supersededConsentId", "supersededInvocationId", "supersededReservationId", "supersededResultId", "supersededRequestId", "sourceSubmissionIdentity", "successorExecutionReleaseRecordHash", "successorExecutorRuntimeHead", "successorQualificationHead", "successorExecutorVersion", "handlerAttemptCount", "providerAttemptCount", "physicalProviderAttemptCount", "actualProviderCost", "terminalState", "effectiveConsentStatus", "effectiveInvocationStatus", "effectiveReservationStatus", "sourceSubmissionIdentityStatus", "originalArtifactRecords", "createdAt", "receiptHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "receiptType": { "const": "ZERO_EXTERNAL_ACTIVITY_SUPERSESSION_RECEIPT" },
+    "supersessionIdentityHash": { "$ref": "#/$defs/hash" }, "receiptId": { "type": "string", "pattern": "^supersession-[a-f0-9]{48}$" },
+    "failureAuthorityHash": { "$ref": "#/$defs/hash" }, "sourceExecutionReleaseRecordHash": { "$ref": "#/$defs/hash" }, "sourceExecutorVersion": { "const": "1.12.20" },
+    "sourceResultRootName": { "$ref": "#/$defs/safeId" }, "sourcePartialArtifactAggregate": { "$ref": "#/$defs/hash" }, "sourceJournalHash": { "$ref": "#/$defs/hash" }, "sourceLedgerHash": { "$ref": "#/$defs/hash" }, "sourceConsentHash": { "$ref": "#/$defs/hash" }, "sourceReservationHash": { "$ref": "#/$defs/hash" },
+    "supersededConsentId": { "$ref": "#/$defs/safeId" }, "supersededInvocationId": { "$ref": "#/$defs/safeId" }, "supersededReservationId": { "$ref": "#/$defs/safeId" }, "supersededResultId": { "$ref": "#/$defs/safeId" }, "supersededRequestId": { "const": "V2-RUN-001" }, "sourceSubmissionIdentity": { "type": "string", "pattern": "^submission-[a-f0-9]{32}$" },
+    "successorExecutionReleaseRecordHash": { "$ref": "#/$defs/hash" }, "successorExecutorRuntimeHead": { "$ref": "#/$defs/commit" }, "successorQualificationHead": { "$ref": "#/$defs/commit" }, "successorExecutorVersion": { "const": "1.12.21" },
+    "handlerAttemptCount": { "const": 0 }, "providerAttemptCount": { "const": 0 }, "physicalProviderAttemptCount": { "const": 0 }, "actualProviderCost": { "const": 0 },
+    "terminalState": { "const": "ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY" }, "effectiveConsentStatus": { "const": "CONSUMED" }, "effectiveInvocationStatus": { "const": "CLOSED_PRE_HANDLER_ZERO_SPEND" }, "effectiveReservationStatus": { "const": "CLOSED_ZERO_SPEND" }, "sourceSubmissionIdentityStatus": { "const": "TERMINAL_NON_REUSABLE_SUPERSEDED_ONCE" },
+    "originalArtifactRecords": { "type": "array", "minItems": 8, "maxItems": 8 }, "createdAt": { "type": "string", "format": "date-time" }, "receiptHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" }, "safeId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" } }
+}

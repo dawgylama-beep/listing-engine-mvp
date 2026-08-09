@@ -273,17 +273,19 @@ export function handlerRequestBody(request, preparedPhotos) {
   return body;
 }
 
-export async function transformPhotosForProduct(request, assetCache) {
+export async function transformPhotosForProduct(request, assetCache, onPrepared = async (photos) => photos) {
+  assert.equal(typeof onPrepared, "function", "photo-transform completion callback must be a function");
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
+    const context = page.context();
     const inputs = request.inputAssets.map((asset) => {
       const bytes = assetCache.get(asset.frozenRelativePath);
       assert.ok(bytes, `missing public asset ${asset.frozenRelativePath}`);
       assert.equal(sha256Bytes(bytes), asset.sha256);
       return { photoId: asset.photoId, dataUrl: `data:${asset.mediaType};base64,${bytes.toString("base64")}` };
     });
-    return page.evaluate(async ({ images }) => {
+    const preparedPhotos = await page.evaluate(async ({ images }) => {
       const MAX_TOTAL = 240000;
       const MAX_DIMENSION = 1400;
       const MIN_DIMENSION = 240;
@@ -332,6 +334,13 @@ export async function transformPhotosForProduct(request, assetCache) {
       }
       return output;
     }, { images: inputs });
+    const lifecycle = Object.freeze({
+      pageOpen: !page.isClosed(),
+      contextOwnsPage: context.pages().includes(page),
+      browserConnected: browser.isConnected()
+    });
+    assert.deepEqual(lifecycle, { pageOpen: true, contextOwnsPage: true, browserConnected: true }, "photo-transform browser lifecycle ended before the handler boundary");
+    return await onPrepared(preparedPhotos, lifecycle);
   } finally {
     await browser.close();
   }

@@ -11,8 +11,9 @@ import {
   transitionRequest
 } from "./execution-protocol.mjs";
 import {
-  assertNoRealAuthorityArtifacts,
+  computeResultTreeAggregate,
   defaultFreezeRoot,
+  defaultResultHistoryRoot,
   loadPublicFreeze
 } from "./execution-store.mjs";
 import {
@@ -20,12 +21,16 @@ import {
   executeBenchmarkV2,
   verifyResultReadback
 } from "./executor.mjs";
+import { transformPhotosForProduct } from "./execution-profile.mjs";
 import {
   createSyntheticAuthority,
   deterministicClock
 } from "./synthetic-authority.mjs";
 
-await assertNoRealAuthorityArtifacts();
+const preservedRoot = path.join(defaultResultHistoryRoot, "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9");
+const preservedPaths = ["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"];
+const preservedBefore = await computeResultTreeAggregate(preservedRoot, preservedPaths);
+assert.equal(preservedBefore.aggregate, "788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf");
 const reads = [];
 const frozen = await loadPublicFreeze(defaultFreezeRoot, { onRead: (relativePath) => reads.push(relativePath) });
 assert.equal(reads.some((relativePath) => relativePath.startsWith("evaluator-only/")), false);
@@ -49,6 +54,7 @@ try {
     launchScope: authority.launchScope,
     consent: authority.consent,
     syntheticHandler: mock.handler,
+    photoTransformer: transformPhotosForProduct,
     allowedEnvironment: authority.allowedEnvironment,
     clock: deterministicClock()
   });
@@ -92,7 +98,8 @@ try {
   });
   assert.equal(costStop.stopBeforeNextRequestDecision, true);
   assert.equal(network.attempts.length, 0);
-  await assertNoRealAuthorityArtifacts();
+  const preservedAfter = await computeResultTreeAggregate(preservedRoot, preservedPaths);
+  assert.deepEqual(preservedAfter, preservedBefore);
   process.stdout.write(`${JSON.stringify({
     status: "PASS",
     disposition: result.disposition,
@@ -107,6 +114,8 @@ try {
     costStopBeforeNextRequest: costStop.stopBeforeNextRequestDecision,
     privateControlReads: reads.filter((relativePath) => relativePath.startsWith("evaluator-only/")).length,
     externalNetworkAttempts: network.attempts.length,
+    transformedPublicRequestCount: 26,
+    transformedUniquePublicPhotographCount: frozen.assetCache.size,
     strictReadbackHandlerInvocations: readback.handlerInvocationCount,
     strictReadbackWrites: readback.fileWriteCount,
     syntheticOutputDisposition: "CLEANED_FROM_OS_TEMPORARY_ROOT"

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
 import { createSourceGroundedCostEnvelope } from "../benchmarks/blind-object-v2/scripts/cost-envelope.mjs";
 import { validateProductRuntimeSnapshot } from "../benchmarks/blind-object-v2/scripts/execution-profile.mjs";
-import { assertNoRealAuthorityArtifacts, defaultFreezeRoot, loadPublicFreeze } from "../benchmarks/blind-object-v2/scripts/execution-store.mjs";
+import { benchmarkRoot, computeResultTreeAggregate, defaultFreezeRoot, defaultResultHistoryRoot, loadPublicFreeze } from "../benchmarks/blind-object-v2/scripts/execution-store.mjs";
 import { createLaunchScope, deriveLaunchIdentities } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 import {
   LEGACY_V117_EXPECTED_WORKTREE_SHA256,
@@ -27,6 +27,10 @@ import { parseAuthorizedExecutionArguments } from "../benchmarks/blind-object-v2
 import { createSyntheticAuthority } from "../benchmarks/blind-object-v2/scripts/synthetic-authority.mjs";
 
 const FREEZE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
+const FAILED_ROOT_NAME = "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9";
+const FAILED_CONSENT_NAME = "consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45.json";
+const FAILED_RESERVATION_NAME = "invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65.json";
+const ORIGINAL_FAILURE_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
 const CANONICAL_HANDLER_SHA256 = "971194eb5be57c54176244516953237f3fb4dd6fcb4d00dfdc9c36358202c958";
 
 function gitBuffer(args) {
@@ -158,7 +162,15 @@ test("M-O: product/freeze isolation, real-run absence, and hard network denial r
     const frozen = await loadPublicFreeze(defaultFreezeRoot);
     assert.equal(frozen.requests.length, 26);
     assert.equal(frozen.requests.every((request) => request.executionAuthorized === false), true);
-    assert.equal(await assertNoRealAuthorityArtifacts(), true);
+    assert.deepEqual((await readdir(path.join(benchmarkRoot, "consent"))).sort(), [FAILED_CONSENT_NAME]);
+    assert.deepEqual((await readdir(defaultResultHistoryRoot)).sort(), [".reservations", FAILED_ROOT_NAME].sort());
+    assert.deepEqual(await readdir(path.join(defaultResultHistoryRoot, ".reservations")), [FAILED_RESERVATION_NAME]);
+    const failedRoot = path.join(defaultResultHistoryRoot, FAILED_ROOT_NAME);
+    assert.equal((await computeResultTreeAggregate(failedRoot, ORIGINAL_FAILURE_PATHS)).aggregate, "788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf");
+    for (const name of ["zero-external-supersession-receipt.json", "terminal-failure-manifest.json", "terminal-failure-validation-report.json"]) {
+      await assert.rejects(lstat(path.join(failedRoot, name)), /ENOENT/, `premature failure reconciliation exists: ${name}`);
+    }
+    for (const name of ["invocations", "results"]) await assert.rejects(lstat(path.join(benchmarkRoot, name)), /ENOENT/, `premature successor authority exists: ${name}`);
     assert.equal(loadCanonicalProductCostSourceAudit().providerAudit.inventory.totalFetchSites, 3);
     assert.equal(guard.attempts.length, 0);
   } finally {

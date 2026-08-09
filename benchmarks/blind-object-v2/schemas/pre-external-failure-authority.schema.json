@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/pre-external-failure-authority.schema.json",
+  "title": "Fixed Version 1.12.20 pre-external failure authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authorityType", "sourceExecutionReleaseRecordHash", "sourceExecutorVersion", "sourceResultRootName", "sourcePartialArtifactAggregate", "sourceJournalHash", "sourceLedgerHash", "sourceConsentId", "sourceConsentHash", "sourceInvocationId", "sourceReservationId", "sourceReservationHash", "sourceResultId", "sourceRequestId", "sourceSubmissionIdentity", "terminalState", "handlerAttemptCount", "providerAttemptCount", "physicalProviderAttemptCount", "actualProviderCost", "rootCause", "lifecycleEventOrder", "successorExecutorVersion", "originalArtifactRecords", "recordHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "authorityType": { "const": "FIXED_VERSION_1_12_20_PRE_EXTERNAL_FAILURE_RECONCILIATION" },
+    "sourceExecutionReleaseRecordHash": { "$ref": "#/$defs/hash" }, "sourceExecutorVersion": { "const": "1.12.20" },
+    "sourceResultRootName": { "$ref": "#/$defs/safeId" }, "sourcePartialArtifactAggregate": { "$ref": "#/$defs/hash" },
+    "sourceJournalHash": { "$ref": "#/$defs/hash" }, "sourceLedgerHash": { "$ref": "#/$defs/hash" },
+    "sourceConsentId": { "$ref": "#/$defs/safeId" }, "sourceConsentHash": { "$ref": "#/$defs/hash" },
+    "sourceInvocationId": { "$ref": "#/$defs/safeId" }, "sourceReservationId": { "$ref": "#/$defs/safeId" },
+    "sourceReservationHash": { "$ref": "#/$defs/hash" }, "sourceResultId": { "$ref": "#/$defs/safeId" },
+    "sourceRequestId": { "const": "V2-RUN-001" }, "sourceSubmissionIdentity": { "type": "string", "pattern": "^submission-[a-f0-9]{32}$" },
+    "terminalState": { "const": "ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY" },
+    "handlerAttemptCount": { "const": 0 }, "providerAttemptCount": { "const": 0 }, "physicalProviderAttemptCount": { "const": 0 }, "actualProviderCost": { "const": 0 },
+    "rootCause": { "type": "string", "minLength": 40 }, "lifecycleEventOrder": { "type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true },
+    "successorExecutorVersion": { "const": "1.12.21" }, "originalArtifactRecords": { "type": "array", "minItems": 8, "maxItems": 8 },
+    "recordHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "safeId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{7,95}$" } }
+}

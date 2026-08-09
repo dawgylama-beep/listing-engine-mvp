@@ -35,8 +35,9 @@ import {
 } from "../benchmarks/blind-object-v2/scripts/launch-identity.mjs";
 import { parseAuthorizedExecutionArguments } from "../benchmarks/blind-object-v2/scripts/run-authorized-execution.mjs";
 import {
-  assertNoRealAuthorityArtifacts,
+  benchmarkRoot,
   defaultFreezeRoot,
+  defaultResultHistoryRoot,
   deriveResultRoot,
   loadPublicFreeze
 } from "../benchmarks/blind-object-v2/scripts/execution-store.mjs";
@@ -44,6 +45,10 @@ import { createSyntheticAuthority } from "../benchmarks/blind-object-v2/scripts/
 
 const HASH = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
 const AT = "2026-08-08T12:00:00.000Z";
+
+async function exists(target) {
+  try { await stat(target); return true; } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
+}
 
 function launchInput(scope) {
   const input = structuredClone(scope);
@@ -106,7 +111,7 @@ test("C-E: release, freeze, request, execution, pricing, cost, network, and auth
     ["qualificationPolicyVersion", "2.0"], ["executorVersion", "9.9.8"],
     ["completeFrozenAggregateHash", "3".repeat(64)], ["freezeManifestHash", "4".repeat(64)], ["freezeReceiptHash", "5".repeat(64)],
     ["requestAggregateHash", "6".repeat(64)], ["exactModelLiteral", "gpt-4.1-mini-variant"], ["pricingProfileIdentityHash", "7".repeat(64)],
-    ["costEnvelopeHash", "8".repeat(64)], ["maximumAuthorizedCostMinorUnits", 3999], ["networkPolicyHash", "9".repeat(64)]
+    ["costEnvelopeHash", "8".repeat(64)], ["zeroExternalSupersessionReceiptHash", "a".repeat(64)], ["maximumAuthorizedCostMinorUnits", 3999], ["networkPolicyHash", "9".repeat(64)]
   ];
   const changedRequestInventory = [...authority.launchScope.orderedRequestHashInventory];
   changedRequestInventory[0] = "a".repeat(64);
@@ -243,6 +248,7 @@ test("V-Z: fixed CLI grammar is inert by mode and rejects IDs, paths, providers,
     assert.deepEqual(parseAuthorizedExecutionArguments(["CREATE_CONSENT", HASH]), { mode: "CREATE_CONSENT", freezeAggregate: HASH, consentHash: null });
     assert.deepEqual(parseAuthorizedExecutionArguments(["EXECUTE", HASH, "a".repeat(64)]), { mode: "EXECUTE", freezeAggregate: HASH, consentHash: "a".repeat(64) });
     assert.deepEqual(parseAuthorizedExecutionArguments(["READBACK", HASH, "b".repeat(64)]), { mode: "READBACK", freezeAggregate: HASH, consentHash: "b".repeat(64) });
+    assert.deepEqual(parseAuthorizedExecutionArguments(["RECONCILE_FAILURE", HASH]), { mode: "RECONCILE_FAILURE", freezeAggregate: HASH, consentHash: null });
     for (const args of [
       ["EXECUTE", HASH], ["PREFLIGHT", HASH, "a".repeat(64)], ["EXECUTE", HASH, "caller-id"], ["EXECUTE", HASH, "a".repeat(64), "gpt-4.1-mini"],
       ["https://evil.invalid", HASH], ["EXECUTE", "../freeze", "a".repeat(64)], ["EXECUTE", HASH, "a".repeat(64), "C:/output"]
@@ -270,12 +276,13 @@ test("AA-AB: CLI graph excludes private/scoring/repair code and stays pinned to 
   assert.match(sources[0], /productRuntimeRoot:\s*preflight\.productRuntimeRoot/);
   assert.match(sources[1], /PRODUCT_SOURCE_HEAD/);
   assert.equal(authority.profile.productSourceVersion, "1.12.13");
-  assert.equal(EXECUTOR_VERSION, "1.12.20");
+  assert.equal(EXECUTOR_VERSION, "1.12.21");
 });
 
-test("AC: focused tests leave every real consent, reservation, journal, result, and submission absent", async () => {
-  assert.equal(await assertNoRealAuthorityArtifacts(), true);
-  for (const relative of ["consent", "invocations", "results"]) assert.equal(await stat(new URL(`../benchmarks/blind-object-v2/${relative}`, import.meta.url), { throwIfNoEntry: false }), undefined);
+test("AC: focused tests cannot touch the preserved failed root or create their synthetic authority", async () => {
+  assert.equal(await exists(path.join(benchmarkRoot, "consent", `${authority.consent.consentId}.json`)), false);
+  assert.equal(await exists(path.join(defaultResultHistoryRoot, authority.consent.resultRootName)), false);
+  assert.equal((await stat(path.join(defaultResultHistoryRoot, "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9"))).isDirectory(), true);
   assert.equal(frozen.requests.length, 26);
   assert.equal(frozen.requests.every((request) => request.executionAuthorized === false), true);
   assert.equal(validateLaunchScope(authority.launchScope).valid, true);

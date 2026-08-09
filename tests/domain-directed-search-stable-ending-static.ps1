@@ -14,9 +14,9 @@ $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.20"; Text = $index; Pattern = "Version 1.12.20" },
-  @{ Name = "Package version is 1.12.20"; Text = $package; Pattern = '"version": "1.12.20"' },
-  @{ Name = "Server version is 1.12.20"; Text = $server; Pattern = '$AppVersion = "1.12.20"' },
+  @{ Name = "Visible app version is 1.12.21"; Text = $index; Pattern = "Version 1.12.21" },
+  @{ Name = "Package version is 1.12.21"; Text = $package; Pattern = '"version": "1.12.21"' },
+  @{ Name = "Server version is 1.12.21"; Text = $server; Pattern = '$AppVersion = "1.12.21"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API uses current web_search tool"; Text = $api; Pattern = 'type: "web_search"' },
   @{ Name = "API forces live search tool execution"; Text = $api; Pattern = 'tool_choice: "required"' },

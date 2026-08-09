@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blind-object-v2/terminal-failure-validation-report.schema.json",
+  "title": "Pre-external terminal failure validation report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "validationType", "resultId", "manifestHash", "state", "validatedAt", "originalArtifactsByteIdentical", "effectiveCanonicalConsentStatus", "resultRootConsentStatus", "effectiveReservationStatus", "journalEffectiveState", "handlerAttemptCount", "providerAttemptCount", "physicalProviderAttemptCount", "actualProviderCost", "privateControlsLoaded", "scoringPerformed", "reflectionPerformed", "repairPerformed", "validationHash"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" }, "validationType": { "const": "PRE_EXTERNAL_TERMINAL_FAILURE_VALIDATION" }, "resultId": { "type": "string" }, "manifestHash": { "$ref": "#/$defs/hash" }, "state": { "const": "ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY" }, "validatedAt": { "type": "string", "format": "date-time" },
+    "originalArtifactsByteIdentical": { "const": true }, "effectiveCanonicalConsentStatus": { "const": "CONSUMED" }, "resultRootConsentStatus": { "const": "CONSUMED" }, "effectiveReservationStatus": { "enum": ["CLOSED_ZERO_SPEND", "CLOSED_PRE_EXTERNAL_ABORT"] }, "journalEffectiveState": { "enum": ["PRE_EXTERNAL_ABORT", "LEGACY_SUBMISSION_STARTED_SUPERSEDED_ZERO_EXTERNAL_ACTIVITY"] },
+    "handlerAttemptCount": { "const": 0 }, "providerAttemptCount": { "const": 0 }, "physicalProviderAttemptCount": { "const": 0 }, "actualProviderCost": { "const": 0 }, "privateControlsLoaded": { "const": false }, "scoringPerformed": { "const": false }, "reflectionPerformed": { "const": false }, "repairPerformed": { "const": false }, "validationHash": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

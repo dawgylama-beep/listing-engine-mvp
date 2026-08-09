@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sha256Json } from "./protocol.mjs";
 
-export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.1";
+export const LAUNCH_SCOPE_SCHEMA_VERSION = "2.2";
 export const LAUNCH_SCOPE_TYPE = "BLIND_OBJECT_V2_LAUNCH_SCOPE";
 
 export const IDENTITY_DOMAINS = Object.freeze({
@@ -58,6 +58,8 @@ const LAUNCH_SCOPE_CORE_FIELDS = Object.freeze([
   "executionProfileIdentityHash",
   "pricingProfileIdentityHash",
   "costEnvelopeHash",
+  "zeroExternalSupersessionReceiptId",
+  "zeroExternalSupersessionReceiptHash",
   "maximumAuthorizedCostMinorUnits",
   "networkPolicyHash",
   ...AUTHORITY_FIELDS
@@ -99,8 +101,9 @@ function validateCore(core) {
   for (const field of [
     "productCostSourceManifestHash", "completeFrozenAggregateHash", "freezeManifestHash", "freezeReceiptHash", "requestAggregateHash",
     "endpointClassAllowlistHash", "environmentNameAllowlistHash", "completeAttemptCeilingHash",
-    "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash", "networkPolicyHash"
+    "executionProfileIdentityHash", "pricingProfileIdentityHash", "costEnvelopeHash", "zeroExternalSupersessionReceiptHash", "networkPolicyHash"
   ]) assert.match(core[field] || "", HASH, `launch scope ${field} is invalid`);
+  assert.match(core.zeroExternalSupersessionReceiptId || "", /^supersession-[a-f0-9]{48}$/, "launch scope supersession receipt ID is invalid");
   assert.equal(core.orderedRequestHashInventory?.length, 26);
   assert.equal(new Set(core.orderedRequestHashInventory).size, 26);
   core.orderedRequestHashInventory.forEach((hash) => assert.match(hash || "", HASH));

@@ -6,10 +6,10 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "invocationId", "consentHash", "entries", "journalHash"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "const": "1.1" },
     "invocationId": { "type": "string" },
     "consentHash": { "$ref": "#/$defs/hash" },
-    "entries": { "type": "array", "minItems": 26, "maxItems": 26, "items": { "type": "object", "additionalProperties": false, "required": ["order", "analysisId", "requestHash", "physicalSubmissionIdentity", "state", "transitions", "entryHash"], "properties": { "order": { "type": "integer", "minimum": 1, "maximum": 26 }, "analysisId": { "type": "string", "pattern": "^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$" }, "requestHash": { "$ref": "#/$defs/hash" }, "physicalSubmissionIdentity": { "type": ["string", "null"] }, "state": { "enum": ["NOT_SUBMITTED", "SUBMISSION_INTENT_RECORDED", "SUBMISSION_STARTED", "TERMINAL", "UNKNOWN_AFTER_SUBMISSION", "BLOCKED_BEFORE_SUBMISSION"] }, "transitions": { "type": "array", "minItems": 1 }, "entryHash": { "$ref": "#/$defs/hash" } } } },
+    "entries": { "type": "array", "minItems": 26, "maxItems": 26, "items": { "type": "object", "additionalProperties": false, "required": ["order", "analysisId", "requestHash", "physicalSubmissionIdentity", "state", "transitions", "entryHash"], "properties": { "order": { "type": "integer", "minimum": 1, "maximum": 26 }, "analysisId": { "type": "string", "pattern": "^V2-RUN-(?:00[1-9]|01[0-9]|02[0-6])$" }, "requestHash": { "$ref": "#/$defs/hash" }, "physicalSubmissionIdentity": { "type": ["string", "null"] }, "state": { "enum": ["NOT_SUBMITTED", "LOCAL_PREPARATION_STARTED", "LOCAL_PREPARATION_COMPLETED", "EXTERNAL_ATTEMPT_COMMITTED", "PRE_EXTERNAL_ABORT", "SUBMISSION_INTENT_RECORDED", "SUBMISSION_STARTED", "TERMINAL", "UNKNOWN_AFTER_SUBMISSION", "BLOCKED_BEFORE_SUBMISSION"] }, "transitions": { "type": "array", "minItems": 1 }, "entryHash": { "$ref": "#/$defs/hash" } } } },
     "journalHash": { "$ref": "#/$defs/hash" }
   },
   "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }

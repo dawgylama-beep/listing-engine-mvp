@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "provider", "exactModel", "effectiveDate", "inputTokenPricing", "cachedInputTokenPricing", "outputTokenPricing", "webSearchToolPricing", "serperSearchPricing", "directPageCostAssumption", "currency", "conservativeUncertaintyMargin", "pricingProfileId", "pricingProfileIdentityHash", "pricingSourceDescription", "createdAt", "pricingProfileHash"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "const": "1.1" },
     "pricingProfileId": { "type": "string", "pattern": "^pricing-[a-f0-9]{48}$" },
     "pricingProfileIdentityHash": { "$ref": "#/$defs/hash" },
     "provider": { "const": "OPENAI" },

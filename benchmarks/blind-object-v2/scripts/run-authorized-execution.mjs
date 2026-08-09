@@ -10,6 +10,8 @@ import {
 } from "./execution-protocol.mjs";
 import { buildRealLaunchPreflight, loadFixedExecutionEnvironment, REAL_FREEZE_AGGREGATE } from "./launch-preflight.mjs";
 import { inspectQualifiedRepositoryRelease } from "./release-qualification.mjs";
+import { removeDetachedProductRuntime } from "./execution-profile.mjs";
+import { reconcileFixedV11220Failure } from "./pre-external-reconciliation.mjs";
 import {
   benchmarkRoot,
   defaultFreezeRoot,
@@ -23,12 +25,12 @@ import { executeBenchmarkV2, verifyResultReadback } from "./executor.mjs";
 import { stableJson } from "./protocol.mjs";
 
 const HASH = /^[a-f0-9]{64}$/;
-const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK"]);
+const MODES = Object.freeze(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_FAILURE"]);
 
 export function parseAuthorizedExecutionArguments(argv) {
   assert.ok(Array.isArray(argv), "CLI arguments must be an array");
   const [mode, freezeAggregate, consentHash, ...extra] = argv;
-  assert.ok(MODES.includes(mode), "command mode must be PREFLIGHT, CREATE_CONSENT, EXECUTE, or READBACK");
+  assert.ok(MODES.includes(mode), "command mode must be PREFLIGHT, CREATE_CONSENT, EXECUTE, READBACK, or RECONCILE_FAILURE");
   assert.match(freezeAggregate || "", HASH, "freeze aggregate must be exactly 64 lowercase hexadecimal characters");
   assert.equal(freezeAggregate, REAL_FREEZE_AGGREGATE, "CLI freeze aggregate differs from the repository-owned real freeze");
   assert.equal(extra.length, 0, "CLI accepts no additional arguments");
@@ -61,6 +63,8 @@ function publicPreflightRecord(preflight) {
     conservativeMaximumCostMinorUnits: preflight.costEnvelope.conservativeMaximumCostMinorUnits,
     authorizedMaximumMinorUnits: preflight.costEnvelope.authorizedMaximumMinorUnits,
     costState: preflight.costEnvelope.costState,
+    zeroExternalSupersessionReceiptId: preflight.supersessionReceipt.receiptId,
+    zeroExternalSupersessionReceiptHash: preflight.supersessionReceipt.receiptHash,
     launchScopeHash: preflight.launchScope.launchScopeHash,
     proposedConsentId: preflight.identities.consentId,
     proposedInvocationId: preflight.identities.invocationId,
@@ -86,47 +90,60 @@ export async function runAuthorizedExecutionCommand(argv, { environment = proces
   assert.equal(release.authorityDeclarations.realExecutionAuthorized, false, "repository release metadata cannot itself imply external real-run authorization");
   if (command.mode === "CREATE_CONSENT") assert.equal(release.authorityDeclarations.consentCreationEnabled, true, "CREATE_CONSENT is disabled in this executor release and requires a later separate authorization station");
   if (command.mode === "EXECUTE") assert.equal(release.authorityDeclarations.executionEnabled, true, "EXECUTE is disabled in this executor release and requires a later separate authorization station");
+  if (command.mode === "RECONCILE_FAILURE") {
+    assert.equal(release.authorityDeclarations.preExternalReconciliationEnabled, true, "pre-external reconciliation is disabled");
+    const reconciliation = await reconcileFixedV11220Failure({ releaseIdentity });
+    output.write(`${stableJson(reconciliation)}\n`);
+    return reconciliation;
+  }
   const preflight = await resolvePreflight(environment, releaseIdentity);
-  if (command.mode === "PREFLIGHT") {
-    const record = publicPreflightRecord(preflight);
-    output.write(`${stableJson(record)}\n`);
-    return record;
-  }
+  try {
+    if (command.mode === "PREFLIGHT") {
+      const record = publicPreflightRecord(preflight);
+      output.write(`${stableJson(record)}\n`);
+      return record;
+    }
 
-  const consentPath = path.join(benchmarkRoot, "consent", `${preflight.identities.consentId}.json`);
-  if (command.mode === "CREATE_CONSENT") {
-    assert.equal(preflight.costEnvelope.costState, "COMPLETE_RUN_WITHIN_AUTHORIZED_COST", "cost state blocks consent creation");
-    const consent = createExecutionConsent({ launchScope: preflight.launchScope, costEnvelope: preflight.costEnvelope }, new Date().toISOString());
-    await writeExclusiveSynced(consentPath, consent);
-    output.write(`${stableJson({ disposition: "CONSENT_CREATED_NOT_EXECUTED", consentId: consent.consentId, consentHash: consent.consentHash, launchScopeHash: consent.launchScopeHash })}\n`);
-    return consent;
-  }
+    const consentPath = path.join(benchmarkRoot, "consent", `${preflight.identities.consentId}.json`);
+    if (command.mode === "CREATE_CONSENT") {
+      assert.equal(preflight.costEnvelope.costState, "COMPLETE_RUN_WITHIN_AUTHORIZED_COST", "cost state blocks consent creation");
+      const consent = createExecutionConsent({ launchScope: preflight.launchScope, costEnvelope: preflight.costEnvelope }, new Date().toISOString());
+      await writeExclusiveSynced(consentPath, consent);
+      output.write(`${stableJson({ disposition: "CONSENT_CREATED_NOT_EXECUTED", consentId: consent.consentId, consentHash: consent.consentHash, launchScopeHash: consent.launchScopeHash })}\n`);
+      return consent;
+    }
 
-  const consent = await readJsonStrictFile(consentPath);
-  validateExecutionConsent(consent, { launchScope: preflight.launchScope, requiredStatus: command.mode === "EXECUTE" ? CONSENT_STATUS.AUTHORIZED_NOT_CONSUMED : undefined });
-  assert.equal(consent.consentHash, command.consentHash, "CLI consent hash does not match the repository-derived consent record");
-  if (command.mode === "READBACK") {
-    const resultRoot = deriveResultRoot(defaultResultHistoryRoot, preflight.identities.resultRootName);
-    const readback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
-    output.write(`${stableJson({ disposition: "READBACK_COMPLETE_NO_EXECUTION", ...readback })}\n`);
-    return readback;
-  }
+    const consent = await readJsonStrictFile(consentPath);
+    validateExecutionConsent(consent, { launchScope: preflight.launchScope, requiredStatus: command.mode === "EXECUTE" ? CONSENT_STATUS.AUTHORIZED_NOT_CONSUMED : undefined });
+    assert.equal(consent.consentHash, command.consentHash, "CLI consent hash does not match the repository-derived consent record");
+    if (command.mode === "READBACK") {
+      const resultRoot = deriveResultRoot(defaultResultHistoryRoot, preflight.identities.resultRootName);
+      const readback = await verifyResultReadback({ resultRoot, freezeRoot: defaultFreezeRoot });
+      output.write(`${stableJson({ disposition: "READBACK_COMPLETE_NO_EXECUTION", ...readback })}\n`);
+      return readback;
+    }
 
-  const result = await executeBenchmarkV2({
-    mode: EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION,
-    freezeRoot: defaultFreezeRoot,
-    executionProfile: preflight.profile,
-    attemptCeiling: preflight.attemptCeiling,
-    pricingProfile: preflight.pricingProfile,
-    costEnvelope: preflight.costEnvelope,
-    launchScope: preflight.launchScope,
-    consent,
-    productRuntimeRoot: preflight.productRuntimeRoot,
-    allowedEnvironment: preflight.allowedEnvironment
-  });
-  await replaceSynced(consentPath, result.consent);
-  output.write(`${stableJson({ disposition: result.disposition, resultId: result.manifest.resultId, manifestHash: result.manifest.manifestHash })}\n`);
-  return result;
+    const result = await executeBenchmarkV2({
+      mode: EXECUTION_MODE.AUTHORIZED_REAL_EXECUTION,
+      freezeRoot: defaultFreezeRoot,
+      executionProfile: preflight.profile,
+      attemptCeiling: preflight.attemptCeiling,
+      pricingProfile: preflight.pricingProfile,
+      costEnvelope: preflight.costEnvelope,
+      launchScope: preflight.launchScope,
+      consent,
+      productRuntimeRoot: preflight.productRuntimeRoot,
+      allowedEnvironment: preflight.allowedEnvironment,
+      zeroExternalSupersessionReceipt: preflight.supersessionReceipt,
+      onConsentTransition: async (nextConsent) => replaceSynced(consentPath, nextConsent)
+    });
+    await replaceSynced(consentPath, result.consent);
+    const manifest = result.manifest || result.terminalFailureManifest;
+    output.write(`${stableJson({ disposition: result.disposition, resultId: manifest.resultId, manifestHash: manifest.manifestHash })}\n`);
+    return result;
+  } finally {
+    removeDetachedProductRuntime(preflight.productRuntimeRoot);
+  }
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

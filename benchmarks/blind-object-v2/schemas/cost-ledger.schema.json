@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "invocationId", "consentHash", "pricingProfileHash", "currency", "maximumAuthorizedCost", "conservativePreRunMaximum", "accruedEstimatedCost", "actualProviderReportedUsage", "actualCalculatedCost", "reservedWorstCaseRemainingCost", "perRequestCostRecords", "perAttemptCostRecords", "stopBeforeNextRequestDecision", "updatedAt", "ledgerHash"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "const": "1.1" },
     "invocationId": { "type": "string" },
     "consentHash": { "$ref": "#/$defs/hash" },
     "pricingProfileHash": { "$ref": "#/$defs/hash" },

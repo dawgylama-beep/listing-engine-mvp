@@ -6,7 +6,7 @@ import { sha256Json } from "./protocol.mjs";
 import { benchmarkRoot, repositoryRoot } from "./execution-store.mjs";
 import { createProductCostSourceManifest } from "./product-cost-source.mjs";
 
-export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.1";
+export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.2";
 export const EXECUTION_RELEASE_TYPE = "BENCHMARK_EXECUTOR_RELEASE";
 export const QUALIFICATION_POLICY_VERSION = "1.0";
 export const QUALIFICATION_RELATIONSHIP = "DIRECT_PARENT_ONE_FILE_SEAL";
@@ -34,6 +34,7 @@ const RELEASE_FIELDS = Object.freeze([
   "productSourceHead",
   "productSourceVersion",
   "productCostSourceManifestHash",
+  "preExternalFailureAuthorityHash",
   "benchmarkContractIdentity",
   "handler",
   "completePhysicalAttemptCeiling",
@@ -52,6 +53,8 @@ const CONTRACT_FIELDS = Object.freeze([
 const AUTHORITY_FIELDS = Object.freeze([
   "consentCreationEnabled",
   "executionEnabled",
+  "preExternalReconciliationEnabled",
+  "zeroExternalSupersessionEnabled",
   "realExecutionAuthorized",
   "privateControlsAuthorized",
   "scoringAuthorized",
@@ -62,6 +65,8 @@ const AUTHORITY_FIELDS = Object.freeze([
 const AUTHORITY_EXPECTATIONS = Object.freeze({
   consentCreationEnabled: true,
   executionEnabled: true,
+  preExternalReconciliationEnabled: true,
+  zeroExternalSupersessionEnabled: true,
   realExecutionAuthorized: false,
   privateControlsAuthorized: false,
   scoringAuthorized: false,
@@ -120,6 +125,7 @@ function validateReleaseCore(core) {
   assert.match(core.productSourceHead || "", GIT_OBJECT);
   assert.match(core.productSourceVersion || "", VERSION);
   assert.equal(core.productCostSourceManifestHash, createProductCostSourceManifest().manifestHash, "execution release Product Cost-Source Manifest differs");
+  assert.equal(core.preExternalFailureAuthorityHash, "084cea4676da753ce48a177472c36043f216802c9c97b9cc3a188b8abc17885d", "execution release pre-external failure authority differs");
   exactKeys(core.benchmarkContractIdentity, CONTRACT_FIELDS, "benchmark contract identity");
   assert.equal(core.benchmarkContractIdentity.benchmarkId, "blind-object-v2");
   for (const field of CONTRACT_FIELDS.filter((field) => field !== "benchmarkId")) {
@@ -127,12 +133,12 @@ function validateReleaseCore(core) {
   }
   assert.equal(core.handler, "api/generate-listing.js#createGenerateListingHandler");
   assert.equal(core.completePhysicalAttemptCeiling, 832);
-  assert.equal(core.launchScopeSchemaVersion, "2.1");
+  assert.equal(core.launchScopeSchemaVersion, "2.2");
   assert.equal(core.costEnvelopeSchemaVersion, "1.1");
   assert.equal(core.maximumAuthorizedCostMinorUnits, 4000);
   exactKeys(core.authorityDeclarations, AUTHORITY_FIELDS, "execution release authority declarations");
   for (const field of AUTHORITY_FIELDS) {
-    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.20 authority`);
+    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.21 authority`);
   }
 
   if (core.releaseState === EXECUTION_RELEASE_STATE.PENDING) {
@@ -164,7 +170,7 @@ export function validateExecutionReleaseRecord(record) {
 }
 
 export function assertQualifiedReleaseState(record, commandMode) {
-  assert.ok(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK"].includes(commandMode), "release command mode is invalid");
+  assert.ok(["PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_FAILURE"].includes(commandMode), "release command mode is invalid");
   validateExecutionReleaseRecord(record);
   assert.equal(record.releaseState, EXECUTION_RELEASE_STATE.QUALIFIED, `${commandMode} requires a QUALIFIED executor release`);
   return true;

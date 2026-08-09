@@ -104,6 +104,8 @@ export async function createSyntheticAuthority(frozen, suffix = "compatibility")
     executionProfileIdentityHash: resolved.profile.executionProfileIdentityHash,
     pricingProfileIdentityHash: pricingProfile.pricingProfileIdentityHash,
     costEnvelopeHash: costEnvelope.costEnvelopeHash,
+    zeroExternalSupersessionReceiptId: `supersession-${"8".repeat(48)}`,
+    zeroExternalSupersessionReceiptHash: "8".repeat(64),
     maximumAuthorizedCostMinorUnits: 4000,
     networkPolicyHash: sha256Json(resolved.profile.networkScope),
     privateControlsAuthorized: false,

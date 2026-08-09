@@ -24,6 +24,9 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const canonicalTemporaryRoot = path.resolve(await fsRealpath(os.tmpdir()));
 const FREEZE = "5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699";
 const PRODUCT_HEAD = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
+const FAILED_ROOT_NAME = "result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9";
+const FAILED_CONSENT_NAME = "consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45.json";
+const FAILED_RESERVATION_NAME = "invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65.json";
 const TEMP_PREFIX = "katherines-eye-create-consent-cli-";
 const PRODUCT_RUNTIME_PREFIX = `katherines-eye-v2-product-${PRODUCT_HEAD}-`;
 const PUBLIC_FREEZE_FILES = Object.freeze([
@@ -45,6 +48,27 @@ function samePath(left, right) {
 
 async function exists(target) {
   return Boolean(await stat(target, { throwIfNoEntry: false }));
+}
+
+async function snapshotTree(root) {
+  if (!await exists(root)) return null;
+  const records = [];
+  async function visit(current, relative = "") {
+    const entries = await readdir(current, { withFileTypes: true });
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+      const child = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        records.push({ path: `${childRelative}/`, bytes: null });
+        await visit(child, childRelative);
+      } else {
+        assert.equal(entry.isFile(), true, `unexpected authority entry type: ${childRelative}`);
+        records.push({ path: childRelative, bytes: (await readFile(child)).toString("base64") });
+      }
+    }
+  }
+  await visit(root);
+  return records;
 }
 
 async function run(command, args, options = {}) {
@@ -124,22 +148,31 @@ async function createIsolatedRepository(cloneRoot) {
   for (const name of ["assets", "requests"]) await cp(path.join(sourceFreezeRoot, name), path.join(isolatedFreezeRoot, name), { recursive: true, errorOnExist: true, force: false });
   assert.equal(await exists(path.join(isolatedFreezeRoot, "evaluator-only")), false, "isolated repository copied evaluator-only originals");
 
+  const sourceHistoryRoot = path.join(repositoryRoot, "benchmarks", "blind-object-v2-results");
+  const isolatedHistoryRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2-results");
+  await mkdir(path.join(isolatedHistoryRoot, ".reservations"), { recursive: true });
+  await cp(path.join(sourceHistoryRoot, FAILED_ROOT_NAME), path.join(isolatedHistoryRoot, FAILED_ROOT_NAME), { recursive: true, errorOnExist: true, force: false });
+  await cp(path.join(sourceHistoryRoot, ".reservations", FAILED_RESERVATION_NAME), path.join(isolatedHistoryRoot, ".reservations", FAILED_RESERVATION_NAME), { errorOnExist: true, force: false });
+  const isolatedConsentRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2", "consent");
+  await mkdir(isolatedConsentRoot, { recursive: true });
+  await cp(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent", FAILED_CONSENT_NAME), path.join(isolatedConsentRoot, FAILED_CONSENT_NAME), { errorOnExist: true, force: false });
+
   const sourceDependencies = path.join(repositoryRoot, "node_modules");
   assert.equal(await exists(path.join(sourceDependencies, "@playwright", "test")), true, "qualified workspace dependency is absent");
   await symlink(sourceDependencies, path.join(cloneRoot, "node_modules"), "junction");
   assert.equal((await lstat(path.join(cloneRoot, "node_modules"))).isSymbolicLink(), true, "isolated dependency junction was not created");
 }
 
-test("actual CREATE_CONSENT CLI uses the canonical isolated benchmark root exactly once and creates no later authority", { timeout: 120_000 }, async () => {
+test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark root exactly once and creates no later successor authority", { timeout: 180_000 }, async () => {
   const realFreezeManifest = path.join(repositoryRoot, "benchmarks", "blind-object-v2", "prepared", "freezes", FREEZE, "freeze-manifest.json");
   const realFreezeBefore = await readFile(realFreezeManifest);
-  const realAuthorityPaths = [
+  const realAuthorityRoots = [
     path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent"),
     path.join(repositoryRoot, "benchmarks", "blind-object-v2", "invocations"),
     path.join(repositoryRoot, "benchmarks", "blind-object-v2", "results"),
     path.join(repositoryRoot, "benchmarks", "blind-object-v2-results")
   ];
-  assert.deepEqual(await Promise.all(realAuthorityPaths.map(exists)), [false, false, false, false], "real authority must be absent before isolated CLI qualification");
+  const realAuthorityBefore = await Promise.all(realAuthorityRoots.map(snapshotTree));
 
   const testRoot = await mkdtemp(path.join(canonicalTemporaryRoot, TEMP_PREFIX));
   const cloneRoot = path.join(testRoot, "repository");
@@ -169,8 +202,15 @@ test("actual CREATE_CONSENT CLI uses the canonical isolated benchmark root exact
     assert.match(rejectedOverride.stderr, /accepts no consent hash or other argument/);
     assert.equal(await exists(callerSelectedRoot), false, "caller-selected benchmark root was created");
 
+    const reconciled = jsonOutput(await run(process.execPath, [cliPath, "RECONCILE_FAILURE", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated reconciliation");
+    assert.equal(reconciled.disposition, "VERSION_1_12_20_FAILURE_RECONCILED_SEALED");
+    assert.equal(reconciled.handlerAttemptCount, 0);
+    assert.equal(reconciled.providerAttemptCount, 0);
+    assert.equal(reconciled.physicalProviderAttemptCount, 0);
+    assert.equal(reconciled.actualProviderCost, 0);
+
     const preflight = jsonOutput(await run(process.execPath, [cliPath, "PREFLIGHT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated PREFLIGHT");
-    assert.equal(preflight.executorVersion, "1.12.20");
+    assert.equal(preflight.executorVersion, "1.12.21");
     assert.equal(preflight.handlerInvocationCount, 0);
     assert.equal(preflight.providerAttemptCount, 0);
 
@@ -181,9 +221,9 @@ test("actual CREATE_CONSENT CLI uses the canonical isolated benchmark root exact
 
     const canonicalConsentRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2", "consent");
     const consentEntries = await readdir(canonicalConsentRoot, { withFileTypes: true });
-    assert.deepEqual(consentEntries.map((entry) => entry.name), [`${created.consentId}.json`]);
-    assert.equal(consentEntries[0].isFile(), true);
-    const consentPath = path.join(canonicalConsentRoot, consentEntries[0].name);
+    assert.deepEqual(consentEntries.map((entry) => entry.name).sort(), [FAILED_CONSENT_NAME, `${created.consentId}.json`].sort());
+    assert.equal(consentEntries.every((entry) => entry.isFile()), true);
+    const consentPath = path.join(canonicalConsentRoot, `${created.consentId}.json`);
     const consentBytes = await readFile(consentPath);
     const consent = JSON.parse(consentBytes.toString("utf8"));
     assert.equal(validateExecutionConsent(consent).valid, true);
@@ -192,15 +232,14 @@ test("actual CREATE_CONSENT CLI uses the canonical isolated benchmark root exact
 
     for (const target of [
       path.join(cloneRoot, "benchmarks", "blind-object-v2", "invocations"),
-      path.join(cloneRoot, "benchmarks", "blind-object-v2", "results"),
-      path.join(cloneRoot, "benchmarks", "blind-object-v2-results")
+      path.join(cloneRoot, "benchmarks", "blind-object-v2", "results")
     ]) assert.equal(await exists(target), false, `premature later authority exists: ${target}`);
 
     const duplicate = await run(process.execPath, [cliPath, "CREATE_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment });
     assert.notEqual(duplicate.code, 0, "duplicate CREATE_CONSENT unexpectedly succeeded");
     assert.match(duplicate.stderr, /EEXIST|already exists|exclusive/i);
     assert.deepEqual(await readFile(consentPath), consentBytes, "duplicate invocation changed the consent artifact");
-    assert.equal((await readdir(canonicalConsentRoot)).length, 1);
+    assert.equal((await readdir(canonicalConsentRoot)).length, 2);
 
     assert.equal(await exists(guardLog), false, "provider, handler, evaluator-only, or private-control guard recorded an attempt");
     assert.equal(await exists(callerSelectedRoot), false);
@@ -209,6 +248,6 @@ test("actual CREATE_CONSENT CLI uses the canonical isolated benchmark root exact
   }
 
   assert.deepEqual(await readFile(realFreezeManifest), realFreezeBefore, "isolated cleanup changed the real freeze manifest");
-  assert.deepEqual(await Promise.all(realAuthorityPaths.map(exists)), [false, false, false, false], "isolated cleanup touched real authority or results paths");
+  assert.deepEqual(await Promise.all(realAuthorityRoots.map(snapshotTree)), realAuthorityBefore, "isolated cleanup touched real authority or results paths");
   assert.equal(await exists(path.join(repositoryRoot, "node_modules", "@playwright", "test")), true, "isolated cleanup touched workspace dependencies");
 });
