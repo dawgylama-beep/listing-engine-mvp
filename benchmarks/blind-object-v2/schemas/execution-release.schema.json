@@ -16,7 +16,7 @@
     "releaseType": { "const": "BENCHMARK_EXECUTOR_RELEASE" },
     "releaseState": { "enum": ["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"] },
     "executorRuntimeHead": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
-    "executorVersion": { "const": "1.12.19" },
+    "executorVersion": { "const": "1.12.20" },
     "executorRuntimeTreeHash": { "oneOf": [{ "$ref": "#/$defs/gitObject" }, { "type": "null" }] },
     "qualificationPolicyVersion": { "const": "1.0" },
     "requiredQualificationRelationship": { "const": "DIRECT_PARENT_ONE_FILE_SEAL" },

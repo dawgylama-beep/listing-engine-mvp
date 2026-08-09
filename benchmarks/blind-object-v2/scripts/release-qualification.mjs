@@ -132,7 +132,7 @@ function validateReleaseCore(core) {
   assert.equal(core.maximumAuthorizedCostMinorUnits, 4000);
   exactKeys(core.authorityDeclarations, AUTHORITY_FIELDS, "execution release authority declarations");
   for (const field of AUTHORITY_FIELDS) {
-    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.19 authority`);
+    assert.equal(core.authorityDeclarations[field], AUTHORITY_EXPECTATIONS[field], `${field} differs from the bounded Version 1.12.20 authority`);
   }
 
   if (core.releaseState === EXECUTION_RELEASE_STATE.PENDING) {

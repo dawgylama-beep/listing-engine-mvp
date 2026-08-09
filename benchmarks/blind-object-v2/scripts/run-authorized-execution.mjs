@@ -11,6 +11,7 @@ import {
 import { buildRealLaunchPreflight, loadFixedExecutionEnvironment, REAL_FREEZE_AGGREGATE } from "./launch-preflight.mjs";
 import { inspectQualifiedRepositoryRelease } from "./release-qualification.mjs";
 import {
+  benchmarkRoot,
   defaultFreezeRoot,
   defaultResultHistoryRoot,
   deriveResultRoot,

@@ -28,7 +28,7 @@
     "executorRuntimeTreeHash": { "$ref": "#/$defs/commit" },
     "executionReleaseRecordHash": { "$ref": "#/$defs/hash" },
     "qualificationPolicyVersion": { "const": "1.0" },
-    "executorVersion": { "const": "1.12.19" },
+    "executorVersion": { "const": "1.12.20" },
     "resultRoot": { "type": "string", "pattern": "^benchmarks/blind-object-v2-results/result-root-[a-f0-9]{48}$" },
     "createdIdentity": { "type": "string", "minLength": 8, "maxLength": 120 },
     "state": { "enum": ["RESERVED_NOT_STARTED", "STARTED", "INDETERMINATE", "CONSUMED", "FAILED_BEFORE_START", "INVALID"] },
