@@ -18,6 +18,7 @@ import { COGNITIVE_LIFECYCLE_INVARIANT_CATALOG } from "./cognitive-lifecycle-inv
 import { COGNITIVE_LIFECYCLE_GOVERNOR_VERSION } from "./cognitive-lifecycle-governor.mjs";
 import { QUARANTINE_ENCRYPTION } from "./handler-return-quarantine.mjs";
 import { isReadinessRelease, validateReadinessReleaseRecord } from "./readiness-release-qualification.mjs";
+import { isRealRouteCalibrationRelease, validateRealRouteReleaseRecord } from "./real-route-release-qualification.mjs";
 
 export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.5";
 export const EXECUTION_RELEASE_TYPE = "BENCHMARK_EXECUTOR_RELEASE";
@@ -213,6 +214,10 @@ export function validateExecutionReleaseRecord(record) {
 }
 
 export function assertQualifiedReleaseState(record, commandMode) {
+  if (isRealRouteCalibrationRelease(record)) {
+    validateRealRouteReleaseRecord(record);
+    assert.fail(`${commandMode} is prohibited by the synthetic-executive real-route-calibration-only release`);
+  }
   if (isReadinessRelease(record)) {
     validateReadinessReleaseRecord(record);
     assert.fail(`${commandMode} is prohibited by the synthetic-executive qualification-readiness-only release`);

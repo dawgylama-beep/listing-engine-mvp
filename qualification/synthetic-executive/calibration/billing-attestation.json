@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0",
+  "attestationType": "HUMAN_BILLING_ATTESTATION",
+  "statement": "Katherine\u2019s Eye already has an OpenAI API project key configured locally, and the associated project has API billing enabled.",
+  "statementHash": "f532accb1483dc39a540ce1df89702133bfcd62a80dba8bad8776499f7205268"
+}

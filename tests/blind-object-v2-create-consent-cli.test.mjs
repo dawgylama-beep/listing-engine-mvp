@@ -235,7 +235,7 @@ async function createIsolatedRepository(cloneRoot) {
   assert.equal((await lstat(path.join(cloneRoot, "node_modules"))).isSymbolicLink(), true, "isolated dependency junction was not created");
 }
 
-test("Version 1.12.25 readiness release blocks every benchmark CLI mode before preflight or authority creation", async () => {
+test("Version 1.12.26 calibration-only release blocks every benchmark CLI mode before preflight or authority creation", async () => {
   const cliPath = path.join(repositoryRoot, "benchmarks", "blind-object-v2", "scripts", "run-authorized-execution.mjs");
   const fakeConsentHash = "a".repeat(64);
   for (const [mode, extra] of [
@@ -243,7 +243,7 @@ test("Version 1.12.25 readiness release blocks every benchmark CLI mode before p
     ["EXECUTE", [fakeConsentHash]], ["READBACK", [fakeConsentHash]], ["RECONCILE_V11221", []]
   ]) {
     const result = await run(process.execPath, [cliPath, mode, FREEZE, ...extra], { cwd: repositoryRoot, env: {} });
-    assert.notEqual(result.code, 0, `${mode} unexpectedly crossed the readiness-only release boundary`);
-    assert.match(result.stderr, /prohibited by the synthetic-executive qualification-readiness-only release/i);
+    assert.notEqual(result.code, 0, `${mode} unexpectedly crossed the calibration-only release boundary`);
+    assert.match(result.stderr, /prohibited by the synthetic-executive real-route-calibration-only release/i);
   }
 });

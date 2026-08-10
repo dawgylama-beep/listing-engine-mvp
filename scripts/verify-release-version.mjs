@@ -53,15 +53,17 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
   assert.equal(serverVersion, version, "server.ps1 Version must equal package Version.");
 
   const indexSurface = inspectIndexVersionSurface(indexHtml, version);
-  assert.equal(executionRelease.schemaVersion, "3.0", "Execution release schema Version must be current.");
-  assert.equal(executionRelease.releaseType, "SYNTHETIC_EXECUTIVE_QUALIFICATION_READINESS_RELEASE", "Execution release type must be canonical.");
+  assert.equal(executionRelease.schemaVersion, "4.0", "Execution release schema Version must be current.");
+  assert.equal(executionRelease.releaseType, "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_RELEASE", "Execution release type must be canonical.");
   assert.ok(["PENDING_QUALIFICATION_SEAL", "QUALIFIED", "INVALID"].includes(executionRelease.releaseState), "Execution release state must be explicit.");
   assert.equal(executionRelease.executorVersion, version, "Execution release Version must equal package Version.");
-  assert.equal(executionRelease.releasePurpose, "SYNTHETIC_EXECUTIVE_QUALIFICATION_READINESS_ONLY", "Execution release purpose must remain readiness-only.");
-  assert.equal(executionRelease.aiQualificationPerformed, false, "Readiness release cannot claim an AI qualification run.");
-  assert.equal(executionRelease.productionExecutionAuthorized, false, "Readiness release cannot authorize Production execution.");
-  assert.equal(executionRelease.syntheticExecutiveQualified, false, "Readiness release cannot claim the Synthetic Executive Agent is qualified.");
-  assert.equal(executionRelease.authorityDeclarations?.benchmarkExecutionEnabled, false, "Readiness release cannot authorize benchmark execution.");
+  assert.equal(executionRelease.releasePurpose, "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_ONLY", "Execution release purpose must remain calibration-only.");
+  assert.equal(executionRelease.realRouteCalibrationAuthorized, true, "Release must authorize only the bounded real-route calibration.");
+  assert.equal(executionRelease.realRouteCalibrationPerformed, false, "Release seal cannot claim that calibration already ran.");
+  assert.equal(executionRelease.blindQualificationPerformed, false, "Calibration release cannot claim a blind qualification run.");
+  assert.equal(executionRelease.productionExecutionAuthorized, false, "Calibration release cannot authorize Production execution.");
+  assert.equal(executionRelease.syntheticExecutiveQualified, false, "Calibration release cannot claim the Synthetic Executive Agent is qualified.");
+  assert.equal(executionRelease.authorityDeclarations?.benchmarkExecutionEnabled, false, "Calibration release cannot authorize benchmark execution.");
   assert.equal(vercelConfig.framework, null, "Vercel must remain a framework-neutral static deployment.");
   assert.equal(vercelConfig.outputDirectory, "public", "Vercel must deploy only the public directory.");
   assert.equal(vercelConfig.buildCommand, "npm run build", "Vercel must run the release-Version guard before deployment.");

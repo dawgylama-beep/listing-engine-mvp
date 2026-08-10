@@ -6,7 +6,7 @@ import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { assertQualifiedReleaseState } from "../benchmarks/blind-object-v2/scripts/release-qualification.mjs";
-import { validateReadinessReleaseRecord } from "../benchmarks/blind-object-v2/scripts/readiness-release-qualification.mjs";
+import { validateRealRouteReleaseRecord } from "../benchmarks/blind-object-v2/scripts/real-route-release-qualification.mjs";
 import { verifyReadiness } from "../qualification/synthetic-executive/scripts/verify-readiness.mjs";
 
 const run = promisify(execFile);
@@ -52,11 +52,11 @@ test("cost, denial, and fake-agent proofs are sealed and contain no real activit
   assert.equal(harness.realModelCalls, 0); assert.equal(harness.providerCalls, 0);
 });
 
-test("readiness release validates while every benchmark command remains prohibited", async () => {
+test("calibration-only release validates while every benchmark command remains prohibited", async () => {
   const release = JSON.parse(await readFile(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "execution-release.json"), "utf8"));
-  assert.equal(validateReadinessReleaseRecord(release).valid, true);
-  assert.equal(release.releasePurpose, "SYNTHETIC_EXECUTIVE_QUALIFICATION_READINESS_ONLY");
-  assert.equal(release.aiQualificationPerformed, false); assert.equal(release.syntheticExecutiveQualified, false);
+  assert.equal(validateRealRouteReleaseRecord(release).valid, true);
+  assert.equal(release.releasePurpose, "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_ONLY");
+  assert.equal(release.realRouteCalibrationPerformed, false); assert.equal(release.syntheticExecutiveQualified, false);
   for (const mode of ["QUALIFY_OFFLINE", "PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK"]) assert.throws(() => assertQualifiedReleaseState(release, mode), /prohibited/);
 });
 

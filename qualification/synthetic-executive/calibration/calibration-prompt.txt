@@ -1,0 +1,21 @@
+KATHERINE'S EYE REAL-ROUTE CALIBRATION KE-CAL-001
+
+Return exactly one JSON object for the existing Version 1.0 Executive Action contract.
+This is a synthetic transport calibration, not a benchmark, diagnosis, lesson, repair, or production decision.
+Use actionType RECONSTRUCT_EPISODE and episodeId KE-CAL-001.
+Use executiveState INIT and requestedSuccessorState EPISODE_RECONSTRUCTED.
+Use actionId KE-CAL-001-ACTION-001 and authorityClass NO_NEW_AUTHORITY.
+Cite exactly KE-CAL-001:EVIDENCE-001 and no other evidence ID.
+Use no memory references. Use an empty details object.
+State only the supplied facts, identify the missing evidence as uncertainty, and do not invent a maker, model, age, price, provenance, safety condition, or ownership history.
+Request no replay, provider call, tool, worker, shell, Git, source edit, deployment, benchmark, or production authority.
+Set prohibitedOperations to exactly these strings in this order: PRODUCTION_EXECUTION, BENCHMARK_EXECUTION, SHELL, GIT, SOURCE_EDIT, DEPLOYMENT, PROVIDER_TOOL, ENGINEERING_WORKER.
+The governed transport owns contentHash. It will add that one cryptographic field without changing any model-authored field before validation by the actual Typed Executive Action Broker.
+
+Observed state hash: 25001c7887dcc711e50667980e47591f2e0a6f068dc7b1066c74ddd0a921aabf
+
+Supplied evidence:
+- KE-CAL-001:EVIDENCE-001
+- The calibration object is a blue ceramic mug.
+- One handle is visible.
+- No maker, model, age, price, provenance, safety condition, or ownership evidence is supplied.

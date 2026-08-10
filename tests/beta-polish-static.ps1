@@ -26,9 +26,9 @@ $loadingContract = $app.Substring($loadingContractStart, $loadingContractEnd - $
 $approvedLoadingSequencePattern = '(?s)return\s*\[\s*"Reviewing the photographs"\s*,\s*"Reading visible details and markings"\s*,\s*"Comparing identity possibilities"\s*,\s*"Checking market evidence"\s*,\s*workflow\s*===\s*"listing"\s*\?\s*"Preparing your listing guidance"\s*:\s*"Preparing your guidance"\s*\]\s*;'
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.25"; Text = $index; Pattern = "Version 1.12.25" },
-  @{ Name = "Package version is 1.12.25"; Text = $package; Pattern = '"version": "1.12.25"' },
-  @{ Name = "Local server version is 1.12.25"; Text = $server; Pattern = '$AppVersion = "1.12.25"' },
+  @{ Name = "Visible app version is 1.12.26"; Text = $index; Pattern = "Version 1.12.26" },
+  @{ Name = "Package version is 1.12.26"; Text = $package; Pattern = '"version": "1.12.26"' },
+  @{ Name = "Local server version is 1.12.26"; Text = $server; Pattern = '$AppVersion = "1.12.26"' },
   @{ Name = "Feedback button exists"; Text = $index; Pattern = 'id="feedback-button"' },
   @{ Name = "Feedback panel exists"; Text = $index; Pattern = 'id="feedback-panel"' },
   @{ Name = "Photo controls explain camera and library"; Text = $index; Pattern = "Choose from Library" },

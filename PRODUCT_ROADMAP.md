@@ -725,6 +725,14 @@
 - Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, with 666 tracked entries and the Phase 7C frozen aggregate unchanged
 - Provider-call impact: readiness qualification uses only local deterministic fake providers and network denial; no AI qualification, model call, provider call, Katherine’s Eye handler invocation, benchmark request, Preview action, or Production action is performed
 
+## Version 1.12.26 (Completed)
+- Added one isolated OpenAI Responses API route pinned to `gpt-5.6-sol`, medium reasoning, strict structured output, `store: false`, no tools, no background execution, and no streaming
+- Added a canonical calibration-only provider profile, synthetic `KE-CAL-001` fixture, external single-use authority schema and sealer, credential boundary, metadata model-access check, automatic redaction, and safe result sealing
+- Composed the existing External Qualification Governor and Typed Executive Action Broker with a stricter one-request calibration governor; the full US$0.25 reservation remains charged whenever provider usage is missing or incomplete
+- Kept the twelve-case qualification, Phase 7 benchmark, product handler, workers, lessons, product mutation, merge, Preview, and Production routes disabled
+- Preserved the Version 1.12.25 readiness record, prior calibration failure seal, immutable Version 1.12.13 product identity, Phase 7C freeze, and Phase 6A evidence baseline
+- Provider-call impact: deterministic qualification remains network-denied; the separately sealed external authority permits exactly one metadata access check followed by at most one calibration inference with zero retries
+
 ## Version 2.0
 - User accounts
 - Saved listings

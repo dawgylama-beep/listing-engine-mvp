@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0",
+  "profileType": "SYNTHETIC_EXECUTIVE_REAL_PROVIDER_PROFILE",
+  "providerIdentity": "OPENAI_API",
+  "endpointClass": "RESPONSES_API",
+  "apiBaseUrl": "https://api.openai.com",
+  "apiBaseDomainAllowlist": ["api.openai.com"],
+  "metadataEndpoint": "v1/models/gpt-5.6-sol",
+  "inferenceEndpoint": "v1/responses",
+  "exactModelId": "gpt-5.6-sol",
+  "reasoning": {"effort": "medium", "mode": "standard", "context": "current_turn"},
+  "responsePersistence": {"store": false},
+  "enabledTools": [],
+  "disabledTools": ["web_search", "file_search", "code_interpreter", "hosted_shell", "mcp", "computer_use", "image_generation", "programmatic_tool_calling", "multi_agent"],
+  "backgroundModeEnabled": false,
+  "streamingEnabled": false,
+  "promptCaching": {"explicitCacheWritesEnabled": false},
+  "structuredOutput": {
+    "required": true,
+    "strict": true,
+    "sourceSchemaVersion": "1.0",
+    "sourceSchemaRelativePath": "qualification/synthetic-executive/schemas/executive-action.schema.json",
+    "transportAddsContentHash": true
+  },
+  "timeoutMs": 300000,
+  "ceilings": {
+    "maximumPromptBytes": 8000,
+    "maximumConservativeInputTokens": 8000,
+    "maximumOutputTokens": 2000,
+    "maximumInferenceRequests": 1,
+    "maximumInferenceRetries": 0,
+    "maximumMetadataAccessRequests": 1,
+    "maximumEngineeringWorkerDispatches": 0,
+    "maximumAgentToolCalls": 0,
+    "maximumWallClockDurationMs": 300000,
+    "maximumProviderCostUsd": 0.25
+  },
+  "pricing": {
+    "currency": "USD",
+    "inputUsdPerMillionTokens": 5,
+    "cachedInputUsdPerMillionTokens": 5,
+    "outputIncludingReasoningUsdPerMillionTokens": 30
+  },
+  "costCalculation": {
+    "inputTokens": "ALL_PROVIDER_REPORTED_INPUT_TOKENS_AT_FULL_INPUT_RATE",
+    "outputTokens": "OUTPUT_TOKENS_INCLUDE_BILLABLE_REASONING_AND_OUTPUT",
+    "reasoningTokens": "CAPTURE_SEPARATELY_WHEN_AVAILABLE_WITHOUT_DOUBLE_COUNTING",
+    "preDispatchInputTokens": "CANONICAL_PROMPT_UTF8_BYTE_LENGTH",
+    "rounding": "ROUND_UP_TO_EIGHT_DECIMAL_PLACES"
+  },
+  "usageExtraction": {
+    "inputTokensField": "usage.input_tokens",
+    "cachedInputTokensField": "usage.input_tokens_details.cached_tokens",
+    "outputTokensField": "usage.output_tokens",
+    "reasoningTokensField": "usage.output_tokens_details.reasoning_tokens",
+    "totalTokensField": "usage.total_tokens"
+  },
+  "missingUsageTreatment": "CHARGE_FULL_USD_0_25_RESERVATION_AND_FAIL",
+  "retryPolicy": "NO_RETRY_AUTHORITY",
+  "credentialBoundary": {
+    "preferredEnvironmentName": "OPENAI_API_KEY",
+    "approvedRoutes": ["PROCESS_ENVIRONMENT", "DOTENV_FILE"],
+    "persistPresenceBooleanOnly": true
+  },
+  "redactionRules": ["AUTHORIZATION_HEADER", "BEARER_TOKEN", "OPENAI_KEY_SHAPE", "ENVIRONMENT_DUMP", "HTTP_DEBUG_OUTPUT", "THROWN_REQUEST_CONFIGURATION", "STACK_TRACE_WITH_HEADERS"],
+  "permittedHttpMetadataFields": ["httpSuccessClass", "returnedModelId", "returnedObjectType", "returnedOwnerCategory", "requestTimestamp", "safeProviderRequestId", "canonicalSafeResponseHash"],
+  "forbiddenLoggedFields": ["credential", "credentialPrefix", "credentialSuffix", "credentialLength", "credentialHash", "authorizationHeader", "serializedEnvironment", "requestHeaders", "rawResponseHeaders", "requestConfiguration", "stackTrace", "hiddenReasoning", "encryptedReasoning"],
+  "profileHash": "691c5f573c1c38c85bceec6fbbc5a8544b6c58f0fa660423351325d9c2d6afbd"
+}

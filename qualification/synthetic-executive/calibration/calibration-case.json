@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "caseType": "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_CASE",
+  "episodeId": "KE-CAL-001",
+  "executiveState": "INIT",
+  "authorizedActionType": "RECONSTRUCT_EPISODE",
+  "authorizedTools": [],
+  "evaluatorControlAccessPermitted": false,
+  "qualificationCorpusAccessPermitted": false,
+  "memoryAccessPermitted": false,
+  "workerDispatchPermitted": false,
+  "visibleArtifactInventory": [
+    {
+      "artifactId": "KE-CAL-001:EVIDENCE-001",
+      "sourceKind": "SYNTHETIC_CALIBRATION_FACTS",
+      "facts": [
+        "The calibration object is a blue ceramic mug.",
+        "One handle is visible.",
+        "No maker, model, age, price, provenance, safety condition, or ownership evidence is supplied."
+      ]
+    }
+  ],
+  "caseHash": "d9c8e49c32a0e9b0f74de49e8a90e8a3b3df633060f9f2e2e91df2d323c43281"
+}
