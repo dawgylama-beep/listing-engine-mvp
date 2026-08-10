@@ -757,6 +757,16 @@
 - Added deterministic zero-network proof for recursive subset compliance, transport structure and hashes, broker acceptance and rejection boundaries, pre-dispatch schema failure, zero metadata/schema probes, one mocked inference maximum, no retries or successors, unique authority creation, and preservation of both consumed authority families
 - Provider-call impact during tooling release: zero credential access, metadata requests, inference requests, model calls, qualification, benchmark, handler, Preview, or Production activity
 
+## Katherine Blind Qualification Real Route Integration V1 (Completed)
+- Preserved Version 1.12.27 commit `061dd081e215d02b759a77e56b5b76a40d095d14` and tree `cc32e9b13355818652def44fda5e188deac08c2e` as the immutable cognitive subject, with all twelve cases, ordering, evidence, empty-memory start, rubric, evaluator controls, and sealed budget profile unchanged
+- Replaced the arbitrary qualification proxy with the calibrated Responses route pinned to exact `gpt-5.6-sol`, medium reasoning, `store:false`, no provider/model tools, the compatible strict structured-action transport, and Version 1.1 safe provider diagnostics
+- Added a qualification-execution-only, create-new-only twelve-case authority contract and a create-exclusive hash-chained action ledger that consumes provider attempts before dispatch and records memory queries, presealed dossier returns, and explicit retries under unique immutable identities
+- Enforced the sealed per-case ceilings of 12 reasoning steps, 20 tool actions, one presealed dossier, two retry slots, and US$1.25 together with the aggregate ceilings of 120 reasoning steps, 180 tool actions, 12 dossiers, 12 retries, and US$12.00
+- Added deterministic prompt-sized cost reservations that must fit the remaining case and aggregate budgets, with no blanket US$1.25 inference reservation, silent replacement, erased failure, or ungoverned retry path
+- Restricted runtime capabilities to isolated qualification-memory queries and presealed dossier retrieval; no dossier adapter may design a repair or operate as an engineering worker, and no product or production memory is available
+- Added deterministic zero-network coverage for the complete twelve-case multi-action lifecycle, structured action acceptance, memory/dossier/lesson/successor flow, exact ceilings, exactly-once dispatch, retry consumption, blindness, calibration non-reuse, safe diagnostics, and fail-closed source/tool/worker/budget rejection
+- Provider-call impact during tooling release: zero credential access, metadata requests, provider requests, model calls, live authority creation, case execution, benchmark, product-handler, Preview, Production, merge, or deployment activity
+
 ## Version 2.0
 - User accounts
 - Saved listings

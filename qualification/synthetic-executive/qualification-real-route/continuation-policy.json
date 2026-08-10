@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "policyType": "KATHERINE_BLIND_QUALIFICATION_CONTINUATION_POLICY",
+  "caseProgression": "SEALED_PUBLIC_MANIFEST_ORDER_ONLY",
+  "cognitiveFailureTreatment": "IMMUTABLE_SCORED_CASE_RESULT",
+  "brokerRejectionTreatment": "IMMUTABLE_SCORED_CASE_RESULT",
+  "retryPolicy": {
+    "permittedReasons": ["PROVIDER_TIMEOUT", "PROVIDER_CONNECTION_FAILURE"],
+    "maximumPerCase": 2,
+    "maximumAggregate": 12,
+    "providerAttemptConsumedAtDispatch": true,
+    "retryRequiresExplicitSlotConsumption": true,
+    "requestMutationPermitted": false,
+    "promptMutationPermitted": false,
+    "evidenceMutationPermitted": false,
+    "memoryMutationPermitted": false,
+    "answerOrScoringMutationPermitted": false
+  },
+  "globalStopConditions": [
+    "AUTHORITY_INTEGRITY_FAILURE",
+    "BLINDNESS_INTEGRITY_FAILURE",
+    "EVIDENCE_INTEGRITY_FAILURE",
+    "LEDGER_INTEGRITY_FAILURE",
+    "COST_INTEGRITY_FAILURE"
+  ],
+  "permittedCapabilities": ["QUERY_EXECUTIVE_MEMORY", "REQUEST_PRESEALED_WORKER_DOSSIER"],
+  "workerRestriction": "RETURN_PRESEALED_DOSSIER_ONLY",
+  "memoryBoundary": "ISOLATED_QUALIFICATION_STORE_ONLY",
+  "successorActivityAuthorized": false
+}

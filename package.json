@@ -16,7 +16,10 @@
     "check:structured-output-compatibility": "node ./qualification/synthetic-executive/calibration/scripts/structured-output-compatibility-release.mjs",
     "authorize:structured-output-real-route-calibration": "node ./qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs CREATE_AUTHORITY",
     "calibrate:structured-output-real-route": "node ./qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs RUN_CALIBRATION",
-    "qualify:synthetic-executive": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs RUN_FUTURE_AI",
+    "check:blind-qualification-real-route": "node --test ./tests/synthetic-executive-blind-qualification-real-route.test.mjs",
+    "seal:blind-qualification-real-route-release": "node ./qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs",
+    "authorize:blind-qualification-real-route": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs CREATE_AUTHORITY",
+    "qualify:synthetic-executive": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs RUN_QUALIFICATION",
     "start": "powershell -ExecutionPolicy Bypass -File ./server.ps1"
   },
   "engines": {

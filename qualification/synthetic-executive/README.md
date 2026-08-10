@@ -14,8 +14,14 @@ The unqualified Synthetic Executive Agent is behind the external Qualification G
 
 `node qualification/synthetic-executive/scripts/verify-readiness.mjs` verifies the committed public corpus, schemas, hashes, sandbox denial proof, deterministic fake-agent proof, budget proof, unused-consent prohibition, and immutable product/freeze identities without a model or provider call.
 
-The later blind run requires a separately sealed authorization:
+The qualification tooling now uses the calibrated OpenAI Responses route directly: exact `gpt-5.6-sol`, medium reasoning, `store:false`, strict compatible structured output, no provider/model tools, and safe bounded provider diagnostics. The route itself remains dormant until a separately reviewed authority is created.
+
+Create-only authorization and the later blind run use separate commands:
+
+`npm run authorize:blind-qualification-real-route -- --authorization <NEW_AUTHORITY.json>`
 
 `npm run qualify:synthetic-executive -- --authorization <SEPARATELY_SEALED_AUTHORITY.json>`
 
-The external governor holds the qualification-proxy credential. The model-visible payload never includes that credential or evaluator controls. Passing that later run would still require a separate human decision before any production or benchmark activity.
+The external execution ledger consumes every provider attempt before dispatch and every memory query, presealed dossier return, and retry under a unique immutable identity. It enforces the sealed per-case and aggregate reasoning, tool, dossier, retry, and cost ceilings. Only the isolated qualification-memory query and presealed-dossier capabilities are available; a dossier return is data retrieval, not an engineering worker.
+
+The credential boundary is entered only by `RUN_QUALIFICATION`. Offline validation and authority creation do not resolve credentials. The model-visible payload never includes a credential, calibration output, expected answer, scoring rule, evaluator control, or hidden evidence. Passing a later blind run would still require a separate human decision before any production or benchmark activity.

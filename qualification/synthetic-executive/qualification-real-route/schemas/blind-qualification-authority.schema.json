@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/blind-qualification-real-route-authority-v1.json",
+  "title": "Katherine Blind Qualification Real Route Authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authorityType", "releasePurpose", "status", "authorityId", "createdAt", "toolingReleaseIdentity", "immutableSubjectIdentity", "bindings", "limits", "caseSlots", "permissions", "runRoot", "authorityHash"],
+  "$defs": {
+    "gitHash": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "perCaseLimits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maximumReasoningSteps", "maximumToolActions", "maximumPresealedDossierActions", "maximumRetrySlots", "maximumCostUsd"],
+      "properties": {
+        "maximumReasoningSteps": {"const": 12}, "maximumToolActions": {"const": 20},
+        "maximumPresealedDossierActions": {"const": 1}, "maximumRetrySlots": {"const": 2}, "maximumCostUsd": {"const": 1.25}
+      }
+    }
+  },
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "authorityType": {"const": "KATHERINE_BLIND_QUALIFICATION_REAL_ROUTE_V1"},
+    "releasePurpose": {"const": "QUALIFICATION_EXECUTION_ONLY"},
+    "status": {"const": "AUTHORIZED"},
+    "authorityId": {"type": "string", "minLength": 1},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "toolingReleaseIdentity": {
+      "type": "object", "additionalProperties": false, "required": ["commit", "tree", "releaseHash"],
+      "properties": {"commit": {"$ref": "#/$defs/gitHash"}, "tree": {"$ref": "#/$defs/gitHash"}, "releaseHash": {"$ref": "#/$defs/sha256"}}
+    },
+    "immutableSubjectIdentity": {
+      "type": "object", "additionalProperties": false, "required": ["productVersion", "commit", "tree"],
+      "properties": {"productVersion": {"const": "1.12.27"}, "commit": {"const": "061dd081e215d02b759a77e56b5b76a40d095d14"}, "tree": {"const": "cc32e9b13355818652def44fda5e188deac08c2e"}}
+    },
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["startingToolingCommit", "startingToolingTree", "readinessManifestHash", "caseManifestHash", "scoringControlsHash", "budgetProfileHash", "calibrationResultHash", "executiveActionSourceSchemaHash", "safeProviderDiagnosticsContractHash", "providerProfileHash", "continuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash", "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"],
+      "properties": {
+        "startingToolingCommit": {"$ref": "#/$defs/gitHash"}, "startingToolingTree": {"$ref": "#/$defs/gitHash"},
+        "readinessManifestHash": {"$ref": "#/$defs/sha256"}, "caseManifestHash": {"$ref": "#/$defs/sha256"},
+        "scoringControlsHash": {"$ref": "#/$defs/sha256"}, "budgetProfileHash": {"$ref": "#/$defs/sha256"},
+        "calibrationResultHash": {"$ref": "#/$defs/sha256"}, "executiveActionSourceSchemaHash": {"$ref": "#/$defs/sha256"},
+        "safeProviderDiagnosticsContractHash": {"$ref": "#/$defs/sha256"}, "providerProfileHash": {"$ref": "#/$defs/sha256"},
+        "continuationPolicyHash": {"$ref": "#/$defs/sha256"}, "authoritySchemaHash": {"$ref": "#/$defs/sha256"},
+        "ledgerSchemaHash": {"$ref": "#/$defs/sha256"}, "transmittedSchemaTemplateExactHash": {"$ref": "#/$defs/sha256"},
+        "transmittedSchemaTemplateStableHash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false, "required": ["caseCount", "perCase", "aggregate"],
+      "properties": {
+        "caseCount": {"const": 12}, "perCase": {"$ref": "#/$defs/perCaseLimits"},
+        "aggregate": {
+          "type": "object", "additionalProperties": false,
+          "required": ["maximumReasoningSteps", "maximumToolActions", "maximumPresealedDossierActions", "maximumRetrySlots", "maximumCostUsd"],
+          "properties": {"maximumReasoningSteps": {"const": 120}, "maximumToolActions": {"const": 180}, "maximumPresealedDossierActions": {"const": 12}, "maximumRetrySlots": {"const": 12}, "maximumCostUsd": {"const": 12}}
+        }
+      }
+    },
+    "caseSlots": {
+      "type": "array", "minItems": 12, "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["schemaVersion", "slotType", "slotId", "sequencePosition", "episodeId", "episodeHash", "limits", "initialStatus", "caseSlotHash"],
+        "properties": {
+          "schemaVersion": {"const": "1.0"}, "slotType": {"const": "SINGLE_USE_BLIND_QUALIFICATION_CASE"},
+          "slotId": {"type": "string"}, "sequencePosition": {"type": "integer", "minimum": 1, "maximum": 12},
+          "episodeId": {"type": "string"}, "episodeHash": {"$ref": "#/$defs/sha256"}, "limits": {"$ref": "#/$defs/perCaseLimits"},
+          "initialStatus": {"const": "UNCONSUMED"}, "caseSlotHash": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "permissions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider", "permittedCapabilities", "liveQualificationCases", "benchmarks", "productHandlers", "sourceChanges", "preview", "production", "merge", "deployment", "successors"],
+      "properties": {
+        "provider": {
+          "type": "object", "additionalProperties": false, "required": ["endpointClass", "exactModel", "reasoningEffort", "store", "metadataRequests"],
+          "properties": {"endpointClass": {"const": "RESPONSES_API"}, "exactModel": {"const": "gpt-5.6-sol"}, "reasoningEffort": {"const": "medium"}, "store": {"const": false}, "metadataRequests": {"const": 0}}
+        },
+        "permittedCapabilities": {"const": ["QUERY_EXECUTIVE_MEMORY", "REQUEST_PRESEALED_WORKER_DOSSIER"]},
+        "liveQualificationCases": {"const": 12}, "benchmarks": {"const": false}, "productHandlers": {"const": false},
+        "sourceChanges": {"const": false}, "preview": {"const": false}, "production": {"const": false},
+        "merge": {"const": false}, "deployment": {"const": false}, "successors": {"const": false}
+      }
+    },
+    "runRoot": {"type": "string", "minLength": 1},
+    "authorityHash": {"$ref": "#/$defs/sha256"}
+  }
+}

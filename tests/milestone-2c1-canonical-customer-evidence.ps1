@@ -102,10 +102,12 @@ if ($changed -contains "PRODUCT_ROADMAP.md") {
   $currentVersionHeading = "+## Version $($package.version) (Completed)"
   $toolingReleaseHeading = "+## Katherine Synthetic Executive Zero-Metadata Route V1 (Completed)"
   $structuredOutputReleaseHeading = "+## Katherine Structured Output Compatibility Tooling Release V1 (Completed)"
+  $qualificationRouteReleaseHeading = "+## Katherine Blind Qualification Real Route Integration V1 (Completed)"
   $currentVersionHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $currentVersionHeading }).Count
   $toolingReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $toolingReleaseHeading }).Count
   $structuredOutputReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $structuredOutputReleaseHeading }).Count
-  Require-True (($currentVersionHeadingCount + $toolingReleaseHeadingCount + $structuredOutputReleaseHeadingCount) -eq 1) "The current authorized product-Version or qualification-tooling roadmap entry is missing or duplicated."
+  $qualificationRouteReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $qualificationRouteReleaseHeading }).Count
+  Require-True (($currentVersionHeadingCount + $toolingReleaseHeadingCount + $structuredOutputReleaseHeadingCount + $qualificationRouteReleaseHeadingCount) -eq 1) "The current authorized product-Version or qualification-tooling roadmap entry is missing or duplicated."
 }
 
 $gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")

@@ -37,8 +37,8 @@ async function verifyArtifactInventory(manifest) {
     const info = await lstat(filePath); assert.equal(info.isFile(), true); assert.equal(info.isSymbolicLink(), false);
     const bytes = await readFile(filePath);
     if (bytes.length === item.bytes && sha256Bytes(bytes) === item.sha256) continue;
-    assert.ok(["scripts/action-broker.mjs", "scripts/verify-readiness.mjs"].includes(item.relativePath), `historical readiness artifact changed: ${item.relativePath}`);
-    compatibilityRelease ||= (await import("../calibration/scripts/structured-output-compatibility-release.mjs")).loadStructuredOutputCompatibilityRelease();
+    assert.ok(["README.md", "scripts/action-broker.mjs", "scripts/run-qualification.mjs", "scripts/verify-readiness.mjs"].includes(item.relativePath), `historical readiness artifact changed: ${item.relativePath}`);
+    compatibilityRelease ||= (await import("../calibration/scripts/structured-output-compatibility-release.mjs")).loadStructuredOutputCompatibilityRelease({ validateCurrentArtifacts: false });
     assert.equal(compatibilityRelease.startingTooling.commit, STRUCTURED_OUTPUT_COMPATIBILITY_PARENT);
     const historicalBytes = git(["show", `${STRUCTURED_OUTPUT_COMPATIBILITY_PARENT}:qualification/synthetic-executive/${item.relativePath}`], "buffer");
     assert.equal(historicalBytes.length, item.bytes);

@@ -9,6 +9,7 @@ export const repositoryRoot = path.resolve(scriptDirectory, "..");
 export const releaseVersionPattern = /^\d+\.\d+\.\d+$/;
 export const observabilityReleaseRelativePath = "qualification/synthetic-executive/calibration/provider-observability-release.json";
 export const structuredOutputReleaseRelativePath = "qualification/synthetic-executive/calibration/structured-output-compatibility-release.json";
+export const qualificationRouteReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/qualification-real-route-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -102,7 +103,7 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
@@ -110,7 +111,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     readFile(path.join(rootDirectory, "vercel.json"), "utf8"),
     readFile(path.join(rootDirectory, "benchmarks", "blind-object-v2", "execution-release.json"), "utf8"),
     readFile(path.join(rootDirectory, observabilityReleaseRelativePath), "utf8"),
-    readFile(path.join(rootDirectory, structuredOutputReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
+    readFile(path.join(rootDirectory, structuredOutputReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
+    readFile(path.join(rootDirectory, qualificationRouteReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -130,10 +132,21 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     assert.equal(rootDirectory, repositoryRoot, "Structured-output release validation requires the canonical repository root.");
     const structuredOutputRelease = JSON.parse(structuredOutputReleaseText);
     const compatibility = await import("../qualification/synthetic-executive/calibration/scripts/structured-output-compatibility-release.mjs");
-    compatibility.validateStructuredOutputCompatibilityRelease(structuredOutputRelease);
+    compatibility.validateStructuredOutputCompatibilityRelease(structuredOutputRelease, { validateCurrentArtifacts: qualificationRouteReleaseText === null });
     assert.equal(structuredOutputRelease.cognitiveSubject.version, version);
     assert.equal(structuredOutputRelease.cognitiveSubject.observabilityReleaseHash, observabilityRelease.recordHash);
     structuredOutputReleaseHash = structuredOutputRelease.recordHash;
+  }
+  let qualificationRouteReleaseHash = null;
+  if (qualificationRouteReleaseText !== null) {
+    assert.equal(rootDirectory, repositoryRoot, "Qualification-route release validation requires the canonical repository root.");
+    const qualificationRelease = JSON.parse(qualificationRouteReleaseText);
+    const qualification = await import("../qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs");
+    qualification.validateQualificationReleaseRecord(qualificationRelease);
+    const rebuilt = await qualification.buildQualificationReleaseRecord();
+    assert.equal(sha256Json(rebuilt), sha256Json(qualificationRelease), "Qualification-route release artifacts differ from their seal.");
+    assert.equal(qualificationRelease.immutableCognitiveSubject.productVersion, version);
+    qualificationRouteReleaseHash = qualificationRelease.releaseHash;
   }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
@@ -167,6 +180,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     observabilityReleaseVersion: observabilityRelease.version,
     observabilityReleaseHash: observabilityRelease.recordHash,
     structuredOutputReleaseHash,
+    qualificationRouteReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };

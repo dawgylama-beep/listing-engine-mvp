@@ -296,8 +296,8 @@ test("authority creation is create-new-only and both consumed authority families
 });
 
 test("release record preserves the immutable subject and rejects runtime or release drift", () => {
-  const release = loadStructuredOutputCompatibilityRelease();
-  assert.equal(validateStructuredOutputCompatibilityRelease(release).valid, true);
+  const release = loadStructuredOutputCompatibilityRelease({ validateCurrentArtifacts: false });
+  assert.equal(validateStructuredOutputCompatibilityRelease(release, { validateCurrentArtifacts: false }).valid, true);
   assert.deepEqual(release.cognitiveSubject, COGNITIVE_SUBJECT);
   const fakeGit = (args) => {
     const key = args.join(" ");
@@ -312,7 +312,7 @@ test("release record preserves the immutable subject and rejects runtime or rele
     if (key === `diff --name-only ${STARTING_TOOLING_COMMIT} ${RUNTIME_COMMIT}`) return STRUCTURED_OUTPUT_COMMIT_PATHS.join("\n");
     throw new Error(`unexpected git fixture: ${key}`);
   };
-  assert.equal(inspectSealedStructuredOutputCompatibilityRelease({ gitImpl: fakeGit }).runtimeCommit, RUNTIME_COMMIT);
+  assert.equal(inspectSealedStructuredOutputCompatibilityRelease({ gitImpl: fakeGit, validateCurrentArtifacts: false }).runtimeCommit, RUNTIME_COMMIT);
   const core = structuredClone(release); delete core.recordHash; core.documentedStructuredOutputsSubset.maximumObjectProperties = 4_999;
   assert.throws(() => validateStructuredOutputCompatibilityRelease(seal(core, "recordHash"), { validateCurrentArtifacts: false }));
 });

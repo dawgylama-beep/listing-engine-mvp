@@ -1,0 +1,161 @@
+{
+  "activityAssertions": {
+    "benchmarkExecutions": 0,
+    "credentialAccessCount": 0,
+    "externalNetworkRequestCount": 0,
+    "inferenceRequestCount": 0,
+    "liveAuthorityCreated": false,
+    "liveCaseExecutions": 0,
+    "merges": 0,
+    "metadataRequestCount": 0,
+    "modelCallCount": 0,
+    "previewDeployments": 0,
+    "productHandlerInvocations": 0,
+    "productionDeployments": 0
+  },
+  "artifactAggregateHash": "432c2615a803c2832de71a720f5066ad2ee5b6a490a04df0df94f2704a01f2d1",
+  "artifactHashes": [
+    {
+      "relativePath": "PRODUCT_ROADMAP.md",
+      "sha256": "1fecbf38ab11dd82cf3a8f3e779a74566fcb08abf66d08a68e265faf5a6026f8"
+    },
+    {
+      "relativePath": "package.json",
+      "sha256": "43043a220ad74e349106f8558cd0dd35e5a01dee78a78e0922a601015beae2e6"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/README.md",
+      "sha256": "d1ac7b458c2188df347ffd5f9871c6bc135894565a505b97e505b8b8820f046a"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/scripts/run-qualification.mjs",
+      "sha256": "3d1543c9769de288ae4d5ca10dd20d8fc4ccc37e9d4e049a7d90fcf1fdb82233"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/calibration/scripts/structured-output-compatibility-release.mjs",
+      "sha256": "4ef52c67ee44ce5fb44103c742c0aa40582f64748120d474328e5f242a182ce0"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/continuation-policy.json",
+      "sha256": "0695fd13bea40b66677c85b956a049564828390416507222e93a06472705af62"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/schemas/blind-qualification-authority.schema.json",
+      "sha256": "b9a4c6135b190714decc9cfb6ed291613ba983a0c76bb2ede01f28720a045dbc"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/schemas/qualification-ledger-entry.schema.json",
+      "sha256": "1efc0030eeae434b2800603e8fae35d2ac71f86f5bd25bb8596e2930c6ccad6b"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/scripts/qualification-authority.mjs",
+      "sha256": "8c8126ec4636aa0eaaa8ad7609e7915629979a172cc38d15bfdf44b4eb146a11"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/scripts/qualification-execution-ledger.mjs",
+      "sha256": "43ce6d1079bae5747346ddf0f380ac1c83f5a8c68c54d5f4b51544afa1e14cc6"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs",
+      "sha256": "a357cc504d868a3d5074aee222dec9473c0ac7ad37e053737696af8ce6543807"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/qualification-real-route/scripts/qualification-route.mjs",
+      "sha256": "c79fae64dedf674dff96b9c595460ed517f4e3d0dbdde90969ae986d89c31a66"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/scripts/verify-readiness.mjs",
+      "sha256": "aae8fc5bc2579b22182c3f63b8dd5d9e40a9b1e3193d6ad2522a075799ccd372"
+    },
+    {
+      "relativePath": "scripts/verify-release-version.mjs",
+      "sha256": "7381483b79c0c8efbbc156252851d2c7cf53d321baaed141d84de767b91e8028"
+    },
+    {
+      "relativePath": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+      "sha256": "495bb67b8c7e42e4faef583a66ef171f3181582a3ebc6c4f9e10501e6bc260c4"
+    },
+    {
+      "relativePath": "tests/synthetic-executive-blind-qualification-real-route.test.mjs",
+      "sha256": "caa1b13ed05566bd75ac12fb64ce7143f0e997644136bb221c5d0a0311b9c2dd"
+    },
+    {
+      "relativePath": "tests/synthetic-executive-zero-metadata-real-route.test.mjs",
+      "sha256": "3d608fa27fbc191a537c47eb019be33cb895759a0edc6385fd27e5a6d7338d94"
+    }
+  ],
+  "immutableCognitiveSubject": {
+    "commit": "061dd081e215d02b759a77e56b5b76a40d095d14",
+    "productVersion": "1.12.27",
+    "tree": "cc32e9b13355818652def44fda5e188deac08c2e"
+  },
+  "limits": {
+    "aggregate": {
+      "maximumCostUsd": 12,
+      "maximumPresealedDossierActions": 12,
+      "maximumReasoningSteps": 120,
+      "maximumRetrySlots": 12,
+      "maximumToolActions": 180
+    },
+    "caseCount": 12,
+    "perCase": {
+      "maximumCostUsd": 1.25,
+      "maximumPresealedDossierActions": 1,
+      "maximumReasoningSteps": 12,
+      "maximumRetrySlots": 2,
+      "maximumToolActions": 20
+    }
+  },
+  "preservedBindings": {
+    "budgetProfileHash": "95f125883586a42724a44341efc30bb81e0cd39a10dc21f6cb1528d462ee4db8",
+    "calibrationResultHash": "5a686deab9a10c53f1a16b64dc8d4a68217b01981e890f7adee2cf3a3c08d6da",
+    "caseManifestHash": "084afb9dd9b39c97424a51b668b6a770c8bf29867a0047cc59900e447ab679e4",
+    "readinessManifestHash": "c0b85ec074dd20eb864c31a52b47d91deae9784aaef39bb28e407cdf477574d0",
+    "scoringControlsHash": "7dceae2a4e94bb97f7ea24b70ccd60ad4464c518d5bc6fd664ac1f850fb0de9c"
+  },
+  "releaseHash": "63f77aa2df69805d52c820f675ef1c06432c20213683f004ee2a58e2c5c3daa1",
+  "releasePurpose": "QUALIFICATION_EXECUTION_ONLY",
+  "releaseState": "SEALED_TOOLING_PATCH",
+  "releaseType": "KATHERINE_BLIND_QUALIFICATION_REAL_ROUTE_INTEGRATION_V1",
+  "route": {
+    "endpointClass": "RESPONSES_API",
+    "exactModel": "gpt-5.6-sol",
+    "inferenceEndpoint": "v1/responses",
+    "metadataRequests": 0,
+    "modelTools": 0,
+    "providerTools": 0,
+    "reasoningEffort": "medium",
+    "store": false
+  },
+  "routeBindings": {
+    "authoritySchemaHash": "b9a4c6135b190714decc9cfb6ed291613ba983a0c76bb2ede01f28720a045dbc",
+    "canonicalExecutiveActionSchemaHash": "87021361196a5001050a2c0987c6128fba5d9ec225da31f4966ec342ba72a1ba",
+    "continuationPolicyHash": "0695fd13bea40b66677c85b956a049564828390416507222e93a06472705af62",
+    "ledgerSchemaHash": "1efc0030eeae434b2800603e8fae35d2ac71f86f5bd25bb8596e2930c6ccad6b",
+    "providerProfileHash": "da38983bd5a6381b90379e4fa49142a9bb7dcc16941cf1246b479cb6a962cab1",
+    "safeProviderDiagnosticsContractHash": "09069908f8b5bb7a94db97777839db7c587594f91c62b71c9aec3f4b59deaed9",
+    "transmittedSchemaTemplateExactHash": "06100f948e544bf25ac06648104ab1f2a19e26751aa481fb4a1123ca970dc6ff",
+    "transmittedSchemaTemplateStableHash": "0d495c7856483f428d81a4281b7ee663b40e86fbe37b17ad40fa65fd641e157c"
+  },
+  "runtimeControls": {
+    "calibrationResultReusableAsQualificationEvidence": false,
+    "caseProgression": "SEALED_PUBLIC_MANIFEST_ORDER_ONLY",
+    "createOnlyTwelveCaseAuthority": true,
+    "deterministicCostReservation": true,
+    "explicitRetrySlotRequired": true,
+    "immutableActionConsumptionLedger": true,
+    "memoryBoundary": "ISOLATED_QUALIFICATION_STORE_ONLY",
+    "permittedCapabilities": [
+      "QUERY_EXECUTIVE_MEMORY",
+      "REQUEST_PRESEALED_WORKER_DOSSIER"
+    ],
+    "providerAttemptConsumedBeforeDispatch": true,
+    "silentReplacementForbidden": true,
+    "workerRestriction": "RETURN_PRESEALED_DOSSIER_ONLY"
+  },
+  "schemaVersion": "1.0",
+  "startingTooling": {
+    "commit": "6935092aad041bc84e506593c8167ea5192ef61f",
+    "tree": "456b2749bf4a7abcc678840998ebe0edfea8c38e"
+  }
+}

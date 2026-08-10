@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/qualification-execution-ledger-entry-v1.json",
+  "title": "Katherine Qualification Execution Ledger Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "ledgerType", "sequence", "authorityHash", "caseSlotHash", "caseId", "actionKind", "actionIdentity", "operationHash", "reservationUsd", "retryOfActionIdentity", "retryReason", "consumedAt", "priorEntryHash", "entryHash"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "ledgerType": {"const": "IMMUTABLE_QUALIFICATION_ACTION_CONSUMPTION"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "authorityHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "caseSlotHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "caseId": {"type": "string"},
+    "actionKind": {"enum": ["PROVIDER_ATTEMPT", "MEMORY_QUERY", "PRESEALED_DOSSIER", "RETRY_SLOT"]},
+    "actionIdentity": {"type": "string"},
+    "operationHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "reservationUsd": {"type": "number", "minimum": 0},
+    "retryOfActionIdentity": {"type": ["string", "null"]},
+    "retryReason": {"type": ["string", "null"]},
+    "consumedAt": {"type": "string", "format": "date-time"},
+    "priorEntryHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "entryHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

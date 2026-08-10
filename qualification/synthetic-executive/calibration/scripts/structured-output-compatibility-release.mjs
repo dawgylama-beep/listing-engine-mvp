@@ -141,8 +141,8 @@ export function loadStructuredOutputCompatibilityRelease(options = {}) {
   return Object.freeze(record);
 }
 
-export function inspectSealedStructuredOutputCompatibilityRelease({ gitImpl = git } = {}) {
-  const release = loadStructuredOutputCompatibilityRelease();
+export function inspectSealedStructuredOutputCompatibilityRelease({ gitImpl = git, validateCurrentArtifacts = true } = {}) {
+  const release = loadStructuredOutputCompatibilityRelease({ validateCurrentArtifacts });
   const head = gitImpl(["rev-parse", "HEAD"]);
   const tree = gitImpl(["rev-parse", "HEAD^{tree}"]);
   const parents = gitImpl(["rev-list", "--parents", "-n", "1", head]).split(/\s+/).slice(1);
