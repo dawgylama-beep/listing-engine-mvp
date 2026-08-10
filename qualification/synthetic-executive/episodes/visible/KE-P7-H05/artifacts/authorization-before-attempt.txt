@@ -1,0 +1,391 @@
+APPROVE KATHERINE’S EYE VERSION 1.12.23 CLOSED-PATH SANITIZER, CROSS-RELEASE BINDING REPAIR, AND ONE 25-REQUEST CONTINUATION
+
+Resume only from this exact sealed checkpoint:
+
+Repository:
+C:\Users\dawgy\Projects\listing-engine-mvp
+
+Branch:
+refactor/beta-evidence-pipeline
+
+Version:
+1.12.22
+
+Runtime commit:
+5ac7b85ee8f3888ccda1d4725c0eebfa5d8b1f62
+
+Runtime tree:
+5466aa1f45b6cfb326ee4da538f7780f36e72438
+
+Seal commit, local HEAD, and remote feature HEAD:
+acf1b356bb851f41aac4f2ee40ee3e55ec9de2d1
+
+Release-record hash:
+a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294
+
+Remote main:
+5cb69e0cda48c764d97f60756326cfc02f9a7797
+
+This is one consolidated release for the two already-demonstrated execution blockers. It is not authorization for another general infrastructure campaign, product redesign, benchmark restart, or sequence of separate micro-releases.
+
+HISTORICAL DISPOSITION — CLOSED
+
+The exact Version 1.12.21 value rejected at:
+
+$.experienceRecord.sourcesAccepted[0].evidenceId
+
+was not durably captured and is permanently unknown.
+
+Do not reconstruct it, substitute a synthetic value for it, or claim that the likely source-code pathway proves its historical provenance.
+
+Preserve:
+
+V2-RUN-001:
+INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY
+
+Never submit, replay, or invoke Katherine’s handler or a provider for V2-RUN-001.
+
+DEFECT 1 — CLOSED FULL-PATH PUBLIC-IDENTIFIER AUTHORITY
+
+The installed Version 1.12.22 sanitizer incorrectly constructs authorization from the cross-product of terminal roots and collection names. It therefore accepts undeclared paths such as:
+
+$.experienceRecord.arbitraryUndeclaredNesting.sourcesAccepted[0].evidenceId
+
+Remove that authorization model.
+
+Do not maintain independent “allowed roots” and “allowed collections” whose cross-product creates permitted locations.
+
+Create one closed registry of explicitly authorized complete normalized schema paths. Each registry entry must bind together, as one inseparable contract:
+
+- exact terminal root;
+- exact complete property path;
+- permitted array-index position and canonical index normalization;
+- exact terminal property name;
+- required value type;
+- public-identifier type;
+- generating contract;
+- required public preimage and recomputation inputs;
+- applicable terminal schema node.
+
+Only full paths represented by that closed registry may receive typed public-identifier treatment.
+
+Numeric array indices may be normalized only at the explicitly declared array segment. Normalization must not discard, skip, or tolerate additional intermediate path segments.
+
+The sanitizer must derive the actual path from traversal of the handler result. It must not trust a caller-supplied provenance path or normalizedSchemaPath as authority.
+
+A value located at any undeclared path must remain subject to ordinary secret and entropy rejection, even when:
+
+- its field name is evidenceId;
+- it occurs inside a collection named sourcesAccepted;
+- its value could otherwise be recomputed from a public URL;
+- it resembles a legitimate underlyingOfferKey.
+
+Inspect the committed product schemas and enumerate every legitimately required full path. Do not invent paths for possible future structures. If only one complete path is presently supported by the product contract, authorize only that path.
+
+Constrain stored provenance path and normalizedSchemaPath fields through the schema so they cannot contain arbitrary strings. Their accepted values or patterns must correspond exactly to the closed registry and actual numeric array-index form.
+
+Preserve the existing prospective value checks:
+
+- repository-owned underlyingOfferKey generation contract;
+- public-URL or public-preimage recomputation;
+- seller-partition binding where applicable;
+- typed string requirement;
+- deterministic equality;
+- credential-shape rejection.
+
+Credential rejection takes precedence over public-identifier classification. A credential-shaped value must not be accepted merely because it appears at an authorized path.
+
+Do not claim that this prospective implementation recovers or proves the lost Version 1.12.21 value.
+
+DEFECT 2 — CROSS-RELEASE BINDING
+
+Repair the separate executor.mjs defect that incorrectly requires historical and current release hashes to be equal.
+
+Validate each artifact against its own release authority:
+
+Version 1.12.21 historical execution and reconciliation:
+ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013
+
+Version 1.12.22 release and failed continuation evidence:
+a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294
+
+Version 1.12.23 continuation artifacts:
+the new Version 1.12.23 release-record hash.
+
+Do not require those hashes to equal one another.
+
+Bind the releases only through explicit immutable predecessor, reconciliation, supersession, consent-revocation, and continuation references.
+
+Do not replace the failed equality with an untyped list of accepted hashes or weaken release validation.
+
+PERMITTED CHANGE SURFACE
+
+Limit production changes to:
+
+- typed-public-identifier full-path authorization;
+- directly related provenance-schema restrictions;
+- the escaped cross-release binding predicate;
+- directly required typed release-chain validation.
+
+Also permitted:
+
+- focused fixtures and regressions;
+- append-only Version 1.12.22 consent revocation or supersession evidence;
+- Version 1.12.23 version and release metadata;
+- one runtime commit;
+- one direct-child, one-file execution-release seal commit.
+
+Do not modify the immutable product under test.
+
+Do not rewrite any sealed Version 1.12.21 or Version 1.12.22 artifact.
+
+MANDATORY SANITIZER REGRESSIONS
+
+Qualification must use the real production sanitizer and actual CLI/executor path.
+
+Positive proof must include a deterministic legitimate public evidence identifier generated through the pinned repository-owned product contract, placed at one explicitly authorized complete schema path, with its public preimage independently recomputed.
+
+That prospective fixture must not be represented as the lost V2-RUN-001 value.
+
+Require fail-closed results for at least:
+
+1. The same legitimate value at:
+
+   $.experienceRecord.arbitraryUndeclaredNesting.sourcesAccepted[0].evidenceId
+
+2. The same value beneath any extra intermediate property.
+
+3. The same value under a wrong terminal root.
+
+4. The same value in a similarly named but undeclared collection.
+
+5. The same value in an evidenceId field at an undeclared location.
+
+6. A forged caller-supplied path claiming an allowed location while the actual traversed location is not allowed.
+
+7. A forged normalizedSchemaPath.
+
+8. A wrong public URL or public preimage.
+
+9. A wrong seller partition or underlyingOfferKey recomputation.
+
+10. An API key at an allowed path.
+
+11. A bearer token at an allowed path.
+
+12. A JWT at an allowed path.
+
+13. A cookie or session value at an allowed path.
+
+14. Private-key material at an allowed path.
+
+15. An unexplained high-entropy value at an allowed path.
+
+16. A legitimate public identifier at an allowed path but with a value type other than the required string type.
+
+The existing regression that approves root/collection cross-product behavior must be removed or replaced. Do not merely add one special-case rejection for arbitraryUndeclaredNesting.
+
+MANDATORY EXECUTION-PATH QUALIFICATION
+
+Run the exact production CLI and executor path offline with network denial.
+
+The fixture must model:
+
+- immutable Version 1.12.21 reconciled failure evidence;
+- distinct Version 1.12.22 release evidence;
+- the existing unused Version 1.12.22 consent;
+- append-only revocation or supersession of that consent;
+- a distinct mock Version 1.12.23 release;
+- successful independent release validation;
+- durable mock reservation creation;
+- a mock handler result containing a valid public identifier at the exact allowed path;
+- durable HANDLER_RETURNED persistence before public sanitization;
+- successful terminal sanitization;
+- truthful post-handler terminal failure sealing when sanitization is intentionally failed;
+- transaction rollback;
+- isolation;
+- zero provider calls;
+- network denial.
+
+Require fail-closed behavior for:
+
+- wrong historical release hash;
+- wrong Version 1.12.22 release hash;
+- wrong Version 1.12.23 release hash;
+- swapped release hashes;
+- unknown hashes;
+- tampered reconciliation evidence;
+- tampered supersession evidence;
+- reused Version 1.12.22 consent;
+- missing or ambiguous predecessor references.
+
+Helper-level unit tests alone are insufficient.
+
+Run all applicable existing Node, PowerShell, browser, version, schema, secret-scan, isolation, transaction, and mock-execution suites.
+
+Qualification must make no paid or live provider call.
+
+VERSION 1.12.22 UNUSED CONSENT
+
+Revoke or supersede append-only:
+
+consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f
+
+Do not consume or reuse that consent, its launch scope, proposed invocation, proposed reservation, proposed result, or proposed result-root identity.
+
+Do not retroactively create Version 1.12.22 invocation or reservation artifacts.
+
+VERSION 1.12.23 RELEASE
+
+After all qualification passes, create:
+
+- Version 1.12.23;
+- one qualified runtime commit;
+- one direct-child, one-file execution-release seal commit;
+- one new release-record hash;
+- feature-branch push only.
+
+Require tracked-tree cleanliness and exact local/remote feature synchronization.
+
+Do not merge.
+
+Do not deploy to Preview or Production.
+
+IMMUTABLE READBACK BEFORE EXTERNAL ACTIVITY
+
+Require:
+
+Product commit:
+7056eb0601dc69c5985703fea6fe665e82c6bed8
+
+Product version:
+1.12.13
+
+Product runtime-manifest hash:
+5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8
+
+Product tracked entries:
+666
+
+Phase 7C frozen aggregate:
+5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
+
+Require the frozen inventory to remain:
+
+- 26 frozen public requests;
+- 28 sanitized public photographs;
+- 28 evaluator-only originals.
+
+The product, freeze, evaluator-only originals, and private controls must remain byte-identical.
+
+Evaluator-only originals and private controls must not be loaded during execution.
+
+ONE 25-REQUEST CONTINUATION
+
+Create entirely new Version 1.12.23 identities for:
+
+- launch scope;
+- continuation scope;
+- consent;
+- invocation;
+- reservation;
+- result;
+- result root.
+
+The execution queue must contain exactly:
+
+V2-RUN-002 through V2-RUN-026
+
+V2-RUN-001 must be absent from every executable queue and submission structure.
+
+After sealed-release readback passes, run exactly:
+
+PREFLIGHT: 1
+CREATE_CONSENT: 1
+EXECUTE: 1
+READBACK: 1
+
+No retry, second consent, second invocation, or in-place repair is authorized.
+
+Every handler return must be durably recorded as HANDLER_RETURNED before terminal sanitization.
+
+If post-handler sanitization fails, preserve the handler-return checkpoint and produce a truthful terminal failure record with complete accounting.
+
+ACCOUNTING
+
+Carry forward without reset:
+
+Historical handler invocations:
+1
+
+Historical provider/physical attempts:
+9
+
+Historical conservative consumed cost:
+US$1.50682355
+
+Remaining physical-attempt authority before the new execution:
+No more than 823
+
+Remaining conservative cost authority before the new execution:
+No more than US$38.49317645
+
+Provider-billed actual cost remains UNKNOWN unless genuine provider usage evidence is returned.
+
+FINAL COMPOSITE
+
+Because V2-RUN-001 is permanently lost, the only successful composite disposition is:
+
+COMPLETE_WITH_25_COGNITIVE_RESULTS_AND_1_INFRASTRUCTURE_FAILURE
+
+Never claim COMPLETE_26_UNSCORED.
+
+A successful station requires 25 trustworthy preserved cognitive results. Qualification, release sealing, or infrastructure repair alone does not constitute mission completion.
+
+STOP RULE
+
+If a genuinely new defect occurs, stop fail-closed, preserve all evidence append-only, and account for every actual attempt and cost. Do not patch or retry in the same station.
+
+If another previously unknown pre-handler consent, identity, reservation, receipt, or release-binding defect prevents the 25-request run, classify the execution harness as the blocking architecture. Do not authorize another one-defect micro-release; report the complete lifecycle simplification required before any further live attempt.
+
+PROHIBITED ACTIVITY
+
+Perform no:
+
+- scoring;
+- evaluator-control loading;
+- reflection;
+- cognitive diagnosis;
+- lesson extraction;
+- lesson promotion;
+- product mutation;
+- merge;
+- Preview deployment;
+- Production mutation;
+- Production deployment.
+
+FINAL REPORT
+
+Report:
+
+- exact starting and final repository states;
+- Version 1.12.23 runtime and seal commits;
+- runtime tree and release-record hash;
+- local/remote divergence;
+- complete permitted-path registry;
+- proof that no root/collection cross-product remains;
+- schema restrictions for path provenance;
+- all sanitizer positive and negative results;
+- cross-release validation results;
+- Version 1.12.22 consent revocation evidence;
+- exact command counts;
+- all V2-RUN-001 through V2-RUN-026 dispositions;
+- handler, provider, and physical-attempt counts by release and cumulatively;
+- provider usage evidence;
+- known actual cost;
+- conservative cost;
+- remaining authority;
+- HANDLER_RETURNED evidence;
+- result-root and composite hashes;
+- immutable product and freeze readback;
+- confirmation that every prohibited activity remained absent.

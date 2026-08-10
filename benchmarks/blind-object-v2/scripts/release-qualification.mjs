@@ -17,6 +17,7 @@ import { PUBLIC_IDENTIFIER_CONTRACT_MANIFEST } from "./public-identifier-contrac
 import { COGNITIVE_LIFECYCLE_INVARIANT_CATALOG } from "./cognitive-lifecycle-invariants.mjs";
 import { COGNITIVE_LIFECYCLE_GOVERNOR_VERSION } from "./cognitive-lifecycle-governor.mjs";
 import { QUARANTINE_ENCRYPTION } from "./handler-return-quarantine.mjs";
+import { isReadinessRelease, validateReadinessReleaseRecord } from "./readiness-release-qualification.mjs";
 
 export const EXECUTION_RELEASE_SCHEMA_VERSION = "2.5";
 export const EXECUTION_RELEASE_TYPE = "BENCHMARK_EXECUTOR_RELEASE";
@@ -212,6 +213,10 @@ export function validateExecutionReleaseRecord(record) {
 }
 
 export function assertQualifiedReleaseState(record, commandMode) {
+  if (isReadinessRelease(record)) {
+    validateReadinessReleaseRecord(record);
+    assert.fail(`${commandMode} is prohibited by the synthetic-executive qualification-readiness-only release`);
+  }
   assert.ok(["REVOKE_V11222_CONSENT", "QUALIFY_OFFLINE", "PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK", "RECONCILE_V11221"].includes(commandMode), "release command mode is invalid");
   validateExecutionReleaseRecord(record);
   assert.equal(record.releaseState, EXECUTION_RELEASE_STATE.QUALIFIED, `${commandMode} requires a QUALIFIED executor release`);

@@ -235,107 +235,15 @@ async function createIsolatedRepository(cloneRoot) {
   assert.equal((await lstat(path.join(cloneRoot, "node_modules"))).isSymbolicLink(), true, "isolated dependency junction was not created");
 }
 
-test("actual reconciled CREATE_CONSENT CLI uses the canonical isolated benchmark root exactly once and creates no later successor authority", { timeout: 180_000 }, async () => {
-  const realFreezeManifest = path.join(repositoryRoot, "benchmarks", "blind-object-v2", "prepared", "freezes", FREEZE, "freeze-manifest.json");
-  const realFreezeBefore = await readFile(realFreezeManifest);
-  const realAuthorityRoots = [
-    path.join(repositoryRoot, "benchmarks", "blind-object-v2", "consent"),
-    path.join(repositoryRoot, "benchmarks", "blind-object-v2", "invocations"),
-    path.join(repositoryRoot, "benchmarks", "blind-object-v2", "results"),
-    path.join(repositoryRoot, "benchmarks", "blind-object-v2-results")
-  ];
-  const realAuthorityBefore = await Promise.all(realAuthorityRoots.map(snapshotTree));
-
-  const testRoot = await mkdtemp(path.join(canonicalTemporaryRoot, TEMP_PREFIX));
-  const cloneRoot = path.join(testRoot, "repository");
-  try {
-    await createIsolatedRepository(cloneRoot);
-    const cliPath = path.join(cloneRoot, "benchmarks", "blind-object-v2", "scripts", "run-authorized-execution.mjs");
-    const cliSource = await readFile(cliPath, "utf8");
-    assert.match(cliSource, /import\s*\{[\s\S]*?\bbenchmarkRoot\b[\s\S]*?\}\s*from\s*"\.\/execution-store\.mjs";/, "CLI does not import the canonical benchmark root authority");
-    assert.doesNotMatch(cliSource, /process\.env[^\n]*(?:BENCHMARK|ROOT)|(?:BENCHMARK|ROOT)[^\n]*process\.env/i, "CLI reads a caller-selected benchmark root from the environment");
-    const guardPath = path.join(cloneRoot, "tests", "helpers", "blind-object-v2-cli-isolation-guard.cjs");
-    const guardLog = path.join(testRoot, "guard-attempts.jsonl");
-    const callerSelectedRoot = path.join(testRoot, "caller-selected-root");
-    const childEnvironment = {
-      ...process.env,
-      OPENAI_API_KEY: "isolated-cli-regression-credential-present",
-      OPEN_API_KEY: "",
-      SERPER_API_KEY: "",
-      OPENAI_MODEL: "gpt-4.1-mini",
-      BENCHMARK_ROOT: callerSelectedRoot,
-      KATHERINES_EYE_BENCHMARK_ROOT: callerSelectedRoot,
-      KATHERINES_EYE_CLI_GUARD_LOG: guardLog,
-      NODE_OPTIONS: `--require=${guardPath}`
-    };
-
-    const rejectedOverride = await run(process.execPath, [cliPath, "CREATE_CONSENT", FREEZE, callerSelectedRoot], { cwd: cloneRoot, env: childEnvironment });
-    assert.notEqual(rejectedOverride.code, 0);
-    assert.match(rejectedOverride.stderr, /accepts no consent hash or other argument/);
-    assert.equal(await exists(callerSelectedRoot), false, "caller-selected benchmark root was created");
-
-    const disabledRevocation = await run(process.execPath, [cliPath, "REVOKE_V11222_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment });
-    assert.notEqual(disabledRevocation.code, 0, "historical Version 1.12.22 consent revocation unexpectedly remained enabled");
-    assert.match(disabledRevocation.stderr, /disabled/i);
-
-    const qualifiedOffline = jsonOutput(await run(process.execPath, [cliPath, "QUALIFY_OFFLINE", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated offline production CLI qualification");
-    assert.equal(qualifiedOffline.disposition, "VERSION_1_12_24_COGNITIVE_LIFECYCLE_GOVERNOR_OFFLINE_QUALIFIED");
-    assert.equal(qualifiedOffline.successfulRequestCount, 24);
-    assert.equal(qualifiedOffline.successfulHandlerReturnedCount, 24);
-    assert.equal(qualifiedOffline.intentionalFailureHandlerReturnedCount, 1);
-    assert.equal(qualifiedOffline.intentionalFailureResponseCount, 0);
-    assert.equal(qualifiedOffline.transactionRollbackState, "CLOSED_CONSERVATIVE_COST_ACCOUNTED");
-    assert.equal(qualifiedOffline.negativeReleaseChainCases.length, 11);
-    assert.equal(qualifiedOffline.reusedVersion1122ConsentRejected, true);
-    assert.equal(qualifiedOffline.handlerInvocationCount, 25);
-    assert.equal(qualifiedOffline.providerAttemptCount, 0);
-    assert.equal(qualifiedOffline.physicalProviderAttemptCount, 0);
-    assert.equal(qualifiedOffline.networkAttemptCount, 0);
-
-    const preflight = jsonOutput(await run(process.execPath, [cliPath, "PREFLIGHT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated PREFLIGHT");
-    assert.equal(preflight.executorVersion, "1.12.24");
-    assert.equal(preflight.handlerInvocationCount, 0);
-    assert.equal(preflight.providerAttemptCount, 0);
-    assert.equal(preflight.continuationRequestCount, 24);
-    assert.equal(preflight.priorPhysicalAttemptCount, 16);
-    assert.equal(preflight.priorConservativeCost, 3.0136471);
-    assert.equal(preflight.continuationConservativeMaximumCost, 36.16376522);
-    assert.equal(preflight.cumulativeConservativeMaximumCost, 39.17741232);
-
-    const created = jsonOutput(await run(process.execPath, [cliPath, "CREATE_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment }), "isolated CREATE_CONSENT");
-    assert.equal(created.disposition, "CONSENT_CREATED_NOT_EXECUTED");
-    assert.equal(created.consentId, preflight.proposedConsentId, "consent identity differs from the release-derived preflight identity");
-    assert.equal(created.launchScopeHash, preflight.launchScopeHash);
-
-    const canonicalConsentRoot = path.join(cloneRoot, "benchmarks", "blind-object-v2", "consent");
-    const consentEntries = await readdir(canonicalConsentRoot, { withFileTypes: true });
-    assert.deepEqual(consentEntries.map((entry) => entry.name).sort(), [ZERO_EXTERNAL_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, UNUSED_V11222_CONSENT_NAME, `${created.consentId}.json`].sort());
-    assert.equal(consentEntries.every((entry) => entry.isFile()), true);
-    const consentPath = path.join(canonicalConsentRoot, `${created.consentId}.json`);
-    const consentBytes = await readFile(consentPath);
-    const consent = JSON.parse(consentBytes.toString("utf8"));
-    assert.equal(validateExecutionConsent(consent).valid, true);
-    assert.equal(consent.consentId, preflight.proposedConsentId);
-    assert.equal(consent.consentHash, created.consentHash);
-
-    for (const target of [
-      path.join(cloneRoot, "benchmarks", "blind-object-v2", "invocations"),
-      path.join(cloneRoot, "benchmarks", "blind-object-v2", "results")
-    ]) assert.equal(await exists(target), false, `premature later authority exists: ${target}`);
-
-    const duplicate = await run(process.execPath, [cliPath, "CREATE_CONSENT", FREEZE], { cwd: cloneRoot, env: childEnvironment });
-    assert.notEqual(duplicate.code, 0, "duplicate CREATE_CONSENT unexpectedly succeeded");
-    assert.match(duplicate.stderr, /EEXIST|already exists|exclusive/i);
-    assert.deepEqual(await readFile(consentPath), consentBytes, "duplicate invocation changed the consent artifact");
-    assert.equal((await readdir(canonicalConsentRoot)).length, 4);
-
-    assert.equal(await exists(guardLog), false, "provider, handler, evaluator-only, or private-control guard recorded an attempt");
-    assert.equal(await exists(callerSelectedRoot), false);
-  } finally {
-    await cleanupIsolatedRepository(testRoot, cloneRoot);
+test("Version 1.12.25 readiness release blocks every benchmark CLI mode before preflight or authority creation", async () => {
+  const cliPath = path.join(repositoryRoot, "benchmarks", "blind-object-v2", "scripts", "run-authorized-execution.mjs");
+  const fakeConsentHash = "a".repeat(64);
+  for (const [mode, extra] of [
+    ["REVOKE_V11222_CONSENT", []], ["QUALIFY_OFFLINE", []], ["PREFLIGHT", []], ["CREATE_CONSENT", []],
+    ["EXECUTE", [fakeConsentHash]], ["READBACK", [fakeConsentHash]], ["RECONCILE_V11221", []]
+  ]) {
+    const result = await run(process.execPath, [cliPath, mode, FREEZE, ...extra], { cwd: repositoryRoot, env: {} });
+    assert.notEqual(result.code, 0, `${mode} unexpectedly crossed the readiness-only release boundary`);
+    assert.match(result.stderr, /prohibited by the synthetic-executive qualification-readiness-only release/i);
   }
-
-  assert.deepEqual(await readFile(realFreezeManifest), realFreezeBefore, "isolated cleanup changed the real freeze manifest");
-  assert.deepEqual(await Promise.all(realAuthorityRoots.map(snapshotTree)), realAuthorityBefore, "isolated cleanup touched real authority or results paths");
-  assert.equal(await exists(path.join(repositoryRoot, "node_modules", "@playwright", "test")), true, "isolated cleanup touched workspace dependencies");
 });

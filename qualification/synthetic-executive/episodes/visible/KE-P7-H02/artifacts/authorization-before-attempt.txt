@@ -1,0 +1,698 @@
+KATHERINE’S EYE — VERSION 1.12.22 POST-HANDLER DURABILITY,
+TYPED EVIDENCE-ID SANITIZATION, VERSION 1.12.21 RECONCILIATION,
+AND 25-REQUEST PHASE 7C CONTINUATION — APPROVED
+
+This is one bounded release-level authorization.
+
+It is not authorization to retry Version 1.12.21, resubmit V2-RUN-001,
+restart the complete 26-request holdout, rebuild the corpus or freeze, modify
+Katherine’s product behavior, score, reflect, promote lessons, merge, or
+deploy.
+
+Continue through the complete sequence below without requesting another
+approval unless a genuinely new fail-closed condition is demonstrated.
+
+CLASSIFICATION
+
+Version 1.12.21 exposed a bounded but system-level post-handler persistence
+defect.
+
+The handler completed for V2-RUN-001 with outcome NORMAL_SUCCESS after an
+external submission identity had been committed and nine physical provider
+attempts had been recorded.
+
+The executor then failed while sanitizing the terminal record at:
+
+$.experienceRecord.sourcesAccepted[0].evidenceId
+
+with:
+
+record exposes high-entropy credential-like material
+
+No terminal response artifact or successful manifest was written.
+
+The repair must address both demonstrated defects:
+
+1. distinguish legitimate schema-bound public evidence identifiers from
+   credentials without weakening general secret detection; and
+
+2. make handler completion durably and unambiguously recorded before public
+   result serialization or sanitization can fail.
+
+Do not solve this with a blanket evidenceId allowlist, a disabled entropy
+scanner, a catch-and-ignore block, or a replay of V2-RUN-001.
+
+LOCKED STARTING CHECKPOINT
+
+Repository:
+
+C:\Users\dawgy\Projects\listing-engine-mvp
+
+Branch:
+
+refactor/beta-evidence-pipeline
+
+Version:
+
+1.12.21
+
+Runtime commit:
+
+017f65678ef9d0606c47451dfb0b655f856e2bbd
+
+Runtime tree:
+
+7e1c9555cfabaa579085994ab1eb780d17d2ab03
+
+Seal commit, local HEAD, and remote feature HEAD:
+
+5ac4e65b82b83f74331d1571009eb24a08809d2e
+
+Release-record hash:
+
+ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013
+
+Remote main:
+
+5cb69e0cda48c764d97f60756326cfc02f9a7797
+
+Tracked tree and index:
+
+clean
+
+Preserved untracked paths:
+
+85
+
+Do not amend, rewrite, squash, force-move, or rerun the Version 1.12.21
+release.
+
+VERSION 1.12.21 COMMAND RECORD — TERMINAL
+
+The following counts are final:
+
+- PREFLIGHT: 1, passed
+- CREATE_CONSENT: 1, passed
+- EXECUTE: 1, failed closed
+- READBACK: 1, failed closed because a successful manifest was absent
+
+Do not invoke any Version 1.12.21 command again.
+
+VERSION 1.12.21 IDENTITIES — DO NOT REUSE
+
+Launch Scope:
+
+7ee48776502d7dad7af1840c9d4483141ffa487251d5a558706aa3555af84f4b
+
+Consent:
+
+consent-ebe3e1f4d0d1b781fcc3f408bc2989fd74739fe7bd79faae
+
+Consent hash:
+
+2208dd4e285f42e962d885dea4616c437705a366e7073e6c151102127e50f63f
+
+Invocation:
+
+invocation-3540a4bf98950418b6f5fbea2f6b82388e2b03a8d6c02909
+
+Reservation:
+
+reservation-ab4414a9fb4ab934be6c6fc6fc19545bd85aef732e570bc1
+
+Result:
+
+result-e191ae7c41368318f5ff2782f09348a409fb436bc2942e91
+
+Result root:
+
+benchmarks/blind-object-v2-results/result-root-f65ebb9d361c4977ac76755f8c7059375ae6d8d3fb4b0464
+
+Journal hash:
+
+37779ddf0e14b526db1b47959663916235d0ce3078e0b48b86c09590ee5bda1c
+
+Ledger hash:
+
+344bb67499b060e157f7454af1a4101ba4babbbc96d6155aa4b88daf0016399c
+
+Partial result-tree aggregate:
+
+9a837c740e2d47d6d0febd721dc16237e2934bc697f0a840223449862ce2ec7b
+
+Preserve every existing artifact byte-for-byte.
+
+V2-RUN-001 is permanently terminal under this invocation and may not be
+resubmitted, retried, regenerated, or assigned a new provider submission
+identity.
+
+PRODUCT UNDER TEST — IMMUTABLE
+
+Commit:
+
+7056eb0601dc69c5985703fea6fe665e82c6bed8
+
+Version:
+
+1.12.13
+
+Runtime-manifest hash:
+
+5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8
+
+Tracked entries:
+
+666
+
+Do not change api/, lib/, product behavior, detached product contents, or the
+runtime manifest.
+
+PHASE 7C FREEZE — IMMUTABLE
+
+Frozen aggregate:
+
+5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
+
+Inventory:
+
+- 26 frozen public requests
+- 28 sanitized public photographs
+- 28 evaluator-only source originals
+
+Do not rebuild, edit, normalize, replace, or reorder the freeze.
+
+Evaluator-only originals and private controls remain prohibited.
+
+CUMULATIVE ATTEMPT AND COST ACCOUNTING
+
+The Version 1.12.21 run permanently consumed:
+
+- 9 physical attempts;
+- 9 recorded OPENAI_WEB_SEARCH / openai_web_search attempts;
+- zero provider-reported usage records;
+- a conservatively calculated cost of US$1.50682355.
+
+Truthful billed actual cost is unavailable.
+
+For all future authorization and stopping decisions, treat US$1.50682355 as
+already consumed against the original US$40.00000000 maximum.
+
+Therefore, the maximum remaining cumulative authority is:
+
+- physical attempts: 823;
+- conservative cost authority: US$38.49317645.
+
+The Version 1.12.22 continuation must derive its exact 25-request cost envelope
+from the canonical cost model and prove that its worst-case authorized cost
+fits within US$38.49317645.
+
+Do not reset either the attempt counter or cost counter merely because a new
+release or invocation is created.
+
+READ-ONLY SANITIZATION FORENSICS
+
+Before editing executor behavior, determine the exact provenance and format of
+the rejected value at:
+
+$.experienceRecord.sourcesAccepted[0].evidenceId
+
+Do not print or publish the complete value if it might be sensitive.
+
+Determine:
+
+- which product module or evidence finalizer created it;
+- whether it was generated internally or copied from an external source;
+- its exact public preimage or identity algorithm, if repository-generated;
+- whether it is reproducible from nonsecret public evidence metadata;
+- why the current high-entropy rule classified it as credential-like;
+- whether other terminal-record identifier fields can trigger the same false
+  positive.
+
+Inspect all terminal output schemas and all identifier-bearing paths reachable
+from the pinned product.
+
+Do not weaken the sanitizer until the rejected value’s provenance is proven.
+
+TYPED SANITIZER REPAIR
+
+Implement a typed classification for legitimate public identifiers.
+
+A high-entropy value may bypass credential rejection only when all applicable
+conditions are independently proven:
+
+1. the field is declared by an exact terminal-result schema path or typed
+   schema definition;
+
+2. the value is produced by a repository-owned identity function or is
+   validated against a schema-proven public provenance preimage;
+
+3. the value can be recomputed or validated from nonsecret public input;
+
+4. the value contains no credential prefix, authorization syntax, bearer
+   material, private key material, session cookie, JWT structure, API-key
+   structure, or provider secret;
+
+5. the value’s type and provenance are preserved in the sanitized record.
+
+Do not:
+
+- exempt every property named evidenceId;
+- exempt all identifiers;
+- lower the global entropy threshold;
+- disable secret detection;
+- permit arbitrary caller-provided “public” classifications;
+- redact the value silently if redaction would corrupt evidence identity;
+- allow an unverified high-entropy value through merely because of its path.
+
+Unknown, malformed, externally unexplained, or credential-shaped values must
+continue to fail closed.
+
+POST-HANDLER DURABILITY INVARIANT
+
+Install this invariant:
+
+Once the product handler returns, the executor must durably record that
+handler completion before terminal-record sanitization or public result
+serialization can fail.
+
+Immediately after handler return and before sanitizing the complete result,
+write one minimal append-only HANDLER_RETURNED receipt containing only safe
+metadata:
+
+- release, launch, consent, invocation, reservation, result, and request
+  identities;
+- external submission identity;
+- handler outcome classification;
+- provider and physical attempt counts;
+- cumulative conservative cost;
+- a canonical hash of the in-memory handler result;
+- the time and transaction state;
+- confirmation that no public response artifact has yet been committed.
+
+The receipt must not contain unreviewed raw response content or possible
+credentials.
+
+After that receipt:
+
+- successful sanitization may create the normal terminal response artifact;
+- failed sanitization must create a terminal failure artifact;
+- neither path may erase or rewrite the HANDLER_RETURNED receipt;
+- the request must remain permanently protected against external replay.
+
+A post-handler sanitization failure must have a deterministic state such as:
+
+ABORTED_POST_HANDLER_SANITIZATION_RESPONSE_NOT_PERSISTED
+
+That state must clearly distinguish:
+
+- handler completed;
+- external attempts occurred;
+- response hash exists;
+- public response artifact does not exist;
+- replay is prohibited;
+- cognitive output is unavailable unless exact preexisting response bytes can
+  be independently recovered and hash-verified.
+
+Do not persist raw unreviewed handler payload merely to avoid losing it unless
+the repository already has a qualified restricted-artifact mechanism that
+prevents evaluator, customer, log, Git, and frontend exposure. Do not invent a
+new secret store during this station.
+
+VERSION 1.12.21 APPEND-ONLY RECONCILIATION
+
+Create a repository-owned reconciliation command for the failed Version
+1.12.21 result root.
+
+Invoke it exactly once after qualification.
+
+It must bind:
+
+- the Version 1.12.21 release-record hash;
+- the exact Launch Scope and invocation;
+- the existing partial-tree, journal, and ledger hashes;
+- V2-RUN-001;
+- handler outcome NORMAL_SUCCESS;
+- one handler invocation;
+- nine physical/provider attempts;
+- zero provider usage records;
+- billed actual cost unavailable;
+- conservative accounted cost US$1.50682355;
+- absence of a response artifact;
+- absence of a successful result manifest.
+
+It must append only the minimum reconciliation, terminal-failure, validation,
+and reservation-closure artifacts required to establish:
+
+- V2-RUN-001 terminal state:
+  ABORTED_POST_HANDLER_SANITIZATION_RESPONSE_NOT_PERSISTED;
+- external attempt committed: true;
+- replay permitted: false;
+- consent: CONSUMED;
+- invocation: TERMINAL_FAILED;
+- reservation: CLOSED_CONSERVATIVE_COST_ACCOUNTED;
+- conservative consumed cost: US$1.50682355;
+- actual billed cost: UNKNOWN;
+- physical attempts consumed: 9;
+- existing artifacts remain byte-identical.
+
+Do not create a successful unscored-result manifest for Version 1.12.21.
+
+Do not describe V2-RUN-001 as a cognitive success because no trustworthy
+terminal response artifact exists.
+
+EXISTING-ARTIFACT RECOVERY RULE
+
+Read-only inspection may determine whether the exact handler-return bytes were
+already durably captured before the failure.
+
+Adoption is permitted only if all of the following are true:
+
+- the bytes existed before the Version 1.12.22 repair;
+- they are in a repository-owned or OS-owned durable artifact;
+- their canonical hash matches independently preserved Version 1.12.21
+  evidence;
+- no provider or handler replay is required;
+- sanitization succeeds under the repaired typed policy;
+- the adoption is recorded append-only and does not rewrite the failed root.
+
+Do not reconstruct the response from memory, source-code re-execution,
+provider calls, approximate logs, inferred fields, or a new product-handler
+run.
+
+If exact preexisting bytes are not independently available and hash-bound,
+record V2-RUN-001 as an infrastructure-lost cognitive result and proceed with
+the remaining 25 requests.
+
+VERSION 1.12.22 RELEASE
+
+Create exactly one successor executor release: Version 1.12.22.
+
+The release may contain only:
+
+- the evidence-supported typed identifier sanitization repair;
+- the HANDLER_RETURNED durability receipt;
+- deterministic post-handler terminal-failure support;
+- Version 1.12.21 reconciliation support;
+- exact 25-request continuation-scope support;
+- mandatory schemas, release/version surfaces, and regressions required by
+  existing gates.
+
+Do not change Katherine’s product-under-test behavior.
+
+The release must retain:
+
+- consentCreationEnabled:true;
+- executionEnabled:true.
+
+It must retain false authority for:
+
+- evaluator-only originals;
+- private controls;
+- scoring;
+- reflection;
+- diagnosis;
+- lesson extraction or promotion;
+- product repair;
+- merge;
+- Preview deployment;
+- Production mutation or deployment;
+- reusable or caller-selected execution authority.
+
+COMMIT STRUCTURE
+
+Create exactly:
+
+1. one Version 1.12.22 runtime and qualification commit; and
+
+2. one direct-child one-file seal commit modifying only:
+
+benchmarks/blind-object-v2/execution-release.json
+
+Do not modify roadmap or general documentation unless an existing
+deterministic release gate makes that unavoidable.
+
+Do not rewrite any earlier release.
+
+REQUIRED REGRESSIONS
+
+Qualification must prove at minimum:
+
+1. The exact legitimate evidence-identifier class that triggered Version
+   1.12.21 passes sanitization only through its verified public provenance.
+
+2. The same value placed in an undeclared or incorrect field still fails
+   closed.
+
+3. A real API-key-shaped, bearer-token-shaped, JWT-shaped, cookie-shaped, and
+   private-key-shaped value fails even in an evidenceId field.
+
+4. An arbitrary caller cannot declare a value public.
+
+5. Every identifier-bearing terminal-result path from the pinned product is
+   exercised.
+
+6. All 26 frozen request bundles complete local photo transformation.
+
+7. A mock full execution of all 26 requests reaches terminal-record creation,
+   sanitization, response persistence, and manifest sealing.
+
+8. The actual CLI transaction path writes HANDLER_RETURNED before terminal
+   sanitization.
+
+9. Forced sanitization failure after mock handler completion preserves the
+   HANDLER_RETURNED receipt and creates a deterministic terminal-failure
+   artifact.
+
+10. The forced failure records the correct attempts and conservative cost.
+
+11. The forced failure cannot be externally replayed.
+
+12. A normal successful result cannot create both success and terminal-failure
+    manifests.
+
+13. Version 1.12.21 reconciliation is append-only and leaves all old files
+    byte-identical.
+
+14. A second reconciliation invocation fails closed.
+
+15. The continuation scope is derived as exactly the immutable frozen request
+    set minus terminal V2-RUN-001.
+
+16. The continuation cannot include V2-RUN-001.
+
+17. The continuation cannot omit, add, reorder, or substitute any of
+    V2-RUN-002 through V2-RUN-026.
+
+18. Attempt and cost accounting carry forward the consumed 9 attempts and
+    US$1.50682355 conservative cost.
+
+19. The real freeze and existing result roots cannot be touched by isolated
+    tests.
+
+20. No real provider or external network call occurs during qualification.
+
+Use actual CLI and transaction-path tests, not only helper-level unit mocks.
+
+QUALIFICATION
+
+Run:
+
+- the complete existing Node suite;
+- the complete PowerShell/static suite;
+- browser tests required by the repository;
+- focused execution, release, consent, journal, reservation, cost, identity,
+  source, freeze, isolation, network-denial, sanitizer, and readback tests;
+- the new exact post-handler and typed-identifier regressions;
+- a full mock 26-request execution through terminal manifest sealing;
+- syntax, JSON, build, Version, secret, credential, frontend-key, and
+  git-diff checks.
+
+No real provider may be called during qualification.
+
+If qualification passes, normally and non-forcibly push only the two Version
+1.12.22 commits to:
+
+refactor/beta-evidence-pipeline
+
+Do not merge to main.
+Do not deploy Preview.
+Do not modify or deploy Production.
+
+VERSION 1.12.22 CONTINUATION SCOPE
+
+Derive a new release-bound continuation identity set containing:
+
+- release-record hash;
+- Launch Scope hash;
+- continuation-scope hash;
+- consent ID;
+- invocation ID;
+- reservation ID;
+- result ID;
+- result-root identity;
+- Version 1.12.21 terminal-failure receipt identity.
+
+The continuation scope must be derived from:
+
+- the immutable Phase 7C freeze;
+- the terminal Version 1.12.21 reconciliation;
+- exactly these 25 requests:
+
+V2-RUN-002
+V2-RUN-003
+V2-RUN-004
+V2-RUN-005
+V2-RUN-006
+V2-RUN-007
+V2-RUN-008
+V2-RUN-009
+V2-RUN-010
+V2-RUN-011
+V2-RUN-012
+V2-RUN-013
+V2-RUN-014
+V2-RUN-015
+V2-RUN-016
+V2-RUN-017
+V2-RUN-018
+V2-RUN-019
+V2-RUN-020
+V2-RUN-021
+V2-RUN-022
+V2-RUN-023
+V2-RUN-024
+V2-RUN-025
+V2-RUN-026
+
+V2-RUN-001 must be represented only by its terminal Version 1.12.21
+disposition or independently adopted preexisting response artifact. It may
+not enter the new execution queue.
+
+No caller-selected request list or identity is authorized.
+
+REAL CONTINUATION EXECUTION
+
+After:
+
+- deterministic qualification passes;
+- Version 1.12.22 is sealed;
+- the Version 1.12.21 reconciliation completes exactly once;
+- the 25-request cost envelope is proven to fit the remaining cumulative
+  authority;
+
+perform:
+
+1. exactly one Version 1.12.22 PREFLIGHT;
+
+2. exactly one CREATE_CONSENT;
+
+3. immediate deterministic consent readback;
+
+4. exactly one EXECUTE command for V2-RUN-002 through V2-RUN-026 only;
+
+5. exactly one READBACK after execution terminates.
+
+Use only the corresponding frozen public requests and sanitized public
+photographs.
+
+Across Version 1.12.21 and Version 1.12.22 combined:
+
+- never exceed 832 physical attempts;
+- therefore Version 1.12.22 may use no more than 823 additional attempts;
+- treat US$1.50682355 as already consumed;
+- never permit cumulative conservative or known actual cost above
+  US$40.00000000;
+- therefore Version 1.12.22 may use no more than US$38.49317645 additional
+  authority;
+- stop before either remaining limit can be exceeded.
+
+Do not perform a whole-run retry.
+
+Do not create a second Version 1.12.22 consent or invocation.
+
+On any genuinely new hash, identity, sanitizer, transaction, handler,
+provider, cost, result, manifest, reservation, or readback failure, stop
+fail-closed and preserve the evidence. Do not patch and retry inside Version
+1.12.22.
+
+COMPOSITE HOLDOUT EVIDENCE
+
+After successful readback of the 25-request continuation, create one
+deterministic unscored composite evidence manifest referencing:
+
+- the immutable Phase 7C freeze;
+- the Version 1.12.21 terminal evidence for V2-RUN-001;
+- any valid no-replay adoption receipt if exact preexisting response bytes
+  were recovered;
+- the Version 1.12.22 terminal results for V2-RUN-002 through V2-RUN-026.
+
+The composite disposition must be truthful:
+
+- COMPLETE_26_UNSCORED only if a valid preexisting V2-RUN-001 response was
+  adopted without re-execution; otherwise
+
+- COMPLETE_WITH_25_COGNITIVE_RESULTS_AND_1_INFRASTRUCTURE_FAILURE.
+
+Do not represent the second state as a complete 26-result cognitive benchmark.
+
+Do not score or load evaluator controls.
+
+PROHIBITED
+
+Do not:
+
+- retry or resubmit V2-RUN-001;
+- invoke any Version 1.12.21 command;
+- load evaluator-only originals;
+- load private controls;
+- score;
+- reflect;
+- diagnose Katherine’s outputs;
+- extract or promote lessons;
+- change product behavior;
+- alter the freeze;
+- reset cost or attempt accounting;
+- create a second continuation invocation;
+- perform a whole-run retry;
+- merge;
+- deploy Preview;
+- modify or deploy Production;
+- begin an unrelated architecture phase.
+
+COMPLETION REPORT
+
+Report:
+
+- exact rejected identifier provenance and classification;
+- whether exact preexisting V2-RUN-001 response bytes were recoverable;
+- exact typed-sanitizer rule;
+- proof that real credential-shaped values remain blocked;
+- exact post-handler durability invariant;
+- Version 1.12.22 runtime and seal commits;
+- changed-file manifests;
+- all deterministic test counts;
+- Version 1.12.21 reconciliation artifacts and hashes;
+- proof that every old partial artifact remained byte-identical;
+- old reservation closure and conservative cost accounting;
+- new release, Launch Scope, continuation-scope, consent, invocation,
+  reservation, result, and result-root identities;
+- exact PREFLIGHT, CREATE_CONSENT, EXECUTE, and READBACK counts;
+- disposition of each of the 26 frozen requests;
+- handler, provider, and physical attempt counts for both releases and
+  cumulatively;
+- provider-reported usage status;
+- known actual and conservatively accounted cost;
+- terminal and composite result-tree hashes;
+- whether the composite has 26 cognitive results or 25 plus one
+  infrastructure failure;
+- confirmation that evaluator-only originals and private controls were never
+  loaded;
+- confirmation that scoring, reflection, diagnosis, and lesson promotion did
+  not occur;
+- confirmation that product and freeze remained byte-identical;
+- final local and remote feature state;
+- confirmation that main and Production remained unchanged.
+
+This station counts as progress only if it preserves the post-handler truth,
+prevents replay, and produces the remaining trustworthy cognitive evidence.
+Do not substitute another general infrastructure phase.

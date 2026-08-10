@@ -1,0 +1,390 @@
+APPROVE KATHERINE’S EYE COGNITIVE LIFECYCLE GOVERNOR V1, RECOVERABLE HANDLER RETURN, AND AUTONOMOUS 24-REQUEST CONTINUATION
+
+Resume only from this exact sealed checkpoint:
+
+Repository:
+C:\Users\dawgy\Projects\listing-engine-mvp
+
+Branch:
+refactor/beta-evidence-pipeline
+
+Version:
+1.12.23
+
+Runtime commit:
+f9dd41d3584d7c9e93f277f33aec9ee4aa60eed8
+
+Runtime tree:
+9f3ea7012eda303dd6b35887454796fc96bb231c
+
+Seal commit, local HEAD, and remote feature HEAD:
+3be826cf63b45091f28028f16dd1b61c3ee32234
+
+Release-record hash:
+f1074a67e5898493a2c5b4022ae2157635f653fdafe093be64cd4593a7867558
+
+Remote main:
+5cb69e0cda48c764d97f60756326cfc02f9a7797
+
+Failure result root:
+result-root-1b8675557a5c786630a1f72ea5e157236cbdc4d9bacec149
+
+This is an architectural lifecycle-governor installation, not another guessed sanitizer repair.
+
+Do not infer that the Version 1.12.23 live rejection was a false positive. The exact rejected path and value were not persisted, so the cause remains permanently unknown.
+
+PERMANENT BENCHMARK DISPOSITIONS
+
+V2-RUN-001:
+INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY
+
+V2-RUN-002:
+INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY
+
+Never resubmit either request and never invoke Katherine’s handler or a provider for either request.
+
+The remaining executable benchmark set contains exactly:
+
+V2-RUN-003 through V2-RUN-026
+
+There are 24 remaining requests.
+
+MISSION
+
+Move ordinary lifecycle state recognition, transition selection, known-failure handling, response preservation, deterministic downstream recovery, and forward advancement out of ChatGPT and into one durable cognitive lifecycle governor.
+
+ChatGPT is an oversight and exceptional-authority interface. It must not be required to select ordinary intermediate states or reconstruct execution state after interruption.
+
+CANONICAL FORWARD-ONLY LIFECYCLE
+
+Install one authoritative, versioned transition manifest governing:
+
+RELEASE_VERIFIED
+→ PREFLIGHT_PASSED
+→ CONSENT_AUTHORIZED
+→ RESERVATION_CREATED
+→ HANDLER_STARTED
+→ HANDLER_RETURNED_QUARANTINED
+→ SANITIZATION_DECIDED
+→ TERMINAL_PERSISTED
+→ READBACK_VERIFIED
+→ COMPOSITE_SEALED
+→ COGNITIVE_EVALUATION_READY
+
+Every transition must:
+
+- advance monotonically;
+- have one unambiguous legal successor or a terminal stopped state;
+- produce a durable governor decision receipt;
+- identify the exact observed evidence and invariant applied;
+- identify the release, consent, invocation, reservation, request, handler-result, and terminal-result identities;
+- survive process interruption and reconstruct independently from durable artifacts;
+- reject backward transitions, duplicate transitions, missing predecessors, ambiguous predecessors, and unknown states.
+
+No separate helper, executor, or test may construct lifecycle successors independently.
+
+RECOVERABLE HANDLER RETURN
+
+Before terminal sanitization, persist the exact canonical handler-result bytes in a restricted handler-return quarantine artifact.
+
+The quarantine artifact must be:
+
+- content-addressed;
+- hash-bound;
+- length-bound;
+- append-only;
+- access-controlled to the executing user/process;
+- outside public result artifacts;
+- excluded from Git and release commits;
+- excluded from customer responses and ordinary logs;
+- independently readback-verifiable;
+- associated with one request, invocation, reservation, and handler call;
+- incapable of being substituted across requests or releases.
+
+Use encryption at rest or an equivalently strong local access-control mechanism supported by the execution environment. Do not expose raw quarantined content in the final report.
+
+A HANDLER_RETURNED receipt containing only a hash is insufficient. The exact bytes must be recoverable for deterministic downstream processing without another handler or provider invocation.
+
+SANITIZER DECISION RECEIPT
+
+Every sanitizer decision must create a durable, safe diagnostic receipt.
+
+On rejection, preserve without exposing the raw rejected value:
+
+- exact traversed JSON pointer;
+- exact normalized schema path;
+- terminal schema node;
+- registry contract ID, or explicit NO_CONTRACT_MATCH;
+- value type;
+- byte length;
+- deterministic value digest or keyed digest;
+- every rejection classifier and rule ID that fired;
+- credential-shape classification;
+- entropy classification;
+- public-preimage availability;
+- public-preimage recomputation result;
+- seller-partition or underlyingOfferKey verification result when applicable;
+- whether the value was rejected as an actual credential, an undeclared identifier, a schema mismatch, or an unexplained high-entropy value.
+
+Record all rejected locations, not merely the first one, while ensuring that no raw credential material enters public artifacts.
+
+Derive the actual path from traversal. Never trust caller-supplied path provenance.
+
+ONE AUTHORITATIVE PUBLIC-IDENTIFIER CONTRACT SOURCE
+
+Replace independent copies of path authority with one canonical contract manifest.
+
+The manifest must be the sole source from which the following are generated or validated:
+
+- runtime sanitizer contracts;
+- normalized-path restrictions;
+- provenance schema restrictions;
+- contract IDs;
+- positive fixtures;
+- negative fixtures;
+- documentation and qualification inventory.
+
+Do not maintain manually independent registry entries, schema enums, and test allowlists that can drift.
+
+The manifest must bind each exact path to its type, schema node, public-preimage contract, recomputation rule, and credential precedence.
+
+Credential-shaped material remains fail-closed even at an otherwise authorized path.
+
+COGNITIVE GOVERNOR INVARIANT CATALOG
+
+Install durable invariant records for every known lifecycle failure class, including:
+
+- handler response lost before persistence;
+- handler hash recorded without recoverable bytes;
+- terminal sanitizer false-positive risk;
+- undeclared-path root/collection cross-product acceptance;
+- historical/current release-hash equality confusion;
+- impossible retrospective provenance demand;
+- abandoned consent reuse;
+- helper tests passing while the real CLI path fails;
+- duplicate, backward, or ambiguous lifecycle transitions;
+- benchmark request replay;
+- missing diagnostic evidence after a terminal stop.
+
+Each invariant must contain:
+
+- stable failure ID;
+- generalized rule;
+- affected lifecycle states and components;
+- legal automatic recovery, if any;
+- prohibited recovery;
+- regression fixture;
+- recurrence detector;
+- escalation rule.
+
+A failure is learned only when the governor consults the invariant automatically during a later episode.
+
+KNOWN VERSUS NOVEL RECOVERY
+
+The governor may automatically perform deterministic downstream recovery against quarantined handler bytes when:
+
+- no handler or provider replay is required;
+- no source code or policy mutation is required;
+- the applicable contract already exists in the canonical manifest;
+- credential classifiers do not fire;
+- public-preimage recomputation succeeds;
+- all required hashes and identities match.
+
+This includes re-running sanitization, terminal persistence, readback, and composite assembly against the same quarantined bytes.
+
+The governor must stop on a genuinely novel schema, code, policy, or credential condition. On such a stop it must automatically produce a complete bounded repair dossier from durable evidence, without requiring ChatGPT to reconstruct the episode.
+
+It must not automatically broaden sanitizer authority, suppress a credential classifier, or rewrite product behavior.
+
+EXACT LIFECYCLE QUALIFICATION
+
+Before live activity, exercise the actual production CLI, executor, lifecycle governor, persistence layer, sanitizer, readback, and composite builder as one complete offline system.
+
+Qualification must prove:
+
+- exact handler bytes are durably quarantined before sanitization;
+- crash and restart reconstruction at every lifecycle transition;
+- successful sanitization and terminal persistence;
+- intentional sanitizer rejection with exact safe diagnostic receipt;
+- deterministic re-sanitization from quarantined bytes without another handler call;
+- successful terminal completion after a known downstream-only recovery;
+- genuine API keys, bearer tokens, JWTs, cookies, private keys, and unexplained high-entropy material remain quarantined and rejected;
+- quarantined bytes never appear in public artifacts, Git, logs, reports, or customer output;
+- public identifier contracts are derived from one authoritative manifest;
+- no root/collection cross-product remains;
+- no duplicate successor authority remains;
+- no backward or cyclic path exists;
+- old consent reuse fails;
+- release substitution fails;
+- request substitution fails;
+- handler-result substitution fails;
+- transaction rollback and restart are deterministic;
+- provider and network attempts remain zero during qualification.
+
+Use schema-generated valid payloads, path mutation, extra-nesting mutation, credential mutation, and restart fault injection. A small fixed happy-path fixture is insufficient.
+
+Run all applicable existing suites, but test totals alone do not constitute completion.
+
+VERSION 1.12.24 RELEASE
+
+Version 1.12.24 is only an implementation label. The milestone is lifecycle-governor control.
+
+After qualification passes, create:
+
+- one qualified runtime commit;
+- one direct-child, one-file execution-release seal commit;
+- one release-record hash;
+- feature-branch push only;
+- exact local/remote feature synchronization.
+
+Do not merge or deploy to Preview or Production.
+
+IMMUTABLE PRODUCT AND FREEZE
+
+Before external activity, require:
+
+Product commit:
+7056eb0601dc69c5985703fea6fe665e82c6bed8
+
+Product Version:
+1.12.13
+
+Product runtime-manifest hash:
+5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8
+
+Product tracked entries:
+666
+
+Phase 7C frozen aggregate:
+5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
+
+The immutable product, frozen requests, public sanitized photographs, evaluator-only originals, and private controls must remain byte-identical.
+
+Evaluator-only originals and private controls must not be loaded.
+
+AUTONOMOUS 24-REQUEST ENVELOPE
+
+Create one new top-level consent, invocation, reservation authority, and governor episode covering exactly:
+
+V2-RUN-003 through V2-RUN-026
+
+Process requests sequentially as independently durable at-most-once work units.
+
+For every request:
+
+1. invoke the handler no more than once;
+2. account for every provider and physical attempt;
+3. persist exact handler-result bytes in restricted quarantine;
+4. record HANDLER_RETURNED_QUARANTINED;
+5. sanitize and persist the public terminal response;
+6. verify readback;
+7. advance automatically to the next request.
+
+If a known downstream-only failure occurs, apply its existing invariant automatically against the same quarantined bytes and continue without another handler or provider invocation.
+
+If a genuinely novel failure occurs:
+
+- stop before submitting later requests;
+- preserve the affected handler result in recoverable quarantine;
+- seal a safe diagnostic and governor episode;
+- account for all activity;
+- produce the bounded repair dossier;
+- do not patch or replay in place.
+
+No intermediate ChatGPT approval is required for normal transitions or known deterministic recoveries.
+
+ACCOUNTING
+
+Carry forward without reset:
+
+Historical handler invocations:
+2
+
+Historical provider/physical attempts:
+16
+
+Historical conservative consumed cost:
+US$3.01364710
+
+Numerical remaining physical-attempt ceiling:
+816
+
+Numerical remaining conservative cost ceiling:
+US$36.98635290
+
+These numerical balances are not separate authority to exceed the new 24-request envelope.
+
+Provider-billed actual cost remains UNKNOWN unless genuine provider usage records are returned.
+
+COMPOSITE
+
+Replace brittle count-specific completion authority with a count-bearing unscored composite containing:
+
+- total frozen request count;
+- cognitive result count;
+- infrastructure failure count;
+- not-submitted count;
+- exact request dispositions;
+- invariant and governor-episode references.
+
+The only fully successful benchmark summary now possible is:
+
+24 trustworthy cognitive results
+2 permanent infrastructure failures
+0 not submitted
+
+The human-readable disposition may be:
+
+COMPLETE_WITH_24_COGNITIVE_RESULTS_AND_2_INFRASTRUCTURE_FAILURES
+
+Never represent V2-RUN-001 or V2-RUN-002 as cognitive results.
+
+PROHIBITED ACTIVITY
+
+Perform no:
+
+- evaluator-control loading;
+- scoring;
+- reflection;
+- cognitive diagnosis;
+- lesson extraction from benchmark quality;
+- lesson promotion into the immutable product;
+- product mutation;
+- merge;
+- Preview deployment;
+- Production mutation;
+- Production deployment.
+
+FINAL SUCCESS STANDARD
+
+This station is complete only when:
+
+- the cognitive lifecycle governor owns every ordinary transition;
+- no ChatGPT-selected intermediate station was required;
+- all 24 remaining handlers were invoked at most once;
+- all 24 cognitive results are durably preserved and publicly sanitized;
+- the composite is sealed and independently read back;
+- attempts and costs reconcile exactly.
+
+If the run stops on a novel condition, the station is not complete, but the affected cognitive response must remain recoverable without replay and the governor must produce the complete safe diagnostic and bounded repair dossier.
+
+FINAL REPORT
+
+Report:
+
+- exact starting and final repository state;
+- runtime and seal commits, tree, and release hash;
+- governor transition manifest and proof of acyclicity;
+- invariant catalog;
+- authoritative public-identifier contract manifest and generated surfaces;
+- handler-return quarantine design and access controls;
+- sanitizer decision-receipt schema;
+- complete offline lifecycle and restart qualification;
+- all autonomous governor decisions;
+- all V2-RUN-001 through V2-RUN-026 dispositions;
+- handler/provider/physical counts by release and cumulatively;
+- provider usage, actual cost, conservative cost, and remaining balance;
+- result-root and composite hashes;
+- proof that no handler or provider replay occurred;
+- immutable product/freeze readback;
+- confirmation that all prohibited activity remained absent.

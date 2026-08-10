@@ -1,0 +1,473 @@
+KATHERINE’S EYE — VERSION 1.12.21 PRE-EXTERNAL TRANSACTION
+RECOVERY, PHOTO-TRANSFORM REPAIR, AND ONE REAL PHASE 7C
+HOLDOUT RUN — APPROVED
+
+This is one bounded release-level authorization.
+
+It is not authorization for a simple retry of Version 1.12.20, a benchmark
+restart, a corpus or freeze rebuild, a broad executor rewrite, a new
+architecture campaign, scoring, reflection, lesson promotion, merge, Preview
+deployment, or Production deployment.
+
+Continue through the complete authorized sequence without requesting another
+approval unless a genuinely new fail-closed condition occurs.
+
+CLASSIFICATION
+
+Version 1.12.20 exposed a deeper executor transaction defect.
+
+The immediate failure was:
+
+page.evaluate: Target page, context or browser has been closed
+
+The failure occurred during local photo transformation before:
+
+- product-handler invocation;
+- provider invocation;
+- any physical provider attempt;
+- any provider cost.
+
+The deeper demonstrated defect is that the executor nevertheless:
+
+- durably marked V2-RUN-001 as SUBMISSION_STARTED;
+- permanently blocked that submission identity;
+- marked the result-root consent CONSUMED;
+- left the canonical consent AUTHORIZED_NOT_CONSUMED;
+- left the reservation STARTED;
+- could not produce a terminal failure manifest or valid readback.
+
+A local, independently proven pre-handler failure must not become
+indistinguishable from an external submission.
+
+Repair the photo-transform failure and the pre-external transaction/recovery
+semantics together. Do not patch only the browser error.
+
+LOCKED STARTING CHECKPOINT
+
+Repository:
+
+C:\Users\dawgy\Projects\listing-engine-mvp
+
+Branch:
+
+refactor/beta-evidence-pipeline
+
+Version:
+
+1.12.20
+
+Runtime commit:
+
+67d81b2412fe83718d49d82ef6fac639ad69c14c
+
+Seal commit, local HEAD, and remote feature HEAD:
+
+787c0484d588a2b5ced521ad1b517b6c356d70b8
+
+Runtime tree:
+
+3525af71b3c64eb314501bf21a1545d552dc0669
+
+Release-record hash:
+
+22392eabae6e305ecd043ead4edae52bf88a4328b940215023835ab23e68abaf
+
+Remote main:
+
+5cb69e0cda48c764d97f60756326cfc02f9a7797
+
+Tracked tree and index:
+
+clean
+
+Preserved original untracked paths:
+
+85
+
+Do not amend, rewrite, squash, force-move, or retry the Version 1.12.20
+release.
+
+VERSION 1.12.20 TERMINAL COMMAND RECORD
+
+The following command record is final:
+
+- PREFLIGHT: one protocol execution completed and passed
+- CREATE_CONSENT: one execution completed and passed
+- EXECUTE: one execution failed closed
+- READBACK: one execution failed closed because the result manifest was absent
+
+Do not rerun any Version 1.12.20 command.
+
+The denied unelevated OS process that never constructed a preflight is not a
+second completed protocol preflight. Start all Version 1.12.21 real commands
+in the required execution environment from the outset.
+
+FAILED RESULT ROOT — PRESERVE EXACTLY
+
+Result root:
+
+benchmarks/blind-object-v2-results/result-root-b912b16dae9e822f1076257815bd2e1a7d8cece05afe18e9
+
+Partial-artifact aggregate:
+
+788b7bf4117ff2b33eae85de3b1a3288878a26c41752af12f0f10c82e3117ddf
+
+Journal hash:
+
+28c51aaa5a2b27d52c347710cbe4cf859f284518e1a6c2a9947ec89e135b0b98
+
+Ledger hash:
+
+f562f8e97b8591bac11efd40127243d15697192ef363840cb86c95918b8dce0f
+
+Consent:
+
+consent-d1b50d51ddd008ecc7cae6925633043fd64c57489d0c1b45
+
+Invocation:
+
+invocation-0d5a024913e582fdd3a65cd44923d217ce2e6936f00e4f65
+
+Reservation:
+
+reservation-b318fac0624357e4fb789d9fe1e40dbca4971a7b635c434d
+
+Result:
+
+result-d01a42dafeb8d242dd29a6d8804728546cafb2f8fd4b3fbc
+
+Do not delete, rewrite, normalize, or replace any of the eight existing
+partial artifacts.
+
+V2-RUN-001 remains terminal under the Version 1.12.20 invocation. Do not
+reuse its Version 1.12.20 submission identity.
+
+PRODUCT AND FREEZE — IMMUTABLE
+
+Product commit:
+
+7056eb0601dc69c5985703fea6fe665e82c6bed8
+
+Product Version:
+
+1.12.13
+
+Product runtime-manifest hash:
+
+5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8
+
+Tracked product entries:
+
+666
+
+Phase 7C frozen aggregate:
+
+5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
+
+The product, API behavior, libraries, frozen requests, sanitized photographs,
+evaluator-only originals, and freeze records must remain byte-identical.
+
+AUTHORIZED FORENSIC REPRODUCTION
+
+Before editing production executor code, reproduce the photo-transform failure
+using the exact frozen public photograph bundle for V2-RUN-001 in an isolated,
+network-denied environment.
+
+The reproduction must:
+
+- use the pinned product commit;
+- use only frozen public inputs;
+- invoke no product handler;
+- invoke no provider;
+- write no real consent, reservation, journal, or result artifacts;
+- determine which component owns and closes the page, context, or browser;
+- distinguish deterministic lifecycle failure from environmental termination;
+- report the exact unresolved or prematurely completed promise, cleanup path,
+  timeout, process exit, or browser-lifetime event responsible.
+
+Then run the same isolated photo-transformation path across all 26 frozen
+request bundles and all 28 public photographs.
+
+Do not infer the repair from the error string alone.
+
+REQUIRED TRANSACTION INVARIANT
+
+Install and independently test this general invariant:
+
+A request may not become permanently externally submitted merely because
+local preprocessing began.
+
+The executor must distinguish at least:
+
+1. local preparation started;
+2. local preparation completed;
+3. external handler/provider attempt committed;
+4. terminal response or terminal external failure recorded.
+
+Any failure independently proven to occur before handler invocation and before
+provider activity must terminate as a recoverable or supersedable
+PRE_EXTERNAL_ABORT, not as an external submission.
+
+The durable state that blocks duplicate external attempts must not be
+committed earlier than necessary. If write-ahead intent is required, it must
+retain an explicit pre-external state and a deterministic recovery rule.
+
+A failure after an external attempt may remain non-replayable or ambiguous and
+must continue to fail closed unless an idempotent external receipt proves the
+outcome.
+
+Do not weaken exactly-once protection.
+
+VERSION 1.12.20 FAILURE RECONCILIATION
+
+Create a repository-owned, append-only reconciliation mechanism for this exact
+failed root.
+
+It must be bound to:
+
+- the Version 1.12.20 release-record hash;
+- the exact failed result-root identity;
+- the eight-file partial aggregate;
+- the journal and ledger hashes;
+- V2-RUN-001;
+- zero handler attempts;
+- zero provider attempts;
+- zero physical attempts;
+- zero actual provider cost.
+
+Invoke that reconciliation exactly once after qualification.
+
+It may append only the minimum terminal failure and reconciliation artifacts
+needed to establish:
+
+- terminal state: ABORTED_PRE_HANDLER_ZERO_EXTERNAL_ACTIVITY;
+- the Version 1.12.20 consent is terminally consumed and cannot be reused;
+- the Version 1.12.20 invocation and submission identity cannot be reused;
+- the unused reservation is terminally released or closed at zero spend;
+- V2-RUN-001 may be included in one new successor invocation only through an
+  explicit zero-external-activity supersession receipt;
+- existing partial artifacts remain byte-identical.
+
+Do not create a successful unscored-result manifest for the failed root.
+
+Use a distinct terminal-failure manifest and validation report so the failed
+root can be deterministically read back as a sealed failure rather than
+misrepresented as a completed cognitive result.
+
+VERSION 1.12.21 REPAIR
+
+Create exactly one successor executor release: Version 1.12.21.
+
+The repair must include only:
+
+- the evidence-supported photo-transform/browser-lifecycle correction;
+- the pre-external transaction-state correction;
+- append-only terminal-failure reconciliation support;
+- zero-external supersession support;
+- mandatory release, schema, Version, and test changes required by existing
+  gates.
+
+Do not change Katherine’s product-under-test behavior.
+
+Do not introduce caller-selected roots, identities, release hashes, request
+IDs, recovery classifications, or authorization overrides.
+
+The new release must retain:
+
+- consentCreationEnabled:true
+- executionEnabled:true
+
+Private controls, evaluator loading, scoring, reflection, lesson extraction,
+lesson promotion, product repair, merge, Preview deployment, and Production
+authority must remain false.
+
+REQUIRED REGRESSION PROOF
+
+Add exact-path regressions proving:
+
+1. All 28 frozen public photographs transform successfully without handler or
+   provider activity.
+
+2. The exact V2-RUN-001 bundle reaches the handler boundary with the page,
+   context, and browser still valid.
+
+3. A forced page/context/browser closure during local transformation produces
+   PRE_EXTERNAL_ABORT.
+
+4. That forced pre-external failure records zero handler and provider
+   attempts.
+
+5. A pre-external failure does not create a permanently consumed external
+   submission state.
+
+6. An independently verified zero-external abort can be superseded exactly
+   once by a new invocation.
+
+7. The supersession cannot be created when any handler or provider attempt is
+   present or uncertain.
+
+8. A second supersession attempt fails closed.
+
+9. A simulated failure after the handler boundary remains protected from
+   replay.
+
+10. Canonical consent state, result-root consent state, reservation state,
+    journal state, and terminal failure state agree after reconciliation.
+
+11. The old eight partial artifacts remain byte-identical.
+
+12. The real Phase 7C freeze and real result paths cannot be touched by the
+    isolated tests.
+
+Test the actual CLI and transaction path. Do not satisfy these requirements
+only through helper-level unit mocks.
+
+COMMIT STRUCTURE
+
+Create exactly:
+
+1. One Version 1.12.21 runtime and qualification commit.
+
+2. One direct-child one-file seal commit modifying only:
+
+benchmarks/blind-object-v2/execution-release.json
+
+Do not modify roadmap or general documentation unless an existing release gate
+strictly requires it.
+
+QUALIFICATION
+
+Run:
+
+- the complete existing deterministic suite;
+- all focused execution, consent, reservation, journal, cost, freeze,
+  source-binding, identity, isolation, network-denial, and release tests;
+- the new exact transform and transaction regressions;
+- a complete isolated dry execution through local transformation and mock
+  handler completion for all 26 requests;
+- syntax, JSON, build, Version, secret, credential, and diff checks.
+
+No real provider may be called during qualification.
+
+If qualification passes, normally push the two Version 1.12.21 commits only to:
+
+refactor/beta-evidence-pipeline
+
+Do not merge to main.
+Do not deploy Preview.
+Do not deploy or modify Production.
+
+NEW EXECUTION IDENTITY
+
+Derive one completely new Version 1.12.21 identity set:
+
+- release-record hash;
+- Launch Scope hash;
+- consent ID;
+- invocation ID;
+- reservation ID;
+- result ID;
+- result-root identity;
+- zero-external supersession receipt.
+
+The new identity set must reference the terminal Version 1.12.20 failure
+receipt while remaining independently bound to Version 1.12.21.
+
+Do not reuse any Version 1.12.20 identity.
+
+REAL EXECUTION
+
+After qualification and the exactly-once reconciliation of the failed
+Version 1.12.20 root:
+
+1. Run exactly one Version 1.12.21 PREFLIGHT.
+
+2. If it passes, run CREATE_CONSENT exactly once.
+
+3. Verify the consent by deterministic readback.
+
+4. Run EXECUTE exactly once for all 26 frozen requests.
+
+V2-RUN-001 is authorized in the new invocation only because the reconciliation
+must independently prove:
+
+- no Version 1.12.20 handler attempt;
+- no Version 1.12.20 provider attempt;
+- no physical provider attempt;
+- zero provider cost.
+
+V2-RUN-002 through V2-RUN-026 are authorized normally under the new invocation.
+
+This is a successor invocation, not a retry or reuse of the Version 1.12.20
+invocation.
+
+5. Use only frozen public requests and sanitized public photographs.
+
+6. Do not exceed 832 physical provider attempts.
+
+7. Do not exceed US$40.00000000 actual provider cost across the authorized
+   Version 1.12.21 execution.
+
+8. Do not perform a whole-run retry.
+
+9. After EXECUTE terminates, run READBACK exactly once.
+
+10. Seal the unscored execution evidence if and only if the repository’s
+    completion contract is satisfied.
+
+On any genuinely new failure, stop fail-closed and preserve exact evidence. Do
+not patch and retry within Version 1.12.21.
+
+PROHIBITED
+
+Do not:
+
+- load evaluator-only originals;
+- load private controls;
+- score;
+- reflect;
+- diagnose Katherine’s cognitive output;
+- extract or promote lessons;
+- modify the product under test;
+- alter the freeze;
+- reuse old identities;
+- create a second Version 1.12.21 consent or invocation;
+- perform a whole-run retry;
+- merge;
+- deploy Preview;
+- modify or deploy Production;
+- begin another unrelated infrastructure phase.
+
+COMPLETION REPORT
+
+Report:
+
+- exact root cause of the browser/page/context closure;
+- exact transaction-boundary defect;
+- Version 1.12.21 runtime and seal commits;
+- exact changed-file manifests;
+- all deterministic test counts;
+- results of the all-photo and all-request isolated transform proof;
+- Version 1.12.20 failure-reconciliation artifacts and hashes;
+- proof that the original eight partial artifacts remained unchanged;
+- proof that the old reservation closed at zero spend;
+- the new release-record and Launch Scope hashes;
+- the new consent, invocation, reservation, result, result-root, and
+  supersession identities;
+- exact PREFLIGHT, CREATE_CONSENT, EXECUTE, and READBACK counts;
+- disposition of all 26 requests;
+- handler, provider, and physical attempt counts;
+- actual provider cost;
+- final result-tree aggregate or exact new fail-closed disposition;
+- confirmation that evaluator-only originals and private controls were never
+  loaded;
+- confirmation that scoring, reflection, diagnosis, and lesson promotion did
+  not occur;
+- confirmation that product and freeze remained byte-identical;
+- final local and remote repository state;
+- confirmation that main and Production remained unchanged.
+
+This station counts as progress only if it either produces the untouched
+holdout evidence or proves one genuinely new failure in the repaired
+transaction path. Do not replace that outcome with another general
+infrastructure phase.

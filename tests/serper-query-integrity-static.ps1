@@ -12,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.24"; Text = $index; Pattern = "Version 1.12.24" },
-  @{ Name = "Package version is 1.12.24"; Text = $package; Pattern = '"version": "1.12.24"' },
-  @{ Name = "Server version is 1.12.24"; Text = $server; Pattern = '$AppVersion = "1.12.24"' },
+  @{ Name = "Visible app version is 1.12.25"; Text = $index; Pattern = "Version 1.12.25" },
+  @{ Name = "Package version is 1.12.25"; Text = $package; Pattern = '"version": "1.12.25"' },
+  @{ Name = "Server version is 1.12.25"; Text = $server; Pattern = '$AppVersion = "1.12.25"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Serper plan validates before execution"; Text = $api; Pattern = "validateSerperQueryCandidate(finalQuery, context" },
   @{ Name = "Invalid candidates are recorded as preflight"; Text = $api; Pattern = "invalid_query_preflight" },

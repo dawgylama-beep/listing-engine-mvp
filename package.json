@@ -1,6 +1,6 @@
 {
   "name": "katherines-eye",
-  "version": "1.12.24",
+  "version": "1.12.25",
   "packageManager": "npm@11.16.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,8 @@
   "scripts": {
     "build": "node ./scripts/verify-release-version.mjs",
     "check:version": "node ./scripts/verify-release-version.mjs",
+    "check:synthetic-executive-readiness": "node ./qualification/synthetic-executive/scripts/verify-readiness.mjs",
+    "qualify:synthetic-executive": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs RUN_FUTURE_AI",
     "start": "powershell -ExecutionPolicy Bypass -File ./server.ps1"
   },
   "engines": {

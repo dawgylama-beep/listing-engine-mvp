@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -54,6 +55,7 @@ import { loadVersion1123FailureEvidence } from "../benchmarks/blind-object-v2/sc
 import { advanceGovernor, reconstructGovernorEpisode } from "../benchmarks/blind-object-v2/scripts/cognitive-lifecycle-governor.mjs";
 
 const frozen = await loadPublicFreeze(defaultFreezeRoot);
+const VERSION_1124_QUALIFICATION_HEAD = "727aa0c8972d5de366a3f66d13116a3949ddb8de";
 
 async function withTemp(prefix, callback) {
   const root = await mkdtemp(path.join(os.tmpdir(), prefix));
@@ -69,7 +71,11 @@ function launchInput(scope) {
 }
 
 async function currentSyntheticReleaseIdentity() {
-  const template = JSON.parse(await readFile(new URL("../benchmarks/blind-object-v2/execution-release.json", import.meta.url), "utf8"));
+  const template = JSON.parse(execFileSync(
+    "git",
+    ["show", `${VERSION_1124_QUALIFICATION_HEAD}:benchmarks/blind-object-v2/execution-release.json`],
+    { cwd: new URL("..", import.meta.url), encoding: "utf8", windowsHide: true }
+  ));
   delete template.recordHash;
   template.releaseState = "QUALIFIED";
   template.executorRuntimeHead = SYNTHETIC_EXECUTOR_HEAD;

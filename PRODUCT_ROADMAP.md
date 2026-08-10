@@ -712,6 +712,19 @@
 - Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`; evaluator controls, scoring, reflection, diagnosis, lesson promotion, product mutation, merge, Preview, and Production remain unauthorized
 - Provider-call impact: qualification remains deterministic and network-denied; only the separately authorized exactly-once 24-request continuation may perform live provider activity after the qualified one-file release seal
 
+## Version 1.12.25 (Completed)
+- Formally reclassified the deterministic safety component as the Lifecycle Integrity Controller and installed a canonical role registry while preserving the former name only as an explicitly scoped historical compatibility alias
+- Added the separate, unqualified Synthetic Executive Agent architecture behind an external deterministic Qualification Governor and Typed Executive Action Broker; direct repository, shell, credential, provider, product-handler, evaluator-control, consent, reservation, merge, and deployment access is prohibited
+- Added twelve content-addressed blind episode roots: six chronological historical episodes bound to exact Git cutoffs, three differently surfaced analogous episodes, and three genuinely novel episodes; later code and evaluator controls remain outside every agent-visible root
+- Added append-only executive-memory records with auditable structured and token-overlap retrieval receipts, candidate-only initial lesson status, and transfer-only validation rules
+- Added closed typed executive actions, bounded engineering-task and regression-proof contracts, pre-sealed worker dossiers, four-way returned-evidence evaluation, and closed next-action selection
+- Added an external append-only qualification ledger with reservation-before-dispatch accounting, conservative missing-usage and crash treatment, per-case and total ceilings, no-progress termination, retry controls, concurrency denial, tamper detection, and child-process termination receipts
+- Proved every required budget boundary and tamper case with fake providers and nine scripted fake-agent behaviors, including a complete deterministic twelve-case sequence that makes no claim about the unqualified agent’s capability
+- Preserved the unused Version 1.12.24 consent byte-for-byte and bound it and all proposed identities into an external prohibition because the fixed existing revocation mechanism applies only to the historical Version 1.12.22 consent
+- Disabled benchmark consent creation, benchmark execution, provider activity, product-handler invocation, repair, merge, Preview, and Production authority in the readiness-only release
+- Kept the product under test fixed at commit `7056eb0601dc69c5985703fea6fe665e82c6bed8`, Version `1.12.13`, with 666 tracked entries and the Phase 7C frozen aggregate unchanged
+- Provider-call impact: readiness qualification uses only local deterministic fake providers and network denial; no AI qualification, model call, provider call, Katherine’s Eye handler invocation, benchmark request, Preview action, or Production action is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

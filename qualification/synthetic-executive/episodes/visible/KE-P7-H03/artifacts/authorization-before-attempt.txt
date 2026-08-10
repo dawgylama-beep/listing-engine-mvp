@@ -1,0 +1,132 @@
+APPROVE KATHERINE’S EYE VERSION 1.12.23 CROSS-RELEASE RECEIPT-BINDING REPAIR AND 25-REQUEST CONTINUATION
+
+Resume from the exact sealed Version 1.12.22 checkpoint only:
+
+Branch:
+refactor/beta-evidence-pipeline
+
+Version:
+1.12.22
+
+Runtime commit:
+5ac7b85ee8f3888ccda1d4725c0eebfa5d8b1f62
+
+Runtime tree:
+5466aa1f45b6cfb326ee4da538f7780f36e72438
+
+Seal commit, local HEAD, and remote feature HEAD:
+acf1b356bb851f41aac4f2ee40ee3e55ec9de2d1
+
+Release-record hash:
+a80e7e763bb15ff399392be4c3a9cebbd4fb9a7b85622a9c14e4653742473294
+
+Remote main:
+5cb69e0cda48c764d97f60756326cfc02f9a7797
+
+This is one bounded release-binding repair. It is not authorization for another infrastructure campaign, architecture redesign, sanitizer rewrite, product mutation, or replay.
+
+The proven defect is that executor.mjs incorrectly requires the historical Version 1.12.21 supersession receipt’s release hash to equal the current execution release hash.
+
+Repair that contract by giving the two bindings distinct authority:
+
+1. The historical Version 1.12.21 supersession and reconciliation evidence must independently validate against its own immutable release-record hash:
+
+ed569a1af04bb87e1de1ae4c32eb02719f84bd1b1e861cb55611b28e43ad7013
+
+2. Every Version 1.12.23 continuation artifact must independently validate against the new Version 1.12.23 release-record hash.
+
+3. The historical and current release hashes must never be required to equal each other.
+
+4. Their relationship must be proven through explicit immutable supersession, continuation-scope, terminal-receipt, and reservation-closure references. Do not weaken either release binding and do not replace the failed equality with an untyped allowlist.
+
+Before editing, read back the existing Version 1.12.22 evidenceId provenance proof and report the exact rejected identifier, its producing component, its full schema path, its public format, and the immutable artifact establishing that provenance. Do not reopen the sanitizer implementation unless that existing proof is absent or contradictory. If provenance was not actually established, stop fail-closed and report that fact without performing the live execution.
+
+Limit production-code changes to the cross-release binding predicate and any directly required typed binding validation. Other permitted changes are focused regressions, version metadata, release records, append-only reconciliation records, and the one-file seal. If the repair requires a general schema redesign or unrelated executor changes, stop without expanding scope.
+
+Qualification must include an actual offline CLI-path regression reproducing:
+
+- a historical Version 1.12.21 supersession receipt bound to ed569a1a…;
+- a different current continuation release hash;
+- successful independent validation through the point where a reservation would be durably created;
+- no handler or provider call during qualification;
+- fail-closed behavior for a wrong historical hash;
+- fail-closed behavior for a wrong current hash;
+- fail-closed behavior for swapped hashes;
+- fail-closed behavior for an unknown release;
+- fail-closed behavior for a tampered supersession receipt;
+- continued rejection of API keys, bearer tokens, JWTs, cookies, private keys, and unexplained high-entropy values;
+- typed acceptance only for the proven schema-bound public evidence identifier;
+- durable HANDLER_RETURNED recording before terminal sanitization;
+- terminal post-handler failure sealing;
+- transaction rollback, mock execution, isolation, and network denial.
+
+Run the existing qualification suites as applicable. Qualification must make no live or paid provider call.
+
+Reconcile the failed Version 1.12.22 execution append-only. Preserve every Version 1.12.22 artifact byte-identical. Explicitly revoke or supersede, without consuming, the unused consent:
+
+consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f
+
+Do not reuse that consent, its launch scope, its proposed invocation identity, its proposed reservation identity, or its proposed result-root identity. Do not retroactively create an invocation or reservation artifact for Version 1.12.22.
+
+Create Version 1.12.23 with:
+
+- one qualified runtime commit;
+- one direct-child, one-file execution-release seal commit;
+- a new release-record hash;
+- feature-branch push only;
+- no merge;
+- no Preview or Production deployment.
+
+After sealing and readback, derive a new release-bound launch scope, continuation scope, consent, invocation, reservation, and result identity containing exactly:
+
+V2-RUN-002 through V2-RUN-026.
+
+V2-RUN-001 is permanently excluded. Its disposition remains:
+
+INFRASTRUCTURE_LOST_COGNITIVE_RESULT_NO_REPLAY
+
+Never invoke Katherine’s handler or any provider for V2-RUN-001.
+
+Carry forward cumulative accounting without reset:
+
+- consumed physical attempts: 9;
+- consumed conservative cost: US$1.50682355;
+- remaining physical-attempt authority: no more than 823;
+- remaining conservative cost authority: no more than US$38.49317645;
+- provider-billed actual cost remains UNKNOWN unless genuine provider usage evidence is returned.
+
+After all qualification and release readback pass, run exactly one new live sequence for the 25 untouched requests:
+
+- PREFLIGHT: exactly 1;
+- CREATE_CONSENT: exactly 1;
+- EXECUTE: exactly 1;
+- READBACK: exactly 1.
+
+Do not retry the execution or create a second invocation under Version 1.12.23.
+
+Before external activity, recompute and require the immutable product-under-test and Phase 7C freeze identities:
+
+Product commit:
+7056eb0601dc69c5985703fea6fe665e82c6bed8
+
+Product runtime-manifest hash:
+5a0e3babdfefde7073fddb220f3a9bf0a007c58ecb164418ee3019fb6137a1a8
+
+Phase 7C frozen aggregate:
+5eea6b23de0985ffbc9946ac86fbc91c1c2cefd59edbbd5a913080fb77015699
+
+The product-under-test, frozen requests, frozen public photographs, evaluator-only originals, and private controls must remain unchanged. Evaluator-only originals and private controls must not be loaded during execution.
+
+For each submitted request, require a durable HANDLER_RETURNED checkpoint before terminal sanitization. Any post-handler failure must produce a truthful durable terminal state rather than losing the handler result.
+
+Only if all 25 continuation requests produce trustworthy terminal cognitive results may the final unscored composite disposition be:
+
+COMPLETE_WITH_25_COGNITIVE_RESULTS_AND_1_INFRASTRUCTURE_FAILURE
+
+Never claim COMPLETE_26_UNSCORED and never represent V2-RUN-001 as a cognitive result.
+
+If any genuinely new defect occurs, stop fail-closed, preserve all evidence append-only, account for every actual handler/provider/physical attempt and conservative cost, and do not patch or retry.
+
+Perform no scoring, evaluator-control loading, reflection, cognitive diagnosis, lesson extraction, lesson promotion, product mutation, merge, Preview deployment, Production mutation, or Production deployment.
+
+The final report must provide the exact repository checkpoint, runtime and seal commits, release hash, local/remote divergence, command counts, all 26 request dispositions, handler/provider/physical-attempt counts by release and cumulatively, provider usage, actual and conservative cost, remaining authority, result-root and composite hashes, evidenceId provenance proof, sanitizer negative-test results, HANDLER_RETURNED evidence, immutable product/freeze readback, and confirmation that all prohibited activity remained absent.

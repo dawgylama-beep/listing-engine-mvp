@@ -34,6 +34,7 @@ const POST_HANDLER_ROOT_NAME = "result-root-f65ebb9d361c4977ac76755f8c7059375ae6
 const POST_HANDLER_CONSENT_NAME = "consent-ebe3e1f4d0d1b781fcc3f408bc2989fd74739fe7bd79faae.json";
 const POST_HANDLER_RESERVATION_NAME = "invocation-3540a4bf98950418b6f5fbea2f6b82388e2b03a8d6c02909.json";
 const UNUSED_V11222_CONSENT_NAME = "consent-4ccd259de4ab835833dffe3274f5b0bf0b8b507359a5665f.json";
+const UNUSED_V11224_CONSENT_NAME = "consent-6c84172d50050d8e2389e7721698df0b80b7d5e48e97fdd7.json";
 const ORIGINAL_FAILURE_PATHS = Object.freeze(["cost-envelope.json", "cost-ledger.json", "execution-consent.json", "execution-journal.json", "execution-profile.json", "invocation-reservation.json", "launch-scope.json", "pricing-profile.json"]);
 const CANONICAL_HANDLER_SHA256 = "971194eb5be57c54176244516953237f3fb4dd6fcb4d00dfdc9c36358202c958";
 
@@ -167,11 +168,14 @@ test("M-O: product/freeze isolation, real-run absence, and hard network denial r
     assert.equal(frozen.requests.length, 26);
     assert.equal(frozen.requests.every((request) => request.executionAuthorized === false), true);
     const consentNames = (await readdir(path.join(benchmarkRoot, "consent"))).sort();
-    const successorConsentNames = consentNames.filter((name) => ![FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, UNUSED_V11222_CONSENT_NAME].includes(name));
+    const successorConsentNames = consentNames.filter((name) => ![FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME, UNUSED_V11222_CONSENT_NAME, UNUSED_V11224_CONSENT_NAME].includes(name));
     assert.deepEqual(consentNames.filter((name) => [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].includes(name)), [FAILED_CONSENT_NAME, POST_HANDLER_CONSENT_NAME].sort());
     const unusedConsent = JSON.parse(await readFile(path.join(benchmarkRoot, "consent", UNUSED_V11222_CONSENT_NAME), "utf8"));
     assert.equal(unusedConsent.executorVersion, "1.12.22");
     assert.equal(unusedConsent.status, "AUTHORIZED_NOT_CONSUMED");
+    const unusedV11224Consent = JSON.parse(await readFile(path.join(benchmarkRoot, "consent", UNUSED_V11224_CONSENT_NAME), "utf8"));
+    assert.equal(unusedV11224Consent.executorVersion, "1.12.24");
+    assert.equal(unusedV11224Consent.status, "AUTHORIZED_NOT_CONSUMED");
     assert.ok(successorConsentNames.length <= 1, "at most one Version 1.12.23 continuation consent may exist");
     if (successorConsentNames.length === 1) {
       assert.match(successorConsentNames[0], /^consent-[a-f0-9]{48}\.json$/);
