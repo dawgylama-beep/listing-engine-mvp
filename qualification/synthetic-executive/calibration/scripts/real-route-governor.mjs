@@ -6,10 +6,11 @@ import { qualificationRoot, conservativeMaximumCostUsd } from "./real-route-prof
 
 const PERMITS = new WeakSet();
 
-export function assertCalibrationInferencePermit(permit, { authorityHash, modelIdentity }) {
+export function assertCalibrationInferencePermit(permit, { authorityHash, modelIdentity, completeSerializedRequestHash }) {
   assert.equal(PERMITS.has(permit), true, "direct provider inference outside the calibration governor is prohibited");
   assert.equal(permit.authorityHash, authorityHash);
   assert.equal(permit.modelIdentity, modelIdentity);
+  assert.equal(permit.completeSerializedRequestHash, completeSerializedRequestHash);
   return true;
 }
 
@@ -47,6 +48,7 @@ export class ExternalCalibrationGovernor {
       modelOrToolIdentity: this.#profile.exactModelId, maximumCostReservationUsd: this.#profile.ceilings.maximumProviderCostUsd,
       maximumResourceAllowance: {
         authorityHash: this.#authority.authorityHash, singleUseIdentity: this.#authority.singleUseIdentity, requestIdentity,
+        completeSerializedRequestHash: this.#authority.completeSerializedRequestHash || null,
         maximumInputTokens: promptByteCount, inputTokenCeiling: this.#profile.ceilings.maximumConservativeInputTokens,
         maximumOutputTokens: this.#profile.ceilings.maximumOutputTokens, timeoutMs: this.#profile.timeoutMs,
         maximumInferenceRequests: 1, maximumRetries: 0, maximumToolCalls: 0, maximumWorkerDispatches: 0,
@@ -54,7 +56,14 @@ export class ExternalCalibrationGovernor {
       },
       retryOfOperationHash: null
     });
-    const permit = Object.freeze({ reservationId: reservation.reservationId, reservationHash: reservation.entryHash, authorityHash: this.#authority.authorityHash, modelIdentity: this.#profile.exactModelId, requestIdentity });
+    const permit = Object.freeze({
+      reservationId: reservation.reservationId,
+      reservationHash: reservation.entryHash,
+      authorityHash: this.#authority.authorityHash,
+      modelIdentity: this.#profile.exactModelId,
+      requestIdentity,
+      completeSerializedRequestHash: this.#authority.completeSerializedRequestHash || null
+    });
     PERMITS.add(permit); this.#reservation = reservation;
     return Object.freeze({ reservation, permit, calculatedMaximumCostUsd });
   }

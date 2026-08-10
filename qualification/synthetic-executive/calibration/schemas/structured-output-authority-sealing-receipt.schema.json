@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/synthetic-executive/structured-output-authority-sealing-receipt.schema.json",
+  "title": "Structured-Output Compatibility Calibration Authority Sealing Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptType", "authorityHash", "authorityFileHash", "authoritySchemaHash", "authorityReceiptSchemaHash", "providerProfileHash", "runnerReleaseRecordHash", "transmittedSchemaExactHash", "transmittedSchemaStableHash", "completeSerializedRequestHash", "safeProviderDiagnosticsContractHash", "singleUseIdentity", "sealedAt", "receiptHash"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "receiptType": {"const": "STRUCTURED_OUTPUT_COMPATIBILITY_CALIBRATION_AUTHORITY_SEALING_RECEIPT"},
+    "authorityHash": {"$ref": "#/$defs/hash"},
+    "authorityFileHash": {"$ref": "#/$defs/hash"},
+    "authoritySchemaHash": {"$ref": "#/$defs/hash"},
+    "authorityReceiptSchemaHash": {"$ref": "#/$defs/hash"},
+    "providerProfileHash": {"$ref": "#/$defs/hash"},
+    "runnerReleaseRecordHash": {"$ref": "#/$defs/hash"},
+    "transmittedSchemaExactHash": {"$ref": "#/$defs/hash"},
+    "transmittedSchemaStableHash": {"$ref": "#/$defs/hash"},
+    "completeSerializedRequestHash": {"$ref": "#/$defs/hash"},
+    "safeProviderDiagnosticsContractHash": {"$ref": "#/$defs/hash"},
+    "singleUseIdentity": {"type": "string", "pattern": "^structured-output-calibration-use-[a-f0-9]{48}$"},
+    "sealedAt": {"type": "string", "format": "date-time"},
+    "receiptHash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

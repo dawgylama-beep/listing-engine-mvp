@@ -68,7 +68,7 @@ export function validateExecutiveAction(action, { episode, memoryIds = [], curre
   assert.ok(Array.isArray(action.factualFindings));
   assert.ok(Array.isArray(action.uncertainties));
   assert.equal(Number.isFinite(action.confidence) && action.confidence >= 0 && action.confidence <= 1, true);
-  assert.ok(typeof action.boundedRationaleSummary === "string" && action.boundedRationaleSummary.length <= 1200);
+  assert.ok(typeof action.boundedRationaleSummary === "string" && action.boundedRationaleSummary.length >= 1 && action.boundedRationaleSummary.length <= 1200);
   assert.ok(allowedAuthorityClasses.includes(action.authorityClass), "illegal authority class");
   assert.ok(Array.isArray(action.prohibitedOperations) && action.prohibitedOperations.length > 0);
   const visibleEvidence = new Set(episode.visibleArtifactInventory.map((item) => item.artifactId));

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { sha256Json } from "../../scripts/protocol.mjs";
+import { sha256Bytes, sha256Json } from "../../scripts/protocol.mjs";
 import { assertCalibrationInferencePermit } from "./real-route-governor.mjs";
-import { extractSafeUsage } from "./real-route-profile.mjs";
+import { buildCalibrationInferenceRequestEnvelope, extractSafeUsage } from "./real-route-profile.mjs";
 import {
   PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, classifyHttpFailure,
   normalizeProviderResponseDiagnostics, safeProviderRequestId, unavailableProviderDiagnostics
@@ -167,17 +167,20 @@ export class OpenAIRealRouteClient {
   }
 
   async inferStructuredAction({ permit, prompt, structuredSchema }) {
-    assertCalibrationInferencePermit(permit, { authorityHash: permit.authorityHash, modelIdentity: this.#profile.exactModelId });
+    assertCalibrationInferencePermit(permit, {
+      authorityHash: permit.authorityHash,
+      modelIdentity: this.#profile.exactModelId,
+      completeSerializedRequestHash: permit.completeSerializedRequestHash
+    });
     assert.equal(this.#inferenceRequests, 0, "inference request ceiling exceeded");
     this.#inferenceRequests += 1;
-    const body = {
-      model: this.#profile.exactModelId,
-      reasoning: { effort: this.#profile.reasoning.effort },
-      store: false, background: false, stream: false, tools: [], max_output_tokens: this.#profile.ceilings.maximumOutputTokens,
-      input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
-      text: { format: { type: "json_schema", name: "katherine_executive_action_core_v1", strict: true, schema: structuredSchema } }
-    };
-    const response = await this.#authorizedFetch("INFERENCE", endpoint(this.#profile, this.#profile.inferenceEndpoint), { method: "POST", body: JSON.stringify(body) });
+    const body = buildCalibrationInferenceRequestEnvelope({ profile: this.#profile, prompt, structuredSchema });
+    const serializedRequest = JSON.stringify(body);
+    if (permit.completeSerializedRequestHash !== null) {
+      assert.match(permit.completeSerializedRequestHash || "", /^[a-f0-9]{64}$/);
+      assert.equal(sha256Bytes(Buffer.from(serializedRequest, "utf8")), permit.completeSerializedRequestHash, "serialized calibration request differs from authority");
+    }
+    const response = await this.#authorizedFetch("INFERENCE", endpoint(this.#profile, this.#profile.inferenceEndpoint), { method: "POST", body: serializedRequest });
     const inspected = await inspectProviderResponse(response);
     const { diagnostics, payload } = inspected;
     this.#retainDiagnostics("INFERENCE", diagnostics);

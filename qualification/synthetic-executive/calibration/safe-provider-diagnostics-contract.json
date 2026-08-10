@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.1",
+  "contractType": "KATHERINE_SAFE_PROVIDER_DIAGNOSTICS",
+  "unavailableValue": "NOT_RECEIVED",
+  "maximumProviderResponseBodyBytes": 65536,
+  "maximumSanitizedErrorMessageBytes": 512,
+  "retainedFields": [
+    "httpStatus",
+    "errorType",
+    "errorCode",
+    "errorParam",
+    "messageClassification",
+    "sanitizedErrorMessage",
+    "safeProviderRequestId",
+    "responseContentType",
+    "responseByteLength",
+    "responseByteLengthClassification",
+    "responseBodyTruncated",
+    "timeoutClassification",
+    "networkConnectionClassification"
+  ],
+  "messageSource": "provider.error.message",
+  "messagePolicy": "NORMALIZE_CONTROL_CHARACTERS_REDACT_SECRET_AND_ACCOUNT_IDENTIFIERS_THEN_UTF8_CAP",
+  "forbiddenFields": [
+    "authorizationHeaders",
+    "apiKeysOrDerivatives",
+    "organizationOrProjectIdentifiers",
+    "cookies",
+    "completeRawHeaders",
+    "unrestrictedResponseBodies",
+    "requestBodies",
+    "prompts",
+    "secretShapedValues",
+    "accountSpecificBillingInformation"
+  ]
+}

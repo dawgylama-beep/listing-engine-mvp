@@ -15,7 +15,8 @@ export const billingAttestationPath = path.join(calibrationRoot, "billing-attest
 export const executiveActionSchemaPath = path.join(qualificationRoot, "schemas", "executive-action.schema.json");
 export const authoritySchemaPath = path.join(calibrationRoot, "schemas", "real-route-calibration-authority.schema.json");
 export const authorityReceiptSchemaPath = path.join(calibrationRoot, "schemas", "authority-sealing-receipt.schema.json");
-export const resultSchemaPath = path.join(calibrationRoot, "schemas", "calibration-result.schema.json");
+export const resultSchemaPath = path.join(calibrationRoot, "schemas", "structured-output-calibration-result.schema.json");
+export const safeProviderDiagnosticsContractPath = path.join(calibrationRoot, "safe-provider-diagnostics-contract.json");
 
 const PROFILE_FIELDS = Object.freeze([
   "schemaVersion", "profileType", "providerIdentity", "endpointClass", "apiBaseUrl", "apiBaseDomainAllowlist",
@@ -120,17 +121,26 @@ export async function loadBillingAttestation() {
 }
 
 export async function calibrationArtifactBindings() {
-  const [profile, calibrationCase, actionSchemaBytes, authoritySchemaBytes, receiptSchemaBytes, resultSchemaBytes, attestation] = await Promise.all([
+  const [profile, calibrationCase, actionSchemaBytes, authoritySchemaBytes, receiptSchemaBytes, resultSchemaBytes, safeDiagnosticsContractBytes, attestation] = await Promise.all([
     loadRealProviderProfile(), loadCalibrationCase(), readFile(executiveActionSchemaPath), readFile(authoritySchemaPath),
-    readFile(authorityReceiptSchemaPath), readFile(resultSchemaPath), loadBillingAttestation()
+    readFile(authorityReceiptSchemaPath), readFile(resultSchemaPath), readFile(safeProviderDiagnosticsContractPath), loadBillingAttestation()
   ]);
   const prompt = await loadCalibrationPrompt(calibrationCase);
+  const structuredSchema = await createCalibrationActionCoreSchema(calibrationCase, JSON.parse(actionSchemaBytes.toString("utf8")));
+  assertOpenAIStructuredOutputsSubset(structuredSchema);
+  const requestEnvelope = buildCalibrationInferenceRequestEnvelope({ profile, prompt: prompt.text, structuredSchema });
+  const serializedRequest = JSON.stringify(requestEnvelope);
   return Object.freeze({
     profile, calibrationCase, prompt, attestation,
     executiveActionSchemaHash: sha256Bytes(actionSchemaBytes),
     authoritySchemaHash: sha256Bytes(authoritySchemaBytes),
     authorityReceiptSchemaHash: sha256Bytes(receiptSchemaBytes),
-    resultSchemaHash: sha256Bytes(resultSchemaBytes)
+    resultSchemaHash: sha256Bytes(resultSchemaBytes),
+    safeProviderDiagnosticsContractHash: sha256Bytes(safeDiagnosticsContractBytes),
+    structuredSchema,
+    transmittedSchemaExactHash: sha256Bytes(Buffer.from(JSON.stringify(structuredSchema), "utf8")),
+    transmittedSchemaStableHash: sha256Json(structuredSchema),
+    completeSerializedRequestHash: sha256Bytes(Buffer.from(serializedRequest, "utf8"))
   });
 }
 
@@ -159,24 +169,102 @@ export function actualCostUsd(usage, profile) {
   return Math.ceil(raw * 100_000_000) / 100_000_000;
 }
 
-export async function createCalibrationActionCoreSchema(calibrationCase) {
-  const source = JSON.parse(await readFile(executiveActionSchemaPath, "utf8"));
+export async function createCalibrationActionCoreSchema(calibrationCase, source = null) {
+  if (source === null) source = JSON.parse(await readFile(executiveActionSchemaPath, "utf8"));
+  assert.ok(source && typeof source === "object" && !Array.isArray(source));
   const properties = structuredClone(source.properties);
   delete properties.contentHash;
-  for (const field of ["evidenceReferences", "memoryReferences", "factualFindings", "uncertainties", "prohibitedOperations"]) properties[field] = { ...properties[field], items: { type: "string" } };
-  properties.actionId = { const: "KE-CAL-001-ACTION-001" };
-  properties.actionType = { const: "RECONSTRUCT_EPISODE" };
-  properties.episodeId = { const: "KE-CAL-001" };
-  properties.executiveState = { const: "INIT" };
-  properties.observedStateHash = { const: observedStateHash(calibrationCase) };
-  properties.evidenceReferences = { const: ["KE-CAL-001:EVIDENCE-001"] };
-  properties.memoryReferences = { const: [] };
-  properties.requestedSuccessorState = { const: "EPISODE_RECONSTRUCTED" };
-  properties.authorityClass = { const: "NO_NEW_AUTHORITY" };
-  properties.prohibitedOperations = { const: ["PRODUCTION_EXECUTION", "BENCHMARK_EXECUTION", "SHELL", "GIT", "SOURCE_EDIT", "DEPLOYMENT", "PROVIDER_TOOL", "ENGINEERING_WORKER"] };
+  for (const field of ["evidenceReferences", "memoryReferences", "factualFindings", "uncertainties", "prohibitedOperations"]) properties[field] = { type: "array", items: { type: "string" } };
+  properties.actionId = { type: "string", enum: ["KE-CAL-001-ACTION-001"] };
+  properties.actionType = { type: "string", enum: ["RECONSTRUCT_EPISODE"] };
+  properties.authorityClass = { type: "string", enum: ["NO_NEW_AUTHORITY"] };
+  properties.boundedRationaleSummary = { type: "string" };
+  properties.confidence = { type: "number", minimum: 0, maximum: 1 };
   properties.details = { type: "object", properties: {}, required: [], additionalProperties: false };
+  properties.episodeId = { type: "string", enum: ["KE-CAL-001"] };
+  properties.executiveState = { type: "string", enum: ["INIT"] };
+  properties.observedStateHash = { type: "string", enum: [observedStateHash(calibrationCase)] };
+  properties.requestedSuccessorState = { type: "string", enum: ["EPISODE_RECONSTRUCTED"] };
+  properties.schemaVersion = { type: "string", enum: ["1.0"] };
   return Object.freeze({
     type: "object", additionalProperties: false, properties,
     required: source.required.filter((field) => field !== "contentHash")
+  });
+}
+
+const UNSUPPORTED_COMPOSITION_KEYWORDS = Object.freeze([
+  "allOf", "not", "dependentRequired", "dependentSchemas", "if", "then", "else"
+]);
+
+export function assertOpenAIStructuredOutputsSubset(schema) {
+  assert.ok(schema && typeof schema === "object" && !Array.isArray(schema), "structured-output schema must be an object");
+  assert.equal(schema.type, "object", "structured-output root must be an object");
+  assert.equal(Object.hasOwn(schema, "anyOf"), false, "structured-output root anyOf is prohibited");
+  let propertyCount = 0;
+  let maximumObjectDepth = 0;
+  let schemaStringCharacters = 0;
+  let enumValueCount = 0;
+
+  const walk = (node, nodePath, objectDepth) => {
+    assert.ok(node && typeof node === "object" && !Array.isArray(node), `${nodePath} must be a schema object`);
+    for (const keyword of UNSUPPORTED_COMPOSITION_KEYWORDS) assert.equal(Object.hasOwn(node, keyword), false, `${nodePath}.${keyword} is unsupported`);
+    assert.equal(Object.hasOwn(node, "const"), false, `${nodePath}.const is prohibited by the transport contract`);
+    assert.equal(Object.hasOwn(node, "minLength"), false, `${nodePath}.minLength is prohibited by the transport contract`);
+    assert.equal(Object.hasOwn(node, "maxLength"), false, `${nodePath}.maxLength is prohibited by the transport contract`);
+    assert.equal(Object.hasOwn(node, "pattern"), false, `${nodePath}.pattern is prohibited by the transport contract`);
+    assert.equal(Object.hasOwn(node, "format"), false, `${nodePath}.format is prohibited by the transport contract`);
+    assert.equal(Object.hasOwn(node, "$ref"), false, `${nodePath} references are not used by this bounded transport contract`);
+    assert.equal(Object.hasOwn(node, "$defs"), false, `${nodePath} definitions are not used by this bounded transport contract`);
+    assert.ok(["object", "array", "string", "number", "integer", "boolean", "null"].includes(node.type), `${nodePath}.type must be explicit`);
+
+    if (Array.isArray(node.enum)) {
+      assert.ok(node.enum.length > 0, `${nodePath}.enum must not be empty`);
+      enumValueCount += node.enum.length;
+      for (const value of node.enum) {
+        if (typeof value === "string") schemaStringCharacters += value.length;
+        if (node.type === "string") assert.equal(typeof value, "string", `${nodePath}.enum value type differs`);
+      }
+      if (node.enum.length > 250 && node.enum.every((value) => typeof value === "string")) {
+        assert.ok(node.enum.reduce((total, value) => total + value.length, 0) <= 15_000, `${nodePath}.enum string budget exceeded`);
+      }
+    }
+
+    if (node.type === "object") {
+      const properties = node.properties;
+      assert.ok(properties && typeof properties === "object" && !Array.isArray(properties), `${nodePath}.properties must be an object`);
+      const names = Object.keys(properties);
+      propertyCount += names.length;
+      schemaStringCharacters += names.reduce((total, name) => total + name.length, 0);
+      maximumObjectDepth = Math.max(maximumObjectDepth, objectDepth);
+      assert.equal(node.additionalProperties, false, `${nodePath}.additionalProperties must be false`);
+      assert.deepEqual([...(node.required || [])].sort(), [...names].sort(), `${nodePath}.required must include every property exactly once`);
+      for (const [name, child] of Object.entries(properties)) walk(child, `${nodePath}.properties.${name}`, objectDepth + 1);
+    } else if (node.type === "array") {
+      assert.ok(node.items && typeof node.items === "object" && !Array.isArray(node.items), `${nodePath}.items must be explicit`);
+      walk(node.items, `${nodePath}.items`, objectDepth);
+    }
+  };
+
+  walk(schema, "$", 1);
+  assert.ok(propertyCount <= 5_000, "structured-output property limit exceeded");
+  assert.ok(maximumObjectDepth <= 10, "structured-output nesting limit exceeded");
+  assert.ok(schemaStringCharacters <= 120_000, "structured-output schema string budget exceeded");
+  assert.ok(enumValueCount <= 1_000, "structured-output enum limit exceeded");
+  return Object.freeze({ propertyCount, maximumObjectDepth, schemaStringCharacters, enumValueCount });
+}
+
+export function buildCalibrationInferenceRequestEnvelope({ profile, prompt, structuredSchema }) {
+  assert.equal(typeof prompt, "string");
+  assertOpenAIStructuredOutputsSubset(structuredSchema);
+  return Object.freeze({
+    model: profile.exactModelId,
+    reasoning: { effort: profile.reasoning.effort },
+    store: false,
+    background: false,
+    stream: false,
+    tools: [],
+    max_output_tokens: profile.ceilings.maximumOutputTokens,
+    input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
+    text: { format: { type: "json_schema", name: "katherine_executive_action_core_v1", strict: true, schema: structuredSchema } }
   });
 }

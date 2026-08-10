@@ -10,19 +10,25 @@ import {
   sealExternalZeroMetadataAuthority, validateZeroMetadataRealRouteAuthority
 } from "../qualification/synthetic-executive/calibration/scripts/zero-metadata-real-route-authority.mjs";
 import {
-  COGNITIVE_SUBJECT, PRIOR_ARTIFACT_HASHES, ZERO_METADATA_ROUTE_COMMIT_PATHS,
-  inspectSealedZeroMetadataRouteRelease, loadZeroMetadataRouteRelease,
-  validateZeroMetadataRouteReleaseRecord
-} from "../qualification/synthetic-executive/calibration/scripts/zero-metadata-route-release.mjs";
-import { calibrationArtifactBindings, observedStateHash, repositoryRoot } from "../qualification/synthetic-executive/calibration/scripts/real-route-profile.mjs";
-import { assertNoSecretMaterial } from "../qualification/synthetic-executive/calibration/scripts/real-route-redaction.mjs";
-import { seal, sha256Json } from "../qualification/synthetic-executive/scripts/protocol.mjs";
+  COGNITIVE_SUBJECT, STARTING_TOOLING_COMMIT, STARTING_TOOLING_TREE,
+  STRUCTURED_OUTPUT_COMMIT_PATHS, inspectSealedStructuredOutputCompatibilityRelease,
+  loadStructuredOutputCompatibilityRelease, validateStructuredOutputCompatibilityRelease
+} from "../qualification/synthetic-executive/calibration/scripts/structured-output-compatibility-release.mjs";
+import {
+  assertOpenAIStructuredOutputsSubset, buildCalibrationInferenceRequestEnvelope,
+  calibrationArtifactBindings, observedStateHash, repositoryRoot
+} from "../qualification/synthetic-executive/calibration/scripts/real-route-profile.mjs";
+import { passCalibrationActionThroughRealBroker } from "../qualification/synthetic-executive/calibration/scripts/real-route-broker.mjs";
+import {
+  PROVIDER_ERROR_MESSAGE_LIMIT_BYTES, assertNoSecretMaterial, sanitizeProviderErrorMessage
+} from "../qualification/synthetic-executive/calibration/scripts/real-route-redaction.mjs";
+import { seal, sha256Bytes, sha256Json } from "../qualification/synthetic-executive/scripts/protocol.mjs";
 
 const RUNTIME_COMMIT = "a".repeat(40);
 const RUNTIME_TREE = "b".repeat(40);
 const RELEASE_HASH = "c".repeat(64);
 const RECEIPT_HASH = "d".repeat(64);
-const TEST_CREATED_AT = "2026-08-10T20:00:00.000Z";
+const TEST_CREATED_AT = "2026-08-10T22:00:00.000Z";
 
 function validActionCore(calibrationCase) {
   return {
@@ -38,18 +44,29 @@ function validActionCore(calibrationCase) {
   };
 }
 
-function routeReleaseFixture() {
+function routeReleaseFixture(artifacts) {
   return {
-    parentCommit: COGNITIVE_SUBJECT.commit, parentTree: COGNITIVE_SUBJECT.tree,
-    runtimeCommit: RUNTIME_COMMIT, runtimeTree: RUNTIME_TREE, releaseRecordHash: RELEASE_HASH
+    parentCommit: STARTING_TOOLING_COMMIT,
+    parentTree: STARTING_TOOLING_TREE,
+    runtimeCommit: RUNTIME_COMMIT,
+    runtimeTree: RUNTIME_TREE,
+    releaseRecordHash: RELEASE_HASH,
+    release: {
+      transmittedSchemaExactHash: artifacts.transmittedSchemaExactHash,
+      transmittedSchemaStableHash: artifacts.transmittedSchemaStableHash,
+      completeSerializedRequestHash: artifacts.completeSerializedRequestHash,
+      safeProviderDiagnosticsContractHash: artifacts.safeProviderDiagnosticsContractHash
+    }
   };
 }
 
-async function fixtureAuthority(suffix) {
+async function fixtureAuthority(suffix, artifacts = null) {
+  artifacts ||= await calibrationArtifactBindings();
   return buildZeroMetadataRealRouteAuthority({
     createdAt: TEST_CREATED_AT,
-    singleUseIdentity: `zero-metadata-calibration-use-${suffix.padEnd(48, "0")}`,
-    releaseInspector: routeReleaseFixture
+    singleUseIdentity: `structured-output-calibration-use-${suffix.padEnd(48, "0")}`,
+    releaseInspector: () => routeReleaseFixture(artifacts),
+    artifactLoader: async () => artifacts
   });
 }
 
@@ -58,23 +75,23 @@ function resealAuthority(authority, mutate) {
   return seal(core, "authorityHash");
 }
 
-function providerResponse(artifacts, { status = 200, payload = null, requestId = "req_zero_meta_test", extraHeaders = {} } = {}) {
+function providerResponse(artifacts, { status = 200, payload = null, requestId = "req_structured_output_test" } = {}) {
   const body = payload || {
-    id: "resp_zero_metadata_test", object: "response", model: "gpt-5.6-sol", status: "completed",
+    id: "resp_structured_output_test", object: "response", model: "gpt-5.6-sol", status: "completed",
     output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(validActionCore(artifacts.calibrationCase)) }] }],
     usage: { input_tokens: 340, input_tokens_details: { cached_tokens: 0 }, output_tokens: 120, output_tokens_details: { reasoning_tokens: 70 }, total_tokens: 460 }
   };
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "x-request-id": requestId, ...extraHeaders } });
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "x-request-id": requestId } });
 }
 
-async function runFixture({ suffix, responseFactory, twice = false }) {
+async function runFixture({ suffix, responseFactory }) {
   const artifacts = await calibrationArtifactBindings();
-  const authority = await fixtureAuthority(suffix);
-  const externalRoot = await mkdtemp(path.join(os.tmpdir(), "ke-zero-metadata-authority-"));
+  const authority = await fixtureAuthority(suffix, artifacts);
+  const externalRoot = await mkdtemp(path.join(os.tmpdir(), "ke-structured-output-authority-"));
   const authorityPath = path.join(externalRoot, "authority.json");
   const calls = [];
   const fetchImpl = async (url, options) => {
-    calls.push({ url: String(url), method: options.method, body: options.body, hasAuthorization: typeof options.headers?.authorization === "string" });
+    calls.push({ url: String(url), method: options.method, body: options.body, headers: Object.keys(options.headers || {}) });
     return responseFactory ? responseFactory(artifacts) : providerResponse(artifacts);
   };
   let tick = Date.parse(TEST_CREATED_AT);
@@ -84,109 +101,187 @@ async function runFixture({ suffix, responseFactory, twice = false }) {
     dotenvPath: path.join(externalRoot, "missing.env"),
     now: () => new Date(tick += 1).toISOString(), nowMs: () => tick,
     authorityLoader: async () => ({ authority, authorityFileHash: "e".repeat(64), receipt: { receiptHash: RECEIPT_HASH } }),
-    runtimeInspector: () => ({ trackedSourceClean: true })
+    runtimeInspector: () => ({ trackedSourceClean: true }),
+    artifactLoader: async () => artifacts
   };
   const resultRoot = path.join(repositoryRoot, authority.resultRootRelativePath);
   try {
     const completed = await runZeroMetadataRealRouteCalibration(options);
-    if (twice) await assert.rejects(runZeroMetadataRealRouteCalibration(options), /EEXIST|exist/i);
     const artifactText = await readFile(completed.resultPath, "utf8");
-    return { completed, artifactText, calls };
+    return { completed, artifactText, calls, artifacts, authority };
   } finally {
     await rm(resultRoot, { recursive: true, force: true });
     await rm(externalRoot, { recursive: true, force: true });
   }
 }
 
-test("zero-metadata authority accepts only the exact cognitive subject, runner release, hashes, and ceilings", async () => {
-  const authority = await fixtureAuthority("0000000000000001");
-  assert.equal(validateZeroMetadataRealRouteAuthority(authority, { now: Date.parse("2026-08-10T21:00:00.000Z") }).authorityHash, authority.authorityHash);
+test("transmitted schema recursively satisfies the documented non-fine-tuned Structured Outputs subset", async () => {
+  const artifacts = await calibrationArtifactBindings();
+  const schema = artifacts.structuredSchema;
+  assert.deepEqual(assertOpenAIStructuredOutputsSubset(schema), {
+    propertyCount: 16, maximumObjectDepth: 2, schemaStringCharacters: 388, enumValueCount: 8
+  });
+  assert.equal(schema.type, "object");
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(Object.hasOwn(schema, "anyOf"), false);
+  assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort());
+  for (const [name, property] of Object.entries(schema.properties)) {
+    assert.equal(typeof property.type, "string", `${name} must declare an explicit type`);
+    if (property.type === "array") assert.deepEqual(property.items, { type: "string" });
+  }
+  for (const name of ["schemaVersion", "actionType", "actionId", "episodeId", "executiveState", "observedStateHash", "requestedSuccessorState", "authorityClass"]) {
+    assert.equal(schema.properties[name].type, "string");
+    assert.equal(schema.properties[name].enum.length, 1);
+    assert.equal(Object.hasOwn(schema.properties[name], "const"), false);
+  }
+  assert.deepEqual(schema.properties.boundedRationaleSummary, { type: "string" });
+  assert.deepEqual(schema.properties.confidence, { type: "number", minimum: 0, maximum: 1 });
+  for (const name of ["evidenceReferences", "memoryReferences", "factualFindings", "uncertainties", "prohibitedOperations"]) {
+    assert.deepEqual(schema.properties[name], { type: "array", items: { type: "string" } });
+  }
+});
+
+test("text.format, transmitted schema hashes, and complete serialized request hash are exact", async () => {
+  const artifacts = await calibrationArtifactBindings();
+  const body = buildCalibrationInferenceRequestEnvelope({ profile: artifacts.profile, prompt: artifacts.prompt.text, structuredSchema: artifacts.structuredSchema });
+  assert.deepEqual(Object.keys(body.text.format), ["type", "name", "strict", "schema"]);
+  assert.equal(body.text.format.type, "json_schema");
+  assert.equal(body.text.format.name, "katherine_executive_action_core_v1");
+  assert.equal(body.text.format.strict, true);
+  assert.deepEqual(body.text.format.schema, artifacts.structuredSchema);
+  assert.equal(sha256Bytes(Buffer.from(JSON.stringify(body.text.format.schema), "utf8")), artifacts.transmittedSchemaExactHash);
+  assert.equal(sha256Json(body.text.format.schema), artifacts.transmittedSchemaStableHash);
+  assert.equal(sha256Bytes(Buffer.from(JSON.stringify(body), "utf8")), artifacts.completeSerializedRequestHash);
+  assert.equal(artifacts.executiveActionSchemaHash, "87021361196a5001050a2c0987c6128fba5d9ec225da31f4966ec342ba72a1ba");
+  assert.equal(artifacts.prompt.promptHash, "73dc7a21fa2db16c432b9630f3934ea87d78cd89b174b1739563b207a5a57e93");
+  assert.equal(artifacts.profile.exactModelId, "gpt-5.6-sol");
+  assert.equal(artifacts.profile.reasoning.effort, "medium");
+});
+
+test("successor authority binds every subject, transport, request, diagnostics, and one-shot ceiling", async () => {
+  const artifacts = await calibrationArtifactBindings();
+  const authority = await fixtureAuthority("0000000000000001", artifacts);
+  assert.equal(validateZeroMetadataRealRouteAuthority(authority, { now: Date.parse("2026-08-10T23:00:00.000Z") }).authorityHash, authority.authorityHash);
+  assert.equal(authority.cognitiveSubjectIdentity.commit, COGNITIVE_SUBJECT.commit);
+  assert.equal(authority.executiveActionSchemaHash, artifacts.executiveActionSchemaHash);
+  assert.equal(authority.transmittedSchemaExactHash, artifacts.transmittedSchemaExactHash);
+  assert.equal(authority.transmittedSchemaStableHash, artifacts.transmittedSchemaStableHash);
+  assert.equal(authority.completeSerializedRequestHash, artifacts.completeSerializedRequestHash);
+  assert.equal(authority.safeProviderDiagnosticsContractHash, artifacts.safeProviderDiagnosticsContractHash);
   assert.equal(authority.maximumMetadataAccessRequests, 0);
   assert.equal(authority.maximumInferenceRequests, 1);
-  assert.equal(authority.maximumGovernedReasoningSteps, 1);
-  assert.equal(authority.maximumProviderCostUsd, 0.25);
-  assert.equal(authority.cognitiveSubjectIdentity.commit, COGNITIVE_SUBJECT.commit);
-  assert.equal(authority.runnerReleaseIdentity.runtimeCommit, RUNTIME_COMMIT);
-  const wrongVersion = resealAuthority(authority, (core) => { core.cognitiveSubjectIdentity.version = "1.12.28"; });
-  assert.throws(() => validateZeroMetadataRealRouteAuthority(wrongVersion, { now: Date.parse("2026-08-10T21:00:00.000Z") }));
-  const wrongRelease = resealAuthority(authority, (core) => { core.cognitiveSubjectIdentity.observabilityReleaseHash = "f".repeat(64); });
-  assert.throws(() => validateZeroMetadataRealRouteAuthority(wrongRelease, { now: Date.parse("2026-08-10T21:00:00.000Z") }));
-  const wrongRequest = resealAuthority(authority, (core) => { core.canonicalRequestHash = "f".repeat(64); });
-  assert.throws(() => validateZeroMetadataRealRouteAuthority(wrongRequest, { now: Date.parse("2026-08-10T21:00:00.000Z") }));
-  const metadataEnabled = resealAuthority(authority, (core) => { core.maximumMetadataAccessRequests = 1; });
-  assert.throws(() => validateZeroMetadataRealRouteAuthority(metadataEnabled, { now: Date.parse("2026-08-10T21:00:00.000Z") }));
+  assert.equal(authority.maximumInferenceRetries, 0);
+  assert.equal(authority.maximumSuccessors, 0);
+  for (const field of ["transmittedSchemaExactHash", "transmittedSchemaStableHash", "completeSerializedRequestHash", "safeProviderDiagnosticsContractHash"]) {
+    assert.throws(() => validateZeroMetadataRealRouteAuthority(resealAuthority(authority, (core) => { core[field] = "f".repeat(64); }), { now: Date.parse("2026-08-10T23:00:00.000Z") }));
+  }
 });
 
-test("sealed route release preserves Version 1.12.27 as subject and rejects release drift", () => {
-  const release = loadZeroMetadataRouteRelease();
-  assert.equal(validateZeroMetadataRouteReleaseRecord(release).valid, true);
-  assert.deepEqual(release.cognitiveSubject, COGNITIVE_SUBJECT);
-  const core = structuredClone(release); delete core.recordHash;
-  core.cognitiveSubject.version = "1.12.28";
-  assert.throws(() => validateZeroMetadataRouteReleaseRecord(seal(core, "recordHash"), { validateCurrentArtifacts: false }));
-  const fakeGit = (args) => {
-    const key = args.join(" ");
-    if (key === "rev-parse HEAD") return RUNTIME_COMMIT;
-    if (key === "rev-parse HEAD^{tree}") return RUNTIME_TREE;
-    if (key === `rev-list --parents -n 1 ${RUNTIME_COMMIT}`) return `${RUNTIME_COMMIT} ${COGNITIVE_SUBJECT.commit}`;
-    if (key === `rev-parse ${COGNITIVE_SUBJECT.commit}^{tree}`) return COGNITIVE_SUBJECT.tree;
-    if (key === `show ${COGNITIVE_SUBJECT.commit}:package.json`) return JSON.stringify({ version: "1.12.27" });
-    if (key === "branch --show-current") return "refactor/beta-evidence-pipeline";
-    if (key === "status --porcelain=v1 --untracked-files=no") return "";
-    if (key === `diff --name-only ${COGNITIVE_SUBJECT.commit} ${RUNTIME_COMMIT}`) return ZERO_METADATA_ROUTE_COMMIT_PATHS.join("\n");
-    throw new Error(`unexpected git fixture: ${key}`);
-  };
-  const inspected = inspectSealedZeroMetadataRouteRelease({ gitImpl: fakeGit });
-  assert.equal(inspected.runtimeCommit, RUNTIME_COMMIT);
-  assert.equal(inspected.parentCommit, COGNITIVE_SUBJECT.commit);
-});
-
-test("one fake inference dispatches once with zero metadata, no retry or successor, and the unchanged request", async () => {
-  const { completed, artifactText, calls } = await runFixture({ suffix: "0000000000000002", twice: true });
+test("one mocked inference is accepted with zero metadata, retries, successors, tools, workers, or request drift", async () => {
+  const { completed, artifactText, calls, artifacts } = await runFixture({ suffix: "0000000000000002" });
   const result = completed.result;
   assert.equal(result.status, "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED");
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, "POST");
   assert.match(calls[0].url, /\/v1\/responses$/);
-  assert.equal(result.requestCounts.metadataAccessInvocations, 0);
-  assert.equal(result.requestCounts.metadataAccessRequests, 0);
-  assert.equal(result.requestCounts.inferenceInvocations, 1);
-  assert.equal(result.requestCounts.inferenceRequests, 1);
-  assert.equal(result.requestCounts.retries, 0);
-  assert.equal(result.requestCounts.automaticModelRetries, 0);
-  assert.equal(result.requestCounts.successors, 0);
-  assert.equal(result.ledger.reasoningStepCount, 1);
+  assert.equal(sha256Bytes(Buffer.from(calls[0].body, "utf8")), artifacts.completeSerializedRequestHash);
+  assert.deepEqual(result.requestCounts, {
+    metadataAccessInvocations: 0, inferenceInvocations: 1, metadataAccessRequests: 0,
+    inferenceRequests: 1, retries: 0, externallyObservableReasoningSteps: 1,
+    automaticModelRetries: 0, successors: 0
+  });
+  assert.equal(result.routeIsolation.schemaProbeRequestCount, 0);
+  assert.equal(result.routeIsolation.workerDispatchCount, 0);
+  assert.equal(result.routeIsolation.agentToolCallCount, 0);
   assert.equal(result.actionBroker.accepted, true);
-  assert.equal(result.metadataAccess.providerRequestPerformed, false);
-  assert.equal(result.providerDiagnostics.metadata.httpStatus, "NOT_RECEIVED");
-  const body = JSON.parse(calls[0].body);
-  assert.equal(body.model, "gpt-5.6-sol");
-  assert.deepEqual(body.reasoning, { effort: "medium" });
-  assert.equal(body.store, false); assert.deepEqual(body.tools, []);
-  assert.equal(sha256Json(body), COGNITIVE_SUBJECT.canonicalRequestHash);
   assert.equal(completed.terminalReceipt.inferenceAuthorityConsumed, true);
   assert.equal(completed.terminalReceipt.reusable, false);
   assertNoSecretMaterial(artifactText);
 });
 
-test("metadata dispatch is structurally absent from the zero-metadata runner", async () => {
-  const source = await readFile(path.join(repositoryRoot, "qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs"), "utf8");
-  assert.doesNotMatch(source, /checkExactModelAccess/);
-  assert.doesNotMatch(source, /metadataEndpoint/);
-  assert.doesNotMatch(source, /authorizedFetch\(["']METADATA/);
-  assert.match(source, /maximumMetadataAccessRequests, 0/);
+test("deterministic broker rejects every altered case constant, array, empty rationale, and confidence violation", async () => {
+  const artifacts = await calibrationArtifactBindings();
+  const valid = validActionCore(artifacts.calibrationCase);
+  assert.equal(passCalibrationActionThroughRealBroker(valid, artifacts.calibrationCase).accepted, true);
+  const mutations = [
+    (value) => { value.schemaVersion = "2.0"; },
+    (value) => { value.actionType = "STOP_SAFELY"; },
+    (value) => { value.actionId = "OTHER"; },
+    (value) => { value.episodeId = "OTHER"; },
+    (value) => { value.executiveState = "OTHER"; },
+    (value) => { value.observedStateHash = "0".repeat(64); },
+    (value) => { value.evidenceReferences = []; },
+    (value) => { value.memoryReferences = ["unknown"]; },
+    (value) => { value.requestedSuccessorState = "OTHER"; },
+    (value) => { value.authorityClass = "OTHER"; },
+    (value) => { value.prohibitedOperations = [...value.prohibitedOperations].reverse(); },
+    (value) => { value.details = { providerRequest: true }; },
+    (value) => { value.boundedRationaleSummary = ""; },
+    (value) => { value.confidence = -0.01; },
+    (value) => { value.confidence = 1.01; }
+  ];
+  for (const mutate of mutations) {
+    const candidate = structuredClone(valid); mutate(candidate);
+    assert.equal(passCalibrationActionThroughRealBroker(candidate, artifacts.calibrationCase).accepted, false);
+  }
 });
 
-test("authority sealing is create-new-only and does not alter prior consumed artifacts", async () => {
+test("unsupported schema fixtures fail before a mock dispatch", async () => {
+  const artifacts = await calibrationArtifactBindings();
+  const fixtures = [
+    (schema) => { schema.anyOf = []; },
+    (schema) => { schema.properties.boundedRationaleSummary.minLength = 1; },
+    (schema) => { schema.properties.actionId.const = "KE-CAL-001-ACTION-001"; },
+    (schema) => { delete schema.properties.actionId.type; },
+    (schema) => { delete schema.properties.factualFindings.items; },
+    (schema) => { schema.properties.details.additionalProperties = true; },
+    (schema) => { schema.required = schema.required.filter((name) => name !== "confidence"); },
+    (schema) => { schema.allOf = []; }
+  ];
+  let mockedDispatches = 0;
+  for (const mutate of fixtures) {
+    const schema = structuredClone(artifacts.structuredSchema); mutate(schema);
+    assert.throws(() => {
+      assertOpenAIStructuredOutputsSubset(schema);
+      mockedDispatches += 1;
+    });
+  }
+  assert.equal(mockedDispatches, 0);
+});
+
+test("sanitized provider messages survive transport to terminal readback without secrets or overflow", async () => {
+  const safeMessage = "Invalid schema: at path=('properties','confidence'), numeric bounds are invalid.";
+  const { completed, artifactText, calls } = await runFixture({
+    suffix: "0000000000000003",
+    responseFactory: () => providerResponse(null, {
+      status: 400,
+      payload: { error: { type: "invalid_request_error", code: "invalid_json_schema", param: "text.format.schema", message: safeMessage } }
+    })
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(completed.result.status, "REAL_ROUTE_CALIBRATION_PROVIDER_REJECTED");
+  assert.equal(completed.result.providerDiagnostics.inference.sanitizedErrorMessage, safeMessage);
+  assert.equal(completed.result.requestCounts.retries, 0);
+  assert.equal(completed.terminalReceipt.inferenceAuthorityConsumed, true);
+  const secret = `${"s"}${"k"}-unit-test-secret-shaped-value-1234567890`;
+  const sanitized = sanitizeProviderErrorMessage(`Bearer ${secret} org_private123 account_private123 ${"x".repeat(1000)}`);
+  assert.equal(sanitized.includes(secret), false);
+  assert.ok(Buffer.byteLength(sanitized, "utf8") <= PROVIDER_ERROR_MESSAGE_LIMIT_BYTES);
+  assert.equal(artifactText.includes(secret), false);
+  assertNoSecretMaterial(artifactText);
+});
+
+test("authority creation is create-new-only and both consumed authority families remain immutable", async () => {
   const before = await loadPriorSealedMetadataEvidence();
-  assert.equal(before.receiptFileHash, PRIOR_ARTIFACT_HASHES.metadataAccessReceipt);
-  const authority = await fixtureAuthority("0000000000000003");
-  const temp = await mkdtemp(path.join(os.tmpdir(), "ke-zero-metadata-seal-"));
+  const artifacts = await calibrationArtifactBindings();
+  const authority = await fixtureAuthority("0000000000000004", artifacts);
+  const temp = await mkdtemp(path.join(os.tmpdir(), "ke-structured-output-seal-"));
   const authorityPath = path.join(temp, "new-authority.json");
   try {
     const options = { authorityPath, synchronizationInspector: () => RUNTIME_COMMIT, authorityBuilder: async () => authority };
     const sealed = await sealExternalZeroMetadataAuthority(options);
     assert.equal(sealed.authority.authorityHash, authority.authorityHash);
+    assert.equal(sealed.receipt.completeSerializedRequestHash, artifacts.completeSerializedRequestHash);
     await assert.rejects(sealExternalZeroMetadataAuthority(options), /already exists|EEXIST/i);
   } finally {
     for (const target of [authorityPath, `${authorityPath}.sealing-receipt.json`]) {
@@ -197,33 +292,36 @@ test("authority sealing is create-new-only and does not alter prior consumed art
     }
     await rm(temp, { recursive: true, force: true });
   }
-  const after = await loadPriorSealedMetadataEvidence();
-  assert.deepEqual(after, before);
+  assert.deepEqual(await loadPriorSealedMetadataEvidence(), before);
 });
 
-test("a rejected inference preserves bounded diagnostics, consumes authority, and performs no retry", async () => {
-  const secret = `${"s"}${"k"}-unit-test-secret-shaped-value-1234567890`;
-  const { completed, artifactText, calls } = await runFixture({
-    suffix: "0000000000000004",
-    responseFactory: () => providerResponse(null, {
-      status: 401,
-      requestId: secret,
-      payload: { error: { type: "authentication_error", code: "invalid_api_key", param: null, message: `Bearer ${secret}` } },
-      extraHeaders: { "set-cookie": `session=${secret}`, "x-organization": "org-secretvalue" }
-    })
-  });
-  const result = completed.result;
-  assert.equal(calls.length, 1);
-  assert.equal(result.status, "REAL_ROUTE_CALIBRATION_PROVIDER_REJECTED");
-  assert.equal(result.requestCounts.metadataAccessRequests, 0);
-  assert.equal(result.requestCounts.inferenceRequests, 1);
-  assert.equal(result.requestCounts.retries, 0);
-  assert.equal(result.cost.conservativeCostChargedUsd, 0.25);
-  assert.equal(result.providerDiagnostics.inference.httpStatus, 401);
-  assert.equal(result.providerDiagnostics.inference.messageClassification, "REDACTED_SECRET_MATERIAL");
-  assert.equal(result.providerDiagnostics.inference.safeProviderRequestId, "NOT_RECEIVED");
-  assert.equal(completed.terminalReceipt.inferenceAuthorityConsumed, true);
-  assert.equal(completed.terminalReceipt.reusable, false);
-  assert.equal(artifactText.includes(secret), false);
-  assertNoSecretMaterial(artifactText);
+test("release record preserves the immutable subject and rejects runtime or release drift", () => {
+  const release = loadStructuredOutputCompatibilityRelease();
+  assert.equal(validateStructuredOutputCompatibilityRelease(release).valid, true);
+  assert.deepEqual(release.cognitiveSubject, COGNITIVE_SUBJECT);
+  const fakeGit = (args) => {
+    const key = args.join(" ");
+    if (key === "rev-parse HEAD") return RUNTIME_COMMIT;
+    if (key === "rev-parse HEAD^{tree}") return RUNTIME_TREE;
+    if (key === `rev-list --parents -n 1 ${RUNTIME_COMMIT}`) return `${RUNTIME_COMMIT} ${STARTING_TOOLING_COMMIT}`;
+    if (key === `rev-parse ${STARTING_TOOLING_COMMIT}^{tree}`) return STARTING_TOOLING_TREE;
+    if (key === `rev-parse ${COGNITIVE_SUBJECT.commit}^{tree}`) return COGNITIVE_SUBJECT.tree;
+    if (key === `show ${COGNITIVE_SUBJECT.commit}:package.json`) return JSON.stringify({ version: "1.12.27" });
+    if (key === "branch --show-current") return "refactor/beta-evidence-pipeline";
+    if (key === "status --porcelain=v1 --untracked-files=no") return "";
+    if (key === `diff --name-only ${STARTING_TOOLING_COMMIT} ${RUNTIME_COMMIT}`) return STRUCTURED_OUTPUT_COMMIT_PATHS.join("\n");
+    throw new Error(`unexpected git fixture: ${key}`);
+  };
+  assert.equal(inspectSealedStructuredOutputCompatibilityRelease({ gitImpl: fakeGit }).runtimeCommit, RUNTIME_COMMIT);
+  const core = structuredClone(release); delete core.recordHash; core.documentedStructuredOutputsSubset.maximumObjectProperties = 4_999;
+  assert.throws(() => validateStructuredOutputCompatibilityRelease(seal(core, "recordHash"), { validateCurrentArtifacts: false }));
+});
+
+test("metadata and schema-probe dispatch remain structurally absent", async () => {
+  const source = await readFile(path.join(repositoryRoot, "qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs"), "utf8");
+  assert.doesNotMatch(source, /checkExactModelAccess/);
+  assert.doesNotMatch(source, /metadataEndpoint/);
+  assert.doesNotMatch(source, /authorizedFetch\(["']METADATA/);
+  assert.match(source, /maximumMetadataAccessRequests, 0/);
+  assert.match(source, /schemaProbeRequestCount: 0/);
 });

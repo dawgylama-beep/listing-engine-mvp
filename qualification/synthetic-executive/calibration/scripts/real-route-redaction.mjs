@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 export const NOT_RECEIVED = "NOT_RECEIVED";
 export const REDACTED = "REDACTED";
 export const PROVIDER_RESPONSE_BODY_LIMIT_BYTES = 65_536;
+export const PROVIDER_ERROR_MESSAGE_LIMIT_BYTES = 512;
 
 const SECRET_PATTERNS = Object.freeze([
   /\bbearer\s+[A-Za-z0-9._~+/=-]{8,}/i,
@@ -15,7 +16,7 @@ const SECRET_PATTERNS = Object.freeze([
 
 const DIAGNOSTIC_FIELDS = Object.freeze([
   "schemaVersion", "httpStatus", "errorType", "errorCode", "errorParam", "messageClassification",
-  "safeProviderRequestId", "responseContentType", "responseByteLength", "responseByteLengthClassification",
+  "sanitizedErrorMessage", "safeProviderRequestId", "responseContentType", "responseByteLength", "responseByteLengthClassification",
   "responseBodyTruncated", "timeoutClassification", "networkConnectionClassification"
 ]);
 
@@ -29,6 +30,35 @@ const MESSAGE_CLASSIFICATIONS = Object.freeze([
 function containsSecretMaterial(value) {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   return SECRET_PATTERNS.some((pattern) => pattern.test(text || ""));
+}
+
+function capUtf8(value, maximumBytes) {
+  if (Buffer.byteLength(value, "utf8") <= maximumBytes) return value;
+  const suffix = "...";
+  const budget = maximumBytes - Buffer.byteLength(suffix, "utf8");
+  let retained = "";
+  for (const character of value) {
+    if (Buffer.byteLength(retained + character, "utf8") > budget) break;
+    retained += character;
+  }
+  return `${retained}${suffix}`;
+}
+
+export function sanitizeProviderErrorMessage(value) {
+  if (typeof value !== "string" || value.length === 0) return NOT_RECEIVED;
+  let safe = value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!safe) return NOT_RECEIVED;
+  safe = safe
+    .replace(/\bbearer\s+[A-Za-z0-9._~+/=-]{1,}/gi, "Bearer [REDACTED_SECRET]")
+    .replace(/\b(?:s[kK]|oai)[-_][A-Za-z0-9_-]{8,}/g, "[REDACTED_SECRET]")
+    .replace(/\bOPENAI_API_KEY\s*=\s*\S+/gi, "OPENAI_API_KEY=[REDACTED_SECRET]")
+    .replace(/\bauthorization\s*[:=]\s*\S+/gi, "authorization=[REDACTED_SECRET]")
+    .replace(/\b(?:org|proj|project)[-_][A-Za-z0-9_-]{4,}/gi, "[REDACTED_PROVIDER_IDENTIFIER]")
+    .replace(/\b(?:acct|cus|account)[-_][A-Za-z0-9_-]{4,}/gi, "[REDACTED_ACCOUNT_IDENTIFIER]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]");
+  safe = capUtf8(safe, PROVIDER_ERROR_MESSAGE_LIMIT_BYTES);
+  if (containsSecretMaterial(safe)) return "[REDACTED_SECRET_MATERIAL]";
+  return safe || NOT_RECEIVED;
 }
 
 export function assertNoSecretMaterial(value, label = "artifact") {
@@ -76,8 +106,8 @@ function messageClassification({ status, errorType, errorCode, errorParam, messa
 
 export function unavailableProviderDiagnostics({ timeoutClassification = NOT_RECEIVED, networkConnectionClassification = NOT_RECEIVED } = {}) {
   return Object.freeze({
-    schemaVersion: "1.0", httpStatus: NOT_RECEIVED, errorType: NOT_RECEIVED, errorCode: NOT_RECEIVED,
-    errorParam: NOT_RECEIVED, messageClassification: NOT_RECEIVED, safeProviderRequestId: NOT_RECEIVED,
+    schemaVersion: "1.1", httpStatus: NOT_RECEIVED, errorType: NOT_RECEIVED, errorCode: NOT_RECEIVED,
+    errorParam: NOT_RECEIVED, messageClassification: NOT_RECEIVED, sanitizedErrorMessage: NOT_RECEIVED, safeProviderRequestId: NOT_RECEIVED,
     responseContentType: NOT_RECEIVED, responseByteLength: NOT_RECEIVED,
     responseByteLengthClassification: NOT_RECEIVED, responseBodyTruncated: NOT_RECEIVED,
     timeoutClassification, networkConnectionClassification
@@ -93,7 +123,7 @@ export function normalizeProviderResponseDiagnostics({
   const isError = status < 200 || status >= 300;
   const error = isError && payload?.error && typeof payload.error === "object" && !Array.isArray(payload.error) ? payload.error : null;
   const diagnostic = {
-    schemaVersion: "1.0",
+    schemaVersion: "1.1",
     httpStatus: status,
     errorType: error ? normalizedProviderField(error.type) : NOT_RECEIVED,
     errorCode: error ? normalizedProviderField(error.code) : NOT_RECEIVED,
@@ -102,6 +132,7 @@ export function normalizeProviderResponseDiagnostics({
       status, errorType: error?.type, errorCode: error?.code, errorParam: error?.param,
       message: error?.message, parseState, bodyTruncated: responseBodyTruncated
     }) : NOT_RECEIVED,
+    sanitizedErrorMessage: isError && error ? sanitizeProviderErrorMessage(error.message) : NOT_RECEIVED,
     safeProviderRequestId: safeProviderRequestId(requestId) || NOT_RECEIVED,
     responseContentType: normalizedContentType(contentType),
     responseByteLength,
@@ -117,13 +148,15 @@ export function normalizeProviderResponseDiagnostics({
 export function assertProviderDiagnostics(value) {
   assert.ok(value && typeof value === "object" && !Array.isArray(value), "provider diagnostics must be an object");
   assert.deepEqual(Object.keys(value).sort(), [...DIAGNOSTIC_FIELDS].sort(), "provider diagnostic fields differ");
-  assert.equal(value.schemaVersion, "1.0");
+  assert.equal(value.schemaVersion, "1.1");
   assert.ok(value.httpStatus === NOT_RECEIVED || (Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599));
   for (const field of ["errorType", "errorCode", "errorParam"]) {
     assert.equal(typeof value[field], "string");
     assert.ok(value[field] === NOT_RECEIVED || value[field] === REDACTED || /^[a-z0-9][a-z0-9._:/\[\]-]{0,127}$/.test(value[field]));
   }
   assert.ok(MESSAGE_CLASSIFICATIONS.includes(value.messageClassification));
+  assert.equal(typeof value.sanitizedErrorMessage, "string");
+  assert.ok(Buffer.byteLength(value.sanitizedErrorMessage, "utf8") <= PROVIDER_ERROR_MESSAGE_LIMIT_BYTES);
   assert.equal(typeof value.safeProviderRequestId, "string");
   assert.ok(value.safeProviderRequestId === NOT_RECEIVED || safeProviderRequestId(value.safeProviderRequestId) === value.safeProviderRequestId);
   assert.equal(typeof value.responseContentType, "string");

@@ -14,12 +14,11 @@ import { calibrationArtifactBindings, conservativeMaximumCostUsd, createCalibrat
 import { OpenAIRealRouteClient } from "../qualification/synthetic-executive/calibration/scripts/real-route-provider.mjs";
 import { NOT_RECEIVED, PROVIDER_RESPONSE_BODY_LIMIT_BYTES, REDACTED, assertNoSecretMaterial } from "../qualification/synthetic-executive/calibration/scripts/real-route-redaction.mjs";
 import { runRealRouteCalibration } from "../qualification/synthetic-executive/calibration/scripts/run-real-route-calibration.mjs";
-import { seal, sha256Json } from "../qualification/synthetic-executive/scripts/protocol.mjs";
+import { seal, sha256Bytes, sha256Json } from "../qualification/synthetic-executive/scripts/protocol.mjs";
 
 const H40 = "a".repeat(40);
 const H64 = "b".repeat(64);
 const EMPTY_RECEIPT = Object.freeze({ receiptHash: "c".repeat(64) });
-const UNCHANGED_CANONICAL_REQUEST_HASH = "73fa81d6d3fce8add2d8911682330b954b2653edfb43de4aa37ee02eea6d079e";
 
 function validActionCore(calibrationCase, overrides = {}) {
   return {
@@ -90,7 +89,7 @@ async function runFixture({ suffix, fetchOptions, environment = { OPENAI_API_KEY
     const completed = await runRealRouteCalibration(options);
     if (twice) await assert.rejects(runRealRouteCalibration(options), /EEXIST|exist/i);
     const artifactText = await readFile(completed.resultPath, "utf8");
-    return { completed, calls: fake.calls, artifactText };
+    return { completed, calls: fake.calls, artifactText, artifacts };
   } finally {
     await rm(resultRoot, { recursive: true, force: true });
     await rm(externalRoot, { recursive: true, force: true });
@@ -139,7 +138,7 @@ test("calibration profile and pending release pin the exact bounded route", asyn
 });
 
 test("one fake response maps to one governed reasoning step, one dispatch, no retries, and accepted real broker action", async () => {
-  const { completed, calls, artifactText } = await runFixture({ suffix: "0000000000000001", twice: true });
+  const { completed, calls, artifactText, artifacts } = await runFixture({ suffix: "0000000000000001", twice: true });
   const result = completed.result;
   assert.equal(result.status, "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED");
   assert.equal(calls.length, 2);
@@ -157,7 +156,7 @@ test("one fake response maps to one governed reasoning step, one dispatch, no re
   assert.equal(body.store, false); assert.equal(body.background, false); assert.equal(body.stream, false);
   assert.deepEqual(body.tools, []); assert.equal(body.max_output_tokens, 2000);
   assert.equal(body.text.format.type, "json_schema"); assert.equal(body.text.format.strict, true);
-  assert.equal(sha256Json(body), UNCHANGED_CANONICAL_REQUEST_HASH, "observability must not change the inference request");
+  assert.equal(sha256Bytes(Buffer.from(calls[1].body, "utf8")), artifacts.completeSerializedRequestHash, "inference request must match the sealed compatibility transport");
   assert.deepEqual(result.providerDiagnostics.metadata, result.metadataAccess.providerDiagnostics);
   assert.equal(result.providerDiagnostics.metadata.httpStatus, 200);
   assert.equal(result.providerDiagnostics.inference.httpStatus, 200);

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/synthetic-executive/structured-output-calibration-result.schema.json",
+  "title": "Synthetic Executive Structured-Output Compatibility Calibration Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "resultType", "status", "authorityHash", "singleUseIdentity", "releaseIdentity", "providerProfileHash", "modelIdentity", "metadataAccess", "providerDiagnostics", "credentialBoundary", "requestCounts", "prompt", "usage", "cost", "wallClockDurationMs", "actionBroker", "ledger", "memory", "routeIsolation", "claims", "startedAt", "completedAt", "terminationReason", "resultHash"],
+  "properties": {
+    "schemaVersion": {"const": "1.2"},
+    "resultType": {"const": "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_RESULT"},
+    "status": {"enum": ["KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED", "REAL_ROUTE_CALIBRATION_PRECHECK_FAILED", "REAL_ROUTE_CALIBRATION_PROVIDER_REJECTED", "REAL_ROUTE_CALIBRATION_USAGE_UNAVAILABLE", "REAL_ROUTE_CALIBRATION_ACTION_REJECTED", "REAL_ROUTE_CALIBRATION_ACCOUNTING_FAILED"]},
+    "authorityHash": {"$ref": "#/$defs/hash"},
+    "singleUseIdentity": {"type": "string"},
+    "releaseIdentity": {"type": "object"},
+    "providerProfileHash": {"$ref": "#/$defs/hash"},
+    "modelIdentity": {"type": "object"},
+    "metadataAccess": {"type": "object"},
+    "providerDiagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "inference"],
+      "properties": {
+        "metadata": {"$ref": "#/$defs/providerDiagnostic"},
+        "inference": {"$ref": "#/$defs/providerDiagnostic"}
+      }
+    },
+    "credentialBoundary": {"type": "object"},
+    "requestCounts": {"type": "object"},
+    "prompt": {"type": "object"},
+    "usage": {"type": "object"},
+    "cost": {"type": "object"},
+    "wallClockDurationMs": {"type": "number", "minimum": 0},
+    "actionBroker": {"type": "object"},
+    "ledger": {"type": "object"},
+    "memory": {"type": "object"},
+    "routeIsolation": {"type": "object"},
+    "claims": {"type": "object"},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "completedAt": {"type": "string", "format": "date-time"},
+    "terminationReason": {"type": "string"},
+    "resultHash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "providerDiagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "httpStatus", "errorType", "errorCode", "errorParam", "messageClassification", "sanitizedErrorMessage", "safeProviderRequestId", "responseContentType", "responseByteLength", "responseByteLengthClassification", "responseBodyTruncated", "timeoutClassification", "networkConnectionClassification"],
+      "properties": {
+        "schemaVersion": {"const": "1.1"},
+        "httpStatus": {"type": ["integer", "string"]},
+        "errorType": {"type": "string", "maxLength": 128},
+        "errorCode": {"type": "string", "maxLength": 128},
+        "errorParam": {"type": "string", "maxLength": 128},
+        "messageClassification": {"enum": ["NOT_RECEIVED", "REDACTED_SECRET_MATERIAL", "STRUCTURED_OUTPUT_REJECTION", "AUTHENTICATION_REJECTION", "ACCESS_REJECTION", "MODEL_OR_ROUTE_REJECTION", "RATE_OR_QUOTA_REJECTION", "INVALID_REQUEST", "PROVIDER_FAILURE", "NON_JSON_ERROR_RESPONSE", "MALFORMED_JSON_ERROR_RESPONSE", "OVERSIZED_ERROR_RESPONSE", "OTHER_PROVIDER_ERROR"]},
+        "sanitizedErrorMessage": {"type": "string", "maxLength": 512},
+        "safeProviderRequestId": {"type": "string", "maxLength": 128},
+        "responseContentType": {"type": "string", "maxLength": 128},
+        "responseByteLength": {"type": ["integer", "string"]},
+        "responseByteLengthClassification": {"enum": ["NOT_RECEIVED", "EXACT", "LOWER_BOUND"]},
+        "responseBodyTruncated": {"type": ["boolean", "string"]},
+        "timeoutClassification": {"enum": ["NOT_RECEIVED", "TIMEOUT", "NOT_TIMEOUT"]},
+        "networkConnectionClassification": {"enum": ["NOT_RECEIVED", "HTTP_RESPONSE_RECEIVED", "CONNECTION_FAILURE"]}
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const qualificationRoot = path.resolve(scriptDirectory, "..");
 const repositoryRoot = path.resolve(qualificationRoot, "..", "..");
 const PRODUCT_COMMIT = "7056eb0601dc69c5985703fea6fe665e82c6bed8";
+const STRUCTURED_OUTPUT_COMPATIBILITY_PARENT = "3b51c5156ab33eea3cc6a5c2a4226aa87ef5eb45";
 const CONSENT_ID = "consent-6c84172d50050d8e2389e7721698df0b80b7d5e48e97fdd7";
 
 function git(args, encoding = "utf8") {
@@ -28,12 +29,20 @@ function assertNoHiddenKeys(value) {
 }
 
 async function verifyArtifactInventory(manifest) {
+  let compatibilityRelease = null;
   assert.equal(new Set(manifest.artifactInventory.map((item) => item.relativePath)).size, manifest.artifactInventory.length);
   for (const item of manifest.artifactInventory) {
     assert.equal(item.relativePath.startsWith("evaluator-controls/"), false, "readiness manifest exposes evaluator-control path");
     const filePath = path.join(qualificationRoot, item.relativePath);
     const info = await lstat(filePath); assert.equal(info.isFile(), true); assert.equal(info.isSymbolicLink(), false);
-    const bytes = await readFile(filePath); assert.equal(bytes.length, item.bytes); assert.equal(sha256Bytes(bytes), item.sha256);
+    const bytes = await readFile(filePath);
+    if (bytes.length === item.bytes && sha256Bytes(bytes) === item.sha256) continue;
+    assert.ok(["scripts/action-broker.mjs", "scripts/verify-readiness.mjs"].includes(item.relativePath), `historical readiness artifact changed: ${item.relativePath}`);
+    compatibilityRelease ||= (await import("../calibration/scripts/structured-output-compatibility-release.mjs")).loadStructuredOutputCompatibilityRelease();
+    assert.equal(compatibilityRelease.startingTooling.commit, STRUCTURED_OUTPUT_COMPATIBILITY_PARENT);
+    const historicalBytes = git(["show", `${STRUCTURED_OUTPUT_COMPATIBILITY_PARENT}:qualification/synthetic-executive/${item.relativePath}`], "buffer");
+    assert.equal(historicalBytes.length, item.bytes);
+    assert.equal(sha256Bytes(historicalBytes), item.sha256);
   }
   assert.equal(sha256Json(manifest.artifactInventory), manifest.artifactAggregateHash);
 }

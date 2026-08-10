@@ -8,7 +8,7 @@ import { canonicalIso, seal, sha256Json, stableJson, writeExclusiveJson } from "
 import { passCalibrationActionThroughRealBroker } from "./real-route-broker.mjs";
 import { resolveApprovedCredential } from "./real-route-credential.mjs";
 import { ExternalCalibrationGovernor } from "./real-route-governor.mjs";
-import { actualCostUsd, calibrationArtifactBindings, createCalibrationActionCoreSchema } from "./real-route-profile.mjs";
+import { actualCostUsd, calibrationArtifactBindings } from "./real-route-profile.mjs";
 import { OpenAIRealRouteClient } from "./real-route-provider.mjs";
 import { SafeProviderFailure, assertNoSecretMaterial, safeFailureEvidence, unavailableProviderDiagnostics } from "./real-route-redaction.mjs";
 import {
@@ -16,7 +16,7 @@ import {
   consumeZeroMetadataAuthority, loadExternalZeroMetadataAuthority, loadPriorSealedMetadataEvidence,
   sealExternalZeroMetadataAuthority
 } from "./zero-metadata-real-route-authority.mjs";
-import { FEATURE_BRANCH, inspectSealedZeroMetadataRouteRelease, repositoryRoot } from "./zero-metadata-route-release.mjs";
+import { FEATURE_BRANCH, inspectSealedStructuredOutputCompatibilityRelease, repositoryRoot } from "./structured-output-compatibility-release.mjs";
 
 const EMPTY_MEMORY_HASH = sha256Json([]);
 
@@ -25,18 +25,18 @@ function git(args) {
 }
 
 export function inspectZeroMetadataCalibrationRuntime(authority) {
-  const routeRelease = inspectSealedZeroMetadataRouteRelease();
+  const routeRelease = inspectSealedStructuredOutputCompatibilityRelease();
   const branch = git(["branch", "--show-current"]);
   const head = git(["rev-parse", "HEAD"]);
   const tree = git(["rev-parse", "HEAD^{tree}"]);
   const remote = git(["rev-parse", `refs/remotes/origin/${FEATURE_BRANCH}`]);
   const trackedStatus = git(["status", "--porcelain=v1", "--untracked-files=no"]);
   assert.equal(branch, FEATURE_BRANCH);
-  assert.equal(head, authority.runnerReleaseIdentity.runtimeCommit, "zero-metadata runner commit differs");
-  assert.equal(tree, authority.runnerReleaseIdentity.runtimeTree, "zero-metadata runner tree differs");
+  assert.equal(head, authority.runnerReleaseIdentity.runtimeCommit, "structured-output runner commit differs");
+  assert.equal(tree, authority.runnerReleaseIdentity.runtimeTree, "structured-output runner tree differs");
   assert.equal(routeRelease.releaseRecordHash, authority.runnerReleaseIdentity.releaseRecordHash);
   assert.equal(remote, head, "local and remote feature refs differ");
-  assert.equal(trackedStatus, "", "tracked source changed after zero-metadata runner release");
+  assert.equal(trackedStatus, "", "tracked source changed after structured-output runner release");
   return Object.freeze({ branch, head, tree, remote, localRemoteDivergence: 0, trackedSourceClean: true });
 }
 
@@ -56,7 +56,7 @@ function defaultClaims() {
 
 function defaultRouteIsolation() {
   return {
-    metadataProviderRequestCount: 0, qualificationCorpusAccessCount: 0, historicalEpisodeAccessCount: 0,
+    metadataProviderRequestCount: 0, schemaProbeRequestCount: 0, qualificationCorpusAccessCount: 0, historicalEpisodeAccessCount: 0,
     analogousEpisodeAccessCount: 0, novelEpisodeAccessCount: 0, evaluatorControlAccessCount: 0,
     benchmarkExecutionCount: 0, benchmarkConsentOrReservationCount: 0, productHandlerInvocationCount: 0,
     workerDispatchCount: 0, agentToolCallCount: 0, lessonWriteOrPromotionCount: 0, sourceMutationCount: 0,
@@ -85,20 +85,26 @@ export async function runZeroMetadataRealRouteCalibration({
   nowMs = () => Date.now(),
   authorityLoader = loadExternalZeroMetadataAuthority,
   runtimeInspector = inspectZeroMetadataCalibrationRuntime,
-  priorMetadataLoader = loadPriorSealedMetadataEvidence
+  priorMetadataLoader = loadPriorSealedMetadataEvidence,
+  artifactLoader = calibrationArtifactBindings
 } = {}) {
   const startedAt = canonicalIso(now(), "calibration start time");
   const startedMs = nowMs();
   const loaded = await authorityLoader({ authorityPath, now: Date.parse(startedAt) });
   const { authority } = loaded;
   assert.equal(authority.maximumMetadataAccessRequests, 0);
-  const [artifacts, priorMetadataEvidence] = await Promise.all([calibrationArtifactBindings(), priorMetadataLoader()]);
+  const [artifacts, priorMetadataEvidence] = await Promise.all([artifactLoader(), priorMetadataLoader()]);
   assert.deepEqual(authority.priorMetadataEvidence, priorMetadataEvidence);
   assert.equal(authority.providerProfileHash, artifacts.profile.profileHash);
   assert.equal(authority.calibrationCaseHash, artifacts.calibrationCase.caseHash);
   assert.equal(authority.calibrationPromptHash, artifacts.prompt.promptHash);
   assert.equal(authority.promptByteCount, artifacts.prompt.byteCount);
   assert.equal(authority.executiveActionSchemaHash, artifacts.executiveActionSchemaHash);
+  assert.equal(authority.transmittedSchemaExactHash, artifacts.transmittedSchemaExactHash);
+  assert.equal(authority.transmittedSchemaStableHash, artifacts.transmittedSchemaStableHash);
+  assert.equal(authority.completeSerializedRequestHash, artifacts.completeSerializedRequestHash);
+  assert.equal(authority.safeProviderDiagnosticsContractHash, artifacts.safeProviderDiagnosticsContractHash);
+  assert.equal(authority.terminalResultSchemaHash, artifacts.resultSchemaHash);
   assert.equal(authority.exactModelId, artifacts.profile.exactModelId);
   assert.equal(authority.inferenceEndpoint, artifacts.profile.inferenceEndpoint);
   assert.equal(authority.reasoningEffort, artifacts.profile.reasoning.effort);
@@ -136,6 +142,9 @@ export async function runZeroMetadataRealRouteCalibration({
     const requestIdentity = sha256Json({
       authorityHash: authority.authorityHash, calibrationCaseHash: artifacts.calibrationCase.caseHash,
       promptHash: artifacts.prompt.promptHash, canonicalRequestHash: authority.canonicalRequestHash,
+      transmittedSchemaExactHash: authority.transmittedSchemaExactHash,
+      transmittedSchemaStableHash: authority.transmittedSchemaStableHash,
+      completeSerializedRequestHash: authority.completeSerializedRequestHash,
       modelIdentity: artifacts.profile.exactModelId
     });
     const governor = await new ExternalCalibrationGovernor({ root: path.join(resultRoot, "governor"), providerProfile: artifacts.profile, authority, clock: now }).initialize();
@@ -146,8 +155,7 @@ export async function runZeroMetadataRealRouteCalibration({
 
     const dispatchStarted = nowMs();
     try {
-      const structuredSchema = await createCalibrationActionCoreSchema(artifacts.calibrationCase);
-      providerResult = await client.inferStructuredAction({ permit: reserved.permit, prompt: artifacts.prompt.text, structuredSchema });
+      providerResult = await client.inferStructuredAction({ permit: reserved.permit, prompt: artifacts.prompt.text, structuredSchema: artifacts.structuredSchema });
       usage = providerResult.usage;
       if (usage.complete && usage.outputTokens > authority.outputTokenCeiling) throw new SafeProviderFailure("PROVIDER_OUTPUT_TOKEN_CEILING_VIOLATED", providerResult.providerDiagnostics.httpStatus, providerResult.providerDiagnostics);
       if (usage.complete && usage.totalTokens > authority.totalTokenCeiling) throw new SafeProviderFailure("PROVIDER_TOTAL_TOKEN_CEILING_VIOLATED", providerResult.providerDiagnostics.httpStatus, providerResult.providerDiagnostics);
@@ -156,7 +164,7 @@ export async function runZeroMetadataRealRouteCalibration({
       const provisionalStatus = !usage.complete ? "REAL_ROUTE_CALIBRATION_USAGE_UNAVAILABLE" : (!broker.accepted ? "REAL_ROUTE_CALIBRATION_ACTION_REJECTED" : "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED");
       await governor.completeInference({ usage, actualCostUsd: calculatedActualCostUsd, durationMs: Math.max(0, nowMs() - dispatchStarted), resultStatus: provisionalStatus, brokerDisposition: broker.disposition, safeResponseHash: providerResult.safeResponseHash });
       status = provisionalStatus;
-      terminationReason = status === "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED" ? "ONE_AUTHORIZED_ZERO_METADATA_CALIBRATION_INFERENCE_COMPLETED_AND_SEALED" : (usage.complete ? "TYPED_ACTION_REJECTED_WITHOUT_RETRY" : "PROVIDER_USAGE_INCOMPLETE_FULL_RESERVATION_CHARGED");
+      terminationReason = status === "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED" ? "ONE_AUTHORIZED_STRUCTURED_OUTPUT_CALIBRATION_INFERENCE_COMPLETED_AND_SEALED" : (usage.complete ? "TYPED_ACTION_REJECTED_WITHOUT_RETRY" : "PROVIDER_USAGE_INCOMPLETE_FULL_RESERVATION_CHARGED");
     } catch (error) {
       const safeFailure = safeFailureEvidence(error);
       const mapped = failureStatus(error);
@@ -190,8 +198,8 @@ export async function runZeroMetadataRealRouteCalibration({
   const runtimeEnd = runtimeInspector(authority);
   const completedAt = canonicalIso(now(), "calibration completion time");
   const counts = client?.counts || { metadataAccessInvocations: 0, inferenceInvocations: 0, metadataAccessRequests: 0, inferenceRequests: 0, retries: 0 };
-  assert.equal(counts.metadataAccessInvocations, 0, "metadata invocation is prohibited on the zero-metadata route");
-  assert.equal(counts.metadataAccessRequests, 0, "metadata dispatch is prohibited on the zero-metadata route");
+  assert.equal(counts.metadataAccessInvocations, 0, "metadata invocation is prohibited on the structured-output route");
+  assert.equal(counts.metadataAccessRequests, 0, "metadata dispatch is prohibited on the structured-output route");
   assert.ok(counts.inferenceInvocations <= 1 && counts.inferenceRequests <= 1, "one-inference ceiling exceeded");
   const providerDiagnostics = Object.freeze({
     metadata: unavailableProviderDiagnostics(),
@@ -219,6 +227,10 @@ export async function runZeroMetadataRealRouteCalibration({
     requestCounts: { ...counts, externallyObservableReasoningSteps: accounting.reasoningStepCount, automaticModelRetries: 0, successors: 0 },
     prompt: {
       promptHash: artifacts.prompt.promptHash, canonicalRequestHash: authority.canonicalRequestHash,
+      transmittedSchemaExactHash: authority.transmittedSchemaExactHash,
+      transmittedSchemaStableHash: authority.transmittedSchemaStableHash,
+      completeSerializedRequestHash: authority.completeSerializedRequestHash,
+      safeProviderDiagnosticsContractHash: authority.safeProviderDiagnosticsContractHash,
       byteCount: artifacts.prompt.byteCount, conservativeInputTokenReservation: artifacts.prompt.byteCount,
       inputTokenCeiling: authority.inputTokenCeiling, maximumOutputTokensApplied: authority.outputTokenCeiling,
       totalTokenCeiling: authority.totalTokenCeiling
@@ -233,7 +245,7 @@ export async function runZeroMetadataRealRouteCalibration({
     claims: defaultClaims(), startedAt, completedAt, terminationReason
   };
   const result = seal(resultCore, "resultHash");
-  assertNoSecretMaterial(result, "sealed zero-metadata calibration result");
+  assertNoSecretMaterial(result, "sealed structured-output calibration result");
   const resultPath = path.join(resultRoot, "calibration-result.json");
   await writeExclusiveJson(resultPath, result);
   const terminal = await closeZeroMetadataAuthority({ paths: claim.paths, authority, status, resultHash: result.resultHash, closedAt: completedAt });

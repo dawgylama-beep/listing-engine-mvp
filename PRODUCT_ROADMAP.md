@@ -749,6 +749,14 @@
 - Added deterministic offline proof for exact-contract acceptance, binding rejection, zero metadata dispatch, one-inference enforcement, create-new-only sealing, prior-artifact immutability, and safe failure diagnostics
 - Provider-call impact during tooling release: zero credential access, metadata requests, inference requests, model calls, qualification, benchmark, handler, Preview, or Production activity
 
+## Katherine Structured Output Compatibility Tooling Release V1 (Completed)
+- Preserved Version 1.12.27 commit `061dd081e215d02b759a77e56b5b76a40d095d14`, tree `cc32e9b13355818652def44fda5e188deac08c2e`, and canonical Executive Action source schema hash `87021361196a5001050a2c0987c6128fba5d9ec225da31f4966ec342ba72a1ba` as the immutable cognitive subject
+- Derived the transmitted `text.format.schema` from the canonical source using the documented non-fine-tuned Structured Outputs subset: explicit scalar and array types, closed objects, complete required sets, singleton enums for transport constants, and retained confidence bounds
+- Moved exact case-bound arrays, ordering, rationale non-emptiness, and all case constants into the deterministic Typed Executive Action Broker without changing the prompt, model, medium reasoning, cognitive procedure, or permitted action semantics
+- Bound the successor create-only authority to exact and stable transmitted-schema hashes, complete serialized-request hash, canonical source-schema hash, and the Version 1.1 safe provider-diagnostics contract with sanitized capped provider messages
+- Added deterministic zero-network proof for recursive subset compliance, transport structure and hashes, broker acceptance and rejection boundaries, pre-dispatch schema failure, zero metadata/schema probes, one mocked inference maximum, no retries or successors, unique authority creation, and preservation of both consumed authority families
+- Provider-call impact during tooling release: zero credential access, metadata requests, inference requests, model calls, qualification, benchmark, handler, Preview, or Production activity
+
 ## Version 2.0
 - User accounts
 - Saved listings

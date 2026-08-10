@@ -8,6 +8,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(scriptDirectory, "..");
 export const releaseVersionPattern = /^\d+\.\d+\.\d+$/;
 export const observabilityReleaseRelativePath = "qualification/synthetic-executive/calibration/provider-observability-release.json";
+export const structuredOutputReleaseRelativePath = "qualification/synthetic-executive/calibration/structured-output-compatibility-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -29,7 +30,7 @@ function exactKeys(value, expected, label) {
   assert.deepEqual(Object.keys(value).sort(), [...expected].sort(), `${label} fields differ.`);
 }
 
-async function inspectObservabilityRelease(rootDirectory, releaseText, version) {
+async function inspectObservabilityRelease(rootDirectory, releaseText, version, { verifyCurrentArtifacts = true } = {}) {
   const release = JSON.parse(releaseText);
   exactKeys(release, OBSERVABILITY_RELEASE_FIELDS, "Observability release");
   assert.equal(release.schemaVersion, "1.0");
@@ -58,8 +59,10 @@ async function inspectObservabilityRelease(rootDirectory, releaseText, version) 
     assert.match(item.sha256, HASH);
     assert.equal(seenPaths.has(item.relativePath), false, `Duplicate observability artifact ${item.relativePath}.`);
     seenPaths.add(item.relativePath);
-    const bytes = await readFile(path.join(rootDirectory, item.relativePath));
-    assert.equal(sha256Bytes(bytes), item.sha256, `${item.relativePath} differs from the sealed observability release.`);
+    if (verifyCurrentArtifacts) {
+      const bytes = await readFile(path.join(rootDirectory, item.relativePath));
+      assert.equal(sha256Bytes(bytes), item.sha256, `${item.relativePath} differs from the sealed observability release.`);
+    }
   }
   exactKeys(release.activityAssertions, [
     "credentialAccessCount", "providerRequestCount", "externalNetworkRequestCount", "calibrationAuthorityCreated",
@@ -99,14 +102,15 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
     readFile(path.join(rootDirectory, "public", "index.html"), "utf8"),
     readFile(path.join(rootDirectory, "vercel.json"), "utf8"),
     readFile(path.join(rootDirectory, "benchmarks", "blind-object-v2", "execution-release.json"), "utf8"),
-    readFile(path.join(rootDirectory, observabilityReleaseRelativePath), "utf8")
+    readFile(path.join(rootDirectory, observabilityReleaseRelativePath), "utf8"),
+    readFile(path.join(rootDirectory, structuredOutputReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -118,7 +122,19 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
 
   assert.equal(packageLock.version, version, "package-lock root Version must equal package Version.");
   assert.equal(packageLock.packages?.[""]?.version, version, "package-lock package Version must equal package Version.");
-  const observabilityRelease = await inspectObservabilityRelease(rootDirectory, observabilityReleaseText, version);
+  const observabilityRelease = await inspectObservabilityRelease(rootDirectory, observabilityReleaseText, version, {
+    verifyCurrentArtifacts: structuredOutputReleaseText === null
+  });
+  let structuredOutputReleaseHash = null;
+  if (structuredOutputReleaseText !== null) {
+    assert.equal(rootDirectory, repositoryRoot, "Structured-output release validation requires the canonical repository root.");
+    const structuredOutputRelease = JSON.parse(structuredOutputReleaseText);
+    const compatibility = await import("../qualification/synthetic-executive/calibration/scripts/structured-output-compatibility-release.mjs");
+    compatibility.validateStructuredOutputCompatibilityRelease(structuredOutputRelease);
+    assert.equal(structuredOutputRelease.cognitiveSubject.version, version);
+    assert.equal(structuredOutputRelease.cognitiveSubject.observabilityReleaseHash, observabilityRelease.recordHash);
+    structuredOutputReleaseHash = structuredOutputRelease.recordHash;
+  }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
   assert.equal(serverVersion, version, "server.ps1 Version must equal package Version.");
@@ -150,6 +166,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     executionReleaseState: executionRelease.releaseState,
     observabilityReleaseVersion: observabilityRelease.version,
     observabilityReleaseHash: observabilityRelease.recordHash,
+    structuredOutputReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };
