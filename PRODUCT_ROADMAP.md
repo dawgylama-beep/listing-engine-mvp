@@ -741,6 +741,14 @@
 - Sealed a separate content-addressed observability release so the consumed Version 1.12.26 authority remains unusable and no new calibration authority is created
 - Provider-call impact: all validation uses injected local fake responses; no credential, provider, external network, calibration, qualification, benchmark, product-handler, cognitive, Preview, or Production activity is performed
 
+## Katherine Synthetic Executive Zero-Metadata Route V1 (Completed)
+- Preserved Version 1.12.27 commit `061dd081e215d02b759a77e56b5b76a40d095d14` and tree `cc32e9b13355818652def44fda5e188deac08c2e` as the immutable cognitive subject while separating the successor calibration-runner release identity
+- Added a new create-only single-use authority contract and unoccupied external authority path bound to the Version 1.12.27 observability release, canonical request, provider profile, prompt, Executive Action schema, and safe-diagnostics contract
+- Reused the prior sealed successful model metadata receipt as immutable evidence and fixed both metadata authority and metadata dispatch at zero
+- Preserved one `gpt-5.6-sol` inference, medium reasoning, no tools, no retries, no successors, the existing token and wall-clock ceilings, and the US$0.25 maximum reservation
+- Added deterministic offline proof for exact-contract acceptance, binding rejection, zero metadata dispatch, one-inference enforcement, create-new-only sealing, prior-artifact immutability, and safe failure diagnostics
+- Provider-call impact during tooling release: zero credential access, metadata requests, inference requests, model calls, qualification, benchmark, handler, Preview, or Production activity
+
 ## Version 2.0
 - User accounts
 - Saved listings

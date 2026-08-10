@@ -100,7 +100,10 @@ if ($changed -contains "PRODUCT_ROADMAP.md") {
   $removedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^-(?!--)' })
   Require-True ($removedRoadmapLines.Count -eq 0) "The release roadmap update removed historical content."
   $currentVersionHeading = "+## Version $($package.version) (Completed)"
-  Require-True ((@($addedRoadmapLines | Where-Object { $_ -ceq $currentVersionHeading }).Count) -eq 1) "The current authorized Version roadmap entry is missing or duplicated."
+  $toolingReleaseHeading = "+## Katherine Synthetic Executive Zero-Metadata Route V1 (Completed)"
+  $currentVersionHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $currentVersionHeading }).Count
+  $toolingReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $toolingReleaseHeading }).Count
+  Require-True (($currentVersionHeadingCount -eq 1 -and $toolingReleaseHeadingCount -eq 0) -or ($currentVersionHeadingCount -eq 0 -and $toolingReleaseHeadingCount -eq 1)) "The current authorized product-Version or qualification-tooling roadmap entry is missing or duplicated."
 }
 
 $gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katherineseye.com/schemas/synthetic-executive/zero-metadata-real-route-calibration-authority.schema.json",
+  "title": "Synthetic Executive Zero-Metadata Real Route Calibration Authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authorityType", "status", "cognitiveSubjectIdentity", "runnerReleaseIdentity", "priorMetadataEvidence", "providerProfileHash", "billingAttestationHash", "exactModelId", "endpointClass", "inferenceEndpoint", "reasoningEffort", "store", "calibrationCaseId", "calibrationCaseHash", "calibrationPromptHash", "promptByteCount", "executiveActionSchemaHash", "canonicalRequestHash", "safeProviderDiagnosticsContractVersion", "terminalResultSchemaVersion", "inputTokenCeiling", "outputTokenCeiling", "totalTokenCeiling", "maximumProviderCostUsd", "maximumMetadataAccessRequests", "maximumInferenceRequests", "maximumGovernedReasoningSteps", "maximumInferenceRetries", "maximumAgentToolCalls", "maximumEngineeringWorkerDispatches", "maximumSuccessors", "maximumWallClockDurationMs", "resultRootRelativePath", "singleUseIdentity", "createdAt", "expiresAt", "prohibitedActivities", "authoritySchemaHash", "authorityReceiptSchemaHash", "authorityHash"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "authorityType": {"const": "SYNTHETIC_EXECUTIVE_ZERO_METADATA_REAL_ROUTE_CALIBRATION_ONLY"},
+    "status": {"const": "AUTHORIZED"},
+    "cognitiveSubjectIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "commit", "tree", "observabilityReleaseHash", "canonicalRequestHash", "safeProviderDiagnosticsContractVersion", "terminalResultSchemaVersion"],
+      "properties": {
+        "version": {"const": "1.12.27"},
+        "commit": {"const": "061dd081e215d02b759a77e56b5b76a40d095d14"},
+        "tree": {"const": "cc32e9b13355818652def44fda5e188deac08c2e"},
+        "observabilityReleaseHash": {"const": "48ccfe3ca681725c551bcb3d461f1d0229f6484e3322f58a8f5a4c4a5c144d5f"},
+        "canonicalRequestHash": {"const": "73fa81d6d3fce8add2d8911682330b954b2653edfb43de4aa37ee02eea6d079e"},
+        "safeProviderDiagnosticsContractVersion": {"const": "1.0"},
+        "terminalResultSchemaVersion": {"const": "1.1"}
+      }
+    },
+    "runnerReleaseIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["releaseType", "routeVersion", "parentCommit", "parentTree", "runtimeCommit", "runtimeTree", "releaseRecordHash"],
+      "properties": {
+        "releaseType": {"const": "KATHERINE_SYNTHETIC_EXECUTIVE_ZERO_METADATA_ROUTE_RELEASE"},
+        "routeVersion": {"const": "1.0"},
+        "parentCommit": {"const": "061dd081e215d02b759a77e56b5b76a40d095d14"},
+        "parentTree": {"const": "cc32e9b13355818652def44fda5e188deac08c2e"},
+        "runtimeCommit": {"$ref": "#/$defs/gitObject"},
+        "runtimeTree": {"$ref": "#/$defs/gitObject"},
+        "releaseRecordHash": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "priorMetadataEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceType", "sourceCalibrationResultHash", "receiptRelativePath", "receiptFileHash", "canonicalSafeResponseHash", "returnedModelId", "newMetadataRequestAuthorized"],
+      "properties": {
+        "evidenceType": {"const": "PRIOR_SEALED_SUCCESSFUL_METADATA_RECEIPT"},
+        "sourceCalibrationResultHash": {"const": "8e5f482627431dbae749597265d08ec2b9b825ce913e31340096c21650f77c4c"},
+        "receiptRelativePath": {"const": "qualification-results/real-route-calibration-ee15190dac308935/metadata-access-receipt.json"},
+        "receiptFileHash": {"const": "21415ddc582597227ed6f32681529200fc06ccfa2e4caa7f58797c6dcbba45a2"},
+        "canonicalSafeResponseHash": {"const": "8a4f2eb296f7a3fd5d11b478d70cfbecd182f977aafa3e114a9bc8018754dc34"},
+        "returnedModelId": {"const": "gpt-5.6-sol"},
+        "newMetadataRequestAuthorized": {"const": false}
+      }
+    },
+    "providerProfileHash": {"const": "da38983bd5a6381b90379e4fa49142a9bb7dcc16941cf1246b479cb6a962cab1"},
+    "billingAttestationHash": {"$ref": "#/$defs/hash"},
+    "exactModelId": {"const": "gpt-5.6-sol"},
+    "endpointClass": {"const": "RESPONSES_API"},
+    "inferenceEndpoint": {"const": "v1/responses"},
+    "reasoningEffort": {"const": "medium"},
+    "store": {"const": false},
+    "calibrationCaseId": {"const": "KE-CAL-001"},
+    "calibrationCaseHash": {"$ref": "#/$defs/hash"},
+    "calibrationPromptHash": {"const": "73dc7a21fa2db16c432b9630f3934ea87d78cd89b174b1739563b207a5a57e93"},
+    "promptByteCount": {"type": "integer", "minimum": 1, "maximum": 8000},
+    "executiveActionSchemaHash": {"const": "87021361196a5001050a2c0987c6128fba5d9ec225da31f4966ec342ba72a1ba"},
+    "canonicalRequestHash": {"const": "73fa81d6d3fce8add2d8911682330b954b2653edfb43de4aa37ee02eea6d079e"},
+    "safeProviderDiagnosticsContractVersion": {"const": "1.0"},
+    "terminalResultSchemaVersion": {"const": "1.1"},
+    "inputTokenCeiling": {"const": 8000},
+    "outputTokenCeiling": {"const": 2000},
+    "totalTokenCeiling": {"const": 10000},
+    "maximumProviderCostUsd": {"const": 0.25},
+    "maximumMetadataAccessRequests": {"const": 0},
+    "maximumInferenceRequests": {"const": 1},
+    "maximumGovernedReasoningSteps": {"const": 1},
+    "maximumInferenceRetries": {"const": 0},
+    "maximumAgentToolCalls": {"const": 0},
+    "maximumEngineeringWorkerDispatches": {"const": 0},
+    "maximumSuccessors": {"const": 0},
+    "maximumWallClockDurationMs": {"const": 300000},
+    "resultRootRelativePath": {"type": "string", "pattern": "^qualification-results/real-route-zero-metadata-calibration-[a-f0-9]{16}$"},
+    "singleUseIdentity": {"type": "string", "pattern": "^zero-metadata-calibration-use-[a-f0-9]{48}$"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "prohibitedActivities": {"type": "array", "minItems": 18, "uniqueItems": true},
+    "authoritySchemaHash": {"$ref": "#/$defs/hash"},
+    "authorityReceiptSchemaHash": {"$ref": "#/$defs/hash"},
+    "authorityHash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "gitObject": {"type": "string", "pattern": "^[a-f0-9]{40}$"}
+  }
+}

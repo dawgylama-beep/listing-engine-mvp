@@ -13,6 +13,9 @@
     "seal:real-route-calibration-release": "node ./qualification/synthetic-executive/calibration/scripts/seal-real-route-release.mjs",
     "authorize:real-route-calibration": "node ./qualification/synthetic-executive/calibration/scripts/run-real-route-calibration.mjs CREATE_AUTHORITY",
     "calibrate:real-route": "node ./qualification/synthetic-executive/calibration/scripts/run-real-route-calibration.mjs RUN_CALIBRATION",
+    "check:zero-metadata-route": "node ./qualification/synthetic-executive/calibration/scripts/zero-metadata-route-release.mjs",
+    "authorize:zero-metadata-real-route-calibration": "node ./qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs CREATE_AUTHORITY",
+    "calibrate:zero-metadata-real-route": "node ./qualification/synthetic-executive/calibration/scripts/run-zero-metadata-real-route-calibration.mjs RUN_CALIBRATION",
     "qualify:synthetic-executive": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs RUN_FUTURE_AI",
     "start": "powershell -ExecutionPolicy Bypass -File ./server.ps1"
   },
