@@ -30,8 +30,8 @@ $activeFiles = @(
 )
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.26"; Text = $index; Pattern = "Version 1.12.26" },
-  @{ Name = "Package version is 1.12.26"; Text = $package; Pattern = '"version": "1.12.26"' },
+  @{ Name = "Visible app version is 1.12.27"; Text = $index; Pattern = "Version 1.12.27" },
+  @{ Name = "Package version is 1.12.27"; Text = $package; Pattern = '"version": "1.12.27"' },
   @{ Name = "Package name uses safe ASCII identifier"; Text = $package; Pattern = '"name": "katherines-eye"' },
   @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Page title uses Katherine's Eye"; Text = $index; Pattern = "<title>Katherine" },

@@ -1,5 +1,5 @@
 # Synthetic Executive real-route calibration
 
-This Version 1.12.26 surface performs one separately authorized, non-corpus OpenAI Responses API calibration for `KE-CAL-001` only. It does not run or score the twelve-case qualification and cannot authorize benchmark, handler, worker, production, merge, Preview, or deployment activity.
+Version 1.12.27 adds bounded safe provider-error diagnostics to the isolated OpenAI Responses API transport without changing its request, model, prompt, structured-output schema, reasoning, token, cost, broker, or route boundaries. The qualified Version 1.12.26 calibration release and its consumed authority remain historical and immutable; Version 1.12.27 creates no replacement authority and performs no provider request.
 
-Deterministic validation uses injected fake providers and no network. The real station requires the direct-child one-file release seal, the external single-use authority, the existing configured credential route, one model metadata check, and at most one inference request.
+Deterministic validation uses injected fake responses and no network. Any later real station still requires a separately approved release and new external single-use authority; the prior authority cannot be reused. The route does not run or score the twelve-case qualification and cannot authorize benchmark, handler, worker, production, merge, Preview, or deployment activity.

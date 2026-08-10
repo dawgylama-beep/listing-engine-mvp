@@ -4,9 +4,9 @@
   "title": "Synthetic Executive Real Route Calibration Result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "resultType", "status", "authorityHash", "singleUseIdentity", "releaseIdentity", "providerProfileHash", "modelIdentity", "metadataAccess", "credentialBoundary", "requestCounts", "prompt", "usage", "cost", "wallClockDurationMs", "actionBroker", "ledger", "memory", "routeIsolation", "claims", "startedAt", "completedAt", "terminationReason", "resultHash"],
+  "required": ["schemaVersion", "resultType", "status", "authorityHash", "singleUseIdentity", "releaseIdentity", "providerProfileHash", "modelIdentity", "metadataAccess", "providerDiagnostics", "credentialBoundary", "requestCounts", "prompt", "usage", "cost", "wallClockDurationMs", "actionBroker", "ledger", "memory", "routeIsolation", "claims", "startedAt", "completedAt", "terminationReason", "resultHash"],
   "properties": {
-    "schemaVersion": {"const": "1.0"},
+    "schemaVersion": {"const": "1.1"},
     "resultType": {"const": "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_RESULT"},
     "status": {"enum": ["KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED", "REAL_ROUTE_CALIBRATION_PRECHECK_FAILED", "REAL_ROUTE_CALIBRATION_MODEL_ACCESS_FAILED", "REAL_ROUTE_CALIBRATION_PROVIDER_REJECTED", "REAL_ROUTE_CALIBRATION_USAGE_UNAVAILABLE", "REAL_ROUTE_CALIBRATION_ACTION_REJECTED", "REAL_ROUTE_CALIBRATION_SECRET_BOUNDARY_FAILED", "REAL_ROUTE_CALIBRATION_ACCOUNTING_FAILED", "REAL_ROUTE_CALIBRATION_SEAL_FAILED"]},
     "authorityHash": {"$ref": "#/$defs/hash"},
@@ -15,6 +15,15 @@
     "providerProfileHash": {"$ref": "#/$defs/hash"},
     "modelIdentity": {"type": "object"},
     "metadataAccess": {"type": ["object", "null"]},
+    "providerDiagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "inference"],
+      "properties": {
+        "metadata": {"$ref": "#/$defs/providerDiagnostic"},
+        "inference": {"$ref": "#/$defs/providerDiagnostic"}
+      }
+    },
     "credentialBoundary": {"type": "object"},
     "requestCounts": {"type": "object"},
     "prompt": {"type": "object"},
@@ -31,5 +40,27 @@
     "terminationReason": {"type": "string"},
     "resultHash": {"$ref": "#/$defs/hash"}
   },
-  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "providerDiagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "httpStatus", "errorType", "errorCode", "errorParam", "messageClassification", "safeProviderRequestId", "responseContentType", "responseByteLength", "responseByteLengthClassification", "responseBodyTruncated", "timeoutClassification", "networkConnectionClassification"],
+      "properties": {
+        "schemaVersion": {"const": "1.0"},
+        "httpStatus": {"type": ["integer", "string"]},
+        "errorType": {"type": "string", "maxLength": 128},
+        "errorCode": {"type": "string", "maxLength": 128},
+        "errorParam": {"type": "string", "maxLength": 128},
+        "messageClassification": {"enum": ["NOT_RECEIVED", "REDACTED_SECRET_MATERIAL", "STRUCTURED_OUTPUT_REJECTION", "AUTHENTICATION_REJECTION", "ACCESS_REJECTION", "MODEL_OR_ROUTE_REJECTION", "RATE_OR_QUOTA_REJECTION", "INVALID_REQUEST", "PROVIDER_FAILURE", "NON_JSON_ERROR_RESPONSE", "MALFORMED_JSON_ERROR_RESPONSE", "OVERSIZED_ERROR_RESPONSE", "OTHER_PROVIDER_ERROR"]},
+        "safeProviderRequestId": {"type": "string", "maxLength": 128},
+        "responseContentType": {"type": "string", "maxLength": 128},
+        "responseByteLength": {"type": ["integer", "string"]},
+        "responseByteLengthClassification": {"enum": ["NOT_RECEIVED", "EXACT", "LOWER_BOUND"]},
+        "responseBodyTruncated": {"type": ["boolean", "string"]},
+        "timeoutClassification": {"enum": ["NOT_RECEIVED", "TIMEOUT", "NOT_TIMEOUT"]},
+        "networkConnectionClassification": {"enum": ["NOT_RECEIVED", "HTTP_RESPONSE_RECEIVED", "CONNECTION_FAILURE"]}
+      }
+    }
+  }
 }

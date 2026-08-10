@@ -215,7 +215,7 @@ export function validateExecutionReleaseRecord(record) {
 
 export function assertQualifiedReleaseState(record, commandMode) {
   if (isRealRouteCalibrationRelease(record)) {
-    validateRealRouteReleaseRecord(record);
+    validateRealRouteReleaseRecord(record, { validateCurrentArtifacts: false });
     assert.fail(`${commandMode} is prohibited by the synthetic-executive real-route-calibration-only release`);
   }
   if (isReadinessRelease(record)) {

@@ -11,7 +11,7 @@ import { ExternalCalibrationGovernor } from "./real-route-governor.mjs";
 import { claimExternalAuthority, closeExternalAuthority, consumeExternalAuthority, DEFAULT_AUTHORITY_PATH, FEATURE_BRANCH, loadExternalRealRouteAuthority, sealExternalRealRouteAuthority } from "./real-route-authority.mjs";
 import { actualCostUsd, calibrationArtifactBindings, createCalibrationActionCoreSchema, repositoryRoot } from "./real-route-profile.mjs";
 import { OpenAIRealRouteClient } from "./real-route-provider.mjs";
-import { assertNoSecretMaterial, safeFailureEvidence } from "./real-route-redaction.mjs";
+import { assertNoSecretMaterial, safeFailureEvidence, unavailableProviderDiagnostics } from "./real-route-redaction.mjs";
 
 const EMPTY_MEMORY_HASH = sha256Json([]);
 
@@ -115,7 +115,12 @@ export async function runRealRouteCalibration({
       await writeExclusiveJson(path.join(resultRoot, "metadata-access-receipt.json"), metadataAccess);
     } catch (error) {
       const safeFailure = safeFailureEvidence(error);
-      metadataAccess = { httpSuccessClass: "FAILED", returnedModelId: null, returnedObjectType: null, returnedOwnerCategory: null, requestTimestamp: now(), safeProviderRequestId: null, failure: safeFailure, canonicalSafeResponseHash: sha256Json({ failure: safeFailure }) };
+      const failure = { code: safeFailure.code, httpStatus: safeFailure.httpStatus };
+      metadataAccess = {
+        httpSuccessClass: "FAILED", returnedModelId: null, returnedObjectType: null, returnedOwnerCategory: null,
+        requestTimestamp: now(), safeProviderRequestId: null, failure, providerDiagnostics: safeFailure.providerDiagnostics,
+        canonicalSafeResponseHash: sha256Json({ failure, providerDiagnostics: safeFailure.providerDiagnostics })
+      };
       await writeExclusiveJson(path.join(resultRoot, "metadata-access-receipt.json"), metadataAccess);
       throw error;
     }
@@ -142,10 +147,11 @@ export async function runRealRouteCalibration({
       status = provisionalStatus;
       terminationReason = status === "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED" ? "ONE_AUTHORIZED_CALIBRATION_INFERENCE_COMPLETED_AND_SEALED" : (usage.complete ? "TYPED_ACTION_REJECTED_WITHOUT_RETRY" : "PROVIDER_USAGE_INCOMPLETE_FULL_RESERVATION_CHARGED");
     } catch (error) {
+      const safeFailure = safeFailureEvidence(error);
       const mapped = failureStatus(error, phase);
       status = mapped;
-      terminationReason = `${safeFailureEvidence(error).code}_NO_RETRY`;
-      if (mapped === "REAL_ROUTE_CALIBRATION_ACTION_REJECTED") broker = { accepted: false, disposition: "REJECTED", brokerActionHash: null, structuredAction: null, rejectionReceipt: safeFailureEvidence(error) };
+      terminationReason = `${safeFailure.code}_NO_RETRY`;
+      if (mapped === "REAL_ROUTE_CALIBRATION_ACTION_REJECTED") broker = { accepted: false, disposition: "REJECTED", brokerActionHash: null, structuredAction: null, rejectionReceipt: { code: safeFailure.code, httpStatus: safeFailure.httpStatus } };
       await governor.completeInference({ usage: null, actualCostUsd: null, durationMs: Math.max(0, nowMs() - dispatchStarted), resultStatus: mapped, brokerDisposition: broker.disposition, safeResponseHash: null });
     }
     phase = "ACCOUNTING";
@@ -174,17 +180,18 @@ export async function runRealRouteCalibration({
   const runtimeEnd = runtimeInspector(authority);
   const completedAt = canonicalIso(now(), "calibration completion time");
   const counts = client?.counts || { metadataAccessInvocations: 0, inferenceInvocations: 0, metadataAccessRequests: 0, inferenceRequests: 0, retries: 0 };
+  const providerDiagnostics = client?.diagnostics || Object.freeze({ metadata: unavailableProviderDiagnostics(), inference: unavailableProviderDiagnostics() });
   const wallClockDurationMs = Math.max(0, nowMs() - startedMs);
   if (wallClockDurationMs > authority.maximumWallClockDurationMs && status === "KATHERINE_SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATED") {
     status = "REAL_ROUTE_CALIBRATION_PROVIDER_REJECTED";
     terminationReason = "CALIBRATION_WALL_CLOCK_CEILING_EXCEEDED_NO_RETRY";
   }
   const resultCore = {
-    schemaVersion: "1.0", resultType: "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_RESULT", status,
+    schemaVersion: "1.1", resultType: "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_RESULT", status,
     authorityHash: authority.authorityHash, singleUseIdentity: authority.singleUseIdentity,
     releaseIdentity: authority.releaseIdentity, providerProfileHash: artifacts.profile.profileHash,
     modelIdentity: { requestedModelId: artifacts.profile.exactModelId, metadataReturnedModelId: metadataAccess?.returnedModelId || null, inferenceReturnedModelId: providerResult?.modelId || null, endpointClass: artifacts.profile.endpointClass, inferenceEndpoint: artifacts.profile.inferenceEndpoint, reasoningEffort: artifacts.profile.reasoning.effort, store: false },
-    metadataAccess,
+    metadataAccess, providerDiagnostics,
     credentialBoundary,
     requestCounts: { ...counts, externallyObservableReasoningSteps: accounting.reasoningStepCount, automaticModelRetries: 0 },
     prompt: { promptHash: artifacts.prompt.promptHash, byteCount: artifacts.prompt.byteCount, conservativeInputTokenReservation: artifacts.prompt.byteCount, inputTokenCeiling: authority.inputTokenCeiling, maximumOutputTokensApplied: authority.outputTokenCeiling },

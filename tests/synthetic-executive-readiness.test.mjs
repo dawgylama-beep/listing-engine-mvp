@@ -54,7 +54,7 @@ test("cost, denial, and fake-agent proofs are sealed and contain no real activit
 
 test("calibration-only release validates while every benchmark command remains prohibited", async () => {
   const release = JSON.parse(await readFile(path.join(repositoryRoot, "benchmarks", "blind-object-v2", "execution-release.json"), "utf8"));
-  assert.equal(validateRealRouteReleaseRecord(release).valid, true);
+  assert.equal(validateRealRouteReleaseRecord(release, { validateCurrentArtifacts: false }).valid, true);
   assert.equal(release.releasePurpose, "SYNTHETIC_EXECUTIVE_REAL_ROUTE_CALIBRATION_ONLY");
   assert.equal(release.realRouteCalibrationPerformed, false); assert.equal(release.syntheticExecutiveQualified, false);
   for (const mode of ["QUALIFY_OFFLINE", "PREFLIGHT", "CREATE_CONSENT", "EXECUTE", "READBACK"]) assert.throws(() => assertQualifiedReleaseState(release, mode), /prohibited/);

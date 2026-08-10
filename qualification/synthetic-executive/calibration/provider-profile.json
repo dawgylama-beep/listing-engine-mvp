@@ -63,7 +63,7 @@
     "persistPresenceBooleanOnly": true
   },
   "redactionRules": ["AUTHORIZATION_HEADER", "BEARER_TOKEN", "OPENAI_KEY_SHAPE", "ENVIRONMENT_DUMP", "HTTP_DEBUG_OUTPUT", "THROWN_REQUEST_CONFIGURATION", "STACK_TRACE_WITH_HEADERS"],
-  "permittedHttpMetadataFields": ["httpSuccessClass", "returnedModelId", "returnedObjectType", "returnedOwnerCategory", "requestTimestamp", "safeProviderRequestId", "canonicalSafeResponseHash"],
+  "permittedHttpMetadataFields": ["httpSuccessClass", "returnedModelId", "returnedObjectType", "returnedOwnerCategory", "requestTimestamp", "safeProviderRequestId", "providerDiagnostics", "canonicalSafeResponseHash"],
   "forbiddenLoggedFields": ["credential", "credentialPrefix", "credentialSuffix", "credentialLength", "credentialHash", "authorizationHeader", "serializedEnvironment", "requestHeaders", "rawResponseHeaders", "requestConfiguration", "stackTrace", "hiddenReasoning", "encryptedReasoning"],
-  "profileHash": "691c5f573c1c38c85bceec6fbbc5a8544b6c58f0fa660423351325d9c2d6afbd"
+  "profileHash": "da38983bd5a6381b90379e4fa49142a9bb7dcc16941cf1246b479cb6a962cab1"
 }

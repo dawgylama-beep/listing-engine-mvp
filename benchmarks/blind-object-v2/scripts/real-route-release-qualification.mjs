@@ -89,7 +89,7 @@ function artifactBindings() {
   };
 }
 
-function validateCore(core) {
+function validateCore(core, { validateCurrentArtifacts = true } = {}) {
   exactKeys(core, FIELDS.filter((field) => field !== "recordHash"), "real-route calibration release core");
   assert.equal(core.schemaVersion, REAL_ROUTE_RELEASE_SCHEMA_VERSION);
   assert.equal(core.releaseType, REAL_ROUTE_RELEASE_TYPE);
@@ -101,8 +101,10 @@ function validateCore(core) {
   assert.equal(core.releasePurpose, REAL_ROUTE_RELEASE_PURPOSE);
   assert.equal(core.realRouteCalibrationAuthorized, true);
   for (const field of FALSE_FIELDS) assert.equal(core[field], false, `${field} must remain false`);
-  const expected = artifactBindings();
-  for (const [field, value] of Object.entries(expected)) assert.deepEqual(core[field], value, `${field} differs from calibration artifact`);
+  if (validateCurrentArtifacts) {
+    const expected = artifactBindings();
+    for (const [field, value] of Object.entries(expected)) assert.deepEqual(core[field], value, `${field} differs from calibration artifact`);
+  }
   assert.equal(core.priorCalibrationFailureResultHash, PRIOR_CALIBRATION_FAILURE_RESULT_HASH);
   assert.equal(core.priorCalibrationFailureFileHash, PRIOR_CALIBRATION_FAILURE_FILE_HASH);
   assert.equal(core.previousExecutionReleaseRecordHash, VERSION_1_12_25_RECORD_HASH);
@@ -123,9 +125,9 @@ export function createRealRouteReleaseRecord(core) {
   return Object.freeze({ ...structuredClone(core), recordHash: sha256Json(core) });
 }
 
-export function validateRealRouteReleaseRecord(record) {
+export function validateRealRouteReleaseRecord(record, options = {}) {
   exactKeys(record, FIELDS, "real-route calibration release record");
-  const core = structuredClone(record); delete core.recordHash; validateCore(core);
+  const core = structuredClone(record); delete core.recordHash; validateCore(core, options);
   assert.match(record.recordHash || "", HASH); assert.equal(sha256Json(core), record.recordHash, "real-route release record hash differs");
   return Object.freeze({ valid: true, recordHash: record.recordHash, releaseState: record.releaseState });
 }

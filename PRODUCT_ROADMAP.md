@@ -733,6 +733,14 @@
 - Preserved the Version 1.12.25 readiness record, prior calibration failure seal, immutable Version 1.12.13 product identity, Phase 7C freeze, and Phase 6A evidence baseline
 - Provider-call impact: deterministic qualification remains network-denied; the separately sealed external authority permits exactly one metadata access check followed by at most one calibration inference with zero retries
 
+## Version 1.12.27 (Completed)
+- Added a closed Version 1 safe provider-error diagnostic contract that explicitly preserves bounded HTTP status, normalized error type/code/param, redacted message classification, safe request ID, media type, bounded byte length, timeout class, and connection class while representing every unavailable field as `NOT_RECEIVED`
+- Added a 64 KiB fail-closed response inspection ceiling and terminal readback persistence without retaining raw bodies, complete headers, authorization material, credentials or derivatives, account identifiers, cookies, project/organization identifiers, or account-specific billing details
+- Added deterministic fake-response coverage for 400, 401, 403, 404, 429, 500, non-JSON, malformed JSON, timeout, connection failure, missing request ID, oversized body, and secret-shaped values while preserving zero retries, exactly-once authority consumption, and full-reservation accounting
+- Preserved the exact canonical request hash, model, prompt, Executive Action schema, reasoning setting, token ceilings, provider cost governance, Typed Executive Action Broker, qualification corpus, product handler, prior sealed calibration artifacts, and immutable Version 1.12.26 calibration release
+- Sealed a separate content-addressed observability release so the consumed Version 1.12.26 authority remains unusable and no new calibration authority is created
+- Provider-call impact: all validation uses injected local fake responses; no credential, provider, external network, calibration, qualification, benchmark, product-handler, cognitive, Preview, or Production activity is performed
+
 ## Version 2.0
 - User accounts
 - Saved listings
