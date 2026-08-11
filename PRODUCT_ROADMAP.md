@@ -777,6 +777,16 @@
 - Added zero-network regression coverage for all 27 registered state/action pairs, 256 generated invalid combinations, all twelve exposed artifact bundles, the historical fixture envelope boundary, A02 cross-branch rejection prevention, safe receipts, and a purpose-neutral ten-turn lifecycle reachability proof
 - Preserved the prior `NOT_QUALIFIED` adjudication, all failed qualification artifacts, the sealed corpus, evaluator controls, scoring, budget, calibration, customer handlers, and Phase 6A benchmark artifacts; no qualification, authority, provider, benchmark, handler, Preview, Production, merge, or deployment activity occurred
 
+## Version 1.12.29 (Completed)
+- Added one canonical bounded-request registry covering provider-controlled action fields, host-controlled trace fields, visible artifacts, memory results, worker evidence, and immutable Responses request scaffolding
+- Generated finite `maxLength`, `maxItems` and numeric-range provider constraints plus the structurally equivalent broker validator from that registry for all 13 actions and 27 state/action pairs
+- Added complete bounded semantic trace projection, all-or-nothing inbound evidence admission, distinct pre-dispatch and post-action contextual envelope stops, and sanitized receipts
+- Enumerated all reachable lifecycle paths and sealed maximum-of-individual-request accounting; the purpose-neutral controlling route is bounded below the unchanged 64,000-byte ceiling without summing mutually exclusive requests or branches
+- Bound the offline compatibility validator to the official Structured Outputs and `gpt-5.6-sol` documentation retrieved on 2026-08-11; this is documentation evidence, not provider calibration
+- Closed the 50,000-, 55,000-, and 60,000-byte retrieval counterexamples at both provider-schema and broker structural gates and added exact-bound, first-over, Unicode, escaping, property-generated, trace, inbound, and contextual regressions
+- Preserved the frozen continuation policy, 13 action meanings, 27 successors, scorer denominator 84, cases, budgets, handlers, failed qualification, historical Version 1.12.28 release, and Phase 6A artifacts
+- Provider-call impact: zero credentials, metadata requests, provider requests, external-model calls, authorities, qualification cases, corpus construction, memory promotion, benchmarks, handlers, Preview, Production, merges, or deployments
+
 ## Version 2.0
 - User accounts
 - Saved listings

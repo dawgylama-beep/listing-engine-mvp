@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { boundedArray, boundedNumber, boundedString, boundedStringArray } from "./bounded-request-contract.mjs";
 
-export const ACTION_REGISTRY_VERSION = "1.1";
+export const ACTION_REGISTRY_VERSION = "1.2";
 
 export const EXECUTIVE_CASE_STATE = Object.freeze({
   CASE_OPEN: "CASE_OPEN",
@@ -31,8 +32,6 @@ export const EVIDENCE_EVALUATIONS = Object.freeze(["VALID_PASS", "BOUNDED_FAIL",
 export const CLAIM_STATES = Object.freeze(["PROVEN", "CONTRADICTED", "NOT_PROVEN", "NOT_APPLICABLE"]);
 export const AUTHORITY_CLASSES = Object.freeze(["NO_NEW_AUTHORITY", "BOUNDED_ENGINEERING", "EXCEPTIONAL_HUMAN"]);
 
-const string = () => ({ type: "string" });
-const stringArray = ({ minimum = 0 } = {}) => ({ type: "array", items: string(), ...(minimum > 0 ? { minItems: minimum } : {}) });
 const closedObject = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
 const emptyDetails = () => closedObject({});
 const transition = (currentState, successorState, terminal = false) => Object.freeze({ currentState, successorState, terminal });
@@ -40,24 +39,24 @@ const transition = (currentState, successorState, terminal = false) => Object.fr
 const memoryRecordSchema = closedObject({
   schemaVersion: { type: "string", enum: ["1.0"] },
   memoryType: { type: "string", enum: ["GENERALIZED_LESSON_CANDIDATE"] },
-  memoryId: string(),
-  sourceEpisodeIds: stringArray({ minimum: 1 }),
-  evidenceReferences: stringArray({ minimum: 1 }),
-  evidenceAggregateHash: string(),
-  observedFailurePattern: string(),
-  generalizedRule: string(),
-  triggeringConditions: stringArray({ minimum: 1 }),
-  applicabilityBoundaries: stringArray({ minimum: 1 }),
-  explicitNonApplicabilityConditions: stringArray(),
-  recurrenceSignature: string(),
-  recommendedActionPattern: string(),
-  prohibitedActions: stringArray({ minimum: 1 }),
-  requiredProofBeforeAdvancement: stringArray({ minimum: 1 }),
-  authorityNormallyRequired: string(),
-  confidence: { type: "number", minimum: 0, maximum: 1 },
-  unresolvedUncertainty: stringArray(),
+  memoryId: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.memoryId"),
+  sourceEpisodeIds: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.sourceEpisodeIds", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.sourceEpisodeIds[]", { minimum: 1 }),
+  evidenceReferences: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.evidenceReferences", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.evidenceReferences[]", { minimum: 1 }),
+  evidenceAggregateHash: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.evidenceAggregateHash"),
+  observedFailurePattern: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.observedFailurePattern"),
+  generalizedRule: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.generalizedRule"),
+  triggeringConditions: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.triggeringConditions", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.triggeringConditions[]", { minimum: 1 }),
+  applicabilityBoundaries: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.applicabilityBoundaries", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.applicabilityBoundaries[]", { minimum: 1 }),
+  explicitNonApplicabilityConditions: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.explicitNonApplicabilityConditions", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.explicitNonApplicabilityConditions[]"),
+  recurrenceSignature: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.recurrenceSignature"),
+  recommendedActionPattern: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.recommendedActionPattern"),
+  prohibitedActions: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.prohibitedActions", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.prohibitedActions[]", { minimum: 1 }),
+  requiredProofBeforeAdvancement: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.requiredProofBeforeAdvancement", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.requiredProofBeforeAdvancement[]", { minimum: 1 }),
+  authorityNormallyRequired: boundedString("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.authorityNormallyRequired"),
+  confidence: boundedNumber("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.confidence"),
+  unresolvedUncertainty: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.unresolvedUncertainty", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.unresolvedUncertainty[]"),
   status: { type: "string", enum: ["CANDIDATE"] },
-  predecessorMemoryIds: stringArray()
+  predecessorMemoryIds: boundedStringArray("details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.predecessorMemoryIds", "details.WRITE_GENERALIZED_LESSON_CANDIDATE.memoryRecord.predecessorMemoryIds[]")
 });
 
 const entries = [
@@ -76,9 +75,9 @@ const entries = [
     ],
     detailsSchema: closedObject({
       blockedCognitiveCapability: { type: "string", enum: ["BOUNDED_EPISODE_RECONSTRUCTION", "BOUNDED_FAILURE_CLASSIFICATION"] },
-      requiredFacts: stringArray({ minimum: 1 }),
-      unavailableFacts: stringArray({ minimum: 1 }),
-      whyReconstructionOrClassificationCannotProceedWithoutFabrication: string()
+      requiredFacts: boundedStringArray("details.DECLARE_INSUFFICIENT_EVIDENCE.requiredFacts", "details.DECLARE_INSUFFICIENT_EVIDENCE.requiredFacts[]", { minimum: 1 }),
+      unavailableFacts: boundedStringArray("details.DECLARE_INSUFFICIENT_EVIDENCE.unavailableFacts", "details.DECLARE_INSUFFICIENT_EVIDENCE.unavailableFacts[]", { minimum: 1 }),
+      whyReconstructionOrClassificationCannotProceedWithoutFabrication: boundedString("details.DECLARE_INSUFFICIENT_EVIDENCE.whyReconstructionOrClassificationCannotProceedWithoutFabrication", { minLength: 1, pattern: "\\S" })
     }),
     minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"],
@@ -88,8 +87,12 @@ const entries = [
     actionType: "RETRIEVE_RELEVANT_MEMORY",
     transitions: [transition(EXECUTIVE_CASE_STATE.EPISODE_RECONSTRUCTED, EXECUTIVE_CASE_STATE.MEMORY_RETRIEVED)],
     detailsSchema: closedObject({
-      queryText: string(),
-      queryFacets: closedObject({ cohort: stringArray(), pattern: stringArray(), failureClass: stringArray() })
+      queryText: boundedString("details.RETRIEVE_RELEVANT_MEMORY.queryText", { minLength: 1, pattern: "\\S" }),
+      queryFacets: closedObject({
+        cohort: boundedStringArray("details.RETRIEVE_RELEVANT_MEMORY.queryFacets.cohort", "details.RETRIEVE_RELEVANT_MEMORY.queryFacets.cohort[]"),
+        pattern: boundedStringArray("details.RETRIEVE_RELEVANT_MEMORY.queryFacets.pattern", "details.RETRIEVE_RELEVANT_MEMORY.queryFacets.pattern[]"),
+        failureClass: boundedStringArray("details.RETRIEVE_RELEVANT_MEMORY.queryFacets.failureClass", "details.RETRIEVE_RELEVANT_MEMORY.queryFacets.failureClass[]")
+      })
     }),
     minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"], nonEmptyDetailPaths: ["$.details.queryText"]
@@ -97,30 +100,39 @@ const entries = [
   {
     actionType: "CLASSIFY_FAILURE",
     transitions: [transition(EXECUTIVE_CASE_STATE.MEMORY_RETRIEVED, EXECUTIVE_CASE_STATE.FAILURE_CLASSIFIED)],
-    detailsSchema: closedObject({ failureClass: string() }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
+    detailsSchema: closedObject({ failureClass: boundedString("details.CLASSIFY_FAILURE.failureClass", { minLength: 1, pattern: "\\S" }) }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"], nonEmptyDetailPaths: ["$.details.failureClass"]
   },
   {
     actionType: "DECLARE_RECURRENCE",
     transitions: [transition(EXECUTIVE_CASE_STATE.MEMORY_RETRIEVED, EXECUTIVE_CASE_STATE.FAILURE_CLASSIFIED)],
-    detailsSchema: closedObject({ failureClass: string(), memoryMatchClass: string() }), minimumEvidenceReferences: 1, minimumMemoryReferences: 1,
+    detailsSchema: closedObject({ failureClass: boundedString("details.DECLARE_RECURRENCE.failureClass", { minLength: 1, pattern: "\\S" }), memoryMatchClass: boundedString("details.DECLARE_RECURRENCE.memoryMatchClass", { minLength: 1, pattern: "\\S" }) }), minimumEvidenceReferences: 1, minimumMemoryReferences: 1,
     authorityClasses: ["NO_NEW_AUTHORITY"], nonEmptyDetailPaths: ["$.details.failureClass", "$.details.memoryMatchClass"]
   },
   {
     actionType: "DECLARE_NOVEL_FAILURE",
     transitions: [transition(EXECUTIVE_CASE_STATE.MEMORY_RETRIEVED, EXECUTIVE_CASE_STATE.FAILURE_CLASSIFIED)],
-    detailsSchema: closedObject({ failureClass: string() }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
+    detailsSchema: closedObject({ failureClass: boundedString("details.DECLARE_NOVEL_FAILURE.failureClass", { minLength: 1, pattern: "\\S" }) }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"], nonEmptyDetailPaths: ["$.details.failureClass"]
   },
   {
     actionType: "PROPOSE_BOUNDED_ENGINEERING_TASK",
     transitions: [transition(EXECUTIVE_CASE_STATE.FAILURE_CLASSIFIED, EXECUTIVE_CASE_STATE.TASK_PROPOSED)],
     detailsSchema: closedObject({
-      exactFailureClass: string(), affectedComponents: stringArray({ minimum: 1 }), proposedChangeSurface: stringArray({ minimum: 1 }),
-      explicitlyExcludedComponents: stringArray({ minimum: 1 }), generalizedInvariant: string(), minimumRequiredRegressionSet: stringArray({ minimum: 1 }),
-      exactPathOrStateProofRequirement: string(), rollbackRequirement: string(), stopCondition: string(),
-      costAndToolEstimate: closedObject({ toolSteps: { type: "integer", minimum: 0 }, costUsd: { type: "number", minimum: 0 } }),
-      requestedAuthority: string()
+      exactFailureClass: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.exactFailureClass", { minLength: 1, pattern: "\\S" }),
+      affectedComponents: boundedStringArray("details.PROPOSE_BOUNDED_ENGINEERING_TASK.affectedComponents", "details.PROPOSE_BOUNDED_ENGINEERING_TASK.affectedComponents[]", { minimum: 1 }),
+      proposedChangeSurface: boundedStringArray("details.PROPOSE_BOUNDED_ENGINEERING_TASK.proposedChangeSurface", "details.PROPOSE_BOUNDED_ENGINEERING_TASK.proposedChangeSurface[]", { minimum: 1 }),
+      explicitlyExcludedComponents: boundedStringArray("details.PROPOSE_BOUNDED_ENGINEERING_TASK.explicitlyExcludedComponents", "details.PROPOSE_BOUNDED_ENGINEERING_TASK.explicitlyExcludedComponents[]", { minimum: 1 }),
+      generalizedInvariant: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.generalizedInvariant", { minLength: 1, pattern: "\\S" }),
+      minimumRequiredRegressionSet: boundedStringArray("details.PROPOSE_BOUNDED_ENGINEERING_TASK.minimumRequiredRegressionSet", "details.PROPOSE_BOUNDED_ENGINEERING_TASK.minimumRequiredRegressionSet[]", { minimum: 1 }),
+      exactPathOrStateProofRequirement: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.exactPathOrStateProofRequirement", { minLength: 1, pattern: "\\S" }),
+      rollbackRequirement: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.rollbackRequirement"),
+      stopCondition: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.stopCondition", { minLength: 1, pattern: "\\S" }),
+      costAndToolEstimate: closedObject({
+        toolSteps: boundedNumber("details.PROPOSE_BOUNDED_ENGINEERING_TASK.costAndToolEstimate.toolSteps"),
+        costUsd: boundedNumber("details.PROPOSE_BOUNDED_ENGINEERING_TASK.costAndToolEstimate.costUsd")
+      }),
+      requestedAuthority: boundedString("details.PROPOSE_BOUNDED_ENGINEERING_TASK.requestedAuthority")
     }),
     minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"],
@@ -130,8 +142,12 @@ const entries = [
     actionType: "SPECIFY_REGRESSION_PROOF",
     transitions: [transition(EXECUTIVE_CASE_STATE.TASK_PROPOSED, EXECUTIVE_CASE_STATE.PROOF_SPECIFIED)],
     detailsSchema: closedObject({
-      helperUnitProof: string(), exactProductionPathProof: string(), historicalStateProof: string(),
-      negativeProof: string(), restartOrRecoveryProof: string(), forbiddenActivityProof: string()
+      helperUnitProof: boundedString("details.SPECIFY_REGRESSION_PROOF.helperUnitProof"),
+      exactProductionPathProof: boundedString("details.SPECIFY_REGRESSION_PROOF.exactProductionPathProof"),
+      historicalStateProof: boundedString("details.SPECIFY_REGRESSION_PROOF.historicalStateProof"),
+      negativeProof: boundedString("details.SPECIFY_REGRESSION_PROOF.negativeProof"),
+      restartOrRecoveryProof: boundedString("details.SPECIFY_REGRESSION_PROOF.restartOrRecoveryProof"),
+      forbiddenActivityProof: boundedString("details.SPECIFY_REGRESSION_PROOF.forbiddenActivityProof")
     }),
     minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"]
@@ -150,7 +166,11 @@ const entries = [
     ],
     detailsSchema: closedObject({
       classification: { type: "string", enum: EVIDENCE_EVALUATIONS },
-      requiredClaims: { type: "array", minItems: 1, items: closedObject({ claimId: string(), status: { type: "string", enum: CLAIM_STATES }, evidenceReferences: stringArray({ minimum: 1 }) }) }
+      requiredClaims: boundedArray("details.EVALUATE_RETURNED_ENGINEERING_EVIDENCE.requiredClaims", closedObject({
+          claimId: boundedString("details.EVALUATE_RETURNED_ENGINEERING_EVIDENCE.requiredClaims[].claimId"),
+          status: { type: "string", enum: CLAIM_STATES },
+          evidenceReferences: boundedStringArray("details.EVALUATE_RETURNED_ENGINEERING_EVIDENCE.requiredClaims[].evidenceReferences", "details.EVALUATE_RETURNED_ENGINEERING_EVIDENCE.requiredClaims[].evidenceReferences[]", { minimum: 1 })
+        }), { minimum: 1 })
     }),
     minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"]
@@ -178,7 +198,7 @@ const entries = [
         .map((state) => transition(state, EXECUTIVE_CASE_STATE.STOPPED, true)),
       transition(EXECUTIVE_CASE_STATE.NEXT_ACTION_SELECTED, EXECUTIVE_CASE_STATE.CASE_SEALED, true)
     ],
-    detailsSchema: closedObject({ stopReason: string() }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
+    detailsSchema: closedObject({ stopReason: boundedString("details.STOP_SAFELY.stopReason", { minLength: 1, pattern: "\\S" }) }), minimumEvidenceReferences: 1, minimumMemoryReferences: 0,
     authorityClasses: ["NO_NEW_AUTHORITY"], nonEmptyDetailPaths: ["$.details.stopReason"]
   }
 ];
@@ -235,15 +255,15 @@ export function registryActionFixtures() {
 
 export function canonicalExecutiveActionSchema() {
   const properties = {
-    actionId: { type: "string", minLength: 1 }, actionType: { type: "string", enum: [...ACTION_TYPES] },
-    authorityClass: { type: "string", enum: [...AUTHORITY_CLASSES] }, boundedRationaleSummary: { type: "string", minLength: 1 },
-    confidence: { type: "number", minimum: 0, maximum: 1 }, contentHash: { $ref: "#/$defs/hash" },
+    actionId: { type: "string", minLength: 1, maxLength: 160 }, actionType: { type: "string", enum: [...ACTION_TYPES] },
+    authorityClass: { type: "string", enum: [...AUTHORITY_CLASSES] }, boundedRationaleSummary: boundedString("provider.boundedRationaleSummary", { minLength: 1 }),
+    confidence: boundedNumber("provider.confidence"), contentHash: { $ref: "#/$defs/hash" },
     details: { type: "object" }, episodeId: { type: "string", minLength: 1 },
-    evidenceReferences: stringArray({ minimum: 1 }), executiveState: { type: "string", minLength: 1 },
-    factualFindings: stringArray(), memoryReferences: stringArray(), observedStateHash: { $ref: "#/$defs/hash" },
-    prohibitedOperations: stringArray({ minimum: 1 }),
+    evidenceReferences: boundedStringArray("provider.decision.evidenceReferences", "provider.decision.evidenceReferences[]", { minimum: 1 }), executiveState: { type: "string", minLength: 1, maxLength: 64 },
+    factualFindings: boundedStringArray("provider.factualFindings", "provider.factualFindings[]"), memoryReferences: boundedStringArray("provider.decision.memoryReferences", "provider.decision.memoryReferences[]"), observedStateHash: { $ref: "#/$defs/hash" },
+    prohibitedOperations: boundedStringArray("provider.prohibitedOperations", "provider.prohibitedOperations[]", { minimum: 1 }),
     requestedSuccessorState: { type: "string", readOnly: true, description: "Read-only successor appended by the broker from the canonical registry." },
-    schemaVersion: { const: ACTION_REGISTRY_VERSION }, uncertainties: stringArray()
+    schemaVersion: { const: ACTION_REGISTRY_VERSION }, uncertainties: boundedStringArray("provider.uncertainties", "provider.uncertainties[]")
   };
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",

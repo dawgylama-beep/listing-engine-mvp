@@ -6,7 +6,7 @@ import test from "node:test";
 import { buildQualificationAuthority, createNewQualificationAuthority, validateQualificationAuthority } from "../qualification/synthetic-executive/qualification-real-route/scripts/qualification-authority.mjs";
 import { ImmutableQualificationActionLedger } from "../qualification/synthetic-executive/qualification-real-route/scripts/qualification-execution-ledger.mjs";
 import {
-  buildGeneralContinuationContractRelease, releasePath as generalContinuationReleasePath, validateGeneralContinuationContractRelease
+  releasePath as generalContinuationReleasePath, validateGeneralContinuationContractRelease
 } from "../qualification/synthetic-executive/qualification-real-route/scripts/general-continuation-contract-release.mjs";
 import {
   GENERAL_CONTINUATION_POLICY, classifyStageScopedEvidence
@@ -228,7 +228,7 @@ test("oversized complete materialization seals accounting and stops before mock 
     const receipts = await readdir(path.join(runRoot, "pre-dispatch-accounting"));
     assert.equal(receipts.length, 1);
     const receipt = await readJson(path.join(runRoot, "pre-dispatch-accounting", receipts[0]));
-    assert.equal(receipt.classification, "QUALIFICATION_MATERIALIZATION_BUDGET_EXCEEDED");
+    assert.equal(receipt.classification, "QUALIFICATION_VISIBLE_ARTIFACT_ADMISSION_REJECTED");
     assert.equal(receipt.providerDispatchOccurred, false);
   } finally {
     await rm(runRoot, { recursive: true, force: true });
@@ -362,18 +362,19 @@ test("qualification route is exact, strict, zero-metadata, and has no provider-c
   assert.equal(envelope.model, "gpt-5.6-sol"); assert.deepEqual(envelope.reasoning, { effort: "medium" }); assert.equal(envelope.store, false); assert.deepEqual(envelope.tools, []);
   assert.equal(envelope.text.format.type, "json_schema"); assert.equal(envelope.text.format.strict, true); assert.equal(QUALIFICATION_ROUTE.maximumMetadataRequests, 0);
   assert.equal(JSON.stringify(schema).includes("requestedSuccessorState"), false);
-  const [routeSource, brokerSource, controllerSource] = await Promise.all([
+  const [routeSource, providerSchemaSource, brokerSource, controllerSource] = await Promise.all([
     readFile(path.join(qualificationRoot, "qualification-real-route", "scripts", "qualification-route.mjs"), "utf8"),
+    readFile(path.join(qualificationRoot, "scripts", "provider-action-schema.mjs"), "utf8"),
     readFile(path.join(qualificationRoot, "scripts", "action-broker.mjs"), "utf8"),
     readFile(path.join(qualificationRoot, "scripts", "lifecycle-integrity-controller.mjs"), "utf8")
   ]);
   assert.doesNotMatch(routeSource, /const\s+(STATE_ACTIONS|detailsSchemas)\b/); assert.doesNotMatch(controllerSource, /CASE_OPEN:\s*Object\.freeze\(\{/);
-  assert.match(routeSource, /legalActionsForState/); assert.match(routeSource, /actionDefinition/); assert.match(brokerSource, /canonicalTransition/); assert.match(controllerSource, /derivedTransitionRegistry/);
+  assert.match(providerSchemaSource, /legalActionsForState/); assert.match(providerSchemaSource, /actionDefinition/); assert.match(brokerSource, /canonicalTransition/); assert.match(controllerSource, /derivedTransitionRegistry/);
 });
 
 test("canonical accepted-action schema and general policy JSON match their generated sources", async () => {
   const [schemaFile, policyFile] = await Promise.all([
-    readJson(path.join(qualificationRoot, "schemas", "executive-action-v1.1.schema.json")),
+    readJson(path.join(qualificationRoot, "schemas", "executive-action-v1.2.schema.json")),
     readJson(path.join(qualificationRoot, "qualification-real-route", "general-continuation-policy.json"))
   ]);
   assert.equal(stableJson(schemaFile), stableJson(canonicalExecutiveActionSchema()));
@@ -412,11 +413,9 @@ test("safe provider diagnostics retain bounded error evidence without secrets", 
   assert.deepEqual(client.counts, { metadataRequests: 0, inferenceRequests: 1, retries: 0 });
 });
 
-test("Version 1.12.28 general-continuation release record rebuilds exactly and excludes Phase 6A", async () => {
+test("Version 1.12.28 general-continuation release record remains immutable and excludes Phase 6A", async () => {
   const committed = await readJson(generalContinuationReleasePath);
   validateGeneralContinuationContractRelease(committed);
-  const rebuilt = await buildGeneralContinuationContractRelease();
-  assert.equal(stableJson(rebuilt), stableJson(committed));
   assert.equal(committed.version, "1.12.28"); assert.equal(committed.preservedReleaseIdentity.failedQualificationClassification, "NOT_QUALIFIED");
   assert.equal(committed.artifactHashes.some((item) => item.relativePath.startsWith("benchmarks/blind-object-v1-results/")), false);
   assert.deepEqual(committed.activityAssertions, {

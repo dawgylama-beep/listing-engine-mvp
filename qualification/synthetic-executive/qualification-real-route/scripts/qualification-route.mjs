@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ACTION_REGISTRY_VERSION, actionDefinition, canonicalExecutiveActionSchema, legalActionsForState, registryActionFixtures
+  ACTION_REGISTRY_VERSION, canonicalExecutiveActionSchema, registryActionFixtures
 } from "../../scripts/executive-action-registry.mjs";
+import { createStateConditionedProviderActionSchema } from "../../scripts/provider-action-schema.mjs";
 import { sha256Bytes, sha256Json, stableJson } from "../../scripts/protocol.mjs";
 import { loadRealProviderProfile } from "../../calibration/scripts/real-route-profile.mjs";
 import {
@@ -54,77 +55,96 @@ export const QUALIFICATION_ROUTE = Object.freeze({
   endpoint: "v1/responses", maximumMetadataRequests: 0
 });
 
-const closedObject = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
-const referenceArray = (ids, minimum) => ({
-  type: "array",
-  items: ids.length ? { type: "string", enum: [...ids] } : { type: "string" },
-  minItems: minimum,
-  ...(ids.length === 0 ? { maxItems: 0 } : {})
-});
-
 export function createQualificationActionTransportSchema({
   episodeId, executiveState, observedStateHash, actionId,
   availableEvidenceIds = ["template-visible-artifact"], availableMemoryIds = []
 }) {
-  assert.match(episodeId, /^[A-Za-z0-9._:-]+$/);
-  assert.match(observedStateHash, /^[a-f0-9]{64}$/);
-  assert.ok(Array.isArray(availableEvidenceIds) && availableEvidenceIds.length > 0, "qualification action schema requires visible evidence IDs");
-  assert.ok(Array.isArray(availableMemoryIds));
-  const actions = legalActionsForState(executiveState, { memoryIds: availableMemoryIds });
-  assert.ok(actions?.length, `unsupported qualification executive state ${executiveState}`);
-  const properties = {
-    schemaVersion: { type: "string", enum: [ACTION_REGISTRY_VERSION] }, actionId: { type: "string", enum: [actionId] },
-    episodeId: { type: "string", enum: [episodeId] }, executiveState: { type: "string", enum: [executiveState] },
-    observedStateHash: { type: "string", enum: [observedStateHash] },
-    factualFindings: { type: "array", items: { type: "string" } }, uncertainties: { type: "array", items: { type: "string" } },
-    confidence: { type: "number", minimum: 0, maximum: 1 }, boundedRationaleSummary: { type: "string" },
-    prohibitedOperations: { type: "array", minItems: 1, items: { type: "string" } },
-    decision: {
-      anyOf: actions.map((actionType) => {
-        const definition = actionDefinition(actionType);
-        return closedObject({
-          actionType: { type: "string", enum: [actionType] },
-          details: structuredClone(definition.detailsSchema),
-          evidenceReferences: referenceArray(availableEvidenceIds, definition.minimumEvidenceReferences),
-          memoryReferences: referenceArray(availableMemoryIds, definition.minimumMemoryReferences),
-          authorityClass: { type: "string", enum: [...definition.authorityClasses] }
-        });
-      })
-    }
-  };
-  const schema = closedObject(properties);
+  const schema = createStateConditionedProviderActionSchema({ episodeId, executiveState, observedStateHash, actionId, availableEvidenceIds, availableMemoryIds });
   assertQualificationStructuredOutputsSubset(schema);
   return Object.freeze(schema);
 }
 
+export const QUALIFICATION_STRUCTURED_OUTPUT_KEYWORD_ALLOWLIST = Object.freeze([
+  "type", "properties", "required", "additionalProperties", "items", "anyOf", "enum",
+  "minimum", "maximum", "minLength", "maxLength", "pattern", "minItems", "maxItems"
+]);
+export const QUALIFICATION_STRUCTURED_OUTPUT_REJECTED_KEYWORDS = Object.freeze([
+  "allOf", "not", "if", "then", "else", "dependentRequired", "dependentSchemas", "const", "patternProperties",
+  "unevaluatedProperties", "contains", "minContains", "maxContains", "uniqueItems", "propertyNames",
+  "$defs", "$ref", "$schema", "$id", "title", "description", "readOnly", "format"
+]);
+
 export function assertQualificationStructuredOutputsSubset(schema) {
   assert.equal(schema?.type, "object", "structured-output root must be an object");
   assert.equal(Object.hasOwn(schema, "anyOf"), false, "structured-output root anyOf is prohibited");
-  let properties = 0; let depth = 0; let enums = 0;
+  let properties = 0; let depth = 0; let enums = 0; let propertyNameCharacters = 0;
+  let enumStringCharacters = 0; let largestEnumStringCharacters = 0; let largeEnumPropertyCount = 0;
+  const allowed = new Set(QUALIFICATION_STRUCTURED_OUTPUT_KEYWORD_ALLOWLIST);
   const walk = (node, label, objectDepth) => {
     assert.ok(node && typeof node === "object" && !Array.isArray(node), `${label} must be a schema object`);
-    for (const keyword of ["allOf", "not", "if", "then", "else", "dependentRequired", "dependentSchemas", "const", "$ref", "$defs", "minLength", "maxLength", "pattern", "format"])
-      assert.equal(Object.hasOwn(node, keyword), false, `${label}.${keyword} is unsupported`);
+    for (const keyword of Object.keys(node)) assert.equal(allowed.has(keyword), true, `${label}.${keyword} is unsupported`);
+    for (const keyword of QUALIFICATION_STRUCTURED_OUTPUT_REJECTED_KEYWORDS) assert.equal(Object.hasOwn(node, keyword), false, `${label}.${keyword} is unsupported`);
     if (Object.hasOwn(node, "anyOf")) {
       assert.ok(Array.isArray(node.anyOf) && node.anyOf.length > 0, `${label}.anyOf must be nonempty`);
       for (const [index, branch] of node.anyOf.entries()) walk(branch, `${label}.anyOf[${index}]`, objectDepth);
       return;
     }
     assert.ok(["object", "array", "string", "number", "integer", "boolean", "null"].includes(node.type), `${label}.type must be explicit`);
-    if (node.enum) { assert.ok(node.enum.length > 0); enums += node.enum.length; }
+    if (node.enum) {
+      assert.ok(node.enum.length > 0); enums += node.enum.length;
+      const currentEnumStringCharacters = node.enum.reduce((sum, value) => sum + (typeof value === "string" ? Array.from(value).length : 0), 0);
+      enumStringCharacters += currentEnumStringCharacters;
+      largestEnumStringCharacters = Math.max(largestEnumStringCharacters, currentEnumStringCharacters);
+      if (node.enum.length > 250) {
+        largeEnumPropertyCount += 1;
+        assert.ok(currentEnumStringCharacters <= 15_000, `${label}.enum string character limit exceeded`);
+      }
+    }
     if (node.type === "object") {
       assert.equal(node.additionalProperties, false, `${label}.additionalProperties must be false`);
       const names = Object.keys(node.properties || {}); properties += names.length; depth = Math.max(depth, objectDepth);
+      propertyNameCharacters += names.reduce((sum, name) => sum + Array.from(name).length, 0);
       assert.deepEqual([...(node.required || [])].sort(), names.sort(), `${label}.required must be complete`);
       for (const [name, child] of Object.entries(node.properties || {})) walk(child, `${label}.properties.${name}`, objectDepth + 1);
     }
-    if (node.type === "array") { assert.ok(node.items, `${label}.items is required`); walk(node.items, `${label}.items`, objectDepth); }
+    if (node.type === "array") {
+      assert.ok(node.items, `${label}.items is required`);
+      assert.equal(Number.isInteger(node.maxItems), true, `${label}.maxItems finite bound is required`);
+      if (Object.hasOwn(node, "minItems")) assert.ok(Number.isInteger(node.minItems) && node.minItems >= 0, `${label}.minItems invalid`);
+      if (Object.hasOwn(node, "maxItems")) assert.ok(Number.isInteger(node.maxItems) && node.maxItems >= 0, `${label}.maxItems invalid`);
+      if (Object.hasOwn(node, "minItems") && Object.hasOwn(node, "maxItems")) assert.ok(node.minItems <= node.maxItems, `${label} array bounds invalid`);
+      walk(node.items, `${label}.items`, objectDepth);
+    }
+    if (node.type === "string") {
+      assert.equal(Boolean(node.enum) || Number.isInteger(node.maxLength), true, `${label} string must have enum or maxLength`);
+      if (Object.hasOwn(node, "minLength")) assert.ok(Number.isInteger(node.minLength) && node.minLength >= 0, `${label}.minLength invalid`);
+      if (Object.hasOwn(node, "maxLength")) assert.ok(Number.isInteger(node.maxLength) && node.maxLength > 0, `${label}.maxLength invalid`);
+      if (Object.hasOwn(node, "minLength") && Object.hasOwn(node, "maxLength")) assert.ok(node.minLength <= node.maxLength, `${label} string bounds invalid`);
+      if (Object.hasOwn(node, "pattern")) assert.equal(typeof node.pattern, "string", `${label}.pattern invalid`);
+    }
+    if (["number", "integer"].includes(node.type)) {
+      assert.equal(Number.isFinite(node.maximum), true, `${label}.maximum finite bound is required`);
+      if (Object.hasOwn(node, "minimum")) assert.equal(Number.isFinite(node.minimum), true, `${label}.minimum invalid`);
+      if (Object.hasOwn(node, "maximum")) assert.equal(Number.isFinite(node.maximum), true, `${label}.maximum invalid`);
+      if (Object.hasOwn(node, "minimum") && Object.hasOwn(node, "maximum")) assert.ok(node.minimum <= node.maximum, `${label} numeric bounds invalid`);
+    }
   };
   walk(schema, "$", 1);
+  const definitionNameCharacters = 0; const constStringCharacters = 0;
+  const schemaStringCharacters = propertyNameCharacters + definitionNameCharacters + enumStringCharacters + constStringCharacters;
   assert.ok(properties <= 5000, "structured-output property limit exceeded");
   assert.ok(depth <= 10, "structured-output nesting limit exceeded");
   assert.ok(enums <= 1000, "structured-output enum limit exceeded");
-  return Object.freeze({ properties, maximumObjectDepth: depth, enumValues: enums });
+  assert.ok(schemaStringCharacters <= 120_000, "structured-output schema string character limit exceeded");
+  return Object.freeze({
+    properties, propertyHeadroom: 5000 - properties,
+    maximumObjectDepth: depth, nestingHeadroom: 10 - depth,
+    schemaStringCharacters, schemaStringCharacterHeadroom: 120_000 - schemaStringCharacters,
+    propertyNameCharacters, definitionNameCharacters, enumStringCharacters, constStringCharacters,
+    enumValues: enums, enumValueHeadroom: 1000 - enums,
+    largeEnumPropertyCount,
+    largestEnumStringCharacters, largestEnumStringCharacterHeadroom: 15_000 - largestEnumStringCharacters
+  });
 }
 
 export function buildQualificationPrompt(turnInput) {

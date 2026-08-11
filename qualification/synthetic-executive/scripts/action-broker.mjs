@@ -3,6 +3,8 @@ import {
   ACTION_REGISTRY_VERSION, ACTION_TYPES, AUTHORITY_CLASSES, CLAIM_STATES, EVIDENCE_EVALUATIONS,
   NEXT_LEGAL_ACTIONS, actionDefinition, canonicalTransition, legalActionsForState
 } from "./executive-action-registry.mjs";
+import { validateContractSchemaValue } from "./bounded-request-contract.mjs";
+import { createStateConditionedProviderActionSchema } from "./provider-action-schema.mjs";
 import { assertHash, assertSafeId, exactKeys, seal, sha256Json } from "./protocol.mjs";
 
 export { ACTION_TYPES, CLAIM_STATES, EVIDENCE_EVALUATIONS, NEXT_LEGAL_ACTIONS };
@@ -31,34 +33,6 @@ export class ExecutiveActionContractError extends Error {
 const reject = (code, validationRule, fieldPath) => { throw new ExecutiveActionContractError(code, validationRule, fieldPath); };
 const isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
 
-function validateSchemaValue(value, schema, fieldPath) {
-  if (!isObject(schema)) reject("ACTION_REGISTRY_SCHEMA_INVALID", "REGISTRY_SCHEMA_NODE_MUST_BE_OBJECT", fieldPath);
-  if (schema.type === "object") {
-    if (!isObject(value)) reject("ACTION_DETAILS_TYPE_INVALID", "TYPE_OBJECT", fieldPath);
-    const expected = Object.keys(schema.properties || {}).sort();
-    const observed = Object.keys(value).sort();
-    if (JSON.stringify(expected) !== JSON.stringify(observed)) reject("ACTION_DETAILS_FIELDS_DIFFER", "EXACT_OBJECT_FIELDS", fieldPath);
-    for (const key of expected) validateSchemaValue(value[key], schema.properties[key], `${fieldPath}.${key}`);
-    return;
-  }
-  if (schema.type === "array") {
-    if (!Array.isArray(value)) reject("ACTION_DETAILS_TYPE_INVALID", "TYPE_ARRAY", fieldPath);
-    if (Number.isInteger(schema.minItems) && value.length < schema.minItems) reject("ACTION_DETAILS_ARRAY_TOO_SHORT", `MIN_ITEMS_${schema.minItems}`, fieldPath);
-    if (Number.isInteger(schema.maxItems) && value.length > schema.maxItems) reject("ACTION_DETAILS_ARRAY_TOO_LONG", `MAX_ITEMS_${schema.maxItems}`, fieldPath);
-    for (const [index, item] of value.entries()) validateSchemaValue(item, schema.items, `${fieldPath}[${index}]`);
-    return;
-  }
-  const validType = schema.type === "integer" ? Number.isInteger(value)
-    : schema.type === "number" ? Number.isFinite(value)
-      : schema.type === "string" ? typeof value === "string"
-        : schema.type === "boolean" ? typeof value === "boolean"
-          : schema.type === "null" ? value === null : false;
-  if (!validType) reject("ACTION_DETAILS_TYPE_INVALID", `TYPE_${String(schema.type).toUpperCase()}`, fieldPath);
-  if (schema.enum && !schema.enum.includes(value)) reject("ACTION_DETAILS_ENUM_INVALID", "ENUM_MEMBERSHIP", fieldPath);
-  if (typeof value === "number" && Number.isFinite(schema.minimum) && value < schema.minimum) reject("ACTION_DETAILS_RANGE_INVALID", `MINIMUM_${schema.minimum}`, fieldPath);
-  if (typeof value === "number" && Number.isFinite(schema.maximum) && value > schema.maximum) reject("ACTION_DETAILS_RANGE_INVALID", `MAXIMUM_${schema.maximum}`, fieldPath);
-}
-
 function nonEmptyString(value, fieldPath) {
   if (typeof value !== "string" || value.trim().length === 0) reject("ACTION_STRING_EMPTY", "NONEMPTY_STRING", fieldPath);
 }
@@ -79,8 +53,20 @@ function validateCommonCore(core) {
   if (!isObject(core.decision)) reject("ACTION_DECISION_INVALID", "TYPE_OBJECT", "$.decision");
 }
 
-function validateRegisteredCore(core, { episode, memoryIds = [], currentState, allowedAuthorityClasses = AUTHORITY_CLASSES }) {
+function validateRegisteredCore(core, { episode, memoryIds = [], currentState, allowedAuthorityClasses = AUTHORITY_CLASSES, actionId = core.actionId, observedStateHash = core.observedStateHash }) {
   validateCommonCore(core);
+  const submittedActionType = core.decision?.actionType;
+  if (!ACTION_TYPES.includes(submittedActionType)) reject("ACTION_TYPE_UNREGISTERED", "REGISTERED_ACTION_TYPE", "$.decision.actionType");
+  if (!legalActionsForState(currentState, { memoryIds }).includes(submittedActionType)) reject("ACTION_STATE_PAIR_UNREGISTERED", "REGISTERED_CURRENT_STATE_ACTION_PAIR", "$.decision.actionType");
+  const schema = createStateConditionedProviderActionSchema({
+    episodeId: episode.episodeId,
+    executiveState: currentState,
+    observedStateHash,
+    actionId,
+    availableEvidenceIds: episode.visibleArtifactInventory.map((item) => item.artifactId),
+    availableMemoryIds: memoryIds
+  });
+  validateContractSchemaValue(core, schema, "$", reject);
   if (core.episodeId !== episode.episodeId) reject("ACTION_EPISODE_MISMATCH", "CURRENT_EPISODE_ID", "$.episodeId");
   if (core.executiveState !== currentState) reject("ACTION_STATE_MISMATCH", "CURRENT_LIFECYCLE_STATE", "$.executiveState");
   try { exactKeys(core.decision, ["actionType", "details", "evidenceReferences", "memoryReferences", "authorityClass"], "provider action decision"); }
@@ -90,7 +76,7 @@ function validateRegisteredCore(core, { episode, memoryIds = [], currentState, a
   const legal = legalActionsForState(currentState, { memoryIds });
   if (!legal.includes(actionType)) reject("ACTION_STATE_PAIR_UNREGISTERED", "REGISTERED_CURRENT_STATE_ACTION_PAIR", "$.decision.actionType");
   const definition = actionDefinition(actionType);
-  validateSchemaValue(details, definition.detailsSchema, "$.decision.details");
+  validateContractSchemaValue(details, definition.detailsSchema, "$.decision.details", reject);
   for (const detailPath of definition.nonEmptyDetailPaths) {
     const relative = detailPath.replace(/^\$\.details\./, "").split(".");
     let value = details;

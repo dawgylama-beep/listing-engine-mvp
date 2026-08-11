@@ -11,6 +11,7 @@ export const observabilityReleaseRelativePath = "qualification/synthetic-executi
 export const structuredOutputReleaseRelativePath = "qualification/synthetic-executive/calibration/structured-output-compatibility-release.json";
 export const qualificationRouteReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/qualification-real-route-release.json";
 export const generalContinuationReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/general-continuation-contract-release.json";
+export const boundedRequestEnvelopeReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/bounded-request-envelope-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -104,7 +105,7 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
@@ -114,7 +115,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     readFile(path.join(rootDirectory, observabilityReleaseRelativePath), "utf8"),
     readFile(path.join(rootDirectory, structuredOutputReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, qualificationRouteReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
-    readFile(path.join(rootDirectory, generalContinuationReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
+    readFile(path.join(rootDirectory, generalContinuationReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
+    readFile(path.join(rootDirectory, boundedRequestEnvelopeReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -145,7 +147,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     const qualificationRelease = JSON.parse(qualificationRouteReleaseText);
     const qualification = await import("../qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs");
     qualification.validateQualificationReleaseRecord(qualificationRelease);
-    if (generalContinuationReleaseText === null) {
+    if (generalContinuationReleaseText === null && boundedRequestEnvelopeReleaseText === null) {
       const rebuilt = await qualification.buildQualificationReleaseRecord();
       assert.equal(sha256Json(rebuilt), sha256Json(qualificationRelease), "Qualification-route release artifacts differ from their seal.");
     }
@@ -158,10 +160,23 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     const record = JSON.parse(generalContinuationReleaseText);
     const continuation = await import("../qualification/synthetic-executive/qualification-real-route/scripts/general-continuation-contract-release.mjs");
     continuation.validateGeneralContinuationContractRelease(record);
-    const rebuilt = await continuation.buildGeneralContinuationContractRelease();
-    assert.equal(sha256Json(rebuilt), sha256Json(record), "General-continuation release artifacts differ from their seal.");
-    assert.equal(record.version, version, "General-continuation release Version must equal package Version.");
+    if (boundedRequestEnvelopeReleaseText === null) {
+      const rebuilt = await continuation.buildGeneralContinuationContractRelease();
+      assert.equal(sha256Json(rebuilt), sha256Json(record), "General-continuation release artifacts differ from their seal.");
+      assert.equal(record.version, version, "General-continuation release Version must equal package Version.");
+    } else assert.equal(record.version, "1.12.28", "Historical general-continuation release Version differs.");
     generalContinuationReleaseHash = record.releaseHash;
+  }
+  let boundedRequestEnvelopeReleaseHash = null;
+  if (boundedRequestEnvelopeReleaseText !== null) {
+    assert.equal(rootDirectory, repositoryRoot, "Bounded request-envelope release validation requires the canonical repository root.");
+    const record = JSON.parse(boundedRequestEnvelopeReleaseText);
+    const bounded = await import("../qualification/synthetic-executive/qualification-real-route/scripts/bounded-request-envelope-release.mjs");
+    bounded.validateBoundedRequestEnvelopeRelease(record);
+    const rebuilt = await bounded.buildBoundedRequestEnvelopeRelease();
+    assert.equal(sha256Json(rebuilt.release), sha256Json(record), "Bounded request-envelope release artifacts differ from their seal.");
+    assert.equal(record.version, version, "Bounded request-envelope release Version must equal package Version.");
+    boundedRequestEnvelopeReleaseHash = record.releaseHash;
   }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
@@ -197,6 +212,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     structuredOutputReleaseHash,
     qualificationRouteReleaseHash,
     generalContinuationReleaseHash,
+    boundedRequestEnvelopeReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };
@@ -205,5 +221,10 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const result = await inspectReleaseVersionSurfaces();
-  process.stdout.write(`${result.label} release surfaces aligned; ${result.indexSurface.assetVersions.length} Version-bound public assets verified; observability release ${result.observabilityReleaseHash}.\n`);
+  const currentToolingReleaseHash = result.boundedRequestEnvelopeReleaseHash
+    || result.generalContinuationReleaseHash
+    || result.qualificationRouteReleaseHash
+    || result.structuredOutputReleaseHash
+    || result.observabilityReleaseHash;
+  process.stdout.write(`${result.label} release surfaces aligned; ${result.indexSurface.assetVersions.length} Version-bound public assets verified; current tooling release ${currentToolingReleaseHash}.\n`);
 }

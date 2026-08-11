@@ -13,6 +13,9 @@ import { applyAcceptedAction, createCaseController, reconstructCase, recordWorke
 import { ExecutiveMemoryStore, validateMemoryRecord } from "./memory-store.mjs";
 import { sealQualificationRun } from "./qualification-run-sealer.mjs";
 import { readJson, seal, sha256Bytes, sha256Json, stableJson, writeExclusiveJson } from "./protocol.mjs";
+import {
+  admitInboundEvidence, buildBoundedQualificationTurnInput, calculateWorstFutureRoute, createEnvelopeStopReceipt
+} from "./request-envelope-contract.mjs";
 import { resolveApprovedCredential } from "../calibration/scripts/real-route-credential.mjs";
 import { SafeProviderFailure } from "../calibration/scripts/real-route-redaction.mjs";
 import { createNewQualificationAuthority, validateQualificationAuthority } from "../qualification-real-route/scripts/qualification-authority.mjs";
@@ -117,6 +120,13 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
     return sealedOutput;
   };
 
+  const visibleAdmission = admitInboundEvidence({ source: "VISIBLE_ARTIFACTS", value: materialization.artifacts });
+  if (!visibleAdmission.admitted) {
+    preDispatchReceipts.push(visibleAdmission);
+    await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${episode.episodeId}-visible-artifact-admission.json`), visibleAdmission);
+    return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", { code: visibleAdmission.classification, inboundAdmissionReceiptHash: visibleAdmission.receiptHash, providerDispatchOccurred: false });
+  }
+
   while (!reconstructCase(controller, receipts).terminal) {
     const state = reconstructCase(controller, receipts).state;
     if (state === "AUTHORITY_SPECIFIED" && taskSealed && workerDossier === null) {
@@ -124,7 +134,14 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
       const identity = actionIdentity(authority, episode.episodeId, "PRESEALED_DOSSIER", ledgerOrdinal);
       const operationHash = sha256Json({ episodeId: episode.episodeId, capability: "REQUEST_PRESEALED_WORKER_DOSSIER", sealedTaskHash: actions.find((item) => item.actionType === "PROPOSE_BOUNDED_ENGINEERING_TASK")?.contentHash });
       await ledger.consume({ caseId: episode.episodeId, actionKind: "PRESEALED_DOSSIER", actionIdentity: identity, operationHash });
-      workerDossier = dossierAdapter.returnDossier(episode.episodeId);
+      const candidateDossier = dossierAdapter.returnDossier(episode.episodeId);
+      const workerAdmission = admitInboundEvidence({ source: "WORKER_EVIDENCE", value: candidateDossier });
+      if (!workerAdmission.admitted) {
+        preDispatchReceipts.push(workerAdmission);
+        await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${identity}-worker-evidence-admission.json`), workerAdmission);
+        return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", { code: workerAdmission.classification, inboundAdmissionReceiptHash: workerAdmission.receiptHash, providerDispatchOccurred: false });
+      }
+      workerDossier = candidateDossier;
       receipts.push(recordWorkerDossier({ controller, receipts, dossier: workerDossier, recordedAt: clock() }));
       continue;
     }
@@ -133,30 +150,10 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
     const observedStateHash = qualificationObservedStateHash(state, receipts);
     const expectedActionId = `action-${episode.episodeId.toLowerCase()}-${String(actionOrdinal).padStart(2, "0")}`;
     const memoryRecords = await memoryStore.list();
-    const turnInput = {
-      protocolVersion: "1.0", episodeId: episode.episodeId, cohort: episode.cohort, executiveState: state, observedStateHash,
-      visibleArtifactInventory: sandbox.listVisibleArtifacts().map(({ artifactId, sha256, sourceKind }) => ({ artifactId, sha256, sourceKind })),
-      materializedVisibleArtifacts: materialization.artifacts,
-      materializationBinding: {
-        artifactCount: materialization.artifactCount,
-        canonicalArtifactOrder: materialization.canonicalArtifactOrder,
-        individualArtifactHashes: materialization.individualArtifactHashes,
-        materializedAggregateHash: materialization.materializedAggregateHash
-      },
-      retrievalReceipt: retrievalReceipt ? {
-        receiptHash: retrievalReceipt.receiptHash, resultClassification: retrievalReceipt.resultClassification,
-        selectedMemoryIds: retrievalReceipt.selectedMemoryIds, retrievalReasonSummary: retrievalReceipt.retrievalReasonSummary,
-        recurrencePermitted: retrievalReceipt.recurrencePermitted,
-        novelFailureClassificationPermitted: retrievalReceipt.novelFailureClassificationPermitted,
-        boundedTaskConstructionPermitted: retrievalReceipt.boundedTaskConstructionPermitted
-      } : null,
-      workerDossier,
-      priorActionTrace: actions.map(({ actionType, contentHash, details }) => ({ actionType, contentHash, details })),
-      retrievedMemoryRecords: retrievalReceipt ? memoryRecords.filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId)) : [],
-      allowedCapabilities: ["QUERY_EXECUTIVE_MEMORY", "REQUEST_PRESEALED_WORKER_DOSSIER"],
-      forbiddenCapabilities: ["PROVIDER_TOOL", "MODEL_TOOL", "SOURCE_OPERATION", "EVALUATOR_CONTROL", "PRODUCT_HANDLER", "BENCHMARK", "PRODUCTION"],
-      privateReasoningRequested: false, budgetProfileHash: readinessManifest.budgetProfileHash
-    };
+    const turnInput = buildBoundedQualificationTurnInput({
+      episode, readinessManifest, materialization, state, observedStateHash, actionOrdinal,
+      actions, retrievalReceipt, memoryRecords, workerDossier
+    });
     const structuredSchema = createQualificationActionTransportSchema({
       episodeId: episode.episodeId, executiveState: state, observedStateHash, actionId: expectedActionId,
       availableEvidenceIds: materialization.canonicalArtifactOrder,
@@ -170,22 +167,37 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
       materialization: { ...materialization, promptByteCount: prompt.byteCount },
       pricing: profile.pricing
     });
-    if (accounting.classification !== "WITHIN_SEALED_MATERIALIZATION_BUDGET") {
+    const routeEnvelope = calculateWorstFutureRoute({
+      episode, readinessManifest, materialization, currentState: state, actions,
+      retrievalReceipt, memoryRecords, workerDossier
+    });
+    if (accounting.classification !== "WITHIN_SEALED_MATERIALIZATION_BUDGET" || !routeEnvelope.admitted) {
+      const envelopeReceipt = !routeEnvelope.admitted ? createEnvelopeStopReceipt({
+        phase: "PRE_DISPATCH", currentState: state,
+        actualCurrentRequestBytes: accounting.exactSerializedRequestByteCount,
+        route: routeEnvelope
+      }) : null;
       const receipt = seal({
         ...accounting,
         episodeId: episode.episodeId,
         executiveState: state,
         requestHash,
-        providerDispatchOccurred: false
+        providerDispatchOccurred: false,
+        envelopeAdmissionClassification: envelopeReceipt?.stopCode || "CURRENT_REQUEST_BUDGET_REJECTION",
+        worstFutureRouteHash: sha256Json(routeEnvelope),
+        envelopeStopReceiptHash: envelopeReceipt?.receiptHash || null
       }, "receiptHash");
       preDispatchReceipts.push(receipt);
       await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${episode.episodeId}-${String(actionOrdinal).padStart(2, "0")}-materialization-budget.json`), receipt);
       return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", {
-        code: accounting.classification,
+        code: envelopeReceipt?.stopCode || accounting.classification,
         preDispatchAccountingReceiptHash: receipt.receiptHash,
         exactSerializedRequestByteCount: accounting.exactSerializedRequestByteCount,
         maximumSerializedRequestBytes: accounting.maximumSerializedRequestBytes,
-        providerDispatchOccurred: false
+        providerDispatchOccurred: false,
+        envelopeStopReceiptHash: envelopeReceipt?.receiptHash || null,
+        maximumFutureIndividualRequestBytes: routeEnvelope.routeMax,
+        remainingHeadroomBytes: routeEnvelope.minimumHeadroomBytes
       });
     }
     const reservationUsd = accounting.reservationUsd;
@@ -236,8 +248,10 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
 
     let action;
     try {
-      action = normalizeAndValidateProviderActionCore(response.actionCore, { episode, memoryIds: retrievalReceipt?.selectedMemoryIds || [], currentState: state, allowedAuthorityClasses });
-      receipts.push(applyAcceptedAction({ controller, receipts, action, decidedAt: clock() })); actions.push(action);
+      action = normalizeAndValidateProviderActionCore(response.actionCore, {
+        episode, memoryIds: retrievalReceipt?.selectedMemoryIds || [], currentState: state,
+        allowedAuthorityClasses, actionId: expectedActionId, observedStateHash
+      });
     } catch (error) {
       const rejection = createBrokerRejection(response.actionCore, error, { currentState: state, memoryIds: retrievalReceipt?.selectedMemoryIds || [] });
       brokerRejectionReceipts.push(rejection);
@@ -252,11 +266,40 @@ export async function runCase({ episode, ledger, memoryStore, dossierAdapter, cl
       });
     }
 
+    const successor = action.requestedSuccessorState;
+    if (!reconstructCase(controller, receipts).terminal && !["STOPPED", "CASE_SEALED"].includes(successor)) {
+      const postActionRoute = calculateWorstFutureRoute({
+        episode, readinessManifest, materialization, currentState: successor,
+        actions: [...actions, action], retrievalReceipt, memoryRecords, workerDossier
+      });
+      if (!postActionRoute.admitted) {
+        const envelopeReceipt = createEnvelopeStopReceipt({
+          phase: "POST_ACTION", currentState: state,
+          actualCurrentRequestBytes: accounting.exactSerializedRequestByteCount,
+          route: postActionRoute
+        });
+        preDispatchReceipts.push(envelopeReceipt);
+        await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${episode.episodeId}-${String(actionOrdinal).padStart(2, "0")}-post-action-envelope.json`), envelopeReceipt);
+        return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", {
+          code: envelopeReceipt.stopCode, envelopeStopReceiptHash: envelopeReceipt.receiptHash,
+          providerDispatchOccurred: true, lifecycleStateMutated: false, actionEnteredTrace: false
+        });
+      }
+    }
+    receipts.push(applyAcceptedAction({ controller, receipts, action, decidedAt: clock() })); actions.push(action);
+
     if (action.actionType === "RETRIEVE_RELEVANT_MEMORY") {
       ledgerOrdinal += 1;
       const identity = actionIdentity(authority, episode.episodeId, "MEMORY_QUERY", ledgerOrdinal);
       await ledger.consume({ caseId: episode.episodeId, actionKind: "MEMORY_QUERY", actionIdentity: identity, operationHash: sha256Json(action.details) });
       retrievalReceipt = await memoryStore.retrieve({ episodeId: episode.episodeId, queryFacets: action.details.queryFacets, queryText: action.details.queryText, createdAt: clock() });
+      const selectedRecords = (await memoryStore.list()).filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId));
+      const memoryAdmission = admitInboundEvidence({ source: "MEMORY_RESULTS", value: selectedRecords });
+      if (!memoryAdmission.admitted) {
+        preDispatchReceipts.push(memoryAdmission);
+        await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${identity}-memory-result-admission.json`), memoryAdmission);
+        return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", { code: memoryAdmission.classification, inboundAdmissionReceiptHash: memoryAdmission.receiptHash, providerDispatchOccurred: false });
+      }
     }
     if (action.actionType === "PROPOSE_BOUNDED_ENGINEERING_TASK") { dossierAdapter.sealTask(action); taskSealed = true; }
     if (action.actionType === "WRITE_GENERALIZED_LESSON_CANDIDATE") {
