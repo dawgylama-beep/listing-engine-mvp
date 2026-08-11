@@ -796,6 +796,13 @@
 - Preserved the Version 1.12.29 bounded-envelope release, V1 evidence and denominator, failed qualification artifacts, Phase 6A artifacts, cognitive policy, scorer semantics, product handlers and deployment surfaces
 - Sealed the future fourteen-case aggregate only as `PROPOSED_V2_EXECUTION_BUDGET_NOT_AUTHORIZED`; no authority, reservation, qualification, credential, provider, model, worker, benchmark, handler, Preview, Production, merge or deployment activity occurred
 
+## Version 1.12.31 (Completed)
+- Created and permanently consumed one fourteen-slot V2 blind-qualification authority bound to the Version 1.12.30 corpus, frozen runtime identities, exact `gpt-5.6-sol` Responses route, medium reasoning, `store:false`, zero metadata requests and the authorized independent case and aggregate ceilings
+- Executed and sealed `KE-V2-C01` through `KE-V2-C05`; `KE-V2-C06` then returned HTTP 200 with provider status not completed, a non-retry-eligible frozen-policy transport failure, so `KE-V2-C07` through `KE-V2-C14` were never dispatched
+- Preserved 49 logical and physical provider attempts, zero retries, five case-scoped memory queries, five presealed dossier returns, exact available usage and cost, safe request identifiers, immutable ledger entries and per-case transcripts
+- Stopped with `QUALIFICATION_PROVIDER_TRANSPORT_INTEGRITY_INVALID`; hidden evaluator keys remained unopened, no 98-check score was calculated, and neither qualification nor non-qualification was claimed
+- Preserved the sealed V2 corpus, failed V1 evidence, Phase 6A artifacts, cognitive policy, action registry, broker, serializer, schema, scorer and product logic; performed no metadata, calibration, replay, real-worker, benchmark, handler, Preview, Production, merge or deployment activity
+
 ## Version 2.0
 - User accounts
 - Saved listings

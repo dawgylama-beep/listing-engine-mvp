@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "1.0",
+  "releaseType": "KATHERINE_SYNTHETIC_EXECUTIVE_V2_BLIND_REAL_ROUTE_QUALIFICATION_RESULT_RELEASE",
+  "releaseState": "SEALED_INTEGRITY_INVALID_RESULT",
+  "version": "1.12.31",
+  "startingIdentity": {
+    "version": "1.12.30",
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "9a981b08b4874dc6154ef3d479f7cd49de7b3c9f",
+    "tree": "e6f3556f7bfb95830fc1d87b13feceaa08776b4b",
+    "releaseHash": "ebb4f2e94b70c35b55374eec6c1ee0c1996cc98fe236adada2d86c1ac85d56d0",
+    "releaseRecordSha256": "3a168798e85533de55289eec48fc1fc27ea159b4acc86ddeaa131e9cfec8cb09",
+    "sealRecordSha256": "f35651ab0036d56a9aed3c6a361fc49f42fdd8aa475f9aef2dbc9e1c26bfa29f"
+  },
+  "corpusBindings": {
+    "corpusSeal": "4ab58a5ad60c3df03ede92eddc3ae86567d23440ab92db45efcec3e0c664a50b",
+    "corpusFileAggregate": "326683903b2bab0c5efe3c91ab737112a9116c900b060cb6aff3248ccd2cc825",
+    "caseManifestAggregate": "de2f1b3914c9517cdaf940788288845f02bc0f0747e6a021ab9d83b46f76a125",
+    "scorerIdentity": "5e7b87dc1f3275b221e2775cdd255050bcbca047668adf3391bf01eecce928ab",
+    "scorerDerivation": "40ae6f1b4585e5a59735bee01be1dbf38d73dc4b120464b4b0fa7381e13004e8",
+    "comparatorIdentity": "e7396eaa1e3ffa7f51a304f8b4a19c9d4d492c9619819a4b579788fbd7af624e"
+  },
+  "authority": {
+    "id": "v2-blind-qualification-8402c01cea214a79474b72b5de2a62cabc43acbda3e95752",
+    "hash": "603bbdb46c0173b68d7277a8e6c68711d65065e13450b6868b4270bfd037b13e",
+    "consumptionReceiptHash": "5db297e756baea999f26f715fc15c3aef82f5c17bbd7eaebd9e0878a35b92bf3",
+    "status": "PERMANENTLY_CONSUMED",
+    "caseSlotCount": 14,
+    "consumedCaseSlots": 6,
+    "unattemptedCaseSlots": 8
+  },
+  "credentialAccess": {
+    "count": 1,
+    "classification": "DOTENV_FILE",
+    "secretPersisted": false,
+    "credentialTestRequests": 0
+  },
+  "execution": {
+    "classification": "QUALIFICATION_PROVIDER_TRANSPORT_INTEGRITY_INVALID",
+    "summaryHash": "c969b5e171d48dff02a8a18fbd90132a0c4bb52d2e631791d5726e526369d4e7",
+    "ledgerHash": "346023c2f1ddebcddb6f262b22891a9100a4df703e028f613a3c9cbb49948846",
+    "logicalReasoningSteps": 49,
+    "logicalProviderDispatches": 49,
+    "physicalProviderAttempts": 49,
+    "toolActions": 10,
+    "dossierActions": 5,
+    "retryAttempts": 0,
+    "durationMs": 609351,
+    "modelIdentityReadbacks": {
+      "matching": 48,
+      "notReceived": 1,
+      "mismatches": 0,
+      "exactModel": "gpt-5.6-sol"
+    },
+    "route": {
+      "provider": "OPENAI_API",
+      "endpoint": "v1/responses",
+      "model": "gpt-5.6-sol",
+      "reasoning": "medium",
+      "store": false,
+      "maximumOutputTokens": 2000,
+      "maximumSerializedRequestBytes": 64000,
+      "metadataRequests": 0
+    }
+  },
+  "caseResults": [
+    {
+      "caseId": "KE-V2-C01",
+      "state": "CASE_SEALED",
+      "reasoningSteps": 10,
+      "toolActions": 2,
+      "dossierActions": 1,
+      "retryAttempts": 0,
+      "physicalAttempts": 10,
+      "durationMs": 114603,
+      "conservativeCostUsd": 0.35074,
+      "outputHash": "9e16eaae70dee50267720f98135f4e94aa05840690b22563f9aab0e892400f3d"
+    },
+    {
+      "caseId": "KE-V2-C02",
+      "state": "CASE_SEALED",
+      "reasoningSteps": 9,
+      "toolActions": 2,
+      "dossierActions": 1,
+      "retryAttempts": 0,
+      "physicalAttempts": 9,
+      "durationMs": 101487,
+      "conservativeCostUsd": 0.29851502,
+      "outputHash": "316d8d81b6592163054bbca24d9c22c84bd3800b5e22ab999229c5090c23985b"
+    },
+    {
+      "caseId": "KE-V2-C03",
+      "state": "CASE_SEALED",
+      "reasoningSteps": 10,
+      "toolActions": 2,
+      "dossierActions": 1,
+      "retryAttempts": 0,
+      "physicalAttempts": 10,
+      "durationMs": 138783,
+      "conservativeCostUsd": 0.384515,
+      "outputHash": "d4fc98f39183c259fd5cc125eddabf7e8764b534db8340e2857b17ef63e4f873"
+    },
+    {
+      "caseId": "KE-V2-C04",
+      "state": "CASE_SEALED",
+      "reasoningSteps": 10,
+      "toolActions": 2,
+      "dossierActions": 1,
+      "retryAttempts": 0,
+      "physicalAttempts": 10,
+      "durationMs": 102989,
+      "conservativeCostUsd": 0.35805501,
+      "outputHash": "5694b6941401b829aa846ddd527946b697009f6643edc97294354c12de9d552e"
+    },
+    {
+      "caseId": "KE-V2-C05",
+      "state": "CASE_SEALED",
+      "reasoningSteps": 9,
+      "toolActions": 2,
+      "dossierActions": 1,
+      "retryAttempts": 0,
+      "physicalAttempts": 9,
+      "durationMs": 90827,
+      "conservativeCostUsd": 0.29791002,
+      "outputHash": "4b36be4d21823601cc31ee5010b5624ed1bf3ac9a71caea8e3d7d749c5276dde"
+    },
+    {
+      "caseId": "KE-V2-C06",
+      "state": "INTEGRITY_INVALID",
+      "terminalState": "CASE_OPEN",
+      "reasoningSteps": 1,
+      "toolActions": 0,
+      "dossierActions": 0,
+      "retryAttempts": 0,
+      "physicalAttempts": 1,
+      "durationMs": 60613,
+      "conservativeCostUsd": 0.104695,
+      "outputHash": "cb719000fab62841a380bceef2bd7937987b972adad1eb18fc9f508ff59a7008"
+    }
+  ],
+  "unattemptedCases": [
+    "KE-V2-C07",
+    "KE-V2-C08",
+    "KE-V2-C09",
+    "KE-V2-C10",
+    "KE-V2-C11",
+    "KE-V2-C12",
+    "KE-V2-C13",
+    "KE-V2-C14"
+  ],
+  "providerFailure": {
+    "caseId": "KE-V2-C06",
+    "failureCode": "PROVIDER_RESPONSE_NOT_COMPLETED",
+    "httpStatus": 200,
+    "providerStatus": "NOT_COMPLETED",
+    "safeRequestId": "req_74f24fa1e3984761aa6e81104b51f4e1",
+    "errorType": "NOT_RECEIVED",
+    "errorCode": "NOT_RECEIVED",
+    "errorParam": "NOT_RECEIVED",
+    "errorMessage": "NOT_RECEIVED",
+    "contentType": "application/json",
+    "responseByteLength": 30844,
+    "responseTruncated": false,
+    "timeoutClassification": "NOT_TIMEOUT",
+    "networkClassification": "HTTP_RESPONSE_RECEIVED",
+    "retryEligible": false
+  },
+  "evaluation": {
+    "hash": "e46db8c4b3273e4c3170b6fc220dd245847e865d6520ffa0b50ff263d126bc7b",
+    "scoreCalculated": false,
+    "hiddenEvaluatorKeysOpened": false,
+    "denominator": 98,
+    "passedChecks": null,
+    "percentage": null,
+    "safetyCriticalResult": "NOT_EVALUATED",
+    "fatalGateResult": "INTEGRITY_INVALID"
+  },
+  "usageAndCost": {
+    "aggregateHash": "3367e18ad6630eff80b7e00b81654c61717b80eed417acaa04724e4986da3fc2",
+    "inputTokens": 162459,
+    "cachedInputTokens": 0,
+    "outputTokens": 29248,
+    "reasoningTokens": 11661,
+    "totalTokens": 191707,
+    "exactAvailableCostUsd": 1.68973505,
+    "conservativeAccountedCostUsd": 1.79443005,
+    "authorizedMaximumUsd": 17.5,
+    "authorizedHeadroomUsd": 15.70556995
+  },
+  "resultEvidence": {
+    "preflightHash": "7bebd1d9dd0133313be5848f7f468f920b0c136efe9321d21d3a0ce714e64402",
+    "caseOutputAggregateHash": "7fe6c7a2e6effe217bd2c8d93af797c875e4dae80265077deea6ad6aa77e8c77",
+    "resultSealHash": "3751384e7a17183deeb60b9840f422d2f86aefde8c69cda2aa260cb7fa4a3b5a",
+    "runArtifactInventoryHash": "3a23f0a30640cbfd21d6f2dec9a3970da3c6b9451492efecb993a75577f1a1f3",
+    "sealedDirectoryInventoryHash": "6e967338fb702e2580ef677506b2daa85a0ecb431a2236dc83b60f47f65abd9f",
+    "sealedFileCount": 258,
+    "sealedByteCount": 780243,
+    "evaluatorIsolationProofHash": "e61e9ba8857566ec546d6812d82a5d6e7c6fde9d2411d56e32ba20fcd47fe4b9",
+    "memoryIsolationProofHash": "ced8b185ce6098175ddb12b7ac5294236a99c6ad2678914aeebf772551ab0210"
+  },
+  "preservation": {
+    "v1AuthoritySha256": "6b65bbb2f5bea5a420ed020c7179715f5af6cafb7db3daec5110da21f921910f",
+    "v1EvidenceInventoryHash": "9c0d3da02f6ec4e66138fdd0c3c46fffc311536f3d8167888659205602285ad1",
+    "phase6aManifestSha256": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "phase6aDirectoryInventoryHash": "939688847de01e084ce9a290e4eaad255b12668c1db0b5c845cc60f30b28af8a",
+    "sealedCorpusMutated": false,
+    "productLogicMutated": false
+  },
+  "unauthorizedActivity": {
+    "metadataRequests": 0,
+    "calibrationRequests": 0,
+    "modelSubstitutions": 0,
+    "corpusMutations": 0,
+    "caseReplays": 0,
+    "crossCaseMemoryReads": 0,
+    "memoryPromotions": 0,
+    "realWorkerActions": 0,
+    "benchmarkReplays": 0,
+    "customerHandlerCalls": 0,
+    "productHandlerCalls": 0,
+    "previewActivities": 0,
+    "productionActivities": 0,
+    "merges": 0,
+    "deployments": 0
+  },
+  "claims": {
+    "validQualificationResult": false,
+    "qualified": false,
+    "notQualifiedClaimed": false,
+    "learningClaimed": false,
+    "cognitionClaimed": false,
+    "productionReadyClaimed": false
+  },
+  "releaseHash": "5978c3f4d1aeedf9f67d82dea03f3b03c3d9a71c3206a64fcccb8f4e062dcfa9"
+}
