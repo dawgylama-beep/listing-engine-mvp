@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C09","observations":["Every vial record is present in the staged map.","Completion is emitted before the map seal reaches the journal.","The restart fixture exposes the prior map after a completed report."],"recordType":"CASE_OBSERVATION","scenario":"A seed-bank freezer reports a completed inventory snapshot before its compartment map is durably sealed."}

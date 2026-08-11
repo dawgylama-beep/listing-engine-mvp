@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C14","observations":["The robotic move completes.","Confirmation precedes the rack-map journal barrier.","A restart fixture restores the old slot after confirmation."],"recordType":"CASE_OBSERVATION","scenario":"An ice-core rack controller confirms a slot move before the durable rack map reflects the new tube position."}

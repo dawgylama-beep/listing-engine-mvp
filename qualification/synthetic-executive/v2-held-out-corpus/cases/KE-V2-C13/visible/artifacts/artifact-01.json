@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C13","observations":["Image timestamps and flight positions are intact.","The altitude column has no reference-system field.","Both reference systems were configured on the aircraft that week."],"recordType":"CASE_OBSERVATION","scenario":"A marsh survey drone records altitude values without stating whether they reference terrain or mean sea level."}

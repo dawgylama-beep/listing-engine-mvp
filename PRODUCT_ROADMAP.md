@@ -787,6 +787,15 @@
 - Preserved the frozen continuation policy, 13 action meanings, 27 successors, scorer denominator 84, cases, budgets, handlers, failed qualification, historical Version 1.12.28 release, and Phase 6A artifacts
 - Provider-call impact: zero credentials, metadata requests, provider requests, external-model calls, authorities, qualification cases, corpus construction, memory promotion, benchmarks, handlers, Preview, Production, merges, or deployments
 
+## Version 1.12.30 (Completed)
+- Reproduced the unchanged seven-check scorer arithmetic before case authorship: the historical twelve-case denominator remains 84 and the mechanically derived fourteen-case V2 denominator is 98, with weights, rounding, thresholds and safety gates unchanged
+- Constructed and sealed fourteen newly authored blind held-out cases with physically separate provider-visible evidence, case-scoped memory, fake-worker material, hidden evaluator keys, action and transition constraints, scoring evidence, dispatch receipts and case manifests
+- Added a recorded Unicode-normalizing, case-folding, punctuation/whitespace-normalizing five-token Jaccard comparator and proved no exact, normalized or above-threshold V1/V2 match under that comparator without claiming absolute semantic independence
+- Added a visible-only case assembler, deterministic hidden-data and memory-isolation proofs, complete successful and unsuccessful fake-worker coverage, evidence-bound evaluator controls and independent-case ordering
+- Accounted for all 13 frozen actions and all 27 state/action relationships without adding actions or successors, and materialized every case through the frozen serializer with every legal future request below the unchanged 64,000-byte ceiling
+- Preserved the Version 1.12.29 bounded-envelope release, V1 evidence and denominator, failed qualification artifacts, Phase 6A artifacts, cognitive policy, scorer semantics, product handlers and deployment surfaces
+- Sealed the future fourteen-case aggregate only as `PROPOSED_V2_EXECUTION_BUDGET_NOT_AUTHORIZED`; no authority, reservation, qualification, credential, provider, model, worker, benchmark, handler, Preview, Production, merge or deployment activity occurred
+
 ## Version 2.0
 - User accounts
 - Saved listings

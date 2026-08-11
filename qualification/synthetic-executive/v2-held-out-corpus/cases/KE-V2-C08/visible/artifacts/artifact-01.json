@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C08","observations":["Both gateway signatures validate.","The burst payload digest is identical.","The ordering service has no tie-break receipt for the two stations."],"recordType":"CASE_OBSERVATION","scenario":"Two wildlife tag gateways claim first receipt of the same burst under different station identities."}

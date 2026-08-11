@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C12","observations":["The rotation index is sealed.","The channel marker changes one buffer before sample ownership changes.","A local fixture reproduces the swap without field equipment."],"recordType":"CASE_OBSERVATION","scenario":"A wetland acoustic recorder writes left-channel metadata onto right-channel samples after a buffer rotation."}

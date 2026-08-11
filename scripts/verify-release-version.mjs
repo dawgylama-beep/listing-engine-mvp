@@ -12,6 +12,7 @@ export const structuredOutputReleaseRelativePath = "qualification/synthetic-exec
 export const qualificationRouteReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/qualification-real-route-release.json";
 export const generalContinuationReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/general-continuation-contract-release.json";
 export const boundedRequestEnvelopeReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/bounded-request-envelope-release.json";
+export const v2HeldOutCorpusReleaseRelativePath = "qualification/synthetic-executive/v2-held-out-corpus/v2-held-out-corpus-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -105,7 +106,7 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText, v2HeldOutCorpusReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
@@ -116,7 +117,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     readFile(path.join(rootDirectory, structuredOutputReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, qualificationRouteReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, generalContinuationReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
-    readFile(path.join(rootDirectory, boundedRequestEnvelopeReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
+    readFile(path.join(rootDirectory, boundedRequestEnvelopeReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
+    readFile(path.join(rootDirectory, v2HeldOutCorpusReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -173,10 +175,23 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     const record = JSON.parse(boundedRequestEnvelopeReleaseText);
     const bounded = await import("../qualification/synthetic-executive/qualification-real-route/scripts/bounded-request-envelope-release.mjs");
     bounded.validateBoundedRequestEnvelopeRelease(record);
-    const rebuilt = await bounded.buildBoundedRequestEnvelopeRelease();
-    assert.equal(sha256Json(rebuilt.release), sha256Json(record), "Bounded request-envelope release artifacts differ from their seal.");
-    assert.equal(record.version, version, "Bounded request-envelope release Version must equal package Version.");
+    if (v2HeldOutCorpusReleaseText === null) {
+      const rebuilt = await bounded.buildBoundedRequestEnvelopeRelease();
+      assert.equal(sha256Json(rebuilt.release), sha256Json(record), "Bounded request-envelope release artifacts differ from their seal.");
+      assert.equal(record.version, version, "Bounded request-envelope release Version must equal package Version.");
+    } else assert.equal(record.version, "1.12.29", "Historical bounded request-envelope release Version differs.");
     boundedRequestEnvelopeReleaseHash = record.releaseHash;
+  }
+  let v2HeldOutCorpusReleaseHash = null;
+  if (v2HeldOutCorpusReleaseText !== null) {
+    assert.equal(rootDirectory, repositoryRoot, "V2 held-out corpus release validation requires the canonical repository root.");
+    const record = JSON.parse(v2HeldOutCorpusReleaseText);
+    const corpus = await import("../qualification/synthetic-executive/v2-held-out-corpus/scripts/v2-corpus-release.mjs");
+    corpus.validateV2CorpusRelease(record);
+    const rebuilt = await corpus.buildV2CorpusRelease();
+    assert.equal(sha256Json(rebuilt.release), sha256Json(record), "V2 held-out corpus release artifacts differ from their seal.");
+    assert.equal(record.version, version, "V2 held-out corpus release Version must equal package Version.");
+    v2HeldOutCorpusReleaseHash = record.releaseHash;
   }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
@@ -213,6 +228,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     qualificationRouteReleaseHash,
     generalContinuationReleaseHash,
     boundedRequestEnvelopeReleaseHash,
+    v2HeldOutCorpusReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };
@@ -221,7 +237,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const result = await inspectReleaseVersionSurfaces();
-  const currentToolingReleaseHash = result.boundedRequestEnvelopeReleaseHash
+  const currentToolingReleaseHash = result.v2HeldOutCorpusReleaseHash
+    || result.boundedRequestEnvelopeReleaseHash
     || result.generalContinuationReleaseHash
     || result.qualificationRouteReleaseHash
     || result.structuredOutputReleaseHash

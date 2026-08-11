@@ -1,6 +1,6 @@
 {
   "name": "katherines-eye",
-  "version": "1.12.29",
+  "version": "1.12.30",
   "packageManager": "npm@11.16.0",
   "private": true,
   "type": "module",
@@ -19,6 +19,8 @@
     "check:blind-qualification-real-route": "node --test ./tests/synthetic-executive-blind-qualification-real-route.test.mjs",
     "check:general-continuation-contract": "node --test ./tests/synthetic-executive-blind-qualification-real-route.test.mjs",
     "check:bounded-request-envelope": "node --test ./tests/synthetic-executive-bounded-request-envelope.test.mjs",
+    "verify:v2-held-out-corpus": "node ./qualification/synthetic-executive/v2-held-out-corpus/scripts/v2-corpus-release.mjs --verify",
+    "check:v2-held-out-corpus": "node --test ./tests/synthetic-executive-v2-held-out-corpus.test.mjs",
     "seal:general-continuation-contract-release": "node ./qualification/synthetic-executive/qualification-real-route/scripts/general-continuation-contract-release.mjs --write",
     "seal:blind-qualification-real-route-release": "node ./qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs",
     "authorize:blind-qualification-real-route": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs CREATE_AUTHORITY",

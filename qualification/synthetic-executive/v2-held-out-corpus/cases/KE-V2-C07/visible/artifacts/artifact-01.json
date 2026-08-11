@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C07","observations":["The source manifest declares millivolts.","The importer applies a volts-to-volts identity conversion.","A calibration fixture is inflated by a factor of one thousand."],"recordType":"CASE_OBSERVATION","scenario":"A glacier buoy import converts millivolt telemetry as though the source values were volts."}

@@ -1,0 +1,1 @@
+{"caseId":"KE-V2-C11","observations":["The corrected frame and raw frame hashes are intact.","The calibration log names the camera body only.","Three lens profiles were eligible on the capture date."],"recordType":"CASE_OBSERVATION","scenario":"A meteor camera bundle has calibrated pixels but no identity for the lens profile used during correction."}
