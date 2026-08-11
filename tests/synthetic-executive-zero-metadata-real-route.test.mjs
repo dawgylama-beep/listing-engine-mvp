@@ -295,7 +295,7 @@ test("authority creation is create-new-only and both consumed authority families
   assert.deepEqual(await loadPriorSealedMetadataEvidence(), before);
 });
 
-test("release record preserves the immutable subject and rejects runtime or release drift", () => {
+test("release record preserves the immutable subject and rejects successor-Version reuse", () => {
   const release = loadStructuredOutputCompatibilityRelease({ validateCurrentArtifacts: false });
   assert.equal(validateStructuredOutputCompatibilityRelease(release, { validateCurrentArtifacts: false }).valid, true);
   assert.deepEqual(release.cognitiveSubject, COGNITIVE_SUBJECT);
@@ -312,7 +312,10 @@ test("release record preserves the immutable subject and rejects runtime or rele
     if (key === `diff --name-only ${STARTING_TOOLING_COMMIT} ${RUNTIME_COMMIT}`) return STRUCTURED_OUTPUT_COMMIT_PATHS.join("\n");
     throw new Error(`unexpected git fixture: ${key}`);
   };
-  assert.equal(inspectSealedStructuredOutputCompatibilityRelease({ gitImpl: fakeGit, validateCurrentArtifacts: false }).runtimeCommit, RUNTIME_COMMIT);
+  assert.throws(
+    () => inspectSealedStructuredOutputCompatibilityRelease({ gitImpl: fakeGit, validateCurrentArtifacts: false }),
+    /product Version must remain the cognitive subject Version/
+  );
   const core = structuredClone(release); delete core.recordHash; core.documentedStructuredOutputsSubset.maximumObjectProperties = 4_999;
   assert.throws(() => validateStructuredOutputCompatibilityRelease(seal(core, "recordHash"), { validateCurrentArtifacts: false }));
 });

@@ -767,6 +767,16 @@
 - Added deterministic zero-network coverage for the complete twelve-case multi-action lifecycle, structured action acceptance, memory/dossier/lesson/successor flow, exact ceilings, exactly-once dispatch, retry consumption, blindness, calibration non-reuse, safe diagnostics, and fail-closed source/tool/worker/budget rejection
 - Provider-call impact during tooling release: zero credential access, metadata requests, provider requests, model calls, live authority creation, case execution, benchmark, product-handler, Preview, Production, merge, or deployment activity
 
+## Version 1.12.28 (Completed)
+- Added a stage-scoped general continuation policy that reserves terminal insufficiency for missing reconstruction or classification facts and preserves bounded progress when only remediation, retrospective, final-proof, or authorization evidence is unavailable
+- Replaced the qualification route's separately maintained action, details, successor, and transition tables with one canonical Version 1.1 registry that generates the provider decision branches, broker validation, canonical successors, controller transitions, and exhaustive fixtures
+- Removed provider control of `requestedSuccessorState`; the broker now appends the one state/action-specific successor after validating the submitted action core
+- Materialized every authorized visible artifact body in canonical manifest order and added an immutable pre-dispatch gate with exact serialized request bytes, a clearly labeled one-token-per-byte conservative reservation, cost reconciliation, and stable no-dispatch overflow classification
+- Added explicit `VALID_EMPTY` memory semantics that prohibit fabricated recurrence while retaining novel classification and bounded task progression
+- Added sanitized broker-rejection receipts with stable code/rule/path evidence plus separate pre-dispatch and returned provider-usage receipts, including explicit incomplete and unavailable usage classifications
+- Added zero-network regression coverage for all 27 registered state/action pairs, 256 generated invalid combinations, all twelve exposed artifact bundles, the historical fixture envelope boundary, A02 cross-branch rejection prevention, safe receipts, and a purpose-neutral ten-turn lifecycle reachability proof
+- Preserved the prior `NOT_QUALIFIED` adjudication, all failed qualification artifacts, the sealed corpus, evaluator controls, scoring, budget, calibration, customer handlers, and Phase 6A benchmark artifacts; no qualification, authority, provider, benchmark, handler, Preview, Production, merge, or deployment activity occurred
+
 ## Version 2.0
 - User accounts
 - Saved listings

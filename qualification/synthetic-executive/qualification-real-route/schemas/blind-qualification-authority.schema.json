@@ -34,14 +34,15 @@
     },
     "bindings": {
       "type": "object", "additionalProperties": false,
-      "required": ["startingToolingCommit", "startingToolingTree", "readinessManifestHash", "caseManifestHash", "scoringControlsHash", "budgetProfileHash", "calibrationResultHash", "executiveActionSourceSchemaHash", "safeProviderDiagnosticsContractHash", "providerProfileHash", "continuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash", "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"],
+      "required": ["startingToolingCommit", "startingToolingTree", "readinessManifestHash", "caseManifestHash", "scoringControlsHash", "budgetProfileHash", "calibrationResultHash", "executiveActionSourceSchemaHash", "safeProviderDiagnosticsContractHash", "providerProfileHash", "actionRegistryHash", "canonicalExecutiveActionSchemaHash", "continuationPolicyHash", "generalContinuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash", "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"],
       "properties": {
         "startingToolingCommit": {"$ref": "#/$defs/gitHash"}, "startingToolingTree": {"$ref": "#/$defs/gitHash"},
         "readinessManifestHash": {"$ref": "#/$defs/sha256"}, "caseManifestHash": {"$ref": "#/$defs/sha256"},
         "scoringControlsHash": {"$ref": "#/$defs/sha256"}, "budgetProfileHash": {"$ref": "#/$defs/sha256"},
         "calibrationResultHash": {"$ref": "#/$defs/sha256"}, "executiveActionSourceSchemaHash": {"$ref": "#/$defs/sha256"},
         "safeProviderDiagnosticsContractHash": {"$ref": "#/$defs/sha256"}, "providerProfileHash": {"$ref": "#/$defs/sha256"},
-        "continuationPolicyHash": {"$ref": "#/$defs/sha256"}, "authoritySchemaHash": {"$ref": "#/$defs/sha256"},
+        "actionRegistryHash": {"$ref": "#/$defs/sha256"}, "canonicalExecutiveActionSchemaHash": {"$ref": "#/$defs/sha256"},
+        "continuationPolicyHash": {"$ref": "#/$defs/sha256"}, "generalContinuationPolicyHash": {"$ref": "#/$defs/sha256"}, "authoritySchemaHash": {"$ref": "#/$defs/sha256"},
         "ledgerSchemaHash": {"$ref": "#/$defs/sha256"}, "transmittedSchemaTemplateExactHash": {"$ref": "#/$defs/sha256"},
         "transmittedSchemaTemplateStableHash": {"$ref": "#/$defs/sha256"}
       }

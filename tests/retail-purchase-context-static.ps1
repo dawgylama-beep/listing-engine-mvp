@@ -15,9 +15,9 @@ $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.27"; Text = $index; Pattern = "Version 1.12.27" },
-  @{ Name = "Package version is 1.12.27"; Text = $package; Pattern = '"version": "1.12.27"' },
-  @{ Name = "Server version is 1.12.27"; Text = $server; Pattern = '$AppVersion = "1.12.27"' },
+  @{ Name = "Visible app version is 1.12.28"; Text = $index; Pattern = "Version 1.12.28" },
+  @{ Name = "Package version is 1.12.28"; Text = $package; Pattern = '"version": "1.12.28"' },
+  @{ Name = "Server version is 1.12.28"; Text = $server; Pattern = '$AppVersion = "1.12.28"' },
   @{ Name = "Roadmap documents retail purchase context"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Personal Buy context selector exists"; Text = $index; Pattern = 'id="purchase_context"' },
   @{ Name = "Retail store option exists"; Text = $index; Pattern = 'value="retail_store"' },

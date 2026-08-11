@@ -33,7 +33,10 @@ export function buildQualificationAuthority({ authorityId, createdAt, toolingCom
     bindings: {
       ...SEALED_BINDINGS,
       providerProfileHash: routeBindings.providerProfileHash,
+      actionRegistryHash: routeBindings.actionRegistryHash,
+      canonicalExecutiveActionSchemaHash: routeBindings.canonicalExecutiveActionSchemaHash,
       continuationPolicyHash: routeBindings.continuationPolicyHash,
+      generalContinuationPolicyHash: routeBindings.generalContinuationPolicyHash,
       authoritySchemaHash: routeBindings.authoritySchemaHash,
       ledgerSchemaHash: routeBindings.ledgerSchemaHash,
       transmittedSchemaTemplateExactHash: routeBindings.transmittedSchemaTemplateExactHash,
@@ -62,7 +65,7 @@ export function validateQualificationAuthority(authority, { publicManifest, rout
   exactKeys(authority.bindings, [
     "startingToolingCommit", "startingToolingTree", "readinessManifestHash", "caseManifestHash", "scoringControlsHash",
     "budgetProfileHash", "calibrationResultHash", "executiveActionSourceSchemaHash", "safeProviderDiagnosticsContractHash",
-    "providerProfileHash", "continuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash",
+    "providerProfileHash", "actionRegistryHash", "canonicalExecutiveActionSchemaHash", "continuationPolicyHash", "generalContinuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash",
     "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"
   ], "qualification authority bindings");
   assert.deepEqual(authority.limits, QUALIFICATION_LIMITS); assert.equal(authority.caseSlots.length, 12);
@@ -72,7 +75,7 @@ export function validateQualificationAuthority(authority, { publicManifest, rout
   assert.equal(authority.bindings.budgetProfileHash, SEALED_BINDINGS.budgetProfileHash);
   assert.equal(authority.bindings.calibrationResultHash, SEALED_BINDINGS.calibrationResultHash);
   assert.equal(authority.bindings.safeProviderDiagnosticsContractHash, SEALED_BINDINGS.safeProviderDiagnosticsContractHash);
-  for (const field of ["providerProfileHash", "continuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash", "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"])
+  for (const field of ["providerProfileHash", "actionRegistryHash", "canonicalExecutiveActionSchemaHash", "continuationPolicyHash", "generalContinuationPolicyHash", "authoritySchemaHash", "ledgerSchemaHash", "transmittedSchemaTemplateExactHash", "transmittedSchemaTemplateStableHash"])
     assert.equal(authority.bindings[field], routeBindings[field], `authority ${field} differs`);
   if (toolingCommit) assert.equal(authority.toolingReleaseIdentity.commit, toolingCommit);
   if (toolingTree) assert.equal(authority.toolingReleaseIdentity.tree, toolingTree);

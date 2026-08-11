@@ -1,95 +1,274 @@
 import assert from "node:assert/strict";
+import {
+  ACTION_REGISTRY_VERSION, ACTION_TYPES, AUTHORITY_CLASSES, CLAIM_STATES, EVIDENCE_EVALUATIONS,
+  NEXT_LEGAL_ACTIONS, actionDefinition, canonicalTransition, legalActionsForState
+} from "./executive-action-registry.mjs";
 import { assertHash, assertSafeId, exactKeys, seal, sha256Json } from "./protocol.mjs";
 
-export const ACTION_SCHEMA_VERSION = "1.0";
-export const ACTION_TYPES = Object.freeze([
-  "RECONSTRUCT_EPISODE", "DECLARE_INSUFFICIENT_EVIDENCE", "RETRIEVE_RELEVANT_MEMORY", "CLASSIFY_FAILURE",
-  "DECLARE_RECURRENCE", "DECLARE_NOVEL_FAILURE", "PROPOSE_BOUNDED_ENGINEERING_TASK", "SPECIFY_REGRESSION_PROOF",
-  "SPECIFY_REQUIRED_AUTHORITY", "EVALUATE_RETURNED_ENGINEERING_EVIDENCE", "WRITE_GENERALIZED_LESSON_CANDIDATE",
-  "SELECT_NEXT_LEGAL_ACTION", "STOP_SAFELY"
-]);
-export const NEXT_LEGAL_ACTIONS = Object.freeze([
-  "ADVANCE_WITHIN_EXISTING_AUTHORITY", "REQUEST_BOUNDED_ENGINEERING_AUTHORITY", "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
-  "REJECT_RETURNED_EVIDENCE", "STOP_NOVEL_FAILURE", "STOP_INSUFFICIENT_EVIDENCE", "NO_LEGAL_ACTION"
-]);
-export const EVIDENCE_EVALUATIONS = Object.freeze(["VALID_PASS", "BOUNDED_FAIL", "ARCHITECTURAL_FAIL", "INSUFFICIENT_EVIDENCE"]);
-export const CLAIM_STATES = Object.freeze(["PROVEN", "CONTRADICTED", "NOT_PROVEN", "NOT_APPLICABLE"]);
+export { ACTION_TYPES, CLAIM_STATES, EVIDENCE_EVALUATIONS, NEXT_LEGAL_ACTIONS };
+export const ACTION_SCHEMA_VERSION = ACTION_REGISTRY_VERSION;
 
-const BASE_FIELDS = Object.freeze([
+const ACCEPTED_FIELDS = Object.freeze([
   "schemaVersion", "actionType", "actionId", "episodeId", "executiveState", "observedStateHash", "evidenceReferences",
   "memoryReferences", "factualFindings", "uncertainties", "confidence", "boundedRationaleSummary", "requestedSuccessorState",
   "authorityClass", "prohibitedOperations", "details", "contentHash"
 ]);
+const PROVIDER_CORE_FIELDS = Object.freeze([
+  "schemaVersion", "actionId", "episodeId", "executiveState", "observedStateHash", "factualFindings", "uncertainties",
+  "confidence", "boundedRationaleSummary", "prohibitedOperations", "decision"
+]);
+const LEGACY_CALIBRATION_FIELDS = ACCEPTED_FIELDS;
 
-const DETAIL_FIELDS = Object.freeze({
-  CLASSIFY_FAILURE: ["failureClass"],
-  DECLARE_RECURRENCE: ["failureClass", "memoryMatchClass"],
-  DECLARE_NOVEL_FAILURE: ["failureClass"],
-  PROPOSE_BOUNDED_ENGINEERING_TASK: ["exactFailureClass", "affectedComponents", "proposedChangeSurface", "explicitlyExcludedComponents", "generalizedInvariant", "minimumRequiredRegressionSet", "exactPathOrStateProofRequirement", "rollbackRequirement", "stopCondition", "costAndToolEstimate", "requestedAuthority"],
-  SPECIFY_REGRESSION_PROOF: ["helperUnitProof", "exactProductionPathProof", "historicalStateProof", "negativeProof", "restartOrRecoveryProof", "forbiddenActivityProof"],
-  EVALUATE_RETURNED_ENGINEERING_EVIDENCE: ["classification", "requiredClaims"],
-  SELECT_NEXT_LEGAL_ACTION: ["selection"]
-});
+export class ExecutiveActionContractError extends Error {
+  constructor(code, validationRule, fieldPath) {
+    super(`${code}:${fieldPath}:${validationRule}`);
+    this.name = "ExecutiveActionContractError";
+    this.code = code;
+    this.validationRule = validationRule;
+    this.fieldPath = fieldPath;
+  }
+}
+const reject = (code, validationRule, fieldPath) => { throw new ExecutiveActionContractError(code, validationRule, fieldPath); };
+const isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
 
-function validateDetails(action) {
-  const expected = DETAIL_FIELDS[action.actionType];
-  if (!expected) {
-    assert.equal(action.details && typeof action.details === "object" && !Array.isArray(action.details), true);
+function validateSchemaValue(value, schema, fieldPath) {
+  if (!isObject(schema)) reject("ACTION_REGISTRY_SCHEMA_INVALID", "REGISTRY_SCHEMA_NODE_MUST_BE_OBJECT", fieldPath);
+  if (schema.type === "object") {
+    if (!isObject(value)) reject("ACTION_DETAILS_TYPE_INVALID", "TYPE_OBJECT", fieldPath);
+    const expected = Object.keys(schema.properties || {}).sort();
+    const observed = Object.keys(value).sort();
+    if (JSON.stringify(expected) !== JSON.stringify(observed)) reject("ACTION_DETAILS_FIELDS_DIFFER", "EXACT_OBJECT_FIELDS", fieldPath);
+    for (const key of expected) validateSchemaValue(value[key], schema.properties[key], `${fieldPath}.${key}`);
     return;
   }
-  exactKeys(action.details, expected, `${action.actionType} details`);
-  if (action.actionType === "EVALUATE_RETURNED_ENGINEERING_EVIDENCE") {
-    assert.ok(EVIDENCE_EVALUATIONS.includes(action.details.classification));
-    assert.ok(Array.isArray(action.details.requiredClaims) && action.details.requiredClaims.length > 0);
-    for (const claim of action.details.requiredClaims) {
-      exactKeys(claim, ["claimId", "status", "evidenceReferences"], "required claim");
-      assert.ok(CLAIM_STATES.includes(claim.status));
-    }
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) reject("ACTION_DETAILS_TYPE_INVALID", "TYPE_ARRAY", fieldPath);
+    if (Number.isInteger(schema.minItems) && value.length < schema.minItems) reject("ACTION_DETAILS_ARRAY_TOO_SHORT", `MIN_ITEMS_${schema.minItems}`, fieldPath);
+    if (Number.isInteger(schema.maxItems) && value.length > schema.maxItems) reject("ACTION_DETAILS_ARRAY_TOO_LONG", `MAX_ITEMS_${schema.maxItems}`, fieldPath);
+    for (const [index, item] of value.entries()) validateSchemaValue(item, schema.items, `${fieldPath}[${index}]`);
+    return;
   }
-  if (action.actionType === "SELECT_NEXT_LEGAL_ACTION") assert.ok(NEXT_LEGAL_ACTIONS.includes(action.details.selection));
+  const validType = schema.type === "integer" ? Number.isInteger(value)
+    : schema.type === "number" ? Number.isFinite(value)
+      : schema.type === "string" ? typeof value === "string"
+        : schema.type === "boolean" ? typeof value === "boolean"
+          : schema.type === "null" ? value === null : false;
+  if (!validType) reject("ACTION_DETAILS_TYPE_INVALID", `TYPE_${String(schema.type).toUpperCase()}`, fieldPath);
+  if (schema.enum && !schema.enum.includes(value)) reject("ACTION_DETAILS_ENUM_INVALID", "ENUM_MEMBERSHIP", fieldPath);
+  if (typeof value === "number" && Number.isFinite(schema.minimum) && value < schema.minimum) reject("ACTION_DETAILS_RANGE_INVALID", `MINIMUM_${schema.minimum}`, fieldPath);
+  if (typeof value === "number" && Number.isFinite(schema.maximum) && value > schema.maximum) reject("ACTION_DETAILS_RANGE_INVALID", `MAXIMUM_${schema.maximum}`, fieldPath);
 }
 
-export function sealExecutiveAction(core) {
-  const withoutHash = { ...core, schemaVersion: ACTION_SCHEMA_VERSION };
-  delete withoutHash.contentHash;
-  return seal(withoutHash);
+function nonEmptyString(value, fieldPath) {
+  if (typeof value !== "string" || value.trim().length === 0) reject("ACTION_STRING_EMPTY", "NONEMPTY_STRING", fieldPath);
 }
 
-export function validateExecutiveAction(action, { episode, memoryIds = [], currentState, allowedAuthorityClasses }) {
-  exactKeys(action, BASE_FIELDS, "executive action");
-  assert.equal(action.schemaVersion, ACTION_SCHEMA_VERSION);
-  assert.ok(ACTION_TYPES.includes(action.actionType), "unsupported executive action type");
-  assertSafeId(action.actionId, "action ID");
-  assert.equal(action.episodeId, episode.episodeId);
-  assert.equal(action.executiveState, currentState);
-  assertHash(action.observedStateHash, "observed-state hash");
-  assert.ok(Array.isArray(action.evidenceReferences));
-  assert.ok(Array.isArray(action.memoryReferences));
-  assert.ok(Array.isArray(action.factualFindings));
-  assert.ok(Array.isArray(action.uncertainties));
-  assert.equal(Number.isFinite(action.confidence) && action.confidence >= 0 && action.confidence <= 1, true);
-  assert.ok(typeof action.boundedRationaleSummary === "string" && action.boundedRationaleSummary.length >= 1 && action.boundedRationaleSummary.length <= 1200);
-  assert.ok(allowedAuthorityClasses.includes(action.authorityClass), "illegal authority class");
-  assert.ok(Array.isArray(action.prohibitedOperations) && action.prohibitedOperations.length > 0);
+function validateCommonCore(core) {
+  try { exactKeys(core, PROVIDER_CORE_FIELDS, "provider action core"); }
+  catch { reject("ACTION_CORE_FIELDS_DIFFER", "EXACT_PROVIDER_CORE_FIELDS", "$"); }
+  if (core.schemaVersion !== ACTION_SCHEMA_VERSION) reject("ACTION_SCHEMA_VERSION_INVALID", `EXACT_${ACTION_SCHEMA_VERSION}`, "$.schemaVersion");
+  try { assertSafeId(core.actionId, "action ID"); } catch { reject("ACTION_ID_INVALID", "SAFE_ID", "$.actionId"); }
+  try { assertSafeId(core.episodeId, "episode ID"); } catch { reject("ACTION_EPISODE_ID_INVALID", "SAFE_ID", "$.episodeId"); }
+  try { assertHash(core.observedStateHash, "observed state hash"); } catch { reject("ACTION_OBSERVED_STATE_HASH_INVALID", "SHA256", "$.observedStateHash"); }
+  for (const field of ["factualFindings", "uncertainties", "prohibitedOperations"]) {
+    if (!Array.isArray(core[field]) || core[field].some((item) => typeof item !== "string")) reject("ACTION_COMMON_FIELD_INVALID", "STRING_ARRAY", `$.${field}`);
+  }
+  if (core.prohibitedOperations.length === 0) reject("ACTION_PROHIBITIONS_EMPTY", "MIN_ITEMS_1", "$.prohibitedOperations");
+  if (!Number.isFinite(core.confidence) || core.confidence < 0 || core.confidence > 1) reject("ACTION_CONFIDENCE_INVALID", "RANGE_0_TO_1", "$.confidence");
+  nonEmptyString(core.boundedRationaleSummary, "$.boundedRationaleSummary");
+  if (!isObject(core.decision)) reject("ACTION_DECISION_INVALID", "TYPE_OBJECT", "$.decision");
+}
+
+function validateRegisteredCore(core, { episode, memoryIds = [], currentState, allowedAuthorityClasses = AUTHORITY_CLASSES }) {
+  validateCommonCore(core);
+  if (core.episodeId !== episode.episodeId) reject("ACTION_EPISODE_MISMATCH", "CURRENT_EPISODE_ID", "$.episodeId");
+  if (core.executiveState !== currentState) reject("ACTION_STATE_MISMATCH", "CURRENT_LIFECYCLE_STATE", "$.executiveState");
+  try { exactKeys(core.decision, ["actionType", "details", "evidenceReferences", "memoryReferences", "authorityClass"], "provider action decision"); }
+  catch { reject("ACTION_DECISION_FIELDS_DIFFER", "EXACT_DECISION_FIELDS", "$.decision"); }
+  const { actionType, details, evidenceReferences, memoryReferences, authorityClass } = core.decision;
+  if (!ACTION_TYPES.includes(actionType)) reject("ACTION_TYPE_UNREGISTERED", "REGISTERED_ACTION_TYPE", "$.decision.actionType");
+  const legal = legalActionsForState(currentState, { memoryIds });
+  if (!legal.includes(actionType)) reject("ACTION_STATE_PAIR_UNREGISTERED", "REGISTERED_CURRENT_STATE_ACTION_PAIR", "$.decision.actionType");
+  const definition = actionDefinition(actionType);
+  validateSchemaValue(details, definition.detailsSchema, "$.decision.details");
+  for (const detailPath of definition.nonEmptyDetailPaths) {
+    const relative = detailPath.replace(/^\$\.details\./, "").split(".");
+    let value = details;
+    for (const segment of relative) value = value?.[segment];
+    nonEmptyString(value, detailPath.replace("$.details", "$.decision.details"));
+  }
+  if (!Array.isArray(evidenceReferences) || evidenceReferences.length < definition.minimumEvidenceReferences)
+    reject("ACTION_EVIDENCE_REFERENCES_INSUFFICIENT", `MIN_ITEMS_${definition.minimumEvidenceReferences}`, "$.decision.evidenceReferences");
+  if (!Array.isArray(memoryReferences) || memoryReferences.length < definition.minimumMemoryReferences)
+    reject("ACTION_MEMORY_REFERENCES_INSUFFICIENT", `MIN_ITEMS_${definition.minimumMemoryReferences}`, "$.decision.memoryReferences");
   const visibleEvidence = new Set(episode.visibleArtifactInventory.map((item) => item.artifactId));
-  for (const reference of action.evidenceReferences) assert.equal(visibleEvidence.has(reference), true, `unsupported evidence reference ${reference}`);
+  for (const [index, reference] of evidenceReferences.entries()) if (!visibleEvidence.has(reference))
+    reject("ACTION_EVIDENCE_REFERENCE_UNAVAILABLE", "VISIBLE_ARTIFACT_MEMBERSHIP", `$.decision.evidenceReferences[${index}]`);
   const knownMemory = new Set(memoryIds);
-  for (const reference of action.memoryReferences) assert.equal(knownMemory.has(reference), true, `missing memory provenance ${reference}`);
-  for (const forbidden of ["shellCommand", "command", "productionExecution", "providerRequest", "consentAuthority", "reservationAuthority"]) {
-    assert.equal(Object.hasOwn(action.details, forbidden), false, `free-form or prohibited action field ${forbidden}`);
+  for (const [index, reference] of memoryReferences.entries()) if (!knownMemory.has(reference))
+    reject("ACTION_MEMORY_REFERENCE_UNAVAILABLE", "RETRIEVED_MEMORY_MEMBERSHIP", `$.decision.memoryReferences[${index}]`);
+  if (!allowedAuthorityClasses.includes(authorityClass) || !definition.authorityClasses.includes(authorityClass))
+    reject("ACTION_AUTHORITY_CLASS_INVALID", "REGISTERED_ACTION_AUTHORITY_CLASS", "$.decision.authorityClass");
+  return { definition, actionType, details, evidenceReferences, memoryReferences, authorityClass };
+}
+
+function normalizeDetails(definition, details) {
+  const normalized = structuredClone(details);
+  if (definition.detailsNormalization === "SEAL_MEMORY_RECORD") {
+    const memoryCore = { ...normalized.memoryRecord, schemaVersion: "1.0" };
+    delete memoryCore.contentHash;
+    normalized.memoryRecord = seal(memoryCore);
   }
-  validateDetails(action);
-  const core = structuredClone(action); delete core.contentHash;
-  assert.equal(sha256Json(core), action.contentHash, "executive action content hash differs");
+  return normalized;
+}
+
+export function normalizeAndValidateProviderActionCore(core, context) {
+  const accepted = validateRegisteredCore(core, context);
+  const transition = canonicalTransition(context.currentState, accepted.actionType);
+  const normalizedCore = {
+    schemaVersion: ACTION_SCHEMA_VERSION,
+    actionType: accepted.actionType,
+    actionId: core.actionId,
+    episodeId: core.episodeId,
+    executiveState: core.executiveState,
+    observedStateHash: core.observedStateHash,
+    evidenceReferences: [...accepted.evidenceReferences],
+    memoryReferences: [...accepted.memoryReferences],
+    factualFindings: [...core.factualFindings],
+    uncertainties: [...core.uncertainties],
+    confidence: core.confidence,
+    boundedRationaleSummary: core.boundedRationaleSummary,
+    requestedSuccessorState: transition.successorState,
+    authorityClass: accepted.authorityClass,
+    prohibitedOperations: [...core.prohibitedOperations],
+    details: normalizeDetails(accepted.definition, accepted.details)
+  };
+  const action = seal(normalizedCore);
+  validateExecutiveAction(action, context);
+  return action;
+}
+
+function acceptedDetailsForValidation(action) {
+  const definition = actionDefinition(action.actionType);
+  const details = structuredClone(action.details);
+  if (definition.detailsNormalization === "SEAL_MEMORY_RECORD") {
+    const memory = details.memoryRecord;
+    if (!isObject(memory) || typeof memory.contentHash !== "string") reject("ACTION_MEMORY_RECORD_HASH_MISSING", "BROKER_SEALED_MEMORY_RECORD", "$.details.memoryRecord.contentHash");
+    const memoryCore = structuredClone(memory); delete memoryCore.contentHash;
+    if (sha256Json(memoryCore) !== memory.contentHash) reject("ACTION_MEMORY_RECORD_HASH_INVALID", "CONTENT_HASH", "$.details.memoryRecord.contentHash");
+    delete details.memoryRecord.contentHash;
+  }
+  return details;
+}
+
+function validateRegisteredAction(action, context) {
+  try { exactKeys(action, ACCEPTED_FIELDS, "executive action"); }
+  catch { reject("ACCEPTED_ACTION_FIELDS_DIFFER", "EXACT_ACCEPTED_ACTION_FIELDS", "$"); }
+  const providerCore = {
+    schemaVersion: action.schemaVersion,
+    actionId: action.actionId,
+    episodeId: action.episodeId,
+    executiveState: action.executiveState,
+    observedStateHash: action.observedStateHash,
+    factualFindings: action.factualFindings,
+    uncertainties: action.uncertainties,
+    confidence: action.confidence,
+    boundedRationaleSummary: action.boundedRationaleSummary,
+    prohibitedOperations: action.prohibitedOperations,
+    decision: {
+      actionType: action.actionType,
+      details: acceptedDetailsForValidation(action),
+      evidenceReferences: action.evidenceReferences,
+      memoryReferences: action.memoryReferences,
+      authorityClass: action.authorityClass
+    }
+  };
+  validateRegisteredCore(providerCore, context);
+  const transition = canonicalTransition(context.currentState, action.actionType);
+  if (action.requestedSuccessorState !== transition.successorState) reject("ACTION_SUCCESSOR_DIVERGENCE", "REGISTRY_DERIVED_SUCCESSOR", "$.requestedSuccessorState");
+  const actionCore = structuredClone(action); delete actionCore.contentHash;
+  if (sha256Json(actionCore) !== action.contentHash) reject("ACTION_CONTENT_HASH_INVALID", "CONTENT_HASH", "$.contentHash");
+  return Object.freeze({
+    accepted: true,
+    actionId: action.actionId,
+    actionType: action.actionType,
+    actionHash: action.contentHash,
+    canonicalSuccessorState: transition.successorState,
+    terminal: transition.terminal
+  });
+}
+
+function validateLegacyCalibrationAction(action, { episode, memoryIds = [], currentState, allowedAuthorityClasses }) {
+  exactKeys(action, LEGACY_CALIBRATION_FIELDS, "legacy calibration action");
+  assert.equal(action.schemaVersion, "1.0"); assert.equal(action.actionType, "RECONSTRUCT_EPISODE");
+  assertSafeId(action.actionId); assert.equal(action.episodeId, episode.episodeId); assert.equal(currentState, "INIT"); assert.equal(action.executiveState, "INIT");
+  assertHash(action.observedStateHash); assert.equal(action.requestedSuccessorState, "EPISODE_RECONSTRUCTED");
+  assert.ok(Array.isArray(action.evidenceReferences)); assert.ok(Array.isArray(action.memoryReferences)); assert.ok(Array.isArray(action.factualFindings)); assert.ok(Array.isArray(action.uncertainties));
+  assert.ok(Number.isFinite(action.confidence) && action.confidence >= 0 && action.confidence <= 1);
+  assert.ok(typeof action.boundedRationaleSummary === "string" && action.boundedRationaleSummary.length >= 1 && action.boundedRationaleSummary.length <= 1200);
+  assert.ok(allowedAuthorityClasses.includes(action.authorityClass)); assert.ok(Array.isArray(action.prohibitedOperations) && action.prohibitedOperations.length > 0);
+  const visible = new Set(episode.visibleArtifactInventory.map((item) => item.artifactId)); for (const item of action.evidenceReferences) assert.ok(visible.has(item));
+  const memories = new Set(memoryIds); for (const item of action.memoryReferences) assert.ok(memories.has(item));
+  exactKeys(action.details, [], "legacy calibration action details");
+  const core = structuredClone(action); delete core.contentHash; assert.equal(sha256Json(core), action.contentHash);
   return Object.freeze({ accepted: true, actionId: action.actionId, actionType: action.actionType, actionHash: action.contentHash });
 }
 
-export function createBrokerRejection(action, reasonCode) {
+export function sealExecutiveAction(core) {
+  if (core.executiveState === "INIT") {
+    const legacy = { ...core, schemaVersion: "1.0" }; delete legacy.contentHash; return seal(legacy);
+  }
+  if (Object.hasOwn(core, "requestedSuccessorState")) reject("PROVIDER_CONTROLLED_SUCCESSOR_FORBIDDEN", "SUCCESSOR_DERIVED_BY_BROKER", "$.requestedSuccessorState");
+  const decision = {
+    actionType: core.actionType,
+    details: core.details,
+    evidenceReferences: core.evidenceReferences,
+    memoryReferences: core.memoryReferences,
+    authorityClass: core.authorityClass
+  };
+  const providerCore = {
+    schemaVersion: ACTION_SCHEMA_VERSION,
+    actionId: core.actionId,
+    episodeId: core.episodeId,
+    executiveState: core.executiveState,
+    observedStateHash: core.observedStateHash,
+    factualFindings: core.factualFindings,
+    uncertainties: core.uncertainties,
+    confidence: core.confidence,
+    boundedRationaleSummary: core.boundedRationaleSummary,
+    prohibitedOperations: core.prohibitedOperations,
+    decision
+  };
+  return normalizeAndValidateProviderActionCore(providerCore, core.validationContext);
+}
+
+export function validateExecutiveAction(action, context) {
+  return action.executiveState === "INIT" ? validateLegacyCalibrationAction(action, context) : validateRegisteredAction(action, context);
+}
+
+export function createBrokerRejection(actionCore, errorOrReason, context = {}) {
+  if (typeof errorOrReason === "string") {
+    const core = { schemaVersion: "1.0", receiptType: "EXECUTIVE_ACTION_BROKER_REJECTION", actionDigest: sha256Json(actionCore), reasonCode: errorOrReason, accepted: false };
+    return seal(core, "receiptHash");
+  }
+  const error = errorOrReason instanceof ExecutiveActionContractError
+    ? errorOrReason
+    : new ExecutiveActionContractError("BROKER_REJECTED_TYPED_ACTION", "UNCLASSIFIED_FAIL_CLOSED_VALIDATION", "$");
+  const submitted = actionCore?.decision?.actionType;
+  const safeActionType = ACTION_TYPES.includes(submitted) ? submitted : "NOT_RECEIVED";
+  let legalActionSet = [];
+  try { legalActionSet = legalActionsForState(context.currentState, { memoryIds: context.memoryIds || [] }); } catch { legalActionSet = []; }
   const core = {
-    schemaVersion: "1.0",
-    receiptType: "EXECUTIVE_ACTION_BROKER_REJECTION",
-    actionDigest: sha256Json(action),
-    reasonCode,
+    schemaVersion: "1.1",
+    receiptType: "SAFE_EXECUTIVE_ACTION_BROKER_REJECTION",
+    currentLifecycleState: context.currentState || "NOT_RECEIVED",
+    submittedActionType: safeActionType,
+    actionCoreHash: sha256Json(actionCore),
+    rejectionCode: error.code,
+    validationRule: error.validationRule,
+    fieldPath: error.fieldPath,
+    legalActionSet,
+    terminalDisposition: "IMMUTABLE_BROKER_REJECTION",
     accepted: false
   };
   return seal(core, "receiptHash");

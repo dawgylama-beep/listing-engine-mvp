@@ -76,7 +76,7 @@ foreach ($removedAlias in @(
 )) {
   Require-True (($api + $customerSerializer + $validation + $app + $browserModel) -notmatch [regex]::Escape($removedAlias)) "Removed alias remains in production: $removedAlias"
 }
-Require-True ($index -match '<script src="/customer-evidence\.js\?v=1\.12\.27"></script>\s*<script src="/app\.js\?v=1\.12\.27"></script>') "Browser presentation model is not loaded before app.js."
+Require-True ($index -match '<script src="/customer-evidence\.js\?v=1\.12\.28"></script>\s*<script src="/app\.js\?v=1\.12\.28"></script>') "Browser presentation model is not loaded before app.js."
 Require-True ($api -match 'maxProviderCalls:\s*28') "Retail provider ceiling changed from 28."
 Require-True ($api -match '\? retailBudget\.maxProviderCalls\s*:\s*12') "Collectible provider ceiling changed from 12."
 Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 53) "Current PowerShell entry-point count is not exactly 53."

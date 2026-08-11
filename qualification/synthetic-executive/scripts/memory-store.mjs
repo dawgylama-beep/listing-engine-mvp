@@ -74,6 +74,7 @@ export class ExecutiveMemoryStore {
       return { memoryId: record.memoryId, status: record.status, candidateScore: Number((semanticScore * 0.6 + structuredScore * 0.4).toFixed(6)) };
     }).sort((a, b) => b.candidateScore - a.candidateScore || a.memoryId.localeCompare(b.memoryId));
     const selected = candidates.filter((item) => item.candidateScore > 0).slice(0, 3);
+    const empty = selected.length === 0;
     const core = {
       schemaVersion: "1.0",
       receiptType: "EXECUTIVE_MEMORY_RETRIEVAL",
@@ -84,7 +85,12 @@ export class ExecutiveMemoryStore {
       candidateScores: candidates,
       selectedMemoryIds: selected.map((item) => item.memoryId),
       rejectedCandidates: candidates.filter((item) => !selected.includes(item)).map((item) => ({ memoryId: item.memoryId, reason: "LOWER_OR_ZERO_RELEVANCE" })),
-      retrievalReasonSummary: selected.length ? "Selected by structured facets and token-overlap similarity; status preserved." : "No candidate met the positive relevance threshold.",
+      resultClassification: empty ? "VALID_EMPTY" : "MATCHES_FOUND",
+      recurrencePermitted: !empty,
+      novelFailureClassificationPermitted: true,
+      boundedTaskConstructionPermitted: true,
+      fabricatedSimilarityProhibited: true,
+      retrievalReasonSummary: selected.length ? "Selected by structured facets and token-overlap similarity; status preserved." : "Valid empty result: no candidate met the positive relevance threshold; recurrence is unavailable while evidence-based novel classification remains legal.",
       retrievalEngine,
       retrievalEngineVersion: "1.0",
       createdAt

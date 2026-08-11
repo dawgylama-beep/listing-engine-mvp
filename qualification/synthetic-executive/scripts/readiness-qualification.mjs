@@ -3,13 +3,13 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateExecutiveAction, sealExecutiveAction } from "./action-broker.mjs";
+import { normalizeAndValidateProviderActionCore } from "./action-broker.mjs";
 import { BUDGET_PROFILE, EVALUATOR_CONTROLS } from "./artifact-definitions.mjs";
 import { EngineeringWorkerAdapter } from "./engineering-worker-adapter.mjs";
 import { EpisodeEvidenceSandbox } from "./episode-sandbox.mjs";
 import { validateFakeAgentCatalog } from "./fake-agents.mjs";
 import { applyAcceptedAction, createCaseController, reconstructCase, recordWorkerDossier } from "./lifecycle-integrity-controller.mjs";
-import { ExecutiveMemoryStore, sealMemoryRecord, validateTransferPromotion } from "./memory-store.mjs";
+import { ExecutiveMemoryStore, validateTransferPromotion } from "./memory-store.mjs";
 import { ExternalQualificationGovernor, validateBudgetProfile } from "./qualification-governor.mjs";
 import { readJson, seal, sha256Json, stableJson } from "./protocol.mjs";
 
@@ -168,6 +168,7 @@ function actionDetails(actionType, evidenceReference, classification = "VALID_PA
   if (actionType === "SPECIFY_REGRESSION_PROOF") return { helperUnitProof: "required", exactProductionPathProof: "required", historicalStateProof: "required", negativeProof: "required", restartOrRecoveryProof: "required", forbiddenActivityProof: "required" };
   if (actionType === "EVALUATE_RETURNED_ENGINEERING_EVIDENCE") return { classification, requiredClaims: [{ claimId: "safety-critical-proof", status: classification === "VALID_PASS" ? "PROVEN" : "NOT_PROVEN", evidenceReferences: [evidenceReference] }] };
   if (actionType === "SELECT_NEXT_LEGAL_ACTION") return { selection };
+  if (actionType === "STOP_SAFELY") return { stopReason: "The bounded fixture lifecycle reached its registry-defined terminal state." };
   return {};
 }
 
@@ -192,17 +193,19 @@ async function runFixtureCase({ episode, memoryStore, governor, workerAdapter, n
 
   const emit = async (actionType, details = actionDetails(actionType, firstEvidence, dossierClassification, nextSelection)) => {
     const state = reconstructCase(controller, receipts).state;
-    const action = sealExecutiveAction({
-      actionType, actionId: `action-${episode.episodeId.toLowerCase()}-${String(actions.length + 1).padStart(2, "0")}`,
-      episodeId: episode.episodeId, executiveState: state, observedStateHash: sha256Json({ state, receipts: receipts.map((item) => item.receiptHash) }),
-      evidenceReferences: [firstEvidence], memoryReferences: selectedMemoryIds,
-      factualFindings: ["Finding is limited to cited visible evidence."], uncertainties: [], confidence: 0.75,
-      boundedRationaleSummary: "Evidence-bound fixture action without private rationale or unsupported facts.", requestedSuccessorState: actionType,
-      authorityClass: actionType === "SPECIFY_REQUIRED_AUTHORITY" ? (episode.cohort === "NOVEL_HELD_OUT" ? "EXCEPTIONAL_HUMAN" : "BOUNDED_ENGINEERING") : "NO_NEW_AUTHORITY",
-      prohibitedOperations: ["production execution", "benchmark replay", "evaluator-control access"], details
-    });
     const memoryIds = (await memoryStore.list()).map((record) => record.memoryId);
-    validateExecutiveAction(action, { episode, memoryIds, currentState: state, allowedAuthorityClasses: ["NO_NEW_AUTHORITY", "BOUNDED_ENGINEERING", "EXCEPTIONAL_HUMAN"] });
+    const providerCore = {
+      schemaVersion: "1.1", actionId: `action-${episode.episodeId.toLowerCase()}-${String(actions.length + 1).padStart(2, "0")}`,
+      episodeId: episode.episodeId, executiveState: state, observedStateHash: sha256Json({ state, receipts: receipts.map((item) => item.receiptHash) }),
+      factualFindings: ["Finding is limited to cited visible evidence."], uncertainties: [], confidence: 0.75,
+      boundedRationaleSummary: "Evidence-bound fixture action without private rationale or unsupported facts.",
+      prohibitedOperations: ["production execution", "benchmark replay", "evaluator-control access"],
+      decision: {
+        actionType, details, evidenceReferences: [firstEvidence], memoryReferences: selectedMemoryIds,
+        authorityClass: actionType === "SPECIFY_REQUIRED_AUTHORITY" ? (episode.cohort === "NOVEL_HELD_OUT" ? "EXCEPTIONAL_HUMAN" : "BOUNDED_ENGINEERING") : "NO_NEW_AUTHORITY"
+      }
+    };
+    const action = normalizeAndValidateProviderActionCore(providerCore, { episode, memoryIds: selectedMemoryIds, currentState: state, allowedAuthorityClasses: ["NO_NEW_AUTHORITY", "BOUNDED_ENGINEERING", "EXCEPTIONAL_HUMAN"] });
     const reservation = await governor.reserve({ caseId: episode.episodeId, stepType: "EXECUTIVE_REASONING", operationHash: action.contentHash, modelOrToolIdentity: "COMPLIANT_STRUCTURED_FAKE_AGENT", maximumCostReservationUsd: 0, maximumResourceAllowance: { tokens: 1000 }, retryOfOperationHash: null });
     receipts.push(applyAcceptedAction({ controller, receipts, action, decidedAt: now })); actions.push(action);
     await governor.complete({ reservationId: reservation.reservationId, actualUsage: { fixtureSteps: 1 }, actualCostUsd: 0, durationMs: 1, resultStatus: "SUCCESS", progressSignals: ["VALID_TYPED_ACTION", "VALID_STATE_TRANSITION"] });
@@ -222,17 +225,17 @@ async function runFixtureCase({ episode, memoryStore, governor, workerAdapter, n
   receipts.push(recordWorkerDossier({ controller, receipts, dossier, recordedAt: now }));
   await governor.complete({ reservationId: workerReservation.reservationId, actualUsage: { dossiers: 1 }, actualCostUsd: 0, durationMs: 1, resultStatus: "SUCCESS", progressSignals: ["NEW_RETURNED_ENGINEERING_EVIDENCE"] });
   await emit("EVALUATE_RETURNED_ENGINEERING_EVIDENCE", actionDetails("EVALUATE_RETURNED_ENGINEERING_EVIDENCE", firstEvidence, dossierClassification, nextSelection));
-  await emit("WRITE_GENERALIZED_LESSON_CANDIDATE");
-  const memory = sealMemoryRecord({
-    memoryType: "GENERALIZED_LESSON_CANDIDATE", memoryId: `memory-${episode.episodeId.toLowerCase()}`, sourceEpisodeIds: [episode.episodeId],
+  const memoryCore = {
+    schemaVersion: "1.0", memoryType: "GENERALIZED_LESSON_CANDIDATE", memoryId: `memory-${episode.episodeId.toLowerCase()}`, sourceEpisodeIds: [episode.episodeId],
     evidenceReferences: [firstEvidence], evidenceAggregateHash: sha256Json([firstEvidence]), observedFailurePattern: observationText.slice(0, 600),
     generalizedRule: generalizedRuleFor(episode.episodeId), triggeringConditions: ["visible evidence matches the bounded pattern"],
     applicabilityBoundaries: ["same structural invariant with independently verified identities"], explicitNonApplicabilityConditions: ["contradictory evidence", "authentication failure", "ambiguous authority"],
     recurrenceSignature: generalizedRuleFor(episode.episodeId), recommendedActionPattern: nextSelection, prohibitedActions: ["replay", "production execution", "authority invention"],
     requiredProofBeforeAdvancement: ["exact path", "historical state", "negative proof", "forbidden-activity proof"], authorityNormallyRequired: episode.cohort === "NOVEL_HELD_OUT" ? "EXCEPTIONAL_HUMAN" : "BOUNDED_ENGINEERING",
     confidence: 0.7, unresolvedUncertainty: [], status: "CANDIDATE", predecessorMemoryIds: selectedMemoryIds
-  });
-  await memoryStore.append(memory);
+  };
+  const lessonAction = await emit("WRITE_GENERALIZED_LESSON_CANDIDATE", { memoryRecord: memoryCore });
+  await memoryStore.append(lessonAction.details.memoryRecord);
   await emit("SELECT_NEXT_LEGAL_ACTION", actionDetails("SELECT_NEXT_LEGAL_ACTION", firstEvidence, dossierClassification, nextSelection));
   await emit("STOP_SAFELY");
   const terminal = reconstructCase(controller, receipts);
@@ -263,10 +266,10 @@ export async function runDeterministicHarnessProof() {
   assert.equal(validateTransferPromotion({ record: firstCandidate, sourceEpisodeCohort: "ANALOGOUS_HELD_OUT", transferEvaluation: { classification: "VALID_PASS", memoryApplied: true } }).permittedStatus, "VALIDATED_BY_TRANSFER");
 
   const firstEpisode = publicManifest.episodes[0];
-  const invalid = sealExecutiveAction({ actionType: "CLASSIFY_FAILURE", actionId: "action-invalid-evidence", episodeId: firstEpisode.episodeId, executiveState: "MEMORY_RETRIEVED", observedStateHash: sha256Json("state"), evidenceReferences: ["nonexistent-artifact"], memoryReferences: [], factualFindings: [], uncertainties: [], confidence: 0.2, boundedRationaleSummary: "unsupported", requestedSuccessorState: "FAILURE_CLASSIFIED", authorityClass: "NO_NEW_AUTHORITY", prohibitedOperations: ["production"], details: {} });
-  assert.throws(() => validateExecutiveAction(invalid, { episode: firstEpisode, memoryIds: [], currentState: "MEMORY_RETRIEVED", allowedAuthorityClasses: ["NO_NEW_AUTHORITY"] }), /unsupported evidence reference/);
-  const escalation = sealExecutiveAction({ ...invalid, actionId: "action-invalid-authority", evidenceReferences: [firstEpisode.visibleArtifactInventory[0].artifactId], authorityClass: "PRODUCTION_RELEASE" });
-  assert.throws(() => validateExecutiveAction(escalation, { episode: firstEpisode, memoryIds: [], currentState: "MEMORY_RETRIEVED", allowedAuthorityClasses: ["NO_NEW_AUTHORITY"] }), /illegal authority class/);
+  const invalid = { schemaVersion: "1.1", actionId: "action-invalid-evidence", episodeId: firstEpisode.episodeId, executiveState: "MEMORY_RETRIEVED", observedStateHash: sha256Json("state"), factualFindings: [], uncertainties: [], confidence: 0.2, boundedRationaleSummary: "unsupported", prohibitedOperations: ["production"], decision: { actionType: "CLASSIFY_FAILURE", evidenceReferences: ["nonexistent-artifact"], memoryReferences: [], authorityClass: "NO_NEW_AUTHORITY", details: { failureClass: "EVIDENCE_BOUND_FAILURE" } } };
+  assert.throws(() => normalizeAndValidateProviderActionCore(invalid, { episode: firstEpisode, memoryIds: [], currentState: "MEMORY_RETRIEVED", allowedAuthorityClasses: ["NO_NEW_AUTHORITY"] }), /ACTION_EVIDENCE_REFERENCE_UNAVAILABLE/);
+  const escalation = structuredClone(invalid); escalation.actionId = "action-invalid-authority"; escalation.decision.evidenceReferences = [firstEpisode.visibleArtifactInventory[0].artifactId]; escalation.decision.authorityClass = "PRODUCTION_RELEASE";
+  assert.throws(() => normalizeAndValidateProviderActionCore(escalation, { episode: firstEpisode, memoryIds: [], currentState: "MEMORY_RETRIEVED", allowedAuthorityClasses: ["NO_NEW_AUTHORITY"] }), /ACTION_AUTHORITY_CLASS_INVALID/);
   const forcingNovelRejected = EVALUATOR_CONTROLS.controls.filter((item) => item.episodeId.includes("-N")).every((item) => item.expectedClassification === "NOVEL");
   assert.equal(forcingNovelRejected, true);
 

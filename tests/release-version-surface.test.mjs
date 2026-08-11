@@ -11,20 +11,20 @@ import {
 
 test("authoritative release Version aligns every active presentation surface", async () => {
   const result = await inspectReleaseVersionSurfaces();
-  assert.equal(result.version, "1.12.27");
+  assert.equal(result.version, "1.12.28");
   assert.equal(result.serverVersion, result.version);
   assert.equal(result.indexSurface.documentVersion, result.version);
   assert.equal(result.indexSurface.badgeText, result.label);
   assert.equal(result.executionReleaseVersion, "1.12.26");
   assert.equal(result.executionReleaseState, "QUALIFIED");
-  assert.equal(result.observabilityReleaseVersion, result.version);
+  assert.equal(result.observabilityReleaseVersion, "1.12.27");
   assert.match(result.observabilityReleaseHash, /^[a-f0-9]{64}$/);
 });
 
 test("full multi-digit patch Version is preserved in source, DOM text, and asset identities", async () => {
   const indexHtml = await readFile(path.join(repositoryRoot, "public", "index.html"), "utf8");
   const syntheticVersion = "7.8.123";
-  const syntheticHtml = indexHtml.replaceAll("1.12.27", syntheticVersion);
+  const syntheticHtml = indexHtml.replaceAll("1.12.28", syntheticVersion);
   const result = inspectIndexVersionSurface(syntheticHtml, syntheticVersion);
 
   assert.equal(formatReleaseVersion(syntheticVersion), "Version 7.8.123");

@@ -2,19 +2,23 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ACTION_TYPES, CLAIM_STATES, EVIDENCE_EVALUATIONS, NEXT_LEGAL_ACTIONS } from "../../scripts/action-broker.mjs";
+import {
+  ACTION_REGISTRY_VERSION, actionDefinition, canonicalExecutiveActionSchema, legalActionsForState, registryActionFixtures
+} from "../../scripts/executive-action-registry.mjs";
 import { sha256Bytes, sha256Json, stableJson } from "../../scripts/protocol.mjs";
 import { loadRealProviderProfile } from "../../calibration/scripts/real-route-profile.mjs";
 import {
   PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, classifyHttpFailure,
   normalizeProviderResponseDiagnostics, safeProviderRequestId, unavailableProviderDiagnostics
 } from "../../calibration/scripts/real-route-redaction.mjs";
+import { generalContinuationPromptLines } from "./general-continuation-policy.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const qualificationRouteRoot = path.resolve(scriptDirectory, "..");
 export const qualificationRoot = path.resolve(qualificationRouteRoot, "..");
 export const repositoryRoot = path.resolve(qualificationRoot, "..", "..");
 export const continuationPolicyPath = path.join(qualificationRouteRoot, "continuation-policy.json");
+export const generalContinuationPolicyPath = path.join(qualificationRouteRoot, "general-continuation-policy.json");
 export const authoritySchemaPath = path.join(qualificationRouteRoot, "schemas", "blind-qualification-authority.schema.json");
 export const ledgerSchemaPath = path.join(qualificationRouteRoot, "schemas", "qualification-ledger-entry.schema.json");
 export const releasePath = path.join(qualificationRouteRoot, "qualification-real-route-release.json");
@@ -45,86 +49,48 @@ export const QUALIFICATION_LIMITS = Object.freeze({
 
 export const QUALIFICATION_ROUTE = Object.freeze({
   model: "gpt-5.6-sol", reasoningEffort: "medium", store: false, background: false, stream: false,
-  tools: Object.freeze([]), maximumOutputTokens: 2000, maximumPromptBytes: 64000,
+  tools: Object.freeze([]), maximumOutputTokens: 2000, maximumPromptBytes: 64000, maximumSerializedRequestBytes: 64000,
+  conservativeInputTokenReservationMethod: "ONE_TOKEN_PER_SERIALIZED_REQUEST_UTF8_BYTE",
   endpoint: "v1/responses", maximumMetadataRequests: 0
 });
 
-const stringArray = () => ({ type: "array", items: { type: "string" } });
 const closedObject = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
-const emptyDetails = () => closedObject({});
-
-const detailsSchemas = Object.freeze({
-  EMPTY: emptyDetails(),
-  RETRIEVE_RELEVANT_MEMORY: closedObject({
-    queryText: { type: "string" },
-    queryFacets: closedObject({ cohort: stringArray(), pattern: stringArray(), failureClass: stringArray() })
-  }),
-  CLASSIFY_FAILURE: closedObject({ failureClass: { type: "string" } }),
-  DECLARE_RECURRENCE: closedObject({ failureClass: { type: "string" }, memoryMatchClass: { type: "string" } }),
-  DECLARE_NOVEL_FAILURE: closedObject({ failureClass: { type: "string" } }),
-  PROPOSE_BOUNDED_ENGINEERING_TASK: closedObject({
-    exactFailureClass: { type: "string" }, affectedComponents: stringArray(), proposedChangeSurface: stringArray(),
-    explicitlyExcludedComponents: stringArray(), generalizedInvariant: { type: "string" }, minimumRequiredRegressionSet: stringArray(),
-    exactPathOrStateProofRequirement: { type: "string" }, rollbackRequirement: { type: "string" }, stopCondition: { type: "string" },
-    costAndToolEstimate: closedObject({ toolSteps: { type: "integer", minimum: 0 }, costUsd: { type: "number", minimum: 0 } }),
-    requestedAuthority: { type: "string" }
-  }),
-  SPECIFY_REGRESSION_PROOF: closedObject({
-    helperUnitProof: { type: "string" }, exactProductionPathProof: { type: "string" }, historicalStateProof: { type: "string" },
-    negativeProof: { type: "string" }, restartOrRecoveryProof: { type: "string" }, forbiddenActivityProof: { type: "string" }
-  }),
-  EVALUATE_RETURNED_ENGINEERING_EVIDENCE: closedObject({
-    classification: { type: "string", enum: EVIDENCE_EVALUATIONS },
-    requiredClaims: { type: "array", items: closedObject({ claimId: { type: "string" }, status: { type: "string", enum: CLAIM_STATES }, evidenceReferences: stringArray() }) }
-  }),
-  WRITE_GENERALIZED_LESSON_CANDIDATE: closedObject({
-    memoryRecord: closedObject({
-      schemaVersion: { type: "string", enum: ["1.0"] }, memoryType: { type: "string", enum: ["GENERALIZED_LESSON_CANDIDATE"] },
-      memoryId: { type: "string" }, sourceEpisodeIds: stringArray(), evidenceReferences: stringArray(), evidenceAggregateHash: { type: "string" },
-      observedFailurePattern: { type: "string" }, generalizedRule: { type: "string" }, triggeringConditions: stringArray(),
-      applicabilityBoundaries: stringArray(), explicitNonApplicabilityConditions: stringArray(), recurrenceSignature: { type: "string" },
-      recommendedActionPattern: { type: "string" }, prohibitedActions: stringArray(), requiredProofBeforeAdvancement: stringArray(),
-      authorityNormallyRequired: { type: "string" }, confidence: { type: "number", minimum: 0, maximum: 1 },
-      unresolvedUncertainty: stringArray(), status: { type: "string", enum: ["CANDIDATE"] }, predecessorMemoryIds: stringArray()
-    })
-  }),
-  SELECT_NEXT_LEGAL_ACTION: closedObject({ selection: { type: "string", enum: NEXT_LEGAL_ACTIONS } })
+const referenceArray = (ids, minimum) => ({
+  type: "array",
+  items: ids.length ? { type: "string", enum: [...ids] } : { type: "string" },
+  minItems: minimum,
+  ...(ids.length === 0 ? { maxItems: 0 } : {})
 });
 
-const STATE_ACTIONS = Object.freeze({
-  CASE_OPEN: ["RECONSTRUCT_EPISODE", "DECLARE_INSUFFICIENT_EVIDENCE", "STOP_SAFELY"],
-  EPISODE_RECONSTRUCTED: ["RETRIEVE_RELEVANT_MEMORY", "DECLARE_INSUFFICIENT_EVIDENCE", "STOP_SAFELY"],
-  MEMORY_RETRIEVED: ["CLASSIFY_FAILURE", "DECLARE_RECURRENCE", "DECLARE_NOVEL_FAILURE", "DECLARE_INSUFFICIENT_EVIDENCE"],
-  FAILURE_CLASSIFIED: ["PROPOSE_BOUNDED_ENGINEERING_TASK", "SPECIFY_REQUIRED_AUTHORITY", "STOP_SAFELY"],
-  TASK_PROPOSED: ["SPECIFY_REGRESSION_PROOF", "STOP_SAFELY"],
-  PROOF_SPECIFIED: ["SPECIFY_REQUIRED_AUTHORITY", "STOP_SAFELY"],
-  AUTHORITY_SPECIFIED: ["EVALUATE_RETURNED_ENGINEERING_EVIDENCE", "STOP_SAFELY"],
-  WORKER_DOSSIER_RECEIVED: ["EVALUATE_RETURNED_ENGINEERING_EVIDENCE", "STOP_SAFELY"],
-  EVIDENCE_EVALUATED: ["WRITE_GENERALIZED_LESSON_CANDIDATE", "SELECT_NEXT_LEGAL_ACTION", "STOP_SAFELY"],
-  LESSON_RECORDED: ["SELECT_NEXT_LEGAL_ACTION", "STOP_SAFELY"],
-  NEXT_ACTION_SELECTED: ["STOP_SAFELY"]
-});
-
-function detailsForActions(actions) {
-  const branches = [];
-  const add = (schema) => { if (!branches.some((item) => sha256Json(item) === sha256Json(schema))) branches.push(structuredClone(schema)); };
-  for (const action of actions) add(detailsSchemas[action] || detailsSchemas.EMPTY);
-  return branches.length === 1 ? branches[0] : { anyOf: branches };
-}
-
-export function createQualificationActionTransportSchema({ episodeId, executiveState, observedStateHash, actionId }) {
+export function createQualificationActionTransportSchema({
+  episodeId, executiveState, observedStateHash, actionId,
+  availableEvidenceIds = ["template-visible-artifact"], availableMemoryIds = []
+}) {
   assert.match(episodeId, /^[A-Za-z0-9._:-]+$/);
   assert.match(observedStateHash, /^[a-f0-9]{64}$/);
-  const actions = STATE_ACTIONS[executiveState];
+  assert.ok(Array.isArray(availableEvidenceIds) && availableEvidenceIds.length > 0, "qualification action schema requires visible evidence IDs");
+  assert.ok(Array.isArray(availableMemoryIds));
+  const actions = legalActionsForState(executiveState, { memoryIds: availableMemoryIds });
   assert.ok(actions?.length, `unsupported qualification executive state ${executiveState}`);
   const properties = {
-    schemaVersion: { type: "string", enum: ["1.0"] }, actionType: { type: "string", enum: actions }, actionId: { type: "string", enum: [actionId] },
+    schemaVersion: { type: "string", enum: [ACTION_REGISTRY_VERSION] }, actionId: { type: "string", enum: [actionId] },
     episodeId: { type: "string", enum: [episodeId] }, executiveState: { type: "string", enum: [executiveState] },
-    observedStateHash: { type: "string", enum: [observedStateHash] }, evidenceReferences: stringArray(), memoryReferences: stringArray(),
-    factualFindings: stringArray(), uncertainties: stringArray(), confidence: { type: "number", minimum: 0, maximum: 1 },
-    boundedRationaleSummary: { type: "string" }, requestedSuccessorState: { type: "string" },
-    authorityClass: { type: "string", enum: ["NO_NEW_AUTHORITY", "BOUNDED_ENGINEERING", "EXCEPTIONAL_HUMAN"] },
-    prohibitedOperations: stringArray(), details: detailsForActions(actions)
+    observedStateHash: { type: "string", enum: [observedStateHash] },
+    factualFindings: { type: "array", items: { type: "string" } }, uncertainties: { type: "array", items: { type: "string" } },
+    confidence: { type: "number", minimum: 0, maximum: 1 }, boundedRationaleSummary: { type: "string" },
+    prohibitedOperations: { type: "array", minItems: 1, items: { type: "string" } },
+    decision: {
+      anyOf: actions.map((actionType) => {
+        const definition = actionDefinition(actionType);
+        return closedObject({
+          actionType: { type: "string", enum: [actionType] },
+          details: structuredClone(definition.detailsSchema),
+          evidenceReferences: referenceArray(availableEvidenceIds, definition.minimumEvidenceReferences),
+          memoryReferences: referenceArray(availableMemoryIds, definition.minimumMemoryReferences),
+          authorityClass: { type: "string", enum: [...definition.authorityClasses] }
+        });
+      })
+    }
   };
   const schema = closedObject(properties);
   assertQualificationStructuredOutputsSubset(schema);
@@ -165,12 +131,13 @@ export function buildQualificationPrompt(turnInput) {
   const prompt = [
     "You are Katherine's governed synthetic executive in a blind qualification.",
     "Return exactly one action matching the supplied strict schema. Use only visible evidence, supplied memory, and any supplied presealed dossier.",
+    ...generalContinuationPromptLines(),
     "Do not request or perform tools, provider calls, source operations, evaluator access, production activity, benchmark activity, or private-reasoning disclosure.",
-    "Do not infer hidden expected answers. State uncertainty and stop safely when evidence is insufficient.",
+    "Do not infer hidden expected answers. State uncertainty without converting later-stage uncertainty into premature termination.",
     stableJson(turnInput)
   ].join("\n");
   const bytes = Buffer.byteLength(prompt, "utf8");
-  assert.ok(bytes > 0 && bytes <= QUALIFICATION_ROUTE.maximumPromptBytes, "QUALIFICATION_PROMPT_BYTE_CEILING_EXCEEDED");
+  assert.ok(bytes > 0, "qualification prompt must not be empty");
   return Object.freeze({ text: prompt, byteCount: bytes, hash: sha256Bytes(Buffer.from(prompt, "utf8")) });
 }
 
@@ -184,10 +151,49 @@ export function buildQualificationInferenceRequestEnvelope({ prompt, structuredS
   });
 }
 
-export function qualificationReservationUsd(promptBytes, pricing) {
-  assert.ok(Number.isInteger(promptBytes) && promptBytes > 0 && promptBytes <= QUALIFICATION_ROUTE.maximumPromptBytes);
-  const raw = (promptBytes * pricing.inputUsdPerMillionTokens + QUALIFICATION_ROUTE.maximumOutputTokens * pricing.outputIncludingReasoningUsdPerMillionTokens) / 1_000_000;
+export function conservativeQualificationInputTokenReservation(serializedRequestByteCount) {
+  assert.ok(Number.isInteger(serializedRequestByteCount) && serializedRequestByteCount > 0);
+  return Object.freeze({
+    method: QUALIFICATION_ROUTE.conservativeInputTokenReservationMethod,
+    exactSerializedRequestByteCount: serializedRequestByteCount,
+    conservativeInputTokenReservation: serializedRequestByteCount,
+    exactPreDispatchTokenCountAvailable: false
+  });
+}
+
+export function qualificationReservationUsd(conservativeInputTokenReservation, pricing) {
+  assert.ok(Number.isInteger(conservativeInputTokenReservation) && conservativeInputTokenReservation > 0);
+  const raw = (conservativeInputTokenReservation * pricing.inputUsdPerMillionTokens + QUALIFICATION_ROUTE.maximumOutputTokens * pricing.outputIncludingReasoningUsdPerMillionTokens) / 1_000_000;
   return Math.ceil(raw * 100_000_000) / 100_000_000;
+}
+
+export function classifyQualificationRequestBudget({ serializedRequest, materialization, pricing }) {
+  assert.equal(typeof serializedRequest, "string");
+  const exactSerializedRequestByteCount = Buffer.byteLength(serializedRequest, "utf8");
+  const reservation = conservativeQualificationInputTokenReservation(exactSerializedRequestByteCount);
+  const reservationUsd = qualificationReservationUsd(reservation.conservativeInputTokenReservation, pricing);
+  const withinRequestByteCeiling = exactSerializedRequestByteCount <= QUALIFICATION_ROUTE.maximumSerializedRequestBytes;
+  const withinCaseCostCeiling = reservationUsd <= QUALIFICATION_LIMITS.perCase.maximumCostUsd;
+  const classification = withinRequestByteCeiling && withinCaseCostCeiling ? "WITHIN_SEALED_MATERIALIZATION_BUDGET" : "QUALIFICATION_MATERIALIZATION_BUDGET_EXCEEDED";
+  return Object.freeze({
+    schemaVersion: "1.0", accountingType: "QUALIFICATION_PRE_DISPATCH_REQUEST_ACCOUNTING",
+    artifactCount: materialization.artifactCount,
+    canonicalArtifactOrder: [...materialization.canonicalArtifactOrder],
+    individualArtifactHashes: materialization.individualArtifactHashes.map((item) => ({ ...item })),
+    materializedAggregateHash: materialization.materializedAggregateHash,
+    promptByteCount: materialization.promptByteCount,
+    exactSerializedRequestByteCount,
+    conservativeInputTokenReservation: reservation.conservativeInputTokenReservation,
+    conservativeReservationMethod: reservation.method,
+    exactPreDispatchTokenCountAvailable: false,
+    maximumSerializedRequestBytes: QUALIFICATION_ROUTE.maximumSerializedRequestBytes,
+    maximumOutputTokens: QUALIFICATION_ROUTE.maximumOutputTokens,
+    maximumCaseCostUsd: QUALIFICATION_LIMITS.perCase.maximumCostUsd,
+    reservationUsd,
+    withinRequestByteCeiling,
+    withinCaseCostCeiling,
+    classification
+  });
 }
 
 export function qualificationActualCostUsd(usage, pricing) {
@@ -274,14 +280,17 @@ export async function loadQualificationProviderProfile() {
 }
 
 export async function qualificationRouteBindings() {
-  const [profile, continuationPolicyBytes, authoritySchemaBytes, ledgerSchemaBytes] = await Promise.all([
-    loadQualificationProviderProfile(), readFile(continuationPolicyPath), readFile(authoritySchemaPath), readFile(ledgerSchemaPath)
+  const [profile, continuationPolicyBytes, generalContinuationPolicyBytes, authoritySchemaBytes, ledgerSchemaBytes] = await Promise.all([
+    loadQualificationProviderProfile(), readFile(continuationPolicyPath), readFile(generalContinuationPolicyPath), readFile(authoritySchemaPath), readFile(ledgerSchemaPath)
   ]);
-  const templateSchema = createQualificationActionTransportSchema({ episodeId: "KE-P7-H01", executiveState: "CASE_OPEN", observedStateHash: "0".repeat(64), actionId: "qualification-action-template" });
+  const templateSchema = createQualificationActionTransportSchema({ episodeId: "qualification-template-episode", executiveState: "CASE_OPEN", observedStateHash: "0".repeat(64), actionId: "qualification-action-template" });
   return Object.freeze({
     profile,
     providerProfileHash: profile.profileHash,
+    actionRegistryHash: sha256Json({ schemaVersion: ACTION_REGISTRY_VERSION, fixtures: registryActionFixtures() }),
+    canonicalExecutiveActionSchemaHash: sha256Json(canonicalExecutiveActionSchema()),
     continuationPolicyHash: sha256Bytes(continuationPolicyBytes),
+    generalContinuationPolicyHash: sha256Bytes(generalContinuationPolicyBytes),
     authoritySchemaHash: sha256Bytes(authoritySchemaBytes),
     ledgerSchemaHash: sha256Bytes(ledgerSchemaBytes),
     transmittedSchemaTemplateExactHash: sha256Bytes(Buffer.from(JSON.stringify(templateSchema), "utf8")),

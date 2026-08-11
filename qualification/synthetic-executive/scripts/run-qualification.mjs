@@ -5,12 +5,12 @@ import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { validateExecutiveAction, sealExecutiveAction } from "./action-broker.mjs";
+import { createBrokerRejection, normalizeAndValidateProviderActionCore } from "./action-broker.mjs";
 import { evaluateBlindQualification } from "./blind-qualification-evaluator.mjs";
 import { EngineeringWorkerAdapter } from "./engineering-worker-adapter.mjs";
 import { EpisodeEvidenceSandbox } from "./episode-sandbox.mjs";
 import { applyAcceptedAction, createCaseController, reconstructCase, recordWorkerDossier } from "./lifecycle-integrity-controller.mjs";
-import { ExecutiveMemoryStore, sealMemoryRecord, validateMemoryRecord } from "./memory-store.mjs";
+import { ExecutiveMemoryStore, validateMemoryRecord } from "./memory-store.mjs";
 import { sealQualificationRun } from "./qualification-run-sealer.mjs";
 import { readJson, seal, sha256Bytes, sha256Json, stableJson, writeExclusiveJson } from "./protocol.mjs";
 import { resolveApprovedCredential } from "../calibration/scripts/real-route-credential.mjs";
@@ -20,8 +20,8 @@ import { ImmutableQualificationActionLedger, RETRY_REASONS } from "../qualificat
 import { validateQualificationReleaseRecord } from "../qualification-real-route/scripts/qualification-release.mjs";
 import {
   QUALIFICATION_ROUTE, QualificationResponsesClient, buildQualificationInferenceRequestEnvelope, buildQualificationPrompt,
-  createQualificationActionTransportSchema, loadQualificationProviderProfile, qualificationActualCostUsd,
-  qualificationReservationUsd, qualificationRouteBindings, releasePath, SEALED_BINDINGS
+  classifyQualificationRequestBudget, createQualificationActionTransportSchema, loadQualificationProviderProfile, qualificationActualCostUsd,
+  qualificationRouteBindings, releasePath, SEALED_BINDINGS
 } from "../qualification-real-route/scripts/qualification-route.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -42,44 +42,80 @@ export function qualificationObservedStateHash(state, receipts) {
   return sha256Json({ state, receipts: receipts.map((item) => item.receiptHash) });
 }
 
-function normalizeActionCore(actionCore) {
-  assert.ok(actionCore && typeof actionCore === "object" && !Array.isArray(actionCore), "provider action core must be an object");
-  const core = structuredClone(actionCore); delete core.contentHash;
-  if (core.actionType === "WRITE_GENERALIZED_LESSON_CANDIDATE") {
-    assert.ok(core.details?.memoryRecord, "lesson action lacks a memory record");
-    core.details.memoryRecord = sealMemoryRecord(core.details.memoryRecord);
-  }
-  return sealExecutiveAction(core);
-}
-
 function actionIdentity(authority, episodeId, kind, ordinal) {
   const digest = sha256Json({ authorityHash: authority.authorityHash, episodeId, kind, ordinal });
   return `qa-${episodeId.toLowerCase()}-${kind.toLowerCase()}-${String(ordinal).padStart(3, "0")}-${digest.slice(0, 20)}`;
 }
 
-function caseOutput({ episode, controller, receipts, actions, memoryRecords, ledger, status, failureEvidence = null, providerReceipts, actualCostUsd }) {
+function caseOutput({
+  episode, controller, receipts, actions, memoryRecords, ledger, status, failureEvidence = null,
+  providerReceipts, preDispatchReceipts, providerUsageReceipts, brokerRejectionReceipts, actualCostUsd
+}) {
   const terminal = reconstructCase(controller, receipts);
+  const completeUsage = providerUsageReceipts.filter((item) => item.usageClassification === "COMPLETE");
+  const incompleteUsage = providerUsageReceipts.filter((item) => item.usageClassification !== "COMPLETE");
   return seal({
-    schemaVersion: "1.0", outputType: "SEALED_SYNTHETIC_EXECUTIVE_CASE_OUTPUT", episodeId: episode.episodeId,
+    schemaVersion: "1.1", outputType: "SEALED_SYNTHETIC_EXECUTIVE_CASE_OUTPUT", episodeId: episode.episodeId,
     terminalState: terminal.state, caseStatus: status, failureEvidence, actions,
     actionAggregateHash: sha256Json(actions.map((item) => item.contentHash)),
     controllerReceiptAggregateHash: sha256Json(receipts.map((item) => item.receiptHash)),
     memoryRecordIds: memoryRecords.map((record) => record.memoryId), ledgerHash: ledger.ledgerHash,
     providerReceiptAggregateHash: sha256Json(providerReceipts.map((item) => item.safeResponseHash)),
+    preDispatchAccountingReceiptAggregateHash: sha256Json(preDispatchReceipts.map((item) => item.receiptHash)),
+    providerUsageReceiptAggregateHash: sha256Json(providerUsageReceipts.map((item) => item.receiptHash)),
+    brokerRejectionReceiptAggregateHash: sha256Json(brokerRejectionReceipts.map((item) => item.receiptHash)),
     providerRequestCount: ledger.providerAttempts, successfulProviderResponseCount: providerReceipts.filter((item) => item.responseStatus === "completed").length, conservativeReservedCostUsd: ledger.reservedCostUsd,
+    returnedProviderUsage: {
+      completeReceiptCount: completeUsage.length,
+      incompleteOrUnavailableReceiptCount: incompleteUsage.length,
+      actualInputTokens: completeUsage.reduce((sum, item) => sum + item.actualUsage.inputTokens, 0),
+      actualOutputTokens: completeUsage.reduce((sum, item) => sum + item.actualUsage.outputTokens, 0),
+      actualTotalTokens: completeUsage.reduce((sum, item) => sum + item.actualUsage.totalTokens, 0)
+    },
     exactAvailableCostUsd: Number(actualCostUsd.toFixed(8)), unsupportedCitationCount: 0, forbiddenRecommendationCount: 0,
     evaluatorControlAccessCount: 0, privateReasoningPersisted: false
   }, "caseOutputHash");
 }
 
-async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, runRoot, authority, readinessManifest, profile, clock }) {
+function providerUsageReceipt({ providerAttemptIdentity, requestHash, reservationUsd, response = null, actualCostUsd = null }) {
+  const usage = response?.usage || null;
+  const receivedFields = usage ? [usage.inputTokens, usage.outputTokens, usage.totalTokens] : [];
+  const usageClassification = usage?.complete ? "COMPLETE" : receivedFields.some((value) => value !== null) ? "INCOMPLETE" : "UNAVAILABLE";
+  return seal({
+    schemaVersion: "1.0", receiptType: "SAFE_QUALIFICATION_PROVIDER_USAGE",
+    providerAttemptIdentity, requestHash, reservationUsd,
+    usageClassification,
+    actualUsage: {
+      inputTokens: usage?.inputTokens ?? null,
+      cachedInputTokens: usage?.cachedInputTokens ?? null,
+      outputTokens: usage?.outputTokens ?? null,
+      reasoningTokens: usage?.reasoningTokens ?? null,
+      totalTokens: usage?.totalTokens ?? null
+    },
+    exactAvailableCostUsd: actualCostUsd,
+    reconciliation: usage?.complete ? "ACTUAL_USAGE_RECONCILED_WITH_RESERVED_COST" : "CONSERVATIVE_RESERVATION_REMAINS_CONSUMED"
+  }, "receiptHash");
+}
+
+export async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, runRoot, authority, readinessManifest, profile, clock }) {
   const episodeRoot = path.join(qualificationRoot, "episodes", "visible", episode.episodeId);
   const sandbox = new EpisodeEvidenceSandbox({ episodeRoot, episodeManifest: episode });
-  const initialArtifact = episode.visibleArtifactInventory[0];
-  const initialEvidence = { artifactId: initialArtifact.artifactId, contentUtf8: (await sandbox.readArtifact(initialArtifact.artifactId)).toString("utf8") };
+  const materialization = await sandbox.materializeAllVisibleArtifacts();
+  assert.equal(materialization.artifactCount, episode.visibleArtifactInventory.length, "qualification artifact materialization count differs");
+  assert.deepEqual(materialization.canonicalArtifactOrder, episode.visibleArtifactInventory.map((item) => item.artifactId), "qualification artifact materialization order differs");
   const controller = createCaseController({ caseId: episode.episodeId, episodeHash: episode.episodeHash, openedAt: clock() });
-  const receipts = []; const actions = []; const providerReceipts = [];
+  const receipts = []; const actions = []; const providerReceipts = []; const preDispatchReceipts = []; const providerUsageReceipts = []; const brokerRejectionReceipts = [];
   let retrievalReceipt = null; let workerDossier = null; let taskSealed = false; let actualCost = 0; let actionOrdinal = 0; let ledgerOrdinal = 0;
+
+  const output = async (status, failureEvidence = null) => {
+    const summary = await ledger.summary(episode.episodeId);
+    const sealedOutput = caseOutput({
+      episode, controller, receipts, actions, memoryRecords: await memoryStore.list(), ledger: summary, status, failureEvidence,
+      providerReceipts, preDispatchReceipts, providerUsageReceipts, brokerRejectionReceipts, actualCostUsd: actualCost
+    });
+    await writeExclusiveJson(path.join(runRoot, "cases", `${episode.episodeId}.json`), sealedOutput);
+    return sealedOutput;
+  };
 
   while (!reconstructCase(controller, receipts).terminal) {
     const state = reconstructCase(controller, receipts).state;
@@ -100,8 +136,20 @@ async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, r
     const turnInput = {
       protocolVersion: "1.0", episodeId: episode.episodeId, cohort: episode.cohort, executiveState: state, observedStateHash,
       visibleArtifactInventory: sandbox.listVisibleArtifacts().map(({ artifactId, sha256, sourceKind }) => ({ artifactId, sha256, sourceKind })),
-      initialEvidence,
-      retrievalReceipt: retrievalReceipt ? { receiptHash: retrievalReceipt.receiptHash, selectedMemoryIds: retrievalReceipt.selectedMemoryIds, retrievalReasonSummary: retrievalReceipt.retrievalReasonSummary } : null,
+      materializedVisibleArtifacts: materialization.artifacts,
+      materializationBinding: {
+        artifactCount: materialization.artifactCount,
+        canonicalArtifactOrder: materialization.canonicalArtifactOrder,
+        individualArtifactHashes: materialization.individualArtifactHashes,
+        materializedAggregateHash: materialization.materializedAggregateHash
+      },
+      retrievalReceipt: retrievalReceipt ? {
+        receiptHash: retrievalReceipt.receiptHash, resultClassification: retrievalReceipt.resultClassification,
+        selectedMemoryIds: retrievalReceipt.selectedMemoryIds, retrievalReasonSummary: retrievalReceipt.retrievalReasonSummary,
+        recurrencePermitted: retrievalReceipt.recurrencePermitted,
+        novelFailureClassificationPermitted: retrievalReceipt.novelFailureClassificationPermitted,
+        boundedTaskConstructionPermitted: retrievalReceipt.boundedTaskConstructionPermitted
+      } : null,
       workerDossier,
       priorActionTrace: actions.map(({ actionType, contentHash, details }) => ({ actionType, contentHash, details })),
       retrievedMemoryRecords: retrievalReceipt ? memoryRecords.filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId)) : [],
@@ -109,22 +157,62 @@ async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, r
       forbiddenCapabilities: ["PROVIDER_TOOL", "MODEL_TOOL", "SOURCE_OPERATION", "EVALUATOR_CONTROL", "PRODUCT_HANDLER", "BENCHMARK", "PRODUCTION"],
       privateReasoningRequested: false, budgetProfileHash: readinessManifest.budgetProfileHash
     };
-    const structuredSchema = createQualificationActionTransportSchema({ episodeId: episode.episodeId, executiveState: state, observedStateHash, actionId: expectedActionId });
+    const structuredSchema = createQualificationActionTransportSchema({
+      episodeId: episode.episodeId, executiveState: state, observedStateHash, actionId: expectedActionId,
+      availableEvidenceIds: materialization.canonicalArtifactOrder,
+      availableMemoryIds: retrievalReceipt?.selectedMemoryIds || []
+    });
     const prompt = buildQualificationPrompt(turnInput);
     const request = buildQualificationInferenceRequestEnvelope({ prompt: prompt.text, structuredSchema });
     const serializedRequest = JSON.stringify(request); const requestHash = sha256Bytes(Buffer.from(serializedRequest, "utf8"));
-    const reservationUsd = qualificationReservationUsd(prompt.byteCount, profile.pricing);
+    const accounting = classifyQualificationRequestBudget({
+      serializedRequest,
+      materialization: { ...materialization, promptByteCount: prompt.byteCount },
+      pricing: profile.pricing
+    });
+    if (accounting.classification !== "WITHIN_SEALED_MATERIALIZATION_BUDGET") {
+      const receipt = seal({
+        ...accounting,
+        episodeId: episode.episodeId,
+        executiveState: state,
+        requestHash,
+        providerDispatchOccurred: false
+      }, "receiptHash");
+      preDispatchReceipts.push(receipt);
+      await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${episode.episodeId}-${String(actionOrdinal).padStart(2, "0")}-materialization-budget.json`), receipt);
+      return output("IMMUTABLE_MATERIALIZATION_BUDGET_FAILURE", {
+        code: accounting.classification,
+        preDispatchAccountingReceiptHash: receipt.receiptHash,
+        exactSerializedRequestByteCount: accounting.exactSerializedRequestByteCount,
+        maximumSerializedRequestBytes: accounting.maximumSerializedRequestBytes,
+        providerDispatchOccurred: false
+      });
+    }
+    const reservationUsd = accounting.reservationUsd;
     let attempt = 0; let response; let pendingRetryIdentity = null;
     while (true) {
       attempt += 1; ledgerOrdinal += 1;
       const providerIdentity = actionIdentity(authority, episode.episodeId, "PROVIDER_ATTEMPT", ledgerOrdinal);
       await ledger.consume({ caseId: episode.episodeId, actionKind: "PROVIDER_ATTEMPT", actionIdentity: providerIdentity, operationHash: requestHash, reservationUsd, retryOfActionIdentity: pendingRetryIdentity });
       pendingRetryIdentity = null;
+      const accountingReceipt = seal({
+        ...accounting,
+        episodeId: episode.episodeId,
+        executiveState: state,
+        providerAttemptIdentity: providerIdentity,
+        requestHash,
+        providerDispatchAuthorized: true
+      }, "receiptHash");
+      preDispatchReceipts.push(accountingReceipt);
+      await writeExclusiveJson(path.join(runRoot, "pre-dispatch-accounting", `${providerIdentity}.json`), accountingReceipt);
       const abortController = new AbortController(); const timer = setTimeout(() => abortController.abort(), profile.timeoutMs);
       try {
         response = await client.decisionTurn({ serializedRequest, requestHash, signal: abortController.signal });
         providerReceipts.push(response);
         const cost = qualificationActualCostUsd(response.usage, profile.pricing); if (cost !== null) actualCost += cost;
+        const usageReceipt = providerUsageReceipt({ providerAttemptIdentity: providerIdentity, requestHash, reservationUsd, response, actualCostUsd: cost });
+        providerUsageReceipts.push(usageReceipt);
+        await writeExclusiveJson(path.join(runRoot, "provider-usage", `${providerIdentity}.json`), usageReceipt);
         break;
       } catch (error) {
         const safeFailureReceipt = seal({
@@ -133,10 +221,11 @@ async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, r
           providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null
         }, "safeResponseHash");
         providerReceipts.push(safeFailureReceipt);
+        const usageReceipt = providerUsageReceipt({ providerAttemptIdentity: providerIdentity, requestHash, reservationUsd });
+        providerUsageReceipts.push(usageReceipt);
+        await writeExclusiveJson(path.join(runRoot, "provider-usage", `${providerIdentity}.json`), usageReceipt);
         if (!(error instanceof SafeProviderFailure) || !RETRY_REASONS.includes(error.code) || attempt > 2) {
-          const summary = await ledger.summary(episode.episodeId);
-          const output = caseOutput({ episode, controller, receipts, actions, memoryRecords: await memoryStore.list(), ledger: summary, status: "IMMUTABLE_PROVIDER_FAILURE", failureEvidence: { code: error instanceof SafeProviderFailure ? error.code : "SAFE_PROVIDER_FAILURE", providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null }, providerReceipts, actualCostUsd: actualCost });
-          await writeExclusiveJson(path.join(runRoot, "cases", `${episode.episodeId}.json`), output); return output;
+          return output("IMMUTABLE_PROVIDER_FAILURE", { code: error instanceof SafeProviderFailure ? error.code : "SAFE_PROVIDER_FAILURE", providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null, providerUsageReceiptHash: usageReceipt.receiptHash });
         }
         ledgerOrdinal += 1;
         const retryIdentity = actionIdentity(authority, episode.episodeId, "RETRY_SLOT", ledgerOrdinal);
@@ -147,13 +236,20 @@ async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, r
 
     let action;
     try {
-      action = normalizeActionCore(response.actionCore);
-      validateExecutiveAction(action, { episode, memoryIds: memoryRecords.map((record) => record.memoryId), currentState: state, allowedAuthorityClasses });
+      action = normalizeAndValidateProviderActionCore(response.actionCore, { episode, memoryIds: retrievalReceipt?.selectedMemoryIds || [], currentState: state, allowedAuthorityClasses });
       receipts.push(applyAcceptedAction({ controller, receipts, action, decidedAt: clock() })); actions.push(action);
     } catch (error) {
-      const summary = await ledger.summary(episode.episodeId);
-      const output = caseOutput({ episode, controller, receipts, actions, memoryRecords: await memoryStore.list(), ledger: summary, status: "IMMUTABLE_BROKER_REJECTION", failureEvidence: { code: "BROKER_REJECTED_TYPED_ACTION", digest: sha256Json({ name: error?.name, message: error?.message }) }, providerReceipts, actualCostUsd: actualCost });
-      await writeExclusiveJson(path.join(runRoot, "cases", `${episode.episodeId}.json`), output); return output;
+      const rejection = createBrokerRejection(response.actionCore, error, { currentState: state, memoryIds: retrievalReceipt?.selectedMemoryIds || [] });
+      brokerRejectionReceipts.push(rejection);
+      await writeExclusiveJson(path.join(runRoot, "broker-rejections", `${episode.episodeId}-${String(actionOrdinal).padStart(2, "0")}.json`), rejection);
+      return output("IMMUTABLE_BROKER_REJECTION", {
+        code: rejection.rejectionCode,
+        brokerRejectionReceiptHash: rejection.receiptHash,
+        submittedActionType: rejection.submittedActionType,
+        validationRule: rejection.validationRule,
+        fieldPath: rejection.fieldPath,
+        terminalDisposition: rejection.terminalDisposition
+      });
     }
 
     if (action.actionType === "RETRIEVE_RELEVANT_MEMORY") {
@@ -168,9 +264,7 @@ async function runCase({ episode, ledger, memoryStore, dossierAdapter, client, r
       assert.equal(action.details.memoryRecord.sourceEpisodeIds.includes(episode.episodeId), true); await memoryStore.append(action.details.memoryRecord);
     }
   }
-  const summary = await ledger.summary(episode.episodeId);
-  const output = caseOutput({ episode, controller, receipts, actions, memoryRecords: await memoryStore.list(), ledger: summary, status: "CASE_SEALED", providerReceipts, actualCostUsd: actualCost });
-  await writeExclusiveJson(path.join(runRoot, "cases", `${episode.episodeId}.json`), output); return output;
+  return output("CASE_SEALED");
 }
 
 export async function runBlindQualificationRealRoute({ authority, publicManifest, readinessManifest, budgetProfile, accessDenialProof, routeBindings, client, runRoot = authority.runRoot, clock = () => new Date().toISOString(), controlsPath = path.join(qualificationRoot, "evaluator-controls", "controls.json"), dossierIndexPath = path.join(qualificationRoot, "evaluator-controls", "engineering-dossiers.json") }) {

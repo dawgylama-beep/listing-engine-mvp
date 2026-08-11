@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
-import { assertRelativeArtifactPath, sha256Bytes } from "./protocol.mjs";
+import { assertRelativeArtifactPath, sha256Bytes, sha256Json } from "./protocol.mjs";
 
 export class EpisodeEvidenceSandbox {
   constructor({ episodeRoot, episodeManifest }) {
@@ -11,7 +11,29 @@ export class EpisodeEvidenceSandbox {
   }
 
   listVisibleArtifacts() {
-    return this.episodeManifest.visibleArtifactInventory.map(({ artifactId, relativePath, bytes, sha256 }) => ({ artifactId, relativePath, bytes, sha256 }));
+    return this.episodeManifest.visibleArtifactInventory.map(({ artifactId, relativePath, bytes, sha256, sourceKind }) => ({ artifactId, relativePath, bytes, sha256, sourceKind }));
+  }
+
+  async materializeAllVisibleArtifacts() {
+    const artifacts = [];
+    for (const record of this.listVisibleArtifacts()) {
+      const bytes = await this.readArtifact(record.artifactId);
+      artifacts.push(Object.freeze({
+        artifactId: record.artifactId,
+        sourceKind: record.sourceKind,
+        sha256: record.sha256,
+        byteLength: bytes.length,
+        contentUtf8: bytes.toString("utf8")
+      }));
+    }
+    const individualArtifactHashes = artifacts.map(({ artifactId, sha256, byteLength }) => ({ artifactId, sha256, byteLength }));
+    return Object.freeze({
+      artifactCount: artifacts.length,
+      canonicalArtifactOrder: Object.freeze(artifacts.map((item) => item.artifactId)),
+      individualArtifactHashes: Object.freeze(individualArtifactHashes),
+      materializedAggregateHash: sha256Json(individualArtifactHashes),
+      artifacts: Object.freeze(artifacts)
+    });
   }
 
   async readArtifact(artifactId) {
