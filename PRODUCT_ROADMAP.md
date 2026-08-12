@@ -810,6 +810,14 @@
 - Added zero-network mocked regressions for completed, incomplete, status, malformed, identity, optional-field and secret-redaction paths while preserving the completed action path and exactly-once dispatch behavior
 - Preserved every provider-visible case byte, the frozen prompt, model, reasoning, structured-action schema, policy, broker, scorer, evaluator, customer/product paths, original run artifacts, Phase 6A artifacts and all prior release evidence
 
+## Version 1.12.33 (Completed)
+- Added the bounded case-scoped executor required to run one authorized V2 case per host invocation while retaining the frozen whole-run semantics, request bytes, route, broker, serializer, scorer and response-evidence contract
+- Created and activated one seven-slot C08–C14 successor authority bound to the sealed uncommitted source boundary and consumed slots only in order after the preceding case ledger sealed
+- Sealed valid C08–C12 outcomes in five independent processes; C13 then received an HTTP 200 provider response exceeding the frozen 65,536-byte transport capture bound and terminalized the authority as `QUALIFICATION_PROVIDER_TRANSPORT_INTEGRITY_INVALID`
+- Left C14 unconsumed and unattempted, performed no relaunch, replay, replacement or retry, and kept the frozen evaluator unopened because the fourteen-case validity gate was not satisfied
+- Preserved the original C06 and historical empty C08 evidence outside aggregation, retained the replacement C06 and prior C07 unchanged, and preserved the existing Phase 6A artifacts byte-for-byte
+- Released the executor and sealed terminal evidence as `QUALIFICATION_INCOMPLETE — NO EVALUATION OR SCORE`; no qualification or non-qualification claim was made
+
 ## Version 2.0
 - User accounts
 - Saved listings

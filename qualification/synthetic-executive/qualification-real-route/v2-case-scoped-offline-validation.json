@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "V2_CASE_SCOPED_CREDENTIAL_FREE_VALIDATION",
+  "validatedAt": "2026-08-12T18:29:45.2768831Z",
+  "startingIdentity": {
+    "version": "1.12.32",
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "5aae8e6cd76fda8b6ac398d364adf2ff6272d191",
+    "tree": "50828d82d311eeba72e5e9c6cac3edcbbcf23bac",
+    "releaseRecordSha256": "177a85c79d03c6145116f31ef2c77cdd563c3550312c1f9cda8e91370770cf1d",
+    "releaseHash": "90ef3d9df69ac342cfabb95c8d9c99588080ad15f09011ca3d7eff3a249e9fa9",
+    "responseContractHash": "6c0c9144cb916740864b35cda93e2256dd7612356a4fb68ad5b4283a6e403f66",
+    "executableAggregateHash": "cb64e690c3e8e50ad2cc0ba35f56e01ad8b369b3c2a67855115cbef909c32c51"
+  },
+  "preflight": {
+    "localTrackingDirectRemoteHeadsMatch": true,
+    "trackedTreeCleanBeforeMutation": true,
+    "completeFrozenIdentityManifestVerified": true,
+    "selfInventoriedFileHashesVerified": 43,
+    "releaseRecordVerifiedSeparately": true,
+    "fourteenCaseCorpusReconstructed": true,
+    "frozenRouteRequestPromptSchemaBrokerSerializerScorerAndHandlerVerified": true,
+    "predecessorAuthorityPermanentlyConsumed": true,
+    "successorNecessityProven": true,
+    "c08ThroughC14PreviouslyUnattempted": true,
+    "phase6aArtifactInventorySha256": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f"
+  },
+  "credentialFreeRegression": {
+    "focusedNodeTests": {
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    },
+    "caseScopedRunnerTests": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    "powershellStaticEntryPoints": {
+      "total": 53,
+      "passed": 53,
+      "failed": 0
+    },
+    "browserTests": {
+      "total": 14,
+      "passed": 13,
+      "skipped": 1,
+      "failed": 0,
+      "retries": 0
+    },
+    "nodeSyntaxChecksPassed": 3,
+    "serverCheckPassed": true,
+    "versionConsistencyPassed": true,
+    "gitDiffCheckPassed": true,
+    "frontendCredentialScanPassed": true,
+    "envIgnoredAndUntracked": true
+  },
+  "broaderNodeValidation": {
+    "total": 512,
+    "passed": 511,
+    "failed": 1,
+    "failure": {
+      "test": "zero-metadata calibration authority remains usable before its sealed 24-hour expiry",
+      "classification": "HISTORICAL_FIXED_TIME_FIXTURE_EXPIRED",
+      "relationToChange": "UNRELATED_TO_CASE_SCOPED_EXECUTOR",
+      "focusedReplacementCoveragePassed": true
+    }
+  },
+  "requiredGateResult": "PASS",
+  "activityBeforeSourceSeal": {
+    "credentialAccesses": 0,
+    "metadataRequests": 0,
+    "providerRequests": 0,
+    "modelCalls": 0,
+    "evaluatorAccesses": 0,
+    "qualificationCaseExecutions": 0
+  }
+}

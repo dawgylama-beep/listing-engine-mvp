@@ -14,9 +14,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.32"; Text = $index; Pattern = "Version 1.12.32" },
-  @{ Name = "Package version is 1.12.32"; Text = $package; Pattern = '"version": "1.12.32"' },
-  @{ Name = "Server version is 1.12.32"; Text = $server; Pattern = '$AppVersion = "1.12.32"' },
+  @{ Name = "Visible app version is 1.12.33"; Text = $index; Pattern = "Version 1.12.33" },
+  @{ Name = "Package version is 1.12.33"; Text = $package; Pattern = '"version": "1.12.33"' },
+  @{ Name = "Server version is 1.12.33"; Text = $server; Pattern = '$AppVersion = "1.12.33"' },
   @{ Name = "Roadmap documents Version 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Retail evidence mode helper exists"; Text = $api; Pattern = "function getRetailEvidenceMode" },
   @{ Name = "Ordinary retail classification exists"; Text = $api; Pattern = "Ordinary Current Retail Product" },
