@@ -9,8 +9,9 @@ import { createStateConditionedProviderActionSchema } from "../../scripts/provid
 import { sha256Bytes, sha256Json, stableJson } from "../../scripts/protocol.mjs";
 import { loadRealProviderProfile } from "../../calibration/scripts/real-route-profile.mjs";
 import {
-  PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, classifyHttpFailure,
-  normalizeProviderResponseDiagnostics, safeProviderRequestId, unavailableProviderDiagnostics
+  NOT_RECEIVED, PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, assertNoSecretMaterial,
+  classifyHttpFailure, normalizeProviderResponseDiagnostics, safeProviderRequestId,
+  sanitizeProviderErrorMessage, unavailableProviderDiagnostics
 } from "../../calibration/scripts/real-route-redaction.mjs";
 import { generalContinuationPromptLines } from "./general-continuation-policy.mjs";
 
@@ -231,7 +232,117 @@ function extractSafeUsage(usage) {
   return Object.freeze({ complete: result.inputTokens !== null && result.outputTokens !== null && result.totalTokens !== null, ...result });
 }
 
-async function inspectResponse(response) {
+export const QUALIFICATION_RESPONSE_ABSENT = "ABSENT";
+
+function safeResponseIdentifier(value) {
+  return safeProviderRequestId(value) || QUALIFICATION_RESPONSE_ABSENT;
+}
+
+function safeResponseTimestamp(value) {
+  return Number.isInteger(value) && value >= 0 ? value : QUALIFICATION_RESPONSE_ABSENT;
+}
+
+function safeResponseError(payload) {
+  const error = payload?.error && typeof payload.error === "object" && !Array.isArray(payload.error) ? payload.error : null;
+  const message = error ? sanitizeProviderErrorMessage(error.message) : NOT_RECEIVED;
+  return Object.freeze({
+    type: safeResponseIdentifier(error?.type),
+    code: safeResponseIdentifier(error?.code),
+    param: safeResponseIdentifier(error?.param),
+    message: message === NOT_RECEIVED ? QUALIFICATION_RESPONSE_ABSENT : message
+  });
+}
+
+function partialOutputEvidence(payload) {
+  const chunks = [];
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    for (const content of item?.type === "message" && Array.isArray(item.content) ? item.content : []) {
+      if (content?.type === "output_text" && typeof content.text === "string") chunks.push(content.text);
+    }
+  }
+  return Object.freeze({
+    present: chunks.length > 0,
+    byteLength: chunks.reduce((total, chunk) => total + Buffer.byteLength(chunk, "utf8"), 0),
+    sha256: chunks.length > 0 ? sha256Json(chunks) : QUALIFICATION_RESPONSE_ABSENT
+  });
+}
+
+const SAFE_RESPONSE_EVIDENCE_FIELDS = Object.freeze([
+  "schemaVersion", "requestHash", "providerAttemptIdentity", "httpStatus", "responseContentType",
+  "rawResponseByteLength", "rawResponseSha256", "safeProviderRequestId", "providerResponseId",
+  "returnedModel", "responseStatus", "incompleteReason", "safeError", "usage",
+  "createdAtEpochSeconds", "completedAtEpochSeconds", "outputItemCount", "outputItemTypes",
+  "outputItemStatuses", "partialOutput"
+]);
+
+export function assertQualificationSafeResponseEvidence(value, {
+  requestHash = value?.requestHash,
+  providerAttemptIdentity = value?.providerAttemptIdentity
+} = {}) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "safe response evidence must be an object");
+  assert.deepEqual(Object.keys(value).sort(), [...SAFE_RESPONSE_EVIDENCE_FIELDS].sort(), "safe response evidence fields differ");
+  assert.equal(value.schemaVersion, "1.0");
+  assert.match(value.requestHash, /^[a-f0-9]{64}$/);
+  assert.equal(value.requestHash, requestHash, "safe response evidence request identity differs");
+  assert.equal(value.providerAttemptIdentity, providerAttemptIdentity, "safe response evidence attempt identity differs");
+  assert.ok(value.providerAttemptIdentity === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value.providerAttemptIdentity) === value.providerAttemptIdentity);
+  assert.ok(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599);
+  assert.ok(Number.isInteger(value.rawResponseByteLength) && value.rawResponseByteLength >= 0);
+  assert.match(value.rawResponseSha256, /^[a-f0-9]{64}$/);
+  assert.ok(value.safeProviderRequestId === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value.safeProviderRequestId) === value.safeProviderRequestId);
+  for (const field of ["providerResponseId", "returnedModel", "responseStatus", "incompleteReason"]) {
+    assert.ok(value[field] === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value[field]) === value[field], `unsafe ${field}`);
+  }
+  assert.ok(value.safeError && typeof value.safeError === "object" && !Array.isArray(value.safeError));
+  assert.deepEqual(Object.keys(value.safeError).sort(), ["code", "message", "param", "type"]);
+  assert.equal(typeof value.safeError.message, "string");
+  assert.deepEqual(Object.keys(value.usage).sort(), ["cachedInputTokens", "complete", "inputTokens", "outputTokens", "reasoningTokens", "totalTokens"]);
+  assert.ok(Number.isInteger(value.outputItemCount) && value.outputItemCount >= 0);
+  assert.equal(value.outputItemTypes.length, value.outputItemCount);
+  assert.equal(value.outputItemStatuses.length, value.outputItemCount);
+  for (const item of [...value.outputItemTypes, ...value.outputItemStatuses]) assert.ok(item === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(item) === item);
+  assert.equal(typeof value.partialOutput.present, "boolean");
+  assert.deepEqual(Object.keys(value.partialOutput).sort(), ["byteLength", "present", "sha256"]);
+  assert.ok(Number.isInteger(value.partialOutput.byteLength) && value.partialOutput.byteLength >= 0);
+  assert.ok(value.partialOutput.sha256 === QUALIFICATION_RESPONSE_ABSENT || /^[a-f0-9]{64}$/.test(value.partialOutput.sha256));
+  assertNoSecretMaterial(value, "qualification safe response evidence");
+  return value;
+}
+
+function buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity }) {
+  const output = Array.isArray(payload?.output) ? payload.output : [];
+  const evidence = {
+    schemaVersion: "1.0",
+    requestHash,
+    providerAttemptIdentity: providerAttemptIdentity || QUALIFICATION_RESPONSE_ABSENT,
+    httpStatus: response.status,
+    responseContentType: diagnostics.responseContentType === NOT_RECEIVED ? QUALIFICATION_RESPONSE_ABSENT : diagnostics.responseContentType,
+    rawResponseByteLength: source.length,
+    rawResponseSha256: sha256Bytes(source),
+    safeProviderRequestId: diagnostics.safeProviderRequestId === NOT_RECEIVED ? QUALIFICATION_RESPONSE_ABSENT : diagnostics.safeProviderRequestId,
+    providerResponseId: safeResponseIdentifier(payload?.id),
+    returnedModel: safeResponseIdentifier(payload?.model),
+    responseStatus: safeResponseIdentifier(payload?.status),
+    incompleteReason: safeResponseIdentifier(payload?.incomplete_details?.reason),
+    safeError: safeResponseError(payload),
+    usage: extractSafeUsage(payload?.usage),
+    createdAtEpochSeconds: safeResponseTimestamp(payload?.created_at),
+    completedAtEpochSeconds: safeResponseTimestamp(payload?.completed_at),
+    outputItemCount: output.length,
+    outputItemTypes: output.map((item) => safeResponseIdentifier(item?.type)),
+    outputItemStatuses: output.map((item) => safeResponseIdentifier(item?.status)),
+    partialOutput: partialOutputEvidence(payload)
+  };
+  return Object.freeze(assertQualificationSafeResponseEvidence(evidence, { requestHash, providerAttemptIdentity: providerAttemptIdentity || QUALIFICATION_RESPONSE_ABSENT }));
+}
+
+function responseFailure(code, httpStatus, diagnostics, safeResponseEvidence) {
+  const failure = new SafeProviderFailure(code, httpStatus, diagnostics);
+  Object.defineProperty(failure, "safeResponseEvidence", { value: safeResponseEvidence, enumerable: true });
+  return failure;
+}
+
+async function inspectResponse(response, { requestHash, providerAttemptIdentity }) {
   const source = typeof response.arrayBuffer === "function" ? Buffer.from(await response.arrayBuffer()) : Buffer.from(await response.text(), "utf8");
   const truncated = source.length > PROVIDER_RESPONSE_BODY_LIMIT_BYTES;
   const bytes = truncated ? source.subarray(0, PROVIDER_RESPONSE_BODY_LIMIT_BYTES) : source;
@@ -241,15 +352,26 @@ async function inspectResponse(response) {
     catch { const media = String(response.headers?.get?.("content-type") || "").split(";", 1)[0].trim().toLowerCase(); parseState = media === "application/json" || media.endsWith("+json") ? "MALFORMED_JSON" : "NON_JSON"; }
   }
   const diagnostics = normalizeProviderResponseDiagnostics({ status: response.status, requestId: response.headers?.get?.("x-request-id"), contentType: response.headers?.get?.("content-type"), responseByteLength: bytes.length, responseBodyTruncated: truncated, payload, parseState });
-  return Object.freeze({ payload, parseState, truncated, diagnostics });
+  const safeResponseEvidence = buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity });
+  return Object.freeze({ payload, parseState, truncated, diagnostics, safeResponseEvidence });
 }
 
-function outputText(payload, diagnostics) {
+function outputText(payload, diagnostics, safeResponseEvidence) {
   for (const item of payload?.output || []) for (const content of item?.type === "message" ? item.content || [] : []) {
-    if (content?.type === "refusal") throw new SafeProviderFailure("PROVIDER_REFUSAL", 200, diagnostics);
+    if (content?.type === "refusal") throw responseFailure("PROVIDER_REFUSAL", 200, diagnostics, safeResponseEvidence);
     if (content?.type === "output_text" && typeof content.text === "string") return content.text;
   }
-  throw new SafeProviderFailure("PROVIDER_STRUCTURED_OUTPUT_MISSING", 200, diagnostics);
+  throw responseFailure("PROVIDER_STRUCTURED_OUTPUT_MISSING", 200, diagnostics, safeResponseEvidence);
+}
+
+function nonCompletedFailureCode(evidence) {
+  if (evidence.responseStatus === "incomplete" && evidence.incompleteReason === "max_output_tokens") return "PROVIDER_INCOMPLETE_MAX_OUTPUT_TOKENS";
+  if (evidence.responseStatus === "incomplete") return "PROVIDER_RESPONSE_INCOMPLETE_OTHER";
+  if (evidence.responseStatus === "failed") return "PROVIDER_RESPONSE_FAILED";
+  if (evidence.responseStatus === "cancelled") return "PROVIDER_RESPONSE_CANCELLED";
+  if (evidence.responseStatus === "queued") return "PROVIDER_RESPONSE_QUEUED";
+  if (evidence.responseStatus === "in_progress") return "PROVIDER_RESPONSE_IN_PROGRESS";
+  return "PROVIDER_RESPONSE_STATUS_UNRECOGNIZED";
 }
 
 export class QualificationResponsesClient {
@@ -261,8 +383,9 @@ export class QualificationResponsesClient {
   }
   get counts() { return Object.freeze({ metadataRequests: 0, inferenceRequests: this.#dispatches, retries: 0 }); }
   get diagnostics() { return this.#diagnostics; }
-  async decisionTurn({ serializedRequest, requestHash, signal }) {
+  async decisionTurn({ serializedRequest, requestHash, providerAttemptIdentity = null, signal }) {
     assert.equal(sha256Bytes(Buffer.from(serializedRequest, "utf8")), requestHash, "qualification serialized request hash differs");
+    assert.ok(providerAttemptIdentity === null || safeProviderRequestId(providerAttemptIdentity) === providerAttemptIdentity, "qualification provider attempt identity is unsafe");
     const url = new URL(this.#profile.inferenceEndpoint, `${this.#profile.apiBaseUrl}/`);
     assert.equal(url.protocol, "https:"); assert.equal(this.#profile.apiBaseDomainAllowlist.includes(url.hostname), true);
     let response;
@@ -277,18 +400,19 @@ export class QualificationResponsesClient {
       this.#diagnostics = unavailableProviderDiagnostics({ timeoutClassification: timeout ? "TIMEOUT" : "NOT_TIMEOUT", networkConnectionClassification: timeout ? "NOT_RECEIVED" : "CONNECTION_FAILURE" });
       throw new SafeProviderFailure(timeout ? "PROVIDER_TIMEOUT" : "PROVIDER_CONNECTION_FAILURE", null, this.#diagnostics);
     }
-    const inspected = await inspectResponse(response); this.#diagnostics = inspected.diagnostics;
-    if (response.status >= 300 && response.status < 400) throw new SafeProviderFailure("PROVIDER_REDIRECT_REJECTED", response.status, inspected.diagnostics);
-    if (!response.ok) throw new SafeProviderFailure(classifyHttpFailure(response.status), response.status, inspected.diagnostics);
-    if (inspected.truncated) throw new SafeProviderFailure("PROVIDER_RESPONSE_TOO_LARGE", response.status, inspected.diagnostics);
-    if (inspected.parseState !== "JSON") throw new SafeProviderFailure("PROVIDER_JSON_INVALID", response.status, inspected.diagnostics);
-    if (inspected.payload?.model !== QUALIFICATION_ROUTE.model) throw new SafeProviderFailure("MODEL_ID_MISMATCH", response.status, inspected.diagnostics);
-    if (inspected.payload?.status !== "completed") throw new SafeProviderFailure("PROVIDER_RESPONSE_NOT_COMPLETED", response.status, inspected.diagnostics);
+    const inspected = await inspectResponse(response, { requestHash, providerAttemptIdentity }); this.#diagnostics = inspected.diagnostics;
+    const fail = (code) => responseFailure(code, response.status, inspected.diagnostics, inspected.safeResponseEvidence);
+    if (response.status >= 300 && response.status < 400) throw fail("PROVIDER_REDIRECT_REJECTED");
+    if (!response.ok) throw fail(classifyHttpFailure(response.status));
+    if (inspected.truncated) throw fail("PROVIDER_RESPONSE_TOO_LARGE");
+    if (inspected.parseState !== "JSON") throw fail("PROVIDER_JSON_INVALID");
+    if (inspected.payload?.model !== QUALIFICATION_ROUTE.model) throw fail("MODEL_ID_MISMATCH");
+    if (inspected.payload?.status !== "completed") throw fail(nonCompletedFailureCode(inspected.safeResponseEvidence));
     let actionCore;
-    try { actionCore = JSON.parse(outputText(inspected.payload, inspected.diagnostics)); }
-    catch (error) { if (error instanceof SafeProviderFailure) throw error; throw new SafeProviderFailure("PROVIDER_STRUCTURED_OUTPUT_MALFORMED", response.status, inspected.diagnostics); }
+    try { actionCore = JSON.parse(outputText(inspected.payload, inspected.diagnostics, inspected.safeResponseEvidence)); }
+    catch (error) { if (error instanceof SafeProviderFailure) throw error; throw fail("PROVIDER_STRUCTURED_OUTPUT_MALFORMED"); }
     const usage = extractSafeUsage(inspected.payload.usage);
-    const safe = { providerResponseId: safeProviderRequestId(inspected.payload.id), providerRequestId: inspected.diagnostics.safeProviderRequestId, modelId: inspected.payload.model, responseStatus: inspected.payload.status, usage, actionCoreHash: sha256Json(actionCore), providerDiagnostics: inspected.diagnostics };
+    const safe = { providerResponseId: safeProviderRequestId(inspected.payload.id), providerRequestId: inspected.diagnostics.safeProviderRequestId, modelId: inspected.payload.model, responseStatus: inspected.payload.status, usage, actionCoreHash: sha256Json(actionCore), providerDiagnostics: inspected.diagnostics, safeResponseEvidence: inspected.safeResponseEvidence };
     return Object.freeze({ ...safe, safeResponseHash: sha256Json(safe), actionCore });
   }
 }

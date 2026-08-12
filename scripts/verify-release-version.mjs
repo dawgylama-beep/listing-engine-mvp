@@ -14,6 +14,7 @@ export const generalContinuationReleaseRelativePath = "qualification/synthetic-e
 export const boundedRequestEnvelopeReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/bounded-request-envelope-release.json";
 export const v2HeldOutCorpusReleaseRelativePath = "qualification/synthetic-executive/v2-held-out-corpus/v2-held-out-corpus-release.json";
 export const v2QualificationResultReleaseRelativePath = "qualification/synthetic-executive/v2-blind-qualification-result-release.json";
+export const responseEvidenceRepairReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/response-evidence-repair-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -84,6 +85,41 @@ async function inspectObservabilityRelease(rootDirectory, releaseText, version, 
   return release;
 }
 
+async function inspectResponseEvidenceRepairRelease(rootDirectory, releaseText, version) {
+  const record = JSON.parse(releaseText);
+  exactKeys(record, [
+    "schemaVersion", "releaseType", "releaseState", "version", "startingIdentity", "rootCause",
+    "adjudication", "originalRun", "safeResponseEvidenceContract", "preservedBindings",
+    "artifactHashes", "activityAssertions", "releaseHash"
+  ], "Response-evidence repair release");
+  assert.equal(record.schemaVersion, "1.0");
+  assert.equal(record.releaseType, "KATHERINE_SYNTHETIC_EXECUTIVE_V2_RESPONSE_EVIDENCE_REPAIR_RELEASE");
+  assert.equal(record.releaseState, "SEALED_QUALIFICATION_TOOLING_REPAIR");
+  assert.equal(record.version, version);
+  assert.equal(record.startingIdentity.version, "1.12.31");
+  assert.equal(record.startingIdentity.commit, "90f7895869d24fd6bc77f894576e598073060463");
+  assert.equal(record.startingIdentity.tree, "eec6eb5a1f9897ec9717c775f347e730d1cbe131");
+  assert.equal(record.rootCause.classification, "C06_RETAINED_RESPONSE_SEMANTICS_NOT_PERSISTED");
+  assert.equal(record.originalRun.originalC06Classification, "C06_INFRASTRUCTURE_INVALID_RESPONSE_SEMANTICS_NOT_PERSISTED");
+  assert.equal(record.originalRun.originalC06Scoreable, false);
+  assert.equal(record.originalRun.originalC06Excluded, true);
+  assert.equal(record.safeResponseEvidenceContract.rawResponseBodyRetained, false);
+  assert.equal(record.safeResponseEvidenceContract.rawOutputRetained, false);
+  assert.equal(record.safeResponseEvidenceContract.reasoningRetained, false);
+  assert.equal(record.safeResponseEvidenceContract.credentialsRetained, false);
+  assert.equal(record.safeResponseEvidenceContract.completeHeadersRetained, false);
+  const seen = new Set();
+  for (const item of record.artifactHashes) {
+    exactKeys(item, ["relativePath", "sha256"], "Response-evidence repair artifact hash");
+    assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
+    assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the response-evidence repair seal.`);
+  }
+  for (const value of Object.values(record.activityAssertions)) assert.equal(value, 0);
+  const core = structuredClone(record); delete core.releaseHash;
+  assert.equal(sha256Json(core), record.releaseHash, "Response-evidence repair release hash differs.");
+  return record;
+}
+
 export function formatReleaseVersion(version) {
   const normalized = String(version || "").trim();
   assert.match(normalized, releaseVersionPattern, "Release Version must be a complete numeric semantic Version.");
@@ -107,7 +143,7 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText, v2HeldOutCorpusReleaseText, v2QualificationResultReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText, v2HeldOutCorpusReleaseText, v2QualificationResultReleaseText, responseEvidenceRepairReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
@@ -120,7 +156,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     readFile(path.join(rootDirectory, generalContinuationReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, boundedRequestEnvelopeReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, v2HeldOutCorpusReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
-    readFile(path.join(rootDirectory, v2QualificationResultReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
+    readFile(path.join(rootDirectory, v2QualificationResultReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
+    readFile(path.join(rootDirectory, responseEvidenceRepairReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -202,7 +239,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     assert.equal(record.schemaVersion, "1.0");
     assert.equal(record.releaseType, "KATHERINE_SYNTHETIC_EXECUTIVE_V2_BLIND_REAL_ROUTE_QUALIFICATION_RESULT_RELEASE");
     assert.equal(record.releaseState, "SEALED_INTEGRITY_INVALID_RESULT");
-    assert.equal(record.version, version, "V2 qualification-result release Version must equal package Version.");
+    if (responseEvidenceRepairReleaseText === null) assert.equal(record.version, version, "V2 qualification-result release Version must equal package Version.");
+    else assert.equal(record.version, "1.12.31", "Historical V2 qualification-result release Version differs.");
     assert.equal(record.startingIdentity.version, "1.12.30");
     assert.equal(record.startingIdentity.releaseHash, v2HeldOutCorpusReleaseHash);
     assert.equal(record.execution.classification, "QUALIFICATION_PROVIDER_TRANSPORT_INTEGRITY_INVALID");
@@ -217,6 +255,13 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     const core = structuredClone(record); delete core.releaseHash;
     assert.equal(sha256Json(core), record.releaseHash, "V2 qualification-result release hash differs.");
     v2QualificationResultReleaseHash = record.releaseHash;
+  }
+  let responseEvidenceRepairReleaseHash = null;
+  if (responseEvidenceRepairReleaseText !== null) {
+    const record = await inspectResponseEvidenceRepairRelease(rootDirectory, responseEvidenceRepairReleaseText, version);
+    assert.equal(record.originalRun.resultReleaseHash, v2QualificationResultReleaseHash);
+    assert.equal(record.preservedBindings.corpusReleaseHash, v2HeldOutCorpusReleaseHash);
+    responseEvidenceRepairReleaseHash = record.releaseHash;
   }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
@@ -255,6 +300,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     boundedRequestEnvelopeReleaseHash,
     v2HeldOutCorpusReleaseHash,
     v2QualificationResultReleaseHash,
+    responseEvidenceRepairReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };
@@ -263,7 +309,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const result = await inspectReleaseVersionSurfaces();
-  const currentToolingReleaseHash = result.v2QualificationResultReleaseHash
+  const currentToolingReleaseHash = result.responseEvidenceRepairReleaseHash
+    || result.v2QualificationResultReleaseHash
     || result.v2HeldOutCorpusReleaseHash
     || result.boundedRequestEnvelopeReleaseHash
     || result.generalContinuationReleaseHash

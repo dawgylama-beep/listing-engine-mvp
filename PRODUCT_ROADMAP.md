@@ -803,6 +803,13 @@
 - Stopped with `QUALIFICATION_PROVIDER_TRANSPORT_INTEGRITY_INVALID`; hidden evaluator keys remained unopened, no 98-check score was calculated, and neither qualification nor non-qualification was claimed
 - Preserved the sealed V2 corpus, failed V1 evidence, Phase 6A artifacts, cognitive policy, action registry, broker, serializer, schema, scorer and product logic; performed no metadata, calibration, replay, real-worker, benchmark, handler, Preview, Production, merge or deployment activity
 
+## Version 1.12.32 (Completed)
+- Preserved the original `KE-V2-C06` attempt permanently as `C06_INFRASTRUCTURE_INVALID_RESPONSE_SEMANTICS_NOT_PERSISTED`, unscoreable and excluded from replacement scoring
+- Captured a closed, safe response-evidence contract before all HTTP, size, JSON, model and Responses-status guards, retaining only bounded diagnostics, response and request identities, safe usage and timestamps, output metadata, and hashes/lengths of retained response and partial-output bytes
+- Classified HTTP 200 `incomplete` with `max_output_tokens` as a terminal scoreable provider outcome with no fabricated action and no retry; kept other incomplete, failed, cancelled, queued, in-progress, malformed and identity-invalid outcomes distinct
+- Added zero-network mocked regressions for completed, incomplete, status, malformed, identity, optional-field and secret-redaction paths while preserving the completed action path and exactly-once dispatch behavior
+- Preserved every provider-visible case byte, the frozen prompt, model, reasoning, structured-action schema, policy, broker, scorer, evaluator, customer/product paths, original run artifacts, Phase 6A artifacts and all prior release evidence
+
 ## Version 2.0
 - User accounts
 - Saved listings
