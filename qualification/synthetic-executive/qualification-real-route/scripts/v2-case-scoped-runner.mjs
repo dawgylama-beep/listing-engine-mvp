@@ -206,7 +206,8 @@ function classifyIntegrityFailure(error) {
 
 export async function executeV2CaseUnit({
   authority, slot, resultRoot, profile, aggregateBefore, consumeSlot, clientFactory,
-  clock = now, nowMs = () => Date.now(), processIdentity = process.pid
+  clock = now, nowMs = () => Date.now(), processIdentity = process.pid,
+  limits = LIMITS, aggregateLabel = "C08_C14_AGGREGATE"
 }) {
   const caseId = slot.caseId; const caseRoot = path.join(resultRoot, "cases", caseId); const caseLedgerRoot = path.join(caseRoot, "case-ledger");
   await mkdir(caseRoot, { recursive: false }); await mkdir(caseLedgerRoot, { recursive: false });
@@ -236,7 +237,7 @@ export async function executeV2CaseUnit({
   const currentAggregateCounts = () => addCounts(aggregateBefore.counts, caseCounts(ledger, caseId));
   const finish = async () => {
     const terminal = reconstructCase(controller, receipts); const completedAt = clock(); const counts = caseCounts(ledger, caseId);
-    assertCountsWithinLimits(counts, LIMITS.perCase, caseId); assertCountsWithinLimits(currentAggregateCounts(), LIMITS.aggregate, "C08_C14_AGGREGATE");
+    assertCountsWithinLimits(counts, limits.perCase, caseId); assertCountsWithinLimits(currentAggregateCounts(), limits.aggregate, aggregateLabel);
     const completeUsage = usageReceipts.filter((item) => item.usageClassification === "COMPLETE");
     const core = {
       schemaVersion: "1.0", outputType: "SEALED_V2_SYNTHETIC_EXECUTIVE_CASE_TRANSCRIPT", caseId, sequencePosition: slot.originalSequencePosition,
@@ -247,9 +248,9 @@ export async function executeV2CaseUnit({
       providerUsageReceipts: usageReceipts, brokerRejectionReceipts: brokerRejections, inboundAdmissionReceipts: inboundAdmissions,
       memoryFixtureHash: fixtures.memory.fixtureHash, workerInputHash: fixtures.workerInput.taskHash, workerDossierHash: fixtures.dossier.contentHash,
       finalMemoryRecordIds: (await memoryStore.list()).map((record) => record.memoryId), counts, slotConsumed,
-      slotReservationUsd: slotConsumed ? LIMITS.perCase.maximumProviderCostUsd : 0,
+      slotReservationUsd: slotConsumed ? limits.perCase.maximumProviderCostUsd : 0,
       exactAvailableCostUsd: Number(caseExactCost.toFixed(8)), conservativeAccountedCostUsd: Number(caseConservativeCost.toFixed(8)),
-      costHeadroomUsd: Number((LIMITS.perCase.maximumProviderCostUsd - caseConservativeCost).toFixed(8)),
+      costHeadroomUsd: Number((limits.perCase.maximumProviderCostUsd - caseConservativeCost).toFixed(8)),
       returnedUsage: {
         completeReceiptCount: completeUsage.length, incompleteOrUnavailableReceiptCount: usageReceipts.length - completeUsage.length,
         inputTokens: completeUsage.reduce((sum, item) => sum + item.actualUsage.inputTokens, 0),
@@ -273,12 +274,12 @@ export async function executeV2CaseUnit({
 
   while (!reconstructCase(controller, receipts).terminal) {
     const elapsedCase = nowMs() - caseStartedMs; const elapsedAggregate = aggregateBefore.durationMs + elapsedCase;
-    if (elapsedCase >= LIMITS.perCase.maximumWallClockMs) { status = "SCOREABLE_CASE_WALL_CLOCK_BOUNDARY"; failureEvidence = { code: "PER_CASE_WALL_CLOCK_BOUNDARY" }; break; }
-    if (elapsedAggregate >= LIMITS.aggregate.maximumWallClockMs) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_WALL_CLOCK_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
+    if (elapsedCase >= limits.perCase.maximumWallClockMs) { status = "SCOREABLE_CASE_WALL_CLOCK_BOUNDARY"; failureEvidence = { code: "PER_CASE_WALL_CLOCK_BOUNDARY" }; break; }
+    if (elapsedAggregate >= limits.aggregate.maximumWallClockMs) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_WALL_CLOCK_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
     const state = reconstructCase(controller, receipts).state;
     if (state === "AUTHORITY_SPECIFIED" && taskSealed && workerDossier === null) {
       const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
-      if (counts.fakeDossierActions >= LIMITS.perCase.maximumFakeDossierActions || totals.fakeDossierActions >= LIMITS.aggregate.maximumFakeDossierActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "FAKE_DOSSIER_ACTION_CEILING" }; break; }
+      if (counts.fakeDossierActions >= limits.perCase.maximumFakeDossierActions || totals.fakeDossierActions >= limits.aggregate.maximumFakeDossierActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "FAKE_DOSSIER_ACTION_CEILING" }; break; }
       ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "PRESEALED_DOSSIER", ledgerOrdinal);
       await ledger.append("PRESEALED_DOSSIER_CONSUMED", { caseId, actionIdentity: identity, operationHash: fixtures.dossier.contentHash });
       const admission = admitInboundEvidence({ source: "WORKER_EVIDENCE", value: fixtures.dossier, identityHash: sha256Json(fixtures.dossier) });
@@ -287,8 +288,8 @@ export async function executeV2CaseUnit({
     }
 
     const countsBefore = caseCounts(ledger, caseId); const totalsBefore = currentAggregateCounts();
-    if (countsBefore.reasoningSteps >= LIMITS.perCase.maximumReasoningSteps) { status = "SCOREABLE_CASE_REASONING_BOUNDARY"; failureEvidence = { code: "PER_CASE_REASONING_STEP_CEILING" }; break; }
-    if (totalsBefore.reasoningSteps >= LIMITS.aggregate.maximumReasoningSteps) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_REASONING_STEP_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
+    if (countsBefore.reasoningSteps >= limits.perCase.maximumReasoningSteps) { status = "SCOREABLE_CASE_REASONING_BOUNDARY"; failureEvidence = { code: "PER_CASE_REASONING_STEP_CEILING" }; break; }
+    if (totalsBefore.reasoningSteps >= limits.aggregate.maximumReasoningSteps) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_REASONING_STEP_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
     actionOrdinal += 1; const observed = observedStateHash(state, receipts); const expectedActionId = `action-${caseId.toLowerCase()}-${String(actionOrdinal).padStart(2, "0")}`;
     const memoryRecords = await memoryStore.list();
     const readinessManifest = { budgetProfileHash: "95f125883586a42724a44341efc30bb81e0cd39a10dc21f6cb1528d462ee4db8" };
@@ -302,8 +303,8 @@ export async function executeV2CaseUnit({
       const stopReceipt = createEnvelopeStopReceipt({ phase: "PRE_DISPATCH", currentState: state, actualCurrentRequestBytes: accounting.exactSerializedRequestByteCount, route: routeEnvelope });
       accountingReceipts.push(stopReceipt); status = "INTEGRITY_INVALID"; failureEvidence = { code: stopReceipt.stopCode, receiptHash: stopReceipt.receiptHash }; integrityFailure = "QUALIFICATION_REQUEST_ENVELOPE_INTEGRITY_INVALID"; break;
     }
-    if (caseConservativeCost + accounting.reservationUsd > LIMITS.perCase.maximumProviderCostUsd + 1e-9) { status = "SCOREABLE_CASE_COST_BOUNDARY"; failureEvidence = { code: "PER_CASE_COST_BOUNDARY", requiredReservationUsd: accounting.reservationUsd }; break; }
-    if (aggregateBefore.conservativeCostUsd + caseConservativeCost + accounting.reservationUsd > LIMITS.aggregate.maximumProviderCostUsd + 1e-9) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_COST_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
+    if (caseConservativeCost + accounting.reservationUsd > limits.perCase.maximumProviderCostUsd + 1e-9) { status = "SCOREABLE_CASE_COST_BOUNDARY"; failureEvidence = { code: "PER_CASE_COST_BOUNDARY", requiredReservationUsd: accounting.reservationUsd }; break; }
+    if (aggregateBefore.conservativeCostUsd + caseConservativeCost + accounting.reservationUsd > limits.aggregate.maximumProviderCostUsd + 1e-9) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_COST_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
     ledgerOrdinal += 1; const reasoningIdentity = actionIdentity(authority, caseId, "REASONING_STEP", ledgerOrdinal);
     await ledger.append("REASONING_STEP_CONSUMED", { caseId, actionIdentity: reasoningIdentity, actionOrdinal, requestHash, executiveState: state });
     let attemptIndex = 0; let response = null; let providerFailure = null;
@@ -311,14 +312,14 @@ export async function executeV2CaseUnit({
       attemptIndex += 1;
       if (attemptIndex > 1) {
         const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
-        if (counts.retryAttempts >= LIMITS.perCase.maximumRetryAttempts || totals.retryAttempts >= LIMITS.aggregate.maximumRetryAttempts) { providerFailure = new Error("RETRY_CEILING_REACHED"); break; }
+        if (counts.retryAttempts >= limits.perCase.maximumRetryAttempts || totals.retryAttempts >= limits.aggregate.maximumRetryAttempts) { providerFailure = new Error("RETRY_CEILING_REACHED"); break; }
         ledgerOrdinal += 1; const retryIdentity = actionIdentity(authority, caseId, "RETRY_ATTEMPT", ledgerOrdinal);
         await ledger.append("RETRY_ATTEMPT_CONSUMED", { caseId, actionIdentity: retryIdentity, actionOrdinal, requestHash, retryOrdinal: attemptIndex - 1 });
       }
       if (client === null) client = await clientFactory({ caseId, caseRoot });
       if (!slotConsumed) {
         const slotReceipt = await consumeSlot({ caseId, caseRoot, requestHash });
-        ledgerOrdinal += 1; await ledger.append("CASE_SLOT_CONSUMED", { caseId, actionIdentity: slotReceipt.actionIdentity, caseSlotHash: slot.caseSlotHash, reservedMaximumCostUsd: LIMITS.perCase.maximumProviderCostUsd, consumedBeforeFirstProviderAttempt: true, authoritySlotReceiptHash: slotReceipt.receiptHash }); slotConsumed = true;
+        ledgerOrdinal += 1; await ledger.append("CASE_SLOT_CONSUMED", { caseId, actionIdentity: slotReceipt.actionIdentity, caseSlotHash: slot.caseSlotHash, reservedMaximumCostUsd: limits.perCase.maximumProviderCostUsd, consumedBeforeFirstProviderAttempt: true, authoritySlotReceiptHash: slotReceipt.receiptHash }); slotConsumed = true;
       }
       ledgerOrdinal += 1; const providerIdentity = actionIdentity(authority, caseId, "PROVIDER_ATTEMPT", ledgerOrdinal);
       await ledger.append("PROVIDER_ATTEMPT_DISPATCHED", { caseId, actionIdentity: providerIdentity, actionOrdinal, requestHash, retry: attemptIndex > 1, attemptIndex, reservationUsd: accounting.reservationUsd });
@@ -330,8 +331,8 @@ export async function executeV2CaseUnit({
         aggregateConservativeCostBeforeUsd: Number((aggregateBefore.conservativeCostUsd + caseConservativeCost).toFixed(8))
       }, "receiptHash");
       accountingReceipts.push(accountingReceipt); await writeExclusiveJson(path.join(caseRoot, `${providerIdentity}-pre-dispatch.json`), accountingReceipt);
-      const remainingCaseMs = LIMITS.perCase.maximumWallClockMs - (nowMs() - caseStartedMs);
-      const remainingAggregateMs = LIMITS.aggregate.maximumWallClockMs - aggregateBefore.durationMs - (nowMs() - caseStartedMs);
+      const remainingCaseMs = limits.perCase.maximumWallClockMs - (nowMs() - caseStartedMs);
+      const remainingAggregateMs = limits.aggregate.maximumWallClockMs - aggregateBefore.durationMs - (nowMs() - caseStartedMs);
       const timeoutMs = Math.max(1, Math.min(profile.timeoutMs, remainingCaseMs, remainingAggregateMs));
       const dispatchedAt = clock(); const dispatchStarted = nowMs(); const abortController = new AbortController(); const timer = setTimeout(() => abortController.abort(), timeoutMs);
       try {
@@ -350,8 +351,8 @@ export async function executeV2CaseUnit({
         const attemptReceipt = seal({ schemaVersion: "1.0", receiptType: "SAFE_V2_PROVIDER_ATTEMPT", providerAttemptIdentity: providerIdentity, actionOrdinal, attemptIndex, retry: attemptIndex > 1, requestHash, responseHash: null, providerResponseId: safeResponseEvidence?.providerResponseId || "NOT_RECEIVED", providerRequestId: error instanceof SafeProviderFailure ? error.providerDiagnostics.safeProviderRequestId : "NOT_RECEIVED", modelId: safeResponseEvidence?.returnedModel || "NOT_RECEIVED", responseStatus: safeResponseEvidence?.responseStatus || "FAILED", providerFailureCode: code, providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null, safeResponseEvidence, usageReceiptHash: usageReceipt.receiptHash, dispatchedAt, completedAt: clock(), durationMs: nowMs() - dispatchStarted }, "receiptHash");
         attempts.push(attemptReceipt); await writeExclusiveJson(path.join(caseRoot, `${providerIdentity}-result.json`), attemptReceipt);
         if (SCOREABLE_PROVIDER_OUTPUT_CODES.includes(code)) { status = "SCOREABLE_MODEL_OUTPUT_FAILURE"; failureEvidence = { code, providerAttemptReceiptHash: attemptReceipt.receiptHash }; providerFailure = null; break; }
-        if (!RETRY_REASONS.includes(code) || attemptIndex > LIMITS.perCase.maximumRetryAttempts) { providerFailure = error; break; }
-        if (caseConservativeCost + accounting.reservationUsd > LIMITS.perCase.maximumProviderCostUsd + 1e-9 || aggregateBefore.conservativeCostUsd + caseConservativeCost + accounting.reservationUsd > LIMITS.aggregate.maximumProviderCostUsd + 1e-9) { providerFailure = new Error("RETRY_COST_CEILING_REACHED"); break; }
+        if (!RETRY_REASONS.includes(code) || attemptIndex > limits.perCase.maximumRetryAttempts) { providerFailure = error; break; }
+        if (caseConservativeCost + accounting.reservationUsd > limits.perCase.maximumProviderCostUsd + 1e-9 || aggregateBefore.conservativeCostUsd + caseConservativeCost + accounting.reservationUsd > limits.aggregate.maximumProviderCostUsd + 1e-9) { providerFailure = new Error("RETRY_COST_CEILING_REACHED"); break; }
       } finally { clearTimeout(timer); }
     }
     if (status === "SCOREABLE_MODEL_OUTPUT_FAILURE") break;
@@ -371,7 +372,7 @@ export async function executeV2CaseUnit({
     receipts.push(applyAcceptedAction({ controller, receipts, action, decidedAt: clock() })); actions.push(action);
     if (action.actionType === "RETRIEVE_RELEVANT_MEMORY") {
       const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
-      if (counts.toolActions >= LIMITS.perCase.maximumToolActions || totals.toolActions >= LIMITS.aggregate.maximumToolActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "TOOL_ACTION_CEILING" }; break; }
+      if (counts.toolActions >= limits.perCase.maximumToolActions || totals.toolActions >= limits.aggregate.maximumToolActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "TOOL_ACTION_CEILING" }; break; }
       ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "MEMORY_QUERY", ledgerOrdinal); await ledger.append("MEMORY_QUERY_CONSUMED", { caseId, actionIdentity: identity, operationHash: sha256Json(action.details) });
       retrievalReceipt = await memoryStore.retrieve({ episodeId: caseId, queryFacets: action.details.queryFacets, queryText: action.details.queryText, createdAt: clock() });
       const selectedRecords = (await memoryStore.list()).filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId));
@@ -609,7 +610,7 @@ export async function aggregateSealedResults({ resultRoot, aggregatedAt = now() 
   await writeExclusiveJson(path.join(resultRoot, "provider-execution-summary.json"), summary); return { inventory, summary };
 }
 
-function evaluateCase(output, key) {
+export function evaluateCase(output, key) {
   const classificationAction = output.actions.find((action) => ["CLASSIFY_FAILURE", "DECLARE_RECURRENCE", "DECLARE_NOVEL_FAILURE"].includes(action.actionType));
   const evaluationAction = output.actions.find((action) => action.actionType === "EVALUATE_RETURNED_ENGINEERING_EVIDENCE");
   const nextAction = output.actions.find((action) => action.actionType === "SELECT_NEXT_LEGAL_ACTION");

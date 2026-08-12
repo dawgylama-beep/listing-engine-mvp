@@ -9,9 +9,10 @@ import { createStateConditionedProviderActionSchema } from "../../scripts/provid
 import { sha256Bytes, sha256Json, stableJson } from "../../scripts/protocol.mjs";
 import { loadRealProviderProfile } from "../../calibration/scripts/real-route-profile.mjs";
 import {
-  NOT_RECEIVED, PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, assertNoSecretMaterial,
-  classifyHttpFailure, normalizeProviderResponseDiagnostics, safeProviderRequestId,
-  sanitizeProviderErrorMessage, unavailableProviderDiagnostics
+  NOT_RECEIVED, PROVIDER_RESPONSE_BODY_LIMIT_BYTES, PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES,
+  SafeProviderFailure, assertNoSecretMaterial, classifyHttpFailure, normalizeProviderResponseDiagnostics,
+  readBoundedProviderResponseBody, safeProviderRequestId, sanitizeProviderErrorMessage,
+  unavailableProviderDiagnostics
 } from "../../calibration/scripts/real-route-redaction.mjs";
 import { generalContinuationPromptLines } from "./general-continuation-policy.mjs";
 
@@ -267,12 +268,13 @@ function partialOutputEvidence(payload) {
   });
 }
 
-const SAFE_RESPONSE_EVIDENCE_FIELDS = Object.freeze([
+export const SAFE_RESPONSE_EVIDENCE_FIELDS = Object.freeze([
   "schemaVersion", "requestHash", "providerAttemptIdentity", "httpStatus", "responseContentType",
   "rawResponseByteLength", "rawResponseSha256", "safeProviderRequestId", "providerResponseId",
   "returnedModel", "responseStatus", "incompleteReason", "safeError", "usage",
   "createdAtEpochSeconds", "completedAtEpochSeconds", "outputItemCount", "outputItemTypes",
-  "outputItemStatuses", "partialOutput"
+  "outputItemStatuses", "partialOutput", "observedResponseByteLength",
+  "responseBodySha256Classification", "localResponseHardLimitClassification"
 ]);
 
 export function assertQualificationSafeResponseEvidence(value, {
@@ -281,14 +283,25 @@ export function assertQualificationSafeResponseEvidence(value, {
 } = {}) {
   assert.ok(value && typeof value === "object" && !Array.isArray(value), "safe response evidence must be an object");
   assert.deepEqual(Object.keys(value).sort(), [...SAFE_RESPONSE_EVIDENCE_FIELDS].sort(), "safe response evidence fields differ");
-  assert.equal(value.schemaVersion, "1.0");
+  assert.equal(value.schemaVersion, "1.1");
   assert.match(value.requestHash, /^[a-f0-9]{64}$/);
   assert.equal(value.requestHash, requestHash, "safe response evidence request identity differs");
   assert.equal(value.providerAttemptIdentity, providerAttemptIdentity, "safe response evidence attempt identity differs");
   assert.ok(value.providerAttemptIdentity === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value.providerAttemptIdentity) === value.providerAttemptIdentity);
   assert.ok(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599);
   assert.ok(Number.isInteger(value.rawResponseByteLength) && value.rawResponseByteLength >= 0);
+  assert.ok(value.rawResponseByteLength <= PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES);
+  assert.equal(value.observedResponseByteLength, value.rawResponseByteLength);
   assert.match(value.rawResponseSha256, /^[a-f0-9]{64}$/);
+  assert.ok(["COMPLETE", "PARTIAL"].includes(value.responseBodySha256Classification));
+  assert.ok(["WITHIN_LIMIT", "EXCEEDED"].includes(value.localResponseHardLimitClassification));
+  if (value.localResponseHardLimitClassification === "WITHIN_LIMIT") {
+    assert.ok(value.observedResponseByteLength <= PROVIDER_RESPONSE_BODY_LIMIT_BYTES);
+    assert.equal(value.responseBodySha256Classification, "COMPLETE");
+  } else {
+    assert.equal(value.observedResponseByteLength, PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES);
+    assert.equal(value.responseBodySha256Classification, "PARTIAL");
+  }
   assert.ok(value.safeProviderRequestId === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value.safeProviderRequestId) === value.safeProviderRequestId);
   for (const field of ["providerResponseId", "returnedModel", "responseStatus", "incompleteReason"]) {
     assert.ok(value[field] === QUALIFICATION_RESPONSE_ABSENT || safeProviderRequestId(value[field]) === value[field], `unsafe ${field}`);
@@ -309,16 +322,19 @@ export function assertQualificationSafeResponseEvidence(value, {
   return value;
 }
 
-function buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity }) {
+function buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity, localHardLimitExceeded }) {
   const output = Array.isArray(payload?.output) ? payload.output : [];
   const evidence = {
-    schemaVersion: "1.0",
+    schemaVersion: "1.1",
     requestHash,
     providerAttemptIdentity: providerAttemptIdentity || QUALIFICATION_RESPONSE_ABSENT,
     httpStatus: response.status,
     responseContentType: diagnostics.responseContentType === NOT_RECEIVED ? QUALIFICATION_RESPONSE_ABSENT : diagnostics.responseContentType,
     rawResponseByteLength: source.length,
     rawResponseSha256: sha256Bytes(source),
+    observedResponseByteLength: source.length,
+    responseBodySha256Classification: localHardLimitExceeded ? "PARTIAL" : "COMPLETE",
+    localResponseHardLimitClassification: localHardLimitExceeded ? "EXCEEDED" : "WITHIN_LIMIT",
     safeProviderRequestId: diagnostics.safeProviderRequestId === NOT_RECEIVED ? QUALIFICATION_RESPONSE_ABSENT : diagnostics.safeProviderRequestId,
     providerResponseId: safeResponseIdentifier(payload?.id),
     returnedModel: safeResponseIdentifier(payload?.model),
@@ -342,17 +358,15 @@ function responseFailure(code, httpStatus, diagnostics, safeResponseEvidence) {
   return failure;
 }
 
-async function inspectResponse(response, { requestHash, providerAttemptIdentity }) {
-  const source = typeof response.arrayBuffer === "function" ? Buffer.from(await response.arrayBuffer()) : Buffer.from(await response.text(), "utf8");
-  const truncated = source.length > PROVIDER_RESPONSE_BODY_LIMIT_BYTES;
-  const bytes = truncated ? source.subarray(0, PROVIDER_RESPONSE_BODY_LIMIT_BYTES) : source;
+export async function inspectQualificationProviderResponse(response, { requestHash, providerAttemptIdentity }) {
+  const { bytes: source, observedByteLength, localHardLimitExceeded: truncated } = await readBoundedProviderResponseBody(response);
   let payload = null; let parseState = "JSON";
   if (!truncated) {
-    try { payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
+    try { payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(source)); }
     catch { const media = String(response.headers?.get?.("content-type") || "").split(";", 1)[0].trim().toLowerCase(); parseState = media === "application/json" || media.endsWith("+json") ? "MALFORMED_JSON" : "NON_JSON"; }
   }
-  const diagnostics = normalizeProviderResponseDiagnostics({ status: response.status, requestId: response.headers?.get?.("x-request-id"), contentType: response.headers?.get?.("content-type"), responseByteLength: bytes.length, responseBodyTruncated: truncated, payload, parseState });
-  const safeResponseEvidence = buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity });
+  const diagnostics = normalizeProviderResponseDiagnostics({ status: response.status, requestId: response.headers?.get?.("x-request-id"), contentType: response.headers?.get?.("content-type"), responseByteLength: observedByteLength, responseBodyTruncated: truncated, payload, parseState });
+  const safeResponseEvidence = buildSafeResponseEvidence({ response, source, payload, diagnostics, requestHash, providerAttemptIdentity, localHardLimitExceeded: truncated });
   return Object.freeze({ payload, parseState, truncated, diagnostics, safeResponseEvidence });
 }
 
@@ -400,11 +414,11 @@ export class QualificationResponsesClient {
       this.#diagnostics = unavailableProviderDiagnostics({ timeoutClassification: timeout ? "TIMEOUT" : "NOT_TIMEOUT", networkConnectionClassification: timeout ? "NOT_RECEIVED" : "CONNECTION_FAILURE" });
       throw new SafeProviderFailure(timeout ? "PROVIDER_TIMEOUT" : "PROVIDER_CONNECTION_FAILURE", null, this.#diagnostics);
     }
-    const inspected = await inspectResponse(response, { requestHash, providerAttemptIdentity }); this.#diagnostics = inspected.diagnostics;
+    const inspected = await inspectQualificationProviderResponse(response, { requestHash, providerAttemptIdentity }); this.#diagnostics = inspected.diagnostics;
     const fail = (code) => responseFailure(code, response.status, inspected.diagnostics, inspected.safeResponseEvidence);
     if (response.status >= 300 && response.status < 400) throw fail("PROVIDER_REDIRECT_REJECTED");
     if (!response.ok) throw fail(classifyHttpFailure(response.status));
-    if (inspected.truncated) throw fail("PROVIDER_RESPONSE_TOO_LARGE");
+    if (inspected.truncated) throw fail("PROVIDER_RESPONSE_LOCAL_HARD_LIMIT_EXCEEDED");
     if (inspected.parseState !== "JSON") throw fail("PROVIDER_JSON_INVALID");
     if (inspected.payload?.model !== QUALIFICATION_ROUTE.model) throw fail("MODEL_ID_MISMATCH");
     if (inspected.payload?.status !== "completed") throw fail(nonCompletedFailureCode(inspected.safeResponseEvidence));

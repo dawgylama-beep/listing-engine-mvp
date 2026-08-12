@@ -16,6 +16,7 @@ export const v2HeldOutCorpusReleaseRelativePath = "qualification/synthetic-execu
 export const v2QualificationResultReleaseRelativePath = "qualification/synthetic-executive/v2-blind-qualification-result-release.json";
 export const responseEvidenceRepairReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/response-evidence-repair-release.json";
 export const v2CaseScopedCompletionReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/v2-case-scoped-completion-release.json";
+export const v2ResponseBoundaryRecoveryReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/v2-response-boundary-recovery-release.json";
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -155,6 +156,41 @@ async function inspectV2CaseScopedCompletionRelease(rootDirectory, releaseText, 
   return record;
 }
 
+async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseText, version) {
+  const record = JSON.parse(releaseText);
+  exactKeys(record, [
+    "schemaVersion", "releaseType", "releaseState", "version", "createdAt", "startingIdentity", "provenance",
+    "responseBoundary", "sourceSeal", "recovery", "evaluation", "activityCounts", "preservation",
+    "artifactHashes", "artifactCount", "artifactAggregateHash", "releaseHash"
+  ], "V2 response-boundary recovery release");
+  assert.equal(record.schemaVersion, "1.0");
+  assert.equal(record.releaseType, "KATHERINE_SYNTHETIC_EXECUTIVE_V2_RESPONSE_BOUNDARY_RECOVERY_RELEASE");
+  assert.equal(record.releaseState, "SEALED_RESPONSE_BOUNDARY_RECOVERY_AND_FINAL_BLIND_EVALUATION");
+  assert.equal(record.version, version);
+  assert.equal(record.startingIdentity.version, "1.12.33");
+  assert.equal(record.startingIdentity.commit, "d198c3e162a60a871b4952105e6ded5ef695ec02");
+  assert.equal(record.startingIdentity.tree, "f69eb9006644244f3227d4a29d4df2d908ffa978");
+  assert.equal(record.provenance.corrected43Aggregate, "f131f7ed0548f6532c4afdc1bfaa254e5618595005fb89bfcf7fea7081f22aea");
+  assert.equal(record.responseBoundary.localHardCeilingBytes, 1_048_576);
+  assert.equal(record.responseBoundary.overflowProbeBytes, 1_048_577);
+  assert.equal(record.recovery.exactCaseOrder.join(","), "KE-V2-C13,KE-V2-C14");
+  assert.equal(record.evaluation.invocationCount, 1); assert.equal(record.evaluation.score.split("/")[1], "98");
+  assert.equal(record.preservation.originalC01ThroughC12Unchanged, true);
+  assert.equal(record.preservation.originalC06AndC13PreservedAndExcluded, true);
+  assert.equal(record.preservation.phase6aArtifactsPreserved, true);
+  assert.equal(record.artifactCount, record.artifactHashes.length);
+  assert.equal(sha256Json(record.artifactHashes), record.artifactAggregateHash);
+  const seen = new Set();
+  for (const item of record.artifactHashes) {
+    exactKeys(item, ["relativePath", "sha256"], "V2 response-boundary recovery artifact hash");
+    assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
+    assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 response-boundary recovery seal.`);
+  }
+  const core = structuredClone(record); delete core.releaseHash;
+  assert.equal(sha256Json(core), record.releaseHash, "V2 response-boundary recovery release hash differs.");
+  return record;
+}
+
 export function formatReleaseVersion(version) {
   const normalized = String(version || "").trim();
   assert.match(normalized, releaseVersionPattern, "Release Version must be a complete numeric semantic Version.");
@@ -178,7 +214,7 @@ export function inspectIndexVersionSurface(indexHtml, expectedVersion) {
 }
 
 export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRoot) {
-  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText, v2HeldOutCorpusReleaseText, v2QualificationResultReleaseText, responseEvidenceRepairReleaseText, v2CaseScopedCompletionReleaseText] = await Promise.all([
+  const [packageText, packageLockText, serverSource, indexHtml, vercelText, executionReleaseText, observabilityReleaseText, structuredOutputReleaseText, qualificationRouteReleaseText, generalContinuationReleaseText, boundedRequestEnvelopeReleaseText, v2HeldOutCorpusReleaseText, v2QualificationResultReleaseText, responseEvidenceRepairReleaseText, v2CaseScopedCompletionReleaseText, v2ResponseBoundaryRecoveryReleaseText] = await Promise.all([
     readFile(path.join(rootDirectory, "package.json"), "utf8"),
     readFile(path.join(rootDirectory, "package-lock.json"), "utf8"),
     readFile(path.join(rootDirectory, "server.ps1"), "utf8"),
@@ -193,7 +229,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     readFile(path.join(rootDirectory, v2HeldOutCorpusReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, v2QualificationResultReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
     readFile(path.join(rootDirectory, responseEvidenceRepairReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
-    readFile(path.join(rootDirectory, v2CaseScopedCompletionReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
+    readFile(path.join(rootDirectory, v2CaseScopedCompletionReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error)),
+    readFile(path.join(rootDirectory, v2ResponseBoundaryRecoveryReleaseRelativePath), "utf8").catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))
   ]);
 
   const packageManifest = JSON.parse(packageText);
@@ -305,6 +342,11 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     assert.equal(record.predecessor.responseEvidenceRepairReleaseHash, responseEvidenceRepairReleaseHash);
     v2CaseScopedCompletionReleaseHash = record.releaseHash;
   }
+  let v2ResponseBoundaryRecoveryReleaseHash = null;
+  if (v2ResponseBoundaryRecoveryReleaseText !== null) {
+    const record = await inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, v2ResponseBoundaryRecoveryReleaseText, version);
+    v2ResponseBoundaryRecoveryReleaseHash = record.releaseHash;
+  }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
   assert.equal(serverVersion, version, "server.ps1 Version must equal package Version.");
@@ -344,6 +386,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     v2QualificationResultReleaseHash,
     responseEvidenceRepairReleaseHash,
     v2CaseScopedCompletionReleaseHash,
+    v2ResponseBoundaryRecoveryReleaseHash,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };
@@ -352,7 +395,8 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const result = await inspectReleaseVersionSurfaces();
-  const currentToolingReleaseHash = result.v2CaseScopedCompletionReleaseHash
+  const currentToolingReleaseHash = result.v2ResponseBoundaryRecoveryReleaseHash
+    || result.v2CaseScopedCompletionReleaseHash
     || result.responseEvidenceRepairReleaseHash
     || result.v2QualificationResultReleaseHash
     || result.v2HeldOutCorpusReleaseHash

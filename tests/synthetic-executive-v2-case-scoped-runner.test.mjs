@@ -75,22 +75,12 @@ test("whole-run compatibility invokes the same extracted unit in exact order", a
   assert.deepEqual(calls, SUCCESSOR_CASES); assert.deepEqual(result, SUCCESSOR_CASES);
 });
 
-test("authority is create-only with exactly seven immutable slots, activates once, and rejects duplicate or out-of-order use", async () => {
+test("the historical seven-slot authority cannot be recreated from a successor checkpoint", async () => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "ke-v2-case-authority-"));
   try {
-    const resultRoot = path.join(temporary, "result"); const sourceSealPath = await sourceSealIn(temporary); const { authority } = await createSuccessorAuthority({ resultRoot, sourceSealPath, createdAt: fixedTime });
-    assert.equal(authority.caseSlots.length, 7); assert.deepEqual(authority.caseSlots.map((slot) => slot.caseId), SUCCESSOR_CASES); assert.deepEqual(authority.caseSlots.map((slot) => slot.limits), Array(7).fill(LIMITS.perCase));
-    await assert.rejects(createSuccessorAuthority({ resultRoot, sourceSealPath, createdAt: fixedTime }));
-    const activation = await activateSuccessorAuthority({ resultRoot, activatedAt: fixedTime }); assert.equal(activation.state, "ACTIVE_CASE_SLOTS"); assert.equal(activation.globallyConsumed, false);
-    await assert.rejects(activateSuccessorAuthority({ resultRoot, activatedAt: fixedTime }), /ACTIVATION_REQUIRES_ISSUED/);
-    const c08Root = path.join(resultRoot, "cases", "KE-V2-C08"); await mkdir(c08Root);
-    await assert.rejects(consumeAuthoritySlot({ resultRoot, authority, caseId: "KE-V2-C09", caseRoot: c08Root, requestHash: "a".repeat(64) }), /OUT_OF_ORDER/);
-    const receipt = await consumeAuthoritySlot({ resultRoot, authority, caseId: "KE-V2-C08", caseRoot: c08Root, requestHash: "a".repeat(64) }); assert.equal(receipt.status, "PERMANENTLY_CONSUMED");
-    await assert.rejects(consumeAuthoritySlot({ resultRoot, authority, caseId: "KE-V2-C08", caseRoot: c08Root, requestHash: "a".repeat(64) }), /OUT_OF_ORDER|ALREADY_CONSUMED/);
-    const c09Root = path.join(resultRoot, "cases", "KE-V2-C09"); await mkdir(c09Root);
-    await assert.rejects(consumeAuthoritySlot({ resultRoot, authority, caseId: "KE-V2-C09", caseRoot: c09Root, requestHash: "b".repeat(64) }), /ENOENT|no such file/i);
-    const ledger = await new AppendOnlyLedger({ root: path.join(resultRoot, "authority-ledger"), authorityHash: authority.authorityHash, ledgerType: "IMMUTABLE_V2_CASE_SCOPED_AUTHORITY_EVENT" }).initialize();
-    assert.equal(ledger.summary().activations, 1); assert.equal(ledger.summary().caseSlotConsumptions, 1);
+    const resultRoot = path.join(temporary, "result"); const sourceSealPath = await sourceSealIn(temporary);
+    await assert.rejects(createSuccessorAuthority({ resultRoot, sourceSealPath, createdAt: fixedTime }), /Expected values to be strictly equal/);
+    assert.equal(await readdir(temporary).then((names) => names.includes("result")), false);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });
 

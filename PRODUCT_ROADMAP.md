@@ -818,6 +818,14 @@
 - Preserved the original C06 and historical empty C08 evidence outside aggregation, retained the replacement C06 and prior C07 unchanged, and preserved the existing Phase 6A artifacts byte-for-byte
 - Released the executor and sealed terminal evidence as `QUALIFICATION_INCOMPLETE — NO EVALUATION OR SCORE`; no qualification or non-qualification claim was made
 
+## Version 1.12.34 (Completed)
+- Appended a non-mutating correction for the Version 1.12.33 identity-manifest phase-order defect, preserving the historical 43-file manifest and binding the exact final release and terminal inventories
+- Reclassified the original C13 failure as a local 65,536-byte response-capture boundary while preserving its historical provider-failure evidence and excluding its model content from inspection and reuse
+- Raised only the streamed response resource ceiling to 1,048,576 actual bytes, added a one-byte overflow probe, and distinguished complete from partial response-body hashes without changing request bytes, model, prompt, cognitive policy, broker, scorer, evaluator or handlers
+- Added full-route zero-network regressions for the exact 87,077-byte completed and max-token responses, limit edges, UTF-8, advisory Content-Length, malformed and status outcomes, safe evidence bounds and forbidden-content absence
+- Bound one create-only recovery authority to replacement C13 and untouched C14 in strict order, with separate case processes, existing per-case ceilings, an exact two-case aggregate ceiling and exactly-once evaluation only after both scoreable seals
+- Preserved original C01–C12, original C06 and C13 evidence, the historical empty C08 stub, the sealed corpus and Phase 6A artifacts; the exact terminal qualification result is recorded only in the Version 1.12.34 release evidence
+
 ## Version 2.0
 - User accounts
 - Saved listings

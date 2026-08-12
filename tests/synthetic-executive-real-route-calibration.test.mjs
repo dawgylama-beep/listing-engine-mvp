@@ -313,7 +313,7 @@ test("non-JSON, malformed, missing-ID, oversized, secret-shaped, and connection 
     assertRejectedInferenceInvariant(completed, artifactText);
     const diagnostic = completed.result.providerDiagnostics.inference;
     assert.equal(diagnostic.messageClassification, "OVERSIZED_ERROR_RESPONSE");
-    assert.equal(diagnostic.responseByteLength, PROVIDER_RESPONSE_BODY_LIMIT_BYTES);
+    assert.equal(diagnostic.responseByteLength, PROVIDER_RESPONSE_BODY_LIMIT_BYTES + 1);
     assert.equal(diagnostic.responseByteLengthClassification, "LOWER_BOUND");
     assert.equal(diagnostic.responseBodyTruncated, true);
     assert.equal(diagnostic.errorType, NOT_RECEIVED);

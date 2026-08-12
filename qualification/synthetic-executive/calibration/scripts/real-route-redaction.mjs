@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 
 export const NOT_RECEIVED = "NOT_RECEIVED";
 export const REDACTED = "REDACTED";
-export const PROVIDER_RESPONSE_BODY_LIMIT_BYTES = 65_536;
+export const PROVIDER_RESPONSE_BODY_LIMIT_BYTES = 1_048_576;
+export const PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES = PROVIDER_RESPONSE_BODY_LIMIT_BYTES + 1;
 export const PROVIDER_ERROR_MESSAGE_LIMIT_BYTES = 512;
 
 const SECRET_PATTERNS = Object.freeze([
@@ -114,12 +115,56 @@ export function unavailableProviderDiagnostics({ timeoutClassification = NOT_REC
   });
 }
 
+export async function readBoundedProviderResponseBody(response) {
+  const chunks = [];
+  let observedByteLength = 0;
+  let localHardLimitExceeded = false;
+  const append = (value) => {
+    const bytes = Buffer.from(value || []);
+    const remaining = PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES - observedByteLength;
+    if (remaining <= 0) return false;
+    const retained = bytes.length > remaining ? bytes.subarray(0, remaining) : bytes;
+    if (retained.length > 0) chunks.push(retained);
+    observedByteLength += retained.length;
+    if (observedByteLength > PROVIDER_RESPONSE_BODY_LIMIT_BYTES) {
+      localHardLimitExceeded = true;
+      return false;
+    }
+    return true;
+  };
+
+  if (response.body?.getReader) {
+    const reader = response.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!append(value)) break;
+      }
+    } finally {
+      if (localHardLimitExceeded) await reader.cancel().catch(() => {});
+    }
+  } else if (response.body && typeof response.body[Symbol.asyncIterator] === "function") {
+    for await (const value of response.body) if (!append(value)) break;
+  } else if (response.body === null || response.body === undefined) {
+    // A genuinely absent body is a complete zero-byte body. Buffering fallbacks
+    // are intentionally not used because they cannot enforce the overflow probe.
+  } else {
+    throw new SafeProviderFailure("PROVIDER_RESPONSE_BODY_UNAVAILABLE", response.status);
+  }
+
+  const bytes = Buffer.concat(chunks, observedByteLength);
+  assert.ok(bytes.length <= PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES);
+  assert.equal(localHardLimitExceeded, bytes.length > PROVIDER_RESPONSE_BODY_LIMIT_BYTES);
+  return Object.freeze({ bytes, observedByteLength, localHardLimitExceeded });
+}
+
 export function normalizeProviderResponseDiagnostics({
   status, requestId, contentType, responseByteLength, responseBodyTruncated = false,
   payload = null, parseState = "JSON"
 }) {
   assert.ok(Number.isInteger(status) && status >= 100 && status <= 599, "provider HTTP status is invalid");
-  assert.ok(Number.isInteger(responseByteLength) && responseByteLength >= 0 && responseByteLength <= PROVIDER_RESPONSE_BODY_LIMIT_BYTES, "bounded provider response byte length is invalid");
+  assert.ok(Number.isInteger(responseByteLength) && responseByteLength >= 0 && responseByteLength <= PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES, "bounded provider response byte length is invalid");
   const isError = status < 200 || status >= 300;
   const error = isError && payload?.error && typeof payload.error === "object" && !Array.isArray(payload.error) ? payload.error : null;
   const diagnostic = {
@@ -161,7 +206,7 @@ export function assertProviderDiagnostics(value) {
   assert.ok(value.safeProviderRequestId === NOT_RECEIVED || safeProviderRequestId(value.safeProviderRequestId) === value.safeProviderRequestId);
   assert.equal(typeof value.responseContentType, "string");
   assert.ok(value.responseContentType === NOT_RECEIVED || /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]{1,96}$/.test(value.responseContentType));
-  assert.ok(value.responseByteLength === NOT_RECEIVED || (Number.isInteger(value.responseByteLength) && value.responseByteLength >= 0 && value.responseByteLength <= PROVIDER_RESPONSE_BODY_LIMIT_BYTES));
+  assert.ok(value.responseByteLength === NOT_RECEIVED || (Number.isInteger(value.responseByteLength) && value.responseByteLength >= 0 && value.responseByteLength <= PROVIDER_RESPONSE_BODY_OVERFLOW_PROBE_BYTES));
   assert.ok([NOT_RECEIVED, "EXACT", "LOWER_BOUND"].includes(value.responseByteLengthClassification));
   assert.ok(value.responseBodyTruncated === NOT_RECEIVED || typeof value.responseBodyTruncated === "boolean");
   assert.ok([NOT_RECEIVED, "TIMEOUT", "NOT_TIMEOUT"].includes(value.timeoutClassification));

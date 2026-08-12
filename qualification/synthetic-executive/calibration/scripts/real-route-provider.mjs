@@ -3,8 +3,8 @@ import { sha256Bytes, sha256Json } from "../../scripts/protocol.mjs";
 import { assertCalibrationInferencePermit } from "./real-route-governor.mjs";
 import { buildCalibrationInferenceRequestEnvelope, extractSafeUsage } from "./real-route-profile.mjs";
 import {
-  PROVIDER_RESPONSE_BODY_LIMIT_BYTES, SafeProviderFailure, classifyHttpFailure,
-  normalizeProviderResponseDiagnostics, safeProviderRequestId, unavailableProviderDiagnostics
+  SafeProviderFailure, classifyHttpFailure, normalizeProviderResponseDiagnostics,
+  readBoundedProviderResponseBody, safeProviderRequestId, unavailableProviderDiagnostics
 } from "./real-route-redaction.mjs";
 
 function endpoint(profile, relativePath) {
@@ -15,43 +15,7 @@ function endpoint(profile, relativePath) {
 }
 
 async function inspectProviderResponse(response) {
-  const chunks = [];
-  let responseByteLength = 0;
-  let responseBodyTruncated = false;
-  const append = (value) => {
-    const bytes = Buffer.from(value);
-    const remaining = PROVIDER_RESPONSE_BODY_LIMIT_BYTES - responseByteLength;
-    if (bytes.length > remaining) {
-      if (remaining > 0) chunks.push(bytes.subarray(0, remaining));
-      responseByteLength += Math.max(0, remaining);
-      responseBodyTruncated = true;
-      return false;
-    }
-    chunks.push(bytes);
-    responseByteLength += bytes.length;
-    return true;
-  };
-
-  if (response.body?.getReader) {
-    const reader = response.body.getReader();
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!append(value)) break;
-      }
-    } finally {
-      if (responseBodyTruncated) await reader.cancel().catch(() => {});
-    }
-  } else if (typeof response.arrayBuffer === "function") {
-    append(new Uint8Array(await response.arrayBuffer()));
-  } else if (typeof response.text === "function") {
-    append(Buffer.from(await response.text(), "utf8"));
-  } else {
-    throw new SafeProviderFailure("PROVIDER_RESPONSE_BODY_UNAVAILABLE", response.status);
-  }
-
-  const bytes = Buffer.concat(chunks, responseByteLength);
+  const { bytes, observedByteLength: responseByteLength, localHardLimitExceeded: responseBodyTruncated } = await readBoundedProviderResponseBody(response);
   let payload = null;
   let parseState = "JSON";
   if (!responseBodyTruncated) {
@@ -154,7 +118,7 @@ export class OpenAIRealRouteClient {
     const providerRequestId = diagnostics.safeProviderRequestId === "NOT_RECEIVED" ? null : diagnostics.safeProviderRequestId;
     if (response.status >= 300 && response.status < 400) throw new SafeProviderFailure("PROVIDER_REDIRECT_REJECTED", response.status, diagnostics);
     if (!response.ok) throw new SafeProviderFailure(classifyHttpFailure(response.status), response.status, diagnostics);
-    if (inspected.responseBodyTruncated) throw new SafeProviderFailure("PROVIDER_RESPONSE_TOO_LARGE", response.status, diagnostics);
+    if (inspected.responseBodyTruncated) throw new SafeProviderFailure("PROVIDER_RESPONSE_LOCAL_HARD_LIMIT_EXCEEDED", response.status, diagnostics);
     if (inspected.parseState !== "JSON") throw new SafeProviderFailure("PROVIDER_JSON_INVALID", response.status, diagnostics);
     const safe = {
       httpSuccessClass: "HTTP_2XX", returnedModelId: typeof payload.id === "string" ? payload.id : null,
@@ -187,7 +151,7 @@ export class OpenAIRealRouteClient {
     const providerRequestId = diagnostics.safeProviderRequestId === "NOT_RECEIVED" ? null : diagnostics.safeProviderRequestId;
     if (response.status >= 300 && response.status < 400) throw new SafeProviderFailure("PROVIDER_REDIRECT_REJECTED", response.status, diagnostics);
     if (!response.ok) throw new SafeProviderFailure(classifyHttpFailure(response.status), response.status, diagnostics);
-    if (inspected.responseBodyTruncated) throw new SafeProviderFailure("PROVIDER_RESPONSE_TOO_LARGE", response.status, diagnostics);
+    if (inspected.responseBodyTruncated) throw new SafeProviderFailure("PROVIDER_RESPONSE_LOCAL_HARD_LIMIT_EXCEEDED", response.status, diagnostics);
     if (inspected.parseState !== "JSON") throw new SafeProviderFailure("PROVIDER_JSON_INVALID", response.status, diagnostics);
     if (payload.model !== this.#profile.exactModelId) throw new SafeProviderFailure("MODEL_ID_MISMATCH", response.status, diagnostics);
     if (payload.status !== "completed") throw new SafeProviderFailure(payload.status === "incomplete" ? "PROVIDER_RESPONSE_INCOMPLETE" : "PROVIDER_RESPONSE_NOT_COMPLETED", response.status, diagnostics);

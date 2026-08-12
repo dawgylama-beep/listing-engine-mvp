@@ -28,7 +28,9 @@ const RUNTIME_COMMIT = "a".repeat(40);
 const RUNTIME_TREE = "b".repeat(40);
 const RELEASE_HASH = "c".repeat(64);
 const RECEIPT_HASH = "d".repeat(64);
-const TEST_CREATED_AT = "2026-08-10T22:00:00.000Z";
+// This legacy authority has a real 24-hour expiry; keep the fixture fresh without
+// weakening production expiry validation or mutating either consumed authority.
+const TEST_CREATED_AT = new Date(Date.now() - 1_000).toISOString();
 
 function validActionCore(calibrationCase) {
   return {

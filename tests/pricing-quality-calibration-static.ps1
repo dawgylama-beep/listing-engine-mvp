@@ -16,9 +16,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.33"; Text = $index; Pattern = "Version 1.12.33" },
-  @{ Name = "Package version is 1.12.33"; Text = $package; Pattern = '"version": "1.12.33"' },
-  @{ Name = "Server version is 1.12.33"; Text = $server; Pattern = '$AppVersion = "1.12.33"' },
+  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
+  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
+  @{ Name = "Server version is 1.12.34"; Text = $server; Pattern = '$AppVersion = "1.12.34"' },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Canonical range groups current retail separately"; Text = $range; Pattern = 'key: "current_retail"' },
   @{ Name = "Canonical range groups active asking separately"; Text = $range; Pattern = 'key: "active_asking"' },

@@ -80,6 +80,9 @@ test("completed Responses evidence is additive and preserves structured-action b
   assert.equal(evidence.responseContentType, "application/json");
   assert.equal(evidence.rawResponseByteLength, Buffer.byteLength(serialized));
   assert.equal(evidence.rawResponseSha256, sha256Bytes(Buffer.from(serialized)));
+  assert.equal(evidence.observedResponseByteLength, Buffer.byteLength(serialized));
+  assert.equal(evidence.responseBodySha256Classification, "COMPLETE");
+  assert.equal(evidence.localResponseHardLimitClassification, "WITHIN_LIMIT");
   assert.equal(evidence.safeProviderRequestId, "req_fixture_01");
   assert.equal(evidence.providerResponseId, "resp_fixture_01");
   assert.equal(evidence.returnedModel, "gpt-5.6-sol");
@@ -148,6 +151,7 @@ test("malformed JSON, wrong model, and absent optional fields retain bounded res
   );
   assert.equal(malformed.safeResponseEvidence.rawResponseByteLength, malformedBytes.length);
   assert.equal(malformed.safeResponseEvidence.rawResponseSha256, sha256Bytes(malformedBytes));
+  assert.equal(malformed.safeResponseEvidence.responseBodySha256Classification, "COMPLETE");
   assert.equal(malformed.safeResponseEvidence.providerResponseId, QUALIFICATION_RESPONSE_ABSENT);
 
   const wrongModel = await captureFailure(responseBody({ model: "gpt-fixture-wrong" }));
