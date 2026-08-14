@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_35_WINDOWS_LONG_PATH_TERMINAL_SUITE_RESULT",
+  "recordState": "SEALED_GATE_D_ACCEPTED",
+  "version": "1.12.35",
+  "createdAt": "2026-08-14T23:22:56.7324876Z",
+  "executionIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "startingHead": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "startingTree": "f024817bc1a181bfeeb1ade1c5e8b42387ccd974",
+    "runnerSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc",
+    "proofTestSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67",
+    "successorIdentity": "VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "command": "node qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs RUN VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+    "attemptCount": 1,
+    "retryCount": 0
+  },
+  "processScopedGitContext": {
+    "GIT_CONFIG_COUNT": "1",
+    "GIT_CONFIG_KEY_0": "core.longpaths",
+    "GIT_CONFIG_VALUE_0": "true",
+    "effectiveValueBeforeTerminalProcess": "true",
+    "inheritedByRunnerAndGitChildren": true,
+    "otherAddedEnvironmentAuthority": false,
+    "repositoryConfigSha256Before": "ffa044174af66dbbe83351ea42a8958f8b5e56d7a77f6e3d199906cfe6a4f665",
+    "repositoryConfigSha256After": "ffa044174af66dbbe83351ea42a8958f8b5e56d7a77f6e3d199906cfe6a4f665",
+    "persistentConfigurationCreated": false,
+    "parentEnvironmentRestored": true
+  },
+  "result": {
+    "accepted": true,
+    "childExitCode": 0,
+    "selected": 542,
+    "passed": 526,
+    "failed": 0,
+    "skipped": 16,
+    "cancelled": 0,
+    "todo": 0,
+    "executedNonSkipped": 526,
+    "reportedEntryCount": 542,
+    "uniqueReportedEntryCount": 542,
+    "missingEntries": 0,
+    "unexpectedEntries": 0,
+    "duplicateEntries": 0,
+    "unclassifiedEntries": 0,
+    "N": {
+      "count": 543,
+      "hash": "8b833a400fedc387e6aec22588bf44afae94c52dbfea7a3ba8ed407fdd7da7ab"
+    },
+    "X": {
+      "count": 1,
+      "hash": "0f62afbfa7d490d0235dc6d20d82a89585ac7c691d4d03d59b50338910882bf4",
+      "executed": false,
+      "outputOccurrences": 0
+    },
+    "R": {
+      "count": 542,
+      "hash": "e2893e347d7eb1a9fd25839c5293ef690b8a80aaf054ba51ac1aa3d885430dc5",
+      "reportedExactlyOnce": 542,
+      "nonSkippedExecutedExactlyOnce": 526,
+      "reportedSkipped": 16
+    },
+    "formerlyBlockedDetachedRuntimeTests": [
+      {
+        "testIdentity": "B-C: two fresh current-process runtimes verify identically and cleanup through Git",
+        "outcome": "PASSED"
+      },
+      {
+        "testIdentity": "D-H: wrong linkage, release drift, dirtiness, and tracked-file changes fail closed",
+        "outcome": "PASSED"
+      }
+    ],
+    "otherFixtureSourceTestsReportedExactlyOnce": 5,
+    "temporaryDerivedSourceRemoved": true
+  },
+  "successorCapture": {
+    "normalizedDirectory": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/",
+    "memberCount": 4,
+    "totalBytes": 166771,
+    "aggregateHash": "e5c094a65a0520b9f7289056a8d4400c74b837510f2c2845b072043eae3d41a6",
+    "members": [
+      {
+        "byteLength": 103434,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/accepted-result.json",
+        "sha256": "7e635111d1dea9f69ac3a74b72bdb86f12e5981b2960b6ddc261e11cdd870798"
+      },
+      {
+        "byteLength": 2928,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/child-command.json",
+        "sha256": "7ff139750fc33b05882edd2c84725681385c77c96657a0588ed1329b63636123"
+      },
+      {
+        "byteLength": 0,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "byteLength": 60409,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/stdout.txt",
+        "sha256": "64a4a561aaaa23b120b27e39313a50268ed96b002ad2e1f9f48e3806e9fb3ab1"
+      }
+    ],
+    "stdoutComplete": true,
+    "stdoutSha256": "64a4a561aaaa23b120b27e39313a50268ed96b002ad2e1f9f48e3806e9fb3ab1",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "childCommandSha256": "7ff139750fc33b05882edd2c84725681385c77c96657a0588ed1329b63636123"
+  },
+  "cleanup": {
+    "registeredWorktreeCount": 1,
+    "attributableTemporaryDirectories": 0,
+    "shortPreflightRootPresent": false,
+    "testWorktreeResiduePresent": false,
+    "pruneRequired": false
+  },
+  "preservation": {
+    "priorCaptureMemberCount": 3,
+    "priorCaptureTotalBytes": 62985,
+    "priorCaptureAggregate": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+    "priorCaptureModified": false,
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "resultHash": "e77bff42fbe68660fa175e716bebcc6d4518fc8dd81d70199737ea358bf38282"
+}

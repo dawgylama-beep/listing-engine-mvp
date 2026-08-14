@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_WINDOWS_LONG_PATH_TERMINAL_RELEASE_VALIDATION_STOP",
+  "classification": "VERSION_1_12_35_RELEASE_VALIDATION_STOPPED_BY_STALE_FRONTEND_VERSION_TEST",
+  "recordState": "SEALED_FAILURE_NO_RELEASE",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-14T23:28:02.8365268Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "tree": "f024817bc1a181bfeeb1ade1c5e8b42387ccd974",
+    "parent": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 5,
+    "behind": 0
+  },
+  "completedGates": {
+    "gateAWindowsLongPathRootCause": "PASS",
+    "gateBProcessScopedGitContext": "PASS",
+    "gateCExactlyOneCapabilityPreflight": "PASS",
+    "gateDExactlyOneSuccessorTerminalSuite": "PASS",
+    "terminalSuiteResultHash": "e77bff42fbe68660fa175e716bebcc6d4518fc8dd81d70199737ea358bf38282",
+    "terminalSuiteResultFileSha256": "0714e05732fe991b4c96602ec11f46d532e75ba78c006b61cc7e0acb663204b0",
+    "executionContextHash": "d1b3ddd0b487af9f2558ce60868e23d6371aa768fa5ef8731980ff9a46b675cf",
+    "executionContextFileSha256": "9129a24b5ef7775eb4ddeb76fea67ac73718e0b5b1faf5f9e9a2bacb32844377"
+  },
+  "gateE": {
+    "result": "FAIL_STOPPED_AT_FIRST_FAILURE",
+    "lockedOrder": [
+      "POWERSHELL_STATIC",
+      "BROWSER",
+      "SECRET_SCAN",
+      "JAVASCRIPT_SYNTAX",
+      "RELEASE_VERSION",
+      "RECONCILIATION",
+      "REPOSITORY_INTEGRITY"
+    ],
+    "powershellStatic": {
+      "discoveredTestFiles": 53,
+      "attemptedTestFiles": 2,
+      "passedTestFiles": 1,
+      "failedTestFiles": 1,
+      "firstResult": {
+        "path": "tests/all-four-workflow-compact-evidence-static.ps1",
+        "sha256": "c7b0ffaa5b9a1a02e0967c68ca1e56dfa8ccc4fb4ad699de25ad08872df53f41",
+        "exitCode": 0,
+        "outcome": "PASS",
+        "message": "All-four workflow compact evidence static checks OK - canonical presentation contract verified."
+      },
+      "terminalFailure": {
+        "path": "tests/ask-market-edge-instruction-static.ps1",
+        "sha256": "7e09cd755bd4ad004dfa96413668f9a4abe7c968ff1b69524e6d016a6aebb56e",
+        "exitCode": 1,
+        "assertionName": "Frontend visible version is current",
+        "assertionPath": "tests/ask-market-edge-instruction-static.ps1:34",
+        "expectedLiteral": "Version 1.12.34",
+        "actualCanonicalVersion": "1.12.35",
+        "actualSurfacePaths": [
+          "public/index.html:2",
+          "public/index.html:35"
+        ],
+        "publicIndexSha256": "bdf0d69b850ce8f7a508d27af7be10aa6318f535392b197f78f93b7685656772",
+        "failureMessage": "Ask Katherine static instruction checks failed: Frontend visible version is current",
+        "classification": "UNRELATED_STATIC_TEST_ACTIVE_VERSION_LITERAL_STALE"
+      }
+    },
+    "notReached": {
+      "remainingPowerShellStaticTests": 51,
+      "serverStatic": "NOT_REACHED",
+      "browser": "NOT_REACHED",
+      "secretScan": "NOT_REACHED",
+      "javascriptSyntax": "NOT_REACHED",
+      "releaseVersion": "NOT_REACHED",
+      "reconciliation": "NOT_REACHED",
+      "repositoryIntegrity": "NOT_REACHED"
+    },
+    "repairAttempted": false,
+    "retryAttempted": false
+  },
+  "successorCapture": {
+    "normalizedDirectory": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/",
+    "memberCount": 4,
+    "totalBytes": 166771,
+    "aggregateHash": "e5c094a65a0520b9f7289056a8d4400c74b837510f2c2845b072043eae3d41a6"
+  },
+  "preservation": {
+    "repositoryConfigSha256": "ffa044174af66dbbe83351ea42a8958f8b5e56d7a77f6e3d199906cfe6a4f665",
+    "registeredWorktreeCount": 1,
+    "disposableWorktreeResidue": 0,
+    "priorCaptureMemberCount": 3,
+    "priorCaptureTotalBytes": 62985,
+    "priorCaptureAggregate": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+    "phase6aFileCount": 85,
+    "phase6aTotalBytes": 72299353,
+    "phase6aInventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "phase6aPathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "phase6aInvocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "phase6aModified": false,
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+  },
+  "release": {
+    "finalReleaseRecordCreated": false,
+    "releaseAggregateCreated": false,
+    "releaseCommitCreated": false,
+    "pushPerformed": false,
+    "versionReleased": false
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "receiptHash": "4b130e9ba07c90305f904c3cba87a66a7a4adb2d82e5e98ab1ba287f4050bbdd"
+}

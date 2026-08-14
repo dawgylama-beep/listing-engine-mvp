@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_35_WINDOWS_LONG_PATH_EXECUTION_CONTEXT",
+  "recordState": "SEALED_PRE_TERMINAL_EXECUTION_CONTEXT",
+  "version": "1.12.35",
+  "createdAt": "2026-08-14T23:18:35.1478843Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "tree": "f024817bc1a181bfeeb1ade1c5e8b42387ccd974",
+    "parent": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 5,
+    "behind": 0
+  },
+  "gateA": {
+    "result": "PASS",
+    "retainedWorktreeAddAttempts": 1,
+    "retainedAddExitCode": 128,
+    "gitMetadataPermissionWasBlocker": false,
+    "trackedCheckoutReached": true,
+    "rootCause": "WINDOWS_PATH_LENGTH_HANDLING_DURING_TRACKED_CHECKOUT",
+    "detachedCommitVerificationReached": false,
+    "cleanupRestoredOriginalWorktreeOnly": true,
+    "successorCaptureAbsent": true,
+    "longestTrackedRelativePath": "qualification/synthetic-executive/qualification-real-route/response-boundary-recovery/v2-c13-c14-d198c3e-20260812t2355z/cases/KE-V2-C13/v2-ke-v2-c13-provider_attempt-003-47b3156bacfb7c0e-pre-dispatch.json",
+    "longestTrackedRelativePathCharacters": 204,
+    "failedDisposableRootPattern": "C:\\Users\\dawgy\\AppData\\Local\\Temp\\katherine-v11235-distinct-capture-preflight-<32-hex-guid>",
+    "failedDisposableRootCharacters": 110,
+    "projectedFailedAbsoluteCharacters": 315,
+    "shortDisposableRoot": "C:\\Users\\dawgy\\k35w1",
+    "shortDisposableRootCharacters": 20,
+    "projectedShortAbsoluteCharacters": 225,
+    "shortPathAloneDeclaredSufficient": false
+  },
+  "gateB": {
+    "result": "PASS",
+    "processScopedGitConfiguration": {
+      "GIT_CONFIG_COUNT": "1",
+      "GIT_CONFIG_KEY_0": "core.longpaths",
+      "GIT_CONFIG_VALUE_0": "true"
+    },
+    "effectiveGitValue": "true",
+    "effectiveInsideDisposableWorktree": "true",
+    "persistentConfigurationCreated": false,
+    "repositoryConfigSha256Before": "ffa044174af66dbbe83351ea42a8958f8b5e56d7a77f6e3d199906cfe6a4f665",
+    "repositoryConfigSha256After": "ffa044174af66dbbe83351ea42a8958f8b5e56d7a77f6e3d199906cfe6a4f665",
+    "parentEnvironmentRestored": true,
+    "otherEnvironmentAuthorityAdded": false
+  },
+  "gateC": {
+    "result": "PASS",
+    "attemptCount": 1,
+    "target": "C:\\Users\\dawgy\\k35w1",
+    "addCommand": "git worktree add --detach C:\\Users\\dawgy\\k35w1 2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "addExitCode": 0,
+    "resolvedHead": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "detached": true,
+    "trackedPathCount": 2248,
+    "longestTrackedPathPresent": true,
+    "longestTrackedPathIndexOid": "b4fd41edb4b29cb541f8beca2f8c4d4301dd9bb0",
+    "longestTrackedPathWorktreeOid": "b4fd41edb4b29cb541f8beca2f8c4d4301dd9bb0",
+    "worktreeClean": true,
+    "removeCommand": "git worktree remove C:\\Users\\dawgy\\k35w1",
+    "removeExitCode": 0,
+    "pruneRequired": false,
+    "registeredWorktreeListBefore": [
+      "worktree C:/Users/dawgy/Projects/listing-engine-mvp",
+      "HEAD 2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+      "branch refs/heads/refactor/beta-evidence-pipeline"
+    ],
+    "registeredWorktreeListAfter": [
+      "worktree C:/Users/dawgy/Projects/listing-engine-mvp",
+      "HEAD 2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+      "branch refs/heads/refactor/beta-evidence-pipeline"
+    ],
+    "normalizedListHash": "bb38967dd7e0b63f92b734b9f78fd2958799ae931616969ed658c4d5aecb88e8",
+    "listsIdentical": true,
+    "targetRemoved": true,
+    "repositoryStatusIdentical": true,
+    "successorCaptureStillAbsent": true
+  },
+  "terminalExecution": {
+    "authorizedCommand": "node qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs RUN VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "startingHead": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "runnerSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc",
+    "proofTestSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67",
+    "successorIdentity": "VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "successorCapturePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/",
+    "requiredInheritedGitEnvironment": {
+      "GIT_CONFIG_COUNT": "1",
+      "GIT_CONFIG_KEY_0": "core.longpaths",
+      "GIT_CONFIG_VALUE_0": "true"
+    },
+    "attemptsBeforeRecord": 0
+  },
+  "preservation": {
+    "priorCaptureMemberCount": 3,
+    "priorCaptureTotalBytes": 62985,
+    "priorCaptureAggregate": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+    "priorCaptureModified": false,
+    "successorCaptureCreated": false,
+    "phase6aFileCount": 85,
+    "phase6aTotalBytes": 72299353,
+    "phase6aInventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "phase6aPathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "phase6aInvocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "contextHash": "d1b3ddd0b487af9f2558ce60868e23d6371aa768fa5ef8731980ff9a46b675cf"
+}
