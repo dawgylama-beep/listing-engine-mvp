@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0",
+  "policyType": "VERSION_1_12_35_PROSPECTIVE_PHASE_OWNED_TERMINAL_NODE_SUITE",
+  "policyState": "SEALED_PROSPECTIVE_RELEASE_SUITE_POLICY",
+  "version": "1.12.35",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "2c553aa06f54032f73b6a9042e4d6ef4537fdfcb",
+    "tree": "bf43c709da675d78edeb413b1244a274e4233b06",
+    "parent": "a287b81aa63097bc75ada436d468e405541fa660",
+    "remoteCheckpoint": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35"
+  },
+  "formerSweep": {
+    "command": "node --test",
+    "runHead": "a287b81aa63097bc75ada436d468e405541fa660",
+    "tests": 543,
+    "passed": 526,
+    "failed": 1,
+    "skipped": 16,
+    "permanentlyFailed": true,
+    "acceptedAdjudication": "PREEXISTING_EXPECTED_NEGATIVE_AUTHORITY_ABSENT"
+  },
+  "sourceInputs": {
+    "count": 52,
+    "pathSetHash": "91233bdd0f8d3c0187210fecfe48a320986f4caa47a2cc03d3a14eb90fd43558",
+    "worktreeIdentityAggregateHash": "fe689b3ed1eaf257c0f00311f52ab1619ff41c8df2d13b2ae671d04a23d2e6ff"
+  },
+  "discovery": {
+    "registrationKinds": [
+      "STATIC_NODE_TEST",
+      "STATIC_NODE_TEST_SKIP",
+      "PINNED_ALIAS_NODE_TEST_SKIP",
+      "PINNED_DYNAMIC_TOP_LEVEL_TEST",
+      "PINNED_NESTED_TEST",
+      "NODE_FILE_PROCESS_TEST"
+    ],
+    "staticNodeTestCallsites": 507,
+    "staticNodeTestSkipCallsites": 2,
+    "pinnedAlias": {
+      "sourcePath": "tests/synthetic-executive-v2-held-out-corpus.test.mjs",
+      "identifier": "preRemediationBuildTest",
+      "registration": "test.skip",
+      "entryCount": 14
+    },
+    "dynamicTopLevelRegistrations": [
+      {
+        "sourcePath": "tests/customer-evidence-handler-purposes.test.mjs",
+        "template": "real handler preserves canonical customer evidence for ${scenario.name}",
+        "testIdentities": [
+          "real handler preserves canonical customer evidence for Buy for Myself",
+          "real handler preserves canonical customer evidence for Buy to Resell",
+          "real handler preserves canonical customer evidence for Value Something I Own",
+          "real handler preserves canonical customer evidence for Sell Something I Own"
+        ]
+      },
+      {
+        "sourcePath": "tests/local-production-handler-parity.test.mjs",
+        "template": "local server exactly matches the production handler for ${scenario.name}",
+        "testIdentities": [
+          "local server exactly matches the production handler for Buying for Myself",
+          "local server exactly matches the production handler for Buying to Resell",
+          "local server exactly matches the production handler for Value Something I Own",
+          "local server exactly matches the production handler for Sell Something I Own"
+        ]
+      }
+    ],
+    "nestedRegistration": {
+      "sourcePath": "tests/synthetic-executive-real-route-calibration.test.mjs",
+      "parentIdentity": "HTTP provider rejections preserve only the closed safe diagnostic contract through readback",
+      "callsiteCount": 7,
+      "childIdentities": [
+        "400",
+        "401",
+        "403",
+        "404",
+        "429",
+        "500",
+        "non-JSON error",
+        "malformed JSON error",
+        "missing request ID",
+        "oversized error body",
+        "secret-shaped values",
+        "connection failure"
+      ]
+    },
+    "fileProcessRegistrations": [
+      {
+        "sourcePath": "benchmarks/blind-object-v1-execution-v1/scripts/test-executor.mjs",
+        "testIdentity": "benchmarks/blind-object-v1-execution-v1/scripts/test-executor.mjs"
+      },
+      {
+        "sourcePath": "tests/canonical-recovery-alignment.test.mjs",
+        "testIdentity": "tests/canonical-recovery-alignment.test.mjs"
+      }
+    ]
+  },
+  "phaseOwnership": {
+    "preAuthoritySuite": {
+      "fixtureMandatory": true,
+      "fixtureMayBeSkipped": false,
+      "fixtureMayBeModified": false
+    },
+    "terminalReleaseSuite": {
+      "selectionOperation": "N_MINUS_EXACT_X",
+      "excludedEntryCount": 1,
+      "additionalExclusionsPermitted": false,
+      "unknownEntriesPermitted": false,
+      "excludedEntryMayBeReportedAsPassedFailedSkippedOrExpectedNegative": false
+    }
+  },
+  "sets": {
+    "N": {
+      "count": 543,
+      "hash": "8b833a400fedc387e6aec22588bf44afae94c52dbfea7a3ba8ed407fdd7da7ab"
+    },
+    "X": {
+      "count": 1,
+      "hash": "0f62afbfa7d490d0235dc6d20d82a89585ac7c691d4d03d59b50338910882bf4",
+      "entry": {
+        "sourcePath": "tests/synthetic-executive-v3-held-out-corpus.test.mjs",
+        "testIdentity": "V3 authority is create-only, activates once, and consumes only its first ordered slot"
+      },
+      "sourceIdentity": {
+        "worktreeSha256": "59a26aa7d65c178f6712f1c8e250a44091c9daa14e3c228e1dc04bd807107e8c",
+        "gitBlobOid": "1e3fbd77ea3de4a7aeec785d5101c1dd34320c04",
+        "gitBlobSha256": "59a26aa7d65c178f6712f1c8e250a44091c9daa14e3c228e1dc04bd807107e8c",
+        "sourceEntryCount": 6,
+        "remainingTerminalEntryCount": 5
+      },
+      "historicalPhaseEvidence": [
+        {
+          "path": "qualification/synthetic-executive/v3-cognitive-remediation/v3-release-binding-successor-executable-freeze.json",
+          "identityField": "successorFreezeHash",
+          "identity": "45f7779d2ad4a16f3a99bc4eadd994a93edf40776d26f39a0c9016c43db37f02"
+        },
+        {
+          "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-post-execution-validator-correction.json",
+          "identityField": "correctionHash",
+          "identity": "9e8ed05dbe52306f1bb27d5bc5ca5d440d18f8c230a7ecbaa5b86de30ba2fd45",
+          "governingField": "validation.broadNodeSweep.postExecutionAuthorityFixtureApplicableToTerminalRelease",
+          "governingValue": false
+        }
+      ]
+    },
+    "R": {
+      "count": 542,
+      "hash": "e2893e347d7eb1a9fd25839c5293ef690b8a80aaf054ba51ac1aa3d885430dc5",
+      "knownSourceDefinedSkipCount": 16
+    }
+  },
+  "execution": {
+    "runner": "qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs",
+    "command": "node qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs RUN",
+    "temporaryDerivedSourceRequired": true,
+    "temporaryDerivedSourceMustBeRemoved": true,
+    "originalFixtureSourceExecuted": false,
+    "expected": {
+      "tests": 542,
+      "passed": 526,
+      "failed": 0,
+      "skipped": 16,
+      "cancelled": 0,
+      "todo": 0
+    }
+  },
+  "prohibitions": {
+    "broadFilenameFilter": true,
+    "namePatternBypass": true,
+    "arbitraryIgnoreList": true,
+    "fixtureMutation": true,
+    "credentialAccess": true,
+    "providerAccess": true,
+    "authorityCreation": true,
+    "qualificationReplay": true,
+    "productActivation": true,
+    "deployment": true
+  },
+  "policyHash": "3de5c38432510bd94b607fea2145bf8c66970b3c82c697b9ce0d0cef55835063"
+}

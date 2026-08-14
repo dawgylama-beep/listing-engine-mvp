@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_PHASE_OWNED_TERMINAL_SUITE_VALIDATION_STOP",
+  "receiptState": "SEALED_LOCAL_EVIDENCE_COMMIT_REQUIRED_REMOTE_RELEASE_PROHIBITED",
+  "version": "1.12.35",
+  "stoppedAt": "2026-08-14T21:56:49.447Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "2c553aa06f54032f73b6a9042e4d6ef4537fdfcb",
+    "tree": "bf43c709da675d78edeb413b1244a274e4233b06",
+    "parent": "a287b81aa63097bc75ada436d468e405541fa660",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHeadAtPreflight": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 2,
+    "behind": 0
+  },
+  "preservedClassifications": {
+    "preexistingExpectedNegativeAuthority": "PREEXISTING_EXPECTED_NEGATIVE_AUTHORITY_ABSENT",
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "failedFormerNodeSweepPreserved": true,
+    "formerNodeSweepRescoredOrRelabeled": false
+  },
+  "gateA": {
+    "result": "PASS",
+    "formerCommand": "node --test",
+    "sourceInputCount": 52,
+    "N": {
+      "count": 543,
+      "hash": "8b833a400fedc387e6aec22588bf44afae94c52dbfea7a3ba8ed407fdd7da7ab"
+    },
+    "X": {
+      "count": 1,
+      "hash": "0f62afbfa7d490d0235dc6d20d82a89585ac7c691d4d03d59b50338910882bf4",
+      "sourcePath": "tests/synthetic-executive-v3-held-out-corpus.test.mjs",
+      "testIdentity": "V3 authority is create-only, activates once, and consumes only its first ordered slot"
+    },
+    "R": {
+      "count": 542,
+      "hash": "e2893e347d7eb1a9fd25839c5293ef690b8a80aaf054ba51ac1aa3d885430dc5"
+    },
+    "fixtureSourceEntryCount": 6,
+    "fixtureSourceRemainingTerminalEntryCount": 5,
+    "missingEntries": 0,
+    "duplicateEntries": 0,
+    "unknownEntries": 0,
+    "unclassifiedEntries": 0
+  },
+  "prospectiveCorrection": {
+    "policy": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-phase-owned-terminal-suite-policy.json",
+      "fileSha256": "668b264028d8dec29177baa60f4cabb27e5b8d1b4068d647d8a3ebb03fac6dfa",
+      "policyHash": "3de5c38432510bd94b607fea2145bf8c66970b3c82c697b9ce0d0cef55835063"
+    },
+    "runner": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs",
+      "fileSha256": "1ab929d85b6e4aac15d7f95701f9856dffa0d7ab9e8778cf7687cf61142fd92d"
+    },
+    "proofTest": {
+      "path": "tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+      "fileSha256": "ef0203c8c48f40cbdcb2e57754acd3fd56e349e6f4d32d9e18b63278f8abd463"
+    },
+    "frozenFixture": {
+      "path": "tests/synthetic-executive-v3-held-out-corpus.test.mjs",
+      "fileSha256": "59a26aa7d65c178f6712f1c8e250a44091c9daa14e3c228e1dc04bd807107e8c",
+      "modified": false,
+      "executedByTerminalSuite": false
+    }
+  },
+  "policyProof": {
+    "command": "node --test tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+    "preliminaryIdentityFieldRun": {
+      "tests": 7,
+      "passed": 0,
+      "failed": 7,
+      "cause": "POLICY_MANIFEST_BUILDER_HASHED_JSON_BUFFER_REPRESENTATIONS_INSTEAD_OF_RAW_SOURCE_BYTES",
+      "scope": "AUTHORIZED_POLICY_IDENTITY_FIELDS_ONLY",
+      "fixtureChanged": false
+    },
+    "finalRun": {
+      "tests": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    "secondExclusionDenied": true,
+    "pinnedPathNameAndSourceMutationDenied": true,
+    "deletedDuplicatedAndUnknownEntriesDenied": true,
+    "otherFixtureSourceTestsPreserved": true,
+    "deterministicSetIdentitiesProved": true
+  },
+  "terminalFailure": {
+    "gate": "NEW_TERMINAL_RELEASE_NODE_SUITE_RESULT_CAPTURE",
+    "classification": "TERMINAL_RELEASE_SUITE_RESULT_CAPTURE_INCOMPLETE",
+    "runnerCommand": "node qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs RUN",
+    "runAttemptCount": 1,
+    "rerunCount": 0,
+    "planPublishedBeforeChildExecution": true,
+    "childProcessPromiseResolved": true,
+    "childProcessExitCode": 0,
+    "phaseExcludedFixtureAbsentFromChildOutput": true,
+    "originalFixtureSourceExecuted": false,
+    "temporaryDerivedSourceRemoved": true,
+    "postExecutionFailure": "NODE_TEST_SUMMARY_FIELD_MISSING:tests",
+    "cause": "RUNNER_EXPECTED_TAP_HASH_PREFIX_SUMMARY_WHILE_NODE_24_EMITTED_A_DIFFERENT_DEFAULT_REPORTER_FORMAT",
+    "reportedTests": "NOT_RETAINED",
+    "passedTests": "NOT_RETAINED",
+    "failedTests": "NOT_RETAINED",
+    "skippedTests": "NOT_RETAINED",
+    "unexplainedOmissions": "NOT_PROVABLE_ZERO",
+    "resultReconstructedOrInferred": false,
+    "repairAttemptedAfterOneShot": false,
+    "terminalStopRequired": true
+  },
+  "remainingValidation": {
+    "powerShell": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "browser": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "secretScan": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "frontendCredentialScan": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "releaseVersion": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "serverCheck": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "changedCodeSyntax": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "versionSurface": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "gitDiffCheck": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "frozenCognitiveAndCorpus": "NOT_RUN_AFTER_TERMINAL_STOP",
+    "executionEvaluationAuditAndSeal": "NOT_RUN_AFTER_TERMINAL_STOP"
+  },
+  "phase6a": {
+    "untracked": true,
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "modified": false,
+    "staged": false
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveProductHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0,
+    "pushes": 0
+  },
+  "disposition": {
+    "versionReleased": false,
+    "localEvidenceCommitPermitted": true,
+    "pushPermitted": false,
+    "mergePermitted": false,
+    "deploymentPermitted": false,
+    "remainingReleaseValidationPermitted": false
+  },
+  "receiptHash": "0921957d94669d0af7d4a505acef4f0b760a3273868e10122f6010fd5a88f0b3"
+}
