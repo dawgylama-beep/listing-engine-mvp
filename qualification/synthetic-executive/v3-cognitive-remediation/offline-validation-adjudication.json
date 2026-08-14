@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "adjudicationType": "V3_OFFLINE_VALIDATION_COUNT_AND_POST_FREEZE_GATE_ADJUDICATION",
+  "supersededValidationHash": "a880cb76b217b742438df2425f97cadf72e2f2bf7f011e3e80904cedd8e1a1ee",
+  "correction": {
+    "fullNodeActuallyRun": {
+      "tests": 536,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 19
+    },
+    "reason": "The pre-freeze record included the then-pending post-corpus authority test in projected full-suite totals. That test was not active during the full run and is reported separately here."
+  },
+  "postFreezeCorpusValidation": {
+    "tests": 6,
+    "passed": 5,
+    "failed": 1,
+    "skipped": 0,
+    "failedGate": "CREATE_ONLY_V3_AUTHORITY_OFFLINE_REGRESSION",
+    "integrityClassification": "V3_AUTHORITY_FROZEN_RELEASE_BINDING_MISMATCH",
+    "stopReceiptHash": "41ce3ee7168ae9ebd8b02c37f3c69e24fd7e22c702139d09d6811f33efda258e"
+  },
+  "unchangedPassedValidation": {
+    "focusedCognitive": "9/9",
+    "powerShellAndServerStatic": "54/54",
+    "browser": "13 passed, 1 repository-defined skip",
+    "syntaxFailures": 0,
+    "secretFindings": 0
+  },
+  "authorityCreated": false,
+  "credentialAccesses": 0,
+  "providerRequests": 0,
+  "adjudicationHash": "1c964880a8b7637343036502cc5ca27703d7d3a4280c5e7ecf67276f125384c1"
+}

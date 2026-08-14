@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_TERMINAL_VALIDATION_STOP_AFTER_POST_EXECUTION_VALIDATOR_CORRECTION",
+  "receiptState": "SEALED_LOCAL_EVIDENCE_COMMIT_REQUIRED_REMOTE_RELEASE_PROHIBITED",
+  "version": "1.12.35",
+  "stoppedAt": "2026-08-14T20:10:07.900Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "tree": "c6c8674108ff17fac1de8a3c779363e7ddf14960",
+    "trackingRef": "origin/refactor/beta-evidence-pipeline",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35"
+  },
+  "qualificationPreservation": {
+    "terminalClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "authorityBoundExecutionAggregateHash": "a3b7b6775133d31402a4d87707967d5e0da1ff2e4e2afa0c75e47f61ec8c6ac9",
+    "authorityHash": "e105bae4544d38ccf13b8cf3405dbfed784710fc83534f94928f5bedbf406ed8",
+    "terminalReceiptHash": "62850cd600cdba07065cae5c96c01160ded1efff64721348bd5b93bddc4c2ceb",
+    "executionSummaryHash": "db8a93fe918037e883da8b2cd8bc3a29f4cec3ecba0ff4576acc103b0cb7be91",
+    "evaluationHash": "d6af8dda6c602cc08bb9de1a4ba31650ca17631d1a8801445ba453bf374b820d",
+    "evaluatorAuditHash": "9a992a1dae9fc9d6da2ca1f7e8cd3e092b21ba6ef81a1d1e1744cba74add6f02",
+    "resultSealHash": "86051c9465bf5eabfac5dfe9f7056663810108a355eb994ed3daed6e801c5750",
+    "score": "67/98",
+    "percentage": 68.37,
+    "qualified": false,
+    "unchanged": true
+  },
+  "correctionEvidence": {
+    "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-post-execution-validator-correction.json",
+    "fileSha256": "27442383ec1af9e94205d4e371f03e573cb824a4f4871a07e727b7f77a4d6c10",
+    "correctionHash": "9e8ed05dbe52306f1bb27d5bc5ca5d440d18f8c230a7ecbaa5b86de30ba2fd45",
+    "validatorPriorSha256": "e1ab690e7cb9de45b10b9f9e1313d223507b9784659c73334346ba3d2df65f69",
+    "validatorCorrectedSha256": "64e6826ad87182d868285ee637b32f253c7b3090f7d7e42613ba85440b27fe56",
+    "affectedTestPriorSha256": "c22368d144e5409a6fbdb0e78d27e627ec1103c51e0d202164392cf680974ab9",
+    "affectedTestCorrectedSha256": "9d2bc8b27a41b78284a4d2ac9fa0341541ae1dc1ee5f5194146bf6e7ced82a36"
+  },
+  "terminalFailure": {
+    "gate": "FULL_POWERSHELL_AND_SERVER_STATIC",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/all-four-workflow-compact-evidence-static.ps1",
+    "exitCode": 1,
+    "assertion": "Canonical browser model loads before app.js",
+    "testPath": "tests/all-four-workflow-compact-evidence-static.ps1",
+    "testRuleLine": 48,
+    "testExpected": "customer-evidence.js?v=1.12.34 followed by app.js?v=1.12.34",
+    "candidateObserved": "customer-evidence.js?v=1.12.35 followed by app.js?v=1.12.35",
+    "classification": "UNRELATED_STATIC_TEST_ACTIVE_VERSION_LITERAL_STALE",
+    "relatedToAuthorizedValidatorCorrection": false,
+    "repairAttempted": false,
+    "waived": false,
+    "terminalStopRequired": true
+  },
+  "validationBeforeStop": {
+    "gateA": "PASS",
+    "focusedReleaseValidator": "5/5 PASS",
+    "completeReleaseVersion": "PASS",
+    "changedJavaScriptSyntax": "15/15 PASS",
+    "gitDiffCheck": "PASS",
+    "serverCheck": "PASS",
+    "powerShellStatic": "0/1 PASS; 1/1 FAIL; remaining 52 not run because the docket requires immediate stop",
+    "broadNodeSweep": "524 passed, 3 failed, 16 skipped of 543; two sandbox-only failures passed 2/2 on permitted rerun; one post-execution authority fixture failed before creation on the intentionally preserved execution-freeze hash mismatch",
+    "remainingTerminalValidation": "NOT_RUN_AFTER_UNRELATED_REGRESSION_STOP"
+  },
+  "localTerminalEvidenceInventory": {
+    "hashBasis": "RAW_WORKTREE_FILE_BYTES_WITH_LEXICOGRAPHIC_NORMALIZED_PATHS",
+    "receiptExcludedFromOwnAggregate": true,
+    "artifactCount": 698,
+    "pathSetSha256": "31b4b1ad6db3356ab8e250c2fbe62f85ebce6c47cfdb7b59e8bf7bb55a1b1dd1",
+    "artifactAggregateHash": "7934d19569a95c537ef3c328bd3f1255c166870078051505d5bc585d2a7a1375",
+    "derivation": "the exact 697-path post-execution candidate inventory bound by the correction record plus the correction-record path and raw SHA-256; this terminal receipt is excluded from its own aggregate",
+    "phase6aIntersectionCount": 0
+  },
+  "phase6aPreservation": {
+    "untracked": true,
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "pathSetSha256": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "inventorySha256": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "invocationManifestSha256": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "excludedFromCommit": true
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "caseReplays": 0,
+    "remoteWrites": 0,
+    "pushes": 0,
+    "merges": 0,
+    "deployments": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "productHandlerCalls": 0
+  },
+  "disposition": {
+    "localVersionCommitPurpose": "APPEND_ONLY_TERMINAL_EVIDENCE_PRESERVATION_ONLY",
+    "localVersionCommitPermitted": true,
+    "remoteReleasePermitted": false,
+    "pushPermitted": false,
+    "mergePermitted": false,
+    "deploymentPermitted": false,
+    "releasedClassificationPermitted": false
+  },
+  "receiptHash": "9c49b136dfcc7231702fbcbb13d8d02a91312b73420531ec1177bd664bd0125c"
+}

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import {
   BOUNDED_REQUEST_CONTRACT_HASH, REQUEST_FIELD_CONTRACTS, assertNoDuplicateLogicalBounds,
@@ -18,9 +20,7 @@ import {
   QUALIFICATION_STRUCTURED_OUTPUT_KEYWORD_ALLOWLIST, QUALIFICATION_STRUCTURED_OUTPUT_REJECTED_KEYWORDS,
   assertQualificationStructuredOutputsSubset, createQualificationActionTransportSchema
 } from "../qualification/synthetic-executive/qualification-real-route/scripts/qualification-route.mjs";
-import {
-  buildBoundedRequestEnvelopeRelease, validateBoundedRequestEnvelopeRelease
-} from "../qualification/synthetic-executive/qualification-real-route/scripts/bounded-request-envelope-release.mjs";
+import { validateBoundedRequestEnvelopeRelease } from "../qualification/synthetic-executive/qualification-real-route/scripts/bounded-request-envelope-release.mjs";
 import { sha256Json, stableJson } from "../qualification/synthetic-executive/scripts/protocol.mjs";
 
 const ids = Array.from({ length: 12 }, (_, index) => `artifact-${String(index + 1).padStart(2, "0")}`);
@@ -271,11 +271,12 @@ test("deterministic property generation rejects 256 oversized, cross-branch, une
   }
 });
 
-test("deterministic generated artifacts and sealed Version 1.12.29 release rebuild exactly with zero activity", async () => {
-  const built = await buildBoundedRequestEnvelopeRelease(); validateBoundedRequestEnvelopeRelease(built.release);
-  assert.equal(built.release.version, "1.12.29"); assert.equal(built.release.contractBindings.registeredActionCount, 13);
-  assert.equal(built.release.contractBindings.registeredStateActionPairCount, 27);
-  assert.equal(built.release.activityAssertions.providerRequestCount, 0); assert.equal(built.release.activityAssertions.qualificationCasesExecuted, 0);
-  assert.equal(built.release.claims.qualification, false); assert.equal(built.release.claims.cognition, false);
-  assert.equal(built.release.contractBindings.boundedRequestRegistryHash, BOUNDED_REQUEST_CONTRACT_HASH);
+test("sealed Version 1.12.29 release remains immutable with zero activity after later cognitive-policy revisions", async () => {
+  const releasePath = path.resolve(import.meta.dirname, "..", "qualification", "synthetic-executive", "qualification-real-route", "bounded-request-envelope-release.json");
+  const release = JSON.parse(await readFile(releasePath, "utf8")); validateBoundedRequestEnvelopeRelease(release);
+  assert.equal(release.version, "1.12.29"); assert.equal(release.contractBindings.registeredActionCount, 13);
+  assert.equal(release.contractBindings.registeredStateActionPairCount, 27);
+  assert.equal(release.activityAssertions.providerRequestCount, 0); assert.equal(release.activityAssertions.qualificationCasesExecuted, 0);
+  assert.equal(release.claims.qualification, false); assert.equal(release.claims.cognition, false);
+  assert.equal(release.contractBindings.boundedRequestRegistryHash, BOUNDED_REQUEST_CONTRACT_HASH);
 });

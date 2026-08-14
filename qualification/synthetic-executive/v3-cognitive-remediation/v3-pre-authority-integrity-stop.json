@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "V3_PRE_AUTHORITY_INTEGRITY_STOP",
+  "classification": "QUALIFICATION_INCOMPLETE — NO EVALUATION OR SCORE",
+  "integrityClassification": "V3_AUTHORITY_FROZEN_RELEASE_BINDING_MISMATCH",
+  "stage": "POST_FREEZE_CORPUS_VALIDATION_PRE_AUTHORITY",
+  "cognitiveFreezeHash": "f0127ed29a1fe40fdd08936712ad09ff884405dbf8c81147f5709e3f2c2eb194",
+  "cognitiveExecutableAggregateHash": "05159b0972bfac11941c08bd6030f1ed96b1efe5186d769dc536525b9524daaf",
+  "v3PrivateSpecificationHash": "f26a5d2a919d065a238d5c24f0ef3ce349e104755deecd2de6bccac7ebc22c76",
+  "v3CorpusSealHash": "61c67cf5a725ea0eab6d02e8f3ac4ece6bc02fb0fd8e2dffb378878db8bc1061",
+  "v3DifficultyProofHash": "1ebe7053b6d545ca2d444753dac33f0503b4fac1da6ce274afe22a370c2e5379",
+  "v3BlindnessProofHash": "cc3ffb3408fbedfeec485ce0b032e60a081543fa11e593d4bcd835f2a34ebf67",
+  "failedGate": {
+    "gate": "CREATE_ONLY_V3_AUTHORITY_OFFLINE_REGRESSION",
+    "runnerReadPath": "qualification/synthetic-executive/qualification-real-route/response-evidence-repair-release.json",
+    "expectedReleaseRecordSha256": "3723c3d2611c721403a2ec74db7dde260f125d5d51b8a52a03e9913af300e0ee",
+    "actualReleaseRecordSha256": "177a85c79d03c6145116f31ef2c77cdd563c3550312c1f9cda8e91370770cf1d",
+    "failure": "FROZEN_RUNNER_RESOLVES_HISTORICAL_VERSION_1_12_32_RELEASE_RECORD_INSTEAD_OF_AUTHORIZED_VERSION_1_12_34_RELEASE_RECORD"
+  },
+  "freezePolicy": {
+    "cognitiveOrExecutableRepairAfterFreezePermitted": false,
+    "repairApplied": false,
+    "runnerChangedAfterFreeze": false,
+    "corpusChangedAfterGateFailure": false,
+    "sameCorpusRerunPermitted": false
+  },
+  "activity": {
+    "qualificationAuthoritiesCreated": 0,
+    "qualificationAuthoritiesActivated": 0,
+    "caseSlotsConsumed": 0,
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "scoresCalculated": 0,
+    "memoryPromotions": 0,
+    "productHandlerCalls": 0,
+    "benchmarkExecutions": 0,
+    "previewActivities": 0,
+    "productionActivities": 0,
+    "merges": 0,
+    "deployments": 0
+  },
+  "receiptHash": "41ce3ee7168ae9ebd8b02c37f3c69e24fd7e22c702139d09d6811f33efda258e"
+}

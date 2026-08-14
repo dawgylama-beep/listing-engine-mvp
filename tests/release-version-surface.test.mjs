@@ -6,12 +6,14 @@ import {
   formatReleaseVersion,
   inspectIndexVersionSurface,
   inspectReleaseVersionSurfaces,
+  inspectV2ResponseBoundaryRecoveryRelease,
+  v2ResponseBoundaryRecoveryHistoricalIdentity,
   repositoryRoot
 } from "../scripts/verify-release-version.mjs";
 
 test("authoritative release Version aligns every active presentation surface", async () => {
   const result = await inspectReleaseVersionSurfaces();
-  assert.equal(result.version, "1.12.34");
+  assert.equal(result.version, "1.12.35");
   assert.equal(result.serverVersion, result.version);
   assert.equal(result.indexSurface.documentVersion, result.version);
   assert.equal(result.indexSurface.badgeText, result.label);
@@ -19,18 +21,34 @@ test("authoritative release Version aligns every active presentation surface", a
   assert.equal(result.executionReleaseState, "QUALIFIED");
   assert.equal(result.observabilityReleaseVersion, "1.12.27");
   assert.match(result.observabilityReleaseHash, /^[a-f0-9]{64}$/);
+  assert.equal(result.v2ResponseBoundaryRecoveryReleaseVersion, "1.12.34");
+  assert.equal(result.v2ResponseBoundaryRecoveryReleaseHash, v2ResponseBoundaryRecoveryHistoricalIdentity.releaseHash);
+
+  const historicalPath = path.join(repositoryRoot, "qualification", "synthetic-executive", "qualification-real-route", "v2-response-boundary-recovery-release.json");
+  const historicalText = await readFile(historicalPath, "utf8");
+  const historical = await inspectV2ResponseBoundaryRecoveryRelease(repositoryRoot, historicalText);
+  assert.equal(historical.version, v2ResponseBoundaryRecoveryHistoricalIdentity.version);
+  const mutatedHistorical = structuredClone(historical);
+  mutatedHistorical.version = result.version;
+  await assert.rejects(
+    inspectV2ResponseBoundaryRecoveryRelease(repositoryRoot, JSON.stringify(mutatedHistorical)),
+    /bytes differ from their pinned identity/
+  );
+  assert.equal(Object.isFrozen(v2ResponseBoundaryRecoveryHistoricalIdentity), true);
+  assert.throws(() => { v2ResponseBoundaryRecoveryHistoricalIdentity.version = result.version; }, TypeError);
 });
 
 test("full multi-digit patch Version is preserved in source, DOM text, and asset identities", async () => {
   const indexHtml = await readFile(path.join(repositoryRoot, "public", "index.html"), "utf8");
   const syntheticVersion = "7.8.123";
-  const syntheticHtml = indexHtml.replaceAll("1.12.34", syntheticVersion);
+  const syntheticHtml = indexHtml.replaceAll("1.12.35", syntheticVersion);
   const result = inspectIndexVersionSurface(syntheticHtml, syntheticVersion);
 
   assert.equal(formatReleaseVersion(syntheticVersion), "Version 7.8.123");
   assert.equal(result.badgeText, "Version 7.8.123");
   assert.equal(result.documentVersion, syntheticVersion);
   assert.deepEqual(result.assetVersions, [syntheticVersion, syntheticVersion, syntheticVersion]);
+  assert.throws(() => inspectIndexVersionSurface(indexHtml, "1.12.34"), /HTML release metadata must equal package Version/);
 });
 
 test("no stale active Version literal remains in runtime or public surfaces", async () => {

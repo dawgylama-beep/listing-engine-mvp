@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_35_POST_EXECUTION_RELEASE_VALIDATOR_CORRECTION",
+  "recordState": "SEALED_CORRECTION_RELEASE_BLOCKED_BY_UNRELATED_STATIC_REGRESSION",
+  "version": "1.12.35",
+  "createdAt": "2026-08-14T20:07:56.836Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "tree": "c6c8674108ff17fac1de8a3c779363e7ddf14960",
+    "trackingRef": "origin/refactor/beta-evidence-pipeline",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35"
+  },
+  "qualificationPreservation": {
+    "terminalClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "score": "67/98",
+    "percentage": 68.37,
+    "safetyCriticalPass": false,
+    "fatalGatePass": false,
+    "zeroToleranceExecutionGate": true,
+    "qualified": false,
+    "authorityReopened": false,
+    "caseReplayed": false,
+    "evaluatorReopened": false,
+    "rescored": false
+  },
+  "gateA": {
+    "classification": "HISTORICAL_RELEASE_TREATED_AS_ACTIVE_VERSION_SURFACE",
+    "historicalRecordPath": "qualification/synthetic-executive/qualification-real-route/v2-response-boundary-recovery-release.json",
+    "historicalRecordSha256": "3723c3d2611c721403a2ec74db7dde260f125d5d51b8a52a03e9913af300e0ee",
+    "historicalVersion": "1.12.34",
+    "historicalReleaseHash": "fa52f960c6b080bcc598a8757e42512ba99b728856dda4df688b541fc8fc5ef4",
+    "activeVersion": "1.12.35",
+    "baselineFocusedTests": {
+      "tests": 5,
+      "passed": 4,
+      "failed": 1,
+      "soleFailure": "inspectV2ResponseBoundaryRecoveryRelease compared historical record.version 1.12.34 with active package Version 1.12.35"
+    },
+    "historicalInternalValidationPassed": true,
+    "historicalBytesUnchanged": true,
+    "otherVersionSurfaceTestsPassed": 4,
+    "candidateOrCognitiveCorruptionFound": false,
+    "gatePassed": true
+  },
+  "correction": {
+    "changedPaths": [
+      "scripts/verify-release-version.mjs",
+      "tests/release-version-surface.test.mjs"
+    ],
+    "validator": {
+      "path": "scripts/verify-release-version.mjs",
+      "priorSha256": "e1ab690e7cb9de45b10b9f9e1313d223507b9784659c73334346ba3d2df65f69",
+      "correctedSha256": "64e6826ad87182d868285ee637b32f253c7b3090f7d7e42613ba85440b27fe56",
+      "exactSemanticDiff": [
+        {
+          "operation": "ADD_PINNED_HISTORICAL_IDENTITY",
+          "path": "module.v2ResponseBoundaryRecoveryHistoricalIdentity",
+          "after": {
+            "schemaVersion": "1.0",
+            "releaseType": "KATHERINE_SYNTHETIC_EXECUTIVE_V2_RESPONSE_BOUNDARY_RECOVERY_RELEASE",
+            "releaseState": "SEALED_RESPONSE_BOUNDARY_RECOVERY_AND_FINAL_BLIND_EVALUATION",
+            "version": "1.12.34",
+            "startingVersion": "1.12.33",
+            "startingCommit": "d198c3e162a60a871b4952105e6ded5ef695ec02",
+            "startingTree": "f69eb9006644244f3227d4a29d4df2d908ffa978",
+            "releaseHash": "fa52f960c6b080bcc598a8757e42512ba99b728856dda4df688b541fc8fc5ef4",
+            "fileSha256": "3723c3d2611c721403a2ec74db7dde260f125d5d51b8a52a03e9913af300e0ee"
+          }
+        },
+        {
+          "operation": "CLASSIFY_AND_EXPORT_HISTORICAL_INSPECTOR",
+          "path": "inspectV2ResponseBoundaryRecoveryRelease.signature",
+          "before": "async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseText, version, { verifyCurrentArtifacts = false } = {})",
+          "after": "export async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseText, { verifyCurrentArtifacts = false } = {})"
+        },
+        {
+          "operation": "REPLACE_ACTIVE_VERSION_COMPARISON_WITH_PINNED_IDENTITY_VALIDATION",
+          "path": "inspectV2ResponseBoundaryRecoveryRelease.identityChecks",
+          "before": "record.version === active package version",
+          "after": "raw bytes, schemaVersion, releaseType, releaseState, historical version, starting version/commit/tree, internal seal, and releaseHash must equal the frozen historical identity"
+        },
+        {
+          "operation": "REMOVE_ACTIVE_VERSION_ARGUMENT",
+          "path": "inspectReleaseVersionSurfaces.v2ResponseBoundaryRecoveryRelease",
+          "before": "inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, v2ResponseBoundaryRecoveryReleaseText, version)",
+          "after": "inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, v2ResponseBoundaryRecoveryReleaseText)"
+        },
+        {
+          "operation": "REPORT_HISTORICAL_VERSION_SEPARATELY",
+          "path": "inspectReleaseVersionSurfaces.return.v2ResponseBoundaryRecoveryReleaseVersion",
+          "after": "record.version"
+        }
+      ],
+      "arbitraryStaleVersionBypassAdded": false,
+      "historicalValidationRemoved": false
+    },
+    "affectedTest": {
+      "path": "tests/release-version-surface.test.mjs",
+      "priorSha256": "c22368d144e5409a6fbdb0e78d27e627ec1103c51e0d202164392cf680974ab9",
+      "correctedSha256": "9d2bc8b27a41b78284a4d2ac9fa0341541ae1dc1ee5f5194146bf6e7ced82a36",
+      "addedAssertions": [
+        "active Version remains 1.12.35",
+        "historical recovery Version remains 1.12.34",
+        "historical release hash equals the pinned identity",
+        "mutated historical bytes fail",
+        "the pinned identity is frozen and rejects mutation",
+        "an active Version 1.12.35 surface mismatch fails"
+      ]
+    },
+    "cognitiveOrRuntimePathsChanged": false
+  },
+  "sealedBindings": {
+    "failedReleaseCandidate": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-release.json",
+      "fileSha256": "b2495d3eb688fbac7318a76c1fdd75bf07489337f75af712e86f8b6c2a01f26c",
+      "releaseHash": "fd4084e84b2a90214902acbbf7c8e30850f8d55a11737bc865cc10d4c8abcee9",
+      "recordedInventoryCount": 695,
+      "recordedInventoryAggregateHash": "af2a2a7bee4dcdf22633d3f3b311725fa71493741fb743fc0c252721441f392d"
+    },
+    "originalValidationStop": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-release-validation-stop.json",
+      "fileSha256": "cf032a08f1f567bd471810c3916bdad55650856eb63ac40975a1ba8344cf2099",
+      "receiptHash": "f1ff2b97c250191ce3f4f2012550c1a1a8a0025cfadccd0e28c9e94524986bd3"
+    },
+    "authorityBoundExecutionAggregateHash": "a3b7b6775133d31402a4d87707967d5e0da1ff2e4e2afa0c75e47f61ec8c6ac9",
+    "cognitiveFreezeHash": "f0127ed29a1fe40fdd08936712ad09ff884405dbf8c81147f5709e3f2c2eb194",
+    "successorExecutableFreezeHash": "45f7779d2ad4a16f3a99bc4eadd994a93edf40776d26f39a0c9016c43db37f02",
+    "corpusSealHash": "61c67cf5a725ea0eab6d02e8f3ac4ece6bc02fb0fd8e2dffb378878db8bc1061",
+    "authorityHash": "e105bae4544d38ccf13b8cf3405dbfed784710fc83534f94928f5bedbf406ed8",
+    "terminalReceiptHash": "62850cd600cdba07065cae5c96c01160ded1efff64721348bd5b93bddc4c2ceb",
+    "executionSummaryHash": "db8a93fe918037e883da8b2cd8bc3a29f4cec3ecba0ff4576acc103b0cb7be91",
+    "evaluationHash": "d6af8dda6c602cc08bb9de1a4ba31650ca17631d1a8801445ba453bf374b820d",
+    "evaluatorAuditHash": "9a992a1dae9fc9d6da2ca1f7e8cd3e092b21ba6ef81a1d1e1744cba74add6f02",
+    "resultSealHash": "86051c9465bf5eabfac5dfe9f7056663810108a355eb994ed3daed6e801c5750"
+  },
+  "postExecutionCandidateInventory": {
+    "hashBasis": "RAW_WORKTREE_FILE_BYTES_WITH_LEXICOGRAPHIC_NORMALIZED_PATHS",
+    "derivation": "the sealed 695-file prevalidation inventory, with only the validator and affected-test hashes replaced by their corrected hashes, plus the preserved failed release-candidate record and original validation-stop receipt",
+    "basePathCount": 697,
+    "basePathSetSha256": "776a82f7c5177664e5b44f88cc4af2c163576204f0d8566a2b280d046e240f06",
+    "baseArtifactAggregateHash": "512d4a11e2c2fe038a49b977e97386a08d5751a076468feee066a975d556561d",
+    "phase6aExcluded": true,
+    "phase6aIntersectionCount": 0
+  },
+  "validation": {
+    "focusedReleaseValidator": { "tests": 5, "passed": 5, "failed": 0, "skipped": 0 },
+    "completeReleaseVersion": { "passed": true, "activeVersion": "1.12.35", "historicalVersion": "1.12.34" },
+    "changedJavaScriptSyntax": { "checked": 15, "failed": 0 },
+    "gitDiffCheck": { "passed": true },
+    "broadNodeSweep": {
+      "tests": 543,
+      "passed": 524,
+      "failed": 3,
+      "skipped": 16,
+      "environmentalFailuresRerun": { "tests": 2, "passed": 2, "failed": 0 },
+      "postExecutionAuthorityFixture": "FAILED_BEFORE_AUTHORITY_CREATION_BECAUSE_CURRENT_VALIDATOR_HASH_DIFFERS_FROM_IMMUTABLE_EXECUTION_FREEZE",
+      "postExecutionAuthorityFixtureApplicableToTerminalRelease": false
+    },
+    "terminalFailure": {
+      "gate": "FULL_POWERSHELL_AND_SERVER_STATIC",
+      "attempted": 2,
+      "passed": 1,
+      "failed": 1,
+      "failedTest": "tests/all-four-workflow-compact-evidence-static.ps1",
+      "assertion": "Canonical browser model loads before app.js",
+      "expectedByTest": "customer-evidence.js?v=1.12.34 immediately before app.js?v=1.12.34",
+      "actualCandidate": "customer-evidence.js?v=1.12.35 immediately before app.js?v=1.12.35",
+      "classification": "UNRELATED_STATIC_TEST_ACTIVE_VERSION_LITERAL_STALE",
+      "correctionAttempted": false,
+      "stopRequired": true
+    }
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "caseReplays": 0,
+    "remoteWrites": 0,
+    "pushes": 0,
+    "merges": 0,
+    "deployments": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "productHandlerCalls": 0
+  },
+  "claims": {
+    "validatorDefectProven": true,
+    "validatorCorrectionFocusedTestsPassed": true,
+    "versionReleased": false,
+    "pushAuthorizedAfterFailure": false,
+    "qualificationClaimChanged": false,
+    "learningClaimed": false,
+    "cognitiveImprovementClaimed": false
+  },
+  "correctionHash": "9e8ed05dbe52306f1bb27d5bc5ca5d440d18f8c230a7ecbaa5b86de30ba2fd45"
+}

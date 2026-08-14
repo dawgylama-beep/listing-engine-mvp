@@ -17,6 +17,17 @@ export const v2QualificationResultReleaseRelativePath = "qualification/synthetic
 export const responseEvidenceRepairReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/response-evidence-repair-release.json";
 export const v2CaseScopedCompletionReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/v2-case-scoped-completion-release.json";
 export const v2ResponseBoundaryRecoveryReleaseRelativePath = "qualification/synthetic-executive/qualification-real-route/v2-response-boundary-recovery-release.json";
+export const v2ResponseBoundaryRecoveryHistoricalIdentity = Object.freeze({
+  schemaVersion: "1.0",
+  releaseType: "KATHERINE_SYNTHETIC_EXECUTIVE_V2_RESPONSE_BOUNDARY_RECOVERY_RELEASE",
+  releaseState: "SEALED_RESPONSE_BOUNDARY_RECOVERY_AND_FINAL_BLIND_EVALUATION",
+  version: "1.12.34",
+  startingVersion: "1.12.33",
+  startingCommit: "d198c3e162a60a871b4952105e6ded5ef695ec02",
+  startingTree: "f69eb9006644244f3227d4a29d4df2d908ffa978",
+  releaseHash: "fa52f960c6b080bcc598a8757e42512ba99b728856dda4df688b541fc8fc5ef4",
+  fileSha256: "3723c3d2611c721403a2ec74db7dde260f125d5d51b8a52a03e9913af300e0ee"
+});
 
 const HASH = /^[a-f0-9]{64}$/;
 const OBSERVABILITY_RELEASE_FIELDS = Object.freeze([
@@ -156,20 +167,22 @@ async function inspectV2CaseScopedCompletionRelease(rootDirectory, releaseText, 
   return record;
 }
 
-async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseText, version) {
+export async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseText, { verifyCurrentArtifacts = false } = {}) {
   const record = JSON.parse(releaseText);
+  const identity = v2ResponseBoundaryRecoveryHistoricalIdentity;
   exactKeys(record, [
     "schemaVersion", "releaseType", "releaseState", "version", "createdAt", "startingIdentity", "provenance",
     "responseBoundary", "sourceSeal", "recovery", "evaluation", "activityCounts", "preservation",
     "artifactHashes", "artifactCount", "artifactAggregateHash", "releaseHash"
   ], "V2 response-boundary recovery release");
-  assert.equal(record.schemaVersion, "1.0");
-  assert.equal(record.releaseType, "KATHERINE_SYNTHETIC_EXECUTIVE_V2_RESPONSE_BOUNDARY_RECOVERY_RELEASE");
-  assert.equal(record.releaseState, "SEALED_RESPONSE_BOUNDARY_RECOVERY_AND_FINAL_BLIND_EVALUATION");
-  assert.equal(record.version, version);
-  assert.equal(record.startingIdentity.version, "1.12.33");
-  assert.equal(record.startingIdentity.commit, "d198c3e162a60a871b4952105e6ded5ef695ec02");
-  assert.equal(record.startingIdentity.tree, "f69eb9006644244f3227d4a29d4df2d908ffa978");
+  assert.equal(sha256Bytes(Buffer.from(releaseText, "utf8")), identity.fileSha256, "Historical V2 response-boundary recovery release bytes differ from their pinned identity.");
+  assert.equal(record.schemaVersion, identity.schemaVersion);
+  assert.equal(record.releaseType, identity.releaseType);
+  assert.equal(record.releaseState, identity.releaseState);
+  assert.equal(record.version, identity.version, "Historical V2 response-boundary recovery release Version differs.");
+  assert.equal(record.startingIdentity.version, identity.startingVersion);
+  assert.equal(record.startingIdentity.commit, identity.startingCommit);
+  assert.equal(record.startingIdentity.tree, identity.startingTree);
   assert.equal(record.provenance.corrected43Aggregate, "f131f7ed0548f6532c4afdc1bfaa254e5618595005fb89bfcf7fea7081f22aea");
   assert.equal(record.responseBoundary.localHardCeilingBytes, 1_048_576);
   assert.equal(record.responseBoundary.overflowProbeBytes, 1_048_577);
@@ -184,10 +197,11 @@ async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, releaseTe
   for (const item of record.artifactHashes) {
     exactKeys(item, ["relativePath", "sha256"], "V2 response-boundary recovery artifact hash");
     assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
-    assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 response-boundary recovery seal.`);
+    if (verifyCurrentArtifacts) assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 response-boundary recovery seal.`);
   }
   const core = structuredClone(record); delete core.releaseHash;
   assert.equal(sha256Json(core), record.releaseHash, "V2 response-boundary recovery release hash differs.");
+  assert.equal(record.releaseHash, identity.releaseHash, "Historical V2 response-boundary recovery release identity differs.");
   return record;
 }
 
@@ -300,10 +314,11 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     const record = JSON.parse(v2HeldOutCorpusReleaseText);
     const corpus = await import("../qualification/synthetic-executive/v2-held-out-corpus/scripts/v2-corpus-release.mjs");
     corpus.validateV2CorpusRelease(record);
-    const rebuilt = await corpus.buildV2CorpusRelease();
-    assert.equal(sha256Json(rebuilt.release), sha256Json(record), "V2 held-out corpus release artifacts differ from their seal.");
-    if (v2QualificationResultReleaseText === null) assert.equal(record.version, version, "V2 held-out corpus release Version must equal package Version.");
-    else assert.equal(record.version, "1.12.30", "Historical V2 held-out corpus release Version differs.");
+    if (v2QualificationResultReleaseText === null) {
+      const rebuilt = await corpus.buildV2CorpusRelease();
+      assert.equal(sha256Json(rebuilt.release), sha256Json(record), "V2 held-out corpus release artifacts differ from their seal.");
+      assert.equal(record.version, version, "V2 held-out corpus release Version must equal package Version.");
+    } else assert.equal(record.version, "1.12.30", "Historical V2 held-out corpus release Version differs.");
     v2HeldOutCorpusReleaseHash = record.releaseHash;
   }
   let v2QualificationResultReleaseHash = null;
@@ -343,9 +358,11 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     v2CaseScopedCompletionReleaseHash = record.releaseHash;
   }
   let v2ResponseBoundaryRecoveryReleaseHash = null;
+  let v2ResponseBoundaryRecoveryReleaseVersion = null;
   if (v2ResponseBoundaryRecoveryReleaseText !== null) {
-    const record = await inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, v2ResponseBoundaryRecoveryReleaseText, version);
+    const record = await inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, v2ResponseBoundaryRecoveryReleaseText);
     v2ResponseBoundaryRecoveryReleaseHash = record.releaseHash;
+    v2ResponseBoundaryRecoveryReleaseVersion = record.version;
   }
 
   const serverVersion = serverSource.match(/\$AppVersion\s*=\s*"([^"]+)"/)?.[1] || "";
@@ -387,6 +404,7 @@ export async function inspectReleaseVersionSurfaces(rootDirectory = repositoryRo
     responseEvidenceRepairReleaseHash,
     v2CaseScopedCompletionReleaseHash,
     v2ResponseBoundaryRecoveryReleaseHash,
+    v2ResponseBoundaryRecoveryReleaseVersion,
     outputDirectory: vercelConfig.outputDirectory,
     buildCommand: vercelConfig.buildCommand
   };

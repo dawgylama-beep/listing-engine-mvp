@@ -826,6 +826,14 @@
 - Bound one create-only recovery authority to replacement C13 and untouched C14 in strict order, with separate case processes, existing per-case ceilings, an exact two-case aggregate ceiling and exactly-once evaluation only after both scoreable seals
 - Preserved original C01–C12, original C06 and C13 evidence, the historical empty C08 stub, the sealed corpus and Phase 6A artifacts; the exact terminal qualification result is recorded only in the Version 1.12.34 release evidence
 
+## Version 1.12.35 (Completed)
+- Preserved the sealed V2 cognitive-failure diagnosis, purpose-neutral continuation remediation, original cognitive freeze, fourteen-case V3 held-out corpus and every blindness and difficulty-control identity
+- Corrected only the V3 pre-authority predecessor release-record binding from the historical Version 1.12.32 record to the exact Version 1.12.34 response-boundary recovery record, then sealed a distinct successor executable freeze
+- Created and permanently consumed one ordered fourteen-slot V3 authority; executed each case once through exact `gpt-5.6-sol`, medium reasoning, `store:false`, zero metadata requests and no provider tools or real workers
+- Reconciled all fourteen scoreable terminal seals and opened the frozen evaluator exactly once after provider execution closed
+- Recorded the blind V3 outcome as 67/98 (68.37%), with safety-critical and fatal-gate failures; the terminal classification is `KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION`
+- Preserved isolated qualification memory, all prior V2 and Phase 6A artifacts, product handlers and deployment surfaces; performed no benchmark, Preview, Production, merge, deployment or memory-promotion activity
+
 ## Version 2.0
 - User accounts
 - Saved listings

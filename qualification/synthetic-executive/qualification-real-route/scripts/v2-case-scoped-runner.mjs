@@ -86,9 +86,9 @@ export function observedStateHash(state, receipts) {
   return sha256Json({ state, receipts: receipts.map((item) => item.receiptHash) });
 }
 
-function actionIdentity(authority, caseId, kind, ordinal) {
+function actionIdentity(authority, caseId, kind, ordinal, protocolLabel = "V2") {
   const digest = sha256Json({ authorityHash: authority.authorityHash, caseId, kind, ordinal });
-  return `v2-${caseId.toLowerCase()}-${kind.toLowerCase()}-${String(ordinal).padStart(3, "0")}-${digest.slice(0, 16)}`;
+  return `${String(protocolLabel).toLowerCase()}-${caseId.toLowerCase()}-${kind.toLowerCase()}-${String(ordinal).padStart(3, "0")}-${digest.slice(0, 16)}`;
 }
 
 export async function inspectStartingIdentity({ allowTrackedChanges = false } = {}) {
@@ -185,8 +185,8 @@ function addCounts(before, current) {
   return Object.freeze({ reasoningSteps: before.reasoningSteps + current.reasoningSteps, toolActions: before.toolActions + current.toolActions, fakeDossierActions: before.fakeDossierActions + current.fakeDossierActions, retryAttempts: before.retryAttempts + current.retryAttempts });
 }
 
-async function loadCaseFixtures(caseId) {
-  const root = path.join(corpusRoot, "cases", caseId);
+async function loadCaseFixtures(caseId, selectedCorpusRoot = corpusRoot) {
+  const root = path.join(selectedCorpusRoot, "cases", caseId);
   const [memory, workerInput, dossier] = await Promise.all([readJson(path.join(root, "memory", "fixture.json")), readJson(path.join(root, "worker", "input.json")), readJson(path.join(root, "worker", "dossier.json"))]);
   assertSeal(memory, "fixtureHash"); assertSeal(workerInput, "taskHash"); assertSeal(dossier, "contentHash");
   assert.equal(memory.caseId, caseId); assert.equal(workerInput.caseId, caseId); assert.equal(dossier.episodeId, caseId); assert.equal(dossier.sealedTaskHash, workerInput.taskHash);
@@ -207,22 +207,25 @@ function classifyIntegrityFailure(error) {
 export async function executeV2CaseUnit({
   authority, slot, resultRoot, profile, aggregateBefore, consumeSlot, clientFactory,
   clock = now, nowMs = () => Date.now(), processIdentity = process.pid,
-  limits = LIMITS, aggregateLabel = "C08_C14_AGGREGATE"
+  limits = LIMITS, aggregateLabel = "C08_C14_AGGREGATE",
+  selectedCorpusRoot = corpusRoot, materializeProviderVisibleCase = materializeV2ProviderVisibleCase,
+  executionVersion = "V2", postBrokerValidator = null
 }) {
+  const protocolLabel = String(executionVersion).toUpperCase();
   const caseId = slot.caseId; const caseRoot = path.join(resultRoot, "cases", caseId); const caseLedgerRoot = path.join(caseRoot, "case-ledger");
   await mkdir(caseRoot, { recursive: false }); await mkdir(caseLedgerRoot, { recursive: false });
   const caseStartedAt = clock(); const caseStartedMs = nowMs();
-  const invocation = seal({ schemaVersion: "1.0", receiptType: "V2_CASE_SCOPED_PROCESS_INVOCATION", caseId, authorityHash: authority.authorityHash, processIdentity, invokedAt: caseStartedAt, exactlyOneRequestedCase: true, requestedCaseIds: [caseId] }, "receiptHash");
+  const invocation = seal({ schemaVersion: "1.0", receiptType: `${protocolLabel}_CASE_SCOPED_PROCESS_INVOCATION`, caseId, authorityHash: authority.authorityHash, processIdentity, invokedAt: caseStartedAt, exactlyOneRequestedCase: true, requestedCaseIds: [caseId] }, "receiptHash");
   await writeExclusiveJson(path.join(caseRoot, "case-process-invocation-receipt.json"), invocation);
-  const ledger = await new AppendOnlyLedger({ root: caseLedgerRoot, authorityHash: authority.authorityHash, ledgerType: "IMMUTABLE_V2_CASE_SCOPED_EVENT" }).initialize();
-  const { episode, materialization } = await materializeV2ProviderVisibleCase(caseId); assert.equal(episode.episodeHash, slot.episodeHash);
-  const fixtures = await loadCaseFixtures(caseId);
+  const ledger = await new AppendOnlyLedger({ root: caseLedgerRoot, authorityHash: authority.authorityHash, ledgerType: `IMMUTABLE_${protocolLabel}_CASE_SCOPED_EVENT` }).initialize();
+  const { episode, materialization } = await materializeProviderVisibleCase(caseId); assert.equal(episode.episodeHash, slot.episodeHash);
+  const fixtures = await loadCaseFixtures(caseId, selectedCorpusRoot);
   const visibleAdmission = admitInboundEvidence({ source: "VISIBLE_ARTIFACTS", value: materialization.artifacts });
   assert.equal(visibleAdmission.admitted, true, "QUALIFICATION_VISIBLE_ARTIFACT_ADMISSION_REJECTED");
   const memoryStore = new ExecutiveMemoryStore(path.join(caseRoot, "isolated-case-memory")); await memoryStore.initializeEmpty();
   for (const record of fixtures.memory.records) { validateMemoryRecord(record); await memoryStore.append(record); }
   const fixtureReceipt = seal({
-    schemaVersion: "1.0", receiptType: "V2_CASE_FIXTURE_BINDING", caseId,
+    schemaVersion: "1.0", receiptType: `${protocolLabel}_CASE_FIXTURE_BINDING`, caseId,
     memoryFixtureHash: fixtures.memory.fixtureHash, initialMemoryRecordHashes: fixtures.memory.records.map((record) => record.contentHash),
     workerInputHash: fixtures.workerInput.taskHash, workerDossierHash: fixtures.dossier.contentHash,
     evaluatorPathsRead: 0, crossCaseMemoryReads: 0, productMemoryReads: 0, memoryPromotions: 0
@@ -240,7 +243,7 @@ export async function executeV2CaseUnit({
     assertCountsWithinLimits(counts, limits.perCase, caseId); assertCountsWithinLimits(currentAggregateCounts(), limits.aggregate, aggregateLabel);
     const completeUsage = usageReceipts.filter((item) => item.usageClassification === "COMPLETE");
     const core = {
-      schemaVersion: "1.0", outputType: "SEALED_V2_SYNTHETIC_EXECUTIVE_CASE_TRANSCRIPT", caseId, sequencePosition: slot.originalSequencePosition,
+      schemaVersion: "1.0", outputType: `SEALED_${protocolLabel}_SYNTHETIC_EXECUTIVE_CASE_TRANSCRIPT`, caseId, sequencePosition: slot.originalSequencePosition ?? slot.sequencePosition,
       successorSequencePosition: slot.sequencePosition, caseStatus: status, terminalState: terminal.state, terminal: terminal.terminal,
       terminalReason: failureEvidence, startedAt: caseStartedAt, completedAt, durationMs: nowMs() - caseStartedMs,
       episodeHash: episode.episodeHash, caseManifestHash: slot.caseManifestHash, materializedAggregateHash: materialization.materializedAggregateHash,
@@ -267,7 +270,7 @@ export async function executeV2CaseUnit({
     };
     const output = seal(core, "caseOutputHash"); await writeExclusiveJson(path.join(caseRoot, "case-transcript.json"), output);
     const terminalEntry = await ledger.append("LEDGER_TERMINALLY_SEALED", { caseId, actionIdentity: `case-seal-${output.caseOutputHash.slice(0, 32)}`, caseOutputHash: output.caseOutputHash, caseStatus: status, integrityFailure });
-    const ledgerSeal = seal({ schemaVersion: "1.0", sealType: "IMMUTABLE_V2_CASE_SCOPED_LEDGER_SEAL", authorityHash: authority.authorityHash, caseId, caseOutputHash: output.caseOutputHash, terminalEntryHash: terminalEntry.entryHash, entryCount: ledger.entries.length, sealedAt: clock(), appendProhibited: true }, "ledgerSealHash");
+    const ledgerSeal = seal({ schemaVersion: "1.0", sealType: `IMMUTABLE_${protocolLabel}_CASE_SCOPED_LEDGER_SEAL`, authorityHash: authority.authorityHash, caseId, caseOutputHash: output.caseOutputHash, terminalEntryHash: terminalEntry.entryHash, entryCount: ledger.entries.length, sealedAt: clock(), appendProhibited: true }, "ledgerSealHash");
     await writeExclusiveJson(path.join(caseRoot, "case-ledger-seal.json"), ledgerSeal);
     return Object.freeze({ output, ledgerSeal, integrityFailure, conservativeCost: caseConservativeCost, exactCost: caseExactCost });
   };
@@ -280,7 +283,7 @@ export async function executeV2CaseUnit({
     if (state === "AUTHORITY_SPECIFIED" && taskSealed && workerDossier === null) {
       const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
       if (counts.fakeDossierActions >= limits.perCase.maximumFakeDossierActions || totals.fakeDossierActions >= limits.aggregate.maximumFakeDossierActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "FAKE_DOSSIER_ACTION_CEILING" }; break; }
-      ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "PRESEALED_DOSSIER", ledgerOrdinal);
+      ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "PRESEALED_DOSSIER", ledgerOrdinal, protocolLabel);
       await ledger.append("PRESEALED_DOSSIER_CONSUMED", { caseId, actionIdentity: identity, operationHash: fixtures.dossier.contentHash });
       const admission = admitInboundEvidence({ source: "WORKER_EVIDENCE", value: fixtures.dossier, identityHash: sha256Json(fixtures.dossier) });
       assert.equal(admission.admitted, true, "QUALIFICATION_WORKER_EVIDENCE_ADMISSION_REJECTED"); inboundAdmissions.push(admission);
@@ -305,7 +308,7 @@ export async function executeV2CaseUnit({
     }
     if (caseConservativeCost + accounting.reservationUsd > limits.perCase.maximumProviderCostUsd + 1e-9) { status = "SCOREABLE_CASE_COST_BOUNDARY"; failureEvidence = { code: "PER_CASE_COST_BOUNDARY", requiredReservationUsd: accounting.reservationUsd }; break; }
     if (aggregateBefore.conservativeCostUsd + caseConservativeCost + accounting.reservationUsd > limits.aggregate.maximumProviderCostUsd + 1e-9) { status = "INTEGRITY_INVALID"; failureEvidence = { code: "AGGREGATE_COST_CEILING" }; integrityFailure = "QUALIFICATION_BUDGET_INTEGRITY_INVALID"; break; }
-    ledgerOrdinal += 1; const reasoningIdentity = actionIdentity(authority, caseId, "REASONING_STEP", ledgerOrdinal);
+    ledgerOrdinal += 1; const reasoningIdentity = actionIdentity(authority, caseId, "REASONING_STEP", ledgerOrdinal, protocolLabel);
     await ledger.append("REASONING_STEP_CONSUMED", { caseId, actionIdentity: reasoningIdentity, actionOrdinal, requestHash, executiveState: state });
     let attemptIndex = 0; let response = null; let providerFailure = null;
     while (true) {
@@ -313,7 +316,7 @@ export async function executeV2CaseUnit({
       if (attemptIndex > 1) {
         const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
         if (counts.retryAttempts >= limits.perCase.maximumRetryAttempts || totals.retryAttempts >= limits.aggregate.maximumRetryAttempts) { providerFailure = new Error("RETRY_CEILING_REACHED"); break; }
-        ledgerOrdinal += 1; const retryIdentity = actionIdentity(authority, caseId, "RETRY_ATTEMPT", ledgerOrdinal);
+        ledgerOrdinal += 1; const retryIdentity = actionIdentity(authority, caseId, "RETRY_ATTEMPT", ledgerOrdinal, protocolLabel);
         await ledger.append("RETRY_ATTEMPT_CONSUMED", { caseId, actionIdentity: retryIdentity, actionOrdinal, requestHash, retryOrdinal: attemptIndex - 1 });
       }
       if (client === null) client = await clientFactory({ caseId, caseRoot });
@@ -321,7 +324,7 @@ export async function executeV2CaseUnit({
         const slotReceipt = await consumeSlot({ caseId, caseRoot, requestHash });
         ledgerOrdinal += 1; await ledger.append("CASE_SLOT_CONSUMED", { caseId, actionIdentity: slotReceipt.actionIdentity, caseSlotHash: slot.caseSlotHash, reservedMaximumCostUsd: limits.perCase.maximumProviderCostUsd, consumedBeforeFirstProviderAttempt: true, authoritySlotReceiptHash: slotReceipt.receiptHash }); slotConsumed = true;
       }
-      ledgerOrdinal += 1; const providerIdentity = actionIdentity(authority, caseId, "PROVIDER_ATTEMPT", ledgerOrdinal);
+      ledgerOrdinal += 1; const providerIdentity = actionIdentity(authority, caseId, "PROVIDER_ATTEMPT", ledgerOrdinal, protocolLabel);
       await ledger.append("PROVIDER_ATTEMPT_DISPATCHED", { caseId, actionIdentity: providerIdentity, actionOrdinal, requestHash, retry: attemptIndex > 1, attemptIndex, reservationUsd: accounting.reservationUsd });
       const accountingReceipt = seal({
         ...accounting, caseId, executiveState: state, actionOrdinal, providerAttemptIdentity: providerIdentity,
@@ -339,16 +342,16 @@ export async function executeV2CaseUnit({
         response = await client.decisionTurn({ serializedRequest, requestHash, providerAttemptIdentity: providerIdentity, signal: abortController.signal });
         const exactCost = qualificationActualCostUsd(response.usage, profile.pricing); const accountedCost = exactCost === null ? accounting.reservationUsd : exactCost;
         caseExactCost += exactCost || 0; caseConservativeCost += accountedCost;
-        const usageReceipt = seal({ schemaVersion: "1.0", receiptType: "SAFE_V2_QUALIFICATION_PROVIDER_USAGE", providerAttemptIdentity: providerIdentity, requestHash, usageClassification: response.usage.complete ? "COMPLETE" : "INCOMPLETE", actualUsage: response.usage, exactAvailableCostUsd: exactCost, conservativeAccountedCostUsd: accountedCost, reservationUsd: accounting.reservationUsd, reconciliation: exactCost === null ? "CONSERVATIVE_RESERVATION_CONSUMED" : "ACTUAL_USAGE_RECONCILED" }, "receiptHash"); usageReceipts.push(usageReceipt);
-        const attemptReceipt = seal({ schemaVersion: "1.0", receiptType: "SAFE_V2_PROVIDER_ATTEMPT", providerAttemptIdentity: providerIdentity, actionOrdinal, attemptIndex, retry: attemptIndex > 1, requestHash, responseHash: response.safeResponseHash, providerResponseId: response.providerResponseId, providerRequestId: response.providerRequestId, modelId: response.modelId, responseStatus: response.responseStatus, providerDiagnostics: response.providerDiagnostics, safeResponseEvidence: response.safeResponseEvidence, usageReceiptHash: usageReceipt.receiptHash, dispatchedAt, completedAt: clock(), durationMs: nowMs() - dispatchStarted }, "receiptHash");
+        const usageReceipt = seal({ schemaVersion: "1.0", receiptType: `SAFE_${protocolLabel}_QUALIFICATION_PROVIDER_USAGE`, providerAttemptIdentity: providerIdentity, requestHash, usageClassification: response.usage.complete ? "COMPLETE" : "INCOMPLETE", actualUsage: response.usage, exactAvailableCostUsd: exactCost, conservativeAccountedCostUsd: accountedCost, reservationUsd: accounting.reservationUsd, reconciliation: exactCost === null ? "CONSERVATIVE_RESERVATION_CONSUMED" : "ACTUAL_USAGE_RECONCILED" }, "receiptHash"); usageReceipts.push(usageReceipt);
+        const attemptReceipt = seal({ schemaVersion: "1.0", receiptType: `SAFE_${protocolLabel}_PROVIDER_ATTEMPT`, providerAttemptIdentity: providerIdentity, actionOrdinal, attemptIndex, retry: attemptIndex > 1, requestHash, responseHash: response.safeResponseHash, providerResponseId: response.providerResponseId, providerRequestId: response.providerRequestId, modelId: response.modelId, responseStatus: response.responseStatus, providerDiagnostics: response.providerDiagnostics, safeResponseEvidence: response.safeResponseEvidence, usageReceiptHash: usageReceipt.receiptHash, dispatchedAt, completedAt: clock(), durationMs: nowMs() - dispatchStarted }, "receiptHash");
         attempts.push(attemptReceipt); await writeExclusiveJson(path.join(caseRoot, `${providerIdentity}-result.json`), attemptReceipt); providerFailure = null; break;
       } catch (error) {
         const code = error instanceof SafeProviderFailure ? error.code : "SAFE_PROVIDER_FAILURE"; const safeResponseEvidence = error instanceof SafeProviderFailure ? error.safeResponseEvidence || null : null;
         const responseUsage = safeResponseEvidence?.usage || { complete: false, inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningTokens: null, totalTokens: null };
         const exactCost = qualificationActualCostUsd(responseUsage, profile.pricing); const accountedCost = exactCost === null ? accounting.reservationUsd : exactCost;
         caseExactCost += exactCost || 0; caseConservativeCost += accountedCost;
-        const usageReceipt = seal({ schemaVersion: "1.0", receiptType: "SAFE_V2_QUALIFICATION_PROVIDER_USAGE", providerAttemptIdentity: providerIdentity, requestHash, usageClassification: responseUsage.complete ? "COMPLETE" : "UNAVAILABLE", actualUsage: responseUsage, exactAvailableCostUsd: exactCost, conservativeAccountedCostUsd: accountedCost, reservationUsd: accounting.reservationUsd, reconciliation: exactCost === null ? "CONSERVATIVE_RESERVATION_CONSUMED" : "ACTUAL_USAGE_RECONCILED" }, "receiptHash"); usageReceipts.push(usageReceipt);
-        const attemptReceipt = seal({ schemaVersion: "1.0", receiptType: "SAFE_V2_PROVIDER_ATTEMPT", providerAttemptIdentity: providerIdentity, actionOrdinal, attemptIndex, retry: attemptIndex > 1, requestHash, responseHash: null, providerResponseId: safeResponseEvidence?.providerResponseId || "NOT_RECEIVED", providerRequestId: error instanceof SafeProviderFailure ? error.providerDiagnostics.safeProviderRequestId : "NOT_RECEIVED", modelId: safeResponseEvidence?.returnedModel || "NOT_RECEIVED", responseStatus: safeResponseEvidence?.responseStatus || "FAILED", providerFailureCode: code, providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null, safeResponseEvidence, usageReceiptHash: usageReceipt.receiptHash, dispatchedAt, completedAt: clock(), durationMs: nowMs() - dispatchStarted }, "receiptHash");
+        const usageReceipt = seal({ schemaVersion: "1.0", receiptType: `SAFE_${protocolLabel}_QUALIFICATION_PROVIDER_USAGE`, providerAttemptIdentity: providerIdentity, requestHash, usageClassification: responseUsage.complete ? "COMPLETE" : "UNAVAILABLE", actualUsage: responseUsage, exactAvailableCostUsd: exactCost, conservativeAccountedCostUsd: accountedCost, reservationUsd: accounting.reservationUsd, reconciliation: exactCost === null ? "CONSERVATIVE_RESERVATION_CONSUMED" : "ACTUAL_USAGE_RECONCILED" }, "receiptHash"); usageReceipts.push(usageReceipt);
+        const attemptReceipt = seal({ schemaVersion: "1.0", receiptType: `SAFE_${protocolLabel}_PROVIDER_ATTEMPT`, providerAttemptIdentity: providerIdentity, actionOrdinal, attemptIndex, retry: attemptIndex > 1, requestHash, responseHash: null, providerResponseId: safeResponseEvidence?.providerResponseId || "NOT_RECEIVED", providerRequestId: error instanceof SafeProviderFailure ? error.providerDiagnostics.safeProviderRequestId : "NOT_RECEIVED", modelId: safeResponseEvidence?.returnedModel || "NOT_RECEIVED", responseStatus: safeResponseEvidence?.responseStatus || "FAILED", providerFailureCode: code, providerDiagnostics: error instanceof SafeProviderFailure ? error.providerDiagnostics : null, safeResponseEvidence, usageReceiptHash: usageReceipt.receiptHash, dispatchedAt, completedAt: clock(), durationMs: nowMs() - dispatchStarted }, "receiptHash");
         attempts.push(attemptReceipt); await writeExclusiveJson(path.join(caseRoot, `${providerIdentity}-result.json`), attemptReceipt);
         if (SCOREABLE_PROVIDER_OUTPUT_CODES.includes(code)) { status = "SCOREABLE_MODEL_OUTPUT_FAILURE"; failureEvidence = { code, providerAttemptReceiptHash: attemptReceipt.receiptHash }; providerFailure = null; break; }
         if (!RETRY_REASONS.includes(code) || attemptIndex > limits.perCase.maximumRetryAttempts) { providerFailure = error; break; }
@@ -358,7 +361,10 @@ export async function executeV2CaseUnit({
     if (status === "SCOREABLE_MODEL_OUTPUT_FAILURE") break;
     if (providerFailure) { status = "INTEGRITY_INVALID"; const code = providerFailure instanceof SafeProviderFailure ? providerFailure.code : String(providerFailure.message); failureEvidence = { code }; integrityFailure = classifyIntegrityFailure(providerFailure); break; }
     let action;
-    try { action = normalizeAndValidateProviderActionCore(response.actionCore, { episode, memoryIds: retrievalReceipt?.selectedMemoryIds || [], currentState: state, allowedAuthorityClasses: ALLOWED_AUTHORITY_CLASSES, actionId: expectedActionId, observedStateHash: observed }); }
+    try {
+      action = normalizeAndValidateProviderActionCore(response.actionCore, { episode, memoryIds: retrievalReceipt?.selectedMemoryIds || [], currentState: state, allowedAuthorityClasses: ALLOWED_AUTHORITY_CLASSES, actionId: expectedActionId, observedStateHash: observed });
+      if (postBrokerValidator) postBrokerValidator({ action, turnInput, workerDossier, retrievalReceipt });
+    }
     catch (error) {
       const rejection = createBrokerRejection(response.actionCore, error, { currentState: state, memoryIds: retrievalReceipt?.selectedMemoryIds || [] }); brokerRejections.push(rejection);
       await writeExclusiveJson(path.join(caseRoot, `broker-rejection-${String(actionOrdinal).padStart(2, "0")}.json`), rejection);
@@ -373,7 +379,7 @@ export async function executeV2CaseUnit({
     if (action.actionType === "RETRIEVE_RELEVANT_MEMORY") {
       const counts = caseCounts(ledger, caseId); const totals = currentAggregateCounts();
       if (counts.toolActions >= limits.perCase.maximumToolActions || totals.toolActions >= limits.aggregate.maximumToolActions) { status = "SCOREABLE_CASE_TOOL_BOUNDARY"; failureEvidence = { code: "TOOL_ACTION_CEILING" }; break; }
-      ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "MEMORY_QUERY", ledgerOrdinal); await ledger.append("MEMORY_QUERY_CONSUMED", { caseId, actionIdentity: identity, operationHash: sha256Json(action.details) });
+      ledgerOrdinal += 1; const identity = actionIdentity(authority, caseId, "MEMORY_QUERY", ledgerOrdinal, protocolLabel); await ledger.append("MEMORY_QUERY_CONSUMED", { caseId, actionIdentity: identity, operationHash: sha256Json(action.details) });
       retrievalReceipt = await memoryStore.retrieve({ episodeId: caseId, queryFacets: action.details.queryFacets, queryText: action.details.queryText, createdAt: clock() });
       const selectedRecords = (await memoryStore.list()).filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId));
       const admission = admitInboundEvidence({ source: "MEMORY_RESULTS", value: selectedRecords }); assert.equal(admission.admitted, true, "QUALIFICATION_MEMORY_RESULT_ADMISSION_REJECTED"); inboundAdmissions.push(admission);
@@ -398,7 +404,7 @@ export async function executeWholeRunWithCaseUnit({ slots, executeCase = execute
   return outputs;
 }
 
-function lifecycleState(entries) {
+export function lifecycleState(entries) {
   const activationCount = entries.filter((entry) => entry.eventType === "AUTHORITY_ACTIVATED").length;
   const terminalCount = entries.filter((entry) => entry.eventType === "AUTHORITY_TERMINALIZED").length;
   assert.ok(activationCount <= 1, "AUTHORITY_ACTIVATION_DUPLICATE"); assert.ok(terminalCount <= 1, "AUTHORITY_TERMINALIZATION_DUPLICATE");
@@ -407,7 +413,7 @@ function lifecycleState(entries) {
   return "ISSUED";
 }
 
-function consumedSlotCaseIds(entries) {
+export function consumedSlotCaseIds(entries) {
   return entries.filter((entry) => entry.eventType === "CASE_SLOT_CONSUMED").map((entry) => entry.caseId);
 }
 
@@ -493,20 +499,20 @@ export async function activateSuccessorAuthority({ resultRoot, activatedAt = now
   await writeExclusiveJson(path.join(resultRoot, "authority-activation-receipt.json"), receipt); return receipt;
 }
 
-async function validateCaseOutputAndLedger(resultRoot, caseId) {
+export async function validateCaseOutputAndLedger(resultRoot, caseId) {
   const caseRoot = path.join(resultRoot, "cases", caseId); const output = await readJson(path.join(caseRoot, "case-transcript.json")); const ledgerSeal = await readJson(path.join(caseRoot, "case-ledger-seal.json"));
   assertSeal(output, "caseOutputHash"); assertSeal(ledgerSeal, "ledgerSealHash"); assert.equal(output.caseId, caseId); assert.equal(ledgerSeal.caseOutputHash, output.caseOutputHash); assert.equal(ledgerSeal.appendProhibited, true);
   assert.ok(SCOREABLE_CASE_STATUSES.includes(output.caseStatus), `${caseId}:CASE_OUTCOME_NOT_SCOREABLE`); assert.equal(output.slotConsumed, true, `${caseId}:SLOT_NOT_CONSUMED`);
   return output;
 }
 
-async function completedSuccessorState(resultRoot) {
+export async function completedSuccessorState(resultRoot, orderedCases = SUCCESSOR_CASES) {
   const outputs = [];
-  for (const caseId of SUCCESSOR_CASES) {
+  for (const caseId of orderedCases) {
     try { outputs.push(await validateCaseOutputAndLedger(resultRoot, caseId)); }
     catch (error) { if (error.code === "ENOENT") break; throw error; }
   }
-  assert.deepEqual(outputs.map((output) => output.caseId), SUCCESSOR_CASES.slice(0, outputs.length));
+  assert.deepEqual(outputs.map((output) => output.caseId), orderedCases.slice(0, outputs.length));
   return {
     outputs,
     counts: outputs.reduce((sum, output) => ({ reasoningSteps: sum.reasoningSteps + output.counts.reasoningSteps, toolActions: sum.toolActions + output.counts.toolActions, fakeDossierActions: sum.fakeDossierActions + output.counts.fakeDossierActions, retryAttempts: sum.retryAttempts + output.counts.retryAttempts }), { reasoningSteps: 0, toolActions: 0, fakeDossierActions: 0, retryAttempts: 0 }),
