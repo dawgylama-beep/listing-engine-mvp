@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_35_SUCCESSOR_RELEASE_TEST_CORRECTION",
+  "recordState": "SEALED_CORRECTION_TERMINATED_BEFORE_RELEASE",
+  "version": "1.12.35",
+  "createdAt": "2026-08-14T20:58:27.542Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "a287b81aa63097bc75ada436d468e405541fa660",
+    "tree": "328b2282fd10ac81bc338a7c9fa13c5c3baefd69",
+    "parent": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 1,
+    "behind": 0
+  },
+  "gateA": {
+    "classification": "ACTIVE_VERSION_TEST_EXPECTATION_STALE",
+    "testReadsActivePublicIndex": true,
+    "testReadsHistoricalEvidence": false,
+    "activePackageVersion": "1.12.35",
+    "activePackageLockVersion": "1.12.35",
+    "activePackageLockRootVersion": "1.12.35",
+    "activeServerVersion": "1.12.35",
+    "activeIndexDocumentVersion": "1.12.35",
+    "activeIndexAssetVersions": ["1.12.35", "1.12.35", "1.12.35"],
+    "historicalRecoveryVersion": "1.12.34",
+    "historicalRecoveryHash": "fa52f960c6b080bcc598a8757e42512ba99b728856dda4df688b541fc8fc5ef4",
+    "productOrEvidenceCorruptionFound": false,
+    "singleTestFileCorrectionSufficient": true,
+    "gatePassed": true
+  },
+  "correction": {
+    "path": "tests/all-four-workflow-compact-evidence-static.ps1",
+    "beforeSha256": "2083a994a56f0a64dc093d2b05faba04d2446a870fabe495c2c1289d7689b96f",
+    "afterSha256": "c7b0ffaa5b9a1a02e0967c68ca1e56dfa8ccc4fb4ad699de25ad08872df53f41",
+    "exactSemanticDiff": [
+      {
+        "operation": "READ_CANONICAL_ACTIVE_VERSION",
+        "after": "$package = Get-Content (Join-Path $Root \"package.json\") -Raw | ConvertFrom-Json; $activeVersion = [string]$package.version"
+      },
+      {
+        "operation": "FAIL_CLOSED_ON_INVALID_CANONICAL_VERSION",
+        "after": "throw unless $activeVersion matches ^\\d+\\.\\d+\\.\\d+$"
+      },
+      {
+        "operation": "ESCAPE_CANONICAL_VERSION_FOR_REGEX",
+        "after": "$escapedActiveVersion = [regex]::Escape($activeVersion)"
+      },
+      {
+        "operation": "DERIVE_EXISTING_ASSET_ORDER_ASSERTION",
+        "before": "customer-evidence.js?v=1.12.34 must precede app.js?v=1.12.34",
+        "after": "customer-evidence.js?v={canonical package version} must precede app.js?v={same canonical package version}"
+      }
+    ],
+    "assertionsRemoved": 0,
+    "assertionsSkipped": 0,
+    "assertionsWeakened": 0,
+    "otherProductionOrTestFilesChanged": 0
+  },
+  "validation": {
+    "correctedTest": {
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "mismatchNegativeProof": {
+      "fixtureLocation": "DISPOSABLE_SYSTEM_TEMP_OUTSIDE_REPOSITORY",
+      "repositoryFilesModified": 0,
+      "harnessAttempts": 2,
+      "firstHarnessResult": "EXPECTED_CHILD_STDERR_WAS_TREATED_AS_TERMINATING_BY_OUTER_POWERSHELL_BEFORE_EXIT_CLASSIFICATION",
+      "secondHarnessResult": "PASS_EXPECTED_FAILURE_OBSERVED",
+      "expectedFailureAssertion": "Canonical browser model loads before app.js",
+      "temporaryFixtureRemoved": true
+    },
+    "nodeRegression": {
+      "tests": 543,
+      "passed": 526,
+      "failed": 1,
+      "skipped": 16,
+      "cancelled": 0,
+      "todo": 0,
+      "onlyFailure": "V3 authority is create-only, activates once, and consumes only its first ordered slot"
+    },
+    "remainingSuccessorGates": "NOT_RUN_AFTER_TERMINAL_AUTHORITY_FIXTURE_ADJUDICATION_FAILURE"
+  },
+  "authorityFixtureAdjudication": {
+    "testPath": "tests/synthetic-executive-v3-held-out-corpus.test.mjs",
+    "testLine": 51,
+    "sameFixtureAsPreviouslyObserved": true,
+    "previousExactMismatch": "COGNITIVE_FREEZE_CHANGED:scripts/verify-release-version.mjs; actual 64e6826ad87182d868285ee637b32f253c7b3090f7d7e42613ba85440b27fe56; expected e1ab690e7cb9de45b10b9f9e1313d223507b9784659c73334346ba3d2df65f69",
+    "currentExactMismatch": "inspectV3StartingIdentity HEAD; actual a287b81aa63097bc75ada436d468e405541fa660; expected 8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "sameExactMismatch": false,
+    "comparesPostExecutionCodeAgainstImmutableExecutionCheckpoint": true,
+    "stoppedBeforeAuthorityCreation": true,
+    "stoppedBeforeSlotConsumption": true,
+    "authorityArtifactsWritten": 0,
+    "immutableExecutionAggregateHash": "a3b7b6775133d31402a4d87707967d5e0da1ff2e4e2afa0c75e47f61ec8c6ac9",
+    "immutableExecutionAggregateChanged": false,
+    "unrelatedNodeFailures": 0,
+    "expectedNegativeSafetyGateClassificationPermitted": false,
+    "terminalRegressionStopRequired": true
+  },
+  "preservedEvidence": {
+    "terminalEvidenceCommit": "a287b81aa63097bc75ada436d468e405541fa660",
+    "postExecutionCorrectionFileSha256": "27442383ec1af9e94205d4e371f03e573cb824a4f4871a07e727b7f77a4d6c10",
+    "postExecutionCorrectionHash": "9e8ed05dbe52306f1bb27d5bc5ca5d440d18f8c230a7ecbaa5b86de30ba2fd45",
+    "terminalStopFileSha256": "b493d31ec1317b4e9c9edac32793e6359942c61ae3896007f72b7e68d0e41c0c",
+    "terminalStopReceiptHash": "9c49b136dfcc7231702fbcbb13d8d02a91312b73420531ec1177bd664bd0125c",
+    "qualificationClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "qualificationChanged": false
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "excluded": true
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "caseReplays": 0,
+    "deployments": 0,
+    "remoteWrites": 0,
+    "pushes": 0
+  },
+  "claims": {
+    "versionReleased": false,
+    "qualificationClaimChanged": false,
+    "learningClaimed": false,
+    "cognitiveImprovementClaimed": false
+  },
+  "successorCorrectionHash": "012210e42e9d705bd43221a8f63e1f2369a83d083fd954d1a64620e493488018"
+}

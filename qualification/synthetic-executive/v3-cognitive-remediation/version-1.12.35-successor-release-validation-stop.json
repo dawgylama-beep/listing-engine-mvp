@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_SUCCESSOR_RELEASE_VALIDATION_STOP",
+  "receiptState": "SEALED_LOCAL_EVIDENCE_COMMIT_REQUIRED_REMOTE_RELEASE_PROHIBITED",
+  "version": "1.12.35",
+  "stoppedAt": "2026-08-14T20:59:44.142Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "commit": "a287b81aa63097bc75ada436d468e405541fa660",
+    "tree": "328b2282fd10ac81bc338a7c9fa13c5c3baefd69",
+    "parent": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHeadAtPreflight": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35"
+  },
+  "terminalFailure": {
+    "gate": "KNOWN_AUTHORITY_FIXTURE_BOUNDARY_ADJUDICATION",
+    "testPath": "tests/synthetic-executive-v3-held-out-corpus.test.mjs",
+    "testName": "V3 authority is create-only, activates once, and consumes only its first ordered slot",
+    "nodeSuiteResult": "526 PASSED; 1 FAILED; 16 SKIPPED; 543 TOTAL",
+    "actualMismatchField": "inspectV3StartingIdentity.HEAD",
+    "actual": "a287b81aa63097bc75ada436d468e405541fa660",
+    "expected": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "previouslyObservedMismatchField": "cognitiveFreeze.executableFiles[scripts/verify-release-version.mjs].sha256",
+    "sameFixture": true,
+    "sameExactMismatch": false,
+    "stoppedBeforeAuthorityCreation": true,
+    "stoppedBeforeSlotConsumption": true,
+    "authorityArtifactsWritten": 0,
+    "unrelatedNodeFailures": 0,
+    "expectedNegativeAdjudicationPermitted": false,
+    "terminalRegressionStopRequired": true
+  },
+  "correctionEvidence": {
+    "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-successor-release-test-correction.json",
+    "fileSha256": "ee7312511cf52035519f46ad619e55acba37a49e0ef943faed903101b8f7ad67",
+    "successorCorrectionHash": "012210e42e9d705bd43221a8f63e1f2369a83d083fd954d1a64620e493488018",
+    "testPath": "tests/all-four-workflow-compact-evidence-static.ps1",
+    "testBeforeSha256": "2083a994a56f0a64dc093d2b05faba04d2446a870fabe495c2c1289d7689b96f",
+    "testAfterSha256": "c7b0ffaa5b9a1a02e0967c68ca1e56dfa8ccc4fb4ad699de25ad08872df53f41"
+  },
+  "localEvidenceCommitInventory": {
+    "hashBasis": "RAW_WORKTREE_FILE_BYTES_WITH_LEXICOGRAPHIC_NORMALIZED_PATHS",
+    "receiptExcludedFromOwnAggregate": true,
+    "artifactCount": 2,
+    "paths": [
+      "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-successor-release-test-correction.json",
+      "tests/all-four-workflow-compact-evidence-static.ps1"
+    ],
+    "pathSetHash": "9663b6d2abe55c5ed3b1e27d8777a6750c76dd70bf2192a3b1906812f00603a1",
+    "artifactAggregateHash": "03ea498b9334f1a0d300c9aba70b6aafa45383dff8ca9054ce94ac9bb8cb9248"
+  },
+  "preservation": {
+    "terminalEvidenceCommit": "a287b81aa63097bc75ada436d468e405541fa660",
+    "terminalEvidenceCommitRewritten": false,
+    "qualificationClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "qualificationChanged": false,
+    "immutableExecutionAggregateHash": "a3b7b6775133d31402a4d87707967d5e0da1ff2e4e2afa0c75e47f61ec8c6ac9",
+    "executionAggregateChanged": false
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "excluded": true
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "modelCalls": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "caseReplays": 0,
+    "deployments": 0,
+    "remoteWrites": 0,
+    "pushes": 0
+  },
+  "disposition": {
+    "versionReleased": false,
+    "localEvidenceCommitPermitted": true,
+    "pushPermitted": false,
+    "mergePermitted": false,
+    "deploymentPermitted": false,
+    "remainingValidationProhibitedAfterStop": true
+  },
+  "receiptHash": "6ab4d58db80b71413276c5df569858a3b62aef629d85cbe0683176a3da77587d"
+}

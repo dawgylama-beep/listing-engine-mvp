@@ -8,6 +8,12 @@ $app = Get-Content (Join-Path $Root "public/app.js") -Raw
 $model = Get-Content (Join-Path $Root "public/customer-evidence.js") -Raw
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $styles = Get-Content (Join-Path $Root "public/styles.css") -Raw
+$package = Get-Content (Join-Path $Root "package.json") -Raw | ConvertFrom-Json
+$activeVersion = [string]$package.version
+if ($activeVersion -notmatch '^\d+\.\d+\.\d+$') {
+  throw "package.json must provide the canonical active release Version."
+}
+$escapedActiveVersion = [regex]::Escape($activeVersion)
 $failed = @()
 
 function Require-Contains($Name, $Text, $Pattern) {
@@ -45,7 +51,7 @@ foreach ($title in @(
   Require-Contains "Workflow title remains available: $title" $app $title
 }
 
-Require-Regex "Canonical browser model loads before app.js" $index '<script src="/customer-evidence\.js\?v=1\.12\.34"></script>\s*<script src="/app\.js\?v=1\.12\.34"></script>'
+Require-Regex "Canonical browser model loads before app.js" $index ('<script src="/customer-evidence\.js\?v={0}"></script>\s*<script src="/app\.js\?v={0}"></script>' -f $escapedActiveVersion)
 Require-Contains "One pure presentation-model authority exists" $model "function buildCustomerEvidenceViewModel"
 Require-Contains "Presentation model consumes displayed IDs" $model "customerEvidenceSummary.displayedIds"
 Require-Contains "Presentation model preserves canonical order" $model "cards: customerEvidence.map(buildCard)"
