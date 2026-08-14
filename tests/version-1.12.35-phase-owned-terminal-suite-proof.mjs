@@ -1,19 +1,31 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { seal, sha256Bytes, sha256Json } from "../qualification/synthetic-executive/scripts/protocol.mjs";
 import {
   buildDerivedFixtureSource,
   buildTerminalPlan,
+  captureChildResult,
   classifyEntries,
+  createSuccessorCaptureDirectory,
   discoverEntriesFromPinnedSources,
   inspectSourceInputs,
+  assertCaptureDefinitions,
   parseNodeSpecSummary,
+  parseReportedEntries,
   readPolicy,
+  resolveSuccessorCapture,
   repositoryRoot,
+  successorCaptureDirectory,
+  successorCaptureIdentity,
+  successorCaptureRelativePath,
+  successorTerminalCommand,
   terminalNodeInvocation,
-  validateTerminalCapture
+  validateTerminalCapture,
+  writeAcceptedCaptureResult
 } from "../qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs";
 
 const reseal = (policy, mutate) => {
@@ -51,6 +63,16 @@ const validCapture = async () => {
     stdout: successfulReporterOutput(),
     stderr: ""
   };
+};
+
+const reporterDisplayName = (testIdentity) => testIdentity.includes(" > ") ? testIdentity.slice(testIdentity.lastIndexOf(" > ") + 3) : testIdentity;
+
+const completeSuccessfulReporterOutput = (plan) => {
+  const outcomes = plan.selectedEntries.map((entry, index) => {
+    const skipped = index >= plan.selectedEntries.length - plan.policy.execution.expected.skipped;
+    return `${skipped ? "﹣" : "✔"} ${reporterDisplayName(entry.testIdentity)} (1ms)${skipped ? " # SKIP" : ""}`;
+  });
+  return `${outcomes.join("\n")}\n${successfulReporterOutput()}`;
 };
 
 test("pre-authority N includes X while terminal-release R excludes exactly X", async () => {
@@ -123,7 +145,7 @@ test("the frozen fixture, runner binding, and prior terminal evidence remain byt
 test("the retained Node 24 spec reporter format produces a complete accepted summary", async () => {
   const capture = await validCapture();
   assert.deepEqual(parseNodeSpecSummary(capture.stdout), capture.plan.policy.execution.expected);
-  assert.deepEqual(validateTerminalCapture(capture), capture.plan.policy.execution.expected);
+  assert.deepEqual(validateTerminalCapture(capture), { summary: capture.plan.policy.execution.expected, reportedEntries: null });
 });
 
 test("a missing tests summary fails closed even when child exit is zero", async () => {
@@ -187,4 +209,120 @@ test("an incorrectly reconciled total fails closed", async () => {
   const capture = await validCapture();
   capture.stdout = successfulReporterOutput({ passed: 525 });
   assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_TOTAL_RECONCILIATION_FAILED/);
+});
+
+test("the successor identity maps only to the one fixed normalized capture path and exact command", async () => {
+  const policy = await readPolicy();
+  const resolved = resolveSuccessorCapture(successorCaptureIdentity);
+  assert.equal(resolved.identity, successorCaptureIdentity);
+  assert.equal(resolved.relativePath, successorCaptureRelativePath);
+  assert.equal(resolved.directory, successorCaptureDirectory);
+  assert.equal(successorTerminalCommand(policy), `${policy.execution.command} ${successorCaptureIdentity}`);
+  await assert.rejects(lstat(successorCaptureDirectory), { code: "ENOENT" });
+});
+
+test("unknown, empty, path-shaped, duplicate, and escaping capture definitions fail closed", () => {
+  for (const identity of ["", "UNKNOWN_CAPTURE", "../escape", "nested/separator", "C:\\absolute"])
+    assert.throws(() => resolveSuccessorCapture(identity), /CAPTURE_IDENTITY_(?:FORMAT_INVALID|NOT_ALLOWLISTED)/);
+  assert.throws(() => assertCaptureDefinitions([
+    { identity: successorCaptureIdentity, relativePath: successorCaptureRelativePath },
+    { identity: successorCaptureIdentity, relativePath: successorCaptureRelativePath }
+  ]), /DUPLICATE_CAPTURE_IDENTITY/);
+  assert.throws(() => assertCaptureDefinitions([
+    { identity: successorCaptureIdentity, relativePath: "../escape" }
+  ]), /CAPTURE_PATH_(?:TRAVERSAL_FORBIDDEN|OUTSIDE_FIXED_ROOT)/);
+  assert.throws(() => assertCaptureDefinitions([
+    { identity: successorCaptureIdentity, relativePath: path.resolve("absolute-capture") }
+  ]), /CAPTURE_PATH_MUST_BE_RELATIVE/);
+});
+
+test("successor artifacts are created exclusively in a disposable fixed capture root", async () => {
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "katherine-terminal-capture-proof-"));
+  try {
+    const capture = resolveSuccessorCapture(successorCaptureIdentity, { root: temporaryRoot });
+    await mkdir(capture.captureRoot, { recursive: true });
+    const stdout = Buffer.from("synthetic stdout\n", "utf8");
+    const stderr = Buffer.from("synthetic stderr\n", "utf8");
+    const written = await captureChildResult({
+      capture,
+      command: "synthetic command",
+      nodeInvocation: [process.execPath, "--test", "synthetic.test.mjs"],
+      exitCode: 0,
+      signal: null,
+      stdout,
+      stderr
+    });
+    const accepted = await writeAcceptedCaptureResult(capture, { accepted: true });
+    assert.deepEqual((await readdir(capture.directory)).sort(), ["accepted-result.json", "child-command.json", "stderr.txt", "stdout.txt"]);
+    assert.equal(written.hashes.stdoutSha256, sha256Bytes(stdout));
+    assert.equal(written.hashes.stderrSha256, sha256Bytes(stderr));
+    assert.equal(accepted.sha256, sha256Bytes(await readFile(accepted.path)));
+    await assert.rejects(captureChildResult({
+      capture,
+      command: "synthetic command",
+      nodeInvocation: [process.execPath],
+      exitCode: 0,
+      signal: null,
+      stdout,
+      stderr
+    }), /CAPTURE_DESTINATION_PREEXISTS/);
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+  await assert.rejects(lstat(successorCaptureDirectory), { code: "ENOENT" });
+});
+
+test("pre-existing directories and symlink destinations are rejected before capture creation", async () => {
+  for (const fixture of ["directory", "symlink"]) {
+    const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), `katherine-terminal-${fixture}-proof-`));
+    try {
+      const capture = resolveSuccessorCapture(successorCaptureIdentity, { root: temporaryRoot });
+      await mkdir(capture.captureRoot, { recursive: true });
+      if (fixture === "directory") await mkdir(capture.directory);
+      else {
+        const outside = path.join(temporaryRoot, "outside");
+        await mkdir(outside);
+        await symlink(outside, capture.directory, "junction");
+      }
+      await assert.rejects(createSuccessorCaptureDirectory(successorCaptureIdentity, { root: temporaryRoot }), fixture === "symlink" ? /CAPTURE_DESTINATION_SYMLINK_FORBIDDEN/ : /CAPTURE_DESTINATION_PREEXISTS/);
+    } finally {
+      await rm(temporaryRoot, { recursive: true, force: true });
+    }
+  }
+});
+
+test("successor reporter reconciliation accounts for every R entry exactly once", async () => {
+  const capture = await validCapture();
+  capture.command = successorTerminalCommand(capture.plan.policy);
+  capture.successorIdentity = successorCaptureIdentity;
+  capture.stdout = completeSuccessfulReporterOutput(capture.plan);
+  const result = validateTerminalCapture(capture);
+  assert.equal(result.reportedEntries.length, 542);
+  assert.equal(result.reportedEntries.filter((entry) => entry.outcome === "PASSED").length, 526);
+  assert.equal(result.reportedEntries.filter((entry) => entry.outcome === "SKIPPED").length, 16);
+  assert.equal(result.reportedEntries.filter((entry) => entry.outcome === "FAILED").length, 0);
+  assert.deepEqual(parseReportedEntries(capture.plan, capture.stdout), result.reportedEntries);
+});
+
+test("missing, duplicate, and unexpected successor reporter entries fail closed", async () => {
+  for (const mutation of ["missing", "duplicate", "unexpected"]) {
+    const capture = await validCapture();
+    const lines = completeSuccessfulReporterOutput(capture.plan).split("\n");
+    if (mutation === "missing") lines.shift();
+    if (mutation === "duplicate") lines.splice(1, 0, lines[0]);
+    if (mutation === "unexpected") lines.splice(1, 0, "✔ unsealed unexpected test (1ms)");
+    assert.throws(() => parseReportedEntries(capture.plan, lines.join("\n")), /NODE_TEST_REPORTER_(?:ENTRY_MISSING|ENTRY_DUPLICATED|UNEXPECTED_ENTRY)/);
+  }
+});
+
+test("the prior capture remains exact and the real successor capture remains absent", async () => {
+  const priorRoot = path.join(repositoryRoot, "qualification", "synthetic-executive", "v3-cognitive-remediation", "version-1.12.35-terminal-suite-capture");
+  const entries = await Promise.all((await readdir(priorRoot)).sort().map(async (name) => {
+    const relativePath = `qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/${name}`;
+    const bytes = await readFile(path.join(repositoryRoot, ...relativePath.split("/")));
+    return { byteLength: bytes.length, relativePath, sha256: sha256Bytes(bytes) };
+  }));
+  assert.deepEqual(entries.map((entry) => path.basename(entry.relativePath)), ["child-command.json", "stderr.txt", "stdout.txt"]);
+  assert.equal(sha256Json(entries), "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15");
+  await assert.rejects(lstat(successorCaptureDirectory), { code: "ENOENT" });
 });

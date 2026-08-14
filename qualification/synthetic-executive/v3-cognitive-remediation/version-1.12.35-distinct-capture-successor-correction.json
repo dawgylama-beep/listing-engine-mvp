@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_35_DISTINCT_CAPTURE_TERMINAL_SUITE_SUCCESSOR_CORRECTION",
+  "recordState": "SEALED_PRE_EXECUTION_CORRECTION",
+  "version": "1.12.35",
+  "createdAt": "2026-08-14T22:53:51.7013235Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "tree": "fcb05da69660e553f0c3088dc86506edcbea7743",
+    "parent": "312f92b497063c813487a325eacb892a374645af",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 4,
+    "behind": 0
+  },
+  "gateA": {
+    "result": "PASS",
+    "retainedRunHead": "312f92b497063c813487a325eacb892a374645af",
+    "currentHead": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "retainedResult": {
+      "selected": 542,
+      "passed": 524,
+      "failed": 2,
+      "skipped": 16,
+      "cancelled": 0,
+      "todo": 0,
+      "permanentlyFailed": true,
+      "reclassified": false
+    },
+    "failedSourcePath": "tests/blind-object-v2-detached-runtime.test.mjs",
+    "failures": [
+      {
+        "testIdentity": "B-C: two fresh current-process runtimes verify identically and cleanup through Git",
+        "memberOfR": true,
+        "memberOfX": false,
+        "assertionsReachedBeforeFailure": [],
+        "failureOperation": "git worktree add --detach",
+        "failureCause": "PERMISSION_DENIED_CREATING_GIT_WORKTREES_METADATA",
+        "unreachedBehaviorRemainsUnevaluated": true
+      },
+      {
+        "testIdentity": "D-H: wrong linkage, release drift, dirtiness, and tracked-file changes fail closed",
+        "memberOfR": true,
+        "memberOfX": false,
+        "assertionsReachedBeforeFailure": [
+          {
+            "line": 73,
+            "assertion": "wrong-link assert.throws",
+            "result": "PASSED"
+          }
+        ],
+        "failureLine": 78,
+        "failureOperation": "git worktree add --detach",
+        "failureCause": "PERMISSION_DENIED_CREATING_GIT_WORKTREES_METADATA",
+        "remainingWorktreeDependentBehavior": "UNEVALUATED"
+      }
+    ],
+    "assertionFailuresReported": 0,
+    "unreachedAssertionsInferred": false
+  },
+  "priorCapture": {
+    "normalizedDirectory": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/",
+    "memberCount": 3,
+    "totalBytes": 62985,
+    "aggregateHash": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+    "members": [
+      {
+        "byteLength": 2883,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/child-command.json",
+        "sha256": "84896c15918864855eae795fd12187842b02e40913c45bc4c7d0e4f91b830e79"
+      },
+      {
+        "byteLength": 0,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "byteLength": 60102,
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/stdout.txt",
+        "sha256": "16db437f7fea4d98a8b715a80b04a6ab165ac7cb2067ea51dc3f8f6af40b9678"
+      }
+    ],
+    "exclusiveCreationBehavior": {
+      "directoryCreation": "mkdir without recursive reuse",
+      "artifactCreation": "writeFile flag wx",
+      "reusable": false,
+      "collisionIfReused": true,
+      "modified": false
+    }
+  },
+  "correction": {
+    "runner": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs",
+      "beforeSha256": "7b51f64290c77d8ca56f6fe5e6c18358534ad87a3b372f291e4e449b6ed3b66f",
+      "afterSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc"
+    },
+    "proofTest": {
+      "path": "tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+      "beforeSha256": "ede1366996f910c590ceca641bc2fb307849a62410ace16a17f1cb08bd1460a3",
+      "afterSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67"
+    },
+    "successorIdentity": "VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "successorCaptureDirectory": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/",
+    "exactCommand": "node qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs RUN VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "successorDirectoryExistedBeforeExecution": false,
+    "arbitraryPathInputAccepted": false,
+    "priorCaptureModified": false,
+    "productOrTestBehaviorModified": false,
+    "policyModified": false
+  },
+  "offlineProofs": {
+    "command": "node --test tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+    "tests": 24,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "todo": 0,
+    "existingPolicyAndCaptureProofs": 17,
+    "distinctCaptureAndReporterProofs": 7,
+    "realSuccessorCaptureCreated": false,
+    "realTerminalSuiteExecuted": false
+  },
+  "preserved": {
+    "captureStopReceiptPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-validation-stop.json",
+    "captureStopReceiptSha256": "15c23db50328795665ed15a4ee9b28d7a4682134ec1b818cc4ca721c60d4d64a",
+    "captureStopReceiptHash": "b0b1bf41f47b4441e3899b438b716d26807b9b59e142bef499585479d5c5cf1b",
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "retainedRunReclassified": false
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "correctionHash": "4882d84ff7359ce6a4731c627fa240d8dddf498acf77bfa22be464bef10758a5"
+}

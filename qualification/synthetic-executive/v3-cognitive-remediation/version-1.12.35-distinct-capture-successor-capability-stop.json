@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_DISTINCT_CAPTURE_SUCCESSOR_CAPABILITY_STOP",
+  "receiptState": "SEALED_LOCAL_EVIDENCE_COMMIT_REQUIRED_REMOTE_RELEASE_PROHIBITED",
+  "classification": "DISPOSABLE_WORKTREE_CAPABILITY_PREFLIGHT_FAILED_PATH_LENGTH",
+  "version": "1.12.35",
+  "stoppedAt": "2026-08-14T22:56:17.5261650Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "tree": "fcb05da69660e553f0c3088dc86506edcbea7743",
+    "parent": "312f92b497063c813487a325eacb892a374645af",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 4,
+    "behind": 0
+  },
+  "gateA": {
+    "result": "PASS",
+    "retainedRunHead": "312f92b497063c813487a325eacb892a374645af",
+    "currentHead": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "retainedResult": "542 selected / 524 passed / 2 failed / 16 skipped",
+    "retainedResultPermanentlyFailed": true,
+    "failedSourcePath": "tests/blind-object-v2-detached-runtime.test.mjs",
+    "bcAssertionsReached": 0,
+    "dhLine73WrongLinkAssertion": "PASSED",
+    "dhWorktreeSetupFailureLine": 78,
+    "assertionFailuresReported": 0,
+    "unreachedBehaviorInferred": false,
+    "bothMemberOfR": true,
+    "eitherMemberOfX": false
+  },
+  "gateB": {
+    "result": "PASS",
+    "runner": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs",
+      "beforeSha256": "7b51f64290c77d8ca56f6fe5e6c18358534ad87a3b372f291e4e449b6ed3b66f",
+      "afterSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc"
+    },
+    "proofTest": {
+      "path": "tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+      "beforeSha256": "ede1366996f910c590ceca641bc2fb307849a62410ace16a17f1cb08bd1460a3",
+      "afterSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67"
+    },
+    "correctionRecord": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-distinct-capture-successor-correction.json",
+      "fileSha256": "b17833b62fa384bc07264ed4eb1fbb92d4159e13f9b1f371ba38351755a7b03f",
+      "correctionHash": "4882d84ff7359ce6a4731c627fa240d8dddf498acf77bfa22be464bef10758a5"
+    },
+    "offlineProofCommand": "node --test tests/version-1.12.35-phase-owned-terminal-suite-proof.mjs",
+    "offlineProofs": {
+      "tests": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0
+    },
+    "successorIdentity": "VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001",
+    "successorCapturePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001/",
+    "realSuccessorCaptureCreated": false
+  },
+  "gateC": {
+    "result": "FAIL",
+    "wrapperParseFailuresBeforeGitExecution": 1,
+    "gitWorktreeAddAttempts": 1,
+    "targetCommit": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "commandShape": "git worktree add --detach <unique-system-temp-path> 3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+    "addExitCode": 128,
+    "failure": "WINDOWS_PATH_LENGTH_LIMIT_DURING_TRACKED_TREE_CHECKOUT",
+    "representativeErrors": [
+      "Filename too long while checking out qualification/synthetic-executive/episodes/visible/KE-P7-H02 artifacts",
+      "Filename too long while checking out qualification/synthetic-executive/qualification-real-route/case-scoped-completion artifacts"
+    ],
+    "exactDetachedCommitVerified": false,
+    "initialFinalListEqualityProved": false,
+    "capabilityEstablished": false,
+    "retryPermitted": false,
+    "retryPerformed": false,
+    "postFailureRegisteredWorktreeCount": 1,
+    "postFailureRegisteredWorktrees": [
+      {
+        "path": "C:/Users/dawgy/Projects/listing-engine-mvp",
+        "head": "3c1fe981f8711ee89a7ebeaff884f44a5259fa41",
+        "branch": "refs/heads/refactor/beta-evidence-pipeline"
+      }
+    ],
+    "matchingDisposableDirectoriesRemaining": 0,
+    "staleMetadataPruned": false,
+    "residueDetected": false
+  },
+  "unreachedGates": {
+    "successorTerminalSuite": "NOT_RUN_AFTER_GATE_C_FAILURE",
+    "remainingReleaseValidation": "NOT_RUN_AFTER_GATE_C_FAILURE",
+    "finalReleaseIdentity": "NOT_CONSTRUCTED",
+    "finalReleaseCommit": "NOT_CREATED",
+    "push": "NOT_ATTEMPTED"
+  },
+  "priorCapture": {
+    "normalizedDirectory": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture/",
+    "memberCount": 3,
+    "totalBytes": 62985,
+    "aggregateHash": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+    "modified": false
+  },
+  "phase6a": {
+    "untracked": true,
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "modified": false,
+    "staged": false
+  },
+  "activity": {
+    "successorTerminalSuiteRuns": 0,
+    "terminalSuiteRetries": 0,
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0,
+    "pushes": 0
+  },
+  "disposition": {
+    "versionReleased": false,
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "localEvidenceCommitRequired": true,
+    "pushPermitted": false,
+    "mergePermitted": false,
+    "deploymentPermitted": false
+  },
+  "receiptHash": "bc450b775fdc528f89ff8dc31a80d0ca2e3fac5b9a0e46fd7b6acb79af8f7e35"
+}

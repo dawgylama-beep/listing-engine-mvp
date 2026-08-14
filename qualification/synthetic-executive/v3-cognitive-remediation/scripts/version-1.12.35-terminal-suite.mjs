@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -13,13 +13,59 @@ const scriptPath = fileURLToPath(import.meta.url);
 export const repositoryRoot = path.resolve(path.dirname(scriptPath), "..", "..", "..", "..");
 export const policyPath = path.join(repositoryRoot, "qualification", "synthetic-executive", "v3-cognitive-remediation", "version-1.12.35-phase-owned-terminal-suite-policy.json");
 export const captureDirectory = path.join(repositoryRoot, "qualification", "synthetic-executive", "v3-cognitive-remediation", "version-1.12.35-terminal-suite-capture");
+export const successorCaptureIdentity = "VERSION_1_12_35_TERMINAL_SUITE_SUCCESSOR_001";
+export const successorCaptureRelativePath = "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-terminal-suite-capture-successor-001";
+export const successorCaptureDirectory = path.join(repositoryRoot, ...successorCaptureRelativePath.split("/"));
 const temporaryDerivedName = ".version-1.12.35-terminal-suite-derived.mjs";
 const ignoredDirectories = new Set([".git", "node_modules"]);
+const captureRootRelativePath = "qualification/synthetic-executive/v3-cognitive-remediation";
+const captureDefinitions = Object.freeze([{ identity: successorCaptureIdentity, relativePath: successorCaptureRelativePath }]);
 
 const normalize = (value) => value.replaceAll("\\", "/");
 const compareEntries = (left, right) => left.sourcePath < right.sourcePath ? -1 : left.sourcePath > right.sourcePath ? 1 : left.testIdentity < right.testIdentity ? -1 : left.testIdentity > right.testIdentity ? 1 : 0;
 const sameEntry = (left, right) => left.sourcePath === right.sourcePath && left.testIdentity === right.testIdentity;
 const literalPattern = String.raw`((?:"(?:[^"\\]|\\.)*")|(?:'(?:[^'\\]|\\.)*')|(?:\`(?:[^\`\\]|\\.)*\`))`;
+
+export function assertCaptureDefinitions(definitions = captureDefinitions) {
+  assert.equal(Array.isArray(definitions), true, "CAPTURE_DEFINITIONS_MUST_BE_AN_ARRAY");
+  const identities = new Set();
+  const destinations = new Set();
+  for (const definition of definitions) {
+    assert.deepEqual(Object.keys(definition).sort(), ["identity", "relativePath"], "CAPTURE_DEFINITION_FIELDS_CHANGED");
+    assert.match(definition.identity, /^[A-Z][A-Z0-9_]*$/u, "CAPTURE_IDENTITY_FORMAT_INVALID");
+    assert.equal(identities.has(definition.identity), false, "DUPLICATE_CAPTURE_IDENTITY");
+    identities.add(definition.identity);
+    assert.equal(path.isAbsolute(definition.relativePath), false, "CAPTURE_PATH_MUST_BE_RELATIVE");
+    assert.equal(normalize(definition.relativePath), definition.relativePath, "CAPTURE_PATH_MUST_BE_NORMALIZED");
+    assert.equal(definition.relativePath.split("/").some((segment) => segment === "" || segment === "." || segment === ".."), false, "CAPTURE_PATH_TRAVERSAL_FORBIDDEN");
+    assert.equal(definition.relativePath.startsWith(`${captureRootRelativePath}/`), true, "CAPTURE_PATH_OUTSIDE_FIXED_ROOT");
+    assert.equal(destinations.has(definition.relativePath), false, "DUPLICATE_CAPTURE_DESTINATION");
+    destinations.add(definition.relativePath);
+  }
+  assert.equal(definitions.length, 1, "CAPTURE_DEFINITION_COUNT_CHANGED");
+  assert.deepEqual(definitions[0], { identity: successorCaptureIdentity, relativePath: successorCaptureRelativePath }, "SUCCESSOR_CAPTURE_DEFINITION_CHANGED");
+  return true;
+}
+
+assertCaptureDefinitions();
+
+export function resolveSuccessorCapture(identity, { root = repositoryRoot } = {}) {
+  assert.equal(typeof identity, "string", "CAPTURE_IDENTITY_MUST_BE_TEXT");
+  assert.match(identity, /^[A-Z][A-Z0-9_]*$/u, "CAPTURE_IDENTITY_FORMAT_INVALID");
+  const definition = captureDefinitions.find((entry) => entry.identity === identity);
+  assert.ok(definition, "CAPTURE_IDENTITY_NOT_ALLOWLISTED");
+  const resolvedRoot = path.resolve(root);
+  const fixedCaptureRoot = path.resolve(resolvedRoot, ...captureRootRelativePath.split("/"));
+  const destination = path.resolve(resolvedRoot, ...definition.relativePath.split("/"));
+  const relative = normalize(path.relative(fixedCaptureRoot, destination));
+  assert.equal(relative.startsWith("../") || relative === ".." || path.isAbsolute(relative), false, "CAPTURE_DESTINATION_OUTSIDE_FIXED_ROOT");
+  assert.equal(normalize(path.relative(resolvedRoot, destination)), definition.relativePath, "CAPTURE_DESTINATION_MAPPING_CHANGED");
+  return Object.freeze({ identity: definition.identity, relativePath: definition.relativePath, directory: destination, captureRoot: fixedCaptureRoot });
+}
+
+export function successorTerminalCommand(policy) {
+  return `${policy.execution.command} ${successorCaptureIdentity}`;
+}
 
 function evaluateLiteral(raw) {
   assert.match(raw, /^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)$/, "TEST_IDENTITY_MUST_BE_A_CLOSED_LITERAL");
@@ -230,6 +276,38 @@ export function parseNodeSpecSummary(output) {
   return summary;
 }
 
+function reporterDisplayName(testIdentity) {
+  const separator = testIdentity.lastIndexOf(" > ");
+  return normalize(separator < 0 ? testIdentity : testIdentity.slice(separator + 3));
+}
+
+export function parseReportedEntries(plan, output) {
+  const byDisplayName = new Map();
+  for (const entry of plan.selectedEntries) {
+    const displayName = reporterDisplayName(entry.testIdentity);
+    assert.equal(byDisplayName.has(displayName), false, `DUPLICATE_REPORTER_DISPLAY_IDENTITY:${displayName}`);
+    byDisplayName.set(displayName, entry);
+  }
+  const outcomesByDisplayName = new Map([...byDisplayName.keys()].map((name) => [name, []]));
+  const unexpected = [];
+  for (const line of output.split(/\r?\n/u)) {
+    const match = line.match(/^\s*([✔✖﹣]) (.+?) \((?:0|[1-9]\d*)(?:\.\d+)?ms\)(?: # SKIP)?$/u);
+    if (!match) continue;
+    const displayName = normalize(match[2]);
+    const outcome = match[1] === "✔" ? "PASSED" : match[1] === "﹣" ? "SKIPPED" : "FAILED";
+    if (!byDisplayName.has(displayName)) unexpected.push({ displayName, outcome });
+    else outcomesByDisplayName.get(displayName).push(outcome);
+  }
+  assert.deepEqual(unexpected, [], "NODE_TEST_REPORTER_UNEXPECTED_ENTRY");
+  const reportedEntries = plan.selectedEntries.map((entry) => {
+    const outcomes = outcomesByDisplayName.get(reporterDisplayName(entry.testIdentity));
+    assert.notEqual(outcomes.length, 0, `NODE_TEST_REPORTER_ENTRY_MISSING:${entry.sourcePath}:${entry.testIdentity}`);
+    assert.equal(outcomes.length, 1, `NODE_TEST_REPORTER_ENTRY_DUPLICATED:${entry.sourcePath}:${entry.testIdentity}`);
+    return { ...entry, outcome: outcomes[0] };
+  });
+  return reportedEntries;
+}
+
 export function terminalNodeInvocation(plan) {
   const targetPath = plan.policy.sets.X.entry.sourcePath;
   const derivedPath = path.join(repositoryRoot, "tests", temporaryDerivedName);
@@ -237,9 +315,11 @@ export function terminalNodeInvocation(plan) {
   return { derivedPath, executionSources, nodeInvocation: [process.execPath, "--test", ...executionSources] };
 }
 
-export function validateTerminalCapture({ plan, command, nodeInvocation, exitCode, stdout, stderr }) {
+export function validateTerminalCapture({ plan, command, nodeInvocation, exitCode, stdout, stderr, successorIdentity = null }) {
   assertPolicySeal(plan.policy);
-  assert.equal(command, plan.policy.execution.command, "TERMINAL_SUITE_COMMAND_CHANGED");
+  const expectedCommand = successorIdentity === null ? plan.policy.execution.command : successorTerminalCommand(plan.policy);
+  if (successorIdentity !== null) assert.equal(successorIdentity, successorCaptureIdentity, "CAPTURE_IDENTITY_NOT_ALLOWLISTED");
+  assert.equal(command, expectedCommand, "TERMINAL_SUITE_COMMAND_CHANGED");
   assert.deepEqual(nodeInvocation, terminalNodeInvocation(plan).nodeInvocation, "TERMINAL_SUITE_CHILD_COMMAND_CHANGED");
   assert.equal(exitCode, 0, "TERMINAL_SUITE_CHILD_EXIT_NONZERO");
   assert.equal(sha256Json(plan.discoveredEntries), plan.policy.sets.N.hash, "TERMINAL_CAPTURE_N_HASH_CHANGED");
@@ -257,18 +337,57 @@ export function validateTerminalCapture({ plan, command, nodeInvocation, exitCod
   assert.equal(summary.tests, plan.selectedEntries.length, "TERMINAL_SUITE_SELECTED_TEST_TOTAL_CHANGED");
   assert.deepEqual(summary, plan.policy.execution.expected, "TERMINAL_SUITE_RESULT_CHANGED");
   assert.equal(summary.failed, 0, "TERMINAL_SUITE_FAILURES_PRESENT");
-  return summary;
+  const reportedEntries = successorIdentity === null ? null : parseReportedEntries(plan, stdout);
+  if (reportedEntries !== null) {
+    assert.equal(reportedEntries.length, plan.policy.sets.R.count, "NODE_TEST_REPORTED_ENTRY_COUNT_CHANGED");
+    assert.equal(reportedEntries.filter((entry) => entry.outcome === "PASSED").length, summary.passed, "NODE_TEST_REPORTED_PASS_COUNT_CHANGED");
+    assert.equal(reportedEntries.filter((entry) => entry.outcome === "FAILED").length, summary.failed, "NODE_TEST_REPORTED_FAIL_COUNT_CHANGED");
+    assert.equal(reportedEntries.filter((entry) => entry.outcome === "SKIPPED").length, summary.skipped, "NODE_TEST_REPORTED_SKIP_COUNT_CHANGED");
+    const formerlyBlocked = new Set([
+      "B-C: two fresh current-process runtimes verify identically and cleanup through Git",
+      "D-H: wrong linkage, release drift, dirtiness, and tracked-file changes fail closed"
+    ]);
+    assert.equal(reportedEntries.filter((entry) => entry.sourcePath === "tests/blind-object-v2-detached-runtime.test.mjs" && formerlyBlocked.has(entry.testIdentity) && entry.outcome === "PASSED").length, 2, "DETACHED_RUNTIME_TESTS_DID_NOT_COMPLETE_AND_PASS");
+  }
+  return { summary, reportedEntries };
 }
 
-async function captureChildResult({ command, nodeInvocation, exitCode, signal, stdout, stderr }) {
-  await mkdir(captureDirectory);
+async function assertExclusiveCaptureDestination(capture) {
+  if (capture.identity !== null) {
+    assert.equal(capture.identity, successorCaptureIdentity, "CAPTURE_IDENTITY_NOT_ALLOWLISTED");
+    assert.equal(capture.relativePath, successorCaptureRelativePath, "CAPTURE_DESTINATION_MAPPING_CHANGED");
+    assert.equal(capture.directory, path.join(capture.captureRoot, path.basename(successorCaptureRelativePath)), "CAPTURE_DESTINATION_OUTSIDE_FIXED_ROOT");
+  }
+  const captureRootStat = await lstat(capture.captureRoot);
+  assert.equal(captureRootStat.isDirectory(), true, "CAPTURE_ROOT_MUST_BE_A_DIRECTORY");
+  assert.equal(captureRootStat.isSymbolicLink(), false, "CAPTURE_ROOT_SYMLINK_FORBIDDEN");
+  assert.equal(await realpath(capture.captureRoot), capture.captureRoot, "CAPTURE_ROOT_REALPATH_CHANGED");
+  try {
+    const destinationStat = await lstat(capture.directory);
+    assert.equal(destinationStat.isSymbolicLink(), false, "CAPTURE_DESTINATION_SYMLINK_FORBIDDEN");
+    throw new assert.AssertionError({ message: "CAPTURE_DESTINATION_PREEXISTS" });
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+export async function createSuccessorCaptureDirectory(identity, { root = repositoryRoot } = {}) {
+  const capture = resolveSuccessorCapture(identity, { root });
+  await assertExclusiveCaptureDestination(capture);
+  await mkdir(capture.directory);
+  return capture;
+}
+
+export async function captureChildResult({ capture, command, nodeInvocation, exitCode, signal, stdout, stderr }) {
+  await assertExclusiveCaptureDestination(capture);
+  await mkdir(capture.directory);
   const childRecord = canonicalize({ command, executable: nodeInvocation[0], arguments: nodeInvocation.slice(1), cwd: repositoryRoot, exitCode, signal: signal ?? null });
   const childRecordBytes = Buffer.from(`${stableJson(childRecord)}\n`, "utf8");
   const paths = {
-    childCommand: path.join(captureDirectory, "child-command.json"),
-    stdout: path.join(captureDirectory, "stdout.txt"),
-    stderr: path.join(captureDirectory, "stderr.txt"),
-    result: path.join(captureDirectory, "accepted-result.json")
+    childCommand: path.join(capture.directory, "child-command.json"),
+    stdout: path.join(capture.directory, "stdout.txt"),
+    stderr: path.join(capture.directory, "stderr.txt"),
+    result: path.join(capture.directory, "accepted-result.json")
   };
   await writeFile(paths.childCommand, childRecordBytes, { flag: "wx" });
   await writeFile(paths.stdout, stdout, { flag: "wx" });
@@ -284,9 +403,23 @@ async function captureChildResult({ command, nodeInvocation, exitCode, signal, s
   };
 }
 
-export async function runTerminalSuite() {
+export async function writeAcceptedCaptureResult(capture, result) {
+  assert.equal(capture.identity, successorCaptureIdentity, "CAPTURE_IDENTITY_NOT_ALLOWLISTED");
+  assert.equal(capture.relativePath, successorCaptureRelativePath, "CAPTURE_DESTINATION_MAPPING_CHANGED");
+  assert.equal(capture.directory, path.join(capture.captureRoot, path.basename(successorCaptureRelativePath)), "CAPTURE_DESTINATION_OUTSIDE_FIXED_ROOT");
+  const resultPath = path.join(capture.directory, "accepted-result.json");
+  const resultBytes = Buffer.from(`${stableJson(result)}\n`, "utf8");
+  await writeFile(resultPath, resultBytes, { flag: "wx" });
+  return { path: resultPath, byteLength: resultBytes.length, sha256: sha256Bytes(resultBytes) };
+}
+
+export async function runTerminalSuite({ successorIdentity = null } = {}) {
   const plan = await buildTerminalPlan();
   process.stdout.write(`${stableJson({ phase: "TERMINAL_SUITE_PLAN_PUBLISHED", N: plan.discoveredEntries, X: plan.excludedEntries, R: plan.selectedEntries, NHash: plan.policy.sets.N.hash, XHash: plan.policy.sets.X.hash, RHash: plan.policy.sets.R.hash })}\n`);
+  const capture = successorIdentity === null
+    ? Object.freeze({ identity: null, relativePath: normalize(path.relative(repositoryRoot, captureDirectory)), directory: captureDirectory, captureRoot: path.dirname(captureDirectory) })
+    : resolveSuccessorCapture(successorIdentity);
+  const command = successorIdentity === null ? plan.policy.execution.command : successorTerminalCommand(plan.policy);
   const targetPath = plan.policy.sets.X.entry.sourcePath;
   const { derivedPath, executionSources, nodeInvocation } = terminalNodeInvocation(plan);
   const derivedBytes = buildDerivedFixtureSource(plan.policy, plan.sourceBytes.get(targetPath));
@@ -304,12 +437,14 @@ export async function runTerminalSuite() {
         stderr: Buffer.isBuffer(error.stderr) ? error.stderr : Buffer.from(error.stderr || "", "utf8")
       };
     }
-    const capture = await captureChildResult({ command: plan.policy.execution.command, nodeInvocation, ...child });
+    const captured = await captureChildResult({ capture, command, nodeInvocation, ...child });
     const stdout = child.stdout.toString("utf8");
     const stderr = child.stderr.toString("utf8");
-    const summary = validateTerminalCapture({ plan, command: plan.policy.execution.command, nodeInvocation, exitCode: child.exitCode, stdout, stderr });
+    const { summary, reportedEntries } = validateTerminalCapture({ plan, command, nodeInvocation, exitCode: child.exitCode, stdout, stderr, successorIdentity });
     const result = canonicalize({
-      command: plan.policy.execution.command,
+      command,
+      captureIdentity: capture.identity ?? "LEGACY_UNIDENTIFIED_CAPTURE",
+      captureDirectory: capture.relativePath,
       nodeInvocation,
       childExitCode: child.exitCode,
       discoveredEntries: plan.discoveredEntries.length,
@@ -322,15 +457,20 @@ export async function runTerminalSuite() {
       additionalExclusions: 0,
       originalFixtureSourceExecuted: false,
       temporaryDerivedSourceRemoved: true,
+      reportedEntries: reportedEntries ?? "NOT_CAPTURED_BY_LEGACY_ROUTE",
       captureArtifacts: {
-        childCommand: normalize(path.relative(repositoryRoot, capture.paths.childCommand)),
-        stdout: normalize(path.relative(repositoryRoot, capture.paths.stdout)),
-        stderr: normalize(path.relative(repositoryRoot, capture.paths.stderr))
+        childCommand: normalize(path.relative(repositoryRoot, captured.paths.childCommand)),
+        stdout: normalize(path.relative(repositoryRoot, captured.paths.stdout)),
+        stderr: normalize(path.relative(repositoryRoot, captured.paths.stderr))
       },
-      ...capture.hashes
+      ...captured.hashes
     });
-    const resultBytes = Buffer.from(`${stableJson(result)}\n`, "utf8");
-    await writeFile(capture.paths.result, resultBytes, { flag: "wx" });
+    if (successorIdentity === null) {
+      const resultBytes = Buffer.from(`${stableJson(result)}\n`, "utf8");
+      await writeFile(captured.paths.result, resultBytes, { flag: "wx" });
+    } else {
+      await writeAcceptedCaptureResult(capture, result);
+    }
     process.stdout.write(`${stableJson({ phase: "TERMINAL_SUITE_COMPLETE", result })}\n`);
     return result;
   } finally {
@@ -345,7 +485,12 @@ async function main(argv) {
     process.stdout.write(`${stableJson({ command, N: plan.discoveredEntries, X: plan.excludedEntries, R: plan.selectedEntries, NHash: plan.policy.sets.N.hash, XHash: plan.policy.sets.X.hash, RHash: plan.policy.sets.R.hash })}\n`);
     return;
   }
-  if (command === "RUN") { await runTerminalSuite(); return; }
+  if (command === "RUN" && argv.length === 1) { await runTerminalSuite(); return; }
+  if (command === "RUN" && argv.length === 2) {
+    resolveSuccessorCapture(argv[1]);
+    await runTerminalSuite({ successorIdentity: argv[1] });
+    return;
+  }
   throw new Error("command must be PLAN or RUN");
 }
 
