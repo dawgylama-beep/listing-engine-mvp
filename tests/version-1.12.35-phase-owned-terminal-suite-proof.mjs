@@ -9,8 +9,11 @@ import {
   classifyEntries,
   discoverEntriesFromPinnedSources,
   inspectSourceInputs,
+  parseNodeSpecSummary,
   readPolicy,
-  repositoryRoot
+  repositoryRoot,
+  terminalNodeInvocation,
+  validateTerminalCapture
 } from "../qualification/synthetic-executive/v3-cognitive-remediation/scripts/version-1.12.35-terminal-suite.mjs";
 
 const reseal = (policy, mutate) => {
@@ -25,6 +28,29 @@ const load = async () => {
   const inputs = await inspectSourceInputs(policy);
   const discoveredEntries = discoverEntriesFromPinnedSources(policy, inputs.bytesByPath);
   return { policy, inputs, discoveredEntries };
+};
+
+const successfulReporterOutput = ({ tests = 542, passed = 526, failed = 0, cancelled = 0, skipped = 16, todo = 0, finalNewline = true } = {}) => [
+  `ℹ tests ${tests}`,
+  "ℹ suites 0",
+  `ℹ pass ${passed}`,
+  `ℹ fail ${failed}`,
+  `ℹ cancelled ${cancelled}`,
+  `ℹ skipped ${skipped}`,
+  `ℹ todo ${todo}`,
+  "ℹ duration_ms 1"
+].join("\n") + (finalNewline ? "\n" : "");
+
+const validCapture = async () => {
+  const plan = await buildTerminalPlan();
+  return {
+    plan,
+    command: plan.policy.execution.command,
+    nodeInvocation: terminalNodeInvocation(plan).nodeInvocation,
+    exitCode: 0,
+    stdout: successfulReporterOutput(),
+    stderr: ""
+  };
 };
 
 test("pre-authority N includes X while terminal-release R excludes exactly X", async () => {
@@ -92,4 +118,73 @@ test("the frozen fixture, runner binding, and prior terminal evidence remain byt
   ]);
   assert.equal(sha256Bytes(correction), "ee7312511cf52035519f46ad619e55acba37a49e0ef943faed903101b8f7ad67");
   assert.equal(sha256Bytes(stop), "47aa7e6e65e4e8f30398883d5c97e68e24f5ac48258511edb7791657b4867b11");
+});
+
+test("the retained Node 24 spec reporter format produces a complete accepted summary", async () => {
+  const capture = await validCapture();
+  assert.deepEqual(parseNodeSpecSummary(capture.stdout), capture.plan.policy.execution.expected);
+  assert.deepEqual(validateTerminalCapture(capture), capture.plan.policy.execution.expected);
+});
+
+test("a missing tests summary fails closed even when child exit is zero", async () => {
+  const capture = await validCapture();
+  capture.stdout = capture.stdout.replace(/^ℹ tests 542\n/mu, "");
+  assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_FIELD_MISSING:tests/);
+});
+
+test("malformed and nonnumeric summary counts fail closed", async () => {
+  for (const replacement of ["ℹ tests: 542", "ℹ tests many"]) {
+    const capture = await validCapture();
+    capture.stdout = capture.stdout.replace("ℹ tests 542", replacement);
+    assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_FIELD_(?:MISSING|NONNUMERIC):tests/);
+  }
+});
+
+test("duplicate and conflicting summary fields fail closed", async () => {
+  for (const duplicate of ["ℹ tests 542\n", "ℹ tests 541\n"]) {
+    const capture = await validCapture();
+    capture.stdout += duplicate;
+    assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_FIELD_DUPLICATED:tests/);
+  }
+});
+
+test("truncated reporter output fails closed", async () => {
+  const capture = await validCapture();
+  capture.stdout = successfulReporterOutput({ finalNewline: false });
+  assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_OUTPUT_TRUNCATED/);
+});
+
+test("a nonzero child exit fails before an otherwise successful summary can be accepted", async () => {
+  const capture = await validCapture();
+  capture.exitCode = 1;
+  assert.throws(() => validateTerminalCapture(capture), /TERMINAL_SUITE_CHILD_EXIT_NONZERO/);
+});
+
+test("an unexpected X identity in either output stream fails closed", async () => {
+  for (const stream of ["stdout", "stderr"]) {
+    const capture = await validCapture();
+    capture[stream] += `${capture.plan.policy.sets.X.entry.testIdentity}\n`;
+    assert.throws(() => validateTerminalCapture(capture), /PHASE_EXCLUDED_FIXTURE_WAS_REPORTED/);
+  }
+});
+
+test("a missing selected R member fails closed", async () => {
+  const capture = await validCapture();
+  capture.plan = { ...capture.plan, selectedEntries: capture.plan.selectedEntries.slice(1) };
+  assert.throws(() => validateTerminalCapture(capture), /TERMINAL_CAPTURE_R_HASH_CHANGED/);
+});
+
+test("changed N, X, or R hashes fail closed", async () => {
+  for (const setName of ["N", "X", "R"]) {
+    const capture = await validCapture();
+    capture.plan = structuredClone(capture.plan);
+    capture.plan.policy.sets[setName].hash = "0".repeat(64);
+    assert.throws(() => validateTerminalCapture(capture), /TERMINAL_SUITE_POLICY_HASH_MISMATCH/);
+  }
+});
+
+test("an incorrectly reconciled total fails closed", async () => {
+  const capture = await validCapture();
+  capture.stdout = successfulReporterOutput({ passed: 525 });
+  assert.throws(() => validateTerminalCapture(capture), /NODE_TEST_SUMMARY_TOTAL_RECONCILIATION_FAILED/);
 });
