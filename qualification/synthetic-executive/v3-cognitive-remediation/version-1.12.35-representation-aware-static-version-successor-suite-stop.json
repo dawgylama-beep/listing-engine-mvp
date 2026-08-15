@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_REPRESENTATION_AWARE_STATIC_VERSION_SUCCESSOR_SUITE_STOP",
+  "classification": "VERSION_1_12_35_SUCCESSOR_STATIC_SUITE_STOPPED_BY_PLAYWRIGHT_FAILURE",
+  "recordState": "SEALED_FAILURE_LOCAL_PRESERVATION_ONLY",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T18:17:56.2853116Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "4d18d28b41921f615f31739e8dd94836ae13b8f8",
+    "tree": "5d2be0842d436abc92cbf097a44af2985177c1c2",
+    "parent": "a133c6bbf51bc2692cb1b9f8923d054d8f82f4a5",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 9,
+    "behind": 0
+  },
+  "gateARepresentationInventory": {
+    "result": "PASS",
+    "fileCount": 53,
+    "pathSetHash": "34128f7099d5eefcd97f14b73ed9d5f45218a8006725cc36d527acd1979af065",
+    "missing": 0,
+    "unexpected": 0,
+    "duplicate": 0,
+    "unclassified": 0,
+    "parserErrors": 0,
+    "historicalAndDependencyReferences": 50,
+    "staleActiveReferences": [
+      {
+        "path": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+        "line": 79,
+        "column": 69,
+        "raw": "1\\.12\\.34",
+        "normalized": "1.12.34",
+        "tokenContext": "StringLiteral",
+        "classification": "ACTIVE_VERSION_REFERENCE",
+        "purpose": "BROWSER_ASSET_ORDER_ASSERTION"
+      },
+      {
+        "path": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+        "line": 79,
+        "column": 117,
+        "raw": "1\\.12\\.34",
+        "normalized": "1.12.34",
+        "tokenContext": "StringLiteral",
+        "classification": "ACTIVE_VERSION_REFERENCE",
+        "purpose": "BROWSER_ASSET_ORDER_ASSERTION"
+      }
+    ],
+    "additionalStaleActiveReferences": 0,
+    "actualAssetOrder": [
+      "/customer-evidence.js?v=1.12.35",
+      "/app.js?v=1.12.35"
+    ],
+    "actualAssetOrderCorrect": true,
+    "helperInterfaceSufficient": true
+  },
+  "gateBExactCorrection": {
+    "result": "PASS",
+    "path": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+    "beforeSha256": "050636cd719b35ee8386fee16b317d78afd4d5a135144a3d8dc3a1d1cd4b64af",
+    "afterSha256": "da51fa075f243dc154627b01861885bc7f8a5f1c40a629fad7bbeaf9bd74d5f2",
+    "helperInterface": "Get-ActiveVersionExpectations().ActiveVersion",
+    "regexEscaping": "System.Text.RegularExpressions.Regex.Escape",
+    "hardCodedSuccessorVersionAdded": false,
+    "parserErrors": 0,
+    "helperParserErrors": 0,
+    "expressionChecks": {
+      "currentCorrectOrder": true,
+      "currentReversedOrder": false,
+      "priorCorrectOrder": false,
+      "fixtureResidue": 0
+    },
+    "focusedExecution": {
+      "invocations": 1,
+      "selected": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "outputSha256": "bfee5b55886ad4822bbc7cb31b5e9263e4988bf5f93b824e87e725932e47fd68"
+    }
+  },
+  "gateCPostCorrectionInventory": {
+    "result": "PASS",
+    "fileCount": 53,
+    "pathSetHash": "34128f7099d5eefcd97f14b73ed9d5f45218a8006725cc36d527acd1979af065",
+    "parserErrors": 0,
+    "staleActiveReferences": 0,
+    "malformedOrAmbiguousActiveReferences": 0,
+    "orderedComponentCandidates": 0,
+    "helperImports": 31,
+    "historicalAndDependencyReferences": 50,
+    "historicalReferenceMultisetUnchanged": true,
+    "historicalReferenceCounts": {
+      "1.12.1": 42,
+      "11.16.0": 2,
+      "1.62.0": 2,
+      "1.9.1": 2,
+      "1.9.2": 2
+    },
+    "canonicalIdentities": {
+      "IDX": "1.12.35",
+      "PKG": "1.12.35",
+      "SRV": "1.12.35",
+      "publicAssets": "1.12.35"
+    },
+    "helperSha256": "1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9",
+    "helperUnchanged": true,
+    "priorMigratedFilesUnchanged": 30,
+    "onlyNonEvidenceDifferenceFromStartingHead": "tests/milestone-2c1-canonical-customer-evidence.ps1"
+  },
+  "gateDSuccessorStaticSuite": {
+    "result": "FAIL_STOPPED",
+    "selected": 53,
+    "executed": 28,
+    "passed": 27,
+    "failed": 1,
+    "notExecuted": 25,
+    "stoppedAtFirstFailure": true,
+    "retryCount": 0,
+    "failedMember": {
+      "ordinal": 28,
+      "path": "tests/milestone-2c2-browser-dom.ps1",
+      "exitCode": 1,
+      "message": "The focused Milestone 2C-2 Playwright suite failed with exit code 1.",
+      "playwrightStatus": "failed",
+      "failedTestCount": 12,
+      "lastRunPath": "test-results/playwright/.last-run.json",
+      "lastRunBytes": 635,
+      "lastRunSha256": "ab8aa112152273fc0443a0eef88b45ffad42c4ad51167f63c8fbd54bf506d588",
+      "failureCaptureFiles": 39,
+      "failureCaptureBytes": 3864482,
+      "screenshots": 14,
+      "traces": 12,
+      "errorContexts": 12,
+      "testLocalServerProcessesRemaining": 0,
+      "testLocalPortListenersRemaining": 0
+    },
+    "orchestrationDiagnostic": "The aggregate wrapper's before/after child policy formatting expression was malformed; a direct read-only post-stop query confirmed all persistent policy scopes remained Undefined. This did not cause or replace the member-28 Playwright exit-code failure."
+  },
+  "notReached": {
+    "remainingStaticMembers": 25,
+    "gateEBrowserValidation": true,
+    "gateEFrontendCredentialScan": true,
+    "gateEGoverningSecretScan": true,
+    "gateEJavaScriptSyntax": true,
+    "gateEServerCheck": true,
+    "gateEReleaseVersion": true,
+    "gateEGitDiffCheck": true,
+    "gateECandidateReconciliation": true,
+    "gateEFrozenIdentityChecks": true,
+    "finalReleaseSet": true,
+    "terminalReleaseRecord": true,
+    "releaseCommit": true,
+    "push": true
+  },
+  "preservedIdentities": {
+    "staticSuiteStopSha256": "6760786c61acddb94d79734acaa0e98c74f51008357e871a67f08230f0490325",
+    "staticSuiteStopReceiptHash": "eb51804acd9e92c10ab5f5db2ad4f7ed1438883596c9534e8d09a0c1adb093f5",
+    "helperSha256": "1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9",
+    "runnerSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc",
+    "proofTestSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67",
+    "terminalSuiteResultHash": "e77bff42fbe68660fa175e716bebcc6d4518fc8dd81d70199737ea358bf38282"
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "modified": false,
+    "staged": false
+  },
+  "postFailureState": {
+    "persistentPolicies": {
+      "MachinePolicy": "Undefined",
+      "UserPolicy": "Undefined",
+      "Process": "Undefined",
+      "CurrentUser": "Undefined",
+      "LocalMachine": "Undefined"
+    },
+    "stagedTrackedChangesBeforeReceipt": 0,
+    "unstagedTrackedChangesBeforeReceipt": 1,
+    "untrackedOutsidePhase6aBeforeReceipt": 0,
+    "ignoredPlaywrightFailureCaptureFiles": 39
+  },
+  "activity": {
+    "focusedCorrectionTestExecutions": 1,
+    "successorStaticMemberExecutions": 28,
+    "gateEExecutions": 0,
+    "sealedTerminalNodeSuiteExecutions": 0,
+    "literalPathCapabilityProofExecutions": 0,
+    "helperProofExecutions": 0,
+    "focusedMigratedSetExecutions": 0,
+    "credentialValueAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "preservation": {
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "releaseState": "UNRELEASED",
+    "remoteWrites": 0
+  },
+  "receiptHashBasis": "COMPACT_JSON_OF_THIS_RECORD_WITH_RECEIPT_HASH_OMITTED",
+  "receiptHash": "e2fd94c7242f05b3b97bed51205c31056b4af0f982000abc58dddbd2e5524802"
+}

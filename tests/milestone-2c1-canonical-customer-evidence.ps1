@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "helpers/native-git.ps1")
+$activeVersionExpectations = Import-Module (Join-Path $root "tests/support/active-version.psm1") -Force -PassThru -ErrorAction Stop | ForEach-Object { Get-ActiveVersionExpectations }
 $apiPath = Join-Path $root "api/generate-listing.js"
 $appPath = Join-Path $root "public/app.js"
 $browserModelPath = Join-Path $root "public/customer-evidence.js"
@@ -76,7 +77,8 @@ foreach ($removedAlias in @(
 )) {
   Require-True (($api + $customerSerializer + $validation + $app + $browserModel) -notmatch [regex]::Escape($removedAlias)) "Removed alias remains in production: $removedAlias"
 }
-Require-True ($index -match '<script src="/customer-evidence\.js\?v=1\.12\.34"></script>\s*<script src="/app\.js\?v=1\.12\.34"></script>') "Browser presentation model is not loaded before app.js."
+$assetVersionPattern = [regex]::Escape($activeVersionExpectations.ActiveVersion)
+Require-True ($index -match ('<script src="/customer-evidence\.js\?v=' + $assetVersionPattern + '"></script>\s*<script src="/app\.js\?v=' + $assetVersionPattern + '"></script>')) "Browser presentation model is not loaded before app.js."
 Require-True ($api -match 'maxProviderCalls:\s*28') "Retail provider ceiling changed from 28."
 Require-True ($api -match '\? retailBudget\.maxProviderCalls\s*:\s*12') "Collectible provider ceiling changed from 12."
 Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 53) "Current PowerShell entry-point count is not exactly 53."
