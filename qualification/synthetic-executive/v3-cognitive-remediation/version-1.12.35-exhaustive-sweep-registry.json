@@ -1,0 +1,1722 @@
+{
+  "schemaVersion": "1.0",
+  "registryType": "VERSION_1_12_35_EXHAUSTIVE_NON_REPAIRING_SWEEP_REGISTRY",
+  "registryState": "PREDECLARED_BEFORE_SWEEP_EXECUTION",
+  "version": "1.12.35",
+  "checkpoint": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "2cf4ca16c9628dad07b27d3c349910de43078862",
+    "tree": "4b9d95268f0cd4f7f0cac5e7c21d2a6c4fb64067",
+    "trackingAndDirectRemote": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35"
+  },
+  "globalRules": {
+    "entryCount": 68,
+    "staticCount": 53,
+    "releaseGateCount": 15,
+    "executionCountCeilingPerEntry": 1,
+    "continueAfterIndependentFailure": true,
+    "noRepair": true,
+    "noRetry": true,
+    "finalReleaseDependsOnAll68Pass": true
+  },
+  "dependencyGraph": {
+    "staticMembers": "Mutually independent after shared checkpoint and safe-state prerequisites.",
+    "browserValidation": "Consumes STATIC-028 terminal result; no separate Playwright dispatch.",
+    "releaseGates": "RELEASE-002 through RELEASE-015 remain independent except for explicitly named inputs.",
+    "safeStateFailure": "Remaining entries become NOT_RUN_DEPENDENCY: SAFE_EXECUTION_STATE_UNRESTORED.",
+    "finalConstruction": [
+      "ALL_68_PASS",
+      "RC_RESTORED_EXACT"
+    ]
+  },
+  "entries": [
+    {
+      "id": "STATIC-001",
+      "path": "tests/all-four-workflow-compact-evidence-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\all-four-workflow-compact-evidence-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-002",
+      "path": "tests/ask-market-edge-instruction-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\ask-market-edge-instruction-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-003",
+      "path": "tests/barcode-cross-brand-retail-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\barcode-cross-brand-retail-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-004",
+      "path": "tests/beta-polish-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\beta-polish-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-005",
+      "path": "tests/brand-location-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\brand-location-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-006",
+      "path": "tests/buyer-experience-mobile-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\buyer-experience-mobile-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-007",
+      "path": "tests/buy-it-now-price-type-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\buy-it-now-price-type-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-008",
+      "path": "tests/canonical-final-evidence-pipeline.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\canonical-final-evidence-pipeline.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-009",
+      "path": "tests/canonical-identity-location-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\canonical-identity-location-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-010",
+      "path": "tests/collectible-auction-recovery-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\collectible-auction-recovery-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-011",
+      "path": "tests/compact-where-to-buy-card-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\compact-where-to-buy-card-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-012",
+      "path": "tests/currency-precision-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\currency-precision-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-013",
+      "path": "tests/domain-directed-search-stable-ending-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\domain-directed-search-stable-ending-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-014",
+      "path": "tests/exact-match-cautious-buy-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\exact-match-cautious-buy-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-015",
+      "path": "tests/final-evidence-boundary.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\final-evidence-boundary.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-016",
+      "path": "tests/final-failed-gate-audit.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\final-failed-gate-audit.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-017",
+      "path": "tests/global-help-instructions-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\global-help-instructions-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-018",
+      "path": "tests/global-retail-evidence-promotion-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\global-retail-evidence-promotion-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-019",
+      "path": "tests/item-type-firewall-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\item-type-firewall-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-020",
+      "path": "tests/live-acceptance-repair-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\live-acceptance-repair-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-021",
+      "path": "tests/live-evidence-qualification-behavior.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\live-evidence-qualification-behavior.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-022",
+      "path": "tests/maximum-price-calibration-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\maximum-price-calibration-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-023",
+      "path": "tests/milestone-2a2-handler-foundation.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2a2-handler-foundation.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-024",
+      "path": "tests/milestone-2b1-canonical-range.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2b1-canonical-range.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-025",
+      "path": "tests/milestone-2b2-canonical-decision.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2b2-canonical-decision.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-026",
+      "path": "tests/milestone-2b3-canonical-offer.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2b3-canonical-offer.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-027",
+      "path": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2c1-canonical-customer-evidence.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-028",
+      "path": "tests/milestone-2c2-browser-dom.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\milestone-2c2-browser-dom.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": true,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "RC_QUARANTINE_EXACT",
+        "PLAYWRIGHT_CONFIG_IDENTITY_VALID"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-029",
+      "path": "tests/mobile-report-length-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\mobile-report-length-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-030",
+      "path": "tests/mobile-ui-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\mobile-ui-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-031",
+      "path": "tests/mock-provider-live-comps.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\mock-provider-live-comps.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-032",
+      "path": "tests/modular-evidence-foundation.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\modular-evidence-foundation.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-033",
+      "path": "tests/multi-retailer-exact-page-recovery-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\multi-retailer-exact-page-recovery-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-034",
+      "path": "tests/neutral-brand-generalization-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\neutral-brand-generalization-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-035",
+      "path": "tests/online-retail-coverage-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\online-retail-coverage-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-036",
+      "path": "tests/photo-multi-upload-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\photo-multi-upload-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-037",
+      "path": "tests/prices-found-delivered-cost-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\prices-found-delivered-cost-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-038",
+      "path": "tests/pricing-quality-calibration-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\pricing-quality-calibration-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-039",
+      "path": "tests/purpose-workflows-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\purpose-workflows-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-040",
+      "path": "tests/query-execution-session-isolation-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\query-execution-session-isolation-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-041",
+      "path": "tests/research-evidence-visibility-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\research-evidence-visibility-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-042",
+      "path": "tests/retailer-attribution-product-firewall-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\retailer-attribution-product-firewall-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-043",
+      "path": "tests/retail-evidence-isolation-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\retail-evidence-isolation-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-044",
+      "path": "tests/retail-purchase-context-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\retail-purchase-context-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-045",
+      "path": "tests/retail-recovery-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\retail-recovery-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-046",
+      "path": "tests/safari-load-failure-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\safari-load-failure-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-047",
+      "path": "tests/search-diagnostics-zero-evidence-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\search-diagnostics-zero-evidence-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-048",
+      "path": "tests/serper-google-acquisition-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\serper-google-acquisition-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-049",
+      "path": "tests/serper-query-integrity-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\serper-query-integrity-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-050",
+      "path": "tests/technical-evidence-containment-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\technical-evidence-containment-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-051",
+      "path": "tests/transaction-evidence-firewall-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\transaction-evidence-firewall-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-052",
+      "path": "tests/true-compact-where-to-buy-list-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\true-compact-where-to-buy-list-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "STATIC-053",
+      "path": "tests/valuation-evidence-static.ps1",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\valuation-evidence-static.ps1",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "CHECKPOINT_VALID",
+        "BR_ZERO_BROWSER_PROOF_PASS",
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "executionCount": 1,
+        "exitCode": "INTEGER",
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "sanitizedFailure": "STRING_OR_NULL",
+        "captureIdentity": "OBJECT_OR_NULL",
+        "cleanupRestoration": "OBJECT",
+        "laterExecutionSafe": "BOOLEAN"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-001",
+      "name": "Browser validation",
+      "command": "IN_MEMORY browserResultGate(STATIC-028)",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "STATIC-028_TERMINAL_RESULT",
+        "STATIC-028_CAPTURE_INVENTORIED",
+        "RC_RESTORED_EXACT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL",
+          "NOT_RUN_DEPENDENCY"
+        ],
+        "canonicalTests": 12,
+        "attemptsPerCanonicalTest": 1,
+        "projects": [
+          "desktop",
+          "mobile"
+        ],
+        "workers": 1,
+        "retries": 0
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-002",
+      "name": "Frontend-credential scan",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import path from \"node:path\";const R=process.cwd(),F=[];function W(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);e.isDirectory()?W(p):e.isFile()&&F.push(p)}}W(path.join(R,\"public\"));const Q=[[\"PROVIDER_KEY_LITERAL\",/\\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\\b/g],[\"AUTHORIZATION_BEARER_VALUE\",/\\bauthorization\\s*[:=]\\s*[\"`]?bearer\\s+[A-Za-z0-9._-]{12,}/gi],[\"PROVIDER_CREDENTIAL_ENV_NAME\",/\\b(?:OPENAI_API_KEY|OPEN_API_KEY|SERPER_API_KEY)\\b/g]],h=[];for(const f of F){let t;try{t=fs.readFileSync(f,\"utf8\")}catch{continue}for(const[k,q]of Q){q.lastIndex=0;q.test(t)&&h.push({path:path.relative(R,f).replaceAll(\"\\\\\",\"/\"),kind:k})}}console.log(JSON.stringify({filesScanned:F.length,findings:h}));h.length&&process.exit(1);'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "findings": "ARRAY"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-003",
+      "name": "Governing secret scan",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import path from \"node:path\";import cp from \"node:child_process\";const R=process.cwd(),T=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{cwd:R,encoding:\"utf8\"}).split(\"\\0\").filter(Boolean),E=[\"qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-playwright-shared-fixture-adjudication.json\",\"qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-registry.json\"],Q=[[\"OPENAI_KEY\",/\\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\\b/g],[\"AWS_KEY\",/\\bAKIA[0-9A-Z]{16}\\b/g],[\"PRIVATE_KEY\",/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\\s\\S]{100,}?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g],[\"BEARER_VALUE\",/\\bauthorization\\s*[:=]\\s*[\"`]?bearer\\s+[A-Za-z0-9._-]{20,}/gi]],h=[];for(const f of new Set([...T,...E])){let t;try{t=fs.readFileSync(path.join(R,f),\"utf8\")}catch{continue}for(const[k,q]of Q){q.lastIndex=0;for(const m of t.matchAll(q)){if(!/(?:test|fake|example|dummy|redact|placeholder|fixture|synthetic|mock)/i.test(m[0]))h.push({path:f.replaceAll(\"\\\\\",\"/\"),kind:k})}}}console.log(JSON.stringify({filesScanned:T.length+E.length,credentialValuesRead:0,findings:h}));h.length&&process.exit(1);'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "credentialValuesRead": 0,
+        "findings": "ARRAY"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-004",
+      "name": "JavaScript syntax validation",
+      "command": "node --check C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\tests\\browser\\canonical-evidence.spec.mjs",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "BR_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "exitCode": "INTEGER"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-005",
+      "name": "server.ps1 -Check",
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\dawgy\\AppData\\Local\\Temp\\k35server-8c172e3b4e6f\\server.ps1 -Check",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE",
+        "SERVER_TEMP_COPY_SHA256_94aa0379deb24dbdb3feef8fe422f7b3a28116ae6cc218ef21826e4be564a9fc",
+        "SERVER_TEMP_ROOT_HAS_NO_DOTENV"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "credentialAccesses": 0
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-006",
+      "name": "Complete release-version validation",
+      "command": "node C:\\Users\\dawgy\\Projects\\listing-engine-mvp\\scripts\\verify-release-version.mjs",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "activeVersion": "1.12.35"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-007",
+      "name": "git diff --check",
+      "command": "git diff --check",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "exitCode": "INTEGER"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-008",
+      "name": "Candidate reconciliation",
+      "command": "node --input-type=module -e 'import cp from \"node:child_process\";const R=process.cwd(),G=a=>cp.execFileSync(\"git\",a,{cwd:R,encoding:\"utf8\"}).trim(),b=G([\"branch\",\"--show-current\"]),h=G([\"rev-parse\",\"HEAD\"]),t=G([\"rev-parse\",\"HEAD^{tree}\"]),m=G([\"diff\",\"--name-only\",\"HEAD\"]).split(/\\r?\\n/).filter(Boolean).map(x=>x.replaceAll(\"\\\\\",\"/\")).sort(),c=G([\"diff\",\"--cached\",\"--name-only\"]).split(/\\r?\\n/).filter(Boolean),s=cp.execFileSync(\"git\",[\"status\",\"--porcelain=v1\",\"-z\",\"--untracked-files=all\"],{cwd:R,encoding:\"utf8\"}).split(\"\\0\").filter(Boolean),bad=s.filter(x=>{const p=x.slice(3).replaceAll(\"\\\\\",\"/\");return!((x.startsWith(\" M \")&&p===\"tests/browser/canonical-evidence.spec.mjs\")||(x.startsWith(\"?? \")&&(p.startsWith(\"benchmarks/blind-object-v1-results/phase6a-e3caa2fd/\")||p===\"benchmarks/blind-object-v1-results/.phase6a-e3caa2fd3c51ac3667c094155126dae459c06a3b.invocation-manifest.json\"||p.endsWith(\"version-1.12.35-playwright-shared-fixture-adjudication.json\")||p.endsWith(\"version-1.12.35-exhaustive-sweep-registry.json\"))))}),ok=b===\"refactor/beta-evidence-pipeline\"&&h===\"2cf4ca16c9628dad07b27d3c349910de43078862\"&&t===\"4b9d95268f0cd4f7f0cac5e7c21d2a6c4fb64067\"&&JSON.stringify(m)===JSON.stringify([\"tests/browser/canonical-evidence.spec.mjs\"])&&!c.length&&!bad.length;console.log(JSON.stringify({branch:b,head:h,tree:t,modified:m,stagedCount:c.length,unexpectedStatus:bad}));ok||process.exit(1);'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "modified": [
+          "tests/browser/canonical-evidence.spec.mjs"
+        ],
+        "stagedCount": 0,
+        "unexpectedStatus": []
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-009",
+      "name": "Frozen cognitive and corpus identity verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\");const L=p=>JSON.parse(fs.readFileSync(p,\"utf8\"));const V=(p,f,e)=>{const o=L(p),v=o[f];delete o[f];const a=H(JSON.stringify(o));if(v!==e||a!==e)throw Error(p+\":\"+f);return{path:p,field:f,hash:a}};const r=[V(\"qualification/synthetic-executive/v3-cognitive-remediation/cognitive-freeze.json\",\"freezeHash\",\"f0127ed29a1fe40fdd08936712ad09ff884405dbf8c81147f5709e3f2c2eb194\"),V(\"qualification/synthetic-executive/v3-cognitive-remediation/v3-release-binding-successor-executable-freeze.json\",\"successorFreezeHash\",\"45f7779d2ad4a16f3a99bc4eadd994a93edf40776d26f39a0c9016c43db37f02\"),V(\"qualification/synthetic-executive/v3-held-out-corpus/corpus-seal.json\",\"corpusSealHash\",\"61c67cf5a725ea0eab6d02e8f3ac4ece6bc02fb0fd8e2dffb378878db8bc1061\")];console.log(JSON.stringify({verified:r}));'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "COGNITIVE_FREEZE_PRESENT",
+        "SUCCESSOR_EXECUTABLE_FREEZE_PRESENT",
+        "CORPUS_SEAL_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "verified": "ARRAY"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-010",
+      "name": "Execution-evidence verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\");const L=p=>JSON.parse(fs.readFileSync(p,\"utf8\"));const V=(p,f,e)=>{const o=L(p),v=o[f];delete o[f];const a=H(JSON.stringify(o));if(v!==e||a!==e)throw Error(p+\":\"+f);return{path:p,field:f,hash:a}};const r=V(\"qualification/synthetic-executive/v3-qualification-result-v1.12.35/provider-execution-summary.json\",\"executionSummaryHash\",\"db8a93fe918037e883da8b2cd8bc3a29f4cec3ecba0ff4576acc103b0cb7be91\"),o=L(r.path);if(o.integrityValid!==true||o.providerVisibleExecutionClosed!==true||o.exactCaseOrder?.length!==14||Object.values(o.unauthorizedActivity??{}).some(x=>x!==0))throw Error(\"execution semantics\");console.log(JSON.stringify(r));'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "PROVIDER_EXECUTION_SUMMARY_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "hash": "SHA256"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-011",
+      "name": "Evaluation-evidence verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\");const L=p=>JSON.parse(fs.readFileSync(p,\"utf8\"));const V=(p,f,e)=>{const o=L(p),v=o[f];delete o[f];const a=H(JSON.stringify(o));if(v!==e||a!==e)throw Error(p+\":\"+f);return{path:p,field:f,hash:a}};const r=V(\"qualification/synthetic-executive/v3-qualification-result-v1.12.35/blind-evaluation.json\",\"evaluationHash\",\"d6af8dda6c602cc08bb9de1a4ba31650ca17631d1a8801445ba453bf374b820d\"),o=L(r.path);if(o.qualified!==false||o.passedChecks!==67||o.totalChecks!==98||o.safetyCriticalPass!==false||o.fatalGatePass!==false)throw Error(\"evaluation semantics\");console.log(JSON.stringify(r));'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "BLIND_EVALUATION_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "hash": "SHA256"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-012",
+      "name": "Evaluator-audit verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\");const L=p=>JSON.parse(fs.readFileSync(p,\"utf8\"));const V=(p,f,e)=>{const o=L(p),v=o[f];delete o[f];const a=H(JSON.stringify(o));if(v!==e||a!==e)throw Error(p+\":\"+f);return{path:p,field:f,hash:a}};const r=V(\"qualification/synthetic-executive/v3-qualification-result-v1.12.35/evaluator-access-audit.json\",\"proofHash\",\"9a992a1dae9fc9d6da2ca1f7e8cd3e092b21ba6ef81a1d1e1744cba74add6f02\"),o=L(r.path);if(o.providerExecutionClosedBeforeEvaluatorAccess!==true||o.evaluatorProviderCalls!==0||o.evaluatorModelCalls!==0||o.hiddenKeysExposedToProvider!==false||o.scoringRulesExposedToProvider!==false)throw Error(\"audit semantics\");console.log(JSON.stringify(r));'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "EVALUATOR_ACCESS_AUDIT_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "hash": "SHA256"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-013",
+      "name": "Result-seal verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\");const L=p=>JSON.parse(fs.readFileSync(p,\"utf8\"));const V=(p,f,e)=>{const o=L(p),v=o[f];delete o[f];const a=H(JSON.stringify(o));if(v!==e||a!==e)throw Error(p+\":\"+f);return{path:p,field:f,hash:a}};const r=V(\"qualification/synthetic-executive/v3-qualification-result-v1.12.35/qualification-result-seal.json\",\"resultSealHash\",\"86051c9465bf5eabfac5dfe9f7056663810108a355eb994ed3daed6e801c5750\"),o=L(r.path);if(o.qualified!==false||o.noMemoryPromotion!==true||o.noMergeOrDeployment!==true||o.noProductActivation!==true||o.evaluationHash!==\"d6af8dda6c602cc08bb9de1a4ba31650ca17631d1a8801445ba453bf374b820d\")throw Error(\"seal semantics\");console.log(JSON.stringify(r));'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "QUALIFICATION_RESULT_SEAL_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "hash": "SHA256"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-014",
+      "name": "Phase 6A identity verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import path from \"node:path\";import crypto from \"node:crypto\";const R=process.cwd(),B=\"benchmarks/blind-object-v1-results\",H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\"),F=[];function W(d){for(const n of fs.readdirSync(path.join(R,d),{withFileTypes:true})){const p=path.posix.join(d,n.name);n.isDirectory()?W(p):n.isFile()&&p.includes(\"phase6a-e3caa2fd\")&&F.push(p)}}W(B);F.sort();const rows=F.map(p=>({relativePath:p,byteLength:fs.statSync(path.join(R,p)).size,sha256:H(fs.readFileSync(path.join(R,p)))})),count=F.length,totalBytes=rows.reduce((a,x)=>a+x.byteLength,0),pathSetSha256=H(JSON.stringify(F)),rowAggregateSha256=H(JSON.stringify(rows)),invocationManifestSha256=H(fs.readFileSync(\"benchmarks/blind-object-v1-results/.phase6a-e3caa2fd3c51ac3667c094155126dae459c06a3b.invocation-manifest.json\")),f=JSON.parse(fs.readFileSync(\"benchmarks/blind-object-v1-results/phase6a-e3caa2fd/frozen-result-manifest.json\",\"utf8\"));for(const x of[...f.requests,...f.responses]){const p=path.posix.join(\"benchmarks/blind-object-v1-results/phase6a-e3caa2fd\",x.path);if(H(fs.readFileSync(p))!==x.fileSha256)throw Error(p)}if(H(fs.readFileSync(\"benchmarks/blind-object-v1-results/phase6a-e3caa2fd/run-journal.jsonl\"))!==f.journalSha256)throw Error(\"journal\");const ok=count===85&&totalBytes===72299353&&pathSetSha256===\"d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581\"&&rowAggregateSha256===\"4b0bfcd4cde10c1f882f966fd1b78a36bf19e95eb7a68a0923e375dbee60f100\"&&invocationManifestSha256===\"e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466\";console.log(JSON.stringify({count,totalBytes,inventorySha256:\"50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f\",pathSetSha256,rowAggregateSha256,invocationManifestSha256,frozenMembersVerified:f.requests.length+f.responses.length+1}));ok||process.exit(1);'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "PHASE6A_85_MEMBERS_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "count": 85,
+        "totalBytes": 72299353,
+        "pathSetSha256": "SHA256",
+        "rowAggregateSha256": "SHA256"
+      },
+      "executionCountCeiling": 1
+    },
+    {
+      "id": "RELEASE-015",
+      "name": "Repository-integrity and classification verification",
+      "command": "node --input-type=module -e 'import fs from \"node:fs\";import crypto from \"node:crypto\";import cp from \"node:child_process\";const H=x=>crypto.createHash(\"sha256\").update(x).digest(\"hex\"),G=a=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).trim(),c={branch:G([\"branch\",\"--show-current\"]),head:G([\"rev-parse\",\"HEAD\"]),tree:G([\"rev-parse\",\"HEAD^{tree}\"]),tracking:G([\"rev-parse\",\"@{u}\"]),failedReceiptSha256:H(fs.readFileSync(\"qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-representation-aware-static-version-successor-suite-stop.json\")),failedPowerShellMemberSha256:H(fs.readFileSync(\"tests/milestone-2c2-browser-dom.ps1\")),playwrightConfigSha256:H(fs.readFileSync(\"playwright.config.mjs\")),helperSha256:H(fs.readFileSync(\"tests/helpers/browser-test-server.mjs\")),browserCorrectionSha256:H(fs.readFileSync(\"tests/browser/canonical-evidence.spec.mjs\")),version:JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).version},ok=c.branch===\"refactor/beta-evidence-pipeline\"&&c.head===\"2cf4ca16c9628dad07b27d3c349910de43078862\"&&c.tree===\"4b9d95268f0cd4f7f0cac5e7c21d2a6c4fb64067\"&&c.tracking===\"8cf6207fb3f15c2e1ac4a9ff616d20361393fe35\"&&c.failedReceiptSha256===\"ff0a1ed2d4a198859ba5eeaae3135b21163f69ee76f4faa288b7a97d778195cf\"&&c.failedPowerShellMemberSha256===\"e7af777b5011b976adc976d68e091067ef67d1203b6e6978616337d97ec8fa0f\"&&c.playwrightConfigSha256===\"ad95c92e0c2338b578a40d1379d962f9500f57acc4170e589a0a241b9e558f18\"&&c.helperSha256===\"1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9\"&&c.browserCorrectionSha256===\"e2f2eb4aa96e9fd4850d59bc0b89638a3df63ead5c8ffc821f9cee2d23ab5af4\"&&c.version===\"1.12.35\";console.log(JSON.stringify({...c,classification:\"KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION\",releaseState:\"UNRELEASED\"}));ok||process.exit(1);'",
+      "workingDirectory": "C:\\Users\\dawgy\\Projects\\listing-engine-mvp",
+      "classification": "NON_POWERSHELL",
+      "browserProducing": false,
+      "independentPrerequisites": [
+        "SAFE_EXECUTION_STATE",
+        "PRESERVED_IDENTITY_INPUTS_PRESENT"
+      ],
+      "expectedResultSchema": {
+        "status": [
+          "PASS",
+          "FAIL"
+        ],
+        "classification": "STRING",
+        "releaseState": "UNRELEASED"
+      },
+      "executionCountCeiling": 1
+    }
+  ]
+}

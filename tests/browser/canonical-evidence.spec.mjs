@@ -12,6 +12,16 @@ const repositoryRoot = path.resolve(testDirectory, "..", "..");
 const photoFixture = path.join(repositoryRoot, "tests", "fixtures", "browser", "neutral-test-object.svg");
 const screenshotDirectory = path.join(repositoryRoot, "test-results", "review-screenshots");
 
+function resolveExpectedVersionBadge() {
+  const packageVersion = JSON.parse(fs.readFileSync(path.join(repositoryRoot, "package.json"), "utf8")).version;
+  if (typeof packageVersion !== "string" || !/^\d+\.\d+\.\d+$/.test(packageVersion)) {
+    throw new Error("package.json version must be a semantic version string.");
+  }
+  return `Version ${packageVersion}`;
+}
+
+const expectedVersionBadge = resolveExpectedVersionBadge();
+
 function createDemandingBmpFixture(filePath, width = 6000, height = 6000) {
   const rowBytes = Math.ceil((width * 3) / 4) * 4;
   const pixelBytes = rowBytes * height;
@@ -523,7 +533,7 @@ async function installBrowserGuards(page, scenario) {
 async function configureForm(page, scenario, state) {
   const purpose = purposes[scenario.purpose];
   await page.goto("/");
-  await expect(page.getByText("Version 1.12.34", { exact: true })).toBeVisible();
+  await expect(page.getByText(expectedVersionBadge, { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: purpose.radioName }).check();
 
   await page.locator("#notes").fill(

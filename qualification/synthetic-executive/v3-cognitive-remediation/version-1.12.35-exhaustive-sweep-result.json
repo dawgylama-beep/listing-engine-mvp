@@ -1,0 +1,970 @@
+{
+  "schemaVersion": "1.0",
+  "resultType": "VERSION_1_12_35_EXHAUSTIVE_NON_REPAIRING_SWEEP_RESULT",
+  "resultState": "TERMINAL_DEPENDENCY_STOP_NO_RELEASE_CONSTRUCTION",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T19:23:09.101Z",
+  "checkpoint": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "2cf4ca16c9628dad07b27d3c349910de43078862",
+    "tree": "4b9d95268f0cd4f7f0cac5e7c21d2a6c4fb64067",
+    "trackingAndDirectRemote": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 10,
+    "behind": 0
+  },
+  "registry": {
+    "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-registry.json",
+    "fileSha256": "0e681ed81be9e7f74089e10285e83d49635d806abc64d365b0465741db57d312",
+    "compactJsonSha256": "87bbdf40dc798fa9d9092cc346ea06a27c176c74e6469cc9ac7ddf3ad11e7bb2",
+    "entryCount": 68
+  },
+  "browserSourceInventory": {
+    "memberCount": 38,
+    "totalBytes": 1555606,
+    "pathSetSha256": "5871090d2f882b14e4116ee82d8e405e8dfb3b89fdbaad87fdd825b163437b06",
+    "aggregateSha256": "3dd874fd5867b8a8a98e38b8e375ec24a0f6261a14ec1b2723d58698765a530d"
+  },
+  "correction": {
+    "path": "tests/browser/canonical-evidence.spec.mjs",
+    "beforeSha256": "6d6179ae23f4ec3c1cff8ebb306f5c3a04313dabb1dd18d217b31e21a392f72a",
+    "afterSha256": "e2f2eb4aa96e9fd4850d59bc0b89638a3df63ead5c8ffc821f9cee2d23ab5af4",
+    "mechanism": "Read package.json, require /^\\d+\\.\\d+\\.\\d+$/, construct Version ${packageVersion}, and use the shared exact locator.",
+    "existingFilesChanged": [
+      "tests/browser/canonical-evidence.spec.mjs"
+    ]
+  },
+  "zeroBrowserProof": {
+    "javascriptSyntaxErrors": 0,
+    "resolvedVersion": "1.12.35",
+    "expectedLabel": "Version 1.12.35",
+    "staleActive11234References": 0,
+    "hardcoded11235ReferencesAdded": 0,
+    "allTwelveCanonicalProjectInstancesUseSharedConfigureForm": true
+  },
+  "browserExecution": {
+    "commandEntry": "STATIC-028",
+    "commandStatus": "PASS",
+    "canonicalTestDefinitions": 6,
+    "projects": [
+      "desktop",
+      "mobile"
+    ],
+    "canonicalProjectInstances": 12,
+    "attemptsPerCanonicalProjectInstance": 1,
+    "workers": 1,
+    "retries": 0,
+    "ancillaryExperienceFoundationInstances": {
+      "configured": 2,
+      "executed": 1,
+      "skipped": 1
+    },
+    "separateFocusedPlaywrightRuns": 0,
+    "providerCredentialsPresent": 0
+  },
+  "matrix": {
+    "static": [
+      {
+        "id": "STATIC-001",
+        "path": "tests/all-four-workflow-compact-evidence-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-002",
+        "path": "tests/ask-market-edge-instruction-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-003",
+        "path": "tests/barcode-cross-brand-retail-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-004",
+        "path": "tests/beta-polish-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-005",
+        "path": "tests/brand-location-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-006",
+        "path": "tests/buyer-experience-mobile-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-007",
+        "path": "tests/buy-it-now-price-type-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-008",
+        "path": "tests/canonical-final-evidence-pipeline.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-009",
+        "path": "tests/canonical-identity-location-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-010",
+        "path": "tests/collectible-auction-recovery-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-011",
+        "path": "tests/compact-where-to-buy-card-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-012",
+        "path": "tests/currency-precision-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-013",
+        "path": "tests/domain-directed-search-stable-ending-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-014",
+        "path": "tests/exact-match-cautious-buy-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-015",
+        "path": "tests/final-evidence-boundary.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-016",
+        "path": "tests/final-failed-gate-audit.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-017",
+        "path": "tests/global-help-instructions-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-018",
+        "path": "tests/global-retail-evidence-promotion-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-019",
+        "path": "tests/item-type-firewall-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-020",
+        "path": "tests/live-acceptance-repair-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-021",
+        "path": "tests/live-evidence-qualification-behavior.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-022",
+        "path": "tests/maximum-price-calibration-static.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-023",
+        "path": "tests/milestone-2a2-handler-foundation.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-024",
+        "path": "tests/milestone-2b1-canonical-range.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-025",
+        "path": "tests/milestone-2b2-canonical-decision.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-026",
+        "path": "tests/milestone-2b3-canonical-offer.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-027",
+        "path": "tests/milestone-2c1-canonical-customer-evidence.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_REQUIRED",
+          "rcRestored": null
+        },
+        "laterMembersSafeToExecute": true
+      },
+      {
+        "id": "STATIC-028",
+        "path": "tests/milestone-2c2-browser-dom.ps1",
+        "executionCount": 1,
+        "exitCode": 0,
+        "status": "PASS",
+        "sanitizedFailure": null,
+        "generatedCaptureIdentity": {
+          "manifestPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-capture-manifest.json",
+          "captureManifestHash": "419c93872356ee994fc27120017952b9c805a34209226dd0c91f32a214f66d2a"
+        },
+        "cleanupRestoration": {
+          "status": "FAIL",
+          "rcFileCount": 39,
+          "rcTotalBytes": 3864482,
+          "inCommandMemberExact": false,
+          "postStopUtf8MemberSetExact": true,
+          "serverProcesses": 0,
+          "portListeners": 0,
+          "phase6aCount": 85,
+          "phase6aBytes": 72299353,
+          "persistentPoliciesUnchanged": true
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-029",
+        "path": "tests/mobile-report-length-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-030",
+        "path": "tests/mobile-ui-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-031",
+        "path": "tests/mock-provider-live-comps.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-032",
+        "path": "tests/modular-evidence-foundation.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-033",
+        "path": "tests/multi-retailer-exact-page-recovery-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-034",
+        "path": "tests/neutral-brand-generalization-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-035",
+        "path": "tests/online-retail-coverage-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-036",
+        "path": "tests/photo-multi-upload-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-037",
+        "path": "tests/prices-found-delivered-cost-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-038",
+        "path": "tests/pricing-quality-calibration-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-039",
+        "path": "tests/purpose-workflows-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-040",
+        "path": "tests/query-execution-session-isolation-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-041",
+        "path": "tests/research-evidence-visibility-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-042",
+        "path": "tests/retailer-attribution-product-firewall-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-043",
+        "path": "tests/retail-evidence-isolation-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-044",
+        "path": "tests/retail-purchase-context-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-045",
+        "path": "tests/retail-recovery-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-046",
+        "path": "tests/safari-load-failure-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-047",
+        "path": "tests/search-diagnostics-zero-evidence-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-048",
+        "path": "tests/serper-google-acquisition-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-049",
+        "path": "tests/serper-query-integrity-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-050",
+        "path": "tests/technical-evidence-containment-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-051",
+        "path": "tests/transaction-evidence-firewall-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-052",
+        "path": "tests/true-compact-where-to-buy-list-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      },
+      {
+        "id": "STATIC-053",
+        "path": "tests/valuation-evidence-static.ps1",
+        "executionCount": 0,
+        "exitCode": null,
+        "status": "NOT_RUN_DEPENDENCY",
+        "sanitizedFailure": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "generatedCaptureIdentity": null,
+        "cleanupRestoration": {
+          "status": "NOT_RUN"
+        },
+        "laterMembersSafeToExecute": false
+      }
+    ],
+    "releaseGates": [
+      {
+        "id": "RELEASE-001",
+        "name": "Browser validation",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-002",
+        "name": "Frontend-credential scan",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-003",
+        "name": "Governing secret scan",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-004",
+        "name": "JavaScript syntax validation",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-005",
+        "name": "server.ps1 -Check",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-006",
+        "name": "Complete release-version validation",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-007",
+        "name": "git diff --check",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-008",
+        "name": "Candidate reconciliation",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-009",
+        "name": "Frozen cognitive and corpus identity verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-010",
+        "name": "Execution-evidence verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-011",
+        "name": "Evaluation-evidence verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-012",
+        "name": "Evaluator-audit verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-013",
+        "name": "Result-seal verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-014",
+        "name": "Phase 6A identity verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      },
+      {
+        "id": "RELEASE-015",
+        "name": "Repository-integrity and classification verification",
+        "executionCount": 0,
+        "status": "NOT_RUN_DEPENDENCY",
+        "failedPrerequisite": "SAFE_EXECUTION_STATE_UNRESTORED",
+        "explanation": "The sealed continuation policy requires every remaining entry to stop after the browser-output restoration proof returned non-exact."
+      }
+    ]
+  },
+  "totals": {
+    "registryEntries": 68,
+    "executedEntries": 28,
+    "pass": 28,
+    "fail": 0,
+    "notRunDependency": 40,
+    "staticExecuted": 28,
+    "staticNotRunDependency": 25,
+    "releaseGatesExecuted": 0,
+    "releaseGatesNotRunDependency": 15,
+    "entriesExceedingExecutionCeiling": 0,
+    "browserProducingCommandsExecuted": 1
+  },
+  "stop": {
+    "triggerEntry": "STATIC-028",
+    "trigger": "SAFE_EXECUTION_STATE_UNRESTORED",
+    "exactReason": "The in-command restoration comparison returned memberExact=false because Windows PowerShell default-decoded the UTF-8 adjudication JSON and mangled the curly apostrophe in six retained paths. A post-stop UTF-8 read proved the restored RC member set exact, but the terminal sweep decision cannot be reversed.",
+    "remainingStaticRange": [
+      "STATIC-029",
+      "STATIC-053"
+    ],
+    "remainingReleaseRange": [
+      "RELEASE-001",
+      "RELEASE-015"
+    ],
+    "sourceRepairAfterStart": false,
+    "retryAfterStart": false,
+    "alternateValidationEnvironmentAfterStart": false
+  },
+  "captureManifest": {
+    "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-capture-manifest.json",
+    "fileSha256": "3181a19760a2cc49c85657b26893a65d6d61b83fbf659f11eec07cbb2df6cf75",
+    "captureManifestHash": "419c93872356ee994fc27120017952b9c805a34209226dd0c91f32a214f66d2a"
+  },
+  "prohibitedActivity": {
+    "credentialValuesRead": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarksExecuted": 0,
+    "productHandlerCalls": 0,
+    "preview": 0,
+    "production": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "preservedClaim": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "releaseConstructionPermitted": false,
+  "resultHashBasis": "COMPACT_JSON_OF_THIS_RECORD_WITH_RESULT_HASH_OMITTED",
+  "resultHash": "c6c6aa3f00aebf7e3f7e448da9133fe3dbd785a848ac6f87c2cf0afd5f169f19"
+}

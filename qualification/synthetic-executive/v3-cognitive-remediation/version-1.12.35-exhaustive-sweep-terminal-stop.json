@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_EXHAUSTIVE_SWEEP_TERMINAL_STOP",
+  "classification": "VERSION_1_12_35_EXHAUSTIVE_SWEEP_STOPPED_BY_SAFE_EXECUTION_STATE_UNRESTORED",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T19:24:05.731Z",
+  "checkpoint": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "2cf4ca16c9628dad07b27d3c349910de43078862",
+    "tree": "4b9d95268f0cd4f7f0cac5e7c21d2a6c4fb64067",
+    "parent": "4d18d28b41921f615f31739e8dd94836ae13b8f8",
+    "trackingAndDirectRemote": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 10,
+    "behind": 0
+  },
+  "bindings": {
+    "adjudication": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-playwright-shared-fixture-adjudication.json",
+      "fileSha256": "dfa54207678ac9f2ae8a4b77b4f548fe3259dd781d59c3ce53d21be544bcc44f",
+      "embeddedAdjudicationHash": "2e0e4d0330514a20ddf584d35062c6a0b81a48d90757057b5f512e1209b321b2",
+      "recomputedAdjudicationHash": "658fb5aa0315b0327a81906710a8425a375ecc882821df1a7f1cc20d100a2ed3",
+      "adjudicationHashMatches": false
+    },
+    "registry": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-registry.json",
+      "fileSha256": "0e681ed81be9e7f74089e10285e83d49635d806abc64d365b0465741db57d312",
+      "compactJsonSha256": "87bbdf40dc798fa9d9092cc346ea06a27c176c74e6469cc9ac7ddf3ad11e7bb2"
+    },
+    "captureManifest": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-capture-manifest.json",
+      "fileSha256": "3181a19760a2cc49c85657b26893a65d6d61b83fbf659f11eec07cbb2df6cf75",
+      "captureManifestHash": "419c93872356ee994fc27120017952b9c805a34209226dd0c91f32a214f66d2a"
+    },
+    "sweepResult": {
+      "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-result.json",
+      "fileSha256": "af1f1562b896d1f91ae5fe926b9a143535db96989b2646418bebb6c8624eab6c",
+      "resultHash": "c6c6aa3f00aebf7e3f7e448da9133fe3dbd785a848ac6f87c2cf0afd5f169f19"
+    }
+  },
+  "sweepTerminalCounts": {
+    "entries": 68,
+    "executed": 28,
+    "pass": 28,
+    "fail": 0,
+    "notRunDependency": 40,
+    "staticExecuted": 28,
+    "staticDependencySkipped": 25,
+    "releaseExecuted": 0,
+    "releaseDependencySkipped": 15,
+    "browserCommands": 1,
+    "retries": 0,
+    "executionCeilingViolations": 0
+  },
+  "browserResult": {
+    "staticMember": "STATIC-028",
+    "exitCode": 0,
+    "status": "PASS",
+    "canonicalProjectInstances": 12,
+    "attemptsPerCanonicalProjectInstance": 1,
+    "separateFocusedRuns": 0,
+    "generatedRcCapture": {
+      "files": 5,
+      "bytes": 216259639,
+      "pathSetSha256": "9d5e7170fa1dde5a11fac02a68d0a083469d24e526614516c15f468468bbe3fd",
+      "aggregateSha256": "44fc0eecc87dedb762ce94e5258486261769d9b54a3805a2d7616c3d64c048fa"
+    }
+  },
+  "exactDefectSet": [
+    {
+      "code": "SAFE_EXECUTION_STATE_UNRESTORED",
+      "scope": "SWEEP_CONTROL",
+      "effect": "Stopped after STATIC-028 and dependency-skipped every remaining entry."
+    },
+    {
+      "code": "WINDOWS_POWERSHELL_DEFAULT_UTF8_JSON_DECODING_FALSE_NEGATIVE",
+      "scope": "RC_RESTORATION_PROOF",
+      "evidence": "Six curly-apostrophe paths decoded as mojibake; each corresponding byte length and SHA-256 matched. Post-stop UTF-8 read found missing=[], unexpected=[], changed=[]."
+    },
+    {
+      "code": "BROWSER_OUTPUT_CAPTURE_SCOPE_DEFECT",
+      "scope": "test-results/review-screenshots",
+      "evidence": "The browser command reported review-screenshot output outside RC, but no precommand baseline existed. Current identity is 52 files, 17,875,948 bytes, path-set 8180b98de0964f0c499f8bb20e08ee4cf7991fcfbdbb23bcb5f8193515c232b9, aggregate 366a5dd61161d415f28ce4018165461b714af0c85ff79935efdc9d14f9435676; attribution cannot be proven safely."
+    },
+    {
+      "code": "PREDECLARED_INLINE_NODE_COMMAND_WINDOWS_QUOTING_DEFECT",
+      "scope": "UNEXECUTED_RELEASE_GATE_COMMANDS",
+      "evidence": "A post-stop read-only diagnostic using the same single-quoted Node -e shape showed Windows PowerShell removed embedded double quotes. All release gates were already dependency-skipped; none received a sweep outcome from these commands. The terminal registry must not be reused."
+    },
+    {
+      "code": "ADJUDICATION_INTERNAL_HASH_MISMATCH",
+      "scope": "APPEND_ONLY_ADJUDICATION_EVIDENCE",
+      "evidence": "The embedded adjudicationHash is 2e0e4d0330514a20ddf584d35062c6a0b81a48d90757057b5f512e1209b321b2, while both UTF-8 Node and Windows PowerShell compact-JSON recomputation produce 658fb5aa0315b0327a81906710a8425a375ecc882821df1a7f1cc20d100a2ed3. The adjudication record was not rewritten."
+    }
+  ],
+  "restorationReadback": {
+    "rc": {
+      "files": 39,
+      "bytes": 3864482,
+      "missing": [],
+      "unexpected": [],
+      "changed": [],
+      "memberSetExact": true,
+      "requiredPathSetSha256": "f63ef7d3b833fb97fa10021ea5e3e5b601dc368221355963735cf2e1812e2124",
+      "requiredAggregateSha256": "743275cbda857f57707a325796490c730be2e5e0fb823276e0dc8bbde0734735"
+    },
+    "retainedQuarantinePath": "C:/Users/dawgy/AppData/Local/Temp/k35rc-9473d1d92ed7",
+    "successorFailureQuarantines": 0,
+    "serverProcesses": 0,
+    "portListeners": 0,
+    "persistentPoliciesUnchanged": true,
+    "phase6aObserved": {
+      "files": 85,
+      "bytes": 72299353,
+      "invocationManifestSha256": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466"
+    }
+  },
+  "releaseBoundary": {
+    "finalFConstructed": false,
+    "releaseTConstructed": false,
+    "releaseCommitCreated": false,
+    "pushes": 0,
+    "remoteWrites": 0,
+    "versionReleased": false
+  },
+  "prohibitedActivity": {
+    "credentialValuesRead": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarksExecuted": 0,
+    "productHandlerCalls": 0,
+    "preview": 0,
+    "production": 0,
+    "deployments": 0,
+    "merges": 0
+  },
+  "preservedClaim": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "receiptHashBasis": "COMPACT_JSON_OF_THIS_RECORD_WITH_RECEIPT_HASH_OMITTED",
+  "receiptHash": "35c3953b7687df82e32e0aafbc0b4e40207c37a1d28600931265dd8b294c777c"
+}

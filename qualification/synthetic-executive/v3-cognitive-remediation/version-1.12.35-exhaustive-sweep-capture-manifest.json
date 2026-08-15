@@ -1,0 +1,372 @@
+{
+  "schemaVersion": "1.0",
+  "manifestType": "VERSION_1_12_35_EXHAUSTIVE_SWEEP_BROWSER_CAPTURE_MANIFEST",
+  "manifestState": "SEALED_AFTER_SAFE_EXECUTION_STATE_STOP",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T19:22:13.027Z",
+  "registry": {
+    "path": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-sweep-registry.json",
+    "fileSha256": "0e681ed81be9e7f74089e10285e83d49635d806abc64d365b0465741db57d312",
+    "compactJsonSha256": "87bbdf40dc798fa9d9092cc346ea06a27c176c74e6469cc9ac7ddf3ad11e7bb2"
+  },
+  "browserCommand": {
+    "id": "STATIC-028",
+    "path": "tests/milestone-2c2-browser-dom.ps1",
+    "executionCount": 1,
+    "exitCode": 0,
+    "status": "PASS",
+    "retries": 0,
+    "workers": 1,
+    "separateFocusedPlaywrightRuns": 0
+  },
+  "generatedPlaywrightOutputAtRc": {
+    "root": "test-results/playwright",
+    "inventoryTiming": "AFTER_BROWSER_COMMAND_BEFORE_RC_RESTORATION",
+    "hashBasis": "COMPACT_JSON_OF_LEXICOGRAPHIC_RELATIVE_PATH_TUPLES_[PATH,BYTES,SHA256]",
+    "fileCount": 5,
+    "totalBytes": 216259639,
+    "pathSetSha256": "9d5e7170fa1dde5a11fac02a68d0a083469d24e526614516c15f468468bbe3fd",
+    "aggregateSha256": "44fc0eecc87dedb762ce94e5258486261769d9b54a3805a2d7616c3d64c048fa",
+    "members": [
+      [
+        ".last-run.json",
+        45,
+        "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+      ],
+      [
+        "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/demanding-token-budget-photo-6000.bmp",
+        108000054,
+        "634a86445b1282d654a643a3d3a0c6b6253ba523a360dab2902af9650084a4ab"
+      ],
+      [
+        "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/ordinary-office-works-2200.png",
+        129743,
+        "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      ],
+      [
+        "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/demanding-token-budget-photo-6000.bmp",
+        108000054,
+        "634a86445b1282d654a643a3d3a0c6b6253ba523a360dab2902af9650084a4ab"
+      ],
+      [
+        "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/ordinary-office-works-2200.png",
+        129743,
+        "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      ]
+    ]
+  },
+  "successorFailureQuarantine": {
+    "created": false,
+    "reason": "BROWSER_COMMAND_PASSED"
+  },
+  "retainedRc": {
+    "root": "test-results/playwright",
+    "requiredIdentity": {
+      "fileCount": 39,
+      "totalBytes": 3864482,
+      "pathSetSha256": "f63ef7d3b833fb97fa10021ea5e3e5b601dc368221355963735cf2e1812e2124",
+      "aggregateSha256": "743275cbda857f57707a325796490c730be2e5e0fb823276e0dc8bbde0734735"
+    },
+    "retainedQuarantinePath": "C:/Users/dawgy/AppData/Local/Temp/k35rc-9473d1d92ed7",
+    "postStopUtf8Readback": {
+      "fileCount": 39,
+      "totalBytes": 3864482,
+      "diagnosticPathSetSha256": "db1586802c49796377e45a0b18a4101950bbd8ddbefefebe9f2477dcd50fe2ab",
+      "diagnosticAggregateSha256": "b376bbd9ddfc4f1b56ec38b676bebae621df84a5d988d7c4e5ac9714aadb7eeb",
+      "missing": [],
+      "unexpected": [],
+      "changed": [],
+      "memberSetExact": true
+    },
+    "quarantineReadback": {
+      "fileCount": 39,
+      "totalBytes": 3864482,
+      "diagnosticPathSetSha256": "db1586802c49796377e45a0b18a4101950bbd8ddbefefebe9f2477dcd50fe2ab",
+      "diagnosticAggregateSha256": "b376bbd9ddfc4f1b56ec38b676bebae621df84a5d988d7c4e5ac9714aadb7eeb"
+    },
+    "sweepRestorationDecision": "FAIL_SAFE_STATE_UNRESTORED",
+    "decisionReason": "The in-command Windows PowerShell comparison read the UTF-8 adjudication JSON with the default encoding and produced six mojibake path mismatches for the curly-apostrophe What's folders. All six sizes and hashes matched; a post-stop UTF-8 Node read found no missing, unexpected, or changed member. The sweep decision remains immutable and no remaining validation was run."
+  },
+  "additionalPlaywrightOutputObserved": {
+    "root": "test-results/review-screenshots",
+    "baselineAvailable": false,
+    "classification": "CURRENT_POST_COMMAND_IDENTITY_ONLY_NOT_PROVEN_NEW_OR_PREEXISTING",
+    "hashBasis": "COMPACT_JSON_OF_LEXICOGRAPHIC_RELATIVE_PATH_TUPLES_[PATH,BYTES,SHA256]",
+    "fileCount": 52,
+    "totalBytes": 17875948,
+    "pathSetSha256": "8180b98de0964f0c499f8bb20e08ee4cf7991fcfbdbb23bcb5f8193515c232b9",
+    "aggregateSha256": "366a5dd61161d415f28ce4018165461b714af0c85ff79935efdc9d14f9435676",
+    "members": [
+      [
+        "collectible-market_value-desktop-evidence.png",
+        47942,
+        "d0ea4a42bc14e548c98092e1d2ab21e96469d7863f10f41ed2868668e4a10cca"
+      ],
+      [
+        "collectible-market_value-desktop-full.png",
+        721114,
+        "0f28a2f79af24a04a06bfd00ff23b62225e97e411b93aeb6b5259c632d1db505"
+      ],
+      [
+        "collectible-market_value-mobile-evidence.png",
+        47734,
+        "5c5434b1da3044ad8f5dd1c80e8ff21a0083f466d58e5c583b777228a6f022b6"
+      ],
+      [
+        "collectible-market_value-mobile-full.png",
+        627472,
+        "c89d5fd37ffb8ab9ca4d446d7e8535cf066151cf4bf5b329806f1a0922694029"
+      ],
+      [
+        "collectible-personal_use-desktop-evidence.png",
+        47998,
+        "ab071504a724c5cd60b6c3feba5b7120fb544be3114be9086691067e9b3009c3"
+      ],
+      [
+        "collectible-personal_use-desktop-full.png",
+        538854,
+        "14eda039ba5af5de63c1623aaa14e2ad5370298cde01d762aa95f5b8b6f28eb6"
+      ],
+      [
+        "collectible-personal_use-mobile-evidence.png",
+        47828,
+        "821b448696d297e7915190044d7341908bcfb7ed609e7e6713486b7e461aa6d2"
+      ],
+      [
+        "collectible-personal_use-mobile-full.png",
+        462349,
+        "37f8659a781f3e891f6e3877da0b02b611908e046e31eedf63a3cc10fb323064"
+      ],
+      [
+        "collectible-resale-desktop-evidence.png",
+        48107,
+        "760ea16281abfd8563fd6aee7f9acc08ea07d1eafe0ddcce7511950687002c85"
+      ],
+      [
+        "collectible-resale-desktop-full.png",
+        733758,
+        "7275b274c139e509d3f30df5b677e5c9da5ea652c645a6debe7444f7e2565f49"
+      ],
+      [
+        "collectible-resale-mobile-evidence.png",
+        47738,
+        "ea32af2ee63c48b346d865305684b4a930d2a6b5f8c7cb76e09c6737d8432214"
+      ],
+      [
+        "collectible-resale-mobile-full.png",
+        639596,
+        "e6a36451160f8c458442d923515b0d146b4c0736f476c23f9b760fd43832aa67"
+      ],
+      [
+        "current_asking-market_value-desktop-evidence.png",
+        59771,
+        "88f5b94b0c97dadccb23f9bdcd42503ae6c63e59a2785faa618e7b9c028b3f38"
+      ],
+      [
+        "current_asking-market_value-desktop-full.png",
+        786025,
+        "b39deba865acaf51c953569beb6478c9625dcfffcb1f3958d1369f768b97c568"
+      ],
+      [
+        "current_asking-market_value-mobile-evidence.png",
+        59726,
+        "ba79f662365db087f687ba3aebb07bce9758ee4f708851e600fa078d1d069d19"
+      ],
+      [
+        "current_asking-market_value-mobile-full.png",
+        667523,
+        "566f4a56b2ef42a9234a34a7077c00d79791aaf052d0673c850fd31041d0b779"
+      ],
+      [
+        "fail-closed-desktop-evidence.png",
+        4083,
+        "f67f9699ce66ddf42b818bc46337e28ff8da7ea432f3d73c48607d844c8ec6ae"
+      ],
+      [
+        "fail-closed-desktop-full.png",
+        528827,
+        "25b144a510035c7e329f339d9954f4ee08b0fa05f7afba77f00edb0c6d2374ce"
+      ],
+      [
+        "fail-closed-mobile-evidence.png",
+        3811,
+        "5f202d4a47a9a6b070d1b36ae953e00a91c6d1ca9b19358d0fca3cf79ff33e74"
+      ],
+      [
+        "fail-closed-mobile-full.png",
+        455600,
+        "48ae49fe7901840fc53fdb31cd25b79dc11e99ec52d448cdc572416ec04a8687"
+      ],
+      [
+        "preliminary-market_value-desktop-evidence.png",
+        59651,
+        "75a7b9e26b75ce2ff629bb6431200e45b97b98d4cf80b2137982df8a55e4d1ff"
+      ],
+      [
+        "preliminary-market_value-desktop-full.png",
+        788521,
+        "b9cf388f1c8dc82cbdbc39a9ad8db3ff776fdc28419436823ffa3b89b20533aa"
+      ],
+      [
+        "preliminary-market_value-mobile-evidence.png",
+        59583,
+        "5275b423f90d7e80bd3dd89ac9b4f91fe336863f44126a220a73b02c1b3de468"
+      ],
+      [
+        "preliminary-market_value-mobile-full.png",
+        671259,
+        "7823d833a83a5d7319b683886e50ad93031f2085a0bb055730ea9df4de9b4df9"
+      ],
+      [
+        "retail-listing-desktop-evidence.png",
+        22634,
+        "10d74dd3e117ee43a1c0ca07b7375411ea747fc85beb2f0f61ccff6972355a0a"
+      ],
+      [
+        "retail-listing-desktop-full.png",
+        574982,
+        "cddbdbddaf018bd698f783376bc5015f149ee37bc61f03b81fb2f8dd87d94328"
+      ],
+      [
+        "retail-listing-mobile-evidence.png",
+        21998,
+        "3efa36498eb3e732c090b2d1b1cbdb795f78f3961c4c4b37fab6f5acd2854838"
+      ],
+      [
+        "retail-listing-mobile-full.png",
+        485276,
+        "2ff405b220ce0ba270e626b68995d8dcdb88a6cc01017e4d1fc9618497a8c290"
+      ],
+      [
+        "retail-personal_use-desktop-evidence.png",
+        93272,
+        "42929981e4b95277b5feb8b6ca54654a4993407d3ddd96329a594e3d3884166e"
+      ],
+      [
+        "retail-personal_use-desktop-full.png",
+        625654,
+        "7319703820e0eb9625498fee858addc8c48e2f30d4cf92a74e7efe25edc20bd4"
+      ],
+      [
+        "retail-personal_use-mobile-evidence.png",
+        91845,
+        "20084cc38dabfe2d8e6f37958e411898cd86ed8112e4e77c0b5d7e1ffa4ad7ff"
+      ],
+      [
+        "retail-personal_use-mobile-full.png",
+        542654,
+        "c496843684ec03fe320608f4869e2e926f8d3f064bfe29e13c7ee45f7391a3e0"
+      ],
+      [
+        "supported-market_value-desktop-evidence.png",
+        58485,
+        "15ffc0e0c1bc39c3041bc72dc63415a1d49aa1bc22f5a2d3f9b48cecfeb3f670"
+      ],
+      [
+        "supported-market_value-desktop-full.png",
+        717205,
+        "4f4032b674e80f36101ee20bbb5bef913ea9f38e27b9393cff8f04900f77d420"
+      ],
+      [
+        "supported-market_value-mobile-evidence.png",
+        57873,
+        "b84d09987551ffe632560da9b06875a903783bd00372c87cdf517ab14d832192"
+      ],
+      [
+        "supported-market_value-mobile-full.png",
+        621402,
+        "368e4d7eb47e9ca2b200669d38d265a6fea8292b30dcceb87e7d3fd5addbe8c4"
+      ],
+      [
+        "valuation-missing_explanation-desktop-evidence.png",
+        48107,
+        "39e6669c0c22e63d10b27ba81bf662967b717cc5a0044be1ef8a67e2ba3dbf03"
+      ],
+      [
+        "valuation-missing_explanation-desktop-full.png",
+        723392,
+        "4bf564cb0a333a6d7ce4f44b163abeb00c8065250976b21d56256b72489bd3ef"
+      ],
+      [
+        "valuation-missing_explanation-mobile-evidence.png",
+        47750,
+        "3fbfbc88d061216bb366e7f4fd393bd2e740de2f510cfe924f86a32365eb9b15"
+      ],
+      [
+        "valuation-missing_explanation-mobile-full.png",
+        631011,
+        "4a233a23da0aa67d9feefe46850501366964b7be069973698fbefe6aec5f3645"
+      ],
+      [
+        "valuation-missing_label-desktop-evidence.png",
+        48107,
+        "39e6669c0c22e63d10b27ba81bf662967b717cc5a0044be1ef8a67e2ba3dbf03"
+      ],
+      [
+        "valuation-missing_label-desktop-full.png",
+        724443,
+        "ef3351398532a73bc236c7f99197eab94958c3b3f463584560d9e329c64e5524"
+      ],
+      [
+        "valuation-missing_label-mobile-evidence.png",
+        47750,
+        "3fbfbc88d061216bb366e7f4fd393bd2e740de2f510cfe924f86a32365eb9b15"
+      ],
+      [
+        "valuation-missing_label-mobile-full.png",
+        631672,
+        "41688c223e9191e4da9094cc9ae5fd1798835a429efb3ff205ae4898f44a450b"
+      ],
+      [
+        "valuation-missing_state-desktop-evidence.png",
+        48107,
+        "39e6669c0c22e63d10b27ba81bf662967b717cc5a0044be1ef8a67e2ba3dbf03"
+      ],
+      [
+        "valuation-missing_state-desktop-full.png",
+        724443,
+        "ef3351398532a73bc236c7f99197eab94958c3b3f463584560d9e329c64e5524"
+      ],
+      [
+        "valuation-missing_state-mobile-evidence.png",
+        47750,
+        "3fbfbc88d061216bb366e7f4fd393bd2e740de2f510cfe924f86a32365eb9b15"
+      ],
+      [
+        "valuation-missing_state-mobile-full.png",
+        632483,
+        "aed43205fb40d6bb4cc7a2ea3e706e4e7f01f5e57b801dd3ef2ae6376694b9eb"
+      ],
+      [
+        "valuation-unknown_state-desktop-evidence.png",
+        48107,
+        "39e6669c0c22e63d10b27ba81bf662967b717cc5a0044be1ef8a67e2ba3dbf03"
+      ],
+      [
+        "valuation-unknown_state-desktop-full.png",
+        724443,
+        "ef3351398532a73bc236c7f99197eab94958c3b3f463584560d9e329c64e5524"
+      ],
+      [
+        "valuation-unknown_state-mobile-evidence.png",
+        47750,
+        "3fbfbc88d061216bb366e7f4fd393bd2e740de2f510cfe924f86a32365eb9b15"
+      ],
+      [
+        "valuation-unknown_state-mobile-full.png",
+        632483,
+        "aed43205fb40d6bb4cc7a2ea3e706e4e7f01f5e57b801dd3ef2ae6376694b9eb"
+      ]
+    ]
+  },
+  "captureBoundaryDefects": [
+    "WINDOWS_POWERSHELL_DEFAULT_UTF8_JSON_DECODING_FALSE_NEGATIVE",
+    "REVIEW_SCREENSHOTS_WERE_OUTSIDE_RC_AND_LACKED_A_PRECOMMAND_BASELINE"
+  ],
+  "secrets": {
+    "credentialValuesRead": 0,
+    "findings": 0
+  },
+  "captureManifestHashBasis": "COMPACT_JSON_OF_THIS_RECORD_WITH_CAPTURE_MANIFEST_HASH_OMITTED",
+  "captureManifestHash": "419c93872356ee994fc27120017952b9c805a34209226dd0c91f32a214f66d2a"
+}
