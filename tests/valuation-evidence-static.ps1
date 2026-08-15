@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $apiPath = Join-Path $Root "api/generate-listing.js"
 $appPath = Join-Path $Root "public/app.js"
@@ -44,8 +45,8 @@ $checks = @(
   @{ Name = "Frontend carries Ask context current asking range"; Text = $app; Pattern = '"currentAskingPriceRange"' },
   @{ Name = "Frontend carries Ask context seller prices"; Text = $app; Pattern = '"recommendedListingPrice"' },
   @{ Name = "Frontend summary uses canonical valuation metrics"; Text = $app; Pattern = "...valuation.metrics" },
-  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
+  @{ Name = "Visible app version is $($activeVersionExpectations.ActiveVersion)"; Text = $index; Pattern = $activeVersionExpectations.IDX },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Roadmap documents 1.9.1"; Text = $roadmap; Pattern = "Version 1.9.1 (Completed)" }
 )

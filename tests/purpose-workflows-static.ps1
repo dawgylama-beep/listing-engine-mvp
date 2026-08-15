@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
@@ -12,9 +13,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
-  @{ Name = "Server version is 1.12.34"; Text = $server; Pattern = '$AppVersion = "1.12.34"' },
+  @{ Name = "Visible app version is $($activeVersionExpectations.ActiveVersion)"; Text = $index; Pattern = $activeVersionExpectations.IDX },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
+  @{ Name = "Server version is $($activeVersionExpectations.ActiveVersion)"; Text = $server; Pattern = $activeVersionExpectations.SRV },
   @{ Name = "Roadmap documents four-purpose model"; Text = $roadmap; Pattern = "Buying for Myself, Buying to Resell, Value Something I Own, and Sell Something I Own" },
   @{ Name = "Purpose legend is customer-centered"; Text = $index; Pattern = 'What would you like help with?</legend>' },
   @{ Name = "Buying for Myself radio exists"; Text = $index; Pattern = "<strong>Buying for Myself</strong>" },

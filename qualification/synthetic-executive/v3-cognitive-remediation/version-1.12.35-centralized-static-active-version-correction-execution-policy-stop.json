@@ -1,0 +1,303 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_CENTRALIZED_STATIC_ACTIVE_VERSION_CORRECTION_EXECUTION_POLICY_STOP",
+  "classification": "VERSION_1_12_35_CENTRALIZED_STATIC_VERSION_CORRECTION_STOPPED_BY_PROCESS_EXECUTION_POLICY",
+  "recordState": "SEALED_FAILURE_LOCAL_PRESERVATION_ONLY",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T16:47:37.6872724Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "19392f1238c8da5e41572869d574550dd3d6720c",
+    "tree": "3c53751ddd03e78cace5526a74372a5fe7aa846e",
+    "parent": "2c243d3a9ac55d7c2fc3f2238f9244ebe7b97f8f",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 6,
+    "behind": 0
+  },
+  "gateA": {
+    "result": "PASS",
+    "staticDiscovery": {
+      "fileCount": 53,
+      "pathSetHash": "34128f7099d5eefcd97f14b73ed9d5f45218a8006725cc36d527acd1979af065"
+    },
+    "preCorrectionInventory": {
+      "staleActiveOccurrences": 161,
+      "affectedLines": 81,
+      "affectedFiles": 30,
+      "historicalAndDependencyOccurrences": 50,
+      "malformedOrAmbiguousActiveReferences": 0,
+      "excludedLoopbackValue": "127.0.0"
+    },
+    "terminalSuiteIndependence": {
+      "VInN": 0,
+      "VInX": 0,
+      "VInR": 0,
+      "RUniqueSourceFilesInspected": 52,
+      "directDependenciesOnV": 0,
+      "supportModuleWouldEnterStaticDiscovery": false
+    },
+    "canonicalProductVersion": "1.12.35"
+  },
+  "authorizedCorrectionState": {
+    "helper": {
+      "relativePath": "tests/support/active-version.psm1",
+      "byteLength": 1447,
+      "sha256": "1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9"
+    },
+    "modifiedTestFileCount": 30,
+    "beforeAfter": [
+      {
+        "relativePath": "tests/ask-market-edge-instruction-static.ps1",
+        "beforeSha256": "7e09cd755bd4ad004dfa96413668f9a4abe7c968ff1b69524e6d016a6aebb56e",
+        "afterSha256": "382681d04f37c2b3cb8cdd7b423172fc0036e7ec0b4906e888c931f68f9990c3"
+      },
+      {
+        "relativePath": "tests/barcode-cross-brand-retail-static.ps1",
+        "beforeSha256": "41449f66edf083356ec685c25c979dc42101bcf74604f0067bedafae4c6d65c9",
+        "afterSha256": "9b0457c31262f83da70d5e4540f238325348de2f57282a49749ed83deab88a2b"
+      },
+      {
+        "relativePath": "tests/beta-polish-static.ps1",
+        "beforeSha256": "be0d2947e42bf2358a7f74d00dc403f1519c74b9d3250713d9db8000d0ef32e5",
+        "afterSha256": "a01c23d56fcb90d9de96d2c7abcf7042da0fb8d232a9adc4573690fef574e110"
+      },
+      {
+        "relativePath": "tests/brand-location-static.ps1",
+        "beforeSha256": "460580a64c89a2aa5a83e3dba7406e2d7cb64806f6e0daceb1e0a967afac3fff",
+        "afterSha256": "cb807d88ae9a9e6d614b48271308f4d9196e69c9152a7ef1642d9bb623821364"
+      },
+      {
+        "relativePath": "tests/buyer-experience-mobile-static.ps1",
+        "beforeSha256": "537270633d30bdeafc69399505bc2b0a4390b6165b06b0130200d3ea5792dc7a",
+        "afterSha256": "99782ccf8b9543bddeaa7fd3215c9041cc07dfc70bb4a8117028525bc7908577"
+      },
+      {
+        "relativePath": "tests/canonical-identity-location-static.ps1",
+        "beforeSha256": "15de56756b14550e48166b870f5afcfa2c837b3590f135cd1e6ed867c94fd99b",
+        "afterSha256": "f85ac520eb9525d1aebf00a0ff5538a74ae30feac470b8163de0151742a57182"
+      },
+      {
+        "relativePath": "tests/collectible-auction-recovery-static.ps1",
+        "beforeSha256": "d006ae44eb17c168f2b3f8344c6bbf5d27a63818819b292ffc2e9672fd012c61",
+        "afterSha256": "b45b85ea5ab1f5032e03c127a2e4566e99c1753d1d039e6f2fe596a11cbb628e"
+      },
+      {
+        "relativePath": "tests/currency-precision-static.ps1",
+        "beforeSha256": "e94ffb844d975108065504fd15e2716759bb718be8567e1948b6427031cb53ea",
+        "afterSha256": "d540b3cf6161a794340250fd6d56522e910888b7d17d4b7e19f1380f73ed93e5"
+      },
+      {
+        "relativePath": "tests/domain-directed-search-stable-ending-static.ps1",
+        "beforeSha256": "de915e87e459bfb700c4f79b25bb0dd989535a4834a5fa6d6292cda6ef0f5810",
+        "afterSha256": "5c409cc4c9973f846de0629b1c265db4af5ac8ce51eff173768db4da65368a5e"
+      },
+      {
+        "relativePath": "tests/exact-match-cautious-buy-static.ps1",
+        "beforeSha256": "e005c173a5a7250c8388a851aac9ac6bf5bcf5358383b92b388f59de20f6777e",
+        "afterSha256": "4653fc7bd3f370d7755926be3b56c0bb3e6d15d55e33f2b80f7838ab7f09d43d"
+      },
+      {
+        "relativePath": "tests/global-help-instructions-static.ps1",
+        "beforeSha256": "a6db557d43b6687c9dc6ffbbfa6303e36ba396b0bc7ed711ae8136341599188b",
+        "afterSha256": "1c118ba624685e57d8d07972d338b7ed721f65a6117ff7a5812ca5b47e78b53d"
+      },
+      {
+        "relativePath": "tests/item-type-firewall-static.ps1",
+        "beforeSha256": "7340ffd127de435b36bfe7644d572ceb76a4b36cef0aa42e5d7447dd1fca77f3",
+        "afterSha256": "7b1f59693b15e29403f6a365c2747c9d511d94057c5be19810bbab2019f5b823"
+      },
+      {
+        "relativePath": "tests/maximum-price-calibration-static.ps1",
+        "beforeSha256": "80e353ec827d5d48e20bbe24705202adaf25bf5651979c6f05386926fb2991cd",
+        "afterSha256": "c9626f5777e54e17a83bf9cf666127f52d2c763cdd703bf868d54082c7caeb80"
+      },
+      {
+        "relativePath": "tests/mobile-report-length-static.ps1",
+        "beforeSha256": "faaa5a2b7a222e42ecb4ca36b29b1dffa0b06802c4d33054faaa951571d83a3f",
+        "afterSha256": "5703d2b470310279bda88bd29dc1b721cf528c62481d6828a8cb98d15d17cc92"
+      },
+      {
+        "relativePath": "tests/mobile-ui-static.ps1",
+        "beforeSha256": "45a9fe3ba54a6e0e8a94c96e4fa80cdc1318d32ebc143af2c0ee412aa6eb9989",
+        "afterSha256": "afea6e97be88c2a1800adf95a0064c174ca952acf5dfbd4e8144849e4de5eff8"
+      },
+      {
+        "relativePath": "tests/photo-multi-upload-static.ps1",
+        "beforeSha256": "2497c3f7308f20360b2da1f8d53ba43c00c6af51b28cc007a460422afc1f49a2",
+        "afterSha256": "65fa8a9be749cd333c177fc1847b7167a084ee5a1ba51f201a1bbbb0c9dc9682"
+      },
+      {
+        "relativePath": "tests/prices-found-delivered-cost-static.ps1",
+        "beforeSha256": "903b00a9793da07ec6a2fd05956ef490aae51df73a115ed861f81c3d0a12c2c2",
+        "afterSha256": "3d4c37b41fd9116ff6590d283a3a3eb767b962920f8fea43401ef6111122e4e9"
+      },
+      {
+        "relativePath": "tests/pricing-quality-calibration-static.ps1",
+        "beforeSha256": "f04e21193b33efda02042d40c6a6055f6ef9b48cdbe620b4ab001b6f6796f39c",
+        "afterSha256": "66c50da012fef2741b82e39bf78f603a6d13b94e6a0737adf617885a31fb55de"
+      },
+      {
+        "relativePath": "tests/purpose-workflows-static.ps1",
+        "beforeSha256": "8a3dc782facfbb60babde6619e957656a41e96dd83693d5b5a684af1ffda640d",
+        "afterSha256": "77ab594a04bdd6efcc860d28244742d59f7b200ceff229d7128c86efa6eaa951"
+      },
+      {
+        "relativePath": "tests/query-execution-session-isolation-static.ps1",
+        "beforeSha256": "06d25545d110b45bb85a34e5a89048b24d0f7ed95c3c20c56e19ab4071c2540e",
+        "afterSha256": "4883c169bff8fb5cc2a447742047c5772f1a8a09f33eb310ba572ed654f5d835"
+      },
+      {
+        "relativePath": "tests/research-evidence-visibility-static.ps1",
+        "beforeSha256": "af97f7623bde1a2018e50ff7d5a7d4bee53cc1659eb0978be1f7f7208c543133",
+        "afterSha256": "b5aae6dbaa5b03f2690b2549f0d5025ede7455bc247b3df72d4f4e8009734624"
+      },
+      {
+        "relativePath": "tests/retail-evidence-isolation-static.ps1",
+        "beforeSha256": "1c4a5bc2889aaae1fd5a74fe35d6115aa3181047d9cf66b70ad4d2a58252991a",
+        "afterSha256": "cc5317c3add1bfc38da8e0150300135eacc0351b4211ef94bee15ae753e45a04"
+      },
+      {
+        "relativePath": "tests/retail-purchase-context-static.ps1",
+        "beforeSha256": "16185416566b50b43be79d51ee0e26428e65044f96bc9bb0140cea6ac2558b50",
+        "afterSha256": "96096c7b1ed15a95d357c6daee32ed14f475170dbc51791b9003796b9d030f7a"
+      },
+      {
+        "relativePath": "tests/retail-recovery-static.ps1",
+        "beforeSha256": "6ffe553a238aae6e7b965dd7da9f5f4c77ec27d41952b000f327a5f8e9cd7098",
+        "afterSha256": "1644494eaf6bda743ab745c5dc9a9a4de04fcbd6586c45122100931ffe789661"
+      },
+      {
+        "relativePath": "tests/safari-load-failure-static.ps1",
+        "beforeSha256": "13f030f6d7afb9b7a555636f5bd48e79d504786e77b6b5f44cb7cad4f1ab1fe3",
+        "afterSha256": "fae5127c8f64a4f6c6aa9167d454d049c2c5f6c72e425ac3d69378f1c84f2d08"
+      },
+      {
+        "relativePath": "tests/search-diagnostics-zero-evidence-static.ps1",
+        "beforeSha256": "5b42ccec1cca7e296159301a918b2135393e173d8a2c296fe169b79aad94aba8",
+        "afterSha256": "56e0daa146e81bce4793e563f066aa2e978fe6b71aa3f2a80c84b70a375e83d1"
+      },
+      {
+        "relativePath": "tests/serper-google-acquisition-static.ps1",
+        "beforeSha256": "2614d2176049d64f29dc2dafbb578f7913246ac4831d3f0a256fb4e82c89b7de",
+        "afterSha256": "52c60f5cc54ce0eb3251061fe877fabf80c19e89bc1435fe2ebf572fa3c350c8"
+      },
+      {
+        "relativePath": "tests/serper-query-integrity-static.ps1",
+        "beforeSha256": "8f319e60eb03281ced0d98d08ecb962d8e63bb7880222090731a5b3b01d1358b",
+        "afterSha256": "12e5f85e6f95d4bd12754b741c4966292d32185c400c48004be77eb766da3f66"
+      },
+      {
+        "relativePath": "tests/transaction-evidence-firewall-static.ps1",
+        "beforeSha256": "c11d8aacd5d9da676d2d5f88427078484c359f2fde83c0484418b9882462a868",
+        "afterSha256": "6a3173fa3d32f0e801d01cf800d95ca9c5342b20d585bc25038500872cf891d6"
+      },
+      {
+        "relativePath": "tests/valuation-evidence-static.ps1",
+        "beforeSha256": "7a8c39c731a7acf0f33d0e7c634709cefc51cb8a910e548dc047d17d657e4cbd",
+        "afterSha256": "bafab7705f2ace3152e296a9c1f28d15ec5945b17cdface13336edb9193de2a4"
+      }
+    ],
+    "postFailureReadOnlyDiagnostic": {
+      "helperImports": 30,
+      "hardCodedActiveVersionOccurrences": 0,
+      "historicalAndDependencyOccurrences": 50,
+      "malformedOrAmbiguousActiveReferences": 0,
+      "formalPostMigrationInventoryCompleted": false
+    },
+    "packageSha256": "cdca8f15a0b6c76655e8d5fa3b36ad6fdf9eb51421c390d084b83823a9d7b03e",
+    "publicIndexSha256": "bdf0d69b850ce8f7a508d27af7be10aa6318f535392b197f78f93b7685656772",
+    "productFilesChanged": 0,
+    "nodeTestFilesChanged": 0
+  },
+  "gateD": {
+    "result": "FAIL_STOPPED",
+    "preExecutionWrapperParserRejections": 1,
+    "gateExecutionAttempts": 1,
+    "parsedFiles": 31,
+    "syntaxErrors": 0,
+    "fixtureRoot": "C:\\Users\\dawgy\\AppData\\Local\\Temp\\ke-active-version-05d282a6262b4e10aa89215cb31c1d18",
+    "fixtureModuleImportAttempts": 1,
+    "failureOperation": "Import-Module",
+    "failureType": "PSSecurityException",
+    "failureCode": "UnauthorizedAccess,Microsoft.PowerShell.Commands.ImportModuleCommand",
+    "failureMessageClassification": "PROCESS_EXECUTION_POLICY_BLOCKED_FIXTURE_MODULE_IMPORT",
+    "helperBehaviorCasesExecuted": 0,
+    "realVTestsExecuted": 0,
+    "focusedTestsExecuted": 0,
+    "cleanupCompleted": true,
+    "fixtureResiduePresent": false,
+    "retryAttempted": false
+  },
+  "notReached": {
+    "formalPostMigrationInventory": true,
+    "inventoryAndCorrectionRecords": true,
+    "gateEFocused30": true,
+    "gateFComplete53": true,
+    "gateGRemainingReleaseGates": true,
+    "FConstruction": true,
+    "TFinalization": true,
+    "releaseCommit": true,
+    "push": true
+  },
+  "preservedTerminalSuite": {
+    "runnerSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc",
+    "proofTestSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67",
+    "selected": 542,
+    "passed": 526,
+    "failed": 0,
+    "skipped": 16,
+    "cancelled": 0,
+    "todo": 0,
+    "N": {
+      "count": 543,
+      "hash": "8b833a400fedc387e6aec22588bf44afae94c52dbfea7a3ba8ed407fdd7da7ab"
+    },
+    "X": {
+      "count": 1,
+      "hash": "0f62afbfa7d490d0235dc6d20d82a89585ac7c691d4d03d59b50338910882bf4"
+    },
+    "R": {
+      "count": 542,
+      "hash": "e2893e347d7eb1a9fd25839c5293ef690b8a80aaf054ba51ac1aa3d885430dc5"
+    },
+    "priorCapture": {
+      "memberCount": 3,
+      "totalBytes": 62985,
+      "aggregateHash": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15"
+    },
+    "successorCapture": {
+      "memberCount": 4,
+      "totalBytes": 166771,
+      "aggregateHash": "e5c094a65a0520b9f7289056a8d4400c74b837510f2c2845b072043eae3d41a6"
+    },
+    "terminalResultHash": "e77bff42fbe68660fa175e716bebcc6d4518fc8dd81d70199737ea358bf38282"
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466"
+  },
+  "preservation": {
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "releaseState": "UNRELEASED",
+    "remoteWrites": 0
+  },
+  "activity": {
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "receiptHash": "c8645f8960b476db121302e182a252fcec142898f2733435c9064a055e27e634"
+}

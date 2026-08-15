@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 $api = Get-Content -LiteralPath (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content -LiteralPath (Join-Path $Root "public/app.js") -Raw
 $server = Get-Content -LiteralPath (Join-Path $Root "server.ps1") -Raw
@@ -9,7 +10,7 @@ $roadmap = Get-Content -LiteralPath (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 $mock = Get-Content -LiteralPath (Join-Path $Root "tests/mock-provider-live-comps.mjs") -Raw
 
 $checks = @(
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "UPC validation helper exists"; Text = $api; Pattern = "function validateRetailBarcodeCandidate" },
   @{ Name = "Barcode check digit helper exists"; Text = $api; Pattern = "function computeRetailBarcodeCheckDigit" },

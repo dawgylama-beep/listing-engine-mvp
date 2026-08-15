@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $apiPath = Join-Path $Root "api/generate-listing.js"
 $serverPath = Join-Path $Root "server.ps1"
@@ -34,9 +35,9 @@ $georgiaTrayMockedExtractedEvidence = @{
 }
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
-  @{ Name = "Server version is 1.12.34"; Text = $server; Pattern = '$AppVersion = "1.12.34"' },
+  @{ Name = "Visible app version is $($activeVersionExpectations.ActiveVersion)"; Text = $index; Pattern = $activeVersionExpectations.IDX },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
+  @{ Name = "Server version is $($activeVersionExpectations.ActiveVersion)"; Text = $server; Pattern = $activeVersionExpectations.SRV },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "API builds search diagnostics"; Text = $api; Pattern = "function buildSearchDiagnostics" },
   @{ Name = "API records generated queries"; Text = $api; Pattern = "queriesGenerated" },

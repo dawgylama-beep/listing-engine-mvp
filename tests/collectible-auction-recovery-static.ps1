@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $api = Get-Content (Join-Path $Root "api/generate-listing.js") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
@@ -28,9 +29,9 @@ function Require-NotRegex($Name, $Text, $Pattern) {
 }
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
-  @{ Name = "Server version is 1.12.34"; Text = $server; Pattern = '$AppVersion = "1.12.34"' },
+  @{ Name = "Visible app version is $($activeVersionExpectations.ActiveVersion)"; Text = $index; Pattern = $activeVersionExpectations.IDX },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
+  @{ Name = "Server version is $($activeVersionExpectations.ActiveVersion)"; Text = $server; Pattern = $activeVersionExpectations.SRV },
   @{ Name = "Roadmap documents 1.12.1"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Secondary-market auction registry exists"; Text = $api; Pattern = "const secondaryMarketAuctionRegistry = Object.freeze" },
   @{ Name = "Registry includes eBay"; Text = $api; Pattern = 'domain: "ebay.com"' },

@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
@@ -57,7 +58,7 @@ $workflowInstructionChecks = @(
   "Prepare to Sell"
 )
 
-Require-Contains "Visible app version is 1.12.34" $index "Version 1.12.34"
+Require-Contains "Visible app version is $($activeVersionExpectations.ActiveVersion)" $index $activeVersionExpectations.IDX
 Require-NotContains "Permanent Start Here box is removed" $index 'class="intake-instructions"'
 Require-NotContains "Start Here heading is removed" $index "Start Here"
 Require-NotContains "Old three-step instruction text is removed" $index "Choose what you want to do."

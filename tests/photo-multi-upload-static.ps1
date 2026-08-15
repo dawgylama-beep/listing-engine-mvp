@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$activeVersionExpectations = Import-Module (Join-Path $Root "tests/support/active-version.psm1") -Force -PassThru | ForEach-Object { Get-ActiveVersionExpectations }
 
 $index = Get-Content (Join-Path $Root "public/index.html") -Raw
 $app = Get-Content (Join-Path $Root "public/app.js") -Raw
@@ -11,9 +12,9 @@ $server = Get-Content (Join-Path $Root "server.ps1") -Raw
 $roadmap = Get-Content (Join-Path $Root "PRODUCT_ROADMAP.md") -Raw
 
 $checks = @(
-  @{ Name = "Visible app version is 1.12.34"; Text = $index; Pattern = "Version 1.12.34" },
-  @{ Name = "Package version is 1.12.34"; Text = $package; Pattern = '"version": "1.12.34"' },
-  @{ Name = "Server version is 1.12.34"; Text = $server; Pattern = '$AppVersion = "1.12.34"' },
+  @{ Name = "Visible app version is $($activeVersionExpectations.ActiveVersion)"; Text = $index; Pattern = $activeVersionExpectations.IDX },
+  @{ Name = "Package version is $($activeVersionExpectations.ActiveVersion)"; Text = $package; Pattern = $activeVersionExpectations.PKG },
+  @{ Name = "Server version is $($activeVersionExpectations.ActiveVersion)"; Text = $server; Pattern = $activeVersionExpectations.SRV },
   @{ Name = "Roadmap documents photo hotfix"; Text = $roadmap; Pattern = "Version 1.12.1 (Completed)" },
   @{ Name = "Photo library input keeps multiple attribute"; Text = $index; Pattern = 'id="photos" class="visually-hidden-file" name="photos" type="file" accept="image/*" multiple' },
   @{ Name = "Camera input remains camera capture"; Text = $index; Pattern = 'id="camera-photo" class="visually-hidden-file" type="file" accept="image/*" capture="environment"' },
