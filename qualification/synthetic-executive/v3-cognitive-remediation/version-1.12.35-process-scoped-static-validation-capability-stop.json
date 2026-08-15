@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "VERSION_1_12_35_PROCESS_SCOPED_STATIC_VALIDATION_CAPABILITY_STOP",
+  "classification": "VERSION_1_12_35_PROCESS_SCOPED_STATIC_VALIDATION_STOPPED_BY_CHILD_ARGUMENT_BINDING",
+  "recordState": "SEALED_FAILURE_LOCAL_PRESERVATION_ONLY",
+  "version": "1.12.35",
+  "recordedAt": "2026-08-15T17:14:03.8077481Z",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "e69ab552245cec6e50f10861a9c8bf6c67289faf",
+    "tree": "c5f9dd770358b6b27a2550f2f4ef3f80d9ae4e41",
+    "parent": "19392f1238c8da5e41572869d574550dd3d6720c",
+    "trackingHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "directRemoteHead": "8cf6207fb3f15c2e1ac4a9ff616d20361393fe35",
+    "ahead": 7,
+    "behind": 0
+  },
+  "gateA": {
+    "result": "PASS",
+    "powershellExecutable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "powershellVersion": "5.1.26100.9168",
+    "powershellEdition": "Desktop",
+    "effectiveParentPolicy": "Restricted",
+    "persistentPoliciesBefore": {
+      "MachinePolicy": "Undefined",
+      "UserPolicy": "Undefined",
+      "Process": "Undefined",
+      "CurrentUser": "Undefined",
+      "LocalMachine": "Undefined"
+    },
+    "machineOrUserPolicyBlock": false,
+    "priorFailure": {
+      "receiptPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-centralized-static-active-version-correction-execution-policy-stop.json",
+      "receiptSha256": "a4902a2ac49daee519d3e917b89e0874830d75b51938a62bfd2e2ce98413863a",
+      "receiptHash": "c8645f8960b476db121302e182a252fcec142898f2733435c9064a055e27e634",
+      "helperBehaviorCasesExecuted": 0,
+      "realMigratedTestsExecuted": 0
+    },
+    "preservedIdentities": {
+      "helperSha256": "1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9",
+      "migratedTestFileCount": 30,
+      "migratedTestHashMismatches": [],
+      "staticPathSetHash": "34128f7099d5eefcd97f14b73ed9d5f45218a8006725cc36d527acd1979af065",
+      "runnerSha256": "5eae751bfe1b65a6b3e0596ee14c073958dff9669ead4d5c080db5cf445650bc",
+      "proofTestSha256": "e19c8e21679864f87195959b3f2bda5a4a0ba42f81e1fbe475fb000dcda68a67",
+      "priorCaptureMemberCount": 3,
+      "priorCaptureTotalBytes": 62985,
+      "priorCaptureAggregate": "1100dd48944c227e2894df2e0151f34c564ed72b15e4eceeb2515cdde20b3a15",
+      "successorCaptureMemberCount": 4,
+      "successorCaptureTotalBytes": 166771,
+      "successorCaptureAggregate": "e5c094a65a0520b9f7289056a8d4400c74b837510f2c2845b072043eae3d41a6",
+      "windowsLongPathContextHash": "d1b3ddd0b487af9f2558ce60868e23d6371aa768fa5ef8731980ff9a46b675cf",
+      "terminalSuiteResultHash": "e77bff42fbe68660fa175e716bebcc6d4518fc8dd81d70199737ea358bf38282"
+    }
+  },
+  "gateB": {
+    "result": "FAIL_STOPPED",
+    "childInvocationCount": 1,
+    "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "flags": [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command"
+    ],
+    "intendedOperation": "IMPORT_COMMITTED_HELPER_ONLY",
+    "failureOperation": "Import-Module",
+    "failureType": "CHILD_COMMAND_ARGUMENT_BINDING_FAILURE",
+    "parentErrorClassification": "NativeCommandError",
+    "failureMessage": "Import-Module : Cannot bind argument to parameter 'Name' because it is null.",
+    "helperImported": false,
+    "helperFunctionInvoked": false,
+    "helperBehaviorCasesExecuted": 0,
+    "migratedTestsExecuted": 0,
+    "fixtureUsed": false,
+    "fixtureResiduePresent": false,
+    "retryAttempted": false,
+    "alternatePolicyHostExecutableWrapperOrInvocationAttempted": false,
+    "persistentPolicyMutationAttempted": false,
+    "repositoryChangesCausedByChild": false
+  },
+  "postFailureReadback": {
+    "persistentPoliciesUnchanged": true,
+    "persistentPoliciesAfter": {
+      "MachinePolicy": "Undefined",
+      "UserPolicy": "Undefined",
+      "Process": "Undefined",
+      "CurrentUser": "Undefined",
+      "LocalMachine": "Undefined"
+    },
+    "helperSha256": "1490a9ed096305cad6245b2638eee4360af49182601fa5ea37aad01edba850a9",
+    "stagedTrackedChangesBeforeReceipt": 0,
+    "unstagedTrackedChangesBeforeReceipt": 0,
+    "untrackedOutsidePhase6aBeforeReceipt": 0
+  },
+  "notReached": {
+    "gateCHelperProof": true,
+    "gateDFocusedMigratedTests": true,
+    "gateECompletePowerShellStaticSuite": true,
+    "gateFRemainingReleaseGates": true,
+    "finalReleaseSetConstruction": true,
+    "terminalReleaseRecord": true,
+    "releaseCommit": true,
+    "push": true
+  },
+  "preservedTerminalSuite": {
+    "rerun": false,
+    "selected": 542,
+    "passed": 526,
+    "failed": 0,
+    "skipped": 16,
+    "cancelled": 0,
+    "todo": 0
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "modified": false,
+    "staged": false
+  },
+  "preservation": {
+    "qualification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+    "releaseState": "UNRELEASED",
+    "remoteWrites": 0
+  },
+  "activity": {
+    "capabilityChildProcesses": 1,
+    "helperImports": 0,
+    "helperBehaviorProofs": 0,
+    "focusedMigratedTestExecutions": 0,
+    "completePowerShellStaticSuiteExecutions": 0,
+    "sealedTerminalNodeSuiteExecutions": 0,
+    "credentialAccesses": 0,
+    "providerRequests": 0,
+    "metadataRequests": 0,
+    "evaluatorInvocations": 0,
+    "authoritiesCreated": 0,
+    "qualificationReplays": 0,
+    "phase6aBenchmarkExecutions": 0,
+    "liveHandlerInvocations": 0,
+    "previewActivity": 0,
+    "productionActivity": 0,
+    "deployments": 0,
+    "remoteWrites": 0
+  },
+  "receiptHashBasis": "COMPACT_JSON_OF_THIS_RECORD_WITH_RECEIPT_HASH_OMITTED",
+  "receiptHash": "95aa5893d2437d6d71494abf73cb17585a68719e1a21c5c7bfe4fe75dd005c2a"
+}
