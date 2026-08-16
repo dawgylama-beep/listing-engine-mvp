@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "manifestType": "V4_RUBRIC_COVERAGE_SUCCESSOR_EVALUATOR_ONLY_PACKAGE_MANIFEST",
+  "access": "EVALUATOR_ONLY_NEVER_PUBLIC_DELIVERY",
+  "memberCount": 7,
+  "totalMemberBytes": 2141632,
+  "aggregateAlgorithm": "SHA256_CANONICAL_JSON_SORTED_MEMBER_ROWS",
+  "aggregateSha256": "3d47d9af83d96eaba01ef869e094035327c920d7bb819a8836959cb3844c150a",
+  "members": [
+    {
+      "relativePath": "evaluator-package/field-coverage-matrix.json",
+      "byteLength": 294835,
+      "sha256": "b5942e7906765abb957e1969161cda3e3e8bc02291f6ce93056794f7dc864c82"
+    },
+    {
+      "relativePath": "evaluator-package/mutation-fixtures.json",
+      "byteLength": 1021220,
+      "sha256": "905f157a97b760c920076daf6f6f15dad866492ffd01e76d741d81ab6c4dbfe0"
+    },
+    {
+      "relativePath": "evaluator-package/mutation-proof.json",
+      "byteLength": 71417,
+      "sha256": "96c6574a2abb73ace16ca6721f179351d58d72a1c7c30c697fda42a59aac59c6"
+    },
+    {
+      "relativePath": "evaluator-package/scoring-policy.json",
+      "byteLength": 17127,
+      "sha256": "95be9aa6f459d42d6cef7248eb03a650b1c61980c3d8ad611306575bdd42176c"
+    },
+    {
+      "relativePath": "evaluator-package/semantic-rubric.json",
+      "byteLength": 485003,
+      "sha256": "cc877e67003bb437f6008f89886f995389f3f1d760cf63d8f23492544822f61a"
+    },
+    {
+      "relativePath": "evaluator-package/successor-candidate.json",
+      "byteLength": 243214,
+      "sha256": "0593af9a7253aaef27cbb2c4a8809c6ea2feef804a25c70faefe93d890e49901"
+    },
+    {
+      "relativePath": "evaluator-package/topology-register.json",
+      "byteLength": 8816,
+      "sha256": "f37bfe03be2d8090682ad1e127e83da2ed7754997811db54385bd20dd1651a61"
+    }
+  ]
+}

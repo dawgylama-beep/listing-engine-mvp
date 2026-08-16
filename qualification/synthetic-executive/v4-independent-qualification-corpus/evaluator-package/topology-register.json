@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0",
+  "registerType": "V4_SUCCESSOR_INTERNAL_TOPOLOGY_REGISTER",
+  "scope": "Successor-local internal comparison only",
+  "externalComparisonPerformed": false,
+  "externalNoveltyConclusion": "NOT_CLAIMED_PENDING_INDEPENDENT_REAUDIT",
+  "entries": [
+    {
+      "caseId": "V4-C01",
+      "topologyId": "TOP-V4-C01",
+      "difficultyBand": "FOUNDATIONAL",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "sequential closure ledger with one terminal acceptance gate",
+      "evidenceOrganization": "charter plus endpoint completion records",
+      "decisionSequence": "test four finish conditions then choose the open authorized gate",
+      "failureMechanism": "missing receiving reconciliation and signature",
+      "structuralFingerprintSha256": "c90d7463eea2e740c2391004477718022681194135204b343bc9568928cf3942"
+    },
+    {
+      "caseId": "V4-C02",
+      "topologyId": "TOP-V4-C02",
+      "difficultyBand": "COMPOUND",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "named recurrence exclusion by two negative markers",
+      "evidenceOrganization": "historical rule contrasted with current material and control observations",
+      "decisionSequence": "test recurrence conjunction then localize the pre-press alternative",
+      "failureMechanism": "compromised paper condition before machine contact",
+      "structuralFingerprintSha256": "8249db210a4b4e15a272161473c23dc74551d9753ec2ec54936de5c49da0e4cc"
+    },
+    {
+      "caseId": "V4-C03",
+      "topologyId": "TOP-V4-C03",
+      "difficultyBand": "COMPOUND",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "zone-specific missing measurement with non-substitutable proxy",
+      "evidenceOrganization": "location-governed records plus an outside-edge counter-reading",
+      "decisionSequence": "separate direct fact from proxy then request evidence authority",
+      "failureMechanism": "loss of one controlling overnight zone record",
+      "structuralFingerprintSha256": "00a918c9bf3ee171e47d288d6ca4e3e8d3c62113bf85a48732ce7052ba661fbd"
+    },
+    {
+      "caseId": "V4-C04",
+      "topologyId": "TOP-V4-C04",
+      "difficultyBand": "FOUNDATIONAL",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "controlled visual-environment substitution",
+      "evidenceOrganization": "instrument, white-tile, and retained-cloth comparisons",
+      "decisionSequence": "exclude product and process layers through paired controls",
+      "failureMechanism": "non-designated warm inspection lamp",
+      "structuralFingerprintSha256": "44e2861775d7e4445abf09391719e105e689c5c5f7d776e025c994e3a1f6e4ba"
+    },
+    {
+      "caseId": "V4-C05",
+      "topologyId": "TOP-V4-C05",
+      "difficultyBand": "INTEGRATIVE",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "cross-dock physical contact-route matrix",
+      "evidenceOrganization": "route cards, burr observation, and bypass controls",
+      "decisionSequence": "find the exposure that partitions cases before branch separation",
+      "failureMechanism": "abrasion at one temporary guide surface",
+      "structuralFingerprintSha256": "5657f37d217a8886d4747d20cdd359711c5a5993516deafee9eefce0c3220813"
+    },
+    {
+      "caseId": "V4-C06",
+      "topologyId": "TOP-V4-C06",
+      "difficultyBand": "INTEGRATIVE",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "spatial stratification across a held common blend",
+      "evidenceOrganization": "depth duplicates, reference assay, timer, and fill-order evidence",
+      "decisionSequence": "apply homogeneity rule then expand from visible strata to latent batch scope",
+      "failureMechanism": "short common mixing interval causing depth variance",
+      "structuralFingerprintSha256": "c9fa83abdf8983d7485ac51ac5420aabefd011d507dfef9f175728fed652db5f"
+    },
+    {
+      "caseId": "V4-C07",
+      "topologyId": "TOP-V4-C07",
+      "difficultyBand": "FOUNDATIONAL",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "dependency graph around a measured exclusion zone",
+      "evidenceOrganization": "steward tag, scaled site card, and readiness-track rules",
+      "decisionSequence": "stop dependent branch while advancing independent branches",
+      "failureMechanism": "localized bent overhead connector",
+      "structuralFingerprintSha256": "2501f996f9fadb9322bfc1d33c184abc3e2835390f7631924427ea88a35d6489"
+    },
+    {
+      "caseId": "V4-C08",
+      "topologyId": "TOP-V4-C08",
+      "difficultyBand": "COMPOUND",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "redundant four-record closure after supplementary loss",
+      "evidenceOrganization": "one-to-one reconciliation table and receiving chain",
+      "decisionSequence": "rank controlling versus supplementary records then close transparently",
+      "failureMechanism": "rain damage limited to non-controlling prose",
+      "structuralFingerprintSha256": "3581b2d23d3a9ebf9f668ae28b8c1bc710622f1c2157da14b5cd08ac2449ecb7"
+    },
+    {
+      "caseId": "V4-C09",
+      "topologyId": "TOP-V4-C09",
+      "difficultyBand": "INTEGRATIVE",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "repeated authorization ledger with invariant prerequisite omission",
+      "evidenceOrganization": "three denial letters, fourth-draft comparison, and ready surface instruments",
+      "decisionSequence": "prove recurrence then replace replay with evidence creation",
+      "failureMechanism": "unchanged exception request omitting ventilation readings",
+      "structuralFingerprintSha256": "16c0508758f43669d8972878e29d626169f4d81ae6c27df9a50df9f8a3b9b10a"
+    },
+    {
+      "caseId": "V4-C10",
+      "topologyId": "TOP-V4-C10",
+      "difficultyBand": "COMPOUND",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "offer elimination matrix leaving one unopened link",
+      "evidenceOrganization": "settled disqualifiers plus cabinet index and model records",
+      "decisionSequence": "preserve settled comparisons and inspect one timely document",
+      "failureMechanism": "unresolved certificate-to-model documentary link",
+      "structuralFingerprintSha256": "b4e5408dc39f3515c9ddbcccdcb3c9d38c5d882de1a804e165b983d103dfcd9a"
+    },
+    {
+      "caseId": "V4-C11",
+      "topologyId": "TOP-V4-C11",
+      "difficultyBand": "COMPOUND",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "external mapping triangulation under a credential boundary",
+      "evidenceOrganization": "dated photographs, duplicate register, locks, and custody sheet",
+      "decisionSequence": "prove external change while withholding claims about sealed contents",
+      "failureMechanism": "unrecorded exchange of external identity cards",
+      "structuralFingerprintSha256": "e413c1a8a759d9ed3c05011ce6ecf4c81f5ffc3855b59dcc8deb27f63dac36c0"
+    },
+    {
+      "caseId": "V4-C12",
+      "topologyId": "TOP-V4-C12",
+      "difficultyBand": "INTEGRATIVE",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "four-ledger state reconciliation with provenance-ranked history",
+      "evidenceOrganization": "fabrication, qualification, certification, placement, and archive records",
+      "decisionSequence": "assign each state independently then run the one missing exact-frame observation",
+      "failureMechanism": "historical summary obscuring incomplete current qualification",
+      "structuralFingerprintSha256": "aa1704c6d55517b228d99ecc35704d26a39c0ee5e6b0ea0f323d3f7bbd3e803e"
+    },
+    {
+      "caseId": "V4-C13",
+      "topologyId": "TOP-V4-C13",
+      "difficultyBand": "FOUNDATIONAL",
+      "rewrittenForSuccessor": false,
+      "scenarioTopology": "denominator audit against mandatory plate-level fields",
+      "evidenceOrganization": "board count contrasted with complete and blank catalog cards",
+      "decisionSequence": "recompute real completion and resume at the first unsupported item",
+      "failureMechanism": "label-count substitution for condition evidence",
+      "structuralFingerprintSha256": "97c37d27ae8d830746c1c50e1b8cdaa861326c8f3f8ea45f3fa8d1391bc097b6"
+    },
+    {
+      "caseId": "V4-C14",
+      "topologyId": "TOP-V4-C14",
+      "difficultyBand": "INTEGRATIVE",
+      "rewrittenForSuccessor": true,
+      "scenarioTopology": "insert-provenance join with negative controls and independent shipment branch",
+      "evidenceOrganization": "same-lot card controls, calipers, build ledger, impact tabs, and separate pedestal records",
+      "decisionSequence": "reject named recurrence, join geometry to provenance, hold scoped crates, advance independent branch",
+      "failureMechanism": "undersized reclaimed support inserts across sealed mosaic crates",
+      "structuralFingerprintSha256": "24f3e85b08cdce086c27ceb68004c6e07fce55cf1663b490b76168bbcd7a3686"
+    }
+  ]
+}

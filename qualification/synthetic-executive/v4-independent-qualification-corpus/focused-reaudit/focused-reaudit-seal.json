@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "sealType": "V4_RUBRIC_COVERAGE_SUCCESSOR_FOCUSED_REAUDIT_TERMINAL_SEAL",
+  "classification": "V4_INDEPENDENT_CORPUS_RUBRIC_COVERAGE_SUCCESSOR_FOCUSED_REAUDIT_PASSED_ELIGIBLE_FOR_FREEZE",
+  "preservedClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "evidenceDirectory": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00ccf-2bbe-7142-aa9c-49772fcefdd2/v4-rubric-coverage-focused-reaudit-01a00ccf",
+  "auditCode": {
+    "relativePath": "audit.js",
+    "byteLength": 56080,
+    "sha256": "89aad43342a79b342789aa17c563aebb67f8680a35410b11ffe79c330335f2a8"
+  },
+  "auditReport": {
+    "relativePath": "focused-reaudit-report.json",
+    "byteLength": 208781,
+    "sha256": "66ea2da0b5790137cce570d08820a809a0cf408f7f91904ff59eee6d8096e798"
+  },
+  "evidenceInventory": {
+    "relativePath": "evidence-inventory.json",
+    "byteLength": 1132,
+    "sha256": "78c7d6637f49e2c3f654f2ca0f873e15ec0864b37f09212ff6872975a2438083"
+  },
+  "preSealMemberCount": 2,
+  "preSealTotalBytes": 264861,
+  "preSealPathSetSha256": "c06c92807a63765c8f15feaa3098a4bdfb8bdae30dd7cf5adfa17d5cb1f978fb",
+  "preSealInventorySha256": "834975fb5a40f95a6c6f27a646a4bc07978b1da06dcd64b28f5b1c6d3f66c194",
+  "preSealAggregateSha256": "e512512546fc0eaef0cfb5951fef29f31f158aa929817701e8d0ba992bca3677",
+  "gatesPassed": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "unprovedEligibilityPropositions": 0,
+  "candidateExposuresToKatherine": 0,
+  "prohibitedActivityCount": 0,
+  "repairAuthorizedOrPerformed": false,
+  "freezePerformed": false,
+  "qualificationPerformed": false,
+  "sealedAt": "2026-08-16T23:14:55.424Z",
+  "postSealContentChangesPermitted": false
+}

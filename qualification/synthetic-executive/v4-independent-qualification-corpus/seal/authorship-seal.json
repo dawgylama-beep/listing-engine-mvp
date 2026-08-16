@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1.0",
+  "sealType": "V4_RUBRIC_COVERAGE_SUCCESSOR_TERMINAL_AUTHORSHIP_SEAL",
+  "successClassification": "V4_INDEPENDENT_CORPUS_RUBRIC_COVERAGE_SUCCESSOR_AUTHORED_UNEXPOSED_PENDING_FOCUSED_REAUDIT",
+  "preservedClassification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "successorDirectory": "C:\\Users\\dawgy\\.codex\\visualizations\\2026\\08\\16\\01a00cba-9781-7cc0-bc76-15c4849d2698\\v4-independent-corpus-rubric-coverage-successor-b29c6868-c76c-451c-9287-1453f9c195a7",
+  "parentSuccessorBinding": {
+    "candidateSha256": "f6ad051243df4e68c13fcb075c52ffefd11aaec0ba9ce40c1721325defbf6ae5",
+    "publicPackageSha256": "92ff4a2955d125287cc50729548267fcdb8ee2605900023149e05165f7a90b3f",
+    "evaluatorManifestSha256": "2ed811302399240ad53f31853a6ae69abef1b36fac8cf3545a27bb285ee69ac3",
+    "evaluatorAggregateSha256": "8c3a851361aa76483bfb080f6eb4516618ba6e7c27466ae67e3e7dd867e0cf01",
+    "preSealAggregateSha256": "722f751d2f4721655c017c770b357971445903014cc9b2ae909726375209fe86",
+    "sealSha256": "f3fca03c4d5cbc8186cc568da7eb35d8da62c7aadd100a402a22a96946d185d3"
+  },
+  "failedReauditBinding": {
+    "classification": "V4_INDEPENDENT_CORPUS_SUCCESSOR_REAUDIT_FAILED_NO_REPAIR_AUTHORIZED",
+    "recordSha256": "46138f5e37f88085fc4c785f6f0944eba04fe632b48ee5ab18372b3acfc6c043",
+    "evidenceInventorySha256": "1f929d304539dac6af45ec9b9e578560185abdc85a5d9df3c5d2b18765a32af1",
+    "sealSha256": "ef37f1e1b07fd99ce08e0b2a44bb2c00cdcbffb8f5714bad96bbfdf2007472b7"
+  },
+  "correctionSeedBinding": {
+    "sha256": "d6298a05f6271953339e5ea944f2e8200e105ad13c464217f211b97fabd69f6c",
+    "record": {
+      "relativePath": "provenance/correction-seed-record.json",
+      "byteLength": 945,
+      "sha256": "5c450fef64abba07e749c63b1765bf680738b09bd94a958b35cb6f06f5057ce2"
+    }
+  },
+  "unchangedPublicPackageIdentity": {
+    "relativePath": "public-package/public-package.json",
+    "byteLength": 64624,
+    "sha256": "92ff4a2955d125287cc50729548267fcdb8ee2605900023149e05165f7a90b3f"
+  },
+  "combinedCandidateIdentity": {
+    "relativePath": "evaluator-package/successor-candidate.json",
+    "byteLength": 243214,
+    "sha256": "0593af9a7253aaef27cbb2c4a8809c6ea2feef804a25c70faefe93d890e49901",
+    "caseCount": 14,
+    "checksPerCase": 7,
+    "checkCount": 98,
+    "denominator": 98
+  },
+  "evaluatorPackageIdentity": {
+    "relativePath": "evaluator-package/evaluator-package-manifest.json",
+    "byteLength": 1715,
+    "sha256": "49b7a0fd8863c6ed0290a746baf631f31a64160928ee34ae65c24add0d137228",
+    "memberCount": 7,
+    "totalMemberBytes": 2141632,
+    "aggregateSha256": "3d47d9af83d96eaba01ef869e094035327c920d7bb819a8836959cb3844c150a"
+  },
+  "coverageMatrixIdentity": {
+    "relativePath": "evaluator-package/field-coverage-matrix.json",
+    "byteLength": 294835,
+    "sha256": "b5942e7906765abb957e1969161cda3e3e8bc02291f6ce93056794f7dc864c82",
+    "caseCount": 14,
+    "requiredResponseFieldCount": 23,
+    "correctedFieldCountPerCase": 6,
+    "correctedMatrixCellCount": 84,
+    "correctedValidationDimensionCount": 504,
+    "uncoveredRequiredFields": 0,
+    "incompleteRubricCases": 0
+  },
+  "mutationProofIdentity": {
+    "relativePath": "evaluator-package/mutation-proof.json",
+    "byteLength": 71417,
+    "sha256": "96c6574a2abb73ace16ca6721f179351d58d72a1c7c30c697fda42a59aac59c6",
+    "fixtures": 280,
+    "executedExactlyOnce": 280,
+    "negativeEscapes": 0,
+    "validBaselineFailures": 0
+  },
+  "localValidationIdentity": {
+    "relativePath": "validation/local-validation.json",
+    "byteLength": 3759,
+    "sha256": "76057a3f50f07c24cdcdb9f166eaddc1ebb9da5ed878c7137f08cc0dd2f62ce9",
+    "result": "PASS"
+  },
+  "inventoryBinding": {
+    "relativePath": "seal/inventory.json",
+    "byteLength": 2919,
+    "sha256": "64c54a1afd62d267a8e9c3441322766abd05a180a1764c4a7afea0327ac0d8c8",
+    "preSealFileCount": 12,
+    "preSealTotalBytes": 2217315,
+    "pathSetSha256": "5df9155e72110a313b9cf99db7e782e62184daffe757380ef16cf25448efe64e",
+    "inventorySha256": "b90fe1aeeb5e0672379398cc94c68ce7ab6d56d06a50f3aa44266a40b0de6582",
+    "aggregateSha256": "cddd4dd07161038568a6c296b85704e83f1f578b6e351eeadf8adc966b35a3e1"
+  },
+  "katherineCandidateExposures": {
+    "total": 0,
+    "executionContext": 0,
+    "controller": 0,
+    "qualificationAuthority": 0
+  },
+  "prohibitedActivityCounts": {
+    "liveOrPaidProviderCalls": 0,
+    "providerRequests": 0,
+    "networkRequests": 0,
+    "credentialAccesses": 0,
+    "externalNoveltyComparisons": 0,
+    "priorCorpusReads": 0,
+    "V2Reads": 0,
+    "V3Reads": 0,
+    "phase6AReads": 0,
+    "mentorFixtureReads": 0,
+    "repositoryReads": 0,
+    "repositoryWrites": 0,
+    "publicPackageMutations": 0,
+    "parentMutations": 0,
+    "auditMutations": 0,
+    "KatherineExecutions": 0,
+    "KatherineEvaluations": 0,
+    "externalEvaluatorInvocations": 0,
+    "qualificationScoringRuns": 0,
+    "qualificationAuthorityCreations": 0,
+    "qualificationSlotsConsumed": 0,
+    "freezes": 0,
+    "commits": 0,
+    "pushes": 0,
+    "deployments": 0,
+    "activations": 0,
+    "memoryPromotions": 0
+  },
+  "sealedAt": "2026-08-16T22:51:28.493886Z",
+  "finalized": true,
+  "postSealContentChangesPermitted": false
+}

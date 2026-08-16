@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "inventoryType": "V4_RUBRIC_COVERAGE_SUCCESSOR_FOCUSED_REAUDIT_PRESEAL_INVENTORY",
+  "scope": "Independently written audit code and finalized audit report; excludes this inventory and the terminal seal",
+  "normalization": {
+    "pathSeparator": "/",
+    "pathOrder": "UTF8_ORDINAL_ASCENDING",
+    "inventoryDigest": "SHA256_CANONICAL_JSON_SORTED_MEMBER_ROWS",
+    "aggregateDigest": "SHA256_PATH_NUL_BYTES_NUL_SHA256_TERMINAL_NEWLINE"
+  },
+  "fileCount": 2,
+  "totalBytes": 264861,
+  "pathSetSha256": "c06c92807a63765c8f15feaa3098a4bdfb8bdae30dd7cf5adfa17d5cb1f978fb",
+  "inventorySha256": "834975fb5a40f95a6c6f27a646a4bc07978b1da06dcd64b28f5b1c6d3f66c194",
+  "aggregateSha256": "e512512546fc0eaef0cfb5951fef29f31f158aa929817701e8d0ba992bca3677",
+  "members": [
+    {
+      "relativePath": "audit.js",
+      "byteLength": 56080,
+      "sha256": "89aad43342a79b342789aa17c563aebb67f8680a35410b11ffe79c330335f2a8"
+    },
+    {
+      "relativePath": "focused-reaudit-report.json",
+      "byteLength": 208781,
+      "sha256": "66ea2da0b5790137cce570d08820a809a0cf408f7f91904ff59eee6d8096e798"
+    }
+  ]
+}

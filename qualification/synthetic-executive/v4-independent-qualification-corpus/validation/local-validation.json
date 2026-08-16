@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1.0",
+  "validationType": "V4_RUBRIC_COVERAGE_SUCCESSOR_LOCAL_VALIDATION",
+  "createdAt": "2026-08-16T22:51:28.295087Z",
+  "result": "PASS",
+  "parentIdentity": "PASS",
+  "failedReauditIdentity": "PASS",
+  "publicPackageByteIdentity": "PASS",
+  "publicProjection": "PASS",
+  "evaluatorIsolation": "PASS",
+  "coverageMatrix": {
+    "result": "PASS",
+    "caseCount": 14,
+    "requiredResponseFieldCount": 23,
+    "matrixCellCount": 322,
+    "correctedFieldCountPerCase": 6,
+    "correctedMatrixCellCount": 84,
+    "correctedValidationDimensionCount": 504,
+    "uncoveredRequiredFields": 0,
+    "incompleteRubricCases": 0
+  },
+  "constitution": {
+    "result": "PASS_UNCHANGED",
+    "cases": 14,
+    "checksPerCase": 7,
+    "checks": 98,
+    "denominator": 98,
+    "checksAdded": 0,
+    "scoreWeightChanges": 0
+  },
+  "mutationProof": {
+    "result": "PASS",
+    "individualNegative": 252,
+    "individualMissing": 84,
+    "individualInvalidType": 84,
+    "individualMateriallyInvalidOrContradictory": 84,
+    "combinedNegative": 14,
+    "validBaseline": 14,
+    "total": 280,
+    "executedExactlyOnce": 280,
+    "missing": 0,
+    "duplicate": 0,
+    "unexpected": 0,
+    "negativeFixturesIncorrectlyPassingAllSevenChecks": 0,
+    "validBaselinesFailingAnyCheck": 0,
+    "uncoveredRequiredFields": 0,
+    "incompleteRubricCases": 0,
+    "completeRubricCases": 14
+  },
+  "equivalentAnswerAcceptance": "PASS_PRESERVED",
+  "fatalGateAndZeroToleranceBehavior": "PASS_PRESERVED",
+  "externalNoveltyComparison": "NOT_PERFORMED_PROHIBITED",
+  "katherineCandidateExposures": {
+    "total": 0,
+    "executionContext": 0,
+    "controller": 0,
+    "qualificationAuthority": 0
+  },
+  "prohibitedActivityCounts": {
+    "liveOrPaidProviderCalls": 0,
+    "providerRequests": 0,
+    "networkRequests": 0,
+    "credentialAccesses": 0,
+    "externalNoveltyComparisons": 0,
+    "priorCorpusReads": 0,
+    "V2Reads": 0,
+    "V3Reads": 0,
+    "phase6AReads": 0,
+    "mentorFixtureReads": 0,
+    "repositoryReads": 0,
+    "repositoryWrites": 0,
+    "publicPackageMutations": 0,
+    "parentMutations": 0,
+    "auditMutations": 0,
+    "KatherineExecutions": 0,
+    "KatherineEvaluations": 0,
+    "externalEvaluatorInvocations": 0,
+    "qualificationScoringRuns": 0,
+    "qualificationAuthorityCreations": 0,
+    "qualificationSlotsConsumed": 0,
+    "freezes": 0,
+    "commits": 0,
+    "pushes": 0,
+    "deployments": 0,
+    "activations": 0,
+    "memoryPromotions": 0
+  },
+  "boundArtifactIdentities": {
+    "combinedCandidate": {
+      "relativePath": "evaluator-package/successor-candidate.json",
+      "byteLength": 243214,
+      "sha256": "0593af9a7253aaef27cbb2c4a8809c6ea2feef804a25c70faefe93d890e49901"
+    },
+    "coverageMatrix": {
+      "relativePath": "evaluator-package/field-coverage-matrix.json",
+      "byteLength": 294835,
+      "sha256": "b5942e7906765abb957e1969161cda3e3e8bc02291f6ce93056794f7dc864c82"
+    },
+    "mutationFixtures": {
+      "relativePath": "evaluator-package/mutation-fixtures.json",
+      "byteLength": 1021220,
+      "sha256": "905f157a97b760c920076daf6f6f15dad866492ffd01e76d741d81ab6c4dbfe0"
+    },
+    "mutationProof": {
+      "relativePath": "evaluator-package/mutation-proof.json",
+      "byteLength": 71417,
+      "sha256": "96c6574a2abb73ace16ca6721f179351d58d72a1c7c30c697fda42a59aac59c6"
+    },
+    "evaluatorManifest": {
+      "relativePath": "evaluator-package/evaluator-package-manifest.json",
+      "byteLength": 1715,
+      "sha256": "49b7a0fd8863c6ed0290a746baf631f31a64160928ee34ae65c24add0d137228"
+    },
+    "provenance": {
+      "relativePath": "provenance/provenance-manifest.json",
+      "byteLength": 4640,
+      "sha256": "cafb9efc77e7a4ad80c403c9da0e810fdee1c9bde62f1e8592e7d04c53d279a7"
+    }
+  }
+}

@@ -1,0 +1,2911 @@
+{
+  "schemaVersion": "1.0",
+  "proofType": "V4_EVALUATOR_ONLY_REQUIRED_FIELD_MUTATION_EXECUTION_PROOF",
+  "access": "EVALUATOR_ONLY_NEVER_PUBLIC_DELIVERY",
+  "createdAt": "2026-08-16T22:51:28.295087Z",
+  "referenceValidator": {
+    "kind": "DETERMINISTIC_LOCAL_FIXTURE_VALIDATOR",
+    "providerOrNetworkUse": false,
+    "KatherineExecutionOrEvaluation": false,
+    "qualificationScoringRun": false,
+    "equivalentAnswerAcceptance": "Canonical and labeled materially identical narrative forms are accepted; rubric contracts retain general evidence-bounded semantic equivalence."
+  },
+  "executionTotals": {
+    "individualNegative": 252,
+    "individualMissing": 84,
+    "individualInvalidType": 84,
+    "individualMateriallyInvalidOrContradictory": 84,
+    "combinedNegative": 14,
+    "validBaseline": 14,
+    "total": 280,
+    "executedExactlyOnce": 280,
+    "missing": 0,
+    "duplicate": 0,
+    "unexpected": 0
+  },
+  "outcomes": {
+    "negativeFixturesIncorrectlyPassingAllSevenChecks": 0,
+    "validBaselinesFailingAnyCheck": 0,
+    "uncoveredRequiredFields": 0,
+    "incompleteRubricCases": 0,
+    "completeRubricCases": 14
+  },
+  "result": "PASS",
+  "results": [
+    {
+      "fixtureId": "V4-C01-F01-MISSING",
+      "sequence": 1,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F01-INVALIDTYPE",
+      "sequence": 2,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F01-MATERIALLYINVALID",
+      "sequence": 3,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F02-MISSING",
+      "sequence": 4,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F02-INVALIDTYPE",
+      "sequence": 5,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F02-MATERIALLYINVALID",
+      "sequence": 6,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F03-MISSING",
+      "sequence": 7,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F03-INVALIDTYPE",
+      "sequence": 8,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F03-MATERIALLYINVALID",
+      "sequence": 9,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F04-MISSING",
+      "sequence": 10,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F04-INVALIDTYPE",
+      "sequence": 11,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F04-MATERIALLYINVALID",
+      "sequence": 12,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F05-MISSING",
+      "sequence": 13,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F05-INVALIDTYPE",
+      "sequence": 14,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F05-MATERIALLYINVALID",
+      "sequence": 15,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F06-MISSING",
+      "sequence": 16,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D05",
+        "V4-C01-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F06-INVALIDTYPE",
+      "sequence": 17,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D05",
+        "V4-C01-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-F06-MATERIALLYINVALID",
+      "sequence": 18,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D05",
+        "V4-C01-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-COMBINED-INVALID",
+      "sequence": 19,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C01-D01",
+        "V4-C01-D02",
+        "V4-C01-D04",
+        "V4-C01-D05",
+        "V4-C01-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C01-VALID-BASELINE",
+      "sequence": 20,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C02-F01-MISSING",
+      "sequence": 21,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F01-INVALIDTYPE",
+      "sequence": 22,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F01-MATERIALLYINVALID",
+      "sequence": 23,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F02-MISSING",
+      "sequence": 24,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F02-INVALIDTYPE",
+      "sequence": 25,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F02-MATERIALLYINVALID",
+      "sequence": 26,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F03-MISSING",
+      "sequence": 27,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F03-INVALIDTYPE",
+      "sequence": 28,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F03-MATERIALLYINVALID",
+      "sequence": 29,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F04-MISSING",
+      "sequence": 30,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F04-INVALIDTYPE",
+      "sequence": 31,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F04-MATERIALLYINVALID",
+      "sequence": 32,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F05-MISSING",
+      "sequence": 33,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F05-INVALIDTYPE",
+      "sequence": 34,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F05-MATERIALLYINVALID",
+      "sequence": 35,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F06-MISSING",
+      "sequence": 36,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D05",
+        "V4-C02-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F06-INVALIDTYPE",
+      "sequence": 37,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D05",
+        "V4-C02-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-F06-MATERIALLYINVALID",
+      "sequence": 38,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D05",
+        "V4-C02-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-COMBINED-INVALID",
+      "sequence": 39,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C02-D01",
+        "V4-C02-D02",
+        "V4-C02-D04",
+        "V4-C02-D05",
+        "V4-C02-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C02-VALID-BASELINE",
+      "sequence": 40,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C03-F01-MISSING",
+      "sequence": 41,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F01-INVALIDTYPE",
+      "sequence": 42,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F01-MATERIALLYINVALID",
+      "sequence": 43,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F02-MISSING",
+      "sequence": 44,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F02-INVALIDTYPE",
+      "sequence": 45,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F02-MATERIALLYINVALID",
+      "sequence": 46,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F03-MISSING",
+      "sequence": 47,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F03-INVALIDTYPE",
+      "sequence": 48,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F03-MATERIALLYINVALID",
+      "sequence": 49,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F04-MISSING",
+      "sequence": 50,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F04-INVALIDTYPE",
+      "sequence": 51,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F04-MATERIALLYINVALID",
+      "sequence": 52,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F05-MISSING",
+      "sequence": 53,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F05-INVALIDTYPE",
+      "sequence": 54,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F05-MATERIALLYINVALID",
+      "sequence": 55,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F06-MISSING",
+      "sequence": 56,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D05",
+        "V4-C03-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F06-INVALIDTYPE",
+      "sequence": 57,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D05",
+        "V4-C03-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-F06-MATERIALLYINVALID",
+      "sequence": 58,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D05",
+        "V4-C03-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-COMBINED-INVALID",
+      "sequence": 59,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C03-D01",
+        "V4-C03-D02",
+        "V4-C03-D04",
+        "V4-C03-D05",
+        "V4-C03-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C03-VALID-BASELINE",
+      "sequence": 60,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C04-F01-MISSING",
+      "sequence": 61,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F01-INVALIDTYPE",
+      "sequence": 62,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F01-MATERIALLYINVALID",
+      "sequence": 63,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F02-MISSING",
+      "sequence": 64,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F02-INVALIDTYPE",
+      "sequence": 65,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F02-MATERIALLYINVALID",
+      "sequence": 66,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F03-MISSING",
+      "sequence": 67,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F03-INVALIDTYPE",
+      "sequence": 68,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F03-MATERIALLYINVALID",
+      "sequence": 69,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F04-MISSING",
+      "sequence": 70,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F04-INVALIDTYPE",
+      "sequence": 71,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F04-MATERIALLYINVALID",
+      "sequence": 72,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F05-MISSING",
+      "sequence": 73,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F05-INVALIDTYPE",
+      "sequence": 74,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F05-MATERIALLYINVALID",
+      "sequence": 75,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F06-MISSING",
+      "sequence": 76,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D05",
+        "V4-C04-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F06-INVALIDTYPE",
+      "sequence": 77,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D05",
+        "V4-C04-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-F06-MATERIALLYINVALID",
+      "sequence": 78,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D05",
+        "V4-C04-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-COMBINED-INVALID",
+      "sequence": 79,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C04-D01",
+        "V4-C04-D02",
+        "V4-C04-D04",
+        "V4-C04-D05",
+        "V4-C04-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C04-VALID-BASELINE",
+      "sequence": 80,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C05-F01-MISSING",
+      "sequence": 81,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F01-INVALIDTYPE",
+      "sequence": 82,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F01-MATERIALLYINVALID",
+      "sequence": 83,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F02-MISSING",
+      "sequence": 84,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F02-INVALIDTYPE",
+      "sequence": 85,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F02-MATERIALLYINVALID",
+      "sequence": 86,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F03-MISSING",
+      "sequence": 87,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F03-INVALIDTYPE",
+      "sequence": 88,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F03-MATERIALLYINVALID",
+      "sequence": 89,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F04-MISSING",
+      "sequence": 90,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F04-INVALIDTYPE",
+      "sequence": 91,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F04-MATERIALLYINVALID",
+      "sequence": 92,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F05-MISSING",
+      "sequence": 93,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F05-INVALIDTYPE",
+      "sequence": 94,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F05-MATERIALLYINVALID",
+      "sequence": 95,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F06-MISSING",
+      "sequence": 96,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D05",
+        "V4-C05-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F06-INVALIDTYPE",
+      "sequence": 97,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D05",
+        "V4-C05-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-F06-MATERIALLYINVALID",
+      "sequence": 98,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D05",
+        "V4-C05-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-COMBINED-INVALID",
+      "sequence": 99,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C05-D01",
+        "V4-C05-D02",
+        "V4-C05-D04",
+        "V4-C05-D05",
+        "V4-C05-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C05-VALID-BASELINE",
+      "sequence": 100,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C06-F01-MISSING",
+      "sequence": 101,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F01-INVALIDTYPE",
+      "sequence": 102,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F01-MATERIALLYINVALID",
+      "sequence": 103,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F02-MISSING",
+      "sequence": 104,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F02-INVALIDTYPE",
+      "sequence": 105,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F02-MATERIALLYINVALID",
+      "sequence": 106,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F03-MISSING",
+      "sequence": 107,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F03-INVALIDTYPE",
+      "sequence": 108,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F03-MATERIALLYINVALID",
+      "sequence": 109,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F04-MISSING",
+      "sequence": 110,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F04-INVALIDTYPE",
+      "sequence": 111,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F04-MATERIALLYINVALID",
+      "sequence": 112,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F05-MISSING",
+      "sequence": 113,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F05-INVALIDTYPE",
+      "sequence": 114,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F05-MATERIALLYINVALID",
+      "sequence": 115,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F06-MISSING",
+      "sequence": 116,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D05",
+        "V4-C06-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F06-INVALIDTYPE",
+      "sequence": 117,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D05",
+        "V4-C06-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-F06-MATERIALLYINVALID",
+      "sequence": 118,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D05",
+        "V4-C06-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-COMBINED-INVALID",
+      "sequence": 119,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C06-D01",
+        "V4-C06-D02",
+        "V4-C06-D04",
+        "V4-C06-D05",
+        "V4-C06-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C06-VALID-BASELINE",
+      "sequence": 120,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C07-F01-MISSING",
+      "sequence": 121,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F01-INVALIDTYPE",
+      "sequence": 122,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F01-MATERIALLYINVALID",
+      "sequence": 123,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F02-MISSING",
+      "sequence": 124,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F02-INVALIDTYPE",
+      "sequence": 125,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F02-MATERIALLYINVALID",
+      "sequence": 126,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F03-MISSING",
+      "sequence": 127,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F03-INVALIDTYPE",
+      "sequence": 128,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F03-MATERIALLYINVALID",
+      "sequence": 129,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F04-MISSING",
+      "sequence": 130,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F04-INVALIDTYPE",
+      "sequence": 131,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F04-MATERIALLYINVALID",
+      "sequence": 132,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F05-MISSING",
+      "sequence": 133,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F05-INVALIDTYPE",
+      "sequence": 134,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F05-MATERIALLYINVALID",
+      "sequence": 135,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F06-MISSING",
+      "sequence": 136,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D05",
+        "V4-C07-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F06-INVALIDTYPE",
+      "sequence": 137,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D05",
+        "V4-C07-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-F06-MATERIALLYINVALID",
+      "sequence": 138,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D05",
+        "V4-C07-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-COMBINED-INVALID",
+      "sequence": 139,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C07-D01",
+        "V4-C07-D02",
+        "V4-C07-D04",
+        "V4-C07-D05",
+        "V4-C07-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C07-VALID-BASELINE",
+      "sequence": 140,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C08-F01-MISSING",
+      "sequence": 141,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F01-INVALIDTYPE",
+      "sequence": 142,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F01-MATERIALLYINVALID",
+      "sequence": 143,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F02-MISSING",
+      "sequence": 144,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F02-INVALIDTYPE",
+      "sequence": 145,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F02-MATERIALLYINVALID",
+      "sequence": 146,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F03-MISSING",
+      "sequence": 147,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F03-INVALIDTYPE",
+      "sequence": 148,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F03-MATERIALLYINVALID",
+      "sequence": 149,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F04-MISSING",
+      "sequence": 150,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F04-INVALIDTYPE",
+      "sequence": 151,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F04-MATERIALLYINVALID",
+      "sequence": 152,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F05-MISSING",
+      "sequence": 153,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F05-INVALIDTYPE",
+      "sequence": 154,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F05-MATERIALLYINVALID",
+      "sequence": 155,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F06-MISSING",
+      "sequence": 156,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D05",
+        "V4-C08-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F06-INVALIDTYPE",
+      "sequence": 157,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D05",
+        "V4-C08-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-F06-MATERIALLYINVALID",
+      "sequence": 158,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D05",
+        "V4-C08-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-COMBINED-INVALID",
+      "sequence": 159,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C08-D01",
+        "V4-C08-D02",
+        "V4-C08-D04",
+        "V4-C08-D05",
+        "V4-C08-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C08-VALID-BASELINE",
+      "sequence": 160,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C09-F01-MISSING",
+      "sequence": 161,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F01-INVALIDTYPE",
+      "sequence": 162,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F01-MATERIALLYINVALID",
+      "sequence": 163,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F02-MISSING",
+      "sequence": 164,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F02-INVALIDTYPE",
+      "sequence": 165,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F02-MATERIALLYINVALID",
+      "sequence": 166,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F03-MISSING",
+      "sequence": 167,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F03-INVALIDTYPE",
+      "sequence": 168,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F03-MATERIALLYINVALID",
+      "sequence": 169,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F04-MISSING",
+      "sequence": 170,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F04-INVALIDTYPE",
+      "sequence": 171,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F04-MATERIALLYINVALID",
+      "sequence": 172,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F05-MISSING",
+      "sequence": 173,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F05-INVALIDTYPE",
+      "sequence": 174,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F05-MATERIALLYINVALID",
+      "sequence": 175,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F06-MISSING",
+      "sequence": 176,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D05",
+        "V4-C09-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F06-INVALIDTYPE",
+      "sequence": 177,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D05",
+        "V4-C09-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-F06-MATERIALLYINVALID",
+      "sequence": 178,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D05",
+        "V4-C09-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-COMBINED-INVALID",
+      "sequence": 179,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C09-D01",
+        "V4-C09-D02",
+        "V4-C09-D04",
+        "V4-C09-D05",
+        "V4-C09-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C09-VALID-BASELINE",
+      "sequence": 180,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C10-F01-MISSING",
+      "sequence": 181,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F01-INVALIDTYPE",
+      "sequence": 182,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F01-MATERIALLYINVALID",
+      "sequence": 183,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F02-MISSING",
+      "sequence": 184,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F02-INVALIDTYPE",
+      "sequence": 185,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F02-MATERIALLYINVALID",
+      "sequence": 186,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F03-MISSING",
+      "sequence": 187,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F03-INVALIDTYPE",
+      "sequence": 188,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F03-MATERIALLYINVALID",
+      "sequence": 189,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F04-MISSING",
+      "sequence": 190,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F04-INVALIDTYPE",
+      "sequence": 191,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F04-MATERIALLYINVALID",
+      "sequence": 192,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F05-MISSING",
+      "sequence": 193,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F05-INVALIDTYPE",
+      "sequence": 194,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F05-MATERIALLYINVALID",
+      "sequence": 195,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F06-MISSING",
+      "sequence": 196,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D05",
+        "V4-C10-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F06-INVALIDTYPE",
+      "sequence": 197,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D05",
+        "V4-C10-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-F06-MATERIALLYINVALID",
+      "sequence": 198,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D05",
+        "V4-C10-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-COMBINED-INVALID",
+      "sequence": 199,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C10-D01",
+        "V4-C10-D02",
+        "V4-C10-D04",
+        "V4-C10-D05",
+        "V4-C10-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C10-VALID-BASELINE",
+      "sequence": 200,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C11-F01-MISSING",
+      "sequence": 201,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F01-INVALIDTYPE",
+      "sequence": 202,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F01-MATERIALLYINVALID",
+      "sequence": 203,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F02-MISSING",
+      "sequence": 204,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F02-INVALIDTYPE",
+      "sequence": 205,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F02-MATERIALLYINVALID",
+      "sequence": 206,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F03-MISSING",
+      "sequence": 207,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F03-INVALIDTYPE",
+      "sequence": 208,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F03-MATERIALLYINVALID",
+      "sequence": 209,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F04-MISSING",
+      "sequence": 210,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F04-INVALIDTYPE",
+      "sequence": 211,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F04-MATERIALLYINVALID",
+      "sequence": 212,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F05-MISSING",
+      "sequence": 213,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F05-INVALIDTYPE",
+      "sequence": 214,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F05-MATERIALLYINVALID",
+      "sequence": 215,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F06-MISSING",
+      "sequence": 216,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D05",
+        "V4-C11-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F06-INVALIDTYPE",
+      "sequence": 217,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D05",
+        "V4-C11-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-F06-MATERIALLYINVALID",
+      "sequence": 218,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D05",
+        "V4-C11-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-COMBINED-INVALID",
+      "sequence": 219,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C11-D01",
+        "V4-C11-D02",
+        "V4-C11-D04",
+        "V4-C11-D05",
+        "V4-C11-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C11-VALID-BASELINE",
+      "sequence": 220,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C12-F01-MISSING",
+      "sequence": 221,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F01-INVALIDTYPE",
+      "sequence": 222,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F01-MATERIALLYINVALID",
+      "sequence": 223,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F02-MISSING",
+      "sequence": 224,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F02-INVALIDTYPE",
+      "sequence": 225,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F02-MATERIALLYINVALID",
+      "sequence": 226,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F03-MISSING",
+      "sequence": 227,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F03-INVALIDTYPE",
+      "sequence": 228,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F03-MATERIALLYINVALID",
+      "sequence": 229,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F04-MISSING",
+      "sequence": 230,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F04-INVALIDTYPE",
+      "sequence": 231,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F04-MATERIALLYINVALID",
+      "sequence": 232,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F05-MISSING",
+      "sequence": 233,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F05-INVALIDTYPE",
+      "sequence": 234,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F05-MATERIALLYINVALID",
+      "sequence": 235,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F06-MISSING",
+      "sequence": 236,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D05",
+        "V4-C12-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F06-INVALIDTYPE",
+      "sequence": 237,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D05",
+        "V4-C12-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-F06-MATERIALLYINVALID",
+      "sequence": 238,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D05",
+        "V4-C12-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-COMBINED-INVALID",
+      "sequence": 239,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C12-D01",
+        "V4-C12-D02",
+        "V4-C12-D04",
+        "V4-C12-D05",
+        "V4-C12-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C12-VALID-BASELINE",
+      "sequence": 240,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C13-F01-MISSING",
+      "sequence": 241,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F01-INVALIDTYPE",
+      "sequence": 242,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F01-MATERIALLYINVALID",
+      "sequence": 243,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F02-MISSING",
+      "sequence": 244,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F02-INVALIDTYPE",
+      "sequence": 245,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F02-MATERIALLYINVALID",
+      "sequence": 246,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F03-MISSING",
+      "sequence": 247,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F03-INVALIDTYPE",
+      "sequence": 248,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F03-MATERIALLYINVALID",
+      "sequence": 249,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F04-MISSING",
+      "sequence": 250,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F04-INVALIDTYPE",
+      "sequence": 251,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F04-MATERIALLYINVALID",
+      "sequence": 252,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F05-MISSING",
+      "sequence": 253,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F05-INVALIDTYPE",
+      "sequence": 254,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F05-MATERIALLYINVALID",
+      "sequence": 255,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F06-MISSING",
+      "sequence": 256,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D05",
+        "V4-C13-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F06-INVALIDTYPE",
+      "sequence": 257,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D05",
+        "V4-C13-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-F06-MATERIALLYINVALID",
+      "sequence": 258,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D05",
+        "V4-C13-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-COMBINED-INVALID",
+      "sequence": 259,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C13-D01",
+        "V4-C13-D02",
+        "V4-C13-D04",
+        "V4-C13-D05",
+        "V4-C13-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C13-VALID-BASELINE",
+      "sequence": 260,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    },
+    {
+      "fixtureId": "V4-C14-F01-MISSING",
+      "sequence": 261,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F01-INVALIDTYPE",
+      "sequence": 262,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F01-MATERIALLYINVALID",
+      "sequence": 263,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F02-MISSING",
+      "sequence": 264,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F02-INVALIDTYPE",
+      "sequence": 265,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F02-MATERIALLYINVALID",
+      "sequence": 266,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F03-MISSING",
+      "sequence": 267,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F03-INVALIDTYPE",
+      "sequence": 268,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F03-MATERIALLYINVALID",
+      "sequence": 269,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F04-MISSING",
+      "sequence": 270,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F04-INVALIDTYPE",
+      "sequence": 271,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F04-MATERIALLYINVALID",
+      "sequence": 272,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D02"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F05-MISSING",
+      "sequence": 273,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F05-INVALIDTYPE",
+      "sequence": 274,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F05-MATERIALLYINVALID",
+      "sequence": 275,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D04"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F06-MISSING",
+      "sequence": 276,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D05",
+        "V4-C14-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F06-INVALIDTYPE",
+      "sequence": 277,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D05",
+        "V4-C14-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-F06-MATERIALLYINVALID",
+      "sequence": 278,
+      "fixtureClass": "INDIVIDUAL_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D05",
+        "V4-C14-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-COMBINED-INVALID",
+      "sequence": 279,
+      "fixtureClass": "COMBINED_NEGATIVE",
+      "failedCheckIds": [
+        "V4-C14-D01",
+        "V4-C14-D02",
+        "V4-C14-D04",
+        "V4-C14-D05",
+        "V4-C14-D07"
+      ],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": false
+    },
+    {
+      "fixtureId": "V4-C14-VALID-BASELINE",
+      "sequence": 280,
+      "fixtureClass": "VALID_BASELINE",
+      "failedCheckIds": [],
+      "fatalGateCodes": [],
+      "allSevenChecksPass": true
+    }
+  ],
+  "mutationFixturesIdentity": {
+    "relativePath": "evaluator-package/mutation-fixtures.json",
+    "byteLength": 1021220,
+    "sha256": "905f157a97b760c920076daf6f6f15dad866492ffd01e76d741d81ab6c4dbfe0"
+  }
+}

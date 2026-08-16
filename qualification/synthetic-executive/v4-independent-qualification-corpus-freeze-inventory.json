@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "1.0",
+  "inventoryType": "V4_INDEPENDENT_QUALIFICATION_CORPUS_FREEZE_INVENTORY",
+  "root": "qualification/synthetic-executive/v4-independent-qualification-corpus",
+  "scope": "Exact 18 imported files only; excludes this inventory and the freeze record",
+  "normalization": {
+    "memberPaths": "repository-relative forward-slash paths",
+    "pathOrder": "UTF8_ORDINAL_ASCENDING",
+    "pathSetDigest": "SHA256_CANONICAL_JSON_SORTED_PATH_ARRAY",
+    "aggregateDigest": "SHA256_PATH_NUL_DECIMAL_BYTES_NUL_SHA256_TERMINAL_LF"
+  },
+  "memberCount": 18,
+  "totalBytes": 2493195,
+  "pathSetSha256": "b5ea036793272c6f5ad13a4c690b4821158cad9e88d623482ba8211add2aba83",
+  "aggregateSha256": "c4861c8a53fc8c4df4c4037b1120d4b9b2e6d19084aaa6afb6ed5ae9d733e3aa",
+  "members": [
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/evaluator-package-manifest.json",
+      "byteLength": 1715,
+      "sha256": "49b7a0fd8863c6ed0290a746baf631f31a64160928ee34ae65c24add0d137228"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/field-coverage-matrix.json",
+      "byteLength": 294835,
+      "sha256": "b5942e7906765abb957e1969161cda3e3e8bc02291f6ce93056794f7dc864c82"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/mutation-fixtures.json",
+      "byteLength": 1021220,
+      "sha256": "905f157a97b760c920076daf6f6f15dad866492ffd01e76d741d81ab6c4dbfe0"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/mutation-proof.json",
+      "byteLength": 71417,
+      "sha256": "96c6574a2abb73ace16ca6721f179351d58d72a1c7c30c697fda42a59aac59c6"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/scoring-policy.json",
+      "byteLength": 17127,
+      "sha256": "95be9aa6f459d42d6cef7248eb03a650b1c61980c3d8ad611306575bdd42176c"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/semantic-rubric.json",
+      "byteLength": 485003,
+      "sha256": "cc877e67003bb437f6008f89886f995389f3f1d760cf63d8f23492544822f61a"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/successor-candidate.json",
+      "byteLength": 243214,
+      "sha256": "0593af9a7253aaef27cbb2c4a8809c6ea2feef804a25c70faefe93d890e49901"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/evaluator-package/topology-register.json",
+      "byteLength": 8816,
+      "sha256": "f37bfe03be2d8090682ad1e127e83da2ed7754997811db54385bd20dd1651a61"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/focused-reaudit/audit.js",
+      "byteLength": 56080,
+      "sha256": "89aad43342a79b342789aa17c563aebb67f8680a35410b11ffe79c330335f2a8"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/focused-reaudit/evidence-inventory.json",
+      "byteLength": 1132,
+      "sha256": "78c7d6637f49e2c3f654f2ca0f873e15ec0864b37f09212ff6872975a2438083"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/focused-reaudit/focused-reaudit-report.json",
+      "byteLength": 208781,
+      "sha256": "66ea2da0b5790137cce570d08820a809a0cf408f7f91904ff59eee6d8096e798"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/focused-reaudit/focused-reaudit-seal.json",
+      "byteLength": 1725,
+      "sha256": "3aff29bb807f53375ce88b287c811c8c5dfb6c9127d7d89c5fcf64a1a4b9e01d"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/provenance/correction-seed-record.json",
+      "byteLength": 945,
+      "sha256": "5c450fef64abba07e749c63b1765bf680738b09bd94a958b35cb6f06f5057ce2"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/provenance/provenance-manifest.json",
+      "byteLength": 4640,
+      "sha256": "cafb9efc77e7a4ad80c403c9da0e810fdee1c9bde62f1e8592e7d04c53d279a7"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/public-package/public-package.json",
+      "byteLength": 64624,
+      "sha256": "92ff4a2955d125287cc50729548267fcdb8ee2605900023149e05165f7a90b3f"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/seal/authorship-seal.json",
+      "byteLength": 5243,
+      "sha256": "7fab1c1154f94527788f27578c3eb9d32a9ca3754a38680dc68d122f6d95c9f7"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/seal/inventory.json",
+      "byteLength": 2919,
+      "sha256": "64c54a1afd62d267a8e9c3441322766abd05a180a1764c4a7afea0327ac0d8c8"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v4-independent-qualification-corpus/validation/local-validation.json",
+      "byteLength": 3759,
+      "sha256": "76057a3f50f07c24cdcdb9f166eaddc1ebb9da5ed878c7137f08cc0dd2f62ce9"
+    }
+  ]
+}

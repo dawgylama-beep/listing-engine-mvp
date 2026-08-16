@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "inventoryType": "V4_RUBRIC_COVERAGE_SUCCESSOR_NORMALIZED_PRE_SEAL_INVENTORY",
+  "normalization": {
+    "pathSeparator": "/",
+    "pathOrder": "UTF8_ORDINAL_ASCENDING",
+    "inventoryDigest": "SHA256_CANONICAL_JSON_SORTED_MEMBER_ROWS",
+    "aggregateDigest": "SHA256_PATH_NUL_BYTES_NUL_SHA256_NEWLINE"
+  },
+  "fileCount": 12,
+  "totalBytes": 2217315,
+  "pathSetSha256": "5df9155e72110a313b9cf99db7e782e62184daffe757380ef16cf25448efe64e",
+  "inventorySha256": "b90fe1aeeb5e0672379398cc94c68ce7ab6d56d06a50f3aa44266a40b0de6582",
+  "aggregateSha256": "cddd4dd07161038568a6c296b85704e83f1f578b6e351eeadf8adc966b35a3e1",
+  "members": [
+    {
+      "relativePath": "evaluator-package/evaluator-package-manifest.json",
+      "byteLength": 1715,
+      "sha256": "49b7a0fd8863c6ed0290a746baf631f31a64160928ee34ae65c24add0d137228"
+    },
+    {
+      "relativePath": "evaluator-package/field-coverage-matrix.json",
+      "byteLength": 294835,
+      "sha256": "b5942e7906765abb957e1969161cda3e3e8bc02291f6ce93056794f7dc864c82"
+    },
+    {
+      "relativePath": "evaluator-package/mutation-fixtures.json",
+      "byteLength": 1021220,
+      "sha256": "905f157a97b760c920076daf6f6f15dad866492ffd01e76d741d81ab6c4dbfe0"
+    },
+    {
+      "relativePath": "evaluator-package/mutation-proof.json",
+      "byteLength": 71417,
+      "sha256": "96c6574a2abb73ace16ca6721f179351d58d72a1c7c30c697fda42a59aac59c6"
+    },
+    {
+      "relativePath": "evaluator-package/scoring-policy.json",
+      "byteLength": 17127,
+      "sha256": "95be9aa6f459d42d6cef7248eb03a650b1c61980c3d8ad611306575bdd42176c"
+    },
+    {
+      "relativePath": "evaluator-package/semantic-rubric.json",
+      "byteLength": 485003,
+      "sha256": "cc877e67003bb437f6008f89886f995389f3f1d760cf63d8f23492544822f61a"
+    },
+    {
+      "relativePath": "evaluator-package/successor-candidate.json",
+      "byteLength": 243214,
+      "sha256": "0593af9a7253aaef27cbb2c4a8809c6ea2feef804a25c70faefe93d890e49901"
+    },
+    {
+      "relativePath": "evaluator-package/topology-register.json",
+      "byteLength": 8816,
+      "sha256": "f37bfe03be2d8090682ad1e127e83da2ed7754997811db54385bd20dd1651a61"
+    },
+    {
+      "relativePath": "provenance/correction-seed-record.json",
+      "byteLength": 945,
+      "sha256": "5c450fef64abba07e749c63b1765bf680738b09bd94a958b35cb6f06f5057ce2"
+    },
+    {
+      "relativePath": "provenance/provenance-manifest.json",
+      "byteLength": 4640,
+      "sha256": "cafb9efc77e7a4ad80c403c9da0e810fdee1c9bde62f1e8592e7d04c53d279a7"
+    },
+    {
+      "relativePath": "public-package/public-package.json",
+      "byteLength": 64624,
+      "sha256": "92ff4a2955d125287cc50729548267fcdb8ee2605900023149e05165f7a90b3f"
+    },
+    {
+      "relativePath": "validation/local-validation.json",
+      "byteLength": 3759,
+      "sha256": "76057a3f50f07c24cdcdb9f166eaddc1ebb9da5ed878c7137f08cc0dd2f62ce9"
+    }
+  ]
+}

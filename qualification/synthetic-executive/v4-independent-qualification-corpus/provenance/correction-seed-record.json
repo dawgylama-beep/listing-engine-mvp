@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "V4_RUBRIC_COVERAGE_SUCCESSOR_CORRECTION_SEED",
+  "encoding": "lowercase hexadecimal",
+  "seed": "3a62aa3847a3cc53e431e322792233175a993d48806cb64935b8847522b5b634",
+  "byteLength": 32,
+  "sha256": "d6298a05f6271953339e5ea944f2e8200e105ad13c464217f211b97fabd69f6c",
+  "generationMethod": "Python secrets.token_bytes backed by the operating-system cryptographic generator",
+  "generatedAt": "2026-08-16T22:51:28.295087Z",
+  "successorDirectory": "C:\\Users\\dawgy\\.codex\\visualizations\\2026\\08\\16\\01a00cba-9781-7cc0-bc76-15c4849d2698\\v4-independent-corpus-rubric-coverage-successor-b29c6868-c76c-451c-9287-1453f9c195a7",
+  "parentSuccessorCandidateSha256": "f6ad051243df4e68c13fcb075c52ffefd11aaec0ba9ce40c1721325defbf6ae5",
+  "failedReauditSealSha256": "ef37f1e1b07fd99ce08e0b2a44bb2c00cdcbffb8f5714bad96bbfdf2007472b7",
+  "transmittedToProviderCount": 0,
+  "transmittedToOtherThreadCount": 0
+}
