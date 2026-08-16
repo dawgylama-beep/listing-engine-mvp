@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_CONSOLIDATED_VALIDATION_CORRECTION",
+  "version": "1.12.36",
+  "correctionCycle": 1,
+  "maximumCorrectionCycles": 1,
+  "firstCompleteSweep": {
+    "independentGatesContinuedAfterFailures": true,
+    "failures": [
+      {
+        "gateId": "SERVER_CHECK",
+        "classification": "VALIDATION_HARNESS_COMMAND_DEFECT",
+        "finding": "Windows PowerShell 5.1 New-Item does not accept the attempted -LiteralPath parameter; no server check process was created and no source was changed."
+      },
+      {
+        "gateId": "SECRET_SCAN",
+        "classification": "VALIDATION_HARNESS_IGNORED_RELEASED_SENTINEL_ADJUDICATION",
+        "finding": "The provisional scan rediscovered exactly the six previously sealed non-secret sentinels because it applied only the legacy match-text suppression instead of the released exact sentinel registry.",
+        "findingCount": 6,
+        "credentialSourceReads": 0,
+        "credentialValuesRead": 0
+      },
+      {
+        "gateId": "REPOSITORY_INTEGRITY",
+        "classification": "VALIDATION_HARNESS_EXPECTED_LITERAL_TYPO",
+        "finding": "The expected corpus-seal literal in the transient check differed from the actual sealed value while all frozen mutation sets were empty.",
+        "incorrectExpected": "61c67cf5a725ea0eab6d02e8f3ac4ece6bc02e8e2dffb378878db8bc1061",
+        "actualSealed": "61c67cf5a725ea0eab6d02e8f3ac4ece6bc02fb0fd8e2dffb378878db8bc1061"
+      }
+    ],
+    "passes": [
+      "VERSION_SURFACE",
+      "FRONTEND_CREDENTIAL_SCAN",
+      "DIFF_CHECK",
+      "PHASE_6A",
+      "SURVIVING_CAPTURE",
+      "EXTERNAL_QUARANTINE",
+      "POWERSHELL_STATIC_25_OF_25",
+      "SELECTION_REGRESSION_4_OF_4"
+    ]
+  },
+  "completeDemonstratedDefectClass": "THREE_VALIDATION_HARNESS_DEFECTS_NO_PRODUCT_OR_MENTOR_DEFECT",
+  "correction": {
+    "releaseGateScript": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release-gates.mjs",
+      "byteLength": 9454,
+      "sha256": "0006f870a9e4c48ce77e06acb9215b773a175b46985de97cdc68b285e75126fb"
+    },
+    "serverCheck": "Node-owned exact temporary directory and byte-identical server copy; no .env present; bounded native PowerShell invocation; verified cleanup.",
+    "secretScan": "Reuse the sealed exact path/source-hash/rule/ordinal/count/fingerprint sentinel registry; fail on any stale entry or additional finding; emit no raw value.",
+    "repositoryIntegrity": "Use the actual sealed corpus identity already preserved by Version 1.12.35.",
+    "productSourceFilesChanged": [],
+    "mentorContractChanged": false,
+    "browserFilesChanged": false,
+    "version11235EvidenceChanged": false,
+    "frozenV3Changed": false
+  },
+  "authorizedRerun": {
+    "gateIds": [
+      "SERVER_CHECK",
+      "SECRET_SCAN",
+      "REPOSITORY_INTEGRITY"
+    ],
+    "executionCountEach": 1,
+    "otherGateReruns": 0
+  },
+  "claims": {
+    "productFailure": false,
+    "cognitiveFailure": false,
+    "qualification": false,
+    "learning": false,
+    "cognitiveImprovement": false,
+    "deployment": false,
+    "activation": false,
+    "memoryImprovement": false
+  },
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "correctionHash": "f3d3685a3f966d59d01db5a7a9fcf1841853cc1d3cf30a4d2dca87dd9303e17a"
+}

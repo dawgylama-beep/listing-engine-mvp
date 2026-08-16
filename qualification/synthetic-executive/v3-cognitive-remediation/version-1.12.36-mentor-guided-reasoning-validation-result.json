@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_VALIDATION_RESULT",
+  "version": "1.12.36",
+  "overallStatus": "PASS",
+  "failedGateCount": 0,
+  "correctionCyclesUsed": 1,
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "parent": "b3bde8269a17b54dcff956a1c5f5be1cb28092d3",
+    "trackingHead": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "directRemoteHeadAtRecoveryGateA": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "ahead": 0,
+    "behind": 0
+  },
+  "retainedValidation": {
+    "identity": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-retained-validation-identity.json",
+      "byteLength": 636814,
+      "sha256": "ff4dd923b91b77a390347f003721bc44b6fe90e63e7c3523e17c0340b9de6cac"
+    },
+    "syntax": {
+      "passed": 5,
+      "total": 5,
+      "invalidatedReleaseScriptExcluded": true
+    },
+    "focusedAndDirect": {
+      "passed": 138,
+      "total": 138
+    },
+    "safeNodeRegression": {
+      "passed": 164,
+      "total": 164
+    },
+    "powerShellStatic": {
+      "passed": 27,
+      "total": 27
+    }
+  },
+  "currentSyntax": {
+    "changedJavaScriptAndMjsFiles": 9,
+    "passed": 9,
+    "failed": 0,
+    "releaseScriptInvalidationRechecked": true
+  },
+  "selectionRegression": {
+    "firstConstructionRun": {
+      "passed": 2,
+      "total": 4,
+      "classification": "TEST_EXPECTATION_FAILURE_PRIORITY_ONLY"
+    },
+    "correctedRun": {
+      "passed": 4,
+      "total": 4
+    },
+    "unmappedBrowserAdmissionTestPassed": true
+  },
+  "powerShellStatic": {
+    "totalMembers": 52,
+    "retainedMembers": 27,
+    "newlyExecutedMembers": 25,
+    "passed": 52,
+    "failed": 0,
+    "newExecutionResult": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-powershell-static-result.json",
+      "byteLength": 17498,
+      "sha256": "aba33b968161d3571d61092e1564d7ca5af4c6db599c221f3c0770f78c6e0eb8"
+    }
+  },
+  "versionSurface": {
+    "versionGuard": "PASS",
+    "surfaceTestsPassed": 5,
+    "surfaceTestsTotal": 5
+  },
+  "firstCompleteSweep": {
+    "independentGatesContinued": true,
+    "serverCheck": "INVALID_HARNESS_NO_PROCESS_CREATED",
+    "secretScan": "FAILED_ON_SIX_ALREADY_ADJUDICATED_SENTINELS",
+    "frontendCredentialScan": "PASS",
+    "diffCheck": "PASS",
+    "repositoryIntegrity": "FAILED_EXPECTED_LITERAL_TYPO",
+    "phase6a": "PASS",
+    "survivingCapture": "PASS",
+    "externalQuarantine": "PASS"
+  },
+  "consolidatedCorrection": {
+    "record": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-correction.json",
+      "byteLength": 3429,
+      "sha256": "7d0e4ef52f59c84338dd92f5f031dbee5caa323612c5a5c4f15c160c3218e1f3"
+    },
+    "result": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-consolidated-correction-result.json",
+      "byteLength": 5470,
+      "sha256": "f32969b0ba5b1e824412c0d8ab96cf28c36bf3522b8f33f86d0ede775a971211"
+    },
+    "cycle": 1,
+    "passed": 3,
+    "total": 3,
+    "remainingFailures": 0
+  },
+  "secretScan": {
+    "status": "PASS",
+    "filesScanned": 2382,
+    "knownNonSecretSentinels": 6,
+    "unexpectedFindings": 0,
+    "missingRegistryEntries": 0,
+    "credentialSourceReads": 0,
+    "credentialValuesRead": 0,
+    "rawValuesEmitted": 0,
+    "postCorrectionChangedReleaseScriptDelta": {
+      "filesScanned": 1,
+      "findings": 0
+    }
+  },
+  "frontendCredentialScan": {
+    "status": "PASS",
+    "filesScanned": 5,
+    "findings": 0
+  },
+  "diffCheck": {
+    "status": "PASS",
+    "workingExitCode": 0,
+    "cachedExitCode": 0
+  },
+  "serverCheck": {
+    "status": "PASS",
+    "isolatedTemporaryRoot": true,
+    "dotenvPresent": false,
+    "credentialSourceReads": 0
+  },
+  "repositoryIntegrity": {
+    "status": "PASS",
+    "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "frozenV3MutationCount": 0,
+    "version11235MutationCount": 0,
+    "version11235TerminalSha256": "670deefbc40a98b8eeb93c552783e60db579db395731e1d6954a130a4f139277",
+    "dotEnvIgnored": true,
+    "dotEnvTracked": false
+  },
+  "browserGate": {
+    "mapped": false,
+    "classification": "NOT_APPLICABLE_TO_DECLARED_VERSION_1_12_36_CHANGE_CLOSURE",
+    "executionCountDuringRecovery": 0,
+    "scopeEscapeWrapperInvocationsBeforeRecovery": 1,
+    "reportedAsPass": false
+  },
+  "incidentRecovery": {
+    "adjudication": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-browser-scope-incident-adjudication.json",
+      "byteLength": 111225,
+      "sha256": "4c1fcffddbb591c89fba96445b4f568aebb22e46ea626f3827eb799fe6b0c34d"
+    },
+    "historicalCaptureDependency": false,
+    "priorMembers": 39,
+    "missingHistoricalMembers": 38,
+    "survivingHistoricalMembers": 1,
+    "generatedMembers": 292,
+    "quarantine": {
+      "external": true,
+      "root": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z",
+      "inventoryPath": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z/incident-quarantine-inventory.json",
+      "inventorySha256": "47e8ce42f333b2de54ecd7ae530be563d1f593468e304d3d85771bad4a8df30a",
+      "inventorySealHash": "433607d5faab0ea682fd5f7d272809a5f15a5e581a3cbb3898f0efac4d641be4",
+      "memberCount": 292,
+      "totalBytes": 133561066,
+      "pathSetHash": "d68642656b5946b5d468effadf4ea41abfcb1cebb417476f9d9899026a4cd1c0",
+      "aggregateHash": "e1a9a622fc98cb9cf95c09b9c31ed18dac00a2209e82cb300cf762b5ee9eeb82",
+      "readbackExact": true,
+      "preserveUntilExplicitCleanup": true
+    },
+    "sourceCleanup": {
+      "generatedMembersRemoved": 292,
+      "generatedResidueCount": 0,
+      "survivor": {
+        "relativePath": "test-results/playwright/canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      }
+    }
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "untracked": true,
+    "exact": true
+  },
+  "candidateReconciliation": {
+    "authorizedMemberCount": 26,
+    "missing": [],
+    "unexpected": [],
+    "duplicate": [],
+    "intersecting": [],
+    "unclassified": []
+  },
+  "prohibitedActivity": {
+    "providerCalls": 0,
+    "metadataRequests": 0,
+    "credentialSourceReads": 0,
+    "v3Executions": 0,
+    "v3Evaluations": 0,
+    "v3CorpusExecutions": 0,
+    "version11235TerminalSuiteExecutions": 0,
+    "qualificationExecutions": 0,
+    "benchmarkExecutions": 0,
+    "productHandlerCalls": 0,
+    "deployments": 0,
+    "activations": 0,
+    "memoryPromotions": 0,
+    "tags": 0,
+    "merges": 0,
+    "commits": 0,
+    "pushAttempts": 0,
+    "remoteWrites": 0
+  },
+  "claims": {
+    "qualified": false,
+    "learned": false,
+    "cognitiveImprovementProved": false,
+    "deployed": false,
+    "activated": false,
+    "memoryImprovementProved": false
+  },
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "validationHash": "652d2e8510eccba41e88e07357cd3c259a63c857fca666474abca309c49c54f3"
+}

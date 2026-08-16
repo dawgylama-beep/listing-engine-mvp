@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_TERMINAL_RELEASE_RECORD",
+  "version": "1.12.36",
+  "state": "READY_FOR_SINGLE_DESCENDANT_COMMIT_AND_SINGLE_ORDINARY_PUSH_NOT_YET_RELEASED",
+  "terminalPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-terminal-release-record.json",
+  "terminalExcludedFromReleaseFileSet": true,
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "parent": "b3bde8269a17b54dcff956a1c5f5be1cb28092d3",
+    "trackingHead": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "directRemoteHead": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "ahead": 0,
+    "behind": 0,
+    "trackedClean": true,
+    "phase6aFiles": 85,
+    "unexpectedUntracked": 0
+  },
+  "releaseFileSet": {
+    "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release-file-set.json",
+    "byteLength": 8897,
+    "sha256": "0d537d89e45249b8259e8858ef03597426a5cc2ceec26102b7bb92bf3a080906"
+  },
+  "releaseAggregateMembershipCount": 26,
+  "releaseAggregateTotalBytes": 1117252,
+  "releaseAggregateHash": "9db637d932b0da68bf308c4b976c1037f7aef1e3e63322b262e3cb8383f4c106",
+  "releaseFileSetHash": "6e539f84d08f8c7f4a9aaee13a430dcf541eb584e44967df94b2c9664ab312e1",
+  "validationResult": {
+    "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-result.json",
+    "byteLength": 7951,
+    "sha256": "4782801b7176fd7f7cafb418dd2e89b2036443028b94ba80b7f2476dc0fe5f42"
+  },
+  "incidentAdjudication": {
+    "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-browser-scope-incident-adjudication.json",
+    "byteLength": 111225,
+    "sha256": "4c1fcffddbb591c89fba96445b4f568aebb22e46ea626f3827eb799fe6b0c34d"
+  },
+  "externalQuarantineBinding": {
+    "external": true,
+    "root": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z",
+    "inventoryPath": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z/incident-quarantine-inventory.json",
+    "inventorySha256": "47e8ce42f333b2de54ecd7ae530be563d1f593468e304d3d85771bad4a8df30a",
+    "inventorySealHash": "433607d5faab0ea682fd5f7d272809a5f15a5e581a3cbb3898f0efac4d641be4",
+    "memberCount": 292,
+    "totalBytes": 133561066,
+    "pathSetHash": "d68642656b5946b5d468effadf4ea41abfcb1cebb417476f9d9899026a4cd1c0",
+    "aggregateHash": "e1a9a622fc98cb9cf95c09b9c31ed18dac00a2209e82cb300cf762b5ee9eeb82",
+    "readbackExact": true,
+    "preserveUntilExplicitCleanup": true
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "untracked": true,
+    "exact": true
+  },
+  "requiredSuccessClassifications": [
+    "VERSION_1_12_36_MENTOR_GUIDED_REASONING_CONTRACT_RELEASED_NOT_QUALIFIED_NOT_DEPLOYED",
+    "VERSION_1_12_36_BROWSER_GATE_SCOPE_ESCAPE_PRESERVED_AND_ADJUDICATED"
+  ],
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "claims": {
+    "qualified": false,
+    "learned": false,
+    "cognitiveImprovementProved": false,
+    "deployed": false,
+    "activated": false,
+    "memoryImprovementProved": false
+  },
+  "preCommitActivity": {
+    "providerCalls": 0,
+    "metadataRequests": 0,
+    "credentialSourceReads": 0,
+    "v3Executions": 0,
+    "v3Evaluations": 0,
+    "v3CorpusExecutions": 0,
+    "version11235TerminalSuiteExecutions": 0,
+    "benchmarkExecutions": 0,
+    "productHandlerCalls": 0,
+    "browserScopeEscapeWrapperInvocations": 1,
+    "browserRecoveryExecutions": 0,
+    "authoritiesCreated": 0,
+    "memoryPromotions": 0,
+    "tags": 0,
+    "merges": 0,
+    "deployments": 0,
+    "activations": 0,
+    "remoteWrites": 0
+  }
+}

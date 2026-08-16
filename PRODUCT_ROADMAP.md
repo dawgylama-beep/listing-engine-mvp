@@ -834,6 +834,14 @@
 - Recorded the blind V3 outcome as 67/98 (68.37%), with safety-critical and fatal-gate failures; the terminal classification is `KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION`
 - Preserved isolated qualification memory, all prior V2 and Phase 6A artifacts, product handlers and deployment surfaces; performed no benchmark, Preview, Production, merge, deployment or memory-promotion activity
 
+## Version 1.12.36 (Completed)
+- Added a deterministic mentor-guided reasoning contract to the single existing Cognitive Lifecycle Governor policy boundary: mission, evidence, causal diagnosis, generalized lesson, complete solution path, bounded action, and verification
+- Kept the mentor contract internal and non-persistent with no second agent, persona, model, provider, service, route, authority, response schema, serializer, execution path, or memory-promotion path
+- Added ten exact source-hash-bound project-evidence regressions covering environment scope, predicate exactness, inventory representation, shared Playwright causality, authority time scope, Windows path context, secret sentinels, systemic defect closure, checkpoint loops, and bounded tool-capability recovery
+- Added fail-closed coverage for missing, malformed, contradictory, incomplete, unsupported, and unverified reasoning inputs while preserving evidence, inference, conclusion, and authorization separation
+- Preserved the frozen V3 corpus, prompt, continuation policy, route, broker, schemas, serializer, envelope, authority, execution, evaluator, result seal, and permanent `KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION` classification
+- Provider-call impact: zero credentials, metadata requests, provider or model calls, qualification or evaluator execution, benchmark runs, product-handler calls, Preview, Production, deployment, activation, or memory promotion
+
 ## Version 2.0
 - User accounts
 - Saved listings

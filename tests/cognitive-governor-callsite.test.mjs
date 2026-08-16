@@ -4,6 +4,7 @@ import test from "node:test";
 
 const source = await readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8");
 const policySource = await readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8");
+const mentorSource = await readFile(new URL("../lib/cognitive-governor/mentor-guided-reasoning.js", import.meta.url), "utf8");
 const stateSource = await readFile(new URL("../lib/cognitive-governor/state.js", import.meta.url), "utf8");
 const authorizationSource = await readFile(new URL("../lib/cognitive-governor/authorization.js", import.meta.url), "utf8");
 const terminalSource = await readFile(new URL("../lib/terminal-evidence.js", import.meta.url), "utf8");
@@ -11,6 +12,15 @@ const terminalSource = await readFile(new URL("../lib/terminal-evidence.js", imp
 function occurrences(text, pattern) {
   return [...text.matchAll(pattern)].length;
 }
+
+test("mentor-guided reasoning is one internal assertion at the canonical Governor decision boundary", () => {
+  assert.match(policySource, /import \{ assertMentorGuidedDecisionAssembly \} from "\.\/mentor-guided-reasoning\.js"/);
+  assert.equal(occurrences(policySource, /\bassertMentorGuidedDecisionAssembly\(/g), 1);
+  assert.match(policySource, /assertMentorGuidedDecisionAssembly\(\{ state, candidates: boundaryCandidates, selected, boundary \}\);\s+const decidedState/);
+  assert.doesNotMatch(source, /mentor-guided-reasoning/);
+  assert.doesNotMatch(mentorSource, /fetch\s*\(|requestOpenAI|providerRequest|child_process|\bspawn\s*\(|new\s+Agent/i);
+  assert.doesNotMatch(mentorSource, /authorization\.js|request-envelope|provider-action-schema|qualification-route/);
+});
 
 test("Governor construction and authoritative-state initialization have one canonical production boundary", () => {
   assert.equal(occurrences(source, /\bcreateGovernorExecutionLedger\(/g), 1);

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_VALIDATION_SELECTION",
+  "version": "1.12.36",
+  "selectionMode": "EXPLICIT_REGISTRY_ONLY",
+  "browserGate": {
+    "mapped": false,
+    "classification": "NOT_APPLICABLE_TO_DECLARED_VERSION_1_12_36_CHANGE_CLOSURE",
+    "path": "tests/milestone-2c2-browser-dom.ps1"
+  },
+  "retainedMembers": [
+    "tests/all-four-workflow-compact-evidence-static.ps1",
+    "tests/ask-market-edge-instruction-static.ps1",
+    "tests/barcode-cross-brand-retail-static.ps1",
+    "tests/beta-polish-static.ps1",
+    "tests/brand-location-static.ps1",
+    "tests/buyer-experience-mobile-static.ps1",
+    "tests/buy-it-now-price-type-static.ps1",
+    "tests/canonical-final-evidence-pipeline.ps1",
+    "tests/canonical-identity-location-static.ps1",
+    "tests/collectible-auction-recovery-static.ps1",
+    "tests/compact-where-to-buy-card-static.ps1",
+    "tests/currency-precision-static.ps1",
+    "tests/domain-directed-search-stable-ending-static.ps1",
+    "tests/exact-match-cautious-buy-static.ps1",
+    "tests/final-evidence-boundary.ps1",
+    "tests/final-failed-gate-audit.ps1",
+    "tests/global-help-instructions-static.ps1",
+    "tests/global-retail-evidence-promotion-static.ps1",
+    "tests/item-type-firewall-static.ps1",
+    "tests/live-acceptance-repair-static.ps1",
+    "tests/live-evidence-qualification-behavior.ps1",
+    "tests/maximum-price-calibration-static.ps1",
+    "tests/milestone-2a2-handler-foundation.ps1",
+    "tests/milestone-2b1-canonical-range.ps1",
+    "tests/milestone-2b2-canonical-decision.ps1",
+    "tests/milestone-2b3-canonical-offer.ps1",
+    "tests/milestone-2c1-canonical-customer-evidence.ps1"
+  ],
+  "pendingMembers": [
+    "tests/mobile-report-length-static.ps1",
+    "tests/mobile-ui-static.ps1",
+    "tests/mock-provider-live-comps.ps1",
+    "tests/modular-evidence-foundation.ps1",
+    "tests/multi-retailer-exact-page-recovery-static.ps1",
+    "tests/neutral-brand-generalization-static.ps1",
+    "tests/online-retail-coverage-static.ps1",
+    "tests/photo-multi-upload-static.ps1",
+    "tests/prices-found-delivered-cost-static.ps1",
+    "tests/pricing-quality-calibration-static.ps1",
+    "tests/purpose-workflows-static.ps1",
+    "tests/query-execution-session-isolation-static.ps1",
+    "tests/research-evidence-visibility-static.ps1",
+    "tests/retailer-attribution-product-firewall-static.ps1",
+    "tests/retail-evidence-isolation-static.ps1",
+    "tests/retail-purchase-context-static.ps1",
+    "tests/retail-recovery-static.ps1",
+    "tests/safari-load-failure-static.ps1",
+    "tests/search-diagnostics-zero-evidence-static.ps1",
+    "tests/serper-google-acquisition-static.ps1",
+    "tests/serper-query-integrity-static.ps1",
+    "tests/technical-evidence-containment-static.ps1",
+    "tests/transaction-evidence-firewall-static.ps1",
+    "tests/true-compact-where-to-buy-list-static.ps1",
+    "tests/valuation-evidence-static.ps1"
+  ],
+  "excludedMembers": [
+    {
+      "path": "tests/milestone-2c2-browser-dom.ps1",
+      "classification": "UNMAPPED_BROWSER_GATE"
+    },
+    {
+      "path": "tests/helpers/native-git.ps1",
+      "classification": "SUPPORT_MODULE_NOT_STANDALONE_TEST"
+    }
+  ],
+  "expectedCounts": {
+    "powerShellPaths": 54,
+    "governingMembers": 52,
+    "retainedMembers": 27,
+    "pendingMembers": 25,
+    "excludedMembers": 2
+  },
+  "execution": {
+    "executable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+    "argumentsBeforePath": [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File"
+    ],
+    "maximumExecutionsPerPendingMember": 1,
+    "continueIndependentMembersAfterFailure": true,
+    "directoryEnumerationMaySelectTests": false,
+    "providerCredentialVariablesRemoved": [
+      "OPENAI_API_KEY",
+      "OPEN_API_KEY",
+      "SERPER_API_KEY"
+    ]
+  },
+  "reconciliation": {
+    "missing": [],
+    "unexpected": [],
+    "duplicate": [],
+    "intersecting": [],
+    "unclassified": []
+  }
+}

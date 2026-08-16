@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_BROWSER_GATE_STOP",
+  "version": "1.12.36",
+  "classification": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_STOPPED_BROWSER_GATE_SCOPE_AND_RETAINED_CAPTURE_PRESERVATION_FAILURE",
+  "stage": "EXHAUSTIVE_OFFLINE_VALIDATION_SWEEP",
+  "startingIdentity": {
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "parent": "b3bde8269a17b54dcff956a1c5f5be1cb28092d3",
+    "trackingHead": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "directRemoteHeadAtGateA": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "ahead": 0,
+    "behind": 0
+  },
+  "stopCause": {
+    "gate": "BROWSER_ONLY_IF_MAPPED",
+    "gateADeclaredBrowserMapped": false,
+    "invocationCause": "The standalone PowerShell enumeration included tests/milestone-2c2-browser-dom.ps1 without excluding browser-launching wrappers.",
+    "containment": "The parent validation process was interrupted immediately after the browser wrapper was recognized.",
+    "releasePermitted": false,
+    "commitPermitted": false,
+    "pushPermitted": false
+  },
+  "browserActivity": {
+    "wrapperInvocations": 1,
+    "declaredCases": 14,
+    "caseStartLinesObservedBeforeCancellation": 4,
+    "suiteCompleted": false,
+    "parentExitCodeAfterCancellation": 1,
+    "listenersObservedAfterCancellationInPortRange3000To8999": 0,
+    "processCommandLineInspection": "UNAVAILABLE_ACCESS_DENIED"
+  },
+  "retainedPlaywrightCaptureImpact": {
+    "baselineRelativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-continuation-baseline.json",
+    "baselineFileCount": 39,
+    "baselineTotalBytes": 3864482,
+    "currentFileCount": 293,
+    "baselineFilesUnchanged": 1,
+    "baselineFilesMissing": 38,
+    "baselineFilesModified": 0,
+    "newFiles": 292,
+    "newFilesUnderPlaywrightArtifactsDirectory": 291,
+    "otherNewFiles": 1,
+    "recoverableFromGit": false,
+    "reason": "The retained Playwright capture was ignored and untracked; the committed baseline preserves only its path, length, and SHA-256 inventory."
+  },
+  "completedValidation": {
+    "changedJavaScriptParseChecks": { "files": 6, "passed": 6, "failed": 0 },
+    "focusedAndDirectFirstExecution": { "tests": 138, "passed": 137, "failed": 1, "failure": "TEST_ASSERTION_FALSE_POSITIVE_ON_REQUIRED_NON_PERSISTENCE_GUARD" },
+    "correctionCycle": { "used": 1, "sourceBehaviorChanged": false, "testAssertionNarrowed": true },
+    "focusedAndDirectCorrectionRerun": { "tests": 138, "passed": 138, "failed": 0 },
+    "safeNodeRegression": { "files": 19, "tests": 164, "passed": 164, "failed": 0 },
+    "powerShellWrappersCompletedBeforeStop": { "wrappers": 27, "passed": 27, "failed": 0 },
+    "browserWrapper": { "status": "INTERRUPTED_UNMAPPED_GATE", "passed": false },
+    "remainingPredeclaredGatesExecuted": false
+  },
+  "phase6a": {
+    "preserved": true,
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466"
+  },
+  "releaseEvidence": {
+    "validationResultCreated": false,
+    "releaseFileSetCreated": false,
+    "terminalReleaseRecordCreated": false,
+    "releaseCommitCreated": false,
+    "releasePushAttempted": false,
+    "releaseReadbackPerformed": false
+  },
+  "activity": {
+    "providerCalls": 0,
+    "metadataRequests": 0,
+    "credentialSourceReads": 0,
+    "v3Executions": 0,
+    "v3Evaluations": 0,
+    "v3CorpusExecutions": 0,
+    "version11235TerminalSuiteExecutions": 0,
+    "benchmarkExecutions": 0,
+    "liveProductHandlerCalls": 0,
+    "authoritiesCreated": 0,
+    "memoryPromotions": 0,
+    "tags": 0,
+    "merges": 0,
+    "deployments": 0,
+    "activations": 0,
+    "commits": 0,
+    "pushAttempts": 0,
+    "remoteWrites": 0
+  },
+  "claims": {
+    "released": false,
+    "qualified": false,
+    "learned": false,
+    "cognitiveImprovementProved": false,
+    "deployed": false,
+    "activated": false,
+    "memoryImprovementProved": false
+  },
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+}

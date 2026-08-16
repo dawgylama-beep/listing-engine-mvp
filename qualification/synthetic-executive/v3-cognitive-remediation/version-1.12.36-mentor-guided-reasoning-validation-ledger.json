@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_VALIDATION_LEDGER",
+  "version": "1.12.36",
+  "createdBeforeValidation": true,
+  "validationExecutionsAtCreation": 0,
+  "correctionCyclesPermitted": 1,
+  "gates": [
+    { "gateId": "PARSE", "scope": "node --check for every changed JavaScript and MJS file", "required": true },
+    { "gateId": "FOCUSED", "scope": "mentor-guided deterministic offline fixture and fail-closed tests", "required": true },
+    { "gateId": "DIRECT_CONSUMERS", "scope": "all cognitive Governor, authorization, proof, report, lesson, and callsite tests", "required": true },
+    { "gateId": "PRODUCT_ROUTE", "scope": "safe product handler, serialization, object-intelligence, customer-evidence, terminal-evidence, and network-denial tests", "required": true },
+    { "gateId": "SAFE_NODE_REGRESSION", "scope": "all locally safe non-qualification, non-calibration, non-V2/V3-execution Node tests", "required": true },
+    { "gateId": "POWERSHELL_STATIC", "scope": "all applicable standalone PowerShell static tests with helper files excluded", "required": true },
+    { "gateId": "VERSION", "scope": "release version guard and version surface tests", "required": true },
+    { "gateId": "SERVER_CHECK", "scope": "server.ps1 -Check", "required": true },
+    { "gateId": "SECRET_SCAN", "scope": "changed-file secret-shape scan without credential-source access", "required": true },
+    { "gateId": "FRONTEND_SCAN", "scope": "frontend provider-key and authorization-header static scan", "required": true },
+    { "gateId": "DIFF_CHECK", "scope": "git diff --check", "required": true },
+    { "gateId": "REPOSITORY_INTEGRITY", "scope": "frozen V3 hashes, permanent classification, tracked scope, and no unauthorized path mutation", "required": true },
+    { "gateId": "PHASE_6A", "scope": "exact preserved 85-file identity, bytes, inventory hash, path-set hash, and invocation hash", "required": true },
+    { "gateId": "REMOTE_READ", "scope": "direct remote remains at the authorized predecessor before release commit and push", "required": true }
+  ],
+  "browserGate": {
+    "mapped": false,
+    "reason": "No browser behavior, public application logic, stylesheet, or browser test source is in the mutation set; public/index.html changes only release-version literals."
+  },
+  "prohibitedExecutions": [
+    "V3 qualification execution",
+    "V3 evaluation or scorer execution",
+    "V3 corpus construction or mutation",
+    "Version 1.12.35 terminal suite",
+    "Phase benchmark execution",
+    "provider or metadata calls",
+    "credential-source access",
+    "live product-handler calls",
+    "Preview or Production activity",
+    "deployment or activation"
+  ],
+  "resultPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-result.json",
+  "terminalPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-terminal-release-record.json"
+}

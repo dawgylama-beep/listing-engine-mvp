@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_RELEASE_FILE_SET",
+  "version": "1.12.36",
+  "terminalPath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-terminal-release-record.json",
+  "terminalExcluded": true,
+  "derivedFileSetExcluded": true,
+  "phase6aExcluded": true,
+  "commitObjectsExcluded": true,
+  "externalQuarantineExcluded": true,
+  "memberCount": 26,
+  "totalBytes": 1117252,
+  "pathSetHash": "6e539f84d08f8c7f4a9aaee13a430dcf541eb584e44967df94b2c9664ab312e1",
+  "fileSetHash": "6e539f84d08f8c7f4a9aaee13a430dcf541eb584e44967df94b2c9664ab312e1",
+  "aggregateHash": "9db637d932b0da68bf308c4b976c1037f7aef1e3e63322b262e3cb8383f4c106",
+  "members": [
+    {
+      "relativePath": "PRODUCT_ROADMAP.md",
+      "byteLength": 125225,
+      "sha256": "5103e084ebcded44aa7f36f81556a6967e740a59331d9c0e454fb5fd72c8175c"
+    },
+    {
+      "relativePath": "docs/mentor-guided-reasoning-contract.md",
+      "byteLength": 2698,
+      "sha256": "18e98754cb6e28f6d5a91296627b8bf95f0d20d170a9eed9e1f4b8dd39327343"
+    },
+    {
+      "relativePath": "lib/cognitive-governor/mentor-guided-reasoning.js",
+      "byteLength": 16305,
+      "sha256": "c63541acd52e1c6e05200c663699db8cf3218d5c9446ebf537e841fabeda890e"
+    },
+    {
+      "relativePath": "lib/cognitive-governor/policy.js",
+      "byteLength": 20646,
+      "sha256": "02650456f3adf7e465b40b91e335c4618a894975b3c928bc8ed585c43439472e"
+    },
+    {
+      "relativePath": "package-lock.json",
+      "byteLength": 2370,
+      "sha256": "d4b54420c0b5ac3e569a29bcf9f59e0b7141f14c989920b46d1a786666a00a22"
+    },
+    {
+      "relativePath": "package.json",
+      "byteLength": 2948,
+      "sha256": "4f39ce51a1ea6980634b445e937a33ee945e0e5807660d8d00850c56ec39df76"
+    },
+    {
+      "relativePath": "public/index.html",
+      "byteLength": 26275,
+      "sha256": "29cac968e6ef43a07d0520a4926a1a2af045410d02228cf86e307cd3470a3fa5"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-browser-scope-incident-adjudication.json",
+      "byteLength": 111225,
+      "sha256": "4c1fcffddbb591c89fba96445b4f568aebb22e46ea626f3827eb799fe6b0c34d"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-browser-gate-stop.json",
+      "byteLength": 4393,
+      "sha256": "0fcbd50991b1a3ee69e43bdda847d61bbbb5cd846f05e8798924962af1b58124"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-consolidated-correction-result.json",
+      "byteLength": 5470,
+      "sha256": "f32969b0ba5b1e824412c0d8ab96cf28c36bf3522b8f33f86d0ede775a971211"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-gate-a.json",
+      "byteLength": 3288,
+      "sha256": "c82bcd7251854f08d00c0e88356a1a2881c34bc8fef31b0620cd7cebd15450a3"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-powershell-static-result.json",
+      "byteLength": 17498,
+      "sha256": "aba33b968161d3571d61092e1564d7ca5af4c6db599c221f3c0770f78c6e0eb8"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release-gates.mjs",
+      "byteLength": 9454,
+      "sha256": "0006f870a9e4c48ce77e06acb9215b773a175b46985de97cdc68b285e75126fb"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release.mjs",
+      "byteLength": 13736,
+      "sha256": "d02db8e35c5d862be2aff5f59ef0ea7c4a9110caa26023fbeebb5d57325192a5"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-retained-validation-identity.json",
+      "byteLength": 636814,
+      "sha256": "ff4dd923b91b77a390347f003721bc44b6fe90e63e7c3523e17c0340b9de6cac"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-correction.json",
+      "byteLength": 3429,
+      "sha256": "7d0e4ef52f59c84338dd92f5f031dbee5caa323612c5a5c4f15c160c3218e1f3"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-ledger.json",
+      "byteLength": 3015,
+      "sha256": "f7998734e873adceeed76ffedbdb5372e5b56923cfba10ef58fcbe2fa8d3c817"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-result.json",
+      "byteLength": 7951,
+      "sha256": "4782801b7176fd7f7cafb418dd2e89b2036443028b94ba80b7f2476dc0fe5f42"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-selection.json",
+      "byteLength": 4040,
+      "sha256": "6d672226f52123d616d2ff0c0c72a7bb8b91fa750ec7cec0657bcb44ebda0710"
+    },
+    {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-selection.mjs",
+      "byteLength": 9847,
+      "sha256": "4af577a12fa6f5475b991492a4b27dd6a618354e937d38aed1f9a9319d27ad1b"
+    },
+    {
+      "relativePath": "server.ps1",
+      "byteLength": 25331,
+      "sha256": "0da55cac414d3d9ff433576d93fb0254664b32f14f6721818e3cbfb019b09649"
+    },
+    {
+      "relativePath": "tests/cognitive-governor-callsite.test.mjs",
+      "byteLength": 8772,
+      "sha256": "c3ed95da79cac4d09d0e3a7fec71d8e59e2786947d2a145556d06247e5dc679e"
+    },
+    {
+      "relativePath": "tests/fixtures/version-1.12.36-mentor-guided-remediation.json",
+      "byteLength": 42909,
+      "sha256": "445230f54b1286cc9e86525e41f07dab21e5275786448de7e263b58a182ab9f7"
+    },
+    {
+      "relativePath": "tests/mentor-guided-reasoning.test.mjs",
+      "byteLength": 7028,
+      "sha256": "762265efebb5ebbbcd999ace194e8dce56172b843fe9fb1b4088deaad319ce82"
+    },
+    {
+      "relativePath": "tests/mentor-guided-validation-selection.test.mjs",
+      "byteLength": 2100,
+      "sha256": "8ca6534c71d9fe58e6ad362ee149a3466ad81d75a684bb6c66ca1edc7d7873ef"
+    },
+    {
+      "relativePath": "tests/release-version-surface.test.mjs",
+      "byteLength": 4485,
+      "sha256": "b221758c3907a6fa7f36a200557954d3681a09c6ba60e577b0b8984f91418e06"
+    }
+  ],
+  "incidentAdjudication": {
+    "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-browser-scope-incident-adjudication.json",
+    "byteLength": 111225,
+    "sha256": "4c1fcffddbb591c89fba96445b4f568aebb22e46ea626f3827eb799fe6b0c34d"
+  },
+  "externalQuarantineBinding": {
+    "external": true,
+    "root": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z",
+    "inventoryPath": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z/incident-quarantine-inventory.json",
+    "inventorySha256": "47e8ce42f333b2de54ecd7ae530be563d1f593468e304d3d85771bad4a8df30a",
+    "inventorySealHash": "433607d5faab0ea682fd5f7d272809a5f15a5e581a3cbb3898f0efac4d641be4",
+    "memberCount": 292,
+    "totalBytes": 133561066,
+    "pathSetHash": "d68642656b5946b5d468effadf4ea41abfcb1cebb417476f9d9899026a4cd1c0",
+    "aggregateHash": "e1a9a622fc98cb9cf95c09b9c31ed18dac00a2209e82cb300cf762b5ee9eeb82",
+    "readbackExact": true,
+    "preserveUntilExplicitCleanup": true
+  },
+  "preservedVersion11235": {
+    "releaseCommit": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "releaseAggregateMemberCount": 860,
+    "releaseAggregateHash": "6b84a272848a9be6589308d683d24cb2216234a2a2cfa44bb1532bdbf8794e7e",
+    "releaseFileSetHash": "a5f10bd35d670dbbdd563ae5e728f64e7e84f6512fafb2a0d06b779801a07278",
+    "terminalReleaseRecordSha256": "670deefbc40a98b8eeb93c552783e60db579db395731e1d6954a130a4f139277"
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "untracked": true,
+    "exact": true
+  },
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "reconciliation": {
+    "missing": [],
+    "unexpected": [],
+    "duplicate": [],
+    "intersecting": [],
+    "unclassified": []
+  }
+}

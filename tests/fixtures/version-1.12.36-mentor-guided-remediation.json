@@ -1,0 +1,316 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureType": "VERSION_1_12_36_MENTOR_GUIDED_REMEDIATION_PROJECT_EVIDENCE",
+  "fixtures": [
+    {
+      "fixtureId": "SCRATCH_WORKSPACE_IS_NOT_WINDOWS_REPOSITORY_UNAVAILABLE",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-windows-long-path-execution-context.json",
+        "sha256": "9129a24b5ef7775eb4ddeb76fea67ac73718e0b5b1faf5f9e9a2bacb32844377"
+      },
+      "mission": {
+        "objective": "Continue the authorized release work in the named Windows repository.",
+        "project": "Katherine's Eye",
+        "threadRole": "release-maintenance",
+        "checkpoint": "The repository identity is preserved independently of the current scratch workspace.",
+        "finishLine": "Verify the named repository directly and continue the bounded release path."
+      },
+      "projectHistory": ["The preserved evidence records a valid Windows repository and a disposable worktree used only for bounded execution."],
+      "evidence": [
+        { "evidenceId": "SCRATCH_CONTEXT", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "The current tool workspace does not expose the named repository." },
+        { "evidenceId": "WINDOWS_REPOSITORY_PROOF", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "Preserved evidence identifies a valid Windows repository and clean disposable worktree." }
+      ],
+      "inferences": [
+        { "inferenceId": "ENVIRONMENT_SCOPE", "supportingEvidenceIds": ["SCRATCH_CONTEXT", "WINDOWS_REPOSITORY_PROOF"], "statement": "A limitation of the current workspace cannot establish that the named repository is unavailable." }
+      ],
+      "diagnoses": [
+        { "diagnosisId": "CURRENT_TOOL_ENVIRONMENT_SCOPE_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["SCRATCH_CONTEXT", "WINDOWS_REPOSITORY_PROOF"], "explainsEvidenceIds": ["SCRATCH_CONTEXT", "WINDOWS_REPOSITORY_PROOF"], "generalRule": "Classify environment evidence at its observed scope before making project-wide availability conclusions.", "persistAsMemory": false },
+        { "diagnosisId": "PROJECT_REPOSITORY_FAILURE", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["SCRATCH_CONTEXT"], "explainsEvidenceIds": ["SCRATCH_CONTEXT"], "generalRule": "Treat every missing workspace as a repository failure.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "BOUNDED_ENVIRONMENT_CONCLUSION", "supportingEvidenceIds": ["SCRATCH_CONTEXT", "WINDOWS_REPOSITORY_PROOF"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "REPOSITORY_UNAVAILABLE", "supportingEvidenceIds": ["SCRATCH_CONTEXT"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PRODUCT_BEHAVIOR" }
+      ],
+      "authority": { "allowedActionIds": ["OPEN_NAMED_REPOSITORY", "VERIFY_REPOSITORY_IDENTITY"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "OPEN_NAMED_REPOSITORY", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "NAMED_REPOSITORY_READBACK", "materialStateChange": true, "blocker": "", "verification": "Read the exact repository root without changing it." },
+        { "actionId": "VERIFY_REPOSITORY_IDENTITY", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["OPEN_NAMED_REPOSITORY"], "producesEvidenceId": "REPOSITORY_IDENTITY_READBACK", "materialStateChange": true, "blocker": "", "verification": "Verify branch, commit, status, and preserved evidence identities." }
+      ],
+      "verification": { "actionId": "OPEN_NAMED_REPOSITORY", "evidenceId": "NAMED_REPOSITORY_READBACK", "finishLineActionId": "VERIFY_REPOSITORY_IDENTITY" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "CURRENT_TOOL_ENVIRONMENT_SCOPE_BOUNDARY", "rejectedConclusionIds": ["REPOSITORY_UNAVAILABLE"], "generalizedLesson": "Classify environment evidence at its observed scope before making project-wide availability conclusions.", "safeActionId": "OPEN_NAMED_REPOSITORY", "finishPath": ["OPEN_NAMED_REPOSITORY", "VERIFY_REPOSITORY_IDENTITY"] }
+    },
+    {
+      "fixtureId": "BOOLEAN_AND_OWN_PROPERTY_EXACTNESS",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-boolean-predicate-successor-v2-correction.json",
+        "sha256": "35fb186b6abef9b242794b32d9027eea1f634f803fca20fd1765bbfbe79b87c1"
+      },
+      "mission": { "objective": "Validate exact predicate semantics across the release ledger.", "project": "Katherine's Eye", "threadRole": "offline-validation", "checkpoint": "A property-value check failed to distinguish missing from own undefined.", "finishLine": "Audit and verify every affected Boolean and own-property predicate." },
+      "projectHistory": ["The predecessor correction recorded thirteen predicate classes rather than one isolated assertion."],
+      "evidence": [
+        { "evidenceId": "MISSING_VS_UNDEFINED", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "A value comparison accepted both an absent property and an own property with undefined." },
+        { "evidenceId": "NESTED_TYPE_GAP", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "Nested own-property and exact-type validation was incomplete." }
+      ],
+      "inferences": [{ "inferenceId": "PREDICATE_CLASS", "supportingEvidenceIds": ["MISSING_VS_UNDEFINED", "NESTED_TYPE_GAP"], "statement": "Presence, Boolean value, and exact declared type are separate predicates." }],
+      "diagnoses": [
+        { "diagnosisId": "PREDICATE_SEMANTICS_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["MISSING_VS_UNDEFINED", "NESTED_TYPE_GAP"], "explainsEvidenceIds": ["MISSING_VS_UNDEFINED", "NESTED_TYPE_GAP"], "generalRule": "Validate own-property presence, exact type, and exact value as separate obligations.", "persistAsMemory": false },
+        { "diagnosisId": "SINGLE_ASSERTION_TYPO", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["MISSING_VS_UNDEFINED"], "explainsEvidenceIds": ["MISSING_VS_UNDEFINED"], "generalRule": "Repair only the first failing assertion.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "PREDICATE_SCOPE_CONFIRMED", "supportingEvidenceIds": ["MISSING_VS_UNDEFINED", "NESTED_TYPE_GAP"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "ALL_BOOLEAN_FIELDS_VALID", "supportingEvidenceIds": ["MISSING_VS_UNDEFINED"], "claimType": "QUALIFICATION", "assertedDomain": "PROJECT_EXECUTION" }
+      ],
+      "authority": { "allowedActionIds": ["AUDIT_PREDICATE_CLASS", "RUN_NEGATIVE_MATRIX"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "AUDIT_PREDICATE_CLASS", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "PREDICATE_AUDIT", "materialStateChange": true, "blocker": "", "verification": "Inventory all own-property, type, and Boolean predicates." },
+        { "actionId": "RUN_NEGATIVE_MATRIX", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["AUDIT_PREDICATE_CLASS"], "producesEvidenceId": "PREDICATE_NEGATIVE_MATRIX", "materialStateChange": true, "blocker": "", "verification": "Reject missing, undefined, wrong-type, and wrong-value variants." }
+      ],
+      "verification": { "actionId": "AUDIT_PREDICATE_CLASS", "evidenceId": "PREDICATE_AUDIT", "finishLineActionId": "RUN_NEGATIVE_MATRIX" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "PREDICATE_SEMANTICS_BOUNDARY", "rejectedConclusionIds": ["ALL_BOOLEAN_FIELDS_VALID"], "generalizedLesson": "Validate own-property presence, exact type, and exact value as separate obligations.", "safeActionId": "AUDIT_PREDICATE_CLASS", "finishPath": ["AUDIT_PREDICATE_CLASS", "RUN_NEGATIVE_MATRIX"] }
+    },
+    {
+      "fixtureId": "CAPTURE_INVENTORY_SET_NOT_ORDERED_ARRAY",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-boolean-predicate-successor-v2-correction.json",
+        "sha256": "35fb186b6abef9b242794b32d9027eea1f634f803fca20fd1765bbfbe79b87c1"
+      },
+      "mission": { "objective": "Reconcile a retained capture inventory exactly.", "project": "Katherine's Eye", "threadRole": "evidence-reconciliation", "checkpoint": "The captured paths are complete but their enumeration order differs.", "finishLine": "Prove exact unique membership without inventing ordered semantics." },
+      "projectHistory": ["The prior audit classified ordered-array equality as distinct from exact inventory-set equality."],
+      "evidence": [
+        { "evidenceId": "SAME_UNIQUE_PATHS", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "Expected and observed inventories contain the same unique path keys." },
+        { "evidenceId": "DIFFERENT_ENUMERATION_ORDER", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "Filesystem enumeration produced a different member order." }
+      ],
+      "inferences": [{ "inferenceId": "REPRESENTATION_SEMANTICS", "supportingEvidenceIds": ["SAME_UNIQUE_PATHS", "DIFFERENT_ENUMERATION_ORDER"], "statement": "Inventory identity is set-based unless order is explicitly sealed." }],
+      "diagnoses": [
+        { "diagnosisId": "REPRESENTATION_SEMANTICS_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["SAME_UNIQUE_PATHS", "DIFFERENT_ENUMERATION_ORDER"], "explainsEvidenceIds": ["SAME_UNIQUE_PATHS", "DIFFERENT_ENUMERATION_ORDER"], "generalRule": "Choose set or ordered-array comparison from the evidence contract, not from incidental enumeration order.", "persistAsMemory": false },
+        { "diagnosisId": "CAPTURE_FILE_LOSS", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["DIFFERENT_ENUMERATION_ORDER"], "explainsEvidenceIds": ["DIFFERENT_ENUMERATION_ORDER"], "generalRule": "Treat every order difference as a missing file.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "SET_IDENTITY_CONFIRMED", "supportingEvidenceIds": ["SAME_UNIQUE_PATHS", "DIFFERENT_ENUMERATION_ORDER"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "CAPTURE_INCOMPLETE", "supportingEvidenceIds": ["DIFFERENT_ENUMERATION_ORDER"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PRODUCT_BEHAVIOR" }
+      ],
+      "authority": { "allowedActionIds": ["COMPARE_PATH_KEYED_SET", "VERIFY_CAPTURE_HASHES"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "COMPARE_PATH_KEYED_SET", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "EXACT_PATH_SET_RESULT", "materialStateChange": true, "blocker": "", "verification": "Reconcile missing, unexpected, and duplicate path keys." },
+        { "actionId": "VERIFY_CAPTURE_HASHES", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["COMPARE_PATH_KEYED_SET"], "producesEvidenceId": "CAPTURE_HASH_RESULT", "materialStateChange": true, "blocker": "", "verification": "Verify bytes and hashes after membership closes." }
+      ],
+      "verification": { "actionId": "COMPARE_PATH_KEYED_SET", "evidenceId": "EXACT_PATH_SET_RESULT", "finishLineActionId": "VERIFY_CAPTURE_HASHES" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "REPRESENTATION_SEMANTICS_BOUNDARY", "rejectedConclusionIds": ["CAPTURE_INCOMPLETE"], "generalizedLesson": "Choose set or ordered-array comparison from the evidence contract, not from incidental enumeration order.", "safeActionId": "COMPARE_PATH_KEYED_SET", "finishPath": ["COMPARE_PATH_KEYED_SET", "VERIFY_CAPTURE_HASHES"] }
+    },
+    {
+      "fixtureId": "TWELVE_PLAYWRIGHT_ERRORS_SHARE_ONE_BOUNDARY",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-playwright-shared-fixture-adjudication.json",
+        "sha256": "dfa54207678ac9f2ae8a4b77b4f548fe3259dd781d59c3ce53d21be544bcc44f"
+      },
+      "mission": { "objective": "Diagnose twelve downstream Playwright failures without twelve symptom repairs.", "project": "Katherine's Eye", "threadRole": "browser-validation-adjudication", "checkpoint": "All twelve errors originate after one shared fixture boundary.", "finishLine": "Repair and verify the common boundary, then rerun the invalidated browser members once." },
+      "projectHistory": ["The preserved adjudication records the shared fixture and downstream browser-source inventory."],
+      "evidence": [
+        { "evidenceId": "TWELVE_DOWNSTREAM_ERRORS", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "Twelve browser cases fail downstream with the same fixture-derived condition." },
+        { "evidenceId": "SHARED_FIXTURE_BOUNDARY", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "One shared fixture supplies the failing condition to every affected case." }
+      ],
+      "inferences": [{ "inferenceId": "COMMON_BOUNDARY", "supportingEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS", "SHARED_FIXTURE_BOUNDARY"], "statement": "The earliest boundary explaining all failures is the shared fixture, not each downstream assertion." }],
+      "diagnoses": [
+        { "diagnosisId": "SHARED_FIXTURE_CAUSAL_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS", "SHARED_FIXTURE_BOUNDARY"], "explainsEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS", "SHARED_FIXTURE_BOUNDARY"], "generalRule": "When one upstream boundary explains every downstream symptom, repair and verify that common boundary first.", "persistAsMemory": false },
+        { "diagnosisId": "TWELVE_INDEPENDENT_PRODUCT_DEFECTS", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS"], "explainsEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS"], "generalRule": "Patch every failing browser assertion independently.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "FIXTURE_SCOPE_CONFIRMED", "supportingEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS", "SHARED_FIXTURE_BOUNDARY"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "TWELVE_PRODUCT_DEFECTS", "supportingEvidenceIds": ["TWELVE_DOWNSTREAM_ERRORS"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PRODUCT_BEHAVIOR" }
+      ],
+      "authority": { "allowedActionIds": ["REPAIR_SHARED_FIXTURE", "RERUN_INVALIDATED_BROWSER_MEMBERS"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "REPAIR_SHARED_FIXTURE", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "FIXTURE_REPAIR_DIFF", "materialStateChange": true, "blocker": "", "verification": "Apply one bounded repair at the shared fixture boundary." },
+        { "actionId": "RERUN_INVALIDATED_BROWSER_MEMBERS", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["REPAIR_SHARED_FIXTURE"], "producesEvidenceId": "BROWSER_RERUN_RESULT", "materialStateChange": true, "blocker": "", "verification": "Rerun every invalidated downstream member exactly once." }
+      ],
+      "verification": { "actionId": "REPAIR_SHARED_FIXTURE", "evidenceId": "FIXTURE_REPAIR_DIFF", "finishLineActionId": "RERUN_INVALIDATED_BROWSER_MEMBERS" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "SHARED_FIXTURE_CAUSAL_BOUNDARY", "rejectedConclusionIds": ["TWELVE_PRODUCT_DEFECTS"], "generalizedLesson": "When one upstream boundary explains every downstream symptom, repair and verify that common boundary first.", "safeActionId": "REPAIR_SHARED_FIXTURE", "finishPath": ["REPAIR_SHARED_FIXTURE", "RERUN_INVALIDATED_BROWSER_MEMBERS"] }
+    },
+    {
+      "fixtureId": "FROZEN_PRE_AUTHORITY_FIXTURE_NOT_LATER_RELEASE_AUTHORITY",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/v3-pre-authority-integrity-stop.json",
+        "sha256": "bbbda477d194f56c96ab37d44af6a49e5c82b609c25bfc06b3a07dc32888b2cc"
+      },
+      "mission": { "objective": "Maintain a later release without reusing a frozen pre-authority fixture as current authority.", "project": "Katherine's Eye", "threadRole": "release-governance", "checkpoint": "The fixture is historical evidence from before authority creation.", "finishLine": "Bind current actions only to current explicit authority and preserve the historical fixture." },
+      "projectHistory": ["The pre-authority stop permanently records zero authority creation and a failed integrity gate."],
+      "evidence": [
+        { "evidenceId": "PRE_AUTHORITY_STAGE", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "The preserved fixture was created before release authority existed." },
+        { "evidenceId": "CURRENT_RELEASE_SCOPE", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "The later maintenance task has a distinct checkpoint and explicit bounded authority." }
+      ],
+      "inferences": [{ "inferenceId": "AUTHORITY_TIME_SCOPE", "supportingEvidenceIds": ["PRE_AUTHORITY_STAGE", "CURRENT_RELEASE_SCOPE"], "statement": "Historical evidence can inform diagnosis but cannot grant later execution authority." }],
+      "diagnoses": [
+        { "diagnosisId": "AUTHORITY_TEMPORAL_SCOPE_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["PRE_AUTHORITY_STAGE", "CURRENT_RELEASE_SCOPE"], "explainsEvidenceIds": ["PRE_AUTHORITY_STAGE", "CURRENT_RELEASE_SCOPE"], "generalRule": "Keep historical evidence and current execution authority separate and bind actions to the current checkpoint.", "persistAsMemory": false },
+        { "diagnosisId": "CURRENT_AUTHORITY_MISSING", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["PRE_AUTHORITY_STAGE"], "explainsEvidenceIds": ["PRE_AUTHORITY_STAGE"], "generalRule": "Use historical fixture identity as present authority.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "HISTORICAL_SCOPE_CONFIRMED", "supportingEvidenceIds": ["PRE_AUTHORITY_STAGE", "CURRENT_RELEASE_SCOPE"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "HISTORICAL_FIXTURE_AUTHORIZES_RELEASE", "supportingEvidenceIds": ["PRE_AUTHORITY_STAGE"], "claimType": "QUALIFICATION", "assertedDomain": "PROJECT_EXECUTION" }
+      ],
+      "authority": { "allowedActionIds": ["BIND_CURRENT_CHECKPOINT", "EXECUTE_CURRENT_BOUNDED_ACTION"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "BIND_CURRENT_CHECKPOINT", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "CURRENT_CHECKPOINT_BINDING", "materialStateChange": true, "blocker": "", "verification": "Verify current identity and explicit authority." },
+        { "actionId": "EXECUTE_CURRENT_BOUNDED_ACTION", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["BIND_CURRENT_CHECKPOINT"], "producesEvidenceId": "CURRENT_ACTION_RECEIPT", "materialStateChange": true, "blocker": "", "verification": "Execute only the currently authorized bounded action." }
+      ],
+      "verification": { "actionId": "BIND_CURRENT_CHECKPOINT", "evidenceId": "CURRENT_CHECKPOINT_BINDING", "finishLineActionId": "EXECUTE_CURRENT_BOUNDED_ACTION" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "AUTHORITY_TEMPORAL_SCOPE_BOUNDARY", "rejectedConclusionIds": ["HISTORICAL_FIXTURE_AUTHORIZES_RELEASE"], "generalizedLesson": "Keep historical evidence and current execution authority separate and bind actions to the current checkpoint.", "safeActionId": "BIND_CURRENT_CHECKPOINT", "finishPath": ["BIND_CURRENT_CHECKPOINT", "EXECUTE_CURRENT_BOUNDED_ACTION"] }
+    },
+    {
+      "fixtureId": "WINDOWS_LONG_PATH_WORKTREE_CONTEXT_NOT_PRODUCT_FAILURE",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-windows-long-path-execution-context.json",
+        "sha256": "9129a24b5ef7775eb4ddeb76fea67ac73718e0b5b1faf5f9e9a2bacb32844377"
+      },
+      "mission": { "objective": "Complete validation under Windows path constraints.", "project": "Katherine's Eye", "threadRole": "validation-infrastructure", "checkpoint": "A disposable short-path worktree completed the same repository operation cleanly.", "finishLine": "Classify the host path boundary and preserve product conclusions unchanged." },
+      "projectHistory": ["The context receipt records worktree creation, clean execution, cleanup, and zero product-handler activity."],
+      "evidence": [
+        { "evidenceId": "LONG_PATH_HOST_FAILURE", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "The original Windows path exceeded a host execution capability." },
+        { "evidenceId": "SHORT_PATH_SUCCESS", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "The same repository content completed in a clean short-path worktree." }
+      ],
+      "inferences": [{ "inferenceId": "HOST_CONTEXT_CLASS", "supportingEvidenceIds": ["LONG_PATH_HOST_FAILURE", "SHORT_PATH_SUCCESS"], "statement": "The differing variable is host path context, not product behavior." }],
+      "diagnoses": [
+        { "diagnosisId": "WINDOWS_HOST_PATH_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["LONG_PATH_HOST_FAILURE", "SHORT_PATH_SUCCESS"], "explainsEvidenceIds": ["LONG_PATH_HOST_FAILURE", "SHORT_PATH_SUCCESS"], "generalRule": "Use an equivalent bounded host context to isolate platform-path failures before drawing product conclusions.", "persistAsMemory": false },
+        { "diagnosisId": "PRODUCT_RUNTIME_FAILURE", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["LONG_PATH_HOST_FAILURE"], "explainsEvidenceIds": ["LONG_PATH_HOST_FAILURE"], "generalRule": "Classify host path failures as product failures.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "HOST_PATH_SCOPE_CONFIRMED", "supportingEvidenceIds": ["LONG_PATH_HOST_FAILURE", "SHORT_PATH_SUCCESS"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "PRODUCT_FAILED", "supportingEvidenceIds": ["LONG_PATH_HOST_FAILURE"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PRODUCT_BEHAVIOR" }
+      ],
+      "authority": { "allowedActionIds": ["USE_BOUND_SHORT_PATH", "VERIFY_AND_CLEAN_WORKTREE"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "USE_BOUND_SHORT_PATH", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "SHORT_PATH_EXECUTION", "materialStateChange": true, "blocker": "", "verification": "Run the same bounded operation against the exact bound tree." },
+        { "actionId": "VERIFY_AND_CLEAN_WORKTREE", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["USE_BOUND_SHORT_PATH"], "producesEvidenceId": "WORKTREE_CLEANUP_PROOF", "materialStateChange": true, "blocker": "", "verification": "Verify identity and remove only the disposable worktree." }
+      ],
+      "verification": { "actionId": "USE_BOUND_SHORT_PATH", "evidenceId": "SHORT_PATH_EXECUTION", "finishLineActionId": "VERIFY_AND_CLEAN_WORKTREE" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "WINDOWS_HOST_PATH_BOUNDARY", "rejectedConclusionIds": ["PRODUCT_FAILED"], "generalizedLesson": "Use an equivalent bounded host context to isolate platform-path failures before drawing product conclusions.", "safeActionId": "USE_BOUND_SHORT_PATH", "finishPath": ["USE_BOUND_SHORT_PATH", "VERIFY_AND_CLEAN_WORKTREE"] }
+    },
+    {
+      "fixtureId": "DETERMINISTIC_SENTINELS_NOT_CREDENTIAL_EXPOSURE",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-secret-scan-sentinel-successor-v1-correction.json",
+        "sha256": "8ac01c1cdbeb57a7689d2708944a33e01aacf790eee041d34a00680e5947560d"
+      },
+      "mission": { "objective": "Adjudicate deterministic rejection and redaction sentinels without reading credential sources.", "project": "Katherine's Eye", "threadRole": "secret-scan-governance", "checkpoint": "Six source-bound test vectors are proved non-secret and remain detectable.", "finishLine": "Retain exact sentinel detection while rejecting any real-shaped unbound finding." },
+      "projectHistory": ["The successor correction records zero credential-source reads, zero authentication attempts, and exact source-bound sentinel identities."],
+      "evidence": [
+        { "evidenceId": "NON_SECRET_SENTINEL_PROOF", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "Each known finding is a deterministic source-bound rejection or redaction test vector proved non-secret." },
+        { "evidenceId": "ZERO_CREDENTIAL_ACCESS", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "The adjudication read no credential sources and made no authentication attempt." }
+      ],
+      "inferences": [{ "inferenceId": "SENTINEL_CLASS", "supportingEvidenceIds": ["NON_SECRET_SENTINEL_PROOF", "ZERO_CREDENTIAL_ACCESS"], "statement": "A source-bound deterministic sentinel is not evidence of credential exposure." }],
+      "diagnoses": [
+        { "diagnosisId": "SENTINEL_IDENTITY_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["NON_SECRET_SENTINEL_PROOF", "ZERO_CREDENTIAL_ACCESS"], "explainsEvidenceIds": ["NON_SECRET_SENTINEL_PROOF", "ZERO_CREDENTIAL_ACCESS"], "generalRule": "Adjudicate secret findings by exact source, rule, fingerprint, and reachability while keeping raw values unread.", "persistAsMemory": false },
+        { "diagnosisId": "CREDENTIAL_EXPOSURE", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["NON_SECRET_SENTINEL_PROOF"], "explainsEvidenceIds": ["NON_SECRET_SENTINEL_PROOF"], "generalRule": "Treat every credential-shaped test vector as exposed credential material.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "SENTINEL_SCOPE_CONFIRMED", "supportingEvidenceIds": ["NON_SECRET_SENTINEL_PROOF", "ZERO_CREDENTIAL_ACCESS"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "CREDENTIALS_EXPOSED", "supportingEvidenceIds": ["NON_SECRET_SENTINEL_PROOF"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROVIDER_TRANSPORT" }
+      ],
+      "authority": { "allowedActionIds": ["VERIFY_SENTINEL_BINDINGS", "RUN_FAIL_CLOSED_NEGATIVES"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "VERIFY_SENTINEL_BINDINGS", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "SENTINEL_BINDING_RESULT", "materialStateChange": true, "blocker": "", "verification": "Verify exact source hashes, rules, occurrence counts, and fingerprints without raw values." },
+        { "actionId": "RUN_FAIL_CLOSED_NEGATIVES", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["VERIFY_SENTINEL_BINDINGS"], "producesEvidenceId": "SECRET_NEGATIVE_RESULT", "materialStateChange": true, "blocker": "", "verification": "Reject real-shaped, stale, additional, wildcard, and wrong-rule variants." }
+      ],
+      "verification": { "actionId": "VERIFY_SENTINEL_BINDINGS", "evidenceId": "SENTINEL_BINDING_RESULT", "finishLineActionId": "RUN_FAIL_CLOSED_NEGATIVES" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "SENTINEL_IDENTITY_BOUNDARY", "rejectedConclusionIds": ["CREDENTIALS_EXPOSED"], "generalizedLesson": "Adjudicate secret findings by exact source, rule, fingerprint, and reachability while keeping raw values unread.", "safeActionId": "VERIFY_SENTINEL_BINDINGS", "finishPath": ["VERIFY_SENTINEL_BINDINGS", "RUN_FAIL_CLOSED_NEGATIVES"] }
+    },
+    {
+      "fixtureId": "SYMPTOM_REPAIR_REQUIRES_FULL_DEFECT_CLASS_AUDIT",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-boolean-predicate-successor-v2-correction.json",
+        "sha256": "35fb186b6abef9b242794b32d9027eea1f634f803fca20fd1765bbfbe79b87c1"
+      },
+      "mission": { "objective": "Close the entire defect class exposed by one failing predicate.", "project": "Katherine's Eye", "threadRole": "systemic-correction", "checkpoint": "The first repair exposed twelve additional predicates in the same semantic class.", "finishLine": "Inventory, repair, and negatively verify every affected consumer." },
+      "projectHistory": ["The predecessor correction sealed a complete thirteen-entry predicate audit after the initial one-error repair failed."],
+      "evidence": [
+        { "evidenceId": "FIRST_SYMPTOM_REPAIRED", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "One failing predicate was repaired." },
+        { "evidenceId": "TWELVE_ANALOGOUS_GAPS", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "Twelve analogous predicate gaps remained in direct consumers and release gates." }
+      ],
+      "inferences": [{ "inferenceId": "SYSTEMIC_DEFECT_CLASS", "supportingEvidenceIds": ["FIRST_SYMPTOM_REPAIRED", "TWELVE_ANALOGOUS_GAPS"], "statement": "The defect is a reusable predicate-semantics class, not an isolated line." }],
+      "diagnoses": [
+        { "diagnosisId": "SYSTEMIC_PREDICATE_CLASS_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["FIRST_SYMPTOM_REPAIRED", "TWELVE_ANALOGOUS_GAPS"], "explainsEvidenceIds": ["FIRST_SYMPTOM_REPAIRED", "TWELVE_ANALOGOUS_GAPS"], "generalRule": "After confirming a systemic mechanism, audit its complete consumer and dependency closure before declaring repair complete.", "persistAsMemory": false },
+        { "diagnosisId": "ISOLATED_LINE_DEFECT", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["FIRST_SYMPTOM_REPAIRED"], "explainsEvidenceIds": ["FIRST_SYMPTOM_REPAIRED"], "generalRule": "Stop after the first green assertion.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "SYSTEMIC_SCOPE_CONFIRMED", "supportingEvidenceIds": ["FIRST_SYMPTOM_REPAIRED", "TWELVE_ANALOGOUS_GAPS"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "REPAIR_COMPLETE_AFTER_ONE_FIX", "supportingEvidenceIds": ["FIRST_SYMPTOM_REPAIRED"], "claimType": "COGNITIVE_IMPROVEMENT", "assertedDomain": "PROJECT_EXECUTION" }
+      ],
+      "authority": { "allowedActionIds": ["AUDIT_ALL_CONSUMERS", "VERIFY_COMPLETE_DEFECT_CLASS"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "AUDIT_ALL_CONSUMERS", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "CONSUMER_CLOSURE", "materialStateChange": true, "blocker": "", "verification": "Enumerate every direct and downstream consumer of the predicate class." },
+        { "actionId": "VERIFY_COMPLETE_DEFECT_CLASS", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["AUDIT_ALL_CONSUMERS"], "producesEvidenceId": "DEFECT_CLASS_NEGATIVE_PROOF", "materialStateChange": true, "blocker": "", "verification": "Run all positive and negative predicate variants across the closure." }
+      ],
+      "verification": { "actionId": "AUDIT_ALL_CONSUMERS", "evidenceId": "CONSUMER_CLOSURE", "finishLineActionId": "VERIFY_COMPLETE_DEFECT_CLASS" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "SYSTEMIC_PREDICATE_CLASS_BOUNDARY", "rejectedConclusionIds": ["REPAIR_COMPLETE_AFTER_ONE_FIX"], "generalizedLesson": "After confirming a systemic mechanism, audit its complete consumer and dependency closure before declaring repair complete.", "safeActionId": "AUDIT_ALL_CONSUMERS", "finishPath": ["AUDIT_ALL_CONSUMERS", "VERIFY_COMPLETE_DEFECT_CLASS"] }
+    },
+    {
+      "fixtureId": "CHECKPOINT_PREVENTS_AUTHORIZATION_AND_EVIDENCE_LOOPS",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-phase-owned-terminal-suite-policy.json",
+        "sha256": "668b264028d8dec29177baa60f4cabb27e5b8d1b4068d647d8a3ebb03fac6dfa"
+      },
+      "mission": { "objective": "Continue from a preserved authorization and evidence checkpoint without repeating completed gates.", "project": "Katherine's Eye", "threadRole": "checkpoint-continuation", "checkpoint": "Identity and authority evidence are already preserved and unchanged.", "finishLine": "Execute the next authorized validation and close the terminal evidence path." },
+      "projectHistory": ["The phase-owned policy binds completed evidence and permits only the remaining successor validation path."],
+      "evidence": [
+        { "evidenceId": "PRESERVED_CHECKPOINT", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "Repository identity and authority evidence are already sealed." },
+        { "evidenceId": "REPEATED_REQUEST", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "The proposed next step would reproduce the same evidence without material state change." }
+      ],
+      "inferences": [{ "inferenceId": "NO_PROGRESS_LOOP", "supportingEvidenceIds": ["PRESERVED_CHECKPOINT", "REPEATED_REQUEST"], "statement": "Repeating a completed evidence request is a no-progress loop." }],
+      "diagnoses": [
+        { "diagnosisId": "CHECKPOINT_REUSE_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["PRESERVED_CHECKPOINT", "REPEATED_REQUEST"], "explainsEvidenceIds": ["PRESERVED_CHECKPOINT", "REPEATED_REQUEST"], "generalRule": "Reuse unchanged sealed checkpoint evidence and advance to the next unfinished authorized dependency.", "persistAsMemory": false },
+        { "diagnosisId": "AUTHORITY_NOT_YET_PROVEN", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["REPEATED_REQUEST"], "explainsEvidenceIds": ["REPEATED_REQUEST"], "generalRule": "Request the same authority evidence until the task ends.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "LOOP_SCOPE_CONFIRMED", "supportingEvidenceIds": ["PRESERVED_CHECKPOINT", "REPEATED_REQUEST"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "NEW_AUTHORITY_REQUIRED", "supportingEvidenceIds": ["UNKNOWN_AUTHORITY_GAP"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" }
+      ],
+      "authority": { "allowedActionIds": ["REVERIFY_CHECKPOINT", "RUN_NEXT_VALIDATION", "FINALIZE_TERMINAL_EVIDENCE"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": ["CHECKPOINT_CAPTURED"], "completedEvidenceIds": ["CHECKPOINT_READBACK"] },
+      "solutionPath": [
+        { "actionId": "REVERIFY_CHECKPOINT", "ordinal": 1, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "CHECKPOINT_READBACK", "materialStateChange": false, "blocker": "", "verification": "Would reproduce unchanged checkpoint evidence." },
+        { "actionId": "RUN_NEXT_VALIDATION", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": ["CHECKPOINT_CAPTURED"], "producesEvidenceId": "NEXT_VALIDATION_RESULT", "materialStateChange": true, "blocker": "", "verification": "Run the next unfinished authorized gate." },
+        { "actionId": "FINALIZE_TERMINAL_EVIDENCE", "ordinal": 3, "status": "PENDING", "dependsOnActionIds": ["RUN_NEXT_VALIDATION"], "producesEvidenceId": "TERMINAL_EVIDENCE", "materialStateChange": true, "blocker": "", "verification": "Close the remaining evidence path after validation." }
+      ],
+      "verification": { "actionId": "RUN_NEXT_VALIDATION", "evidenceId": "NEXT_VALIDATION_RESULT", "finishLineActionId": "FINALIZE_TERMINAL_EVIDENCE" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "CHECKPOINT_REUSE_BOUNDARY", "rejectedConclusionIds": ["NEW_AUTHORITY_REQUIRED"], "generalizedLesson": "Reuse unchanged sealed checkpoint evidence and advance to the next unfinished authorized dependency.", "safeActionId": "RUN_NEXT_VALIDATION", "finishPath": ["RUN_NEXT_VALIDATION", "FINALIZE_TERMINAL_EVIDENCE"] }
+    },
+    {
+      "fixtureId": "TOOL_LIMITATION_REQUIRES_FINISH_LINE_PATH",
+      "source": {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-literal-path-capability-successor-static-suite-stop.json",
+        "sha256": "6760786c61acddb94d79734acaa0e98c74f51008357e871a67f08230f0490325"
+      },
+      "mission": { "objective": "Reach the authorized validation finish line despite one tool capability limit.", "project": "Katherine's Eye", "threadRole": "capability-recovery", "checkpoint": "The current command form cannot represent one literal path safely.", "finishLine": "Select a bounded equivalent execution context, run the validation, and preserve its result." },
+      "projectHistory": ["The preserved stop identifies a process capability boundary and leaves a bounded successor path."],
+      "evidence": [
+        { "evidenceId": "TOOL_FORM_LIMIT", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 1, "observation": "The current tool form cannot safely represent the required literal path." },
+        { "evidenceId": "BOUNDED_SUCCESSOR_AVAILABLE", "domain": "PROJECT_EXECUTION", "material": true, "sequence": 2, "observation": "An equivalent literal-path-safe successor can run the same validation under current authority." }
+      ],
+      "inferences": [{ "inferenceId": "CAPABILITY_NOT_FINISH", "supportingEvidenceIds": ["TOOL_FORM_LIMIT", "BOUNDED_SUCCESSOR_AVAILABLE"], "statement": "The tool limitation blocks one action form, not the authorized finish line." }],
+      "diagnoses": [
+        { "diagnosisId": "TOOL_CAPABILITY_BOUNDARY", "boundaryOrdinal": 1, "supportedByEvidenceIds": ["TOOL_FORM_LIMIT", "BOUNDED_SUCCESSOR_AVAILABLE"], "explainsEvidenceIds": ["TOOL_FORM_LIMIT", "BOUNDED_SUCCESSOR_AVAILABLE"], "generalRule": "When one tool form is unavailable, preserve the finish line and choose the smallest authorized equivalent path.", "persistAsMemory": false },
+        { "diagnosisId": "PROJECT_CANNOT_CONTINUE", "boundaryOrdinal": 2, "supportedByEvidenceIds": ["TOOL_FORM_LIMIT"], "explainsEvidenceIds": ["TOOL_FORM_LIMIT"], "generalRule": "Stop the project at the first tool limitation.", "persistAsMemory": false }
+      ],
+      "proposedConclusions": [
+        { "conclusionId": "CAPABILITY_SCOPE_CONFIRMED", "supportingEvidenceIds": ["TOOL_FORM_LIMIT", "BOUNDED_SUCCESSOR_AVAILABLE"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PROJECT_EXECUTION" },
+        { "conclusionId": "FINISH_LINE_IMPOSSIBLE", "supportingEvidenceIds": ["TOOL_FORM_LIMIT"], "claimType": "BOUNDED_PROJECT_CONCLUSION", "assertedDomain": "PRODUCT_BEHAVIOR" }
+      ],
+      "authority": { "allowedActionIds": ["RETRY_UNSUPPORTED_FORM", "SELECT_LITERAL_PATH_SUCCESSOR", "RUN_AND_CAPTURE_VALIDATION"], "prohibitedActionIds": [], "grantedClaimTypes": ["BOUNDED_PROJECT_CONCLUSION"], "prohibitedClaimTypes": ["QUALIFICATION", "LEARNING", "COGNITIVE_IMPROVEMENT", "DEPLOYMENT", "MEMORY_IMPROVEMENT"] },
+      "checkpoint": { "completedActionIds": [], "completedEvidenceIds": [] },
+      "solutionPath": [
+        { "actionId": "RETRY_UNSUPPORTED_FORM", "ordinal": 1, "status": "BLOCKED", "dependsOnActionIds": [], "producesEvidenceId": "SAME_TOOL_FAILURE", "materialStateChange": false, "blocker": "DEPENDENCY", "verification": "The same form remains outside the current tool capability." },
+        { "actionId": "SELECT_LITERAL_PATH_SUCCESSOR", "ordinal": 2, "status": "PENDING", "dependsOnActionIds": [], "producesEvidenceId": "SUCCESSOR_SELECTION", "materialStateChange": true, "blocker": "", "verification": "Bind the equivalent successor to the same repository identity and authority." },
+        { "actionId": "RUN_AND_CAPTURE_VALIDATION", "ordinal": 3, "status": "PENDING", "dependsOnActionIds": ["SELECT_LITERAL_PATH_SUCCESSOR"], "producesEvidenceId": "SUCCESSOR_VALIDATION_RESULT", "materialStateChange": true, "blocker": "", "verification": "Run and capture the intended validation once." }
+      ],
+      "verification": { "actionId": "SELECT_LITERAL_PATH_SUCCESSOR", "evidenceId": "SUCCESSOR_SELECTION", "finishLineActionId": "RUN_AND_CAPTURE_VALIDATION" },
+      "expected": { "domain": "PROJECT_EXECUTION", "causalBoundaryId": "TOOL_CAPABILITY_BOUNDARY", "rejectedConclusionIds": ["FINISH_LINE_IMPOSSIBLE"], "generalizedLesson": "When one tool form is unavailable, preserve the finish line and choose the smallest authorized equivalent path.", "safeActionId": "SELECT_LITERAL_PATH_SUCCESSOR", "finishPath": ["RETRY_UNSUPPORTED_FORM", "SELECT_LITERAL_PATH_SUCCESSOR", "RUN_AND_CAPTURE_VALIDATION"] }
+    }
+  ]
+}

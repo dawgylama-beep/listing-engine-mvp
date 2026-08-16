@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_MENTOR_GUIDED_REASONING_CONSOLIDATED_CORRECTION_RESULT",
+  "version": "1.12.36",
+  "correctionCycle": 1,
+  "executionCountPerGate": 1,
+  "overallStatus": "PASS",
+  "results": [
+    {
+      "gateId": "SERVER_CHECK",
+      "status": "PASS",
+      "startedAt": "2026-08-16T18:51:40.690Z",
+      "durationMs": 470,
+      "details": {
+        "status": "PASS",
+        "executionCount": 1,
+        "sourceByteLength": 25331,
+        "sourceSha256": "0da55cac414d3d9ff433576d93fb0254664b32f14f6721818e3cbfb019b09649",
+        "copyExact": true,
+        "dotenvPresent": false,
+        "credentialSourceReads": 0,
+        "exitCode": 0,
+        "stdoutSha256": "5ea066c87d63874e4312453119397510075648bccb540d483219ccbb266e3a2e",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "gateId": "SECRET_SCAN",
+      "status": "PASS",
+      "startedAt": "2026-08-16T18:51:41.161Z",
+      "durationMs": 1456,
+      "details": {
+        "status": "PASS",
+        "filesScanned": 2382,
+        "credentialValuesRead": 0,
+        "rawValuesEmitted": 0,
+        "legacyExplicitFixtureSuppressionCount": 2,
+        "findings": [
+          {
+            "relativePath": "benchmarks/blind-object-v2/scripts/offline-execution-qualification.mjs",
+            "ruleId": "OPENAI_KEY",
+            "findingSha256": "a791829b695664e478d184f181b4de9800f9b2926ff2a10cdd060e9b442d9c13",
+            "occurrenceOrdinal": 1,
+            "expectedOccurrenceCount": 1,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-001"
+          },
+          {
+            "relativePath": "tests/blind-object-v2-execution-spine.test.mjs",
+            "ruleId": "OPENAI_KEY",
+            "findingSha256": "a791829b695664e478d184f181b4de9800f9b2926ff2a10cdd060e9b442d9c13",
+            "occurrenceOrdinal": 1,
+            "expectedOccurrenceCount": 2,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-002"
+          },
+          {
+            "relativePath": "tests/blind-object-v2-execution-spine.test.mjs",
+            "ruleId": "OPENAI_KEY",
+            "findingSha256": "10c59ce1c1c29426529af4e033c0dcbe5590d4c0a9c96519c2ed0777cdae3611",
+            "occurrenceOrdinal": 2,
+            "expectedOccurrenceCount": 2,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-003"
+          },
+          {
+            "relativePath": "tests/synthetic-executive-blind-qualification-real-route.test.mjs",
+            "ruleId": "OPENAI_KEY",
+            "findingSha256": "20eacdf476da37b8391941b5f1fa88f3d6de078b4254c64ea8dca05b5e76310f",
+            "occurrenceOrdinal": 1,
+            "expectedOccurrenceCount": 2,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-004"
+          },
+          {
+            "relativePath": "tests/synthetic-executive-blind-qualification-real-route.test.mjs",
+            "ruleId": "OPENAI_KEY",
+            "findingSha256": "973275f4f3120ceb0779faee156959af4e9d36b1f19145874339bb38315bef82",
+            "occurrenceOrdinal": 2,
+            "expectedOccurrenceCount": 2,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-005"
+          },
+          {
+            "relativePath": "tests/synthetic-executive-blind-qualification-real-route.test.mjs",
+            "ruleId": "BEARER_VALUE",
+            "findingSha256": "eba3c6ca7e2e0ccadcf6a0d79ed49bd751e9ad325690ad0f8ba80c1b11e6f4b0",
+            "occurrenceOrdinal": 1,
+            "expectedOccurrenceCount": 1,
+            "classification": "PROVED_NON_SECRET_SENTINEL",
+            "registryEntryId": "FINDING-006"
+          }
+        ],
+        "knownSentinelFindingCount": 6,
+        "unexpectedFindingCount": 0,
+        "missingRegistryEntryCount": 0,
+        "missingRegistryEntries": [],
+        "unreadable": [],
+        "code": null,
+        "executionCount": 1,
+        "credentialSourceReads": 0
+      }
+    },
+    {
+      "gateId": "REPOSITORY_INTEGRITY",
+      "status": "PASS",
+      "startedAt": "2026-08-16T18:51:42.617Z",
+      "durationMs": 321,
+      "details": {
+        "status": "PASS",
+        "executionCount": 1,
+        "branch": "refactor/beta-evidence-pipeline",
+        "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+        "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+        "tracking": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+        "frozenMutations": [],
+        "version11235Mutations": [],
+        "cognitiveFreezeHash": "f0127ed29a1fe40fdd08936712ad09ff884405dbf8c81147f5709e3f2c2eb194",
+        "successorFreezeHash": "45f7779d2ad4a16f3a99bc4eadd994a93edf40776d26f39a0c9016c43db37f02",
+        "corpusSealHash": "61c67cf5a725ea0eab6d02e8f3ac4ece6bc02fb0fd8e2dffb378878db8bc1061",
+        "version11235TerminalSha256": "670deefbc40a98b8eeb93c552783e60db579db395731e1d6954a130a4f139277",
+        "dotEnvIgnored": true,
+        "dotEnvTracked": false
+      }
+    }
+  ],
+  "activity": {
+    "credentialSourceReads": 0,
+    "credentialValuesRead": 0,
+    "providerCalls": 0,
+    "metadataRequests": 0,
+    "v3Executions": 0,
+    "v3Evaluations": 0,
+    "qualificationExecutions": 0,
+    "benchmarkExecutions": 0,
+    "productHandlerCalls": 0,
+    "deployments": 0,
+    "activations": 0,
+    "remoteWrites": 0
+  }
+}

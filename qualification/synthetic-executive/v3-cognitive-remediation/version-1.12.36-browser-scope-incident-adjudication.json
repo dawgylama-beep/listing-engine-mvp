@@ -1,0 +1,2273 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_36_BROWSER_SCOPE_INCIDENT_ADJUDICATION",
+  "version": "1.12.36",
+  "classification": "VERSION_1_12_36_BROWSER_GATE_SCOPE_ESCAPE_AND_LOCAL_IGNORED_CAPTURE_LOSS",
+  "checkpoint": {
+    "repository": "C:/Users/dawgy/Projects/listing-engine-mvp",
+    "branch": "refactor/beta-evidence-pipeline",
+    "head": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "parent": "b3bde8269a17b54dcff956a1c5f5be1cb28092d3",
+    "trackingHead": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "aheadBehind": [
+      0,
+      0
+    ],
+    "directRemoteHeadAtRecoveryGateA": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "pushAttemptsAfterVersion11235Release": 0,
+    "remoteWritesAfterVersion11235Release": 0
+  },
+  "candidateAtStop": {
+    "reportedEditedFiles": 16,
+    "modifiedTrackedCount": 8,
+    "newUntrackedCandidateCount": 8,
+    "modifiedTracked": [
+      "PRODUCT_ROADMAP.md",
+      "lib/cognitive-governor/policy.js",
+      "package-lock.json",
+      "package.json",
+      "public/index.html",
+      "server.ps1",
+      "tests/cognitive-governor-callsite.test.mjs",
+      "tests/release-version-surface.test.mjs"
+    ],
+    "newUntrackedCandidate": [
+      "docs/mentor-guided-reasoning-contract.md",
+      "lib/cognitive-governor/mentor-guided-reasoning.js",
+      "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-browser-gate-stop.json",
+      "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-gate-a.json",
+      "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release.mjs",
+      "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-ledger.json",
+      "tests/fixtures/version-1.12.36-mentor-guided-remediation.json",
+      "tests/mentor-guided-reasoning.test.mjs"
+    ],
+    "records": [
+      {
+        "relativePath": "PRODUCT_ROADMAP.md",
+        "byteLength": 125225,
+        "sha256": "5103e084ebcded44aa7f36f81556a6967e740a59331d9c0e454fb5fd72c8175c",
+        "lastWriteUtc": "2026-08-16T18:09:31.855Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "docs/mentor-guided-reasoning-contract.md",
+        "byteLength": 2698,
+        "sha256": "18e98754cb6e28f6d5a91296627b8bf95f0d20d170a9eed9e1f4b8dd39327343",
+        "lastWriteUtc": "2026-08-16T18:09:01.900Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "lib/cognitive-governor/mentor-guided-reasoning.js",
+        "byteLength": 16305,
+        "sha256": "c63541acd52e1c6e05200c663699db8cf3218d5c9446ebf537e841fabeda890e",
+        "lastWriteUtc": "2026-08-16T18:08:58.434Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "lib/cognitive-governor/policy.js",
+        "byteLength": 20646,
+        "sha256": "02650456f3adf7e465b40b91e335c4618a894975b3c928bc8ed585c43439472e",
+        "lastWriteUtc": "2026-08-16T18:03:41.766Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "package-lock.json",
+        "byteLength": 2370,
+        "sha256": "d4b54420c0b5ac3e569a29bcf9f59e0b7141f14c989920b46d1a786666a00a22",
+        "lastWriteUtc": "2026-08-16T18:09:28.022Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "package.json",
+        "byteLength": 2948,
+        "sha256": "4f39ce51a1ea6980634b445e937a33ee945e0e5807660d8d00850c56ec39df76",
+        "lastWriteUtc": "2026-08-16T18:09:27.139Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "public/index.html",
+        "byteLength": 26275,
+        "sha256": "29cac968e6ef43a07d0520a4926a1a2af045410d02228cf86e307cd3470a3fa5",
+        "lastWriteUtc": "2026-08-16T18:09:29.939Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-browser-gate-stop.json",
+        "byteLength": 4393,
+        "sha256": "0fcbd50991b1a3ee69e43bdda847d61bbbb5cd846f05e8798924962af1b58124",
+        "lastWriteUtc": "2026-08-16T18:18:20.573Z",
+        "preBrowserWrite": false
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-gate-a.json",
+        "byteLength": 3288,
+        "sha256": "c82bcd7251854f08d00c0e88356a1a2881c34bc8fef31b0620cd7cebd15450a3",
+        "lastWriteUtc": "2026-08-16T18:01:30.049Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-release.mjs",
+        "byteLength": 7822,
+        "sha256": "5307abdac75f24ce4fae5457eca87c7a8b48a6aa82fe9cae9c0c8d4c3727c884",
+        "lastWriteUtc": "2026-08-16T18:10:38.472Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-ledger.json",
+        "byteLength": 3015,
+        "sha256": "f7998734e873adceeed76ffedbdb5372e5b56923cfba10ef58fcbe2fa8d3c817",
+        "lastWriteUtc": "2026-08-16T18:01:30.921Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "server.ps1",
+        "byteLength": 25331,
+        "sha256": "0da55cac414d3d9ff433576d93fb0254664b32f14f6721818e3cbfb019b09649",
+        "lastWriteUtc": "2026-08-16T18:09:29.003Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "tests/cognitive-governor-callsite.test.mjs",
+        "byteLength": 8772,
+        "sha256": "c3ed95da79cac4d09d0e3a7fec71d8e59e2786947d2a145556d06247e5dc679e",
+        "lastWriteUtc": "2026-08-16T18:09:00.306Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "tests/fixtures/version-1.12.36-mentor-guided-remediation.json",
+        "byteLength": 42909,
+        "sha256": "445230f54b1286cc9e86525e41f07dab21e5275786448de7e263b58a182ab9f7",
+        "lastWriteUtc": "2026-08-16T18:07:43.883Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "tests/mentor-guided-reasoning.test.mjs",
+        "byteLength": 7028,
+        "sha256": "762265efebb5ebbbcd999ace194e8dce56172b843fe9fb1b4088deaad319ce82",
+        "lastWriteUtc": "2026-08-16T18:11:43.424Z",
+        "preBrowserWrite": true
+      },
+      {
+        "relativePath": "tests/release-version-surface.test.mjs",
+        "byteLength": 4485,
+        "sha256": "b221758c3907a6fa7f36a200557954d3681a09c6ba60e577b0b8984f91418e06",
+        "lastWriteUtc": "2026-08-16T18:09:30.907Z",
+        "preBrowserWrite": true
+      }
+    ],
+    "reconciliation": {
+      "missing": [],
+      "unexpected": [],
+      "duplicate": [],
+      "intersecting": [],
+      "unclassified": []
+    }
+  },
+  "gateA": {
+    "gateARecord": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-gate-a.json",
+      "byteLength": 3288,
+      "sha256": "c82bcd7251854f08d00c0e88356a1a2881c34bc8fef31b0620cd7cebd15450a3"
+    },
+    "validationLedger": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-ledger.json",
+      "byteLength": 3015,
+      "sha256": "f7998734e873adceeed76ffedbdb5372e5b56923cfba10ef58fcbe2fa8d3c817"
+    },
+    "browserMapped": false,
+    "browserClassification": "NOT_APPLICABLE_TO_DECLARED_VERSION_1_12_36_CHANGE_CLOSURE",
+    "changedDependencyClosureIncludesBrowserBehavior": false
+  },
+  "selectionIncident": {
+    "exactEnumeration": "rg --files tests | Where-Object { $_ -match '\\\\.ps1$' -and $_ -notmatch 'tests[\\\\/]helpers[\\\\/]' } | Sort-Object",
+    "enumeratedStandaloneCount": 53,
+    "admittedPath": "tests/milestone-2c2-browser-dom.ps1",
+    "admittedOrdinal": 28,
+    "defect": "DIRECTORY_WIDE_SUFFIX_SELECTION_EXCLUDED_HELPERS_BUT_DID_NOT_REQUIRE_GATE_MAPPING_OR_EXCLUDE_THE_UNMAPPED_BROWSER_WRAPPER",
+    "classification": "VALIDATION_SELECTION_FAILURE_NOT_PRODUCT_OR_COGNITIVE_FAILURE"
+  },
+  "processCreation": {
+    "outerCommand": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:/Users/dawgy/Projects/listing-engine-mvp/tests/milestone-2c2-browser-dom.ps1",
+    "innerCommand": "C:/Users/dawgy/Projects/listing-engine-mvp/node_modules/.bin/playwright.cmd test --config=playwright.config.mjs",
+    "exactObservableBrowserStartUtc": "2026-08-16T18:15:23.215Z",
+    "distinctWrapperProcessStartTimestamp": "NOT_RETAINED",
+    "declaredCases": 14,
+    "workers": 1,
+    "retries": 0
+  },
+  "observedCaseStarts": [
+    {
+      "traceRelativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-15753ae916f2f04a2fad.trace",
+      "traceTitle": "canonical-evidence.spec.mjs:1123 › real form submits one retail analysis and renders canonical cards",
+      "project": "desktop",
+      "caseStartUtc": "2026-08-16T18:15:23.215Z",
+      "assertionsStarted": 56,
+      "assertionsCompleted": 56,
+      "assertionErrors": 0,
+      "lastAssertion": {
+        "title": "Expect \"toHaveCount\"",
+        "expression": "to.have.count",
+        "completed": true
+      }
+    },
+    {
+      "traceRelativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c361088bb4eaed31704-recording1.trace",
+      "traceTitle": "canonical-evidence.spec.mjs:1236 › Buy to Resell renders canonical evidence exactly once",
+      "project": "desktop",
+      "caseStartUtc": "2026-08-16T18:15:36.172Z",
+      "assertionsStarted": 37,
+      "assertionsCompleted": 37,
+      "assertionErrors": 0,
+      "lastAssertion": {
+        "title": "Expect \"toBeVisible\"",
+        "expression": "to.be.visible",
+        "completed": true
+      }
+    },
+    {
+      "traceRelativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c450fdfe86878f385f2-recording2.trace",
+      "traceTitle": "canonical-evidence.spec.mjs:1244 › What’s It Worth renders canonical evidence exactly once",
+      "project": "desktop",
+      "caseStartUtc": "2026-08-16T18:15:39.254Z",
+      "assertionsStarted": 37,
+      "assertionsCompleted": 37,
+      "assertionErrors": 0,
+      "lastAssertion": {
+        "title": "Expect \"toBeVisible\"",
+        "expression": "to.be.visible",
+        "completed": true
+      }
+    },
+    {
+      "traceRelativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0dc6cf50b2d2d0b987ac-recording3.trace",
+      "traceTitle": "canonical-evidence.spec.mjs:1252 › Create a Listing preserves seller content and canonical evidence",
+      "project": "desktop",
+      "caseStartUtc": "2026-08-16T18:15:42.541Z",
+      "assertionsStarted": 27,
+      "assertionsCompleted": 27,
+      "assertionErrors": 0,
+      "lastAssertion": {
+        "title": "Expect \"toContainText\"",
+        "expression": "to.have.text",
+        "completed": true
+      }
+    }
+  ],
+  "cancellationBoundary": {
+    "signal": "CTRL_C",
+    "afterObservedCaseStartCount": 4,
+    "afterCompletedTracedAssertions": 157,
+    "beforeFifthCaseContextStart": true,
+    "suiteCompleted": false,
+    "parentExitCode": 1,
+    "lastGeneratedArtifactWriteUtc": "2026-08-16T18:15:44.687Z",
+    "postCancellationListenersObservedInPortRange3000To8999": 0,
+    "processCommandLineInspection": "UNAVAILABLE_ACCESS_DENIED"
+  },
+  "assertionAdjudication": {
+    "wrapperPreflightReached": true,
+    "playwrightAssertionsStarted": 157,
+    "playwrightAssertionsCompleted": 157,
+    "playwrightAssertionErrors": 0,
+    "wrapperPostSuiteSuccessAssertionsReached": false,
+    "browserSuitePassClaimSupported": false,
+    "productOrDomFailureClaimSupported": false,
+    "supportedProductFailureConclusions": 0
+  },
+  "sourceIntegrity": {
+    "trackedCandidatePathSetUnchanged": true,
+    "mentorImplementationUnchanged": true,
+    "versionSurfacesUnchanged": true,
+    "phase6aUnchanged": true,
+    "playwrightConfiguredOutputRoot": "test-results/playwright",
+    "candidateInputsLastWrittenBeforeBrowserStart": true,
+    "dependencyReferenceMatches": []
+  },
+  "priorCapture": {
+    "baselineRecord": {
+      "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.35-exhaustive-continuation-baseline.json",
+      "byteLength": 78126,
+      "sha256": "06c025010182b2b38b290d91d8ea384793dff93d2a2b1a558f9df4f1bb88227e"
+    },
+    "fileCount": 39,
+    "totalBytes": 3864482,
+    "pathSetHash": "f63ef7d3b833fb97fa10021ea5e3e5b601dc368221355963735cf2e1812e2124",
+    "aggregateHash": "743275cbda857f57707a325796490c730be2e5e0fb823276e0dc8bbde0734735",
+    "members": [
+      {
+        "relativePath": ".last-run.json",
+        "byteLength": 635,
+        "sha256": "ab8aa112152273fc0443a0eef88b45ffad42c4ad51167f63c8fbd54bf506d588"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/error-context.md",
+        "byteLength": 15002,
+        "sha256": "954fb0261eb02195227e2fc5621d7b67274ae8d1b0422f7110dfb311661d5444"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/trace.zip",
+        "byteLength": 183964,
+        "sha256": "f73d2e9992769a4795785c246993b57dfa6642d397cffa62938a7329d84a9431"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/error-context.md",
+        "byteLength": 15002,
+        "sha256": "954fb0261eb02195227e2fc5621d7b67274ae8d1b0422f7110dfb311661d5444"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/trace.zip",
+        "byteLength": 211572,
+        "sha256": "c4298ad253236f9fa665672c780768625f5efe0792d033aac3df41cc8d0ca01b"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/error-context.md",
+        "byteLength": 15030,
+        "sha256": "797f20790f7b958ec19a017c7974100a734b585df65f1066c1c4a77c2ee7451f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/trace.zip",
+        "byteLength": 184014,
+        "sha256": "77e63c4da3141ffe33e2bfc3a345d34efb4bc711f989476977360ec6455fefcb"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/error-context.md",
+        "byteLength": 15030,
+        "sha256": "797f20790f7b958ec19a017c7974100a734b585df65f1066c1c4a77c2ee7451f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/trace.zip",
+        "byteLength": 211621,
+        "sha256": "2a5d9b13b398a4b45983eab33cd14d77f3d3f217f367bb5bda72665ef2b06fbc"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/error-context.md",
+        "byteLength": 15013,
+        "sha256": "29133fa756db2711b43db3d98f3b65001e54e05996c03dba7afbd928ee531438"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/trace.zip",
+        "byteLength": 183968,
+        "sha256": "c331e2fd959bdb846dcca2741b6d51b6e2b7de2c65cf08c18b3f4a52fcbe7527"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/error-context.md",
+        "byteLength": 15013,
+        "sha256": "29133fa756db2711b43db3d98f3b65001e54e05996c03dba7afbd928ee531438"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/trace.zip",
+        "byteLength": 154612,
+        "sha256": "6ce82edb0c34dc8995cd6f261873b678ad6e62551bce693391658bde9e132619"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/error-context.md",
+        "byteLength": 15020,
+        "sha256": "afe370a33019fd983d698d173cc764cad0a2222730125709eb4b20bd4eb52df2"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/trace.zip",
+        "byteLength": 226185,
+        "sha256": "e3338aa7a13fb47b8212f9726dafdee0657ec8529e6dcf9f6c823583a9b541c1"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/error-context.md",
+        "byteLength": 15020,
+        "sha256": "afe370a33019fd983d698d173cc764cad0a2222730125709eb4b20bd4eb52df2"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/trace.zip",
+        "byteLength": 154587,
+        "sha256": "99e0a8a05f88b5fd22da069d0e87332ec1661d6fd335ac1d574fe083f434ac12"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/error-context.md",
+        "byteLength": 15014,
+        "sha256": "00ded375fd408b9269a315f401dd1d9160e38dbbbec1726b98c73abce5ec4d2e"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/trace.zip",
+        "byteLength": 339751,
+        "sha256": "5b3f02ae422e412930aae3bf397d9845056abf40508c5045349a92d9bb9534d7"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/error-context.md",
+        "byteLength": 15014,
+        "sha256": "00ded375fd408b9269a315f401dd1d9160e38dbbbec1726b98c73abce5ec4d2e"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/trace.zip",
+        "byteLength": 283786,
+        "sha256": "ea680b44fe3389245413440cf1c99a151af45b40bcd2b309ca516b73d98a6062"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/error-context.md",
+        "byteLength": 15006,
+        "sha256": "d3812d380d1f12613229c0172d963f59753ebea2803da00706e7e3b638b66bba"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/trace.zip",
+        "byteLength": 267569,
+        "sha256": "e5876f12fb012b1f1ba4395ba94f99d1a03bb5e67c6ddd73955ecd33cc11e284"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/error-context.md",
+        "byteLength": 15006,
+        "sha256": "d3812d380d1f12613229c0172d963f59753ebea2803da00706e7e3b638b66bba"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/trace.zip",
+        "byteLength": 154620,
+        "sha256": "e2590039f4b0a3dbf5393d3a05b96209a9ca2f13ef5bda2ae65ec4bbd8729a38"
+      }
+    ]
+  },
+  "captureAtStop": {
+    "fileCount": 293,
+    "totalBytes": 133690809,
+    "survivingPriorMembers": [
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      }
+    ],
+    "missingPriorMemberCount": 38,
+    "missingPriorMembers": [
+      {
+        "relativePath": ".last-run.json",
+        "byteLength": 635,
+        "sha256": "ab8aa112152273fc0443a0eef88b45ffad42c4ad51167f63c8fbd54bf506d588"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/error-context.md",
+        "byteLength": 15002,
+        "sha256": "954fb0261eb02195227e2fc5621d7b67274ae8d1b0422f7110dfb311661d5444"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-desktop/trace.zip",
+        "byteLength": 183964,
+        "sha256": "f73d2e9992769a4795785c246993b57dfa6642d397cffa62938a7329d84a9431"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/error-context.md",
+        "byteLength": 15002,
+        "sha256": "954fb0261eb02195227e2fc5621d7b67274ae8d1b0422f7110dfb311661d5444"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-Buy-to--1d6f3-nical-evidence-exactly-once-mobile/trace.zip",
+        "byteLength": 211572,
+        "sha256": "c4298ad253236f9fa665672c780768625f5efe0792d033aac3df41cc8d0ca01b"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/error-context.md",
+        "byteLength": 15030,
+        "sha256": "797f20790f7b958ec19a017c7974100a734b585df65f1066c1c4a77c2ee7451f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-desktop/trace.zip",
+        "byteLength": 184014,
+        "sha256": "77e63c4da3141ffe33e2bfc3a345d34efb4bc711f989476977360ec6455fefcb"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/error-context.md",
+        "byteLength": 15030,
+        "sha256": "797f20790f7b958ec19a017c7974100a734b585df65f1066c1c4a77c2ee7451f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-collect-b9621-ice-evidence-stay-canonical-mobile/trace.zip",
+        "byteLength": 211621,
+        "sha256": "2a5d9b13b398a4b45983eab33cd14d77f3d3f217f367bb5bda72665ef2b06fbc"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/error-context.md",
+        "byteLength": 15013,
+        "sha256": "29133fa756db2711b43db3d98f3b65001e54e05996c03dba7afbd928ee531438"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-desktop/trace.zip",
+        "byteLength": 183968,
+        "sha256": "c331e2fd959bdb846dcca2741b6d51b6e2b7de2c65cf08c18b3f4a52fcbe7527"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/error-context.md",
+        "byteLength": 15013,
+        "sha256": "29133fa756db2711b43db3d98f3b65001e54e05996c03dba7afbd928ee531438"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-Create--4c7e5-tent-and-canonical-evidence-mobile/trace.zip",
+        "byteLength": 154612,
+        "sha256": "6ce82edb0c34dc8995cd6f261873b678ad6e62551bce693391658bde9e132619"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/error-context.md",
+        "byteLength": 15020,
+        "sha256": "afe370a33019fd983d698d173cc764cad0a2222730125709eb4b20bd4eb52df2"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-desktop/trace.zip",
+        "byteLength": 226185,
+        "sha256": "e3338aa7a13fb47b8212f9726dafdee0657ec8529e6dcf9f6c823583a9b541c1"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/error-context.md",
+        "byteLength": 15020,
+        "sha256": "afe370a33019fd983d698d173cc764cad0a2222730125709eb4b20bd4eb52df2"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-malform-58c61-thout-legacy-reconstruction-mobile/trace.zip",
+        "byteLength": 154587,
+        "sha256": "99e0a8a05f88b5fd22da069d0e87332ec1661d6fd335ac1d574fe083f434ac12"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/error-context.md",
+        "byteLength": 15014,
+        "sha256": "00ded375fd408b9269a315f401dd1d9160e38dbbbec1726b98c73abce5ec4d2e"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/trace.zip",
+        "byteLength": 339751,
+        "sha256": "5b3f02ae422e412930aae3bf397d9845056abf40508c5045349a92d9bb9534d7"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/error-context.md",
+        "byteLength": 15014,
+        "sha256": "00ded375fd408b9269a315f401dd1d9160e38dbbbec1726b98c73abce5ec4d2e"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-mobile/trace.zip",
+        "byteLength": 283786,
+        "sha256": "ea680b44fe3389245413440cf1c99a151af45b40bcd2b309ca516b73d98a6062"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/error-context.md",
+        "byteLength": 15006,
+        "sha256": "d3812d380d1f12613229c0172d963f59753ebea2803da00706e7e3b638b66bba"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/test-failed-1.png",
+        "byteLength": 95837,
+        "sha256": "36027b671f2c8ae83823c200ac8397bf460e0b0861769e6fd551bcaf117f3bf9"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-desktop/trace.zip",
+        "byteLength": 267569,
+        "sha256": "e5876f12fb012b1f1ba4395ba94f99d1a03bb5e67c6ddd73955ecd33cc11e284"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/error-context.md",
+        "byteLength": 15006,
+        "sha256": "d3812d380d1f12613229c0172d963f59753ebea2803da00706e7e3b638b66bba"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/test-failed-1.png",
+        "byteLength": 48820,
+        "sha256": "2c5d76a2af0c7fc7e9f326897c65665d8dc26eda2f9be78aff46afd39fa72c8f"
+      },
+      {
+        "relativePath": "canonical-evidence-What’s--0510e-nical-evidence-exactly-once-mobile/trace.zip",
+        "byteLength": 154620,
+        "sha256": "e2590039f4b0a3dbf5393d3a05b96209a9ca2f13ef5bda2ae65ec4bbd8729a38"
+      }
+    ],
+    "modifiedPriorMembers": [],
+    "generatedMemberCount": 292,
+    "generatedTotalBytes": 133561066,
+    "generatedPathSetHash": "d68642656b5946b5d468effadf4ea41abfcb1cebb417476f9d9899026a4cd1c0",
+    "generatedAggregateHash": "e1a9a622fc98cb9cf95c09b9c31ed18dac00a2209e82cb300cf762b5ee9eeb82",
+    "generatedMembers": [
+      {
+        "relativePath": ".playwright-artifacts-0/63e14350cb3f8e34c734a6491d6ed3f8.png",
+        "byteLength": 84860,
+        "sha256": "9da3d352bc2d7cb3ec5e08f897be8c1db689a8504f136b82154ae01bb152c207"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/c3c13aaa43e15eb62787b65a1429401f.png",
+        "byteLength": 89897,
+        "sha256": "0995e8af055868d8f78e54418036594f6c70f053feb0ced1d1897a3db7fe480d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/dcc77b6a9ead55a301da94381265c78e.png",
+        "byteLength": 59777,
+        "sha256": "a5c4fdc017f69363e857270809fdd101c89155a2acceeb20bbc7bf1c20513142"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c361088bb4eaed31704-recording1.network",
+        "byteLength": 10549,
+        "sha256": "44e98e14c0c51d92e6f9ac0c3d1e9f3fcb49b2bd9aeec250b5e00e90ca13e4fd"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c361088bb4eaed31704-recording1.trace",
+        "byteLength": 1576740,
+        "sha256": "62e07679cc3b2eb21ee2955ebceb294e8c233be51220fd02fc40df8ba4ebcc28"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c450fdfe86878f385f2-recording2.network",
+        "byteLength": 10515,
+        "sha256": "9a81ba32a157316686bdaf4615ad2ee790251f468f5be2d2b9cfcf1ccb2497de"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0c450fdfe86878f385f2-recording2.trace",
+        "byteLength": 1649571,
+        "sha256": "cf7f57739380222e5c6d6cb7de2695f41d659553cc6a7a2925219d012e657ede"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0dc6cf50b2d2d0b987ac-recording3.network",
+        "byteLength": 10537,
+        "sha256": "5b658fd6afd470c198c7b65a47540eb594b951c56b315abcde10ff115eb0654a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-0dc6cf50b2d2d0b987ac-recording3.trace",
+        "byteLength": 923535,
+        "sha256": "edfce136e4b15e8b09473f7c8955b6800a5cf76c6d0ff1fc474753407f609f46"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-15753ae916f2f04a2fad.network",
+        "byteLength": 19378,
+        "sha256": "5f4993963862815189a643936d66c2360778646edf5dbe4b7556ffde4b729505"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/49ea952986c3b6c7f712-15753ae916f2f04a2fad.trace",
+        "byteLength": 4665142,
+        "sha256": "dcfe3f7594c8c9587a74773e5362860c33a1138d58ddb4217e39a937d2e06e9f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/1c36ed586892e945875d9facac8483520b189115.css",
+        "byteLength": 75346,
+        "sha256": "77b3a81a73239360423521ab910e2d2967ee235061a5d1b1980adb5ba93beeea"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/1fab1f9fc4f5ed9867eab6bd4a90d0045c72760b.json",
+        "byteLength": 61641,
+        "sha256": "a06cd8e2de87a5e1920251182c0c1551bf9e0f9dceadb011a881153699142ff5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/4fdcd218d5fe23f49efdcc9497b7460a937d8ee0.json",
+        "byteLength": 472978,
+        "sha256": "09cdcafcecbfebf60464c88a6f6e62d1614b5b64f8b9a93127ace5083d1c71f9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/542239e30c3a050c69fb0750073f841b808e110c.json",
+        "byteLength": 9750,
+        "sha256": "1b74725fd32cf7dcf651a8be851b478dabec4aa6d47fb5a1d1677ed42f4e5dca"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/58796133497b8232d62080ff45a76ed36ce13396.json",
+        "byteLength": 497715,
+        "sha256": "90fcbec274aa6f2d6371e4db195912c8ea84f370976faf3506da55c3112c4e7f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/631ad1f2d4eed114194fa33de4cacfe15c462b0f.json",
+        "byteLength": 234886,
+        "sha256": "3144e0991617b3fbb699ad54eac16c6676483c69b77af6996d9a97b033fae203"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/6aa80dfd1ef4b5f94c08b846a1485d3a201f97e8.json",
+        "byteLength": 9792,
+        "sha256": "37657ef3add212a20918bec1b3fde70902db873faf03eb5bc4f3b7d46af4938f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/6c8b3cc4a6b759a3a639ead4ba677075ffeada1d.json",
+        "byteLength": 944682,
+        "sha256": "73cd06b731bcef30b6da5a94faed4cbfc744fc38ec7d40dd61a9b7210af82bbe"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/8691c8d0c94ab9a8926a03db316705060cc026b1.html",
+        "byteLength": 26275,
+        "sha256": "29cac968e6ef43a07d0520a4926a1a2af045410d02228cf86e307cd3470a3fa5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/87edcee820bbedb95fcb0004a1e04ca8f66c9da9.json",
+        "byteLength": 944682,
+        "sha256": "19d9ea0f95e1f7b4858aa13c66908439acb5263e3b46440e751f216ecd9c7ca8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/8f0f4f676bd766ed785d001df1dbf008e009f535.json",
+        "byteLength": 303325,
+        "sha256": "38ca2735c30b7a19d0ca433f4e737f8e1570e5aabb2a939724f21ac3c422b3bb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/c6e189fca3144580eaded53a1cdf3785b319d590.json",
+        "byteLength": 9977,
+        "sha256": "2aae3998a0ac8d000011ba9c7bc5c605aa777b7efe6863a1393cd62cf5d07c0b"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/cc4636ae133bebe12f26e42f2fff63d8d9a45025.json",
+        "byteLength": 37777,
+        "sha256": "c297a238e684e2f3bb156e556313921da4c9826facefa60c9d5c4e11dfb6d902"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/cf821e0826b5eed690db939fbc3410605b4a55ba.json",
+        "byteLength": 142022,
+        "sha256": "5274fd8207b2fb632646c694484346f6c8aa1781fee55814d2e3ab80e349eb26"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/d4c40792c8d4a257cc88cd36d0e90030bff7a934.json",
+        "byteLength": 70001,
+        "sha256": "3c57d3de9f75034685d2acf97fc0d8ecfb82e323d8845a58363785e6fb241d50"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/d4d00153d4a7dfe42abeafa59d6abf89f701d0af.json",
+        "byteLength": 88062,
+        "sha256": "dcee3994b787b9f7ddc3ce6d28ba75f61cb5ff0c3495239767714fa2bd26721b"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/e856245ce71f17ddc449cef504c539e0a44efce8.json",
+        "byteLength": 126,
+        "sha256": "d400e26cdc48293cb227780d56989086017a02a2d3db213a6dcbf7f8dec6ef1c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139321.jpeg",
+        "byteLength": 2684,
+        "sha256": "e629341910f73497e6d4bb6f9a9d5436f479f49ab43fc1162ce67aec4893c00c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139426.jpeg",
+        "byteLength": 48423,
+        "sha256": "eb8776446fcfc9cf44abff76b85ae1ba0dad696b5288d4a2dfec38c6dae2ed90"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139439.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139448.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139512.jpeg",
+        "byteLength": 49484,
+        "sha256": "c525d179e32d760cbdf060612894b112f423a8fe83edd2854a937a3274839bf5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139530.jpeg",
+        "byteLength": 29162,
+        "sha256": "459a7d061b44b732e65873a77283794105a84d8138120417fa0fb6572d375784"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139598.jpeg",
+        "byteLength": 27332,
+        "sha256": "b38dbf1a5de8a3ce06d0d8ce6385f74d177074dd888c019571adad5b4b0f3691"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139608.jpeg",
+        "byteLength": 27338,
+        "sha256": "436d9774d19e090a130e5c16fdc1cc910b27a22130c21ff814118003634f1693"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139623.jpeg",
+        "byteLength": 28499,
+        "sha256": "bd7f32cbf7a569474b153224a0abe310301a6b4e3eb85eefde8500aad3a31b06"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139639.jpeg",
+        "byteLength": 28967,
+        "sha256": "ccb4c9b2ff06c6bbdc3f1285717a5a251ee2ac7c1adfc6e22d33428da6bdee59"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139661.jpeg",
+        "byteLength": 28822,
+        "sha256": "ff1c36b2731b20b80d4595f92d21369dd68f142318a1797f896738927f3cc1b7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139671.jpeg",
+        "byteLength": 28849,
+        "sha256": "75bb8d6ca313eccfc391042b4c1ac180edb45e14f7c97b528308cf10d70f5980"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139687.jpeg",
+        "byteLength": 28812,
+        "sha256": "0a067b912628a26b6892b827576a7c766e58118b40ec77bba5fefd31b86db683"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904139704.jpeg",
+        "byteLength": 28827,
+        "sha256": "be761f3d32b8c9d4008ad63f36e2089c843226cf6fcfbdacb3c41d24d03f6def"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140208.jpeg",
+        "byteLength": 28804,
+        "sha256": "78f0fa93c6cb4033f92baea4d5e8b6ac6194d899c664e9a422e90a79d779ff42"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140209.jpeg",
+        "byteLength": 27395,
+        "sha256": "52d96db6f5bb22f5ae10a900cb1d80259225da6fcfae04bb438478826565deda"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140296.jpeg",
+        "byteLength": 62522,
+        "sha256": "d0cb0b6124b235b356c5cad5ec904f86c85b8e4a32a5c86a5cb74db05e7497a8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140306.jpeg",
+        "byteLength": 62510,
+        "sha256": "f6c8c1cf6a8354541c4a9b66be2928004686b9a5b598e07fdeced87cbbe80705"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140316.jpeg",
+        "byteLength": 62486,
+        "sha256": "af61537fda7ef11f5e31223934e90e1c79ee82b06c25bf7b8603194f0242e012"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140336.jpeg",
+        "byteLength": 62471,
+        "sha256": "1453adfa3e6dea67a4b3f0fa07b265497f0aa03072b39b3cb0fd4654e25e1699"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140354.jpeg",
+        "byteLength": 62501,
+        "sha256": "0f07d24d29dc0a07076eeb60beed6bdb83d75f71a293b12bf5ec668d5b0968ec"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140370.jpeg",
+        "byteLength": 62488,
+        "sha256": "34f6876fb14ec586c58bed7e9d3894f954530ed58f685757f5e2ad503f39a4bc"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140389.jpeg",
+        "byteLength": 62493,
+        "sha256": "5a8f76099235486a266684de50e2967e0752562551e10a2a7adf24e9ab49edfd"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140401.jpeg",
+        "byteLength": 62373,
+        "sha256": "944dfa9a3579c0ea27c60605cacd7c42dbe5c4fb4effbcdb5322fa576488e021"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140411.jpeg",
+        "byteLength": 62358,
+        "sha256": "8babe1debf30d962ab507127005140d846e94b1b2a2de0c291086e6e06bd4d0f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140423.jpeg",
+        "byteLength": 62380,
+        "sha256": "6d84700f41e2ca4612398dcda0f267f81af4fa918dfafb20015d1f496307bb53"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140438.jpeg",
+        "byteLength": 62380,
+        "sha256": "885a7ddf21ea56b0ca7c4daa0bdacdc45584cc0aab2527cff14e773c21694fba"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904140455.jpeg",
+        "byteLength": 62409,
+        "sha256": "88c8551b4aecfc37a07553890ae45cfe023ec8de773fb7abe570651e129f1a50"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141417.jpeg",
+        "byteLength": 97149,
+        "sha256": "60f55ac45e1c4439aac3e58ffa5e5d431b54fe89a84453e97361a630570da4de"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141435.jpeg",
+        "byteLength": 97162,
+        "sha256": "7bc2ae40e667bf4f0bc061b0788ba705825765d625215c99452cd2cc18be5514"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141446.jpeg",
+        "byteLength": 97171,
+        "sha256": "02d85f8a600039d13179fbbae3e259fb3f8e11e625c6d661fdd934877c8eac5c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141458.jpeg",
+        "byteLength": 97222,
+        "sha256": "9c84e38bea6a94c3147a64f1d9b10271fe17d3ab0f26ea8c09aec0fce6e1b78e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141474.jpeg",
+        "byteLength": 97216,
+        "sha256": "e8a071587187395a3236e268e5be37c07a446440b98786df11f17a50db6c167e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141500.jpeg",
+        "byteLength": 97237,
+        "sha256": "46f2bc4f5f035468b66b9f67de06a7df206e9087d0f80753b7c28890dd36137e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141515.jpeg",
+        "byteLength": 40552,
+        "sha256": "d366503bfacb2d0a23edfe8c9a361e5b1ed109750e5282e4840ad3930689800a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141579.jpeg",
+        "byteLength": 39844,
+        "sha256": "0de7deeb3310257e6b82a18ef25146295bb3b007bcfcda1cd36909cde1a5aeb2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141596.jpeg",
+        "byteLength": 37974,
+        "sha256": "ca3503a91d475631b0c8884c4abc22e9eb86342d771d554790bf5cd7b56ebd19"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904141609.jpeg",
+        "byteLength": 37974,
+        "sha256": "ca3503a91d475631b0c8884c4abc22e9eb86342d771d554790bf5cd7b56ebd19"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142069.jpeg",
+        "byteLength": 37974,
+        "sha256": "ca3503a91d475631b0c8884c4abc22e9eb86342d771d554790bf5cd7b56ebd19"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142101.jpeg",
+        "byteLength": 37974,
+        "sha256": "ca3503a91d475631b0c8884c4abc22e9eb86342d771d554790bf5cd7b56ebd19"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142138.jpeg",
+        "byteLength": 37974,
+        "sha256": "ca3503a91d475631b0c8884c4abc22e9eb86342d771d554790bf5cd7b56ebd19"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142201.jpeg",
+        "byteLength": 37537,
+        "sha256": "dec79915caba573e4a7f5327bb25a4379c78c4d5e54e40061caac03bce00635a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142211.jpeg",
+        "byteLength": 58056,
+        "sha256": "1097a06db8a213cde3e358ee4eb2b2569fbf5af0ff5962643d88f316a75e0d31"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@066e298e63fae35f7b220f18ef745539-1786904142226.jpeg",
+        "byteLength": 58056,
+        "sha256": "1097a06db8a213cde3e358ee4eb2b2569fbf5af0ff5962643d88f316a75e0d31"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136263.jpeg",
+        "byteLength": 2684,
+        "sha256": "e629341910f73497e6d4bb6f9a9d5436f479f49ab43fc1162ce67aec4893c00c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136380.jpeg",
+        "byteLength": 48423,
+        "sha256": "eb8776446fcfc9cf44abff76b85ae1ba0dad696b5288d4a2dfec38c6dae2ed90"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136392.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136407.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136464.jpeg",
+        "byteLength": 48082,
+        "sha256": "dbbfcdcf354a87ffc149690a663f01c37cc868ca51f483aa164341bb387ca102"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136475.jpeg",
+        "byteLength": 48063,
+        "sha256": "75c832f9147ec53cafc359976ac9adf150d4b7a8255dc9257650b8bffec15e77"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136495.jpeg",
+        "byteLength": 30082,
+        "sha256": "5ff62facf33e983cdb8e9dc4e08467465ce62625aa3a009cd4b386a404b4a59f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136513.jpeg",
+        "byteLength": 33765,
+        "sha256": "de512ed671a74ed2b59fd31f80c3f8c61a3fc72b7a500a039bf4c0d6574a918e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136527.jpeg",
+        "byteLength": 33363,
+        "sha256": "a0985c2a66facd73b83449bad538571fb839f61543c7bd274d487f92cd560816"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136544.jpeg",
+        "byteLength": 35573,
+        "sha256": "cf8937dae18133c7fa138352630e7d444f7a9062660694f71303568582c597e2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136558.jpeg",
+        "byteLength": 35813,
+        "sha256": "550ad4ee5e515b5287bdbdc274d33acb4f2caaa11cbad56a106080a33c1ccbcd"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136571.jpeg",
+        "byteLength": 35765,
+        "sha256": "fa654da3d39abb24673e8cfee9f0f1ef8db15bcbf04b05dff809a51dcc96368b"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136591.jpeg",
+        "byteLength": 35733,
+        "sha256": "41cdcc193202bd1f2e86812cbabdd9a71e93132514092e33b2c0b371759c786c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136613.jpeg",
+        "byteLength": 31945,
+        "sha256": "ce0e82721dd44ce930a118bc46d23226e71e14cfd1683cd72094c0ef17cacbbe"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136627.jpeg",
+        "byteLength": 33202,
+        "sha256": "85d88d5897a0733e5636454f401b3199404c5e71198444e9ea1fa75573e7d3a0"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136642.jpeg",
+        "byteLength": 33615,
+        "sha256": "90d78190e10d971cd6f08ce6a0487f13df8b55f9b592b0dc44bff869be1f2afb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136664.jpeg",
+        "byteLength": 33614,
+        "sha256": "cdce3b8d7b18647ceeaa8f9ff4a604142a71a658ced6ba57430c8f0cdcec4950"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136677.jpeg",
+        "byteLength": 33655,
+        "sha256": "649b3830540c805b033a175d95df39ac6611a9b3ff45946c642dcb76fffe09f9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136688.jpeg",
+        "byteLength": 33665,
+        "sha256": "7b1416fa14521ed171b0098d08b91bb04583dd1e636ec477b9873e4de73c462e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136702.jpeg",
+        "byteLength": 33670,
+        "sha256": "93bba588d52ead01467cb65651bf7bbfa9cdb7f4e4a9c98c4edb58aa3e59a5d0"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136732.jpeg",
+        "byteLength": 33702,
+        "sha256": "8edcae81f1d5b2ada0246123e54e44836becd0725d10405785863fcf90d973bb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904136742.jpeg",
+        "byteLength": 33709,
+        "sha256": "e3e62d48206a35bd1319d9c2a94f6d25e25a3d2b451b3a4ebca770d3cba550d7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137136.jpeg",
+        "byteLength": 26042,
+        "sha256": "6b6c0d75ffd0faa8e8614c39ca5630f279ecae08a483e8b729fb67f4ea2b257a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137227.jpeg",
+        "byteLength": 62978,
+        "sha256": "28977b2fec260afb154d4c0bebec40a7ef5fd58dc0d4a62873d614079fa105bb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137234.jpeg",
+        "byteLength": 63047,
+        "sha256": "5f6079d9af992cd65935aa98d97ea6742d70f26e7df1ded4019e58832dd2410a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137244.jpeg",
+        "byteLength": 63063,
+        "sha256": "e47b4ccbfb875d4445326c920575238c5b3765d5d35cc0ecf5d4bd6e2271ce0a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137270.jpeg",
+        "byteLength": 63103,
+        "sha256": "6eb42606a77943bcdbc339ef10223bef38fb77cbf2ab6f7038564885b79b6947"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137287.jpeg",
+        "byteLength": 63178,
+        "sha256": "d4742e5e4ebcc73646eaeb858aa71ab418fd20286db9987623bc7b5f74e70768"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137305.jpeg",
+        "byteLength": 63170,
+        "sha256": "a87a99ad20134b9f0cdeed8f8654ea40bef5721d0aac0035f48091cfde5a069f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137323.jpeg",
+        "byteLength": 63137,
+        "sha256": "245bfc091487d35175ddbc1f11ef982e8086f27aab4de1a53910a42c3b879114"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137338.jpeg",
+        "byteLength": 63118,
+        "sha256": "643586aa606f73f466d1434f7fd5aea50a3864fbdf380d192638d87720237879"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137355.jpeg",
+        "byteLength": 63097,
+        "sha256": "f4097863a2f956fc58d26380e2b43ff1a44c1c44c337e17a7eae6ce65f59661a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137371.jpeg",
+        "byteLength": 63150,
+        "sha256": "ae04d8ba9b502766db557990265efcca59132e21b3126eaad7723aeef3cc875a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137387.jpeg",
+        "byteLength": 63096,
+        "sha256": "eff4eee2e2a5532787cf2baacb9fc842d72e7a9bc86b776bae5107d58c35a5f6"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904137405.jpeg",
+        "byteLength": 63135,
+        "sha256": "69c9b67bafb131ebf70907e5bc0c111fa3ef6cf6ce8f9fe2d7acf253ef83af1a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138218.jpeg",
+        "byteLength": 95012,
+        "sha256": "feca2e3c950212d4deb380069053779b053f779a1cf5cf150baf98989710832d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138237.jpeg",
+        "byteLength": 95009,
+        "sha256": "7bd28b6758585e71bc61ae794950fe628ba2b6cf238a47ee06c6defcca3ecb12"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138247.jpeg",
+        "byteLength": 95009,
+        "sha256": "30cbfef938d30f6b756fb0eb4435fbf1cc6f0afd5c3d4d2b5c7aae84eb5d9976"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138258.jpeg",
+        "byteLength": 95064,
+        "sha256": "7b48f042d7bb61ce0860a6b6fc325203820ea2ecfa240188f0c6e08d5a1f3a59"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138282.jpeg",
+        "byteLength": 95076,
+        "sha256": "18681ca67761c81aa74713fce6795a088d51ff83aef783258010f1a85edfb0a7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138299.jpeg",
+        "byteLength": 40262,
+        "sha256": "cdadd13fa5d33a4d63faf11627560eb1589b0109077827daa2b1e713bd57a91e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138362.jpeg",
+        "byteLength": 39586,
+        "sha256": "36a62f6b78d08c51ba14278a361f42a37786c259421a7899f16c4e809508439a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138380.jpeg",
+        "byteLength": 38685,
+        "sha256": "079a16e308da752c669383ea39cc6457e722524fa35451f893048edd48649c7c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138397.jpeg",
+        "byteLength": 38685,
+        "sha256": "079a16e308da752c669383ea39cc6457e722524fa35451f893048edd48649c7c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138476.jpeg",
+        "byteLength": 1514,
+        "sha256": "8390cd3bf61024577fec0263c9c2e37b3ef6514a4fda0e666b7e34745288b0a8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138834.jpeg",
+        "byteLength": 38685,
+        "sha256": "079a16e308da752c669383ea39cc6457e722524fa35451f893048edd48649c7c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138863.jpeg",
+        "byteLength": 38685,
+        "sha256": "079a16e308da752c669383ea39cc6457e722524fa35451f893048edd48649c7c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138886.jpeg",
+        "byteLength": 38685,
+        "sha256": "079a16e308da752c669383ea39cc6457e722524fa35451f893048edd48649c7c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138951.jpeg",
+        "byteLength": 37500,
+        "sha256": "779536343950e0b445336d8cfb1db51963f77d1d90f54f09fdd8bd03f9f459da"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138963.jpeg",
+        "byteLength": 54249,
+        "sha256": "d71bb894d1a68fb1d5ae2971262312a89b70b4b0b1d1cf743223be1b3d6abcf3"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@0b714db96592a6bfc33c47d54d69a68e-1786904138977.jpeg",
+        "byteLength": 54249,
+        "sha256": "d71bb894d1a68fb1d5ae2971262312a89b70b4b0b1d1cf743223be1b3d6abcf3"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130771.jpeg",
+        "byteLength": 2684,
+        "sha256": "e629341910f73497e6d4bb6f9a9d5436f479f49ab43fc1162ce67aec4893c00c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130877.jpeg",
+        "byteLength": 48423,
+        "sha256": "eb8776446fcfc9cf44abff76b85ae1ba0dad696b5288d4a2dfec38c6dae2ed90"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130891.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130906.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130958.jpeg",
+        "byteLength": 27512,
+        "sha256": "b8ea5caa9537ecc36c560b54bda9c804b37d27bbb23588c270868d0136daff0f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130977.jpeg",
+        "byteLength": 29247,
+        "sha256": "812112167d5b9c8418cab204d562fe6594a870f6e881ef5243cde326eb381dbc"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904130992.jpeg",
+        "byteLength": 28410,
+        "sha256": "ac3cab34fc594924341fc4aa1511ff5fda2db858f6738c163229bcb990827def"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131010.jpeg",
+        "byteLength": 28939,
+        "sha256": "4698aca52d7eef8fd480d3972957380c3ae03168e2ed2430259347063b4e6fd2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131021.jpeg",
+        "byteLength": 28798,
+        "sha256": "075ebcca7cecb1b0026913b40ff7131ed6f4dd91a13b107cc1b45609793b8e71"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131059.jpeg",
+        "byteLength": 28573,
+        "sha256": "5ffecc3caeb7147e45f6e16ee8168f7e5c4d4bfbd2301fd84cdaf7e031a2fcae"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131075.jpeg",
+        "byteLength": 29945,
+        "sha256": "cb9cf94619bded4995229aa85ab91135d14f4cbce8e3a1afe4511e99b249c06e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131090.jpeg",
+        "byteLength": 30460,
+        "sha256": "2988ba41cb8cbe502a9ae32d18f19d05cd853dad46cf70fabee9da5c5245af27"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131108.jpeg",
+        "byteLength": 31006,
+        "sha256": "302dbf6d96cee4b8ad03cee35691580d7d1b25c8de94b00abebb23b7cdfcbdc3"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131136.jpeg",
+        "byteLength": 31034,
+        "sha256": "b9b91e9d828c3d20c43ada2b158f5141778eca3786559a591f508b04d04fb660"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131152.jpeg",
+        "byteLength": 31081,
+        "sha256": "19ff05ea9599b4f7a8c588f47d3253b93323768570e873a023ddfb7e12fb791f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131164.jpeg",
+        "byteLength": 31106,
+        "sha256": "15de43529ca0a9a02a26a3756d701c82348a148166151a2a5b7095788b28b87f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131178.jpeg",
+        "byteLength": 31108,
+        "sha256": "dff8c249ec53fe7a17d0f6f7dddb57ded56ce9a7eb443f3316d1b9d4740fce95"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131190.jpeg",
+        "byteLength": 31116,
+        "sha256": "b925554e0cf1b3a8f4ee35ee7161a694eaa816bb8e952bb6bd9af9ecde68e113"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131206.jpeg",
+        "byteLength": 31094,
+        "sha256": "f3f7483bba910628c77fc3337102d9e2ea5b07db1579c75a5c365fbac42ded7e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131221.jpeg",
+        "byteLength": 31121,
+        "sha256": "fbd0505588d0db39109b422f4d711fdcb1783d6a5b7222d87223baafece3d090"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131240.jpeg",
+        "byteLength": 24394,
+        "sha256": "57a5eaf44bf6b625d7a8e867538b7ab96eb51859b5495f59fe1bab88de687c35"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904131256.jpeg",
+        "byteLength": 23556,
+        "sha256": "db42b48d258da243eaaea88c105fa74e0cb9faa98f354526037db2a497b78c37"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904135912.jpeg",
+        "byteLength": 73782,
+        "sha256": "eb161cd9715563e3685666215bacc443844219bc7a53d344e5b4f9438a300d20"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904135937.jpeg",
+        "byteLength": 73845,
+        "sha256": "a228165f0bc929487998872151a435a548375348c05efe8785ff37153c83f9cb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904135943.jpeg",
+        "byteLength": 73863,
+        "sha256": "16116fde9cc0229cc5a139763f43e2af8e1c6496391b63d7f19df5f81b1a7d4d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904135956.jpeg",
+        "byteLength": 73881,
+        "sha256": "7f91a154fc90291d656cd9ea63aabc311c5ac990f4f498fe811b0ac9d6875b08"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904135987.jpeg",
+        "byteLength": 73872,
+        "sha256": "c477ca776fba518944966f5c64694fec2ecb176fb87c534af823caa5ef9d8e82"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136006.jpeg",
+        "byteLength": 73918,
+        "sha256": "e9cfd7c6028f769c42bb64f922dbdd30e3396136f38dc71c095cfe78ac621511"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136021.jpeg",
+        "byteLength": 73910,
+        "sha256": "3391cab8a8692a1aa0dc0b38a7ae6244fe5b95dcf86fe0d6da6fd7d1d8efb29c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136038.jpeg",
+        "byteLength": 73918,
+        "sha256": "0584351826178c7cf0cb3ea951b025926cdf61a2fdc042bde224c6c69c58662d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136048.jpeg",
+        "byteLength": 73879,
+        "sha256": "f14559122623eebf9824809f2c8fd70974f50c8be5f48b8d0a670d16351bad05"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136059.jpeg",
+        "byteLength": 73873,
+        "sha256": "be403de8eac8f43246f68184ec7cd8f7d384339aa6ae2599f4d3f35ac28d2b41"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@1157a060a250de2d96d1332a3eb37a3c-1786904136074.jpeg",
+        "byteLength": 73875,
+        "sha256": "cfc02ea96d33bbc9ca68ee19d734bc4cc47766064b9ab0cf47550c4e0465c2fc"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904123731.jpeg",
+        "byteLength": 2684,
+        "sha256": "e629341910f73497e6d4bb6f9a9d5436f479f49ab43fc1162ce67aec4893c00c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124097.jpeg",
+        "byteLength": 38827,
+        "sha256": "1b0d6cf09eac0670548e34ea1ca0fea0d74a2cd09f6197ef574cb52575dd8372"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124142.jpeg",
+        "byteLength": 48423,
+        "sha256": "eb8776446fcfc9cf44abff76b85ae1ba0dad696b5288d4a2dfec38c6dae2ed90"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124157.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124187.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124307.jpeg",
+        "byteLength": 29251,
+        "sha256": "67f1d48c0e50bc4029f4f59f2468fe9926ee6aa730ad4beb0da2666fc64fdbd7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124320.jpeg",
+        "byteLength": 27512,
+        "sha256": "b8ea5caa9537ecc36c560b54bda9c804b37d27bbb23588c270868d0136daff0f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124373.jpeg",
+        "byteLength": 27500,
+        "sha256": "776691b76d75dcf6697ccce08c538f772b2fedfd58faacd814013a179aa18e58"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124413.jpeg",
+        "byteLength": 27525,
+        "sha256": "65a484566279506009efab1559b3d8f048b6b46410c1750102d9b53cb6e108ef"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124425.jpeg",
+        "byteLength": 27656,
+        "sha256": "b0b8d97b9b729004f3a8976f82dd0f2b3355a50a6b080da12ae3145750c094c5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124437.jpeg",
+        "byteLength": 27668,
+        "sha256": "e27403c380bb841f458d0a38b9e6efaba5d6369030f6ad433fbb3bf76c453b27"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124449.jpeg",
+        "byteLength": 27671,
+        "sha256": "c862b7daa997b3aa64b21424c4db2465c2f7fbe101d517641b45d94cfbe5a444"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124461.jpeg",
+        "byteLength": 27701,
+        "sha256": "7273423ac2001fb693c7fd0c71c8e9305c0d99d8cdc940b6160589c6cd1acce4"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124475.jpeg",
+        "byteLength": 27718,
+        "sha256": "a6664d05b34003f9e7156d35aab3a58f7ebc8440e85a280469a27ccd51992b4a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124491.jpeg",
+        "byteLength": 27740,
+        "sha256": "3cf1536fc30d3b042c7a49f80116e0feffc6168e7675dea44051437de4b3553d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124510.jpeg",
+        "byteLength": 28022,
+        "sha256": "7d87ac9481e7a90260cc6a957b1303b0e1a8df7607e3e2d6f29112c985192aca"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124523.jpeg",
+        "byteLength": 27803,
+        "sha256": "c9e00b258faafd633c3cff084b2f2c7cfcbca8f25a8540839ab682649ad11d0b"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124538.jpeg",
+        "byteLength": 27107,
+        "sha256": "d7b11a29ee11dbdce030025a64a3dd6637d211d155300f884f5e69d7e364a5bc"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124553.jpeg",
+        "byteLength": 26912,
+        "sha256": "5975405473e7e57a44c84272ea66476664d269ed0a1a6e5f7d91cf9c4a54d1f7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124594.jpeg",
+        "byteLength": 28150,
+        "sha256": "0d8d507f9e154e75bea0517f37e92981cc0bcd077cb1c8e1a39a9790972f8279"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124614.jpeg",
+        "byteLength": 29337,
+        "sha256": "cd83ed25424111eaac453a87646edad32a37daca5704c375e90370ed5a8f07e9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124625.jpeg",
+        "byteLength": 29828,
+        "sha256": "8bfe93229958dcd4c3c6962232ef0eb89c9b2414ba5f7388b9b05d6b81aa2112"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124642.jpeg",
+        "byteLength": 30327,
+        "sha256": "2ba35c1cffd72ff42892743c6f9ab8b6bc2c1f092005769fa70a6a7090e25c87"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124655.jpeg",
+        "byteLength": 30319,
+        "sha256": "e8ce440b19d2dd7deb4a0bf45819f60f42788fe9e6bdf10be3c93a1186e091e3"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124682.jpeg",
+        "byteLength": 30371,
+        "sha256": "42d171b1ca224f6f714b5217e69673f40a5e7c33e97849d2603202379c4430d9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124693.jpeg",
+        "byteLength": 30381,
+        "sha256": "ea532e0d89af527c96929b08c4935a9eb46290b2e71e631b2f96a34bf9ab566a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124708.jpeg",
+        "byteLength": 24496,
+        "sha256": "0bb2dc5cdbc6ef252deeb1ccddc1b3624c1f03b36ad82409d1f67b9b069e377e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124722.jpeg",
+        "byteLength": 24433,
+        "sha256": "62fce0dc63b69121bf81a36d2458aef87dbdd5aa9acd1b6df76dfe343be72850"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124739.jpeg",
+        "byteLength": 24394,
+        "sha256": "afe1eb9aae3822190dc1a4c913a4197410cec2fc0772533ce2cf2fb02bbab1a5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124758.jpeg",
+        "byteLength": 24403,
+        "sha256": "e0f33db76cd0e8aee5ad0a76a5a3ae37df323fa519331efea198f7af30539de7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124774.jpeg",
+        "byteLength": 24316,
+        "sha256": "13ce7001e16397d483f4b2b1e4bdb1ac668fda7aa73ee8034cc02aae0ef49bfe"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124787.jpeg",
+        "byteLength": 24297,
+        "sha256": "fc5189790b5fa3804c2725f5f9af1ae6824e4117dfd48c11bdadb2592b291ef4"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124803.jpeg",
+        "byteLength": 24256,
+        "sha256": "d235c15a571b92f87932c1919ef1bc30926284076c082ad14a3e37d5963c6e04"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124819.jpeg",
+        "byteLength": 24271,
+        "sha256": "2f7689d8a5546aedd1294fe009cc86ceed853fe66a230b7721b57515b7d3b6b5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124850.jpeg",
+        "byteLength": 24242,
+        "sha256": "080bcfb7e432b5d42ceedd83ed610c00808b1126d18e506c3bae12c31c5bdfb7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124858.jpeg",
+        "byteLength": 24252,
+        "sha256": "51ccd51dd9df605bd9f3fc9a11e27719343fa39aadf204858e905b8c959e3c63"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124869.jpeg",
+        "byteLength": 24255,
+        "sha256": "ea42159d9b89f3241cb1ba8368d6dfba864ba0f1034a6b3d713e94508999ca4d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124900.jpeg",
+        "byteLength": 24297,
+        "sha256": "95f405cfe8458089060234c996c814b03d36eee6827c691ffd87ba59c375a29d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124921.jpeg",
+        "byteLength": 23620,
+        "sha256": "eb11df00336505d9b0352b2aba019f121f405c616ce16f8df418b6152b2bb01a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124935.jpeg",
+        "byteLength": 23667,
+        "sha256": "5d846dd3de2c495ea1ea8841066cc5772347399509e5d0c9228a61a684c339a9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124952.jpeg",
+        "byteLength": 23601,
+        "sha256": "37b5216f6cfaa17135aaf3a66d426b4ea60cf5ce73c9d88a3929e135554792bb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904124969.jpeg",
+        "byteLength": 23594,
+        "sha256": "3dda4f4d8a91029a1724fcb7b5ffb67b744ad5f655e91d18efa1e1dff24c1c2a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126704.jpeg",
+        "byteLength": 23567,
+        "sha256": "d5575f8d3c7c165a5474ffbb6e97cfff15172d3695d57590e7bc77d5f7ab786a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126705.jpeg",
+        "byteLength": 23587,
+        "sha256": "210f715e695a1f13fbaaf35467afb087997f112a6d8b4a445aec2d738d4cb07a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126840.jpeg",
+        "byteLength": 73783,
+        "sha256": "5c7a1a6007251b0369e3d86a90b76a8413cdcb11ec33be242592f1599cfae63c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126870.jpeg",
+        "byteLength": 73878,
+        "sha256": "4e17ce21c09f96a72504ed0dc91a5f8e939502f1d18335fd17e83a3f765ba1e5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126879.jpeg",
+        "byteLength": 73871,
+        "sha256": "f3c11733b11bd3a70bea30a4ed83daea8ede99a2794ea68e872fb0b32bc538e4"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126889.jpeg",
+        "byteLength": 73894,
+        "sha256": "4148d84947f7341cd1dcdadaf534e9b0299f93aec11d32f03bd63a48589e9fa5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126921.jpeg",
+        "byteLength": 73860,
+        "sha256": "d76ceedf34d90f395666ce8369a3936759590d43c55b8a9f428c1f0d9bb755d0"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126939.jpeg",
+        "byteLength": 73903,
+        "sha256": "5cbf858b7239645fc2fee2882103d6f4a39e4315fc45024e4d4bf51661b4101f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126960.jpeg",
+        "byteLength": 73899,
+        "sha256": "0af803c380d6668e1a217efe0d8fcd83409e28cb791bc7b58a8fefe8982e6c59"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126972.jpeg",
+        "byteLength": 73885,
+        "sha256": "9606c36b72c903ada0142a5a6eac529b7d51b883955d3dbd00ff107ad2e5625b"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904126988.jpeg",
+        "byteLength": 73888,
+        "sha256": "7b486b746e9399637508d3d76ae82be1c9e68cfc334b7069d693310acb2c815a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904127004.jpeg",
+        "byteLength": 73879,
+        "sha256": "b04e8f8508ade2b68755a101a4b061c4378ed61994115fa363af5dcc01899364"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904127014.jpeg",
+        "byteLength": 73874,
+        "sha256": "99d99034e4fcf9bda23d8274fde6fde5b15eaa9630efbeecfdc4e1464a168c9a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904127022.jpeg",
+        "byteLength": 73916,
+        "sha256": "b356b3fca0af90d26f036537e987fbdfb19f0eb1a6190226b141d2f9254a4284"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128494.jpeg",
+        "byteLength": 99545,
+        "sha256": "15d23a625b682044236f4dcdf09c65589173f4a999e1bc22dba130784cb3e3e6"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128510.jpeg",
+        "byteLength": 99504,
+        "sha256": "8e4108fe11dbbe5c621a28a5263bb7cc7b5235a515cb6f5edfce4e7a361f0d83"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128524.jpeg",
+        "byteLength": 99534,
+        "sha256": "bf49822d97da2a12a8611d479486234848239da11f53c549470d675df520b4c6"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128540.jpeg",
+        "byteLength": 99568,
+        "sha256": "069a76a777b79a40f0219b9f2778164c324af60164d5ea0247c851b78766d0b0"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128557.jpeg",
+        "byteLength": 99586,
+        "sha256": "c6829030c009026c9189547173a0cf11db1b82be41eb49ea958774a9237fdaad"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128574.jpeg",
+        "byteLength": 99648,
+        "sha256": "b90919bc35689504bcfd44a14e0c6ac023ad53299bc67cd386769a08a9374738"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128591.jpeg",
+        "byteLength": 99642,
+        "sha256": "d42d8abd152ab9881c189739e4c1fb9a6f70512edd8d520140d47df025fe1b68"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128608.jpeg",
+        "byteLength": 99739,
+        "sha256": "156d53cf0d729c9983063a73a13435ca00f868c5bf2420e832a73c26c754e463"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128624.jpeg",
+        "byteLength": 36748,
+        "sha256": "5625cd26b6494b40b79e2f912245e69fe17825f9517bd49cabd82a76b4897096"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128638.jpeg",
+        "byteLength": 36864,
+        "sha256": "98c232cea358664b8cfd022cfecc7a34b4f88e9d13f0e8e577e80935261495c8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128727.jpeg",
+        "byteLength": 36171,
+        "sha256": "2b92d2f287759707f3a8c77ef2f7b5a98f5e5500d3b7fa3479f9da81300f50e5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128742.jpeg",
+        "byteLength": 36171,
+        "sha256": "2b92d2f287759707f3a8c77ef2f7b5a98f5e5500d3b7fa3479f9da81300f50e5"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128780.jpeg",
+        "byteLength": 35378,
+        "sha256": "01ce553a6923fd1f0d93ba8c9df85a4fec1fff15b9da81fb563fadeb2996d2ef"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128781.jpeg",
+        "byteLength": 35378,
+        "sha256": "01ce553a6923fd1f0d93ba8c9df85a4fec1fff15b9da81fb563fadeb2996d2ef"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128964.jpeg",
+        "byteLength": 78586,
+        "sha256": "ce318445f54c650af3b2e9192823ad58759260d69438701d79e907adbb17236f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128974.jpeg",
+        "byteLength": 78568,
+        "sha256": "3ebf76b695750b63f137d7d6394a378581c99b65c558dae6586312d9317dab73"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904128992.jpeg",
+        "byteLength": 78372,
+        "sha256": "e9cff631c1330e2dc29c50807d6b0adfb697d04ec9942b13195475e2a94d5289"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129008.jpeg",
+        "byteLength": 78362,
+        "sha256": "35891362b2b633dbe78ea4b74206f963b9b5d48cf13e360a8cf6b7388c871df2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129025.jpeg",
+        "byteLength": 78333,
+        "sha256": "1e29384cb689fb774233b18865b7bb7e82d7697612aea9116296c2d46369215a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129042.jpeg",
+        "byteLength": 78347,
+        "sha256": "949a1ff9289320feb0550d8554f8e5bbf2d505fc12c1af4e5fc50c6d7cda8cd8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129058.jpeg",
+        "byteLength": 78338,
+        "sha256": "7a073417a48851d7393be01548730e22a786eb03b778ba8a5187de62ae508cab"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129085.jpeg",
+        "byteLength": 3764,
+        "sha256": "eae05e3ec5aa65ff9179d6aeb2eed3fbf424c117cf89b018d18d69675424e654"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129116.jpeg",
+        "byteLength": 3764,
+        "sha256": "eae05e3ec5aa65ff9179d6aeb2eed3fbf424c117cf89b018d18d69675424e654"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129202.jpeg",
+        "byteLength": 17004,
+        "sha256": "7e0a28d04b96bd7e00df72e5fb8d63d18d614a3994531395f7f1a1b6961ede0c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129262.jpeg",
+        "byteLength": 17004,
+        "sha256": "448843b351bf8f71b295554a5b0c02b36ea23f09732e5ba368dd89dfb1c52c77"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129324.jpeg",
+        "byteLength": 17004,
+        "sha256": "593821fcaf44b153d46702369f244dd208a90a65936e645f789dab3278b14634"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129526.jpeg",
+        "byteLength": 78378,
+        "sha256": "5673f47ab8185b88d2dd2d981fa72f2f0eecb131015549c2f7378215e48c053e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129570.jpeg",
+        "byteLength": 78378,
+        "sha256": "5673f47ab8185b88d2dd2d981fa72f2f0eecb131015549c2f7378215e48c053e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129584.jpeg",
+        "byteLength": 78378,
+        "sha256": "5673f47ab8185b88d2dd2d981fa72f2f0eecb131015549c2f7378215e48c053e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129631.jpeg",
+        "byteLength": 78378,
+        "sha256": "5673f47ab8185b88d2dd2d981fa72f2f0eecb131015549c2f7378215e48c053e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129701.jpeg",
+        "byteLength": 27325,
+        "sha256": "3ea5a30bcbf2d495e08d09c27d38ae8ba8d62a348abdd223001f54f0bb754e94"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129715.jpeg",
+        "byteLength": 45015,
+        "sha256": "63bb75ef57751dce279d8a89537de511bbbce8f6167be90e837d2586055f1328"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129737.jpeg",
+        "byteLength": 45015,
+        "sha256": "63bb75ef57751dce279d8a89537de511bbbce8f6167be90e837d2586055f1328"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904129747.jpeg",
+        "byteLength": 45015,
+        "sha256": "63bb75ef57751dce279d8a89537de511bbbce8f6167be90e837d2586055f1328"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904130179.jpeg",
+        "byteLength": 38222,
+        "sha256": "4ed9190f8b7e77831d3b94c34583983da4bc9be0c3122da0679a58c484116afb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904130189.jpeg",
+        "byteLength": 38222,
+        "sha256": "4ed9190f8b7e77831d3b94c34583983da4bc9be0c3122da0679a58c484116afb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@138e583ae12b826ee0335c1f210bd122-1786904130205.jpeg",
+        "byteLength": 38222,
+        "sha256": "4ed9190f8b7e77831d3b94c34583983da4bc9be0c3122da0679a58c484116afb"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142623.jpeg",
+        "byteLength": 2684,
+        "sha256": "e629341910f73497e6d4bb6f9a9d5436f479f49ab43fc1162ce67aec4893c00c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142727.jpeg",
+        "byteLength": 49420,
+        "sha256": "21323df3b169b7a373ef5163d6f4dc4e9ea8d01f15c28f51a716d8c1f4e82778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142797.jpeg",
+        "byteLength": 49235,
+        "sha256": "9e464ad479d2b70dec9657bd2de2ed8fde955f103561e9e17f228f098751bc6a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142812.jpeg",
+        "byteLength": 30147,
+        "sha256": "3d557b896a37d71bda1a74e9c8fe7eca2ed331d165dc9fa26e0b0871e1380d57"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142879.jpeg",
+        "byteLength": 27706,
+        "sha256": "f66e22964be9e560ebd68fe39193c69e55002c53fdfb3ebbdabcf487325dfb64"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142894.jpeg",
+        "byteLength": 28995,
+        "sha256": "6836707bb1473418404aa15880a2e6d81e2b9c86602118a4c4747456295f7095"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142907.jpeg",
+        "byteLength": 29356,
+        "sha256": "b28dc9ed7844ff409a5877ca80d314424a717daf55608eb3e433ec3619410631"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142927.jpeg",
+        "byteLength": 29658,
+        "sha256": "b9cb302a21d33f1cbec0a43ddce66e4249503701856ff72b9b16a62a7b3bf778"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142942.jpeg",
+        "byteLength": 29987,
+        "sha256": "b3eb38ff47a4748f05e2890808c1bee3a8851e38f1b161be2b99a3d187ad5ccf"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142961.jpeg",
+        "byteLength": 30363,
+        "sha256": "522e4d26aaba9af2d55a27c598375dc985eb2262abac2c7c6b4e0dec0f057a4e"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142972.jpeg",
+        "byteLength": 30328,
+        "sha256": "e654c6c0626b6625c70a6055b3135a09d6cd8ec0a03351cad04f58ddb832c062"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904142996.jpeg",
+        "byteLength": 30302,
+        "sha256": "4b5b045c58d780dd4713f27a188cafd2675168743e6a706f7ceb44f4d83e9776"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143006.jpeg",
+        "byteLength": 30312,
+        "sha256": "cba4e17e380c298322a86b9507930dfcf9faf4b551fafec07e8b98fa65d16df7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143020.jpeg",
+        "byteLength": 30311,
+        "sha256": "3cc8ab563a389903e10e9c40d8f6779539cc088c6d6a0a657ccb869d719240f9"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143037.jpeg",
+        "byteLength": 30304,
+        "sha256": "5ed3c8f3a3dcd6cf60fb4fd68597ce039e52ace2c6bf8affc0717860f5557616"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143232.jpeg",
+        "byteLength": 30306,
+        "sha256": "66aa7d6666013cd45ec5c7ff8ef126bb5f1b248ee881e74d9db959885b34ddbf"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143308.jpeg",
+        "byteLength": 56663,
+        "sha256": "a50cb392a5dbb013706900c3bdc3bc3e12e2abfca57699e1ee6d827d35588ecd"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143317.jpeg",
+        "byteLength": 56681,
+        "sha256": "07181a4dfd7f88b47b62af085b62f2753403cf5f38ac9f12f4f1e29179dd2ac7"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143337.jpeg",
+        "byteLength": 56632,
+        "sha256": "2557fda297fd5cc917196b8fc7e539f581c734cdfcad4f55d07227cfd6bc964c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143357.jpeg",
+        "byteLength": 56689,
+        "sha256": "9f1eaa224f5282bd1a3c28624c85e8ecac7b4dcf245b2e23faa1b9920e231083"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143374.jpeg",
+        "byteLength": 56637,
+        "sha256": "67c3b8d00d33f241991c980968c84bac61917c16be43659c7d726276599dd909"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143389.jpeg",
+        "byteLength": 56677,
+        "sha256": "594d67cf7eceea3dee08bed64b659bf521e153ba215ffaef2f00dc04d312d543"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143404.jpeg",
+        "byteLength": 56639,
+        "sha256": "b19123f01ea195346fb9d954c808b41000a7b78c7d10724dac245a435cf276bf"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143422.jpeg",
+        "byteLength": 56619,
+        "sha256": "8f1650a6fb81c0dfd692f515394be15bc2111ca3d11ef67f71dbe6d16822e52f"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143438.jpeg",
+        "byteLength": 56587,
+        "sha256": "114d1bed6f56d693ba3da19f79222e354c915942a8de1e8567c64ac821fc94b4"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143454.jpeg",
+        "byteLength": 56608,
+        "sha256": "acea6390f0744b747e1ecfb56578a30152948a6462e78906444898de86b08795"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143470.jpeg",
+        "byteLength": 56559,
+        "sha256": "b7252ba9e06e2308f940632dfd828adf7f8501e25c29591a9c0468442f3f730a"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904143488.jpeg",
+        "byteLength": 56614,
+        "sha256": "1fcea7d6f2c514559345937e9f76637925ed60c5b4a819dc0d23b1cc15031f77"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144049.jpeg",
+        "byteLength": 99379,
+        "sha256": "8c48ae5682875cac2e940d2cd5609c3c2d1624f0beba4ec30014171b1d8a426c"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144068.jpeg",
+        "byteLength": 99391,
+        "sha256": "ca5c1525c1324bb3914f81112b6f9868fcb8ec6db67d3cfca7ac72d45f5df87d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144080.jpeg",
+        "byteLength": 99400,
+        "sha256": "6fb26ef7bbbaedbdd3d5ae10969e5b5636f57cb218d4376bb2f82fb042a53be0"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144091.jpeg",
+        "byteLength": 99430,
+        "sha256": "cc929d8587847b5a3cad28997d6d238aed50c1a48cfc654a7d4b63e5584705d8"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144108.jpeg",
+        "byteLength": 45852,
+        "sha256": "e830a4c17fb3f10c366d398190af97c24c4c591bf6f556e6a840fa3c16d39a84"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144164.jpeg",
+        "byteLength": 45093,
+        "sha256": "d96037ffc70688f7491c68f75203b5336020cd021a2d26b9ada70fe1c3e04a29"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144179.jpeg",
+        "byteLength": 43936,
+        "sha256": "1ca28c87061c09fd71da2c7bdeffa36da368531a0a1e6e7b73362640a4b3911d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144196.jpeg",
+        "byteLength": 43936,
+        "sha256": "1ca28c87061c09fd71da2c7bdeffa36da368531a0a1e6e7b73362640a4b3911d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144508.jpeg",
+        "byteLength": 17978,
+        "sha256": "51612c1fb2ed30073f878c3bb3ba2a0b47714d0132e3e7228e31efb9bbc30ca2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144528.jpeg",
+        "byteLength": 43936,
+        "sha256": "1ca28c87061c09fd71da2c7bdeffa36da368531a0a1e6e7b73362640a4b3911d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144560.jpeg",
+        "byteLength": 43936,
+        "sha256": "1ca28c87061c09fd71da2c7bdeffa36da368531a0a1e6e7b73362640a4b3911d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144583.jpeg",
+        "byteLength": 43936,
+        "sha256": "1ca28c87061c09fd71da2c7bdeffa36da368531a0a1e6e7b73362640a4b3911d"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144648.jpeg",
+        "byteLength": 38695,
+        "sha256": "1c481858395f0ff9a936048eea0f1b06a659c6fd428de40f942386b0c7fd26c2"
+      },
+      {
+        "relativePath": ".playwright-artifacts-0/traces/resources/page@dbb2396a13c7bddc3901421a191625c5-1786904144664.jpeg",
+        "byteLength": 54760,
+        "sha256": "cc2a373b35d4d1c7e34915fd128fefda7c0f6cd456dae0d188b7a42140686010"
+      },
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/demanding-token-budget-photo-6000.bmp",
+        "byteLength": 108000054,
+        "sha256": "634a86445b1282d654a643a3d3a0c6b6253ba523a360dab2902af9650084a4ab"
+      }
+    ]
+  },
+  "quarantine": {
+    "external": true,
+    "outsideRepository": true,
+    "outsidePhase6a": true,
+    "preserveUntilExplicitCleanup": true,
+    "root": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z",
+    "inventoryPath": "C:/Users/dawgy/.codex/visualizations/2026/08/16/01a00b6b-9171-7490-a6e9-753d26e4e190/version-1.12.36-browser-incident-0fcbd50991b1a3ee-20260816T181523215Z/incident-quarantine-inventory.json",
+    "inventoryByteLength": 72622,
+    "inventorySha256": "47e8ce42f333b2de54ecd7ae530be563d1f593468e304d3d85771bad4a8df30a",
+    "inventorySealHash": "433607d5faab0ea682fd5f7d272809a5f15a5e581a3cbb3898f0efac4d641be4",
+    "memberCount": 292,
+    "totalBytes": 133561066,
+    "pathSetHash": "d68642656b5946b5d468effadf4ea41abfcb1cebb417476f9d9899026a4cd1c0",
+    "aggregateHash": "e1a9a622fc98cb9cf95c09b9c31ed18dac00a2209e82cb300cf762b5ee9eeb82",
+    "readbackEveryMemberExact": true,
+    "sourceGeneratedMembersRemovedAfterReadback": 292
+  },
+  "currentCapture": {
+    "fileCount": 1,
+    "members": [
+      {
+        "relativePath": "canonical-evidence-real-fo-2ea18-and-renders-canonical-cards-desktop/ordinary-office-works-2200.png",
+        "byteLength": 129743,
+        "sha256": "0c394d287e7e40d7bf69084ae6cd4f543fb850b965bc5bda3dfb7e44d732ce97"
+      }
+    ],
+    "survivorPreservedAtOriginalPath": true,
+    "generatedResidueCount": 0
+  },
+  "dependencyAdjudication": {
+    "historicalCaptureRole": "RETAINED_HISTORICAL_VERSION_1_12_35_PLAYWRIGHT_EVIDENCE",
+    "version11236ExecutableInput": false,
+    "version11236RequiredValidationDependency": false,
+    "mentorImplementationDependency": false,
+    "governingSelectionDependency": false,
+    "missingBytesRequiredToContinue": false,
+    "requiredCaptureDependencyUnavailableClassificationTriggered": false,
+    "priorRecordMutated": false,
+    "bytesRecreatedFromHashes": false,
+    "broadBackupSearchPerformed": false
+  },
+  "selectionCorrection": {
+    "files": [
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-selection.json",
+        "byteLength": 4040,
+        "sha256": "6d672226f52123d616d2ff0c0c72a7bb8b91fa750ec7cec0657bcb44ebda0710"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/v3-cognitive-remediation/version-1.12.36-mentor-guided-reasoning-validation-selection.mjs",
+        "byteLength": 9847,
+        "sha256": "4af577a12fa6f5475b991492a4b27dd6a618354e937d38aed1f9a9319d27ad1b"
+      },
+      {
+        "relativePath": "tests/mentor-guided-validation-selection.test.mjs",
+        "byteLength": 2100,
+        "sha256": "8ca6534c71d9fe58e6ad362ee149a3466ad81d75a684bb6c66ca1edc7d7873ef"
+      }
+    ],
+    "selectionMode": "EXPLICIT_REGISTRY_ONLY",
+    "governingMembers": 52,
+    "retainedMembers": 27,
+    "pendingMembers": 25,
+    "excludedMembers": [
+      "tests/milestone-2c2-browser-dom.ps1",
+      "tests/helpers/native-git.ps1"
+    ],
+    "reconciliation": {
+      "missing": [],
+      "unexpected": [],
+      "duplicate": [],
+      "intersecting": [],
+      "unclassified": []
+    }
+  },
+  "version11235": {
+    "releaseCommit": "929a609dca6c7da62dbf0ba5f3ee034baec7c3dd",
+    "tree": "2c2ea0410a22a83379cb0d4e3f459856a8b00b79",
+    "parent": "b3bde8269a17b54dcff956a1c5f5be1cb28092d3",
+    "releaseAggregateMemberCount": 860,
+    "releaseAggregateHash": "6b84a272848a9be6589308d683d24cb2216234a2a2cfa44bb1532bdbf8794e7e",
+    "releaseFileSetHash": "a5f10bd35d670dbbdd563ae5e728f64e7e84f6512fafb2a0d06b779801a07278",
+    "terminalReleaseRecordSha256": "670deefbc40a98b8eeb93c552783e60db579db395731e1d6954a130a4f139277",
+    "releasedCommitRewrittenByIgnoredCaptureLoss": false
+  },
+  "phase6a": {
+    "fileCount": 85,
+    "totalBytes": 72299353,
+    "inventoryHash": "50a034e464f6870ce7b78db2d3527eef0773f5685daf16619a82d482d9bfb70f",
+    "pathSetHash": "d2edc95cbc9cc727a5adeaccffde68763cc5831356c4d4ec371741b6da269581",
+    "invocationManifestHash": "e1bbeae77676d3d566b4239c86c7dc1c5a6969f2c86271eb5402ce1a38082466",
+    "actualUntrackedFiles": 85,
+    "exact": true
+  },
+  "claims": {
+    "productFailureDemonstrated": false,
+    "cognitiveFailureDemonstrated": false,
+    "browserPassClaimed": false,
+    "qualificationClaimed": false,
+    "learningClaimed": false,
+    "cognitiveImprovementClaimed": false,
+    "deploymentClaimed": false,
+    "activationClaimed": false,
+    "memoryImprovementClaimed": false
+  },
+  "preservedV3Classification": "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION",
+  "adjudicationHash": "19e2ec0edf29a1b811a08d97b803e3e09fdd61d4646e3550a4efb27a15173e9b"
+}
