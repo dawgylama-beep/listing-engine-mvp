@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "ABSTRACTION_ONLY_MENTOR_AND_FUTURE_QUALIFICATION_CONTRACT_REMEDIATION_SPECIFICATION",
+  "version": "1.12.37",
+  "permittedGeneralLessons": [
+    "Evidence sufficiency must be decided independently from the desired conclusion.",
+    "Authority scope must be decided independently from whether an action seems useful.",
+    "Failure scope must distinguish bounded failure repairable within existing authority, architectural failure requiring a new mechanism or authority, and insufficient evidence preventing either conclusion.",
+    "The next action must be the smallest safe action that advances the actual mission.",
+    "Safe continuation must stop when evidence or authority is insufficient and proceed when both are adequate.",
+    "Scored semantics must use typed atomic predicates and cross-field relationships, not complete narrative-string equality.",
+    "Narrative explanation may support a result but may not replace explicit decision atoms.",
+    "Future qualification requires a 4,000-token ceiling and complete raw-envelope capture through 1,048,576 bytes."
+  ],
+  "prohibitedRemediationInputs": [
+    "V4 public prompts",
+    "V4 expected answers",
+    "V4 evaluator keys",
+    "V4 response text or incomplete fragments",
+    "V4 case IDs",
+    "case-specific failure labels",
+    "lexical answer patterns",
+    "V2, V3, Phase 6A, or prior mentor fixture content"
+  ]
+}

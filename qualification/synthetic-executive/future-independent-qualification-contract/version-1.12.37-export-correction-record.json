@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "version-1.12.37-export-correction-record/v1",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_MISSING_MENTOR_REEXPORT_CORRECTED",
+  "preservedStop": {
+    "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_MISSING_MENTOR_REEXPORT",
+    "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-stop.json",
+    "bytes": 2864,
+    "sha256": "beb0f7ae18e3b8bcee040882171a46c2c240b060c51fe377fccd4f874ef06176"
+  },
+  "setHashEncoding": "SHA-256 of UTF-8 JSON.stringify(sorted array)",
+  "exportClosure": {
+    "E": {
+      "description": "New named exports added by the candidate mentor module relative to HEAD",
+      "members": [
+        "MENTOR_AUTHORITY_CLASS",
+        "MENTOR_FAILURE_SCOPE",
+        "MENTOR_NEXT_ACTION_CLASS",
+        "evaluateMentorDecisionContract"
+      ],
+      "sha256": "87dd2f57663ba0d5cb4a72e694e42434fabeaa3d5858b89bd580b36de250c4e2"
+    },
+    "R": {
+      "description": "New mentor symbols required by the Version 1.12.37 candidate implementation and tests",
+      "members": [
+        "MENTOR_AUTHORITY_CLASS",
+        "MENTOR_FAILURE_SCOPE",
+        "MENTOR_NEXT_ACTION_CLASS",
+        "evaluateMentorDecisionContract"
+      ],
+      "sha256": "87dd2f57663ba0d5cb4a72e694e42434fabeaa3d5858b89bd580b36de250c4e2"
+    },
+    "I": {
+      "description": "Public index surface before the correction",
+      "members": [
+        "COGNITIVE_ACTION",
+        "COGNITIVE_BOUNDARY",
+        "COGNITIVE_EPISODE_SCHEMA_VERSION",
+        "COGNITIVE_GOVERNOR_SCHEMA_VERSION",
+        "COGNITIVE_REASON",
+        "CUSTOMER_INPUT_STATUS",
+        "GOVERNOR_EXECUTION_LEDGER_SCHEMA_VERSION",
+        "GOVERNOR_EXECUTION_PROOF_SCHEMA_VERSION",
+        "GOVERNOR_LIFECYCLE_EVENT",
+        "LESSON_CANDIDATE_SCHEMA_VERSION",
+        "MAX_COGNITIVE_ACTIONS",
+        "MAX_COGNITIVE_EPISODE_BYTES",
+        "MAX_LESSON_CANDIDATE_BYTES",
+        "MENTOR_GUIDED_REASONING_CYCLE",
+        "MENTOR_REASONING_DOMAIN",
+        "MENTOR_STOP_CAUSE",
+        "SAFETY_STATE",
+        "assertGovernorProviderRequestOwnership",
+        "assertMentorGuidedDecisionAssembly",
+        "bindGovernorProviderRequest",
+        "buildCognitiveEpisode",
+        "buildCustomerInputRequest",
+        "buildGovernorExecutionProof",
+        "buildLessonCandidate",
+        "calculateGovernorDecisionIdentity",
+        "calculateGovernorExecutionEventIdentity",
+        "calculateGovernorLifecycleEventIdentity",
+        "calculateLogicalProviderRequestIdentity",
+        "classifyCustomerFactRequest",
+        "classifyMentorGuidedDomain",
+        "cognitiveEpisodeByteLength",
+        "cognitiveStateByteLength",
+        "continueCognitiveActionOutcome",
+        "createActionSignature",
+        "createCognitiveGovernor",
+        "createCognitiveState",
+        "createCustomerMissionContext",
+        "createGovernorExecutionLedger",
+        "decideCognitiveAction",
+        "deriveCompleteFinishPath",
+        "deriveSafetyState",
+        "evaluateMentorGuidedReasoning",
+        "executeGovernorAuthorizedAction",
+        "executeGovernorAuthorizedChildOperation",
+        "governorProofByteLength",
+        "lessonCandidateByteLength",
+        "normalizeQueryIdentity",
+        "recordCognitiveActionOutcome",
+        "recordGovernorConstruction",
+        "recordGovernorDecisionInvocation",
+        "registerAuthoritativeCognitiveState",
+        "rejectUnsupportedConclusions",
+        "requestedFieldsForType",
+        "selectEarliestCommonCausalBoundary",
+        "selectNextCognitiveAction",
+        "selectSmallestSafeAction",
+        "updateGovernorDecisionOutcome",
+        "withCognitiveDecision"
+      ],
+      "sha256": "5e3e2420217fe12f4f9582cf23f000b1e5bce3e03b815e83ea0de036a6e4b5a9"
+    },
+    "M": {
+      "description": "(E intersect R) minus I",
+      "members": [
+        "MENTOR_AUTHORITY_CLASS",
+        "MENTOR_FAILURE_SCOPE",
+        "MENTOR_NEXT_ACTION_CLASS",
+        "evaluateMentorDecisionContract"
+      ],
+      "sha256": "87dd2f57663ba0d5cb4a72e694e42434fabeaa3d5858b89bd580b36de250c4e2"
+    },
+    "combinedSetProofSha256": "aea32af09775cfbb9ea75daf1b7f7cce4421b99aaf0e67cf8d69253d9d5e6864"
+  },
+  "rootCause": "policy.js maintained an explicit mentor re-export list which omitted every member of M; index.js uses export-star from policy.js and has no additional filter.",
+  "policyCorrection": {
+    "path": "lib/cognitive-governor/policy.js",
+    "before": {
+      "bytes": 20646,
+      "sha256": "02650456f3adf7e465b40b91e335c4618a894975b3c928bc8ed585c43439472e"
+    },
+    "after": {
+      "bytes": 20758,
+      "sha256": "a55863d8a6cb306e485c74ad18e7c9df43612c7cb980a551bb610643506efb33"
+    },
+    "exactAddedLines": [
+      {
+        "afterLine": 31,
+        "text": "  MENTOR_AUTHORITY_CLASS,"
+      },
+      {
+        "afterLine": 32,
+        "text": "  MENTOR_FAILURE_SCOPE,"
+      },
+      {
+        "afterLine": 34,
+        "text": "  MENTOR_NEXT_ACTION_CLASS,"
+      },
+      {
+        "afterLine": 40,
+        "text": "  evaluateMentorDecisionContract,"
+      }
+    ],
+    "removedLines": [],
+    "changeClassification": "explicit-named-reexport-list-only"
+  },
+  "implementationSemantics": {
+    "unchanged": true,
+    "mentorModule": {
+      "path": "lib/cognitive-governor/mentor-guided-reasoning.js",
+      "snapshotSha256": "a435b6c8c2bbe974fa4397384597a3b08167e1825eb8ecb7ff6ebc449c59c8a9",
+      "postCorrectionSha256": "a435b6c8c2bbe974fa4397384597a3b08167e1825eb8ecb7ff6ebc449c59c8a9"
+    },
+    "publicIndex": {
+      "path": "lib/cognitive-governor/index.js",
+      "sha256": "c28ad0664f3c566cb08cd243fac0bc82a83e49934b809200730466e9ac900713",
+      "unchangedFromHead": true
+    },
+    "proof": "The correction adds only four existing direct mentor exports to policy.js's named re-export list; it changes no definitions, values, control flow, aliases, defaults, or index filtering."
+  }
+}

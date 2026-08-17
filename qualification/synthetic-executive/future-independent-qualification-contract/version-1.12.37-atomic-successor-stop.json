@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "version-1.12.37-atomic-successor-stop/v1",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_NPM_POWERSHELL_EXECUTION_POLICY",
+  "releaseState": "UNRELEASED",
+  "preservedPredecessorStops": [
+    {
+      "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_MISSING_MENTOR_REEXPORT",
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-stop.json",
+      "bytes": 2864,
+      "sha256": "beb0f7ae18e3b8bcee040882171a46c2c240b060c51fe377fccd4f874ef06176"
+    },
+    {
+      "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_ATOMIC_PREDICATE_TYPE_UNKNOWN",
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-export-successor-stop.json",
+      "bytes": 3180,
+      "sha256": "490aae90ab34fd02d4507f835c6f88897a1d3e6cad6d41939cc3ade3d4bda14d"
+    }
+  ],
+  "atomicSuccessor": {
+    "gateA": "PASS",
+    "gateB": "PASS",
+    "gateC": "PASS",
+    "correctionRecord": {
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-predicate-correction-record.json",
+      "bytes": 10160,
+      "sha256": "81a2545870fe09f44f9f672ad70ca8a38700fabe199767d6bab2ace2cc658800"
+    },
+    "postCorrectionDifferenceSets": {
+      "U_valid": [],
+      "U_contract": [],
+      "U_negative": []
+    },
+    "predicateTotality": {
+      "contractPredicateTypes": 17,
+      "scorerPredicateTypes": 17,
+      "fixtureExecutions": 102,
+      "positivePassFixtures": 17,
+      "validNegativeFixtures": 17,
+      "missingFieldFixtures": 17,
+      "wrongTypeFixtures": 17,
+      "contradictionFixtures": 17,
+      "unknownTypeFixtures": 1,
+      "unknownFieldFixtures": 16,
+      "canonicalUnknownSentinel": "UNKNOWN_ATOMIC_TYPE",
+      "partialCreditOutcomes": 0,
+      "missingFixtureExecutions": 0,
+      "duplicateFixtureExecutions": 0,
+      "unexpectedFixtureExecutions": 0,
+      "ambiguousFixtureExecutions": 0,
+      "unclassifiedFixtureExecutions": 0
+    }
+  },
+  "resumedValidation": [
+    {
+      "sequence": 3,
+      "name": "Atomic scorer fixture suite",
+      "result": "PASS",
+      "tests": 7,
+      "pass": 7,
+      "fail": 0
+    },
+    {
+      "sequence": 4,
+      "name": "Mutation proof",
+      "result": "PASS",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0
+    },
+    {
+      "sequence": 5,
+      "name": "Capture boundary proof",
+      "result": "PASS",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "proof": {
+        "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-capture-boundary-proof.json",
+        "bytes": 1065,
+        "sha256": "4b92a0d53073a684221b137091c2af7238d27f376f61f6dfe465d96fa0a82ee4"
+      }
+    },
+    {
+      "sequence": 6,
+      "name": "Focused product-route mentor integration",
+      "result": "PASS",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0
+    },
+    {
+      "sequence": 7,
+      "name": "Applicable safe Node regressions",
+      "result": "PASS",
+      "tests": 112,
+      "pass": 112,
+      "fail": 0
+    },
+    {
+      "sequence": 8,
+      "name": "Exact PowerShell/static members",
+      "result": "PASS",
+      "command": "powershell -ExecutionPolicy Bypass -File tests/modular-evidence-foundation.ps1"
+    },
+    {
+      "sequence": 9,
+      "name": "Version-surface tests",
+      "result": "STOPPED_ON_SECOND_COMMAND",
+      "completedCommand": {
+        "command": "node --test tests/release-version-surface.test.mjs",
+        "result": "PASS",
+        "tests": 5,
+        "pass": 5,
+        "fail": 0
+      },
+      "failedCommand": {
+        "command": "npm run check:version",
+        "exitCode": 1,
+        "processStarted": false,
+        "failureClass": "POWERSHELL_SCRIPT_EXECUTION_POLICY",
+        "exception": "PSSecurityException",
+        "fullyQualifiedErrorId": "UnauthorizedAccess",
+        "message": "File C:\\Program Files\\nodejs\\npm.ps1 cannot be loaded because running scripts is disabled on this system.",
+        "npmScriptExecuted": false
+      }
+    }
+  ],
+  "notEnteredValidationSequences": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "browserGate": "NOT_APPLICABLE - NO DOM, BROWSER, CLIENT, OR VISUAL CHANGE",
+  "browserSuiteExecuted": false,
+  "releaseEvidenceFinalized": false,
+  "commitCreated": false,
+  "pushAttempted": false,
+  "failedCommandRetriedOrSubstituted": false,
+  "repairAttemptedAfterFailure": false,
+  "qualificationCreatedOrRun": false,
+  "providerOrEvaluatorContacted": false,
+  "corpusAuthored": false,
+  "phase6AReadExecutedModifiedOrStaged": false,
+  "v4ReadExecutedModifiedOrStaged": false,
+  "deploymentOrActivationAttempted": false
+}

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "version-1.12.37-export-successor-stop/v1",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_ATOMIC_PREDICATE_TYPE_UNKNOWN",
+  "releaseState": "UNRELEASED",
+  "preservedPredecessorStop": {
+    "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_MISSING_MENTOR_REEXPORT",
+    "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-stop.json",
+    "bytes": 2864,
+    "sha256": "beb0f7ae18e3b8bcee040882171a46c2c240b060c51fe377fccd4f874ef06176"
+  },
+  "exportSuccessor": {
+    "gateA": "PASS",
+    "gateB": "PASS",
+    "gateC": "PASS",
+    "policyBeforeSha256": "02650456f3adf7e465b40b91e335c4618a894975b3c928bc8ed585c43439472e",
+    "policyAfterSha256": "a55863d8a6cb306e485c74ad18e7c9df43612c7cb980a551bb610643506efb33",
+    "missingRequiredExportsAfterCorrection": [],
+    "unexpectedNewPublicExportsAfterCorrection": []
+  },
+  "validationStop": {
+    "gate": "D",
+    "sequence": 3,
+    "sequenceName": "Atomic scorer fixture suite",
+    "command": "node --test tests/version-1.12.37-atomic-scorer.test.mjs",
+    "exitCode": 1,
+    "summary": {
+      "tests": 5,
+      "pass": 2,
+      "fail": 3,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "exactFailureCode": "ATOMIC_PREDICATE_TYPE_UNKNOWN",
+    "failureOrigin": "qualification/synthetic-executive/future-independent-qualification-contract/atomic-scorer.mjs:152:12",
+    "failures": [
+      {
+        "test": "all valid atomic fixtures produce exact pass or fail results with no partial credit",
+        "testLocation": "tests/version-1.12.37-atomic-scorer.test.mjs:35:1",
+        "firstCaller": "tests/version-1.12.37-atomic-scorer.test.mjs:37:20",
+        "message": "ATOMIC_PREDICATE_TYPE_UNKNOWN"
+      },
+      {
+        "test": "missing and duplicate predicate executions fail closed",
+        "testLocation": "tests/version-1.12.37-atomic-scorer.test.mjs:55:1",
+        "firstCaller": "tests/version-1.12.37-atomic-scorer.test.mjs:57:18",
+        "message": "ATOMIC_PREDICATE_TYPE_UNKNOWN"
+      },
+      {
+        "test": "each check is exactly a declared conjunction and narrative equality is unavailable",
+        "testLocation": "tests/version-1.12.37-atomic-scorer.test.mjs:65:1",
+        "firstCaller": "tests/version-1.12.37-atomic-scorer.test.mjs:67:21",
+        "message": "ATOMIC_PREDICATE_TYPE_UNKNOWN"
+      }
+    ]
+  },
+  "completedValidation": [
+    {
+      "sequence": 1,
+      "name": "JavaScript syntax",
+      "result": "PASS",
+      "commandCount": 15
+    },
+    {
+      "sequence": 2,
+      "name": "Mentor fixture suite",
+      "result": "PASS",
+      "tests": 3,
+      "fixtureCount": 32
+    }
+  ],
+  "notEnteredValidationSequences": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "releaseEvidenceFinalized": false,
+  "commitCreated": false,
+  "pushAttempted": false,
+  "repairAttemptedAfterFailure": false,
+  "qualificationCreatedOrRun": false,
+  "providerOrEvaluatorContacted": false,
+  "corpusAuthored": false,
+  "phase6AReadExecutedModifiedOrStaged": false,
+  "deploymentOrActivationAttempted": false
+}

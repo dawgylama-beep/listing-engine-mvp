@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "version-1.12.37-remediation-result/v1",
+  "version": "1.12.37",
+  "recordType": "VERSION_1_12_37_FINAL_REMEDIATION_RESULT",
+  "result": "PASS",
+  "exportClosure": {
+    "rootCause": "The explicit mentor re-export list in policy.js omitted four required exports while index.js relied on policy.js through export-star.",
+    "correctedPath": "lib/cognitive-governor/policy.js",
+    "beforeSha256": "02650456f3adf7e465b40b91e335c4618a894975b3c928bc8ed585c43439472e",
+    "afterSha256": "a55863d8a6cb306e485c74ad18e7c9df43612c7cb980a551bb610643506efb33",
+    "missingRequiredExportsAfterCorrection": [],
+    "unexpectedPublicExportsAfterCorrection": [],
+    "correctionRecord": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-export-correction-record.json"
+  },
+  "atomicPredicateTotality": {
+    "rootCauseClassification": "FIXTURE_REGISTRY_SHARED_OBJECT_ALIASING",
+    "rootCause": "The fixture factory shared a predicate object between valid-positive and unknown contracts, so the unknown-type mutation contaminated valid-positive contracts.",
+    "changedPaths": [
+      "tests/fixtures/version-1.12.37-atomic-scorer-fixtures.mjs",
+      "tests/version-1.12.37-atomic-scorer.test.mjs"
+    ],
+    "contractPredicateTypes": 17,
+    "scorerPredicateTypes": 17,
+    "validFixturePredicateTypes": 17,
+    "canonicalUnknownSentinels": 1,
+    "U_valid": [],
+    "U_contract": [],
+    "U_negative": [],
+    "partialCreditOutcomes": 0,
+    "missingFixtureExecutions": 0,
+    "duplicateFixtureExecutions": 0,
+    "unexpectedFixtureExecutions": 0,
+    "ambiguousFixtureExecutions": 0,
+    "unclassifiedFixtureExecutions": 0,
+    "correctionRecord": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-predicate-correction-record.json"
+  },
+  "implementationBoundaries": {
+    "mentorSemanticsChangedByAtomicSuccessor": false,
+    "productBehaviorChangedByAtomicSuccessor": false,
+    "providerBehaviorChanged": false,
+    "qualificationExecuted": false,
+    "v4ContentUsed": false,
+    "phase6AUsed": false
+  }
+}

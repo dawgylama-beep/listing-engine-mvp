@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "version-1.12.37-atomic-predicate-correction-record/v1",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_ATOMIC_PREDICATE_TOTALITY_CORRECTED",
+  "preservedStops": [
+    {
+      "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_MISSING_MENTOR_REEXPORT",
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-stop.json",
+      "bytes": 2864,
+      "sha256": "beb0f7ae18e3b8bcee040882171a46c2c240b060c51fe377fccd4f874ef06176"
+    },
+    {
+      "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_ATOMIC_PREDICATE_TYPE_UNKNOWN",
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-export-successor-stop.json",
+      "bytes": 3180,
+      "sha256": "490aae90ab34fd02d4507f835c6f88897a1d3e6cad6d41939cc3ade3d4bda14d"
+    }
+  ],
+  "setHashEncoding": "SHA-256 of UTF-8 JSON.stringify(sorted unique array)",
+  "canonicalPredicateTypes": {
+    "members": [
+      "ARRAY_EXACT_CARDINALITY",
+      "ARRAY_MIN_CARDINALITY",
+      "AUTHORITY_ACTION_COMPATIBILITY",
+      "BOOLEAN_EQUALS",
+      "CROSS_FIELD_CONTRADICTION",
+      "CROSS_FIELD_IMPLIES",
+      "ENUM_EQUALS",
+      "ENUM_IN",
+      "EVIDENCE_CONCLUSION_COMPATIBILITY",
+      "EVIDENCE_REFERENCE_COVERAGE",
+      "FAILURE_SCOPE_ACTION_COMPATIBILITY",
+      "NARRATIVE_CONSTRAINT",
+      "NULLABLE_EQUALS",
+      "PROHIBITED_OPERATION_ABSENCE",
+      "REQUIRED_FIELD",
+      "SET_EXCLUDES",
+      "SET_INCLUDES"
+    ],
+    "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+  },
+  "beforeCorrection": {
+    "C": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "V": {
+      "members": [
+        "ARRAY_EXACT_CARDINALITY",
+        "ARRAY_MIN_CARDINALITY",
+        "AUTHORITY_ACTION_COMPATIBILITY",
+        "BOOLEAN_EQUALS",
+        "CROSS_FIELD_CONTRADICTION",
+        "CROSS_FIELD_IMPLIES",
+        "ENUM_EQUALS",
+        "ENUM_IN",
+        "EVIDENCE_CONCLUSION_COMPATIBILITY",
+        "EVIDENCE_REFERENCE_COVERAGE",
+        "FAILURE_SCOPE_ACTION_COMPATIBILITY",
+        "NARRATIVE_CONSTRAINT",
+        "NULLABLE_EQUALS",
+        "PROHIBITED_OPERATION_ABSENCE",
+        "REQUIRED_FIELD",
+        "SET_EXCLUDES",
+        "SET_INCLUDES",
+        "UNKNOWN_ATOMIC_TYPE"
+      ],
+      "sha256": "a12258bc53fc8000e657349117534b7b5de53a9528c74c757798fb77092eff6e"
+    },
+    "N": {
+      "members": [
+        "UNKNOWN_ATOMIC_TYPE"
+      ],
+      "sha256": "044a84ba5fb7cf1731d0cc15965dc9678081595f8434d7626595234885917af9"
+    },
+    "S": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "T": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "U_valid": {
+      "members": [
+        "UNKNOWN_ATOMIC_TYPE"
+      ],
+      "sha256": "044a84ba5fb7cf1731d0cc15965dc9678081595f8434d7626595234885917af9"
+    },
+    "U_contract": {
+      "members": [],
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "U_negative": {
+      "members": [],
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "rootCause": {
+    "classification": "FIXTURE_REGISTRY_SHARED_OBJECT_ALIASING",
+    "complete": true,
+    "description": "fixtureSet passed the same predicate object to the valid-positive and unknown contracts. contractFor retained that object by reference. Mutating the unknown contract to the canonical unknown sentinel therefore contaminated nine valid-positive contracts. The first valid fixture, ENUM_EQUALS_POSITIVE, reached validateAtomicContract with UNKNOWN_ATOMIC_TYPE and threw before each of the three affected test bodies could classify its intended result.",
+    "missingValidPredicateImplementation": false,
+    "spellingOrCanonicalNameMismatch": false,
+    "intentionalUnknownNegativeProbePresent": true,
+    "unknownNegativeProbeValue": "UNKNOWN_ATOMIC_TYPE",
+    "typedFailureEscapedValidFixtureBoundary": true,
+    "scorerImplementationDefect": false,
+    "testHarnessClassificationDefect": false,
+    "mixedCauses": false,
+    "contaminatedValidFixtureIds": [
+      "ARRAY_EXACT_CARDINALITY_POSITIVE",
+      "BOOLEAN_EQUALS_POSITIVE",
+      "CROSS_FIELD_CONTRADICTION_POSITIVE",
+      "ENUM_EQUALS_POSITIVE",
+      "EVIDENCE_CONCLUSION_COMPATIBILITY_POSITIVE",
+      "NARRATIVE_CONSTRAINT_POSITIVE",
+      "PROHIBITED_OPERATION_ABSENCE_POSITIVE",
+      "REQUIRED_FIELD_POSITIVE",
+      "SET_EXCLUDES_POSITIVE"
+    ],
+    "predecessorFailures": [
+      {
+        "test": "all valid atomic fixtures produce exact pass or fail results with no partial credit",
+        "fixtureId": "ENUM_EQUALS_POSITIVE",
+        "actualPredicateType": "UNKNOWN_ATOMIC_TYPE",
+        "fixtureClassification": "VALID_POSITIVE",
+        "caller": "tests/version-1.12.37-atomic-scorer.test.mjs:37:20",
+        "errorExpectedAtCaller": false,
+        "threwBeforeHarnessClassification": true,
+        "laterFixtureExecutionsPrevented": 67
+      },
+      {
+        "test": "missing and duplicate predicate executions fail closed",
+        "fixtureId": "ENUM_EQUALS_POSITIVE",
+        "actualPredicateType": "UNKNOWN_ATOMIC_TYPE",
+        "fixtureClassification": "VALID_POSITIVE",
+        "caller": "tests/version-1.12.37-atomic-scorer.test.mjs:57:18",
+        "errorExpectedAtCaller": false,
+        "threwBeforeHarnessClassification": true,
+        "laterFixtureExecutionsPrevented": 0,
+        "laterReconciliationAssertionsPrevented": 2
+      },
+      {
+        "test": "each check is exactly a declared conjunction and narrative equality is unavailable",
+        "fixtureId": "ENUM_EQUALS_POSITIVE",
+        "actualPredicateType": "UNKNOWN_ATOMIC_TYPE",
+        "fixtureClassification": "VALID_POSITIVE",
+        "caller": "tests/version-1.12.37-atomic-scorer.test.mjs:67:21",
+        "errorExpectedAtCaller": false,
+        "threwBeforeHarnessClassification": true,
+        "laterFixtureExecutionsPrevented": 16,
+        "laterNarrativeAssertionsPrevented": 2
+      }
+    ]
+  },
+  "correction": {
+    "changedPaths": [
+      {
+        "path": "tests/fixtures/version-1.12.37-atomic-scorer-fixtures.mjs",
+        "before": {
+          "bytes": 9765,
+          "sha256": "96c0bb1d986e0160051aca2db907dd5c3c9ea0b518b5d5ef2c61cac6db0cb4a8"
+        },
+        "after": {
+          "bytes": 9981,
+          "sha256": "e7aed33e16602d8357fa8b54ea7e235e5ccb9e3286868e95bcd1d2a76cef484b"
+        },
+        "change": "Deep-clone each predicate at the contract boundary and limit the canonical unknown-type sentinel to one explicitly classified fixture."
+      },
+      {
+        "path": "tests/version-1.12.37-atomic-scorer.test.mjs",
+        "before": {
+          "bytes": 3894,
+          "sha256": "4d897cab6efda42c2db6dfed5810ab659b5f89cdf79b517486de9d762359d778"
+        },
+        "after": {
+          "bytes": 7309,
+          "sha256": "7e043c41d3a30931e16e9e255860a4431fee67ba45f76719134ece8b0ec53cce"
+        },
+        "change": "Add exact contract/scorer registry equality, fixture totality, canonical unknown-sentinel, deterministic failure-code, duplicate-ID, execution-set, conjunction, and no-partial-credit assertions."
+      }
+    ],
+    "unchangedAuthorizedPaths": [
+      {
+        "path": "qualification/synthetic-executive/future-independent-qualification-contract/atomic-scorer.mjs",
+        "bytes": 14183,
+        "sha256": "c37c4add9a5a9fa147b06c88ca41d09d0dc4da0348c731faf601ca81977cbc9c"
+      },
+      {
+        "path": "tests/version-1.12.37-mutation-proof.test.mjs",
+        "bytes": 5071,
+        "sha256": "85c3e309ec4a9cf65850b3480c64742751562e8014911fcdfa6f40a84d2b4ddb"
+      }
+    ],
+    "frozenCandidateSnapshotSha256": "c61e6f0fb4008386dd34bb759e667fd3cff5e890bbea0b55f4ffe9dac1d03c62",
+    "frozenCandidatePathsChanged": 2,
+    "frozenCandidatePathsUnchanged": 26
+  },
+  "afterCorrection": {
+    "C": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "V": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "N": {
+      "members": [
+        "UNKNOWN_ATOMIC_TYPE"
+      ],
+      "sha256": "044a84ba5fb7cf1731d0cc15965dc9678081595f8434d7626595234885917af9"
+    },
+    "S": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "T": {
+      "membersRef": "canonicalPredicateTypes",
+      "sha256": "7ce894e9369ef5c70fb8b0931c8f85bec52d7ca9ba6f2c8cc84f38c6a613882e"
+    },
+    "U_valid": {
+      "members": [],
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "U_contract": {
+      "members": [],
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "U_negative": {
+      "members": [],
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "contaminatedValidFixtures": [],
+    "canonicalUnknownTypeSentinel": {
+      "value": "UNKNOWN_ATOMIC_TYPE",
+      "fixtureCount": 1,
+      "fixtureId": "ENUM_EQUALS_UNKNOWN",
+      "supportedByScorer": false
+    }
+  },
+  "behaviorIsolation": {
+    "mentorModule": {
+      "path": "lib/cognitive-governor/mentor-guided-reasoning.js",
+      "sha256": "a435b6c8c2bbe974fa4397384597a3b08167e1825eb8ecb7ff6ebc449c59c8a9"
+    },
+    "policy": {
+      "path": "lib/cognitive-governor/policy.js",
+      "sha256": "a55863d8a6cb306e485c74ad18e7c9df43612c7cb980a551bb610643506efb33"
+    },
+    "productBehaviorChangedBySuccessor": false,
+    "mentorBehaviorChangedBySuccessor": false,
+    "proof": "Only the atomic fixture registry and its atomic test changed among the frozen 28 candidate paths; the scorer, mutation proof, mentor implementation, policy, and all product paths retained their frozen identities."
+  }
+}

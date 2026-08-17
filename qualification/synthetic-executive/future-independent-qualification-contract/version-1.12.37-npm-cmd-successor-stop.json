@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "version-1.12.37-npm-cmd-successor-stop/v1",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_BUILD_NPM_POWERSHELL_EXECUTION_POLICY",
+  "releaseState": "UNRELEASED",
+  "acceptedStop": {
+    "classification": "VERSION_1_12_37_VALIDATION_STOPPED_AT_NPM_POWERSHELL_EXECUTION_POLICY",
+    "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-successor-stop.json",
+    "bytes": 4751,
+    "sha256": "c5f16dff4e47d0f317fc852cfcc31d26a8b6713c4f2099f93a542069c19c1a76"
+  },
+  "pathDeltaReconciliation": {
+    "priorNonPhasePathCount": 19,
+    "currentCheckpointNonPhasePathCount": 22,
+    "missingPriorPaths": [],
+    "unexpectedPaths": [],
+    "addedPaths": [
+      "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-predicate-correction-record.json",
+      "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-successor-stop.json",
+      "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-capture-boundary-proof.json"
+    ],
+    "captureProof": {
+      "path": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-capture-boundary-proof.json",
+      "bytes": 1065,
+      "sha256": "4b92a0d53073a684221b137091c2af7238d27f376f61f6dfe465d96fa0a82ee4",
+      "purpose": "Authorized deterministic Sequence 5 exact-boundary and overflow-boundary proof"
+    }
+  },
+  "launcherResolution": {
+    "npmCmd": {
+      "resolvedPath": "C:\\Program Files\\nodejs\\npm.cmd",
+      "bytes": 538,
+      "sha256": "21b46c69ad6e2f231f02a9e120f4ba6c8e75fef5a45637103002eab99f888ab8",
+      "npmCliTarget": "node_modules/npm/bin/npm-cli.js"
+    },
+    "blockedNpmPs1": {
+      "resolvedPath": "C:\\Program Files\\nodejs\\npm.ps1",
+      "bytes": 1700,
+      "sha256": "e8aedc8c76d6cb9423b70ede071228f7cb1644094c114b8721ae6d121100d4fe",
+      "npmCliTarget": "node_modules/npm/bin/npm-cli.js"
+    },
+    "nodeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+    "nodeProductVersion": "24.18.0",
+    "sameInstallationDirectory": true,
+    "sameNpmCliTarget": true
+  },
+  "sequence9b": {
+    "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
+    "commandLine": "& 'C:\\Program Files\\nodejs\\npm.cmd' run check:version",
+    "startedUtc": "2026-08-17T17:47:29.8024705Z",
+    "completedUtc": "2026-08-17T17:47:30.6243549Z",
+    "startStatus": "STARTED",
+    "completionStatus": "COMPLETED_PASS",
+    "exitCode": 0,
+    "stdout": "> katherines-eye@1.12.37 check:version\n> node ./scripts/verify-release-version.mjs\n\nVersion 1.12.37 release surfaces aligned; 3 Version-bound public assets verified; current tooling release fa52f960c6b080bcc598a8757e42512ba99b728856dda4df688b541fc8fc5ef4.",
+    "stderr": "",
+    "result": "PASS"
+  },
+  "remainingValidation": [
+    {
+      "sequence": 10,
+      "name": "Server static check",
+      "command": "powershell -ExecutionPolicy Bypass -File server.ps1 -Check",
+      "result": "PASS"
+    },
+    {
+      "sequence": 11,
+      "name": "Secret scan",
+      "result": "PASS",
+      "candidatePaths": 31,
+      "trackedEnvFiles": 0,
+      "envIgnored": true,
+      "matches": 0
+    },
+    {
+      "sequence": 12,
+      "name": "Frontend credential scan",
+      "result": "PASS",
+      "paths": 3,
+      "matches": 0
+    },
+    {
+      "sequence": 13,
+      "name": "Git whitespace check",
+      "command": "git diff --check",
+      "result": "PASS",
+      "errors": 0,
+      "informationalLineEndingWarnings": 4
+    },
+    {
+      "sequence": 14,
+      "name": "Repository integrity and classification",
+      "result": "PASS",
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "candidatePaths": 31,
+      "missingPaths": [],
+      "unexpectedPaths": [],
+      "identityMismatches": [],
+      "stagedPaths": 0,
+      "phase6APaths": 85,
+      "frozenV4ChangedPaths": []
+    },
+    {
+      "sequence": 15,
+      "name": "Production build",
+      "command": "npm run build",
+      "result": "NOT_STARTED_LAUNCHER_FAILURE",
+      "exitCode": 1,
+      "selectedLauncher": "C:\\Program Files\\nodejs\\npm.ps1",
+      "failureClass": "POWERSHELL_SCRIPT_EXECUTION_POLICY",
+      "exception": "PSSecurityException",
+      "fullyQualifiedErrorId": "UnauthorizedAccess",
+      "message": "File C:\\Program Files\\nodejs\\npm.ps1 cannot be loaded because running scripts is disabled on this system.",
+      "npmProcessStarted": false,
+      "buildScriptExecuted": false
+    }
+  ],
+  "sequences3Through9aRerun": false,
+  "browserGate": "NOT_APPLICABLE - NO DOM, BROWSER, CLIENT, OR VISUAL CHANGE",
+  "browserExecuted": false,
+  "releaseEvidenceFinalized": false,
+  "commitCreated": false,
+  "pushAttempted": false,
+  "sequence15RetriedOrSubstituted": false,
+  "qualificationCreatedOrRun": false,
+  "providerRequests": 0,
+  "evaluatorContacts": 0,
+  "corpusAuthored": false,
+  "v4Accessed": false,
+  "phase6AAccessed": false,
+  "deploymentOrActivationAttempted": false,
+  "memoryPromotionAttempted": false
+}

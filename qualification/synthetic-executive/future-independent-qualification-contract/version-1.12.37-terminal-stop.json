@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_37_REMEDIATION_TERMINAL_VALIDATION_STOP",
+  "version": "1.12.37",
+  "releaseCompleted": false,
+  "commitCreated": false,
+  "pushPerformed": false,
+  "deploymentPerformed": false,
+  "startingCommit": "5dc678b955c1d416b3fd44c21cc94a154a52e975",
+  "failedGate": "GATE_H_VALIDATION_SELECTION",
+  "failedSequence": 2,
+  "failedMember": "Mentor fixture suite",
+  "command": "node --test tests/version-1.12.37-mentor-remediation.test.mjs",
+  "exitCode": 1,
+  "exactFailure": {
+    "type": "SyntaxError",
+    "message": "The requested module '../../lib/cognitive-governor/index.js' does not provide an export named 'MENTOR_AUTHORITY_CLASS'",
+    "origin": "tests/fixtures/version-1.12.37-mentor-remediation.mjs:2",
+    "testsExecuted": 1,
+    "testsPassed": 0,
+    "testsFailed": 1
+  },
+  "rootCause": "The new mentor decision enums and evaluator were exported from mentor-guided-reasoning.js but were not added to the existing explicit re-export list in policy.js, so index.js could not expose MENTOR_AUTHORITY_CLASS to the new fixture module.",
+  "completedValidation": [
+    {
+      "sequence": 1,
+      "name": "JavaScript syntax",
+      "status": "PASS",
+      "members": 13
+    }
+  ],
+  "notRun": [
+    "remaining mentor fixture assertions",
+    "atomic scorer fixture suite",
+    "mutation proof",
+    "capture boundary proof and receipt generation",
+    "focused product-route mentor integration",
+    "applicable safe Node regressions",
+    "PowerShell/static member",
+    "version-surface tests",
+    "server.ps1 -Check",
+    "secret scan",
+    "frontend credential scan",
+    "git diff --check",
+    "repository-integrity and classification checks",
+    "production build",
+    "release file-set finalization",
+    "terminal release-record finalization"
+  ],
+  "preservedClassifications": [
+    "V4_CORPUS_EXPOSED_DIAGNOSTIC_ONLY_NOT_ELIGIBLE_FOR_BLIND_REQUALIFICATION",
+    "KATHERINE_SYNTHETIC_EXECUTIVE_V4_INDEPENDENT_QUALIFICATION_INVALID_NO_COGNITIVE_RESULT",
+    "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+  ],
+  "sideEffectCounts": {
+    "providerRequests": 0,
+    "evaluatorInvocations": 0,
+    "qualificationExecutions": 0,
+    "corporaAuthored": 0,
+    "authoritiesCreated": 0,
+    "slotsConsumed": 0,
+    "phase6AContentReads": 0,
+    "phase6AExecutions": 0,
+    "phase6AModifications": 0,
+    "phase6AStaged": 0,
+    "commits": 0,
+    "pushes": 0,
+    "deployments": 0,
+    "activations": 0,
+    "previews": 0,
+    "benchmarks": 0,
+    "merges": 0,
+    "tags": 0,
+    "memoryPromotions": 0
+  },
+  "workingTreeAtStop": {
+    "stagedPaths": 0,
+    "modifiedTrackedPaths": 8,
+    "newNonPhase6APathsIncludingThisStopRecord": 17,
+    "phase6AUntrackedPaths": 85
+  },
+  "repairAttemptedAfterFailure": false,
+  "validationContinuedAfterFailure": false
+}

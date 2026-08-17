@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_37_EXACT_VALIDATION_SELECTION_MANIFEST",
+  "version": "1.12.37",
+  "selectionMethod": "EXPLICIT_PATHS_ONLY_NO_DIRECTORY_WIDE_SUFFIX_ENUMERATION",
+  "browserGate": {
+    "classification": "NOT_APPLICABLE - NO DOM, BROWSER, CLIENT, OR VISUAL CHANGE",
+    "versionSurfaceNote": "The public index changes only active release-version text and asset query identities; structure, behavior, and layout are unchanged.",
+    "prohibitedCommand": "tests/milestone-2c2-browser-dom.ps1",
+    "executed": false
+  },
+  "orderedValidation": [
+    {
+      "sequence": 1,
+      "name": "JavaScript syntax",
+      "commands": [
+        "node --check lib/cognitive-governor/mentor-guided-reasoning.js",
+        "node --check lib/cognitive-governor/policy.js",
+        "node --check qualification/synthetic-executive/future-independent-qualification-contract/atomic-scorer.mjs",
+        "node --check qualification/synthetic-executive/future-independent-qualification-contract/execution-envelope.mjs",
+        "node --check qualification/synthetic-executive/future-independent-qualification-contract/capture-boundary-proof.mjs",
+        "node --check qualification/synthetic-executive/future-independent-qualification-contract/release-evidence.mjs",
+        "node --check tests/fixtures/version-1.12.37-mentor-remediation.mjs",
+        "node --check tests/fixtures/version-1.12.37-atomic-scorer-fixtures.mjs",
+        "node --check tests/release-version-surface.test.mjs",
+        "node --check tests/version-1.12.37-mentor-remediation.test.mjs",
+        "node --check tests/version-1.12.37-atomic-scorer.test.mjs",
+        "node --check tests/version-1.12.37-mutation-proof.test.mjs",
+        "node --check tests/version-1.12.37-execution-envelope.test.mjs",
+        "node --check tests/version-1.12.37-mentor-integration.test.mjs",
+        "node --check tests/version-1.12.37-contamination-integration.test.mjs"
+      ]
+    },
+    {
+      "sequence": 2,
+      "name": "Mentor fixture suite",
+      "commands": [
+        "node --test tests/version-1.12.37-mentor-remediation.test.mjs"
+      ]
+    },
+    {
+      "sequence": 3,
+      "name": "Atomic scorer fixture suite",
+      "commands": [
+        "node --test tests/version-1.12.37-atomic-scorer.test.mjs"
+      ]
+    },
+    {
+      "sequence": 4,
+      "name": "Mutation proof",
+      "commands": [
+        "node --test tests/version-1.12.37-mutation-proof.test.mjs"
+      ]
+    },
+    {
+      "sequence": 5,
+      "name": "Capture boundary proof",
+      "commands": [
+        "node --test tests/version-1.12.37-execution-envelope.test.mjs",
+        "node qualification/synthetic-executive/future-independent-qualification-contract/capture-boundary-proof.mjs WRITE_PROOF"
+      ]
+    },
+    {
+      "sequence": 6,
+      "name": "Focused product-route mentor integration",
+      "commands": [
+        "node --test tests/version-1.12.37-mentor-integration.test.mjs"
+      ]
+    },
+    {
+      "sequence": 7,
+      "name": "Applicable safe Node regressions",
+      "commands": [
+        "node --test tests/mentor-guided-reasoning.test.mjs tests/cognitive-governor.test.mjs tests/cognitive-governor-authorization.test.mjs tests/cognitive-governor-executive-policy.test.mjs tests/cognitive-governor-callsite.test.mjs tests/cognitive-governor-proof.test.mjs tests/governor-report-completeness.test.mjs"
+      ]
+    },
+    {
+      "sequence": 8,
+      "name": "Exact PowerShell/static members",
+      "commands": [
+        "powershell -ExecutionPolicy Bypass -File tests/modular-evidence-foundation.ps1"
+      ]
+    },
+    {
+      "sequence": 9,
+      "name": "Version-surface tests",
+      "commands": [
+        "node --test tests/release-version-surface.test.mjs",
+        "npm run check:version"
+      ]
+    },
+    {
+      "sequence": 10,
+      "name": "Server static check",
+      "commands": [
+        "powershell -ExecutionPolicy Bypass -File server.ps1 -Check"
+      ]
+    },
+    {
+      "sequence": 11,
+      "name": "Secret scan",
+      "commands": [
+        "rg explicit secret patterns across exact changed source, fixture, test, documentation, and evidence paths"
+      ]
+    },
+    {
+      "sequence": 12,
+      "name": "Frontend credential scan",
+      "commands": [
+        "rg explicit provider-key and authorization-header patterns across public/index.html public/app.js public/customer-evidence.js"
+      ]
+    },
+    {
+      "sequence": 13,
+      "name": "Git whitespace check",
+      "commands": [
+        "git diff --check"
+      ]
+    },
+    {
+      "sequence": 14,
+      "name": "Repository integrity and classification",
+      "commands": [
+        "node --test tests/version-1.12.37-contamination-integration.test.mjs",
+        "explicit checkpoint, frozen-evidence hash, changed-path classification, and Phase 6A count checks"
+      ]
+    },
+    {
+      "sequence": 15,
+      "name": "Production build",
+      "commands": [
+        "npm run build"
+      ]
+    }
+  ],
+  "prohibitedExecutionClasses": [
+    "qualification",
+    "provider",
+    "benchmark",
+    "V2",
+    "V3",
+    "V4",
+    "Phase 6A",
+    "browser DOM suite"
+  ]
+}

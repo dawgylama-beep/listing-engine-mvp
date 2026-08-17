@@ -842,6 +842,14 @@
 - Preserved the frozen V3 corpus, prompt, continuation policy, route, broker, schemas, serializer, envelope, authority, execution, evaluator, result seal, and permanent `KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION` classification
 - Provider-call impact: zero credentials, metadata requests, provider or model calls, qualification or evaluator execution, benchmark runs, product-handler calls, Preview, Production, deployment, activation, or memory promotion
 
+## Version 1.12.37 (Completed)
+- Strengthened the existing mentor-guided Governor boundary with an explicit decision order for mission, finish line, causal boundary, evidence sufficiency, authority, failure scope, smallest safe action, prohibited operations, and stop conditions
+- Added independent typed mentor decisions for retained-evidence sufficiency, authority class, bounded/architectural/insufficient-evidence scope, safe continuation, next-action class, and repeated-loop detection while preserving existing exports and product-route compatibility
+- Added a corpus-agnostic future qualification contract whose checks are deterministic conjunctions of closed atomic predicates rather than narrative full-string comparisons
+- Added a provider-free future execution-envelope contract with a 4,000-token declaration, 64,000-byte request ceiling, complete 1,048,576-byte capture, deterministic 1,048,577-byte overflow rejection, exactly-once slots, terminal missing-output treatment, and evaluator lock through execution closure
+- Added 32 independently authored mentor fixtures, 102 atomic-scorer fixtures, one-atom mutation proofs, capture-boundary proof, contamination checks, and focused product-route integration coverage
+- Preserved all closed qualification evidence and classifications; no corpus, authority, provider execution, qualification, deployment, activation, benchmark, or memory promotion was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

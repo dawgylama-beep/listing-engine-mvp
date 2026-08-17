@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "proofType": "OFFLINE_FUTURE_QUALIFICATION_CAPTURE_BOUNDARY_PROOF",
+  "version": "1.12.37",
+  "providerRequestCount": 0,
+  "exactBoundary": {
+    "bytesPresented": 1048576,
+    "inputSha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+    "capturedBytes": 1048576,
+    "capturedSha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+    "byteIdentical": true,
+    "complete": true
+  },
+  "overflowBoundary": {
+    "bytesPresented": 1048577,
+    "inputSha256": "5769f52bc3eef28afa39c6fc68cadb7d0bd69812ae3a3d71452f519ec3c7aa56",
+    "disposition": "OVERFLOW_REJECTED",
+    "capturedBytes": null,
+    "capturedSha256": null,
+    "complete": false,
+    "overflowReceipt": {
+      "captureLimitBytes": 1048576,
+      "overflowBoundaryBytes": 1048577,
+      "truncatedBytes": 0,
+      "silentDrop": false,
+      "presentedAsComplete": false
+    }
+  },
+  "failures": {
+    "truncatedBytes": 0,
+    "falseCompleteClassifications": 0,
+    "silentDrops": 0,
+    "priorEvidenceOverwrites": 0
+  }
+}

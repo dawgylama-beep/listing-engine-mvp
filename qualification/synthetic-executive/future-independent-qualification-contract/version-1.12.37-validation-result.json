@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "version-1.12.37-validation-result/v1",
+  "version": "1.12.37",
+  "recordType": "VERSION_1_12_37_FINAL_VALIDATION_RESULT",
+  "result": "PASS",
+  "preservedStops": [
+    "VERSION_1_12_37_VALIDATION_STOPPED_AT_MISSING_MENTOR_REEXPORT",
+    "VERSION_1_12_37_VALIDATION_STOPPED_AT_ATOMIC_PREDICATE_TYPE_UNKNOWN",
+    "VERSION_1_12_37_VALIDATION_STOPPED_AT_NPM_POWERSHELL_EXECUTION_POLICY",
+    "VERSION_1_12_37_VALIDATION_STOPPED_AT_BUILD_NPM_POWERSHELL_EXECUTION_POLICY"
+  ],
+  "orderedValidation": [
+    {
+      "sequence": 1,
+      "name": "JavaScript syntax",
+      "result": "PASS",
+      "commands": 15
+    },
+    {
+      "sequence": 2,
+      "name": "Mentor fixture suite",
+      "result": "PASS",
+      "tests": 3,
+      "fixtures": 32
+    },
+    {
+      "sequence": 3,
+      "name": "Atomic scorer fixture suite",
+      "result": "PASS",
+      "tests": 7,
+      "fixtures": 102,
+      "preservedPredecessorResult": {
+        "pass": 2,
+        "fail": 3,
+        "failure": "ATOMIC_PREDICATE_TYPE_UNKNOWN"
+      }
+    },
+    {
+      "sequence": 4,
+      "name": "Mutation proof",
+      "result": "PASS",
+      "tests": 2
+    },
+    {
+      "sequence": 5,
+      "name": "Capture boundary proof",
+      "result": "PASS",
+      "tests": 5,
+      "proofPath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-capture-boundary-proof.json"
+    },
+    {
+      "sequence": 6,
+      "name": "Focused product-route mentor integration",
+      "result": "PASS",
+      "tests": 2
+    },
+    {
+      "sequence": 7,
+      "name": "Applicable safe Node regressions",
+      "result": "PASS",
+      "tests": 112
+    },
+    {
+      "sequence": 8,
+      "name": "Exact PowerShell/static members",
+      "result": "PASS"
+    },
+    {
+      "sequence": 9,
+      "name": "Version-surface tests and version command",
+      "result": "PASS",
+      "versionSurfaceTests": 5,
+      "versionCommand": "& 'C:\\Program Files\\nodejs\\npm.cmd' run check:version",
+      "versionCommandExitCode": 0
+    },
+    {
+      "sequence": 10,
+      "name": "Server static check",
+      "result": "PASS"
+    },
+    {
+      "sequence": 11,
+      "name": "Secret scan",
+      "result": "PASS",
+      "candidatePaths": 31,
+      "matches": 0,
+      "envIgnoredAndUntracked": true
+    },
+    {
+      "sequence": 12,
+      "name": "Frontend credential scan",
+      "result": "PASS",
+      "paths": 3,
+      "matches": 0
+    },
+    {
+      "sequence": 13,
+      "name": "Git whitespace check",
+      "result": "PASS",
+      "errors": 0
+    },
+    {
+      "sequence": 14,
+      "name": "Repository integrity and classification",
+      "result": "PASS",
+      "tests": 3,
+      "missingPaths": [],
+      "unexpectedPaths": [],
+      "identityMismatches": []
+    },
+    {
+      "sequence": 15,
+      "name": "Production build",
+      "result": "PASS",
+      "command": "& 'C:\\Program Files\\nodejs\\npm.cmd' run build",
+      "exitCode": 0,
+      "preservedPredecessorLauncherFailure": "VERSION_1_12_37_VALIDATION_STOPPED_AT_BUILD_NPM_POWERSHELL_EXECUTION_POLICY"
+    }
+  ],
+  "browserGate": {
+    "classification": "NOT_APPLICABLE - NO DOM, BROWSER, CLIENT, OR VISUAL CHANGE",
+    "executed": false
+  },
+  "prohibitedActivityCounts": {
+    "qualificationExecutions": 0,
+    "providerRequests": 0,
+    "evaluatorContacts": 0,
+    "deployments": 0,
+    "activations": 0,
+    "v4ContentAccesses": 0,
+    "phase6AContentAccesses": 0,
+    "memoryPromotions": 0
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0",
+  "contractType": "CORPUS_AGNOSTIC_FUTURE_INDEPENDENT_QUALIFICATION_CONTRACT",
+  "version": "1.12.37",
+  "scoring": {
+    "evaluationMode": "DETERMINISTIC_DECLARED_CONJUNCTIONS",
+    "providerEvaluatorPermitted": false,
+    "discretionaryPartialCreditPermitted": false,
+    "narrativeFullStringEqualityPermitted": false,
+    "unknownPredicateTypeDisposition": "FAIL_CLOSED",
+    "unknownFieldDisposition": "FAIL_CLOSED",
+    "missingFieldDisposition": "FAIL_CLOSED",
+    "invalidTypeDisposition": "FAIL_CLOSED",
+    "duplicatePredicateIdDisposition": "FAIL_CLOSED",
+    "missingPredicateExecutionDisposition": "FAIL_CLOSED",
+    "contradictoryPredicateDisposition": "FAIL_CLOSED",
+    "checkComposition": "DECLARED_CONJUNCTION_OF_ATOMIC_PREDICATES",
+    "atomicPredicateTypes": [
+      "ENUM_EQUALS",
+      "ENUM_IN",
+      "BOOLEAN_EQUALS",
+      "NULLABLE_EQUALS",
+      "REQUIRED_FIELD",
+      "SET_INCLUDES",
+      "SET_EXCLUDES",
+      "ARRAY_MIN_CARDINALITY",
+      "ARRAY_EXACT_CARDINALITY",
+      "EVIDENCE_REFERENCE_COVERAGE",
+      "PROHIBITED_OPERATION_ABSENCE",
+      "CROSS_FIELD_IMPLIES",
+      "CROSS_FIELD_CONTRADICTION",
+      "AUTHORITY_ACTION_COMPATIBILITY",
+      "EVIDENCE_CONCLUSION_COMPATIBILITY",
+      "FAILURE_SCOPE_ACTION_COMPATIBILITY",
+      "NARRATIVE_CONSTRAINT"
+    ],
+    "narrativeChecksPermitted": [
+      "REQUIRED_PRESENCE",
+      "BOUNDED_LENGTH",
+      "PROHIBITED_CONTENT_ABSENCE",
+      "EXPLICIT_REFERENCE_PRESENCE"
+    ],
+    "narrativeSemanticInferencePermitted": false
+  },
+  "executionEnvelope": {
+    "maximumOutputTokensPerCase": 4000,
+    "maximumSerializedRequestBytes": 64000,
+    "completeRawEnvelopeCaptureBytes": 1048576,
+    "deterministicOverflowBoundaryBytes": 1048577,
+    "silentTruncationPermitted": false,
+    "partialPersistencePresentedAsCompletePermitted": false,
+    "providerStatusRequired": true,
+    "incompleteReasonRequired": true,
+    "usageAndCostAccountingRequiredWhenReturned": true,
+    "slotConsumption": "EXACTLY_ONCE",
+    "missingOutputDisposition": "TERMINAL_MISSING_OUTPUT",
+    "evaluatorAccess": "LOCKED_UNTIL_EXECUTION_CLOSURE"
+  },
+  "corpusAgnosticConstraints": {
+    "caseCountSpecified": false,
+    "expectedAnswersSpecified": false,
+    "caseIdentifiersSpecified": false,
+    "domainSpecificLogicSpecified": false
+  }
+}

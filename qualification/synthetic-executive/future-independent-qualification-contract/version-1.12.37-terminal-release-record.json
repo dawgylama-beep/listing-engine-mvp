@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "VERSION_1_12_37_TERMINAL_RELEASE_RECORD",
+  "version": "1.12.37",
+  "classification": "VERSION_1_12_37_MENTOR_AND_FUTURE_QUALIFICATION_CONTRACT_RELEASED_NOT_QUALIFIED_NOT_DEPLOYED",
+  "preservedClassifications": [
+    "V4_INVALID_RESULT_ADJUDICATED_MIXED_INFRASTRUCTURE_AND_COGNITIVE_DEFECTS",
+    "V4_CORPUS_EXPOSED_DIAGNOSTIC_ONLY_NOT_ELIGIBLE_FOR_BLIND_REQUALIFICATION",
+    "KATHERINE_SYNTHETIC_EXECUTIVE_V4_INDEPENDENT_QUALIFICATION_INVALID_NO_COGNITIVE_RESULT",
+    "KATHERINE_SYNTHETIC_EXECUTIVE_V3_BLIND_NOT_QUALIFIED_AFTER_V2_COGNITIVE_REMEDIATION"
+  ],
+  "terminalPath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-release-record.json",
+  "terminalIncludedInF": false,
+  "ownFullFileSha256Embedded": false,
+  "parentCommit": "5dc678b955c1d416b3fd44c21cc94a154a52e975",
+  "intendedCommitSubject": "feat: strengthen mentor reasoning and future qualification contract",
+  "futureCommitOrTreeShaEmbedded": false,
+  "finalizedReleaseFileSet": {
+    "memberCount": 35,
+    "totalBytes": 370975,
+    "pathSetSha256": "8083b1c1e4977767c33043ec4fb9782b8e66cd167887ce94e564c58e475d0c84",
+    "aggregateSha256": "02bfa550bf2651091e49f25acc63392c6b0f81b22ab74d08f0abbac726bbdf83",
+    "normalization": "SHA256_PATH_NUL_DECIMAL_BYTES_NUL_SHA256_TERMINAL_LF",
+    "members": [
+      {
+        "relativePath": "docs/mentor-guided-reasoning-contract.md",
+        "bytes": 2893,
+        "sha256": "2ffa98f52fa8dd2fbf257c9ee0fac0b6842630e5075be1439c50a2ce7ab1e173"
+      },
+      {
+        "relativePath": "lib/cognitive-governor/mentor-guided-reasoning.js",
+        "bytes": 26997,
+        "sha256": "a435b6c8c2bbe974fa4397384597a3b08167e1825eb8ecb7ff6ebc449c59c8a9"
+      },
+      {
+        "relativePath": "lib/cognitive-governor/policy.js",
+        "bytes": 20758,
+        "sha256": "a55863d8a6cb306e485c74ad18e7c9df43612c7cb980a551bb610643506efb33"
+      },
+      {
+        "relativePath": "package-lock.json",
+        "bytes": 2370,
+        "sha256": "40d00f68a4d1a534f694cf8b4fdd9faacfbc39b60fc5666df64d395400c50b7e"
+      },
+      {
+        "relativePath": "package.json",
+        "bytes": 2948,
+        "sha256": "8863cd195dd2c6ba2c8914b7cfcf6421cc1043fe69e6897c10a7416e1766295d"
+      },
+      {
+        "relativePath": "PRODUCT_ROADMAP.md",
+        "bytes": 126650,
+        "sha256": "93b52735c68dec4bea50ed384721cad7a021e22589ccde3845c90332962027dc"
+      },
+      {
+        "relativePath": "public/index.html",
+        "bytes": 26275,
+        "sha256": "7192be94151aae95b74e1acdd68b4f162cbd54e876ef366338fd38b8130b874f"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/atomic-scorer.mjs",
+        "bytes": 14183,
+        "sha256": "c37c4add9a5a9fa147b06c88ca41d09d0dc4da0348c731faf601ca81977cbc9c"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/capture-boundary-proof.mjs",
+        "bytes": 3470,
+        "sha256": "76a9b1085d69146fd34ce8d16f291ef8729413d44760a4301d4a67652d25f3dc"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/contract.json",
+        "bytes": 2337,
+        "sha256": "02e0034ee0126cd8f0150dfe962a3068e7f21e2147c93e6d6f7848f4df85ee9a"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/execution-envelope.mjs",
+        "bytes": 8277,
+        "sha256": "47cd1bda2d7b220b13b3378bbcb0bae1d67176c154d2799a534af06ea72e6dd2"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/README.md",
+        "bytes": 1216,
+        "sha256": "54d23eb8277c255cbc7a11042f13fa693dca56100265c48c1c1a128f80d1fb47"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/release-evidence.mjs",
+        "bytes": 8986,
+        "sha256": "257abf558b5dfea024cb9b9fa166d134434645b9b09cbbc202f88de8830526e3"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-predicate-correction-record.json",
+        "bytes": 10160,
+        "sha256": "81a2545870fe09f44f9f672ad70ca8a38700fabe199767d6bab2ace2cc658800"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-atomic-successor-stop.json",
+        "bytes": 4751,
+        "sha256": "c5f16dff4e47d0f317fc852cfcc31d26a8b6713c4f2099f93a542069c19c1a76"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-capture-boundary-proof.json",
+        "bytes": 1065,
+        "sha256": "4b92a0d53073a684221b137091c2af7238d27f376f61f6dfe465d96fa0a82ee4"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-export-correction-record.json",
+        "bytes": 5933,
+        "sha256": "5fb31048d562033af2c3ac2fc5375ffe02bf1e4c80e228f4a2ff95313d271ac2"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-export-successor-stop.json",
+        "bytes": 3180,
+        "sha256": "490aae90ab34fd02d4507f835c6f88897a1d3e6cad6d41939cc3ade3d4bda14d"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-npm-cmd-successor-stop.json",
+        "bytes": 5112,
+        "sha256": "06fcfdd5c7a840c811ec0180ecadcf1519b37a223023be60c8a2666b5604e09b"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-release-file-set.json",
+        "bytes": 3609,
+        "sha256": "a84d12fa95459d90928e82e8012a4dcb1f861605a018c073edc0c0505f078ef4"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-remediation-result.json",
+        "bytes": 2117,
+        "sha256": "51fb69b1ed0b35ea01e062a16e702e7bcdb1f41bebdd293b3234aa36f9129352"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-remediation-specification.json",
+        "bytes": 1430,
+        "sha256": "e17ba0ef915623e55908ab89a0bc4a5bcc1890e523612417ce05245fc822242c"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-terminal-stop.json",
+        "bytes": 2864,
+        "sha256": "beb0f7ae18e3b8bcee040882171a46c2c240b060c51fe377fccd4f874ef06176"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-validation-result.json",
+        "bytes": 3483,
+        "sha256": "5bc14d082531ff2a05ba1ed70107df2b242f779fefa4ab9a810ebfb266e96e1b"
+      },
+      {
+        "relativePath": "qualification/synthetic-executive/future-independent-qualification-contract/version-1.12.37-validation-selection.json",
+        "bytes": 5142,
+        "sha256": "6c9078fb44aaca188fe19d08f2750101c2e62f190690631fb61208a0a94628b4"
+      },
+      {
+        "relativePath": "server.ps1",
+        "bytes": 25331,
+        "sha256": "75866fbbe5930bf1976eb0fb3efc142dc9fc50a8399521f7cecb583fb3dbdfc3"
+      },
+      {
+        "relativePath": "tests/fixtures/version-1.12.37-atomic-scorer-fixtures.mjs",
+        "bytes": 9981,
+        "sha256": "e7aed33e16602d8357fa8b54ea7e235e5ccb9e3286868e95bcd1d2a76cef484b"
+      },
+      {
+        "relativePath": "tests/fixtures/version-1.12.37-mentor-remediation.mjs",
+        "bytes": 9716,
+        "sha256": "5ce26ad3ad6c324e0a0503c128823745578b23af85faa6fc933fc6d78f862b07"
+      },
+      {
+        "relativePath": "tests/release-version-surface.test.mjs",
+        "bytes": 4485,
+        "sha256": "cb9889f240639b29bb449f05920ac656abfd838c167c0469f825348425051f8b"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-atomic-scorer.test.mjs",
+        "bytes": 7309,
+        "sha256": "7e043c41d3a30931e16e9e255860a4431fee67ba45f76719134ece8b0ec53cce"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-contamination-integration.test.mjs",
+        "bytes": 3320,
+        "sha256": "103056ca0f086a8278d0d4a005a4e3dd9036a2902cc460a19f7d5b7b2b64ea80"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-execution-envelope.test.mjs",
+        "bytes": 4669,
+        "sha256": "394a82b59bffaf6770301c595ef52911655e08966f3972633e2c02112761c37b"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-mentor-integration.test.mjs",
+        "bytes": 1405,
+        "sha256": "074e40e04cf53d1212fa459c29a267f14ee89ce7e77a2c4bb82159719ad57963"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-mentor-remediation.test.mjs",
+        "bytes": 3482,
+        "sha256": "de9f0f6e51e9ab98303538e00faef3dbac0e1d96a7678595185c97f355f88709"
+      },
+      {
+        "relativePath": "tests/version-1.12.37-mutation-proof.test.mjs",
+        "bytes": 5071,
+        "sha256": "85c3e309ec4a9cf65850b3480c64742751562e8014911fcdfa6f40a84d2b4ddb"
+      }
+    ]
+  },
+  "reconciliation": {
+    "missing": [],
+    "unexpected": [],
+    "duplicate": [],
+    "unreadable": [],
+    "intersecting": [],
+    "unclassified": []
+  },
+  "qualificationClaimed": false,
+  "learningClaimed": false,
+  "deploymentClaimed": false,
+  "activationClaimed": false,
+  "memoryImprovementClaimed": false
+}
