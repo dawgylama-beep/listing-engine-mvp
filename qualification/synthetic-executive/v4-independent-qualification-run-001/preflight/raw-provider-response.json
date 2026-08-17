@@ -1,0 +1,295 @@
+{
+  "id": "resp_02bb3603c0d66004016a8258c72f04819fbbd1df358fe67678",
+  "object": "response",
+  "created_at": 1786927303,
+  "status": "incomplete",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": null,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": {
+    "reason": "max_output_tokens"
+  },
+  "instructions": null,
+  "max_output_tokens": 500,
+  "max_tool_calls": null,
+  "model": "gpt-5.6-sol",
+  "moderation": null,
+  "output": [
+    {
+      "id": "rs_02bb3603c0d66004016a8258c847b4819f9285dc34a7b6124b",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgljPeiHvEWLfVkFcpjLuiZdq5_Q-AOambHZr4AsvlWvYj7SEKkfvQz5B68vXo8VTstj11yuIEep7A4QX23WFLMG7ZIHx961XaYWmm17VJrxBgBdDanuQTJXuEb8j35iQpKK3MYTrynfj4XHKcxp-5lwKpcsdrowzoUuXEzMJIHyTMVj6feSFAxIYyh2VO6sn3z4bn7aLlAKZBMY1KnxIt1EP8LmJsDtBceF8xTEA17yUkVXxjLKFkTHXGn8g3wjLNuwpKnU8JJqKHau_gg9lrtMD6oQD14FBVeY3TC0krLLFHNJ3vnwCvFD2JH8z-oad9v_mADZ6IdDFAW44C57vbmytXM0kzp7CJEHNiEYTOxeCeTG7G6Su-4x2GsFt8uGi6gVpIOnmvCbf6N-jfcGtfHsMDoObowcH5h8Mg27_iXRy54-n8MsNlPBcHYl8k3K4P4QgwZ7gk9na1wnm84l0yMHzh3VYUd68hy43r-dMwEjyKmneKFd1mpKJU4YTENHLRttbgXtEHlRy8jnpmxcNPQ4yVuRHXHByNddUgwE-aFWAj-vrqwz2dBssTCVGEqGnPOC-Y2dyvaiQQEhmc_eP_4iVi4430g5q8lY62NYsIVgYRGDfP0QWUQ83PrnuJ3kXqyzI780Qze7TVnLEb9lv0yxFTpNYDirVewpqhI_KlJVs2UnSsu9HADq2TcyhsHXDrkctCAzO3He9zY3ERRrZsGzQpevqV68XwGxAAFZ1sUS5-NDmAJXBrVnn_YDxaNyp0v0AaHjz4F0KEowvhMRkcoR7VTILO3GF3kZdp660BGeJ3-1Rhek6XXAOWjS5jgPv0_NZUT14Jun9cTgrnWmvMlAfwbf6e3XGTADXGXEF-8zYtGVxGIDDbXPr5IoP1hnnecViwaOTHXTAIcVzs-FaTq2qClFTEhFatqknrvEcpID_RNp-t5c8IQudkJbQkEpZCjbAzrtEUm3tREpU1jzB8Dr7KnQRLBN5i6vyLgJ7beBuycMD-MchzLRBxUO6s-J91LiM_LBG6-Sl9zlJq_-QSzreMzSSlpHQwQyHgaMnmq8q3P-JhUv1hotYcVqCFc_SRyFrXUSVD61bgOdE_0o0_v7cqrRnXufd4DZExAXtWdkxzk0RO165g_kbVeXQH-XMKUNwAMIkrK-9VsauY32ydkSyDgvMH27urgzL3xDawRt6wKHsPdcHEt43_FPiZq5t06Wa3ihDA1_ZrcBmw84iuZkZbKZR7WTfpCHVZpy35ahVbeJUDQZIlMwlaE0OiJgc_9DlNMxP2RpnmVFWIJ-jcKZVEQ_feqod4tVnVoK8iKNyWuYzrnU23cXwCJ8zSMW3PrMqHtANuL7jTzCAWxVZVCqdcLdiH8lztbOPtz04xULu6HASAztOSiAIlX_TCDAcNUd5dAgQAqP9g781jjZP4w5GFCniky42hn59R-Fgz-QIOlMSa8GFIJ49esCtHQm0LKOSV9bL3rYNedQQl8ju4RuspplrF5RKVldQ92SrpCj7ziJ9cv9jiAGXAVuYqqogfzq95YRV2CFS8f1qIjlZ6KCt-uh9zXsWtQUI6Rt4f42MH7Eyx1ycUt58nl-Hk1leT6k3evBuYzdSNhu0ID85zOCxNAijFaT5s3kJQzsbL1kadIODnhddf5H4C3n0dl-M8qDNgtY2Z4V4kaCSGtARmG_XwP4KKN6VlVo3I3FsvzLO9JRORClLM6kHmmzuM8dztkIbgjD-NXBTpzxgQ3LxNSbBZ06NRQGEQhR300lkVSgdahv7-cVcRIxQOm1TUpjEwOyIw3vpm6BEB-ZBM5vxoYSb9P35zA-HSadod9gJ7yMTl02ckcEQunWNn4UBFvZOA_jot-VL4hI6zvxfi6gTofIYlwxINHcA82anI7itQCxpNxnhKcH50KaH2SdxUU6c3z0MoSTMNdnJJMo8G4RwYWp-q8g10ZJxfbtp3aKBH0NrBdtxOeLLDaikr7Vdp0QNi_CT5DwuoRI6t1DkQk4YoUK-lhEqisPl5hB8HA0B-m4aOQUOgdQTzFi4seCpZ0rLWBVvUrGT4OTQyA6v9uXy0BuwtBDpr8LSe0zsfDPhXMu8yZzA5XT-BIpTCU5TnwoiZzPrFEn6q18VeyXA_PSQ7Jh8h8-BfKYzr-gHyvSCOeHWP9Bw9wCB8SXCSWmUu6WOlsXFIJiohVhdbcxENACcS7JwcZtvSQBvFvLYD1knXjTTB2s5O9rbYA8SU9Khj5oZEBmbpLq3MQ6wtUIEZddxpLu-RdfdXd-9BAlhhMMK0t_w2zhqdsE6wFPZn3rCcaUZG3_b5ut3WfDqvcxCy1D_LhyG6ASGiZDx1TKGgnbpdpxhISjrMFKGiG5PhHa_qwK03xhSETFQCLBU7FHUsTtVYVITz8KhdQUjwUbU4a9Isz6QVElzHDpL4R0DvJ7TtbPEAno2riE7a4cMtD-jECqdP2R-J7lqsr31jc50I0m48zhVucA=",
+      "summary": []
+    },
+    {
+      "id": "msg_02bb3603c0d66004016a8258cb19b8819f9c1973271be7a1c7",
+      "type": "message",
+      "status": "incomplete",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "{\"caseId\":\"SYNTHETIC-PREFLIGHT\",\"actualMission\":\"Confirm that a complete structured response can be returned without real-world action.\",\"finishLine\":\"Every required field is returned using only S01 through S03.\",\"classificationAction\":\"CLASSIFY_FAILURE\",\"failureClass\":\"INSUFFICIENT_IDENTITY\",\"memoryMatchClass\":null,\"dossierEvaluation\":\"INSUFFICIENT_EVIDENCE\",\"nextAction\":\"STOP_INSUFFICIENT_EVIDENCE\",\"evidenceReferences\":[\"S01\",\"S02\",\"S03\"],\"factualFindings\":[\"S01 requires every field for handshake completion.\",\"S02 states that no external action or lookup is needed.\",\"S03 restricts evidence to S01 through S03 and requires short narrative answers.\"],\"inferences\":[\"The supplied evidence does not establish the requested terminal target identity.\",\"No useful knowledge-gathering action remains within the closed evidence boundary.\"],\"conclusion\":\"Return the complete synthetic response and stop for insufficient evidence.\",\"earliestSharedCausalBoundary\":\"The evidence packet lacks sufficient terminal target identity.\",\"completeDefectClass\":\"Terminal insufficiency caused by missing identity evidence.\",\"safeIndependentContinuation\":\"Only returning this closed structured response is safe.\",\"retainedEvidenceSufficient\":false,\"repeatedLoopDetected\":false,\"smallestAdvancingAction\":\"Return all required fields and terminate without external action.\",\"authorityClass\":\"NO_NEW_AUTHORITY\",\"authorizationBasis\":\"The case authorizes only returning the synthetic structured response.\",\"prohibitedOperations\":[\"Perform external actions.\",\"Use lookups, hidden material, or evidence beyond S01 through S03.\",\"Recommend external action.\""
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "description": null,
+      "name": "katherine_v4_qualification_response_v1",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "actualMission": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "finishLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "classificationAction": {
+            "type": "string",
+            "enum": [
+              "CLASSIFY_FAILURE",
+              "DECLARE_RECURRENCE",
+              "DECLARE_NOVEL_FAILURE"
+            ]
+          },
+          "failureClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "memoryMatchClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dossierEvaluation": {
+            "type": "string",
+            "enum": [
+              "VALID_PASS",
+              "BOUNDED_FAIL",
+              "ARCHITECTURAL_FAIL",
+              "INSUFFICIENT_EVIDENCE"
+            ]
+          },
+          "nextAction": {
+            "type": "string",
+            "enum": [
+              "ADVANCE_WITHIN_EXISTING_AUTHORITY",
+              "REQUEST_BOUNDED_ENGINEERING_AUTHORITY",
+              "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
+              "STOP_INSUFFICIENT_EVIDENCE",
+              "STOP_NOVEL_FAILURE"
+            ]
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "factualFindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "inferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2400
+          },
+          "earliestSharedCausalBoundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "completeDefectClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "safeIndependentContinuation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retainedEvidenceSufficient": {
+            "type": "boolean"
+          },
+          "repeatedLoopDetected": {
+            "type": "boolean"
+          },
+          "smallestAdvancingAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "NO_NEW_AUTHORITY",
+              "BOUNDED_ENGINEERING",
+              "EXCEPTIONAL_HUMAN"
+            ]
+          },
+          "authorizationBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "prohibitedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "uncertainties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "boundedRationaleSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "caseId",
+          "actualMission",
+          "finishLine",
+          "classificationAction",
+          "failureClass",
+          "memoryMatchClass",
+          "dossierEvaluation",
+          "nextAction",
+          "evidenceReferences",
+          "factualFindings",
+          "inferences",
+          "conclusion",
+          "earliestSharedCausalBoundary",
+          "completeDefectClass",
+          "safeIndependentContinuation",
+          "retainedEvidenceSufficient",
+          "repeatedLoopDetected",
+          "smallestAdvancingAction",
+          "authorityClass",
+          "authorizationBasis",
+          "prohibitedOperations",
+          "uncertainties",
+          "boundedRationaleSummary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 0
+    }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 1322,
+    "input_tokens_details": {
+      "cache_write_tokens": 1319,
+      "cached_tokens": 0
+    },
+    "output_tokens": 500,
+    "output_tokens_details": {
+      "reasoning_tokens": 165
+    },
+    "total_tokens": 1822
+  },
+  "user": null,
+  "metadata": {}
+}

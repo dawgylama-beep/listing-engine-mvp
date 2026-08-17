@@ -1,0 +1,293 @@
+{
+  "id": "resp_08663bc5eb4e8313016a832badcef081919ff06ac840dd2956",
+  "object": "response",
+  "created_at": 1786981293,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1786981306,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": 2000,
+  "max_tool_calls": null,
+  "model": "gpt-5.6-sol",
+  "moderation": null,
+  "output": [
+    {
+      "id": "rs_08663bc5eb4e8313016a832baf12f08191b647a734b66f78b2",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgyu6ytRm9Y3OtaBZJ6Ovc0Z6GI0A6Q5p7-98Vk5tFvatBJ1xLuzSsGoldkOaAeFBVpkZzn7ez1_RaxoD3N2Y6NfGSkfR0imopn4Kd9EpFWTg1Jj9vgPXIZfrS31lewAy28C6rJJCOO5lnxEMfXnA3QFN8uAQRqN3LEVd8wqFS9c-TEypLgSQdLzhMxn0yQ3MCNqf6APmXCLwlJzlWOLxa5FAlpKd9wQA2eQjWqWIijbIEkxevme3CCwIAWOne4hR1CpTQjlRTK6hD44OTayYdLH1FuzEpKRRCJkdpFP547B96e0gK1vF1DnGBV9W0vKTVhsWKzOadVfmPuDzVmiXZPL5qx7SFxv_1tK8_I9a-1Gh4GmChDO2rtxoWky7liTxxkbh1jK-19pcntJQ1Z-w2U1QXAADS0HQQlupkyUbeAwjzN9d8NGr6aQPe7I_dAg2_VOpRgEsMEhG1vXcHxJjRIAG8E_LhKfbJHaWjZtj5wO_UglrULmbqYhmKeUn0iQvd5Oy_IwBjAnxvx4fxguzEYJr6mMzLfUhhvNWmxVOQhVrOivSsNp6djP7Rs0hG2CjIlA5sHmOxJ23Axf0t7akzUtvZezbQvIBosLcbovY1258gPLx3ZVRS4jAqo-S1hRPxQCOUB8y3lFl3GqIcBSWW-l_L46rEuQRPcf2-bMA4O3szkq9ab-SXb-bSIdZWnnlpQpGNS67xp0EJGfqx0wPN4ajoffGfH7mAJ02GRmIcyYV5MeVhmU1GiEt-ZbEYlX41Q0hwBrFMGpOMXSx64gnMFq9XXro4GLr3QnIQNQrZTGTHE1jMaYrhSmd1-5Ymfw6NDZJE1gCUcDIQPluEwLGkQ0kvP-T_eMnHS2DhJxVvxzLaLRcxgGPQMfNhljst4UO17ceJnhizYgpPod20AtwciidQrbaFZ57lu73nagt_1q6PnljBig0SwQCZE0TyhEwqGvGJc8Tz0fMVwvNptFg_iAAZ1bmoUMkHdlndrZQADxXmSO_ApM8AM1iMt2IlNRan1S4o4AvdjIWIQ3exkR8rAqo_7yXXBsvrRDvOXEX0b2XM8Wt1x61BosQfsFwSG5XuUKdwrUTBv72mPcp6f3WOoRd_AWUqmdl925BCcU6q47ZH7sDOG2tanQ-xmnhNP0esQSkRVfN9P0g4c1q5zk0OiwnefUXFFJNmWrhvP3q681QMXwa0hxgen7m1JUA1Azfc6BE1K9_env-gMkGLKBajZJcdK8vR-I2LgCfJG5ZakmAIAgTjR7l8jsy0gSwT3X_w8Fs5QTP6jHJ0csz5kKw0vByF8wxSO2GIcAi3g5y4w4kCfiyK0MNOzSEMeZ-RiTS3y6mn1tU4h6BXGSXLuRq5n8_xiCRitkzflhjircIz7WzAauHpobOEKMKU9SyUFqHSl0x0-TGRc5Fz_se4grAPPtAmTyKtZDy1LRE44UEVPMBwsWs_i3jhGVCXlPFU1XiTg4-jTHm2BjITkInZM9gTR3V801S6L6GpsxoR86LJKCKb4T4kRGBFRbw5aNzbozQHWtEiYI3UXecPlKExDwmiM7Gs-mJmBwdc17HI90pCHqqnq5jhJJZxghzaBFP5ShfZvaEnbfJ9nQ5rIhQlLmT1fP8bws_tqD8ELpcu0fGwa0Zf6hI9sTgeWSgdo28kiYQWlUUJWyqff73-81VDG3EeXGCbKxXNkWrG5QHs-DJdJg9V5eWhwpsEyGOkULKrEF7N_4_8mYFVAhocD7saBjmTEMI7uQ1FEzuQEfgE98tXJkZpiditkqAVSVWXhMqBKec8BSnedPPMi8kacZNVeglEYV3PROnjU6S_mdv47tcamUVGRpgyFv-neK3_dsGMQ-Icu-AEz-EK_uhQ7FNuC_eOmzmCy1uEfUegWYy_S13CbABzMaOYlB914yKHPWRIhfUWm5-9vxVqbU3jnH_ZdDeTThlRYl3FXkCd6ir4dkFqWuW5hgoMoKTS9qwO7iaiMMZGb-JbVmY5Bos_Zsc2qEH7SyCYEjgD8OCtfwamR0ZGbVJtDVcOj_N5We_IWsIsfYKhxCUugb53I7Yg9qfg65f3XF2WHtXbE_zpQC_u31hJUIY_k-9Ef7b3JecQB_2cFVLUWJQo7m7k_G5fHwYef6uFzKWYI_1FnrbbW6iQ4pX1PocbJrpHrAJZTVfYqOQXb6DZctcr6pgTxNxpTrfTFSNCLhrq1iD28WfnyoSnBHj974VPGcYZt2MXX_fL3AAhUaSJf8b8wDDBUryNifEieDwDnMvxA5Hy7cvYniX8DfcUR6VMrbvW1VwtL_29WC6yqMn5rdf1gXG0TCkmXY1hRRE7WRu1smRn8llJvoZZ7juwSAiVWTUv3DcJrqktbGbQXUt_jnRbcZbh7q4zn3GTTCgNFsjFuinT5Pe_zZ5TSLfdvepE2c9gze3iKqPaua4AGreLgA6jvdYyOfHqtWM9o0TRC3ddAVScGQVmmqwXDrGk5nCBZQ8r3eWpbwo6kgx0TvAjz3n3Dt8q6Er5YGLUYJQUeRP0Ir45TOiiTocjaDjs5vjVOUeqMazNd1cUKu72a21yRsArNhwhrPrQrVOO2UbrClYSDGOuS50sHYjtgky4vjvBepmHlHHviXJ2x0S0QJvM4_SQ8rue2CnozDkQEYt1nAO1OsLelpjH_2jzBh4OIZMCGlqldibqNUMvVev5ju49Vz0dCj7l0utGMR8hXFcRI1L8tVQu0FF8JMCwrHF-_eBtayiJwfieFjD1y67KCE3tN07I2_BpeuwIRdfR4uTlyR1fcuIa_EHM5YK0SvzWl6yht5ywVffLkwemV2c_u0T5WKAAfkgY-1RmU5uIO9vDK-pswaLtVVkk7pAiJQpAUAedirzJl7IdLQayArct3oi4eUnB7nKhft2m2d39W7einT6PN-bz9pHcvWoPpoDMBGwfferzQCy7p6aUJLF84pxaw41vEKX1yoyuGEZqFSsEgALHHG3QNqpkRUBv50ZgLvfdw8bRBKLo8QzpY9zM2p5Jkz8qveeLWFr-1szCG42AWm0xv_SIKKhJrMBdFMj8hOt1-lk9TCzoi9TLoD0lU3jYksUY6KO0C7bv4Q3FiJZb6tn9bPX8LniFam8wf4BWzTrS2chdknukahbYgfT3aS85wxyotKBlAUCO72Frl_8YnmDfkOW1VTf1qsuq7c0jJAUtx6I1OH9J8Cxco_VF5PL8XX2tehOSv88255gAxvD3qeH-Gf9wHWnpupWCwhuDhjN7XXXHNBVOlkuG_Jb75AWUMGqUe9sdqllr9Flhmo_FiawSMVTH3cxGSNfVbUFoBYLVAKQdMlwRLW2dt4SJoblPGVUZVgPvOMXSHKOOAyNCwu-67sYTQDbi4DA0Wm3Az1uI5tLdvewVEz9IViB4cS172Z0zZmJV6emD-KRcmvX0ou9ZoFzrMwrmtjmN2QQGumCq7XasctnZ7tfvb5w3re5pfMTIU195jXC42fhnKdOjFiQ-1pgb5-tDG0JxNYBdr5ro4ClreTegZpMRgEmv1GbwJJEb09XvuCq5nUg15T31j5iFrNJdK-zniSVIH8NvLG_wdBGJZzNiJKQ3iebwXZ_ZTqsSQBNKQ6QDCznnGJ8Y5c6igQ_s1scWAxM3mrZbiq-vROk3vd_cVImqwQwRCm6knjlZKcXGlM8p_oC0cSdv-uEgehpOczZfcV0icLKJjpctEs5qNfhjm-cUUIPb-W9BfhzZYiEzJCgg3jWmtF-KWeLYGKMD9T4ujsOIVZyDU2qv_mTsrYfQ5Lro2SmYNQr4DpaoisOKY8D3dRuVKMKxDsxGx2yaiRURik0V_IPKg7aeQ079wyVEVZfyqo-Cx8MbbBzuXfMqstZG8vtHFujuYmA-iOMZ9mFsMuFEPsezypQ1cus2yucGBLGUHJ6PRN47fjiLrEFRI6vok3Z7Kb9HYbVpJUNVVT9qnKD7FruWuddegL96c9oA8s9mCpUcQ384sH_wuLobn5U8hVT4U4tJBRO6kpc0AGfI1BBCPalsOHjGcf8oNkHE1ljDvwqoqCWqzsWLpbBqP3I6rfdV0YC5Uo9LCKGhVeUzU2IlM_Cow9EhC-vTB_zNrSW_Vp9dWniJ5AfxqBokCzbGYSnJ04mrZLzbMrzLbqfW9g9m_WxFCoOp4XdLTODF2-qmg90_B6JFi1ZYQOqvwOXAEd17MInfHskF8ri7qRanvi34fEuIcSe01csKfINV5U-OqWzOxhpYkfDO_crPnTaltsMW1r5fQFnLXVzVFWJ8kJpEEh8u0hzf4jXpdPrXLWqEJ8CigHNQY15XID9Ef58hBaZ83EqKgducDchsxxmnYFKfeSAZPz57tZ4wgmRQNoMbu9dw73C0PV0",
+      "summary": []
+    },
+    {
+      "id": "msg_08663bc5eb4e8313016a832bb73dc08191962f7b5c13c5f7c3",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "{\"caseId\":\"SYNTHETIC-PREFLIGHT\",\"actualMission\":\"Confirm that a closed structured response can be returned without real-world action.\",\"finishLine\":\"Return every required field with references S01, S02, and S03.\",\"classificationAction\":\"CLASSIFY_FAILURE\",\"failureClass\":\"INSUFFICIENT_IDENTITY\",\"memoryMatchClass\":null,\"dossierEvaluation\":\"INSUFFICIENT_EVIDENCE\",\"nextAction\":\"STOP_INSUFFICIENT_EVIDENCE\",\"evidenceReferences\":[\"S01\",\"S02\",\"S03\"],\"factualFindings\":[\"S01 requires every field for handshake completion.\",\"S02 states that no external action or lookup is needed.\",\"S03 restricts evidence to S01 through S03.\"],\"inferences\":[\"The packet supports schema completion but not additional identity resolution.\"],\"conclusion\":\"Return the structured response and stop for insufficient evidence.\",\"earliestSharedCausalBoundary\":\"The supplied evidence does not establish the unresolved target identity.\",\"completeDefectClass\":\"TERMINAL_INSUFFICIENT_EVIDENCE\",\"safeIndependentContinuation\":\"No continuation is safe beyond returning this response.\",\"retainedEvidenceSufficient\":false,\"repeatedLoopDetected\":false,\"smallestAdvancingAction\":\"Return this terminal structured response.\",\"authorityClass\":\"NO_NEW_AUTHORITY\",\"authorizationBasis\":\"Current authority permits only returning the synthetic structured response.\",\"prohibitedOperations\":[\"Do not perform external actions.\",\"Do not perform lookups.\",\"Do not use hidden material.\"],\"uncertainties\":[\"The unresolved target identity is not established by S01 through S03.\"],\"boundedRationaleSummary\":\"The evidence completes the schema handshake but cannot resolve the identified evidence gap.\"}"
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "description": null,
+      "name": "katherine_v4_qualification_response_v1",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "actualMission": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "finishLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "classificationAction": {
+            "type": "string",
+            "enum": [
+              "CLASSIFY_FAILURE",
+              "DECLARE_RECURRENCE",
+              "DECLARE_NOVEL_FAILURE"
+            ]
+          },
+          "failureClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "memoryMatchClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dossierEvaluation": {
+            "type": "string",
+            "enum": [
+              "VALID_PASS",
+              "BOUNDED_FAIL",
+              "ARCHITECTURAL_FAIL",
+              "INSUFFICIENT_EVIDENCE"
+            ]
+          },
+          "nextAction": {
+            "type": "string",
+            "enum": [
+              "ADVANCE_WITHIN_EXISTING_AUTHORITY",
+              "REQUEST_BOUNDED_ENGINEERING_AUTHORITY",
+              "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
+              "STOP_INSUFFICIENT_EVIDENCE",
+              "STOP_NOVEL_FAILURE"
+            ]
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "factualFindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "inferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2400
+          },
+          "earliestSharedCausalBoundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "completeDefectClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "safeIndependentContinuation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retainedEvidenceSufficient": {
+            "type": "boolean"
+          },
+          "repeatedLoopDetected": {
+            "type": "boolean"
+          },
+          "smallestAdvancingAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "NO_NEW_AUTHORITY",
+              "BOUNDED_ENGINEERING",
+              "EXCEPTIONAL_HUMAN"
+            ]
+          },
+          "authorizationBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "prohibitedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "uncertainties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "boundedRationaleSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "caseId",
+          "actualMission",
+          "finishLine",
+          "classificationAction",
+          "failureClass",
+          "memoryMatchClass",
+          "dossierEvaluation",
+          "nextAction",
+          "evidenceReferences",
+          "factualFindings",
+          "inferences",
+          "conclusion",
+          "earliestSharedCausalBoundary",
+          "completeDefectClass",
+          "safeIndependentContinuation",
+          "retainedEvidenceSufficient",
+          "repeatedLoopDetected",
+          "smallestAdvancingAction",
+          "authorityClass",
+          "authorizationBasis",
+          "prohibitedOperations",
+          "uncertainties",
+          "boundedRationaleSummary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 0
+    }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 1322,
+    "input_tokens_details": {
+      "cache_write_tokens": 1319,
+      "cached_tokens": 0
+    },
+    "output_tokens": 766,
+    "output_tokens_details": {
+      "reasoning_tokens": 415
+    },
+    "total_tokens": 2088
+  },
+  "user": null,
+  "metadata": {}
+}
