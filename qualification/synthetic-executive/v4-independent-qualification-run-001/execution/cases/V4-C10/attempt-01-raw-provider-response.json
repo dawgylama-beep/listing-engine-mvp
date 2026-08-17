@@ -1,0 +1,300 @@
+{
+  "id": "resp_0e61325964ba8bfd016a832ef4df2481a186fd55479650fbb6",
+  "object": "response",
+  "created_at": 1786982132,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1786982158,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": 2000,
+  "max_tool_calls": null,
+  "model": "gpt-5.6-sol",
+  "moderation": null,
+  "output": [
+    {
+      "id": "rs_0e61325964ba8bfd016a832ef5bb6881a1b274be55d6f3154e",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy8OGHT3dwdW6TxJHBogPiq95XIZfJo4HQnvxAFr4wrn-IMwXZvWYfKt58N4Nfgwri2fP1JFxk_PDzjvy6diClHqCTS1vCztT6iYTjqthOLmjW81s7gNFtRE2PZKcN2moyxSURGUglVhxdQOFBHMnct0LI1qtlfhzUmrcO-ynGXEnuikBxu-GBK3NbQgF8Z1_AYWy63dj-VZlDzFyvTz1fOBOsOxwsZ-f_PL1L6WHxO8C-AqeZ4yGPeXwk-hL6UvA6pGqfqhHO1nuRItVOiGQaXqPdaeLPxoYt7MPuwuAzyrsqH1Isv45_EAUPw9Qx-bqWsRdwSgQ_9RM1c6u0sEzGTbk2ttIiCayrMn1FVfBoVCQD4vFzPdxTjayxHZ0_3wTJORh3L4UD1lnlFdeXFZC8cNzUoK58kp5dxfrdAE5FhjWkmfS7YTd8tWHeXc1GxKw6m7ONj6O9TLE7u5vlCwPeNW-K00IXCEIVgCxL_sXjakHrH4dytdtc4iVrNNKXtIZPPo7sO0FftYL43Mk5p3bgMj-EDFpKklgXbgUxhyecT4S0AxO6XnytEH9S3DMb8HHdnhW7UDWIVPskT4gY1XhL5ml3kJKB_I7VdhASGXf72DjvziLH8UZwhKf9xpRt_9f6OOx2ULcfE1Ti36kB_hhl-K6-z2tVLgJ71vrulEDG2uE9vhlOiZaZcUT6xFCYGVas94Klo-RK3VQ_YB26v2OBSOJ7AnWeVmgC1DB2xJdgX8TqWKAMVzm79DU0YRoGJ-Kyr5FuOqzTIL4KH7gI7yVoWR_PmCaEk_J5dz6KqsktMlY6QFE0M9RFtKi3DvtP1wqQrltwf7_5e5VR3rkJsaF5-mL5WCOcozGQsGrPHKSXq_pV-XXrMmp0TxJycEie3SFQ1ANJBVBS8o5I43nUajYOJo4_s46MoHBt1hC8qrlhZvRwF1udzDTp9nOGq2Uc14J0ESPeYp-uzDdmZddH5se5vMDq32PYJe1nfG3UdCAxq-BGBm51vXI3Y63pPk11mdETDxFD3MLHm7Ugvbtvg3vOy7sWbCs1v5PCdqODxwlR6Fn2ki7C23bbAfMWTUlPZnF0WAvlqIIyTPbsuXpkFoeFhdLll2UxWVkyzQFKRvy0qocdH3YNEL6qKldfAy_Fx7iKKojoLi8ylslas_B_XKrUiuF9FQ8BP-o_BxImfH2sCdDfhtetn2cBcQHdZLy9GFcfezdV_n9VMUETXRHYyYfCQygr7uMhiGfEa4oq-XcWGCra-E6K_umKLzYJu_tVd54_lHO27T2k1xqOtDos2Az5vY8HlfMhsJrPE2VrqNZdZqUB2s-60GrKajcC4b_CW418LSCgkCxgBABsswlRBdmmi9HK753rCFU06Qa7gpWHy0e-Ve98mr44Dffbk0eJ_xoto1iXc1IdheZFA7RRDiA9jN8RFVsRayOTWEijfE_UEEAEFFEWKu70mYzH6jXEgIZpt6-qSgrXFYzvZAMBgGI2P7RBr2wTJkvgC2luaDC80Q7MwXIOucEsu7iyHj-7p-VvaOR0kOa6KUDo0kbYRQVOezp9Sf8eaZFtNvuXVztAPg-iuKeKtGMuNeVNXJUaJmvGKhmCGdz8rJh9INA_GFuCCBTDiuXu5UGusYvIeAMz7S-k0zRCLfAkE0lHXEZna4zEScszkhkeVacK2VKEuqf12S02Da6sga6cMJlf3u4ji90JDIe1dpsj060c_hzk1bMwdiIM-oCBV3HhzxaVi70kdHR7Xe2b4-Blbf8g30Ng5RDDJ3w3FAIgu3yk0akRX-P76_q00Wvjde4j_rOIu0NTM1Nw62nBeDhfdzuVISMkpp8623fokU3R-L78LC1zqmB-ro2nY6V0M-vrB-vqcxMVXIMrbisjGRdZG715YHQOnyb_Kk1cFFjyBBfj8bHnyTI7Kt3ahABoF6NJcSymVJND9b1FPLWkvhJKHIuClURprlu-unMED4C4F3X-1svYhT72UQNtOhOKezu5N2Tyfz522PUF4aGpNayvAvo7xAZHQ0tlJlF5TtGXP8QGUfkEC-BaEtB-1oXWlwvA0OhwWuM1VO5NhIXOjqFkdRchnTnu2aLSkWLmOWJD6ifSvb4LuwAxReVDk4S5GRmFjcwV02Lvp6EN4NKkofGZTnRNThVJshv1cSbsdoWw4g-f8q8bMoM6bTkSDFA6LWMzaGck7oS6er6YOjfr1dHfe6Tu4InE9P6lZ7dOs6Jo8PZj8ZndAfBULUbqf9ykugG5Uh7rI2p42ZcO8gW6w2OHFa8XJMpUrb1dKaCEMacakp8KLjGCecyrchujhV1cI7HeVaXmaDgnjpYGPLDxPAE2WtGEBdw-s0oa749eHxJvdFdbvmEG-nvJ9ZJkIOAzSN6LSvTxX5RHwIg1XW8HOq69RHMuWgQH9RvICxwQj0ogCClodgQkNJBLz_jR-x3jw0DgHz-u73l2ymbrjW_FdidBv667_C23nJSmY_ly5iZ9TatNjuO6LlZruOKcpurw5pIbTP-y5Ogo6vhKGinqHvEnqjCUPySQ9MDLdHcEfHmY8DgfZDfvvNKfIPKy15pHCo6p4uvlsNJtwbh7e9hUwT191shGRL3Qm4O4fqc1TVI_b7stC2nwx5_Yjf-uj57QEayWGpWdcHw9-qBQVFqcbl7t41sapIJwIcIfuV-VZoiI7gQVHh4DtQukRgkkVPQFMb6i_frRrEqBQyjrL_Wuobj3pU3tviZDS9LJyQxp_zIrC0--9LqwO64H2Br1lFBGVQZ0PENzHZ3DskqvOsLYd-2_TooetBTOb-RoFt88B6iSOUihc7gJGX_i-4I-RaSy2pUXLJcDCLIYfFkIRh8QTQ4f7KjnrPWKkpNlAA_O0xIEo5VFyfnYH6-xcunBvS-ytnCOur0tQmtIzvz93P24NC_kuXkxE4CfAA-qjrYR8KNE1XZy-R3a5xRp5sK8yi6AwhwpzVYIzDml9Ltn_0uiQLklIdejDKvccikk7XHsMksjeSYBPyF5mF60iHS2hdsjyBp2JgiAxaxVpZk0g6YU-VhsOKYaq--huSKuOU9nqIYFcaMGCerh1BzK-94LIupRdtXxtVSsodZ4lS_eTM9kzXbgxofrL_bIkWSFcNMPTX6VRqVf2zyfyMrtnVxlOFR7nn1sC7tt-UVT-x-iLsz7n8kuIhSAdzSQ1BFm2tUmPfM49V_bShNVX0MWZsdPohWzlxeD5RAiLxBP9bqCgy8Fy6xy6KiGUkdWQ_xZHCikXwmMCYuE7b-FozVZFsxTPupg2OGZKlRS1DrnU-cU40cEViUKLAObsfPXiPx6Ys-4bq63F0UUxKoVlaAZB2G5VGCnkTmuQoXMnqtZ-CwP_TqN8xNOixjZ1uY1JAW1CGAXsdCTWzzAf8rlVFXq0g6mdsoIF_ZJlAUk8XJRsQ6DjHXmuLVEQ2j-zNr6jp3AnuLH5X5sJuqO3CRh-PBQFbDqv2AaqC84YS2lSLbh70Wv0mpo_aIDb4IUrt6WSFLGj4blhsQipWJAWhVQVcoE4zytgh9uBchi7kknGiJ7alNT5r5R6njBiZgQirHgc_7TWirSpZqNT_9gP6wFbtKRTxcL9zgtIf0lkny-516bbMmn9Zt6Y_5m3U0T6cemPQi4sXshgPqe9H2r7an9ujnomJ4zkLylewVpW85xIJHfVQR1NETpsZRFOjk4Cn4q88_2mo1l6pGiYGXyY-HLl0kN3ualKPq9spDW-emJ0xKIbT6WoFXyHBlk0PNe8LegSihu_1O4VDJ-WGsexiXTp8NjgIchXIzRFvdj4kDHqSwOn1yDCAn953RjvQc0nEHjG1cbet4Og07JcVexEbFAg81t6Pg0rKd3Wh_bQ_wO0YjzcpvvLnsDBbTcel39Lp0j2BOO-85ofz5hp7knbdv8ctAxNjsEwAezghpd9Ni6eiZDIaGyXdjSX22MtispR3-xK9soqcVifDbg9S4loHG9RMgTdsVbCMCwXzQPeFyfwF8grMVFzFSBe82pvV-Pjz5ji1C0P7ZfiilepycS2vbkm3jysLbXlwCr6IUHMmqtOi1YR1lc0E7ECEjelNbBTsZxtvyqU-9b2O2LsuCVhrsdNMb8p1-5ZkepckC1m08eN-k9ngAU_NWvmuXpD1kDP8XrQ3nNQ6-lcdbh8XoT84l2G1UCfQz4Q_OoWJmPOupujgN5JRnvd_n-kXmDMBe90JYcfC4rEJjFccRriPhtpeBfolm4f6ibeRHbNd0MuqX1LFkFF71BGzH5McFIHy5itOls_3i0kwRFqQowU-1dpirqo_mDSFIR6gT05XCajXzw8UIFoiuGh47D3H2HI0G8gffB_sz6H8Yk5HWNBcZ5gQlcZ95RurgDFzJEKx3VNdkkMbpFpHfadlQYACw-yLX23-YLH4TybZCGgobLvIk-TUyvADAYcN7-i3CyconpEcP8aTHKK8ZsKyki_YSgTrUKiZP6qwIwPl9z7xzPGpd08ENqCke3pv7isjeZXuQEBqJWLnO3E2fCkm4UI1fphkFqNGO85WlslftP9dZkZIqiyqYQc6TyELHrPrwitxjoZIc3svBU-1NbJDwUl3grk4lgI7u-55-equ1UAo7MmriuSv0flZ1pizGAg48Wq_pYju9OpmOdm1Aq4K_VGIlzwf0n1JRdAPyWRBE-B6LOa14vleML1s7H7h_kf88MpoEvrAACevKH4XYsW_X0Q7zwGvaHmowyT-0ojUyWnVCKQwesHctxSHE5tRV8o_jrPmcHzcvOhGPUJhSVetJyKnDPlFRjozkTmX8krWRNrtzWITH1JrZL1FcsGUE2p5N3T6KNtCK-dsfm5q52rJ_TZiTbeCTqm5DXx4E-Rxjy4WehUxKEMZQTZGKe9P-5JVCcIPcudOMoStnT0sOaJxFXVpmhkHU7Nbs8sZVxljxGzi6hAFaqsV08946NiAR8iSUkdJEox1ZyqTLYgHft2snBuueS5R5x_z9zOEQOlPsTGhoX__58-T1_ymL0SxlLemkzXi0Dzl9sHWKLdnD5LDAzFIRt7x-Tm_93CX1mF18Nvj6CyOaQvj3m2weFZf",
+      "summary": []
+    },
+    {
+      "id": "rs_0e61325964ba8bfd016a832f00219081a1b583bb86982cbdd2",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy8OXHkUcarsg58pP0yLPvNdo45oeOif4C7fZaX1esukYxoxjQVeYz4yvQh7ivleU2p_1zdlNUe9dikQbTHjQrbl8ZOS-1t63v7CK3a28_eggRK46qPTejjCFrnipkPfAhH3GeCEUru0hI3zHk6ZLoe5kpblgd5tfAsEZ6OjRhJ2MdNRxOguweRmCqh53NRzuIcAYrvmBFMgqRspGPm8Mp2MVgMzDq21LAvzR23sa_D_zBdhFotai0iLPWZPERbZUOlluJysybmxYWmLI4FrilHkAhW-EOPtDFA3zL7y4h6ymgfmgHhya7TnFvsU2xkmz_i5nXXJp-pFEH7W2ialhjJN1GEh5kB61MymwZJraZOMTE4H7sYxsqOvJNSmwmgUZoyLVxBqhGiXXhvJtWZkvun-egFHmkwEYlNBo7j_3gbFdr-nMOUm4klWnoRWOPlkrtQmRWuNGLcMgeiKgdWdkUYiyLgpPLrCVE26PwpfQhcRnckCZuFDhVE_mMuGjbn1I1YnCmAdxkVYlwKY0eB9bL31PqtaFpYNd7ILpZh9OTL-cYt8w6uG7U4yLG5CHsaUlO6lPhS0vnippKWH0IDukGyBTe0VyKC944g7omXpFw_S4aBfs_jBrZibvgcShLqhePi0w9oxy0YVyqjJEp3nzw7eH_mGZqzlN5sfZX9KNnZpVNVHHa1oiD0RVGXXTQllVK_Qfg_sQJDQtgA94fqH4UqHDTigP7uXFmDjCTpsL05DsT0qvSJOEwKGWsjNRqNU0f49ICdJhQ7ObcNVkh_Ky9yrYxT1_vv0wAtoWpQ1iHRVQDKubDkrMT2YW66uHsP09X7_4twu3l6KP6ObbIL2t4um7ZQPw08pUVZMcbJ330WjkyjP599cYtxDMg_vcj58jNHups9BICY8LTi788mdTUCVH0clPJtmVXNtdzwb4DVkYrY2AFJxiJfwli2ZTE2o7z6UsNjjZWFYxTxmQpwdfQJmqjziPI3VWOnEmZjJ5BOqvzpW7RpJ_GnCOMcFPb_yJjGNz9YNK6gSe6DoahChWt8ApoNIb0IZ8zXgAZM3E3tUgiJo4uUgG2WpreUDE7X25O1wJdEpw8DsAcvq49MrClmelFuVqS1drSknhvKwRI7Qnw0qrgu6R8nQs1x0CEA6LswKGxjvkYG8Hm3v4O-E0vIp6gKYMkew5rf-0SryXz26h45SGgRDKrigxMpC-lyclit0BO6W13sXEvnb29gJE3uhr166Hhiuqzvb3Y4dGJ0tvGWRgN-VbQz3rPoVfsOrClV4SUYNCAilMSI5TuD9S0LJ8PQ3FCKFELpecq59wv6VWJVJTqTxIISnYxzB_tzVginfh_GCpuXs1zw0b2XKD4fhi34iFXGEJWGuzw_rM3Ghjt8J3mqp8k2aiZQPwvfTkKMghNuJtIrwtfkPd1xVx7-EXol85Z_bnNZg5dZ4ng1giG_p9z91AdR2-LnC-2hY6rzZN0A2ZNFk37p1fUX39za7k9K9B2YOgUKeN9JeEQqzPzbFUBBLGsd3sK8TGjMpObXcSrIM3GczTslJ2B4zbeS3xZWjwsQ7Nz4IRf6eEnrsnKrj907GuqGSlZMGDXVaQsusiAPq8j6V_539r5q3bLfZGUKDdAP4_w_eMcInRz1fLktaxbwXJJJsc11rcZOPKT6MAeWSfg_PQ-C1TuR3M1Zc5dAe7MstyNOsq4HwX6OzFMMPy-pwQQDaI72N3h-T3wWXzhXr1co2HfvF5QgndIYe1Wf-hn4NbkvPPyfhmYYHvW38Jy24bO7OK0rkZnOac5yg0YkOQCjZ2EDpcRRJntty4-cNPMP06Arf_ZFSm_ZU6L6VlxmWK1WGlzSlihYRC4eDIjK32oQAJyLYdMDTLKzUIEbr9H0emO1ujvzw_GYDsmspnebYquwPOcHME25ralDZhUhU2VPGvJ-96h7w875GDdAFbv-xJ_KudUvIULeoMpWi_YDEdRkX18_T8T2fWABsCUYDODKZkxzsiD-3y9R_wre2vwJV8IgaekHZodn5fwGafrYzf5ukAWMIg0iMU0sQylHHHxJLLl_8kySVMAGtXVI_qdWWrksf57B8Ws1RJ-IiI1m8RanLkMK7KFTw4lZmMUts5cGfxQdrEKt4gAhDa5kNP_aV1Ng1TRyRWbqfy1IUQLSeYiSa4MwLvmb2jP0LTBQdqSWZWqqBdUg1v3OHz8Je_1BAYTN5zmLNEfz50hvniH-u1UhqNEEgiXZzLkkVBqlkS8PTMgWta0M3jAhX--1P6OwqlG98rQtw1z3-Q6MXdmVWSvs3d_3JF-B5fTerQftfzUNKxeaYd-Xt0-GVrMm2Cz5zdRdHQNmZqxomY7CoqUREq_rljkctE2qkkkfnLlU6JOA0-_cwYUMtCNMbjTAj4vZKarrpouX4q1rls7sX1b0NWzNofKYOWLR4UIWkLAesZXsCbuBlEcoHFDDZkj74_tJNqTVuLEljhHCyHgcJYd73gCkNsmvptGqFi_ejyAvro29nj5Qjj-nlLnTXuOZ_GZneoBQspoqbRgGApCwvUn0WyvkI2j9v0pxILjylkCnLwLSFBCDDXchD8BcA94T8xOOXfIQzz4A3dY4hSSh6uJAotBg_PNmjAqkkfLCHiq-z7DHmp-70eV4kv05tNlcpckeRXPqlWF7qBythlIrxljjsOusHeWFmG5Q3DENixuK7NT5nTgoTbgfMTWmgNN35fkWpas8DNCapiXjqLFeizSQPKJaQhrv-AKWFreiC_8PMadjA_WIt7PQLu3vMQcyUsygsZJk9ZY-pLfWaBEl2IAQqy4LdeEpPyOX-xblWXa7qNzvtmPEP1NqEW37WVheR1s5YBQAAPJ1OoNuWiUVm4rQdZbfAXnw3CEQfm7PUOJWTKs9W94edhLyYSMvSrqOt_xbRaIYD7OhOQbRSljP0OmGm6Skm4lSAEaFLZHGUxdKx5a1cmNJtk-0omsNqWM_Qp2u8PV4mKYDT7Iy7M1QY_-BjMIxHHm6r_kPsKNPb79kBm3kJwAEoUlv6peQLOpGkWyYrUnAhn9VRJKBHiuXdW5zGr4-1_R_HAbplhJmh8Jr9NIu1i7ABwWvkSPwz5mR1jX3FkLv7IDQXhkNAde5P14GelsFzy97zg6LccdlZFDk9X6y8WMe5WBRC5_PhD4XGBP2yVQIWVxAzKmc-4AmXqF8uFQlaYJHv7Hc9VkX_04TgZO8Efy0gLNW0dHTRBP4lkGjhnlQs8_4aDWUJ0Zro13qMVCinGTFO5EI0Dqy0AYQ_C1SKyhVFE6T40-Vqegoh6nKhVSsfufPWzeJkHRHhlA6HU6UoWwPxUr6WDwUoNsCGTZvGWpNpMgYRRH9rbhdUvZLKdYGvcQeTY-FVSKhYFJ06SLEUilGkeZBG69wLjFMkoPK4ThB4tgeDIPssGT9GYnxS5Jq8Vj3kHBld19EKgwjGkT5MfcofX9I8AN7mPfyJkSbR8O-o2Bz3xx5z9W4Zo3ctLU6VkxgtiNoNqS3OdUPmaTyRmdNkOJaDLMtq3g3RhGvF2AyId0_-4dQ2wE0BstNx_CvBVremqXfvZt17Mchc0nMjqLbdiD78nbipQcdAAtWtUH_2XwlgE2sVNFdBCAqNx73OeiTZK4E99zKrIaCONPdPBPI_8oCdsvPouw8RkUYFyqUkyjN_qe0ufQ==",
+      "summary": []
+    },
+    {
+      "id": "msg_0e61325964ba8bfd016a832f05e44081a1851d9959767b5356",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "{\"caseId\":\"V4-C10\",\"actualMission\":\"Resolve Slate's snow-certificate eligibility through the smallest authorized documentary check, without reopening settled comparisons or contacting outside parties.\",\"finishLine\":\"Certificate S-442 is opened and reconciled to determine whether it names offered model SL-8W; award proceeds only if that controlling link is documented.\",\"classificationAction\":\"CLASSIFY_FAILURE\",\"failureClass\":\"CERTIFICATE_MODEL_LINK_UNRESOLVED\",\"memoryMatchClass\":null,\"dossierEvaluation\":\"INSUFFICIENT_EVIDENCE\",\"nextAction\":\"ADVANCE_WITHIN_EXISTING_AUTHORITY\",\"evidenceReferences\":[\"O01\",\"O02\",\"O03\",\"H01\",\"H02\",\"H03\",\"E01\",\"E02\",\"E03\",\"E04\",\"E05\"],\"factualFindings\":[\"Pine is below capacity and Reed exceeds maximum packed mass (E01).\",\"Slate's signed offer and product schedule identify model SL-8W (E02).\",\"Slate cites certificate S-442, which was received before closing, but the cabinet index does not record its model code (O02, O03, E03).\",\"The procurement clerk is authorized to open and reconcile the sealed certificate (H02, E04).\",\"Award is prohibited unless the certificate itself names the offered model (E05).\"],\"inferences\":[\"Slate is the only otherwise eligible offer, subject to confirmation that S-442 names SL-8W.\",\"Opening S-442 is narrower and more decision-relevant than repeating accepted comparisons or soliciting new material.\"],\"conclusion\":\"The current packet cannot establish Slate's certificate-to-model link, but an expressly authorized evidence route remains. The clerk should open S-442 and compare its named model with SL-8W.\",\"earliestSharedCausalBoundary\":\"The unresolved boundary is Slate's certificate-to-model reconciliation; no shared governing-source or system-wide defect is evidenced.\",\"completeDefectClass\":\"CERTIFICATE_MODEL_LINK_UNRESOLVED\",\"safeIndependentContinuation\":\"Keep Pine's and Reed's settled nonconformances and all accepted capacity, mass, and flame comparisons unchanged while the clerk reconciles S-442 solely against Slate model SL-8W.\",\"retainedEvidenceSufficient\":false,\"repeatedLoopDetected\":false,\"smallestAdvancingAction\":\"Have the procurement clerk open certificate S-442 and record whether its named model is SL-8W.\",\"authorityClass\":\"NO_NEW_AUTHORITY\",\"authorizationBasis\":\"Existing authority permits opening and reconciling documents received before closing and recording a documentary link supported by those papers (H02, E04).\",\"prohibitedOperations\":[\"Solicit a revised offer or new post-closing evidence.\",\"Award Slate before S-442 itself names model SL-8W.\",\"Repeat accepted capacity, packed-mass, flame-rating, or other settled comparisons without cause.\"],\"uncertainties\":[\"The model named inside certificate S-442 is not present in the current direct evidence.\",\"Slate's snow-load compliance and final eligibility remain unresolved until S-442 is read.\"],\"boundedRationaleSummary\":\"The missing model link blocks award but is confined to one timely received certificate. Existing authority supplies the exact evidence-gathering path, so no new authority, broader review, or outside contact is needed.\"}"
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "description": null,
+      "name": "katherine_v4_qualification_response_v1",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "actualMission": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "finishLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "classificationAction": {
+            "type": "string",
+            "enum": [
+              "CLASSIFY_FAILURE",
+              "DECLARE_RECURRENCE",
+              "DECLARE_NOVEL_FAILURE"
+            ]
+          },
+          "failureClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "memoryMatchClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dossierEvaluation": {
+            "type": "string",
+            "enum": [
+              "VALID_PASS",
+              "BOUNDED_FAIL",
+              "ARCHITECTURAL_FAIL",
+              "INSUFFICIENT_EVIDENCE"
+            ]
+          },
+          "nextAction": {
+            "type": "string",
+            "enum": [
+              "ADVANCE_WITHIN_EXISTING_AUTHORITY",
+              "REQUEST_BOUNDED_ENGINEERING_AUTHORITY",
+              "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
+              "STOP_INSUFFICIENT_EVIDENCE",
+              "STOP_NOVEL_FAILURE"
+            ]
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "factualFindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "inferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2400
+          },
+          "earliestSharedCausalBoundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "completeDefectClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "safeIndependentContinuation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retainedEvidenceSufficient": {
+            "type": "boolean"
+          },
+          "repeatedLoopDetected": {
+            "type": "boolean"
+          },
+          "smallestAdvancingAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "NO_NEW_AUTHORITY",
+              "BOUNDED_ENGINEERING",
+              "EXCEPTIONAL_HUMAN"
+            ]
+          },
+          "authorizationBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "prohibitedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "uncertainties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "boundedRationaleSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "caseId",
+          "actualMission",
+          "finishLine",
+          "classificationAction",
+          "failureClass",
+          "memoryMatchClass",
+          "dossierEvaluation",
+          "nextAction",
+          "evidenceReferences",
+          "factualFindings",
+          "inferences",
+          "conclusion",
+          "earliestSharedCausalBoundary",
+          "completeDefectClass",
+          "safeIndependentContinuation",
+          "retainedEvidenceSufficient",
+          "repeatedLoopDetected",
+          "smallestAdvancingAction",
+          "authorityClass",
+          "authorizationBasis",
+          "prohibitedOperations",
+          "uncertainties",
+          "boundedRationaleSummary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 0
+    }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 2506,
+    "input_tokens_details": {
+      "cache_write_tokens": 2503,
+      "cached_tokens": 0
+    },
+    "output_tokens": 1531,
+    "output_tokens_details": {
+      "reasoning_tokens": 859
+    },
+    "total_tokens": 4037
+  },
+  "user": null,
+  "metadata": {}
+}

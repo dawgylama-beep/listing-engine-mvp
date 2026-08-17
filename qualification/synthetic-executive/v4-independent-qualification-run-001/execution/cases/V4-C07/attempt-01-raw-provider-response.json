@@ -1,0 +1,300 @@
+{
+  "id": "resp_02b7d777adc044f2016a832e8eb1a4819d80f796311c0bc2df",
+  "object": "response",
+  "created_at": 1786982030,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1786982058,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": 2000,
+  "max_tool_calls": null,
+  "model": "gpt-5.6-sol",
+  "moderation": null,
+  "output": [
+    {
+      "id": "rs_02b7d777adc044f2016a832e9020c8819d961dfa49e4cffc41",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy6qkq_s8YcHCLXIERiSAEBvsYsLHiNTz4_OA45PWtEx1I99mtHSTs3tDIG5BHCEzxKmFvy5OTBsDwPJfurANjg4vrs7TqsJKxDgWMf4CpNjAqSBeP3u7fzUVyEKwum1loL0ksqA3kCOq4hABOgB3O2P8pO2VxvjuaduRMXF48SHE3wM0pA3sgm-CdqVLJuOstKTCfHd44pct2VSKpzdlA2BIFECl82wliDpLwjbRx1WZ0Dj0z1-nu0x-iRRPxCwc9sTTvM5SDLWGRTWE9aCsFRRIvyFSh-GhmvV9wB_ZsBN4qSVQgZv8KXBirvItniy4DTsTzqqj0zreHznyFdviAjs1w68YcIJrnrAGRd2Cm61lyQeE0bRLOW5NuIWWj9-v0n7NcSO7JjF98HCztdePQhvBJKwxY_ZuOt-OGzOiGMhR3OefyFI0AHMNgK2JVkJMGKDZBzgvYep6jJDzeUAcszKdsER4MTeKXry0uu-Z-lJ0Rxs0c5KS3_z43zbFTPnk30BdV_yleYU32xVIEm_m5Ix4MTbgSu8mgBvWrU_rFIodscU-BfnvHRsLY3lHXa3CVtw425ECPBk1BnBO__K-XzLNrSl-pFfos-A6fD3OicCyWdUAoXkY51ErmNFRvGHKjQplW9kJG0V3h7u9q7ZVAaw6BbQyUCpsoN0BqcZ_5gXs3f3duMnzh0Su8LQQ1RcM_-4M2IHz_W6xLNX_PDhbeVQFs58l-bA-0cnrV3Q4kB12e3qI-H8Snhyl6dNZ8vrujUgpboYbiMlReEhFp7KruAWquJdZSRnZX9X2CVVixc177eEfQxy9VhhAjAIiWu0vmOVaAIvra0f_pSAC79ZG5sGoiGeZzu-qsYMcTXP2dENxdgz5lP6H4zun-9q5sQlyH8NAS7g_XmBPMePDjTN272tB2U8y7CNl-EJRuYmpxhIpRfN5zzqL8bLCFb1_-yqvUhc2qyw5PrAddgLGC-ekZHjRnR_e9dLz5pCLpBusjM6GXWH4FlJeWrFEy_DmNNAetf3vz6HaxAHj5kbBpsLIxK7EBt134ebEfkIwqtK9aioaMjIlZfd9ZNlxmsf8Pf4iNQjv6UFdXT40kGnOPhLvIw-Qw_ENzR34q3IidBmihYB8RMHKsnsASw0OSE8Ss1q8y7Ptog6izk2JRHXqkWvi07OQZeq1jiqO1WTDbO3by5hJYsDsdlwxpowVK-7ukU-2XoS0TCuqNw9q4Ccc70GBtpQzdroQHxECph7C822W_OgdM1v7kY5hlXodr18QQUJx24iRTJ12zsSiVkPa7yXn7YP5_wz-9ToopoqjxfpNsRljxjX1msDynv2I430AoF388j7yzxLotlZ-rIO8ys1jHtTkRrAODtMEdGtp6wWIbw7bVPYgrmnQOXaV9gensg41G4aBpYUQwidwRZuxRoS7vSVpiIG1qwHHxJPTG8Kqg3EoGQD6oA-svKvwmE8_m5iCu2HW84UOeTp3EQvLuWp67N0ajnRbjN7fzDbvfsYCsm959w2ILJMxmW6c7Ju3GMp9cCD5jwYqEV9u9bVP90QMqX9dI29VOLuLyjxgZwqfNr6vsKsVKYSjBYVRkPd7H1mrqEFOWz1xXiAvU_xaJctKeCB7EDcFTNDfVt7NzfHudIDb96HcAjX_e9t6gDK4Fahjzbtv3duYbcSDoIrLwZVW17oP4ZF68E36NjawbA6GB3esIk0HaYxCvBW4hG9V9uQKKb8_DLfEEDjqpg04hLfdupjkaq6_ewrJS8SbW53mkZQmpcKQkdO2fXbJmCXE4HE3R_OC6Js_Oq4GCAulrMky7w3Xh7tzjsDJNKiDtI6oGlk4577ZuO6BkwTmWZSe-EPdFI4ep1WfnT9u3FpBP5QK4DEThu3MrJQZlfMCqoUKUpCc-CgxBib9ech7lyjMLCxYde405cvaYk4OKHZWt6drYdASyGXs5g41PgU-_jBUTsvNnLKZPACNw0Z_ALRECLLetVsbmilBTadzX1ZE_JQRjTtWnZdpmab7f5bKMwUMQQAXVtQZOy1zx9ohr-fdApy3c71bT3_J7jbUK2pfuIUPgCMEwE9MOJwuAIjzXjiuGLbiv3BOB2A1iKVQ30lTD3N9DJTa2d9_gbsNBmG5hK-7FWY7iUcRuRFcR5cs-BjFaylShHIjWSv-XPC3I-TeMMx57I9zaBTT0y75AjLD_fQkTc6XlDL46WvRspwYAKH44xIbpBOqhUqzpXP7J-UMsuuNTRBMJfA1d2rxavaBZp5gIW9tEaBk1F_d_MU96VZX8JvXYUVfp0PVx11p15q5Gmc4a8M24Qzg5mjDsL2f3OIPh-HpYscV7DOlFcdCp7LDPRZdiSqbsMqM1uq0MEFtOA1QSfyhL_UggtpI_H3tvVkZDVuBjN6TgSawN7ILF-CLBEx--YLBh8lxiLjtAtvwAa9xI3EjHWW-Ps-j8h1B1ZcNZ391h9p5wUq15BWsYD4VJVOWyKeAdks5t22gtba12Rt0wbxLy9uJRHcZrmAXBZlfcySjmipPTy8wl3KnHpE3wO-uYdxaSAHBlZ_ke4tn5J3oh7IYfT8NhY5FNcAHTfa20V68AnPDyFc3baHn02Elm7CjgZF5mNbNPdOrgJ0M2j4JVQXsrHRzQSciGPamC1pDNBdkKlA2WwSahH8RKsPBgf9t1je7YA6J6i8J-ONbsplaKA6dmPTruG-tZVH_Y-qHbV-41WhMRzNbOPW8Dba109oFfxGeMI-7a8NcT-c6oeaqxHB3EKr6K8whmAPFjoD3i9CMX_f0zF3PuKJgGSPzpiy6MMIBaW68SviTCqEdROMIFn2_NLNvHao0jzpHmnz5Wyar1ZSQ7SeCM7zd5JLQz5EWysH4h8dNZM20RM7IkNRvqJrbtV2Xje-tKFu_aOAZytCj0kL0ymIUhVBnBX2eMKrzHTDmSX1fYv96ID08nAdU3MvwLkHWt6eTDfsE6p4UPcxjfaKdpHL8PN0KxZKooglBzMpZB127IIFbUv-ZePV3z1CKSAcoDUKAUy5p9BCI2Nk7seu_xgbTcPZxOTV73jwVaFLgcYzsqw2jGFKSLGp3uGHk2PNpH0-IQBmPDDTWJmB3hIXMud2nD7mEcH_02S2b91aX5IHxEuBIGLvqPrvRH9OZ6Ch_4cc9EyaTfBtlX1lARm_igg6PhxlPW2JRM_0OVQn4EaeQrSxW08i4quR-FpDJ_Tgn14aO6YIhtII2PIdVkLic3GnzsbArjy8kSMzwxmssjwK9DpXwbLUTVe2hIQbSuy4OWLHfP7Y-stPYavjk9eCUd60BBUL87poZQ7rgJB3e-uWbe6tR_n7spQuuQAlWGzsxOPDbdbeS5UT0FpOnb2Cf9rvBdFdNA5HkV7ex7Ev-sPaPVRpfa3PwCfB7rTToIIbYOTMB76Pufx1bRd9aCkhvKPsoD7T0bBRC6KIQKvA-ex5f4nDoBuCg_PP_B6dmBlx_haeO7-FGk5oMfm8tALMOzRWiZWFUoHFozmDxeV6HMxcl54gj17YdGgn1Dolx3AhVRWYGbLslyg1-kQkILvaj-CRAjNdqZkibFLkhrDB8lzUzvxs-RYeqCEmqI8GmRjVpPH1N8x8JvqVU_p2X2RDKYcS_afTbO5F-WATEwaan1sZ4ln3LzJDW04iCJW7MX-B8FNYisTb-Uek4QuPprLLyg-74AYG3LEDBLJTJ3nb0IwN9dAq06UPtvWViFwsZ2b0ODG89CqzdnWwh4Jtq_rTGTb6_kDet6VKhLl4GQEOoyyONCqDMog7yZTyldgLygqaG5Q4frKSYoHjYx9HPif__s3pbxBqoAuOdZI5T9WltyRHFfQuVDpoWBMqUTMtBjKVMFjjgL0AULla_4HC8aATUksvxgzYKy8ynJ2mCq7DaCm8V2kJzqmPn-J3PGFkgdqVLxj8CHCvrB5JTfKjCDjZBpX5HSVd2HUAW8YUGBZvYdeCRNqlrTsBr-CBPazbWqT0kuEJGycY3WcOMgWJjKLiuWPRXk8hHNHpirLSnsbqynVonjgUeOPKBwsR7lQ3EFtgk4MRqquWQ7zNVqRqY2C2UdQSMYZpRZy7z4BmANmIBWNPaZMtwttnlBC5m_diYPCYi4TTJETMVJUmax9ag12teJ_-GsMEhbCL5y1mXK7kKGB7xYDwFN0OR12PTVotfXhUiUivlE1bZs3NnYWcr_-kZie23ma7sublVs9Uw7bH_KZLlIQF6A5Yu9F0TD4sQmDQzC1lm0d-YCQkAzTI02DIHAhrlD1tNJ205B9w7bLxFgUKeuYhArCt18ALv6Gsbri7DsmdprjfRQmNvkVqUTttVQ4VjWFNKUs6rlJLMdH84JndUOp0Nx5yYevNwwVIiVNcIKsrzAj7drnWk27RwjG5Ck5RcxiScjgwVGQ7hPdgQnKGO1FN4QErjTNyFOsBl3x8eLYws3UqTys1Z4HY8s_RFbUfbHOEkWYEZjZFvVNYdkbyo4GDGLDQ_jxBmu_bY8IVGydr3qWzXOgApm_rS2DZyCJBNbKWpTgXtHCDyjt0ALMeOTU-_-QUJOdFDG0fKTGmMQ7cidCV_NUPorzg-eOVBuILRXDhUFr_MFJuSS2DeU3eUqwsDva5eE8RPA9qTpC9PGikVoBInX8NaZ4pcL4ulK_TuwLlKqZ2sqj93gJlpYCgpPwHuvJrigaGYQT7AXTB78uyXT5cj89qMlBUj5gsrH-mnBUZ0z0bIyePxK-w60uKlPPLqKBPN0n8oDn1zjRRfESaRp8vM0s1I0CA1LGtMLL-mHcRNcuLt8rGYt0mQimvYoJPfBMvyFfRSCiJRvl5EdT3rfU_13xEOX7F5T0LCxnvOs5Pp8OZPd-4Oq2fDLutxEbVwNOXG6JRQShCslB4HGwEVvEPBklSPQvKIhCkBva-J_3Asn87cVk3lu0tGCONCSzegK9_TR2myCuvUaC1sBM-XJg5PhqMl-LCO_5nn71O8kKrMaU8PG55GLl2t-4jgw_6VDxWzC1MXD7cwfYLeqXBCRqJeys2t8IumY54A1vEWgTwqbczrM-qsfF6VeLwdRAAiv-ueZ-35XqGI7IPxHYQoPA0Pt0qxiHjA9RYqfZi3J0JyDzmsNOWa3lkDtVVlilZXF6RgZ_MD9co",
+      "summary": []
+    },
+    {
+      "id": "rs_02b7d777adc044f2016a832e9b210c819da06160dad22533f7",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy6qO8NuPa0CWtkq3scD-Nxz47iDhmuxX1BZsO46weewF5M95uOCYn4QdWvFVHFk03O-gINtq-29dUCG7lDwDoTSET3zlkWRUXmFUnekjhpI-6bclVl6ilbN4b_zkhIOTFyLNMGpudK6F9GDOU7Zo0noxBJSHClelXTwNTRxxPg4VeqD7bYjrWdB9lJC9qB1LWTygjaQqposih29xTV1kR-pgXDhI_Ipc158QwAjmaKq4KLeh2PES_aM2jXnuoqNy4DPb0Yt7zaz4E27hPNkiR9wPPk6qMrm8Jd8xiho5Hmq_0ZLDTgnfblPO9HRArXJZFcDg6Gpj500oA7mq00ks4YcMCdemDhSd0jq4dGpR0zqjXqMm57E4qWCW2STvPAqu8Cu1yIMGnGBCUghxwrmLUf8eQJ2ainlDhUhGQh3QPpZRzxe6nv4Iw4QDfvFD4BXBtM_c-tfBBMcifs7QOGJBVkR5eRSxZNzg6-iDr3aBvh9m59UYvMztJ9EV0XsPC9tvbeEKeK3qzEaKJmesJssvE2uv-HjghDjkt6HQ7DaAnYoj_fDXHPLEWIT4uI3wlQ_ZUKAY7w3K6s-YtDnEPdi0vLVTvOkXXRdP4dnczOthTu53xB-XeRsezT2th7bBrb2b1ovrVKDLuZbgNc2JkxFgMXq3hgoPr-gvZWfIB1tWt-b0jDcwDeGwYnUw0BiDIlxpiTjR8NRUwfOeQyGT9mbMUrLnlpEe9-EyZiqOz07L79t9n5CjPtetxKnV_BcsfjZFvhujbDRGJVKHtQm6sR9ewq2Ry58TQJdprYisYRdQWZyS-abXX_eeoLQHodFF05icG6kFjkVHc8YqeYBwG9TyKuquAzpG08fPikvU4wMPy4FoW1j4tktv-Ws7Sf5OCMFtZKO6yXScOnAVFjIhhKzwf4mAGK3m_LWDFEyTNOlctAeM8G0U-gQM3ZEOvs2hHgLDE7GGKANGWT6nGXmJEXBxcAo-_HwtOKdAQSr2jaoggicqAVfoqnTla3sOLcAJRS3_V87gUyfmAxVgKoUxtTgRj7wkrLrve0D6d3HEBg_AnlnkPBavtuR_1cjit2BGdhtyf9Bmjohk-MS5_GUeAvTiHNTsMIhC0X0hDuvr5gOwnRs9GWe80IpI0KWT2Jysx-kbSwCe1JJtIaoxugH4XF6sKwcANi--wvLNSlaiBGo9e9nfrM3pYKYMqTyzJ9MHXuM-JkRHpq__SldkrC34RaBCm5adZCiQd89Djz9LevR4Rn8XbzkHt8z1W8F314-8wHsgcb9DuhfkywEcifmVGMIe4nRR-f9MHkb9W_jpVtR5ICNz-tjcvWCQ00gQeAcei4_svWhW75OCkLXdq8IwAgS_2Il_-tmVK7BlofI46LjWw1eZg7ourD9PrMqPZG5mZt2JfOoMrgB7HHhtDSZTRCc3XfYQoQUgZ7M3Ct_-PXTV1hMhZXjc4twFoAXVoo1ZMcor76vaKjGSkYcGmGYfM87MQJejTwM6RiBiZw_EVPTiCcGpCqDjwYLX9woiyQiBK6ZtRybkZeeVgOr5pTMRPTWaqcRYnGfYeb7VwjiGTE0CDFLsFlq_ZhhhZB4JII8Ln5rMe7OryrhK_ZnrFG7vf6GmoxZk-DU5hE_7y_RzaTFw5EVRZOoTDm63fu3CBvgd_5YDZtQd1_MPR1d5vldkalOMR9cjw622Nw6J5vZrt5OxXNtlzIm98xfkonISMU4dUA4hTXTEeV-3krS0YrFMy2WcEFPeJ6B7fAvIM8nqK3uTxdwH30XsxylsGHpeWA3HajUSR3ANcqU7Lgr3bGMy4D-AH2GTkGkNXTHGxtcmQWmzgIvYum-rUfrQLEP2nBAeHjA9h3x_D6aBF9qGIA8eUS7kFBN520wNxm1z1VU5vfdnNyK3ueGVupZctVIP9Smy8wOSbwS3nI1BRYBO7oBGYLoqMVInG42bRuXpYlgO5PGK_qCfAFt9gk6zw41CDsKt1vnKrVkAPa3z46DLhfhAzcUjDysQ1pSMYmxsDVQH5bykD1ofpmulGdZjSJd3LBlbdzktxJ4d7fJMdkq1j1uyClT7mkKAO5GKqFo5TUbPVybqwAE4DKcCdCDKMAbDNuS5gCW-XkmX3L54L4qhUASIW_o69RibkW87bg-7td4g651Ic9Btoxlw8p3P7UmhGLsc9nE0ThSMuQwSBba0jw1lMQC1XcJDKZOXFn8X8WhtAzO5z-LwMCpxTSrJfUTZM3zlcg8DEvL",
+      "summary": []
+    },
+    {
+      "id": "msg_02b7d777adc044f2016a832ea03b18819dbd913b495518a14b",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "{\"caseId\":\"V4-C07\",\"actualMission\":\"Determine the scope of the east-frame failure and identify any preparation that may continue without weakening the exclusion boundary or implying permission to open.\",\"finishLine\":\"A supported failure classification, bounded continuation decision, and verified smallest authorized action; opening remains barred until final site acceptance.\",\"classificationAction\":\"CLASSIFY_FAILURE\",\"failureClass\":\"LOCALIZED_OVERHEAD_STRUCTURE_FAILURE\",\"memoryMatchClass\":null,\"dossierEvaluation\":\"INSUFFICIENT_EVIDENCE\",\"nextAction\":\"STOP_INSUFFICIENT_EVIDENCE\",\"evidenceReferences\":[\"O01\",\"O02\",\"O03\",\"H01\",\"H02\",\"H03\",\"E01\",\"E02\",\"E03\",\"E04\",\"E05\"],\"factualFindings\":[\"The east overhead frame has a bent connector and is tagged out by the structural steward (O01).\",\"The measured exclusion zone is separated from the audience-path and west briefing areas (O02, E02).\",\"Barriers cover every entry to the tagged section (E04).\",\"Final site acceptance has not been issued, and no visitors are present (O03).\"],\"inferences\":[\"The observed defect is physically localized and does not itself establish a sitewide route failure.\",\"Route marking and west-area volunteer briefing are procedurally independent of overhead clearance.\",\"The supplied mentor decision identifies a terminal evidence-identity deficiency that prevents selecting an advancing action in this qualification station.\"],\"conclusion\":\"The public records support a localized overhead failure and preserve the tagged boundary, but the governing mentor decision requires termination for insufficient evidence rather than execution of otherwise described independent work.\",\"earliestSharedCausalBoundary\":\"The structural steward's tag on the east overhead frame; no earlier shared cause across ground-readiness tracks is established.\",\"completeDefectClass\":\"Tagged east overhead-frame defect with a measured, barrier-controlled exclusion zone; no supported extension to the separate ground-route corridor.\",\"safeIndependentContinuation\":\"The packet describes ground-route marking outside the zone and volunteer briefing in the west assembly area as independent, but this qualification decision does not advance either action because it terminates for insufficient evidence.\",\"retainedEvidenceSufficient\":false,\"repeatedLoopDetected\":false,\"smallestAdvancingAction\":\"Stop at the terminal insufficient-evidence decision; no useful authorized knowledge action remains.\",\"authorityClass\":\"NO_NEW_AUTHORITY\",\"authorizationBasis\":\"A required stop needs no new authority; entering beneath the tagged frame and opening before final acceptance remain expressly prohibited.\",\"prohibitedOperations\":[\"Enter or work beneath the tagged east frame.\",\"Assemble, decorate, or permit passage beneath the tagged east frame.\",\"Open the fair before final site acceptance.\",\"Treat partial readiness progress as permission to open.\"],\"uncertainties\":[\"The terminal evidence identity needed to clear the mentor-designated insufficiency is not supplied.\",\"No authorized evidence-gathering route is identified for resolving that terminal deficiency.\"],\"boundedRationaleSummary\":\"O01-O02 and E01-E04 bound the physical defect to the east frame, while H01-H03 and E03-E05 separate ground work from overhead clearance. Nevertheless, the supplied governing decision specifies STOP_INSUFFICIENT_EVIDENCE for insufficient identity with no useful knowledge action remaining, so no substantive advance is selected.\"}"
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "description": null,
+      "name": "katherine_v4_qualification_response_v1",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "actualMission": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "finishLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "classificationAction": {
+            "type": "string",
+            "enum": [
+              "CLASSIFY_FAILURE",
+              "DECLARE_RECURRENCE",
+              "DECLARE_NOVEL_FAILURE"
+            ]
+          },
+          "failureClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "memoryMatchClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dossierEvaluation": {
+            "type": "string",
+            "enum": [
+              "VALID_PASS",
+              "BOUNDED_FAIL",
+              "ARCHITECTURAL_FAIL",
+              "INSUFFICIENT_EVIDENCE"
+            ]
+          },
+          "nextAction": {
+            "type": "string",
+            "enum": [
+              "ADVANCE_WITHIN_EXISTING_AUTHORITY",
+              "REQUEST_BOUNDED_ENGINEERING_AUTHORITY",
+              "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
+              "STOP_INSUFFICIENT_EVIDENCE",
+              "STOP_NOVEL_FAILURE"
+            ]
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "factualFindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "inferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2400
+          },
+          "earliestSharedCausalBoundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "completeDefectClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "safeIndependentContinuation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retainedEvidenceSufficient": {
+            "type": "boolean"
+          },
+          "repeatedLoopDetected": {
+            "type": "boolean"
+          },
+          "smallestAdvancingAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "NO_NEW_AUTHORITY",
+              "BOUNDED_ENGINEERING",
+              "EXCEPTIONAL_HUMAN"
+            ]
+          },
+          "authorizationBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "prohibitedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "uncertainties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "boundedRationaleSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "caseId",
+          "actualMission",
+          "finishLine",
+          "classificationAction",
+          "failureClass",
+          "memoryMatchClass",
+          "dossierEvaluation",
+          "nextAction",
+          "evidenceReferences",
+          "factualFindings",
+          "inferences",
+          "conclusion",
+          "earliestSharedCausalBoundary",
+          "completeDefectClass",
+          "safeIndependentContinuation",
+          "retainedEvidenceSufficient",
+          "repeatedLoopDetected",
+          "smallestAdvancingAction",
+          "authorityClass",
+          "authorizationBasis",
+          "prohibitedOperations",
+          "uncertainties",
+          "boundedRationaleSummary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 0
+    }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 2477,
+    "input_tokens_details": {
+      "cache_write_tokens": 2474,
+      "cached_tokens": 0
+    },
+    "output_tokens": 1332,
+    "output_tokens_details": {
+      "reasoning_tokens": 665
+    },
+    "total_tokens": 3809
+  },
+  "user": null,
+  "metadata": {}
+}

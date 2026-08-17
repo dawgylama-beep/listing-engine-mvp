@@ -1,0 +1,309 @@
+{
+  "id": "resp_0c1234317db83963016a832f63c3ec819cac589b4eaaa98a37",
+  "object": "response",
+  "created_at": 1786982243,
+  "status": "incomplete",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": null,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": {
+    "reason": "max_output_tokens"
+  },
+  "instructions": null,
+  "max_output_tokens": 2000,
+  "max_tool_calls": null,
+  "model": "gpt-5.6-sol",
+  "moderation": null,
+  "output": [
+    {
+      "id": "rs_0c1234317db83963016a832f64c774819c8433608fbbe2ba24",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy-GbAbGJ8y5b53_FHj97wavH2VaXpKUTPQwokFvlZMIDxrA2Tz6qpEneBuAcFrQXVu7RdtzEp3aI_lmm7sGXCXL3V8qYpO4VF5yFz4WRoFJgX1pjdeWCLMOChIcMfFZqKmAcBNXfmgtCn9IhtkNJROXHOMaoIAwOLQO3b5X2N7tGCfE0iGd1l-BzAKSyfVcGck11mB8hhrZbDQb-RG9kuOnHuUE7wNmNhjh8EI2lKfv7UETsGzxXAgzBd8bQJgWEmyDFIiIrOYSKKU6zxzGCWr4r0ODaj8rRvBWu1snzf4upTujSj_lNGUaaMQgkh6FjS6cxfvOLjnVtGoZqwwBX8GWhCjLvbUUIE_oZZTPqfRDfs346s2tE6J3tm8JzHAplFlzULTCPkjc0ozDrDUhcKXo_jDscrH_YZ5lZcSeUqsYBIWoWtfQ275sBArWU3oyyBvfEPZPuBp4YraDq4pmtUzepi1kqmz-3p_4n1h0-TrLy9xuidH0aLPbxMCdJq_GGbNruPhB-cGaTlBhqUcZqrNILCXBE3sK_aybodKL3v2HKItXsQBMEYvPdytNShk1npqZtgwTNXVRZ1DYjKus_qgLh-aAn8eB2-IhU5VtaC1MvjFAHeF-mAffU5ghDzSOQlOCfuTX-b5GECmTth-I5IPagKaIYbFiAzH7MHCg247noRWySRObK83jaUyUtdRNk-FpHhx2_f9nyKVUHDIpvPv208CEiUUPm2gX7V3LGg38gmr0QzD63hKSXUd_1TlIC2mk5M_CGXZvfzUvffUkj-GgkmLCUvtWq26nZ8omGjHyC2WjCbuoL9YCIVB1ygclKqTTpxWtf7I7S6UOrWCkCNf65kR82-rLrfbp2fd5Byi0oRmnOU2MMFjpK3xeSgGs1aJfATg1B3tHV5dFOOd_CLKxc5UJQcByH1BieZQEE68p7ynLmp1fhie5-Aon6m3DqJ98Nrn6Ia9GjzGdMUB2s_9gBh3wYu118kHhfFA2oH8vm-bWWTkjtDqrPfSwtZIklqRdJO7I0VeLxPoe9KssOQ1Bipy-rBAqWP_KnGTWYNwcIU2B0VarDJK0rqMStYQKNIacy0DKOS6ZZts9eXq_Eti1Q5v62BLkr0FRDBq0b0LlPJfXyty8Spy75uk2ysB-jU42UgcwOvpR9nQBNiZPZq3vK_xvQMfnwFZUjYIdtKTsMiNgAMKGb43Mf_hxORs-KRrBVO8OcmyP31VssFzKMOiT6fgrbsuNHanSTJqZoOKS51cb5Qmy2F0BTx2ds7Cu8W9LmZrqPCWHgSTT1sFlT8CFNWZzE9j0GwrCwbkBDgQzp5hZtsbf1wjsMNgCLsqSfPzjAlDa5_noyxTcAr3gJ7Zui0k6H-G2Dof_zOUO9WqAfoylDNbxLKob3F7Y_l858kV3Ux68us5_fpjlZmcKdfDzbCyzpTEIMMAfpgRY-W_vSiimHCz7CBdWahWDtDWIePN0k5u1ucmx4DkcKZH-O3lL_VlvIcYC4JILukHrXoto2-xpecCDSKmfpvBXoG-8giRheaDRizYS245NDuZsgWPWg4bKNE_byduYBOPFe79iYh6sRwtHLkNo5AlQD7NjrBxAqFD0Db5QBejtiWhuWhJs6tvKV0exKl6UnOzijDR1k_gaa8iYkdnvF5TmecEA1MJwP_cJyMWeKZfqtlB1IqxWOOat4ioIOZw0PjWBqS-Pz7sKFj91jMC_fdtaI5e9JDMLdkl1x_xh-JMLoZ7LVWn937c_pvORog2h-2L4_JVpY17Zv_Ijv_PFbEXsoHp3dG7cs0Pt-TESIMYe-67IUNusIUNS49c0tgZyF1VWU6Nx_RUe-jyOXlY5ZrEyHZSxEYPOAjs0c7h-DfuZx8C2xiDqQZRU3A7OCSooYGcXpiGsTlY2wCZdD0PnoG8zmJrOPT8Rk3K7A8JGdO20iu_zMqP61_qB0FSOxeQnVb1ErIe7dNaHRZtWNnn3mMpW8vUBAj5I_wdsCX2HFMTiba1c4WRKjUKMLCX8O9eIdmuvY_CR3GA9fNaFnmzfnIAjQ2LPCZHN7zRs1rhHga2v-P0O39L7wPi7ETnxqKhhLjjz5koVfkRjIywXkJZL6gu2_-FFYkvDikaWyPf4zWKF_oE7V4F0zbKOQapGbUo8eI_s8IjEhXLGRAR2EAtBfjo1054Bk1TAO5ZNSEZU-IMvNctWCWFXlpGqJWdCnH2ikNMidOi023LHFTfkWE50ealnVJRXh4bXFBTh08UM6pjELiCey4RxsB6qoHajmNXWOqkHHkTRcorUIUUTDd3Te1WY8Vg1tKAQgZBfBPLnGw3nQ5iK7EpnVe7kvH7bwN2B10n5ZI0pQCG78HjVQOvwWN3HckIBUBU1eE8Yve9X2u22ecU7cBp0vU8QXERQBGz-sNmRbjWbkWtNASKjHx2XFnT4KgeGyK1R-cl7VFMKTVfo7GjLK4PJSd15CIPVD_7BvM6cxVAtipZz07hRSceFAam6uEqAxyDIBecFGoaU7obMkq8IY96SddnlBtMTq_qGxa313wXazOw5Yl_3TxWMM5MjdoFWxZwDd2zjMJO_WosDV_qeFD0nQWOxj85eMLMP0Ao0jCH1TAj_eknpJ7tdbsKZWbMGrlXPnehdEeNWtNkEpJWbXHpn9DG-ynojbnCMHtzq75_lg7DBik-moVnsGlkk9sL0tcd6p-ihzGgWOyKpOI3tHmVysY_k8kYJeYzhXCSg8t2BfhyrRC1mQxqXPlq5ujbPkyds_6bLQdhTBAUAJE5tGNGtI_5syeipFfwhVzhHvbb2Qp0swKe-sHgD-ZgIPcsDA2K-yMKWlSouamPHAfGpuy-QxcstF1-w_y012dG_X5VjsYttyMyay0E6NShY9PPJpx0X1UbI12CI64m5wZ3qKnskjQ74Rg8HjHwEfZwfqB-ItXdyk0g1oDlULRWmoNpeAIh-9B_YrSmsItPmGloCVam-ZcccWZaOl7IBXG2jFLdY_OSvzsFD0SPjMj-WhA-KD6HMsj3KGN8zXHcliL7adc-bsALfJ-ElsJbha6EDR7HRmgFUw9MZwTnn3BroUqaMRNbnK8WLyYxyNovK9L3SAYnSSYFturp1FCP_NcoPs59RmKtIY-jQL0qGB8z-p3pM9OGT9cmRa60sm0o-XNoaOWQ3j6HwKDCR3qNr94QAbfId7r3lkE4a48znIuFPZXQ65JesBvs5n7_kq-d3mOVnatqCow6-4sWdf16nsduLPFLHPm7fdVyc63tzEcjeESDEyNtyWQliBYCihcSCrZf5YqeubWckOVS7Uwq4SZ37HyPmktJwG2eFhMEEAyKzaTMXLzZ23N83crzigXH7DyBCMyTaYszb_cT6Jzi6kf0oejF-KeCK_gyeCHDON7hMKDhdI7BGSE9FiSwgochUgaCJ_g2VPrdwnkrj5-ixsALxmi4hRSmEK3UYF_bcqtXAqNOoSGGM7l9pLe6J01yjPhKgf53QJyyHjc6sYR-6kjc9HByR3gmGYhdoh3xIinJUTxq_WMIXuK9sQE5SnvdOuLKxU9_1ImFvynLykunFBlgF0O3ZYM6CYU9Zfr9IqTZ_--gGuU4pVazdbiuIS4PAKty-KcSt2e-32MLuFvC3vJKxZ-WrbkA0uNnWv95RSkxjI1ibAOaN7QYYD2UXj0WxhfOXjhSy03eUV4x0XvF9H07USCffdLeQHZ-rr0fUhz39yQhNPUzoM52JtdXF5yI8-PDs0swbXAErJ_FuENAtDbWEBv1uZnff6EByxGr8Jad2mitpWX_RtScvGx0YWoOalvphDd_gaVaeSz9MXa_J6a3AH5Fw9lmacj3rFLa7gyRjrWrYRko-Blkd6dTDoF9_Q-Gb1OHoj3vAOPEv9Z9pV7Mc3yUubQ2GV9nbIA82T4fznWzyydmcSwPtdzEBZP4y0ZOoFe93h1cbr4-7Ng-cQXcYKHjnukUbG5BFk1ldZFxgc41JnzXOzG5Ei1gVOUCUx_JwXF1Xyk0StwKJxsd8br1apKx1c71aroHYW-apZBZOKxi4UudNWByTkLDN98qa5LVJGrwinznHrQOp7HDc9XenaXYiGoT89LzA5N4AnaG_4bkBs3jebOlnJhmRqrLWjRzjjVqCdJmnN_VI2DoIzgOxoUjMFz73PUdzNwrYgzjOTVgpSeLfNZrsDHYWOsLjxW8z8IUy0fZEzcYlaz7Ew82_5hOMCycWeyZCSxzz9xol4vFdFGCpHQ3WVCH02uJZFQoQzWE2Pr6I5r5EqJujoWEZQn6nj5ok2Pg5_B9daaAnV-0gFvFpq2E-8dG1NlDW8uM7mBoQSWzwrY24T0Z4eF3HHI0yDt7qq2-gpmMRGREBulttDvqTsNaXpFJgXRi6wNsFqFzE6wxobfDA1cNAfTHasADUkSEvAz0xKIGnWeFbO1IEecKypv-gqVfOlRGZlymN-FoISIYw9Hq29OlyBbLrY0x5Sj6aGeX8ziZPpyK7BtbMmMpeOZdS-7SZuwFig1XCzpwblS0ohZercunSkzYPhLR-TbQh3L9TuEc4DzGARt352gIFyqVHwt2ibLobtnx59r2Jyga0IU9vQRn2HouvBYXH0PDitMvpvvHFzFMqoUhjVP8vDatnQyV4XE-JeRpvWHewUHH0MZItLcbf-oYv-QUDUL_FkqD_D5TVhH3Tale7e7J6FkpLO5wmsTsxcUmksmOL9LV0ARKobsIgxd90UsOEkn80Zs2pW369BFsUuxUCxoH-ZoJmgOs-SbIxv01sQcKtDcgQXW0W8vvu8SXkNuIbWPTf-k6kYVQ5d-fqZQfgDhQbYErpAK2In-C0NjeQzy7FlRoehJtmScg4wrKW3lgOjFm_1q6eDjezbPuDlV5U63jRjbd7Or5ipG36-H7Ls7B5AZfcQh1m9CoALNy3jQcc_p5LTv5FXNImKhWyl2_OBzNzdqgmpeDilVuXNZA2mq6N3F3t-yww42IhDFD3lBAd4vahbiON8IokpIt2AVjo5Jqg3Lj5cF_EU-9XzT_6_SvEKA0eNsQFO2K-0bC4FJOZuU0=",
+      "summary": []
+    },
+    {
+      "id": "rs_0c1234317db83963016a832f6dd19c819c8114eaa95c3e8c9a",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy-G5qD0NFbEXj3BbyyPBSJI3CyZMpbuMxRSakXTrWi0qBBZpmZp9WY8rB_NDr-wfeiNhS7I_9LQrPDiJZxgMahqNKlzWxkRkZ6CCGkqWR4H-vq87YQu40zP0isvvdV3gGNdVoRJfC-69RZkkaKm8JANgcyLGJuXJgHyME9vF9XcshmdgAeriVh4s1aoWD_F5EWtflSjfFQ3kmmeAZ6eql5hGZBK25V75xak-sPl3GcBgPvvyz_wc7AFKqvsM2i7kU_VoxrINA2hG44rmt4humHoIO7siqyKppIFBFOycWDhsYvnfXroLtHUT-w_z-KSMCNBzRQVBW9J_gYViMjyHoqsDmYIA1LEaBQxGwJDByyd9EErHY57GjOZlU3bLEu49hNUStl2bYUueSUIblD8RfaE1-0ZDT4D9-X7qgbbJR6TwNPJ1Y1Yme1-RNz6WwpxmYIoBw0zXKJk3WNsOoMLC0JjuVQK7u6I69YYvLTxB1IVc0_oIKgEFYtVW6dA39JQRZRFs2shecJGsg_hjxPWR7e5vSdJrZYDx7gmKo_y6c0P94V3pzt_7ROZXuBGSnZo8QpzqN245iYsXHQjGJfeEQ3WGVwMvSsa99zKrXoTH3CHIPA4ggY4m1fcadWahZX7ApZmAxV0tKU65fq-OlLExHhB-CwpE48ZpmOqHkX5_R5avH-2eNH2xKk955XGMKAhs-3U81J88qjJhKs3amPQfi5LKUHsb2S2eI8jAX50JAQM9wiRvqwNwQ3uwDS98eSp1xtMBbvufXuN6enZJOPaHNszVQ395xqhCv7P4i3r6yjP2aqd4945k85XdtOq4hXOQcEXOyR9pwevo12fat6w_oacba8SY8G2arI2sHYFJ4WujoKkS3GpkLl_KYHXR9PKS_JoOMjq8g6_osSEpXfMHgbM5ErQTkxL6jCN1zfYQVV8r5uOaKHiBF3DYF8vKbVUbHMVlskPqeQ6tDdrgu019AtWjX3krsQ3kQa5aOa44tA-SkfeTwGYTGvjl5uc2ddXifsN7CMgSElHC9J7otc8a-3kFq8BgO3txXX6-PVkveAc3Lod8FY-aJrk7K_Ncp5c4KzBDcdk5vBv1alDglOnWhP--KbZN8tGq5oySbe9izJN-BPHkk0iVRe1AF_8jqZzz-yNd_UGvPZ8aTY8U2VrYS4b16qP89LBHNRqGYn8kfaA0PxgIzdf3MDo9HoE-IWugkb9ZJTg9JjMZvWn8kfAEmsceIpEm9X4_9TLq9FDy8tf2aVog9GBkcWjb_JyFG3ru4J3wm1O_X7zDHMszwTMZ71ak9l6fNSszvkL9dv1lqjJJZiepIC6n94VLo6N5Cw9925yU-ade_i4-ZC4E_261DySEBCaq1pKMculQqwHX8Pqx4sWkBMYSGxWwgZTPACd9POLpE1Yzo8JCDV2J-OvBwU3_hjpINx6QOmcvCZo4py_TJB6u7y-OBHzo-LHnIfyHWNIPBW7xgLaZFNwmhKp4Ivu5f5-Uw_Njqg3LxUKhFiECPedVL5Zbwv1-g6BH_j1XrpvPHmBMI6jXmo_wX68KpfjzPojjt0qjCAq46sxjAFB7ow3QhRdUXvid-W8aalr4d96LkUaiNXpnLci33zwbJVV5zintS4wCB4QGds6EQsAOSaevKzW5ZjLyAhvgG6CFnnJOOQGZbIQXBRXsI1Ma2SeH0a8hIpFP-jRYcRM36pRPmn_Ue022_Sx5_kofHazaEpnVvbtEwggOeTVvVyh5pMSQ6TiUulJISShsfmYgOtdJcec63Xfe3F6sQwMpxCMpuR5lOyMCGzh4tdg66HU0WnPEbxw0ju0nN8gQNi2LPQ1ThFHs7htCjd4R_u2WJ0k5FPWiJuAGcrgXnxTBm4T8PWK1NhIq5frLiUzn491Frx2z5eWiFyZYEwFNhELHxDLdBPzdtTXLpRvbXAE2Yda7dOS6rAIJTJSl1b8PsPTvgLb_xrgt-woXKzuTElFsJBkZdMq1Y7hTbE_gnUspwZH0hHKPMQVSCIC7uMpOpVCh25r2GXow4ha27uZ9IHnmRKhD04VrFFHcyr0vSBJO1YlhoKbNMErIsWTuzep7oxDg5jDuVl_wWSU28EWGMIJupMvCn024FUTGbEndFyYZrN3gOzWP6N3YmLbK4MdxvERaQ9qe7ZuGazs4aCWS6cg_ti1BsVG2lixitFrLMTiNkv2C6M7DdjsFNyg7B1Cg6sCqoKlIo8e7_Fd5_cXLs7vNxJIsNg30EJ5LBaqO4N2O3gzsV_oRO2_-RC_hY5spArKtLda1rm9J4WDmiRdOKZ3XR0Q4bjODEtJR0Nwa3e2hbCx9sfCDKDJWJMGTiOtbygiv15-7-5naF48mQa0spSDf2H5pz8yS0miNmovHNq-N7oPn2gxOPRInVqNNbbQATJfj2_bGipiae3MOwRhQTJtEZQC2Lh8SENQcFv6v9wD-jIHT5Q6LA1YQs0TMkHaotlkXVI5YfhnG_40gfZH9dppkEZgbdFHp25Wqs5gO5JInHwdfgEzNVSQzgEwHvfUvSBEY5gI4HuOjyXnXc_qAycdJI8ZAGmshsw1ixoxWz7IDsge6-wUbmaicckhiyZpv5nX9Dasgh44wsQzFew8LmLW0FWZZ5raxc9Fy9oHuLCshXpG1awp8ojfi8BAoYS0JSApnMGeJT6a1Y_aMtgWrjcQCMKO2O-Ut5ecUotc296E2ufesPuSS4S6vtP2bGQSMpypSuNTvLzMP9sZCU1wLnkus_KzgwGHJbuJo8dPg61enWViCEqGkL-9pvW0u0aV7f1DnZ41j_Uw4rdITCwfBmSEsK7yx_vR1pDSVmAWvmUn82zfi6Zw528rvSSvt5dIIGQmFpoSijTKxOeJ0d1GNpjXd_4_QhnBGjCD57Hv6KwhahAy52LtXhVco1pZ3l8Mq4tstEzFWJtSFiPyq0Bgi6Y9rH_609t-yDi-bBcHGjLv0xvG7WN68MveyuKXT_WFwHXq465GB6Wggodn_ccfI4mh8NBfeATHvIv67_aQxTD9s-cxGUZ_9hEIrdR8mSwKUEKvR0bsVlVR52lqqoYfYuCFNpRCVj1jHZ3QaOswKIgajeBpW2WuwO4WMK0JQIVNIrwDon4GLqwPvLRD9q0dc7B1vma3KnpcO4FwracbDSHMQ0cLTv4lMRWBCunCd6LQSrnIzMvRRuf0GIoHzKQw4Gla68hoqr4aiunYuSlioyAZ0N3Je8lXKFCXeSE-5SDBGVlg4i5P7IHbicglmqSNMDtLIewlhR60q51nszffyopKJC7cWWmcYw5hYzPjIqWuUDhz2NXrQnWkWmxf6RSBBwgh_GpcP9oWKXJaE5qWNTZqw_35g9RAv-O0zRvlUR6CNXIyg1zpyY-XnU8oMNR2v2Br_YeEzVLQUKlUZziICwpbIYb3d_JMaIpCa7xBLLQZ-8hF7jSyJfjWFY2_8yoNUXkPQYGCk-f2pP_t0vcPhFS6EO4YkGT7tj2xslOpyrvHMvJ2_tRwvjXq4gxaj-ay_z_tzx3gUOkO6qsreTZhkTd6C7qVdy5OLjZexbwtmFToc6_Tf5qBXtTjZdlWt_dx7anurRGYNgVI9qMOtGfYmliOu3JgG_MZm1ZiGqVJg-T76hu9OHHF1E77GNrKcO6gfj1evmVe83SdUbuGozAzdFZLDPBfQ5T2_Mc7N5A0cx0xRkXjsHW8857n4Zek6dCp40OYNvZ_lJINyJEIjHpOLUFvkjhazQMWlgUgjCSJ5VF1r3-cdzCEBNTfWY3QPi5l5V6tSm3Fr1CMnwUl7MRcU88goYmwIwAJSXiKIgDNR52zPHiOPSRbb_yZhQynycF-YBcdeXNuSrYOWmgnKoo55J9u0sfQdrl899QO2d6XV253-_Tpx-pZu1i7pdgHEtDhK9pTIIxVkqbyFydwUmMM3Wy2sJ86OiXk2hwsqRPaf2LqnfaprA5Q1l7wYV5UCjLfji1M0qJ_Sut9Z0BLyjTb304hbfA3WHL423iYLZXHMcR5sa4R0RRPKLyfO_sR-WIJ3lQ0V0c0zZT9hu4Bu7N6frfSj0cfo0dG2_q27rnA9iWQP29tcPxVFaeV4o67cCq_iKnoAztK3L4g6rhMT-wKLSfkO4BMpVuOGDK8NcDQLFOVRMStZQBI_xFTDIUCRROP3xfi-yNuKsWp4ONUaQoroGzww255Bs2LuM14neRw8jn7yJSwHwkZmzr26JsFm_0sHGS4ExK-ytg3ZVbA3JLFW9LuRBT7eINIRrAtMpvO22-z4gebdAiMZg7-mwrWrZIBohlNPPM9dBBlHuCJH-fQYKgxnjq4QF_3s8k4OIuvee-WdILVHSk5dxJ4gORMwDRtkZKmUDFxfeP8vw8mNzfGuJ-w6BKqwJep14g-9aHRiRB1hSrR0Gi0oWNQEPli2m0WuNxAe5NrYdCrUOzMLiDgy6Sdusubf67cq_vCL3zz20FKBzyOEggUyNT2W6MkaD4psoIGHntB5Hg3nWRFumowdB6ZOJJlqryfwFgSCRg15CUpiqGtX7LDFQacCgrX4jVACcSWvG4d0JaTf_PEc4V6LhFgOpDXv-Xxiz4r4L3seVNvWwsJIuZXGIAW_2okHjMo74YTfsn-VRJ-72VO3QWtFDSODDv-UG3ifOazBL95fMKfkGkToyh_YoDILrNXEqcgyhU9_zNGP0sJil7qFGoDOqufP8sLvD4vPPnmgN_3OfpjYi47NI4V0pQCMh0wRXFrb8HoZpWgIfF3MtbuGsGvP8w8Wg9_hbEQHkfUFqiQxR8tqJA9cxfnFYpGgU981VsprKTA0dODCuzFJ1Hj_XFq7cHSx9AyUZYnctwWsJwIWmqT8vVmX9Ty5Ii60DssFy6Xy3ZGj0VaN2xx_11FrsC374__v6dCvzkimXspSZBygi-TznQfem4JpyXqkIJzcoDyaOPb2Xq1BlQ5jMGcIS2CweYq6Hb6-S6ukg==",
+      "summary": []
+    },
+    {
+      "id": "rs_0c1234317db83963016a832f79371c819c89b24299189d48b0",
+      "type": "reasoning",
+      "content": [],
+      "encrypted_content": "gAAAAABqgy-GA_4R6Ozs7nLraVfBzl0dMX-MdSzhrEOpdLyCvTKF5WOFsvbfBryIUAiEfjV8AEfwiSDYBp2Ge11bsxuCsfglx8fBX7u7kgPlFIulFxylD9JC_w4h5vKAd7nttIXra6ly3qtUBitEvzkM9aXOZPTxQD_AwgnECHLH5EBjiLQqgFXglbvDDqLYmPDe5s5bnQpyyewBWENqw3AgOBcFjWFWtT9CjJVNit25rnzxnETEMHks-f5rO_K884AYFWzm_slPXQQJVoXt8GaKdnHBEBynr7KXo0Zl6EBP7CCss5MXEp6hW5oB4sRtzIYiYKtR59UB8ac4lJNLKREDvIgpv1CU2eOSMpraYs5abZMsfjLFCAj-e8hYVj5AfdrgpfIpyZPmIXnWPu6cBhzBDDTNYJ6Li_BnawkXd8gZL2uOVPby7t8EsTSzGS7gxkxo-hOA3yo8k38d-ByheCmILWfx3YCb55K6-tgR-eBqH8TM7E6rCSUo2DUeF2JLqW4Fz6slQoej0pxcW4wSZqySj7iNy35aMEGHMtOYg4IPmu8sUT_g1wlN5K5K3MMSujeUs9mTh-qgafYIr61meU6EeTenVwWBHi6vmHALPhWg-Bx2z-8g6pjk6x2D84LsMpd1lKbEF4gmxYi1Ret9Hz6-jxIYlKgZyjBhMatAjCQ6z36HA-2v79hGdO6XUx8yPrDL0e7gMUhGtckZFjD7r-DRxHdx4iIuIkY3ORIywIgGrdsWRZNZPnO5vZeEY2UAyLr3O1mp1FJKoT4VLsNvr1_CcfWT1LZ4zLS4LbBAKN_7YU7ncA8q8Ey-DM3pNzoyC3E4kdKBB_RyuhC0BKFWWw0IeBO16bJJQUopDQgUYZJpQJ2y1srBMpHzwZp1BEDysRLd1Nhgq8-Xb0gnYx_1FmjHlx35y9B74NOslLOh7uwhnJNkYBgUdH5GLplNzRPFVosQCZS6qX6G6q3N6utOkVr2cULSO1fMjfXqaU_Pj4OQZeNBbvjwUTBgjj5Qhdd3vCL6Bnwqwfli9xXefe18Q2zDcyvF1v5aB_b014e2rCuVnamDDI5TJ2dfTz3xEgdb4TsNluG8QGOSWQ0DDWozTmgLyPs3h6aZWcniXLh41MFO7TyygfUPqIzvYx-xI6VGI4HTFdGfc_kIxd3KZ3hwfqQ4RFAMT8eyGiKPAgqkNKKMMJ1--g-pMfNkZh1JgwlrzGTPxWs85KtpvyvbHhrVmNgmBsC1SrBYNa2sdN31OiVWH2zAETyoIveq5LRRNiBfxh5dtXDnsvwo8E7g1DAGG8u0uZDXNfj3wwpAxfvWnGIVMYZyYGMa4l3nT5tYqIdB2TR9kQUBRl4OqqVSwsqq4JOx3KM5qgIa_5S1ZlhKGV33CGbbdGti9mkMKcJLGZkRPLztXFuzTdCKWkbRhPP4ko1EYTfrAkcAMqZ2B0ks0rd4IKXcxsSIDYOwbFoiPj_RKZ8-kKQbeR8_5XBVWp9MSZdVJQt_1dflqxNfDqVz44bFJ6vfmJAbanepLy2TMdbqhp503IlblwmAhlsrLoaeufDG7uubSfnHUPmhbhhUHG60dKgMJnWGoaokAJGH7lKK7GoJ4PERD2XfmPOUIzr5cZ8-_r0H2rHTbT0dR2JIs6v21e3LQfqFLAvluj1OOBb44jzkshLtUi3qIIVgu6SVfQ8zwbJ57xCPWruSBFJNtvVCXWuJ5H6JF028KvD14d7rIRH8toBmSFTrxxnEoMOPWjIqG49u_gtGLuvBuHLsHm981RPzE5xJ9Cf5PZ9o5Yrtfe4295r1ynqY84iZGd0C4GlrCLR1SBJQIl9IIOU9wcYYp1JvejA8rqegbBgdUlBHZM2cMKct97wfvb1w_jDJSvOLO0w--RTK9tAuRE9KVecAeCE_5h4V2dPjW9aPFFn1HOaOsKwDRlHfAvkdkzCfVHHTadAOL5MGejCB4fDDacpitkrbjv9cAmH1xc-36WmD63hFT22Jv6gf1pW1kXnPTcZNsOWpUHpeuNF97ZEx-wxuUcs2TPF-lZHBopzHZcq1W7qk7aX7IriMdwqMIhxZNdNj7vBPRZp3uCxfvqotOn3IuzoHqFDAB52JJmoOJ0CvgDumbPn9JigxLvsOh8C9grfvePfJ_sGCl59MJD9fwBjIX4mePJaeJfu4-hS1T6CyQ0FHvYb2A5td6tAWIbWB5H_gvWYMQJh6v1wKwl7fP6xZDYUFquWnpPswjFYV6g56O9wAh__qXEd4n3E3jWOxA1GfXRWNgNml4oXPiYR7ZOOR-rrR4pt2HBXSUCEEQDXZSXGGlasqWAbJJEcgFCGzTCRiUJAmAEzDXZSKPEvzDpisfQ7ltTtpNW3-8RuWi-aGlT1vJ9FJxap3KV9HRjLh0rHiqCZdOUvenTSZsyVSNC46jtXFF7f2AfzLYvMxJWf9hSMQvbqCnEPW0y7dz97EheFfNWqngdu2yRrGC9nmT5bbxDaSUEao_eg-lVSMRPdSP2ptjrS_0Ujnno1El2RJZCQ8Bsub39jx4qTHrfQ7OtpQhZ95ihSLitVIVeG8_c1YFmSSHMewxNEiWRZiQdOYWYHnA2SbOL8wt_MFG-P3KXxnz9ky7OYwaBgkH7O3l1aewzorK8Hb1vitxk5NIgJ3fmfuX8_cq_p9yYc33YMKkSpHi00eZbe92NoUkgQm2EcSdu57dxzIhZfTxwx9kZNc6mogXf59iFWWOw==",
+      "summary": []
+    },
+    {
+      "id": "msg_0c1234317db83963016a832f7cff38819c9b189b9451804959",
+      "type": "message",
+      "status": "incomplete",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "{\"caseId\":\"V4-C14\",\"actualMission\":\"Disposition the four sealed mosaic crates using control, provenance, route, and window evidence while avoiding claims about unseen mosaic condition and preserving the independent pedestal release.\",\"finishLine\":\"Identify the supported failure class and affected population, reject the contradicted historical recurrence, maintain the four-crate hold, release verified pedestal crates, and request the smallest authority needed for insert disposition.\",\"classificationAction\":\"DECLARE_NOVEL_FAILURE\",\"failureClass\":\"REUSED_INSERT_THICKNESS_MISMATCH\",\"memoryMatchClass\":null,\"dossierEvaluation\":\"ARCHITECTURAL_FAIL\",\"nextAction\":\"REQUEST_BOUNDED_ENGINEERING_AUTHORITY\",\"evidenceReferences\":[\"O01\",\"O02\",\"O03\",\"O04\",\"H01\",\"H02\",\"H03\",\"H04\",\"E01\",\"E02\",\"E03\",\"E04\",\"E05\",\"E06\"],\"factualFindings\":[\"RI-4 inserts measure twelve millimeters against the required twenty millimeters (E02).\",\"The eight-millimeter support shortfall aligns with observed corner compression, without revealing mosaic condition (E03).\",\"All four sealed mosaic crates map to RI-4 in the build ledger (E05).\",\"Same-lot unused cards remain clear while the chamber reference is in band, failing a required HUMIDITY_CARD_DYE_VARIANCE marker (O02, E01).\",\"The observed crates traveled by different routes and neither route-impact tab triggered (O03, E04).\",\"Pedestal crates passed their separate review and contain no RI-4 material (O04).\"],\"inferences\":[\"The shared RI-4 batch is the earliest supported common cause of the mosaic-crate support defect.\",\"Card and route controls oppose humidity-card dye variance and route-impact damage as explanations.\",\"The affected population is bounded to all four Sable mosaic crates by build provenance, including the two not observed through windows.\"],\"conclusion\":\"Current evidence materially rules out the named card-dye recurrence and positively supports REUSED_INSERT_THICKNESS_MISMATCH across all four RI-4 mosaic crates. Because the defect resides in a shared insert batch and requires scope-level disposition authority, the dossier is an architectural fail with bounded continuation for pedestal crates.\",\"earliestSharedCausalBoundary\":\"Use of the nonconforming RI-4 insert batch during construction of the four sealed mosaic crates.\",\"completeDefectClass\":\"REUSED_INSERT_THICKNESS_MISMATCH affecting every Sable mosaic crate mapped to RI-4.\",\"safeIndependentContinuation\":\"Release independently verified pedestal crates; their inserts, records, crews, and shipment releases are separate and they use no RI-4 material.\",\"retainedEvidenceSufficient\":true,\"repeatedLoopDetected\":false,\"smallestAdvancingAction\":\"Request bounded conservation authority for controlled RI-4 insert disposition across all four held mosaic crates; do not open crates or replace inserts unless that authority is granted.\",\"authorityClass\":\"BOUNDED_ENGINEERING\",\"authorizationBasis\":\"E06 authorizes holding the four mosaic crates, preserving window evidence, releasing verified pedestal crates, and requesting bounded insert disposition; H04 requires bounded conservation authority before opening or replacement.\",\"prohibitedOperations\":[\"Open a mosaic crate without granted bounded conservation authority.\",\"Replace an insert without granted authority.\",\"Declare HUMIDITY_CARD_DYE_VARIANCE as a historical recurrence.\",\"Hold independently verified pedestal crates without evidence.\"],\"uncertainties\":[\"The condition of the sealed mosaics is unknown.\",\"The mechanism producing the installed-card blotching is not established.\",\"The final controlled rework or insert-disposition method requires bounded conservation authority.\"],\"boundedRationaleSummary\":\"Direct thickness and ledger evidence establish a shared RI"
+        }
+      ],
+      "phase": "final_answer",
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": "24h",
+  "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "mode": "standard",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "json_schema",
+      "description": null,
+      "name": "katherine_v4_qualification_response_v1",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "actualMission": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "finishLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "classificationAction": {
+            "type": "string",
+            "enum": [
+              "CLASSIFY_FAILURE",
+              "DECLARE_RECURRENCE",
+              "DECLARE_NOVEL_FAILURE"
+            ]
+          },
+          "failureClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "memoryMatchClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dossierEvaluation": {
+            "type": "string",
+            "enum": [
+              "VALID_PASS",
+              "BOUNDED_FAIL",
+              "ARCHITECTURAL_FAIL",
+              "INSUFFICIENT_EVIDENCE"
+            ]
+          },
+          "nextAction": {
+            "type": "string",
+            "enum": [
+              "ADVANCE_WITHIN_EXISTING_AUTHORITY",
+              "REQUEST_BOUNDED_ENGINEERING_AUTHORITY",
+              "REQUEST_EXCEPTIONAL_HUMAN_AUTHORITY",
+              "STOP_INSUFFICIENT_EVIDENCE",
+              "STOP_NOVEL_FAILURE"
+            ]
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "factualFindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "inferences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1200
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2400
+          },
+          "earliestSharedCausalBoundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "completeDefectClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "safeIndependentContinuation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retainedEvidenceSufficient": {
+            "type": "boolean"
+          },
+          "repeatedLoopDetected": {
+            "type": "boolean"
+          },
+          "smallestAdvancingAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "NO_NEW_AUTHORITY",
+              "BOUNDED_ENGINEERING",
+              "EXCEPTIONAL_HUMAN"
+            ]
+          },
+          "authorizationBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "prohibitedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "uncertainties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "minItems": 0,
+            "maxItems": 24
+          },
+          "boundedRationaleSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "caseId",
+          "actualMission",
+          "finishLine",
+          "classificationAction",
+          "failureClass",
+          "memoryMatchClass",
+          "dossierEvaluation",
+          "nextAction",
+          "evidenceReferences",
+          "factualFindings",
+          "inferences",
+          "conclusion",
+          "earliestSharedCausalBoundary",
+          "completeDefectClass",
+          "safeIndependentContinuation",
+          "retainedEvidenceSufficient",
+          "repeatedLoopDetected",
+          "smallestAdvancingAction",
+          "authorityClass",
+          "authorizationBasis",
+          "prohibitedOperations",
+          "uncertainties",
+          "boundedRationaleSummary"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tool_usage": {
+    "image_gen": {
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 0
+      },
+      "total_tokens": 0
+    },
+    "web_search": {
+      "num_requests": 0
+    }
+  },
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 0.98,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 2655,
+    "input_tokens_details": {
+      "cache_write_tokens": 2652,
+      "cached_tokens": 0
+    },
+    "output_tokens": 2000,
+    "output_tokens_details": {
+      "reasoning_tokens": 1250
+    },
+    "total_tokens": 4655
+  },
+  "user": null,
+  "metadata": {}
+}
