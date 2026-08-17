@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "inventoryType": "V4_TERMINAL_INVALID_RESULT_ADJUDICATION_INVENTORY",
+  "fileCount": 1,
+  "files": [
+    {
+      "path": "qualification/synthetic-executive/v4-independent-qualification-run-001/adjudication/terminal-invalid-adjudication.json",
+      "bytes": 158437,
+      "sha256": "25deaa10d14872cd6c8cc58780a523f48329f440640d82f43894746cfc5477ad"
+    }
+  ]
+}
