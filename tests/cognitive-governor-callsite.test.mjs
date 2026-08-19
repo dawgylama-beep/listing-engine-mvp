@@ -16,7 +16,9 @@ function occurrences(text, pattern) {
 test("mentor-guided reasoning is one internal assertion at the canonical Governor decision boundary", () => {
   assert.match(policySource, /import \{ assertMentorGuidedDecisionAssembly \} from "\.\/mentor-guided-reasoning\.js"/);
   assert.equal(occurrences(policySource, /\bassertMentorGuidedDecisionAssembly\(/g), 1);
-  assert.match(policySource, /assertMentorGuidedDecisionAssembly\(\{ state, candidates: boundaryCandidates, selected, boundary \}\);\s+const decidedState/);
+  assert.match(policySource, /const canonicalDecision = assertMentorGuidedDecisionAssembly\(\{[\s\S]{0,180}state,[\s\S]{0,180}candidates: boundaryCandidates,[\s\S]{0,180}selected,[\s\S]{0,180}boundary[\s\S]{0,80}\}\);\s+const decidedState/);
+  assert.match(policySource, /const decision = \{[\s\S]{0,100}\.\.\.selected,[\s\S]{0,100}canonicalDecision,[\s\S]{0,100}actionSignature/);
+  assert.match(policySource, /Object\.defineProperty\(decision, "canonicalDecision", \{[\s\S]{0,180}writable: false/);
   assert.doesNotMatch(source, /mentor-guided-reasoning/);
   assert.doesNotMatch(mentorSource, /fetch\s*\(|requestOpenAI|providerRequest|child_process|\bspawn\s*\(|new\s+Agent/i);
   assert.doesNotMatch(mentorSource, /authorization\.js|request-envelope|provider-action-schema|qualification-route/);

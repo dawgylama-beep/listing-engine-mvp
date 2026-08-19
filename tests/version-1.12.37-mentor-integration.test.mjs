@@ -10,7 +10,8 @@ test("the product route continues through the single governor and updated mentor
   assert.match(apiSource, /createCognitiveGovernor/);
   assert.match(apiSource, /decideCognitiveAction/);
   assert.match(policySource, /import \{ assertMentorGuidedDecisionAssembly \} from "\.\/mentor-guided-reasoning\.js"/);
-  assert.match(policySource, /assertMentorGuidedDecisionAssembly\(\{ state, candidates: boundaryCandidates, selected, boundary \}\)/);
+  assert.match(policySource, /const canonicalDecision = assertMentorGuidedDecisionAssembly\(/);
+  assert.match(policySource, /canonicalDecision,[\s\S]{0,100}actionSignature/);
   assert.match(mentorSource, /evaluateMentorDecisionContract/);
   assert.match(mentorSource, /MENTOR_DECISION_SMALLEST_ACTION_MISMATCH/);
 });

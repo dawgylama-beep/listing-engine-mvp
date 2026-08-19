@@ -850,6 +850,15 @@
 - Added 32 independently authored mentor fixtures, 102 atomic-scorer fixtures, one-atom mutation proofs, capture-boundary proof, contamination checks, and focused product-route integration coverage
 - Preserved all closed qualification evidence and classifications; no corpus, authority, provider execution, qualification, deployment, activation, benchmark, or memory promotion was performed
 
+## Post-1.12.37 bounded cognitive correction (Local, uncommitted)
+- Construct the existing Cognitive Governor's canonical decision vector before final response assembly and retain exact compatibility between its declared decision fields
+- Bind every selected action to its permitted parent operation and accepted supporting evidence, with fail-closed rejection at canonical finalization and operation authorization
+- Audit authority/action, failure-scope/action, evidence/conclusion, continuation, loop, operation, and evidence-reference compatibility before returning the canonical decision
+- Bind the complete immutable canonical decision and deterministic hash to a repository-owned ledger identity, and derive parent, child, and provider authority only from that ledger record and the closed action-phase registry
+- Replace one-way vector implications and constant audit claims with a closed legal-state validator plus derived rationale, uncertainty, prohibition, evidence, downstream-phase, and continuation checks
+- Canonicalize cycle and duplicate stops before ledger recording so no superseded continuation vector remains authoritative, with adversarial copy, hash, phase-expansion, contradiction, and downstream-authorization regressions
+- Cover the correction only with domain-neutral synthetic cases; no benchmark result, qualification material, provider activity, deployment, activation, or memory promotion is part of this local change
+
 ## Version 2.0
 - User accounts
 - Saved listings
