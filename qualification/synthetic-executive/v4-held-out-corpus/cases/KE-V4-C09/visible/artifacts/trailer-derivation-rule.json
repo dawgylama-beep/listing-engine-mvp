@@ -1,0 +1,1 @@
+{"acquisitionRepeatRequired":false,"artifactId":"KE-V4-C09:visible:03","caseId":"KE-V4-C09","contentHash":"552f54f991ec36f594b3fb2600ff9db751d15579c923bc7f16eda6f6f2a19177","deterministic":true,"recordType":"TRAILER_DERIVATION_RULE","requiredInputs":["payload-trailer","durability-seal"],"schemaVersion":"1.0"}

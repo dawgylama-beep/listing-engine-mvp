@@ -1,0 +1,1 @@
+{"artifactId":"KE-V4-C10:visible:02","caseId":"KE-V4-C10","contentHash":"9650d8b9085b6803606d4ee78d8910d6aeb65048fbb24f3f052db0bcf45ab43e","phases":["tombstone-seal","resident-remove","index-compact"],"recordType":"RESIDENT_STATE_TRANSITIONS","recoveryBranch":true,"schemaVersion":"1.0"}

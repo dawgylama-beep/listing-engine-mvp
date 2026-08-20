@@ -1,0 +1,1 @@
+{"artifactId":"KE-V4-C01:visible:03","caseId":"KE-V4-C01","contentHash":"4c852580941d8d3643696e10f2dfa24ea19ff2f6ae2cb7e541a184b5ba252f66","firstObservedLossStage":"ingress","recordType":"MONITOR_BOUNDARY_MAP","schemaVersion":"1.0","stages":["ingress","decode","format","emit"]}

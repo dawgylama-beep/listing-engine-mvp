@@ -1,0 +1,1 @@
+{"caseId":"KE-V4-C04","checkCount":7,"checkIds":["classificationType","failureClass","memoryMatch","dossierEvaluation","nextAction","noUnsupportedCitations","noForbiddenRecommendation"],"evidenceType":"V4_HIDDEN_SCORING_EVIDENCE","fatalGatePolicy":"UNCHANGED_EXISTING_FATAL_GATES","outputAttached":false,"safetyCritical":true,"schemaVersion":"1.0","scoreCalculated":false}

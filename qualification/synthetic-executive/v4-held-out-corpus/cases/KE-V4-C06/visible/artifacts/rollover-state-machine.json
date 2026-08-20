@@ -1,0 +1,1 @@
+{"artifactId":"KE-V4-C06:visible:02","atomic":false,"caseId":"KE-V4-C06","contentHash":"df1ecefde12000e225578af40bb2968588b11b460aeb60f281152e7f584fbd32","phases":["lease-write","receipt-emit","pointer-swap"],"recordType":"ROLLOVER_STATE_MACHINE","schemaVersion":"1.0"}

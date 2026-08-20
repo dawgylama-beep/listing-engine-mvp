@@ -1,0 +1,1 @@
+{"artifactId":"KE-V4-C04:visible:03","caseId":"KE-V4-C04","contentHash":"542b92cf88a4acc8cb094a783b5278d2a5e1a31901e8923f0a721c2585be3008","deterministic":true,"inputs":["sealed-footer","byte-seal"],"recordType":"FOOTER_REBUILD_CONTRACT","schemaVersion":"1.0","upstreamReplayRequired":false}

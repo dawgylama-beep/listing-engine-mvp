@@ -850,7 +850,7 @@
 - Added 32 independently authored mentor fixtures, 102 atomic-scorer fixtures, one-atom mutation proofs, capture-boundary proof, contamination checks, and focused product-route integration coverage
 - Preserved all closed qualification evidence and classifications; no corpus, authority, provider execution, qualification, deployment, activation, benchmark, or memory promotion was performed
 
-## Post-1.12.37 bounded cognitive correction (Local, uncommitted)
+## Version 1.12.38 (Completed)
 - Construct the existing Cognitive Governor's canonical decision vector before final response assembly and retain exact compatibility between its declared decision fields
 - Bind every selected action to its permitted parent operation and accepted supporting evidence, with fail-closed rejection at canonical finalization and operation authorization
 - Audit authority/action, failure-scope/action, evidence/conclusion, continuation, loop, operation, and evidence-reference compatibility before returning the canonical decision
@@ -858,6 +858,11 @@
 - Replace one-way vector implications and constant audit claims with a closed legal-state validator plus derived rationale, uncertainty, prohibition, evidence, downstream-phase, and continuation checks
 - Canonicalize cycle and duplicate stops before ledger recording so no superseded continuation vector remains authoritative, with adversarial copy, hash, phase-expansion, contradiction, and downstream-authorization regressions
 - Cover the correction only with domain-neutral synthetic cases; no benchmark result, qualification material, provider activity, deployment, activation, or memory promotion is part of this local change
+- Added a deterministic fourteen-case Synthetic Executive V4 held-out qualification package with six source episodes, four later memory-use episodes, and four uncertainty or stop episodes
+- Physically separated public evidence, run-scoped memory inputs, pre-sealed dossier sources, evaluator controls, scoring evidence, mappings, action constraints, and dispatch proofs behind a visible-only assembler
+- Bound all 98 unchanged scorer checks to closed Version 1.12.37 atomic predicates, with one-atom mutation proofs, all-state request materialization below 64,000 bytes, and exact response-capture boundary proof
+- Added bounded public-material non-overlap comparison against V1, V2, and V3, deterministic evaluator-access denial, proposed execution budget and authority templates marked `NOT_AUTHORIZED`, and a complete package integrity seal
+- Preserved the permanent V3 not-qualified classification and every existing runtime, provider, evaluator, product, benchmark, and deployment safeguard; no qualification, model call, provider call, benchmark run, merge, or deployment was performed
 
 ## Version 2.0
 - User accounts
