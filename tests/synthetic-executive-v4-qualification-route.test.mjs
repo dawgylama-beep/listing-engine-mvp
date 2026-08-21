@@ -4,7 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { evaluateFrozenQualification } from "../qualification/synthetic-executive/v4-qualification-route/evaluate-core.mjs";
+import {
+  evaluateFrozenQualification,
+  evaluateFrozenQualificationRecovery
+} from "../qualification/synthetic-executive/v4-qualification-route/evaluate-core.mjs";
 import {
   assertMechanicalRetryReason, assertRequestAuthority, assertResponseCapture, buildCaseRequest,
   executeQualificationRun, freezeTerminalResponses
@@ -19,7 +22,8 @@ import {
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
 import {
-  EXECUTION_LIMITS, PACKAGE_IDENTITIES, authorizationFixture, corpusRoot, routeRoot, sha256Bytes, stableJson
+  EXECUTION_LIMITS, PACKAGE_IDENTITIES, ROUTE_VERSION, authorizationFixture, corpusRoot, routeRoot,
+  seal, sha256Bytes, stableJson
 } from "../qualification/synthetic-executive/v4-qualification-route/shared.mjs";
 
 const fixedNow = "2026-08-21T13:00:00.000Z";
@@ -127,6 +131,7 @@ function offlineEvaluator(counter = { loads: 0 }) {
     counter.loads += 1;
     return {
       evaluatorAggregate: PACKAGE_IDENTITIES.evaluatorControlAggregateHash,
+      legacyRouteAggregate: "47d483830b1f7e7b512c67928915106b79f8bf6cfec5a795ac5831a626bb8fa7",
       cohortCounts: { foundationalSource: 6, heldOutAnalogue: 4, genuinelyNovelOrInsufficient: 4 },
       evaluateCase(caseId) {
         return {
@@ -356,6 +361,83 @@ test("offline evaluation is separate, preserves 98 checks, and rejects a second 
     const result = await evaluateFrozenQualification({ resultsRoot: value.resultsRoot, now: fixedNow, dependencies: { loadEvaluator: offlineEvaluator(counter) } });
     assert.equal(result.denominator, 98); assert.equal(result.evaluatorExecutionCount, 1); assert.equal(result.qualified, false); assert.equal(counter.loads, 1);
     await assert.rejects(evaluateFrozenQualification({ resultsRoot: value.resultsRoot, now: fixedNow, dependencies: { loadEvaluator: offlineEvaluator(counter) } }), /EVALUATOR_EXECUTION_ALREADY_ATTEMPTED/);
+    assert.equal(counter.loads, 1);
+  } finally { await rm(value.root, { recursive: true, force: true }); }
+});
+
+test("recovery evaluation preserves the original failed intent and writes exactly once only to external recovery evidence", async () => {
+  const value = await preparedFixture(); const transport = offlineTransport(); const counter = { loads: 0 };
+  const correctionHead = "d".repeat(40); const correctionTree = "e".repeat(40);
+  try {
+    await executeQualificationRun({ resultsRoot: value.resultsRoot, transport, now: () => fixedNow });
+    await assert.rejects(
+      evaluateFrozenQualification({
+        resultsRoot: value.resultsRoot,
+        now: fixedNow,
+        dependencies: { loadEvaluator: async () => { throw new Error("EVALUATOR_AGGREGATE_CHANGED"); } }
+      }),
+      /EVALUATOR_AGGREGATE_CHANGED/
+    );
+    const manifest = JSON.parse(await readFile(path.join(value.resultsRoot, "freeze", "frozen-response-manifest.json")));
+    const freezeSeal = JSON.parse(await readFile(path.join(value.resultsRoot, "freeze", "freeze-seal.json")));
+    const originalIntent = JSON.parse(await readFile(path.join(value.resultsRoot, "evaluation", "evaluation-intent.json")));
+    const recoveryRoot = path.join(value.root, "recovery-evidence");
+    const recoveryAuthorityPath = path.join(recoveryRoot, "recovery-authority.json");
+    await mkdir(recoveryRoot);
+    const recoveryAuthority = seal({
+      schemaVersion: "1.0", recordType: "EXTERNAL_V4_EVALUATOR_RECOVERY_AUTHORITY",
+      authorizationStatus: "AUTHORIZED", recoveryId: "OFFLINE-V4-RECOVERY",
+      issuedAt: fixedNow, expiresAt: "2026-08-21T16:00:00.000Z",
+      originalRunId: value.authority.runId, originalAuthorizationId: value.authority.authorizationId,
+      originalResultsRoot: value.resultsRoot, recoveryResultsRoot: recoveryRoot,
+      originalEvaluationIntentHash: originalIntent.evaluationIntentHash,
+      frozenIdentities: {
+        freezeSealHash: freezeSeal.freezeSealHash, manifestHash: manifest.manifestHash,
+        responseSetAggregateHash: manifest.responseSetAggregateHash,
+        runtimeEvidenceAggregateHash: manifest.runtimeEvidenceAggregateHash,
+        runtimeMemoryAggregateHash: manifest.runtimeMemoryAggregateHash
+      },
+      oldRepositoryCommit: fakeHead, newRepositoryCommit: correctionHead, newRepositoryTree: correctionTree,
+      routeVersion: ROUTE_VERSION, packageIdentities: PACKAGE_IDENTITIES,
+      priorFailure: {
+        failureCode: "EVALUATOR_AGGREGATE_CHANGED",
+        expectedAggregate: PACKAGE_IDENTITIES.evaluatorControlAggregateHash,
+        observedAggregate: "47d483830b1f7e7b512c67928915106b79f8bf6cfec5a795ac5831a626bb8fa7"
+      },
+      scorerPreviouslyLoaded: false, atomicScoresPreviouslyProduced: 0,
+      maximumRecoveryEvaluationAttempts: 1, providerRequestCountPermitted: 0,
+      originalEvidenceWritePermitted: false, responseMutationPermitted: false
+    }, "recoveryAuthorityHash");
+    await writeFile(recoveryAuthorityPath, `${stableJson(recoveryAuthority)}\n`, { flag: "wx" });
+    const recoveryDependencies = {
+      loadEvaluator: offlineEvaluator(counter),
+      inspectRepository: async () => ({
+        head: correctionHead, tree: correctionTree, parent: fakeHead, subject: "fix: align v4 evaluator aggregate verification",
+        status: "", gitDirectory: path.join(value.root, "protected", ".git", "worktrees", "fixture"),
+        commonDirectory: path.join(value.root, "protected", ".git"), worktreeRoots: [path.join(value.root, "protected")]
+      }),
+      inspectPackageIdentities: async () => ({ ...PACKAGE_IDENTITIES, manifest: {} })
+    };
+    const recovered = await evaluateFrozenQualificationRecovery({
+      resultsRoot: value.resultsRoot, recoveryRoot, recoveryAuthorityPath, now: fixedNow,
+      dependencies: recoveryDependencies
+    });
+    assert.equal(recovered.result.denominator, 98);
+    assert.equal(recovered.result.recoveryEvaluation, true);
+    assert.equal(recovered.result.originalIntegrityInvalidPreserved, true);
+    assert.equal(recovered.result.originalResultsWriteCount, 0);
+    assert.equal(counter.loads, 1);
+    assert.deepEqual((await readdir(path.join(value.resultsRoot, "evaluation"))).sort(), ["evaluation-intent.json"]);
+    assert.deepEqual((await readdir(recoveryRoot)).sort(), [
+      "recovery-authority.json", "recovery-evaluation-intent.json", "recovery-evaluator-result.json"
+    ]);
+    await assert.rejects(
+      evaluateFrozenQualificationRecovery({
+        resultsRoot: value.resultsRoot, recoveryRoot, recoveryAuthorityPath, now: fixedNow,
+        dependencies: recoveryDependencies
+      }),
+      /RECOVERY_ROOT_NOT_PRISTINE|RECOVERY_EVALUATOR_EXECUTION_ALREADY_ATTEMPTED/
+    );
     assert.equal(counter.loads, 1);
   } finally { await rm(value.root, { recursive: true, force: true }); }
 });

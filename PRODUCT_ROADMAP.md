@@ -871,6 +871,12 @@
 - Added focused offline negative proofs for authority, path containment and aliases, hidden-evaluator access, request and capture ceilings, crash recovery, response tampering, duplicate execution, and duplicate evaluation
 - Preserved the byte-identical V4 corpus and evaluator; no credential access, live authority, provider request, blind qualification, real evaluation, benchmark run, merge, or deployment occurred, and Katherine remains unqualified
 
+## Version 1.12.40 (Completed)
+- Corrected the V4 qualification route to verify evaluator controls with the sealed package's ordered `{caseId, sha256}` identity-row framing instead of hashing full parsed control objects
+- Added focused parity, ordering, Windows-path, LF-materialization, byte-tamper, and exactly-once external recovery-evaluation coverage
+- Preserved all V4 corpus, evaluator, predicate, threshold, authority-template, budget, frozen-response, and original integrity-invalid evidence identities
+- Authorized no new provider request, response regeneration, manual scoring, deployment, merge, tag, calibration, or V5 activity
+
 ## Version 2.0
 - User accounts
 - Saved listings
