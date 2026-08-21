@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 import { buildQualificationAuthority, createNewQualificationAuthority, validateQualificationAuthority } from "../qualification/synthetic-executive/qualification-real-route/scripts/qualification-authority.mjs";
 import { ImmutableQualificationActionLedger } from "../qualification/synthetic-executive/qualification-real-route/scripts/qualification-execution-ledger.mjs";
 import {
@@ -32,14 +34,72 @@ import { SafeProviderFailure } from "../qualification/synthetic-executive/calibr
 const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname.slice(1)), "..");
 const qualificationRoot = path.join(repositoryRoot, "qualification", "synthetic-executive");
 const fixedTime = "2026-08-10T12:00:00.000Z";
+const execFileAsync = promisify(execFile);
+const authorizationFamily = Object.freeze({
+  "KE-P7-H01:authorization": Object.freeze({ bytes: 14242, sha256: "af3281c1f96a9e9ec826840dbfbda596e2c9863aa5b20b8135a3b84fb6d2c16c", historicalBytes: 14714, historicalSha256: "237ab2329e7075bd8637bc42cf68774eb75fb3cda215209d77fc42f746998661", lineBreaks: 472, insertedCrOffsetsSha256: "dac751a237feb940458102886d652fe2b5d65cb9162e9abbe34dcb11e382ac88" }),
+  "KE-P7-H02:authorization": Object.freeze({ bytes: 20787, sha256: "cac841a76a4b9308aa678b65ad7b0c581e4d778ea0e1f8d23b037597ae69bb06", historicalBytes: 21484, historicalSha256: "9956e37f86672dbf387fd07a187f03c55c0558290fe2cd966fb751d8c8688d25", lineBreaks: 697, insertedCrOffsetsSha256: "687e862cf27eaaa597166af3a3b3f9ce3b23ad9c9ab70d3ca82fc368feba233c" }),
+  "KE-P7-H03:authorization": Object.freeze({ bytes: 7395, sha256: "bae974154d8852017c62e0a8cc0af423e79dbd3128fa4a1f48b27bd00ee58767", historicalBytes: 7526, historicalSha256: "71db3a59f9ec4ec6afcf8dfdbd4a7a1ce965e5799ef04e4a02bb44cf8686b0e3", lineBreaks: 131, insertedCrOffsetsSha256: "3d197878466c6f8ea3925052c05c33a52b28848943e39d647726720ae232bfbf" }),
+  "KE-P7-H04:authorization": Object.freeze({ bytes: 8283, sha256: "c2e59dba018ba24abf7b30b46433aa1c73e4598be09c70a327b22f7ce4f2b89c", historicalBytes: 8503, historicalSha256: "28cf74e843b1a333afbaf32466d3aadae3315bb6c3346fca6b950a55ad426d43", lineBreaks: 220, insertedCrOffsetsSha256: "004dcdfc3be9bfa9911b7187f404604c3c1f584f5eb91b75bd98c9baeedcbbb2" }),
+  "KE-P7-H05:authorization": Object.freeze({ bytes: 13339, sha256: "5f94c9534d9e434b4f70fd35f37006fb32be34d4487dfdf92b86868de0b02411", historicalBytes: 13729, historicalSha256: "c7753b070abbec576d56092e2f4121b25977c719204fd15d05847357fbd8e89d", lineBreaks: 390, insertedCrOffsetsSha256: "21c3319fdedf8119a72cf4789e1d6e896e47e5a452767d479fb9f06081bebfd2" }),
+  "KE-P7-H06:authorization": Object.freeze({ bytes: 14086, sha256: "4cb4ffe14ba476fa82cc44767e0f935ae22c86c349151e72ca497294884dd1ab", historicalBytes: 14475, historicalSha256: "c2db920ee9ac96647fe1cbc4b418b2a8e7193f3db0e24725ed89fd1974423765", lineBreaks: 389, insertedCrOffsetsSha256: "95c061e1f6108d5c3981faa8314a497764f77c0899dc08b1e15cab3e60419618" })
+});
+let authorizationFamilyAuditPromise;
+
+function constructHistoricalCrLfBytes(canonicalBytes) {
+  const historicalBytes = [];
+  const insertedCrOffsets = [];
+  for (const byte of canonicalBytes) {
+    if (byte === 0x0a) {
+      insertedCrOffsets.push(historicalBytes.length);
+      historicalBytes.push(0x0d);
+    }
+    historicalBytes.push(byte);
+  }
+  return { bytes: Buffer.from(historicalBytes), insertedCrOffsets };
+}
+
+async function auditAuthorizationFamily() {
+  const sealedManifest = await readJson(path.join(qualificationRoot, "episodes", "public-manifest.json"));
+  const canonicalManifest = structuredClone(sealedManifest);
+  const members = canonicalManifest.episodes.flatMap((episode) => episode.visibleArtifactInventory
+    .filter((artifact) => artifact.sourceKind === "PRE_ATTEMPT_AUTHORIZATION")
+    .map((artifact) => ({ episode, artifact })));
+  assert.deepEqual(members.map(({ artifact }) => artifact.artifactId).sort(), Object.keys(authorizationFamily).sort(), "the complete authorization-attachment family must stay explicitly bound");
+
+  const proof = [];
+  for (const { episode, artifact } of members) {
+    const expected = authorizationFamily[artifact.artifactId];
+    assert.equal(artifact.bytes, expected.historicalBytes, `${artifact.artifactId} historical byte expectation changed`);
+    assert.equal(artifact.sha256, expected.historicalSha256, `${artifact.artifactId} historical hash expectation changed`);
+    const repositoryRelativePath = path.posix.join("qualification", "synthetic-executive", "episodes", "visible", episode.episodeId, artifact.relativePath.replaceAll("\\", "/"));
+    const workingBytes = await readFile(path.join(repositoryRoot, ...repositoryRelativePath.split("/")));
+    const { stdout: committedBytes } = await execFileAsync("git", ["-c", "core.longpaths=true", "-c", "core.autocrlf=false", "-c", "core.eol=lf", "show", `HEAD:${repositoryRelativePath}`], { cwd: repositoryRoot, encoding: "buffer", maxBuffer: 1024 * 1024 });
+    assert.deepEqual(workingBytes, committedBytes, `${artifact.artifactId} working bytes differ from the committed Git blob`);
+    assert.equal(workingBytes.length, expected.bytes, `${artifact.artifactId} canonical byte count changed`);
+    assert.equal(sha256Bytes(workingBytes), expected.sha256, `${artifact.artifactId} canonical hash changed`);
+    assert.equal(workingBytes.includes(0x0d), false, `${artifact.artifactId} canonical blob contains CR bytes`);
+
+    const historical = constructHistoricalCrLfBytes(workingBytes);
+    assert.equal(historical.insertedCrOffsets.length, expected.lineBreaks, `${artifact.artifactId} line-break count changed`);
+    assert.equal(sha256Bytes(Buffer.from(historical.insertedCrOffsets.join(","))), expected.insertedCrOffsetsSha256, `${artifact.artifactId} CR insertion offsets changed`);
+    assert.equal(historical.bytes.length, expected.historicalBytes, `${artifact.artifactId} CRLF construction changed the wrong number of bytes`);
+    assert.equal(sha256Bytes(historical.bytes), expected.historicalSha256, `${artifact.artifactId} is not proven to be the historical expectation by LF-to-CRLF insertion alone`);
+
+    artifact.bytes = expected.bytes;
+    artifact.sha256 = expected.sha256;
+    proof.push(Object.freeze({ artifactId: artifact.artifactId, classification: "PROVEN_CRLF_DERIVED_EXPECTATION", canonicalBytes: expected.bytes, canonicalSha256: expected.sha256, insertedCrCount: expected.lineBreaks, insertedCrOffsetsSha256: expected.insertedCrOffsetsSha256 }));
+  }
+  return Object.freeze({ canonicalManifest, proof: Object.freeze(proof) });
+}
 
 async function fixtures() {
-  const [publicManifest, readinessManifest, budgetProfile, accessDenialProof, routeBindings] = await Promise.all([
-    readJson(path.join(qualificationRoot, "episodes", "public-manifest.json")), readJson(path.join(qualificationRoot, "readiness-manifest.json")),
+  authorizationFamilyAuditPromise ||= auditAuthorizationFamily();
+  const [authorizationAudit, readinessManifest, budgetProfile, accessDenialProof, routeBindings] = await Promise.all([
+    authorizationFamilyAuditPromise, readJson(path.join(qualificationRoot, "readiness-manifest.json")),
     readJson(path.join(qualificationRoot, "qualification-budget-profile.json")), readJson(path.join(qualificationRoot, "proofs", "evaluator-control-access-denial-proof.json")),
     qualificationRouteBindings()
   ]);
-  return { publicManifest, readinessManifest, budgetProfile, accessDenialProof, routeBindings };
+  return { publicManifest: structuredClone(authorizationAudit.canonicalManifest), authorizationFamilyProof: authorizationAudit.proof, readinessManifest, budgetProfile, accessDenialProof, routeBindings };
 }
 
 function authorityFor({ publicManifest, routeBindings, runRoot, authorityId = "offline-qualification-authority" }) {
@@ -181,6 +241,8 @@ test("stage-scoped sufficiency preserves bounded continuation and requires a com
 
 test("all twelve exposed fixtures materialize every body in canonical order and enforce the sealed request envelope before dispatch", async () => {
   const input = await fixtures(); const profile = await loadQualificationProviderProfile();
+  assert.equal(input.authorizationFamilyProof.length, 6);
+  assert.equal(input.authorizationFamilyProof.every((item) => item.classification === "PROVEN_CRLF_DERIVED_EXPECTATION"), true);
   const oversized = []; const within = [];
   for (const episode of input.publicManifest.episodes) {
     const sandbox = new EpisodeEvidenceSandbox({ episodeRoot: path.join(qualificationRoot, "episodes", "visible", episode.episodeId), episodeManifest: episode });

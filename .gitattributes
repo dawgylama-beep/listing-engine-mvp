@@ -1,1 +1,10 @@
 qualification/synthetic-executive/v2-held-out-corpus/** text eol=lf
+qualification/synthetic-executive/episodes/**/*.json text eol=lf
+qualification/synthetic-executive/v4-held-out-corpus/**/*.json text eol=lf
+qualification/synthetic-executive/v4-held-out-corpus/**/*.mjs text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H01/artifacts/authorization-before-attempt.txt text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H02/artifacts/authorization-before-attempt.txt text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H03/artifacts/authorization-before-attempt.txt text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H04/artifacts/authorization-before-attempt.txt text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H05/artifacts/authorization-before-attempt.txt text eol=lf
+qualification/synthetic-executive/episodes/visible/KE-P7-H06/artifacts/authorization-before-attempt.txt text eol=lf

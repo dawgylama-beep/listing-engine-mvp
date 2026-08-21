@@ -1,6 +1,6 @@
 {
   "name": "katherines-eye",
-  "version": "1.12.38",
+  "version": "1.12.39",
   "packageManager": "npm@11.16.0",
   "private": true,
   "type": "module",
@@ -24,6 +24,9 @@
     "build:v4-held-out-corpus": "node ./qualification/synthetic-executive/v4-held-out-corpus/scripts/v4-package-builder.mjs",
     "verify:v4-held-out-corpus": "node ./qualification/synthetic-executive/v4-held-out-corpus/scripts/v4-package-verifier.mjs",
     "check:v4-held-out-corpus": "node --test ./tests/synthetic-executive-v4-held-out-corpus.test.mjs",
+    "prepare:synthetic-executive-v4": "node ./qualification/synthetic-executive/v4-qualification-route/prepare.mjs",
+    "execute:synthetic-executive-v4": "node ./qualification/synthetic-executive/v4-qualification-route/execute.mjs",
+    "evaluate:synthetic-executive-v4": "node ./qualification/synthetic-executive/v4-qualification-route/evaluate.mjs",
     "seal:general-continuation-contract-release": "node ./qualification/synthetic-executive/qualification-real-route/scripts/general-continuation-contract-release.mjs --write",
     "seal:blind-qualification-real-route-release": "node ./qualification/synthetic-executive/qualification-real-route/scripts/qualification-release.mjs",
     "authorize:blind-qualification-real-route": "node ./qualification/synthetic-executive/scripts/run-qualification.mjs CREATE_AUTHORITY",

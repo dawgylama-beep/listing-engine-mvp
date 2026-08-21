@@ -29,11 +29,11 @@ import {
   createGovernorExecutionLedger,
   createCognitiveState,
   createCustomerMissionContext,
-  decideCognitiveAction,
   executeGovernorAuthorizedAction,
   executeGovernorAuthorizedChildOperation,
   assertGovernorProviderRequestOwnership,
-  recordCognitiveActionOutcome
+  recordCognitiveActionOutcome,
+  runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
 import {
   TERMINAL_STAGE,
@@ -151,7 +151,20 @@ function decideCognitiveActionWithTerminalEvidence(governor, snapshot, options) 
     event.eventType === "AUTHORITATIVE_COGNITIVE_STATE_INITIALIZED"
   ));
   if (authoritativeStateMissing) beginTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
-  const decision = decideCognitiveAction(governor, snapshot, options);
+  const { decision } = runCanonicalCognitiveRuntime({
+    governor,
+    snapshot,
+    options,
+    executiveMemoryContext: {
+      runIdentity: governor.evaluationId,
+      currentEpisodeId: governor.evaluationId,
+      records: [],
+      selectedMemoryIds: [],
+      retrievalReceiptHash: "",
+      startsEmpty: true,
+      forwardOnly: true
+    }
+  });
   if (authoritativeStateMissing) completeTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
   return decision;
 }

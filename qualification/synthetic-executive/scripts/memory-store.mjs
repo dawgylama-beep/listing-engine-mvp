@@ -57,9 +57,17 @@ export class ExecutiveMemoryStore {
     return records;
   }
 
-  async append(record) {
+  async append(record, { allowIdenticalReplay = false } = {}) {
     validateMemoryRecord(record);
-    await writeExclusiveJson(path.join(this.root, `${record.memoryId}.json`), record);
+    const recordPath = path.join(this.root, `${record.memoryId}.json`);
+    try {
+      await writeExclusiveJson(recordPath, record);
+    } catch (error) {
+      if (!allowIdenticalReplay || error?.code !== "EEXIST") throw error;
+      const existing = await readJson(recordPath);
+      validateMemoryRecord(existing);
+      assert.equal(existing.contentHash, record.contentHash, "memory replay identity differs");
+    }
     return record;
   }
 
@@ -97,6 +105,137 @@ export class ExecutiveMemoryStore {
     };
     return seal(core, "receiptHash");
   }
+}
+
+function v4Order(episodeId) {
+  const match = String(episodeId || "").match(/^KE-V4-C(\d{2})$/);
+  return match ? Number(match[1]) : null;
+}
+
+function uniqueStrings(values) {
+  return [...new Set((Array.isArray(values) ? values : []).filter((value) => typeof value === "string" && value.length > 0))];
+}
+
+export async function commitGovernedExecutiveMemoryTransition({
+  store,
+  runIdentity,
+  episodeId,
+  responseObject,
+  retrievalReceipt,
+  visibleEvidenceIds,
+  mentorDecisionIdentity,
+  expectedBeforeMemoryIds = [],
+  createdAt
+}) {
+  assert.ok(store instanceof ExecutiveMemoryStore, "existing Executive Memory Store required");
+  canonicalIso(createdAt, "memory transition time");
+  assertHash(mentorDecisionIdentity, "mentor decision identity");
+  assertHash(retrievalReceipt?.receiptHash, "memory retrieval receipt");
+  assert.equal(retrievalReceipt.currentEpisodeId, episodeId, "memory retrieval episode differs");
+  const currentOrder = v4Order(episodeId);
+  assert.ok(currentOrder !== null, "V4 episode identity required");
+  const existing = await store.list();
+  const before = [];
+  const replay = [];
+  for (const record of existing) {
+    for (const sourceEpisodeId of record.sourceEpisodeIds) {
+      const sourceOrder = v4Order(sourceEpisodeId);
+      assert.ok(sourceOrder !== null && sourceOrder <= currentOrder, "Executive Memory must flow only forward");
+      (sourceOrder === currentOrder ? replay : before).push(record);
+    }
+  }
+  assert.deepEqual(before.map((record) => record.memoryId), expectedBeforeMemoryIds, "Executive Memory pre-case identity changed");
+  assert.ok(replay.length <= 1, "multiple same-episode memory records are prohibited");
+
+  const selectedMemoryIds = uniqueStrings(retrievalReceipt.selectedMemoryIds);
+  const applicableMemoryId = responseObject.applicableMemoryId;
+  if (applicableMemoryId !== null) {
+    assert.equal(selectedMemoryIds.includes(applicableMemoryId), true, "response applied unselected Executive Memory");
+  }
+  if (["NOVEL", "INSUFFICIENT_EVIDENCE"].includes(responseObject.classificationType)) {
+    assert.equal(applicableMemoryId, null, "novel or insufficient evidence cannot force an analogy");
+  }
+
+  const visible = new Set(uniqueStrings(visibleEvidenceIds));
+  const evidenceReferences = uniqueStrings(responseObject.evidenceReferences);
+  const requiredEvidenceReferences = uniqueStrings(responseObject.requiredEvidenceReferences);
+  const evidenceAuthorized = evidenceReferences.length > 0
+    && requiredEvidenceReferences.length > 0
+    && [...evidenceReferences, ...requiredEvidenceReferences].every((item) => visible.has(item));
+  const lessonRequested = responseObject.memoryStatus === "CANDIDATE";
+  const rejectionReasons = [
+    !responseObject.evidenceSufficient ? "INSUFFICIENT_EVIDENCE" : "",
+    !evidenceAuthorized ? "EVIDENCE_NOT_AUTHORIZED" : "",
+    responseObject.unauthorizedEligibleActionExpansion ? "UNAUTHORIZED_ACTION_EXPANSION" : "",
+    !responseObject.selectedActionCompatible ? "MENTOR_ACTION_INCOMPATIBLE" : "",
+    responseObject.forbiddenRecommendationCount !== 0 ? "FORBIDDEN_RECOMMENDATION" : "",
+    responseObject.unsupportedCitationCount !== 0 ? "UNSUPPORTED_CITATION" : ""
+  ].filter(Boolean);
+
+  let acceptedRecord = null;
+  if (lessonRequested && rejectionReasons.length === 0) {
+    const core = {
+      memoryType: "GENERALIZED_LESSON_CANDIDATE",
+      memoryId: `ke-v4-memory-${episodeId.toLowerCase()}-${sha256Json({
+        episodeId,
+        evidenceReferences,
+        failureClass: responseObject.failureClass,
+        generalizedRule: responseObject.rationale,
+        mentorDecisionIdentity
+      }).slice(0, 20)}`,
+      sourceEpisodeIds: [episodeId],
+      evidenceReferences,
+      evidenceAggregateHash: sha256Json(evidenceReferences),
+      observedFailurePattern: responseObject.failureClass,
+      generalizedRule: responseObject.rationale,
+      triggeringConditions: uniqueStrings([responseObject.classificationType, responseObject.failureScope]),
+      applicabilityBoundaries: uniqueStrings([responseObject.authorityClass, ...responseObject.recommendedOperations]),
+      explicitNonApplicabilityConditions: uniqueStrings(responseObject.prohibitedOperations),
+      recurrenceSignature: `${responseObject.failureClass}:${responseObject.classificationType}`,
+      recommendedActionPattern: responseObject.nextAction,
+      prohibitedActions: uniqueStrings(responseObject.prohibitedOperations),
+      requiredProofBeforeAdvancement: requiredEvidenceReferences,
+      authorityNormallyRequired: responseObject.authorityClass,
+      confidence: responseObject.evidenceSufficient ? 0.8 : 0.3,
+      unresolvedUncertainty: uniqueStrings([responseObject.uncertaintyCompatibility]),
+      status: "CANDIDATE",
+      predecessorMemoryIds: applicableMemoryId ? [applicableMemoryId] : [],
+      runIdentity,
+      mentorDecisionIdentity,
+      createdAt
+    };
+    acceptedRecord = sealMemoryRecord(core);
+    if (replay.length) assert.equal(replay[0].contentHash, acceptedRecord.contentHash, "memory replay candidate changed");
+    await store.append(acceptedRecord, { allowIdenticalReplay: true });
+  } else {
+    assert.equal(replay.length, 0, "unexpected same-episode memory record exists");
+  }
+
+  const after = await store.list();
+  const beforeIds = before.map((record) => record.memoryId);
+  const afterIds = after.map((record) => record.memoryId);
+  assert.deepEqual(afterIds.slice(0, beforeIds.length), beforeIds, "Executive Memory history changed");
+  return Object.freeze({
+    runIdentity,
+    episodeId,
+    mentorDecisionIdentity,
+    retrievalReceiptHash: retrievalReceipt.receiptHash,
+    beforeMemoryIds: Object.freeze(beforeIds),
+    selectedMemoryIds: Object.freeze(selectedMemoryIds),
+    applicableMemoryId,
+    analogyDisposition: applicableMemoryId
+      ? "GOVERNED_MEMORY_APPLIED"
+      : selectedMemoryIds.length > 0
+        ? "CANDIDATE_ANALOGY_REJECTED_OR_NOT_APPLIED"
+        : "NO_PRIOR_MEMORY_SELECTED",
+    lessonFormation: lessonRequested ? "REQUESTED" : "NOT_REQUESTED",
+    lessonDisposition: acceptedRecord ? "ACCEPTED_CANDIDATE" : lessonRequested ? "REJECTED" : "NOT_APPLICABLE",
+    lessonRejectionReasons: Object.freeze(rejectionReasons),
+    acceptedMemoryId: acceptedRecord?.memoryId || null,
+    acceptedMemoryHash: acceptedRecord?.contentHash || null,
+    afterMemoryIds: Object.freeze(afterIds),
+    createdAt
+  });
 }
 
 function stableContains(recordValue, queryValue) {

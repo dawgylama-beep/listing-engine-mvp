@@ -864,6 +864,13 @@
 - Added bounded public-material non-overlap comparison against V1, V2, and V3, deterministic evaluator-access denial, proposed execution budget and authority templates marked `NOT_AUTHORIZED`, and a complete package integrity seal
 - Preserved the permanent V3 not-qualified classification and every existing runtime, provider, evaluator, product, benchmark, and deployment safeguard; no qualification, model call, provider call, benchmark run, merge, or deployment was performed
 
+## Version 1.12.39 (Completed)
+- Added a V4-specific qualification route with separate external-authority preparation, exactly-once execution and response freeze, and post-freeze evaluation process boundaries
+- Required a self-hashed external control-room authorization bound to the exact repository commit, sealed package identities, external results root, model settings, retry authority, and cost ceilings; the route cannot self-authorize
+- Added append-only dispatch intent, reservation, capture, terminal-seal, crash-recovery, frozen-manifest, and evaluator-intent evidence that fails closed against replay or duplicate provider dispatch
+- Added focused offline negative proofs for authority, path containment and aliases, hidden-evaluator access, request and capture ceilings, crash recovery, response tampering, duplicate execution, and duplicate evaluation
+- Preserved the byte-identical V4 corpus and evaluator; no credential access, live authority, provider request, blind qualification, real evaluation, benchmark run, merge, or deployment occurred, and Katherine remains unqualified
+
 ## Version 2.0
 - User accounts
 - Saved listings
