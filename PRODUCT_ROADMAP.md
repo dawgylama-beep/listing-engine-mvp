@@ -884,6 +884,13 @@
 - Added offline cognitive-flow proofs for materially different decisions, genuine-only acquisition, duplicate/cycle stops, authority limits, dossier evaluation, closed-field conflict rejection, public-evidence identity safety, memory transfer, and shared product/V4 routing
 - Preserved the sealed V4 corpus, evaluator, seven package identities, original `12/98` not-qualified result, provider-call count of zero, and V5 not-started state
 
+## Version 1.12.42 (Completed)
+- Integrated the proven offline learning lifecycle through one bounded Katherine adapter behind the existing mentor, Cognitive Governor, canonical cognitive runtime, and Executive Memory Store
+- Kept lesson candidates inert before qualification, required three or more visible-evidence trials, and reserved qualification, promotion, retention, and rollback transitions to unforgeable existing-Governor runtime authority
+- Added predecessor-bound HMAC learning history, forward-only episode ordering, workspace isolation, restart persistence, governed retrieval, measurable application improvement, immediate regression rollback, and permanent post-rollback application refusal
+- Routed both `POST /api/generate-listing` and the V4 qualification runtime through the same adapter while preserving provider lifecycle authority at zero and preventing novel or insufficient-evidence states from forcing lesson reuse
+- Added offline lifecycle, persistence, tamper, product-handler, shared-call-path, provider-denial, retention, and rollback regression coverage; no provider call, blind qualification, V5 work, deployment, or sealed-corpus/evaluator/result mutation was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

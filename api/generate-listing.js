@@ -19,8 +19,10 @@ import {
 import {
   COGNITIVE_ACTION,
   buildCognitiveEpisode,
+  buildObservedFailureCognitiveEpisode,
   buildCustomerInputRequest,
   buildLessonCandidate,
+  buildObservedFailureLessonCandidate,
   buildGovernorExecutionProof,
   bindGovernorProviderRequest,
   continueCognitiveActionOutcome,
@@ -34,6 +36,7 @@ import {
   recordCognitiveActionOutcome,
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
+import { GovernedLearningAdapter } from "../lib/cognitive-learning/adapter.js";
 import {
   TERMINAL_STAGE,
   TERMINAL_TRANSITION,
@@ -49,6 +52,7 @@ import {
 
 const analysisAdapterContext = new AsyncLocalStorage();
 const evaluationTerminalContext = new AsyncLocalStorage();
+const configuredLearningAdapters = new Map();
 const MAX_ANALYSIS_PHOTO_COUNT = 6;
 const MAX_ANALYSIS_PHOTO_BYTES = 240000;
 const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
@@ -75,11 +79,24 @@ const productionAnalysisAdapters = Object.freeze({
   nowMilliseconds: () => Date.now(),
   nowIso: () => new Date().toISOString(),
   createAnalysisId: () => `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  getGovernedLearningAdapter: () => configuredGovernedLearningAdapter(),
   onModelRequestBudget: () => {},
   onFinalEvidenceResult: () => {},
   onTerminalContextCreated: () => {},
   onTerminalStage: () => {}
 });
+
+function configuredGovernedLearningAdapter() {
+  const root = String(process.env.KATHERINES_EYE_LEARNING_ROOT || "").trim();
+  if (!root) return null;
+  if (!configuredLearningAdapters.has(root)) {
+    configuredLearningAdapters.set(root, new GovernedLearningAdapter({
+      root,
+      learningScopeIdentity: "katherines-eye-product"
+    }));
+  }
+  return configuredLearningAdapters.get(root);
+}
 
 function currentAnalysisAdapters() {
   return analysisAdapterContext.getStore() || productionAnalysisAdapters;
@@ -150,10 +167,10 @@ function decideCognitiveActionWithTerminalEvidence(governor, snapshot) {
     event.eventType === "AUTHORITATIVE_COGNITIVE_STATE_INITIALIZED"
   ));
   if (authoritativeStateMissing) beginTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
-  const { decision } = runCanonicalCognitiveRuntime({
+  const runtime = runCanonicalCognitiveRuntime({
     governor,
     snapshot,
-    executiveMemoryContext: {
+    executiveMemoryContext: governor.governedLearningMemoryContext || {
       runIdentity: governor.evaluationId,
       currentEpisodeId: governor.evaluationId,
       records: [],
@@ -163,8 +180,14 @@ function decideCognitiveActionWithTerminalEvidence(governor, snapshot) {
       forwardOnly: true
     }
   });
+  Object.defineProperty(governor, "governedLearningRuntime", {
+    value: runtime,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  });
   if (authoritativeStateMissing) completeTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
-  return decision;
+  return runtime.decision;
 }
 
 const listingSchema = {
@@ -1164,7 +1187,8 @@ async function handleGenerateListingRequest(req, res) {
         ? error.clientSafeStatusCode || 413
         : error.httpStatusCode || 502;
     const failureEnvelope = buildFailureEnvelope(currentEvaluationTerminalContext(), error, { httpStatus: statusCode });
-    const diagnostics = { terminalFailure: failureEnvelope };
+    const governedLearning = await recordGovernedProductFailure(failureEnvelope);
+    const diagnostics = { terminalFailure: failureEnvelope, governedLearning };
     if (error.identityConfirmationRequired) {
       return res.status(409).json({
         action: "identity_confirmation_required",
@@ -1195,6 +1219,63 @@ async function handleGenerateListingRequest(req, res) {
       code: failureEnvelope.internalCode,
       diagnostics
     });
+  }
+}
+
+async function recordGovernedProductFailure(failureEnvelope = {}) {
+  const governor = currentEvaluationTerminalContext()?.governor;
+  if (!governor?.governedLearningAdapter || !governor?.governedLearningRuntime) {
+    return {
+      adapterIdentity: "",
+      lifecycleResult: "LEARNING_ADAPTER_NOT_REACHED",
+      promotionAuthorized: false,
+      providerLifecycleAuthority: false
+    };
+  }
+  try {
+    const cognitiveEpisode = buildObservedFailureCognitiveEpisode(governor);
+    const lessonCandidate = buildObservedFailureLessonCandidate(cognitiveEpisode, {
+      failureCategory: cleanText(
+        failureEnvelope.failureCategory
+        || failureEnvelope.internalCode
+        || "GOVERNED_PRODUCT_OPERATION_FAILURE"
+      ),
+      subsystem: "PRODUCT_HANDLER"
+    });
+    const result = await governor.governedLearningAdapter.captureProductFailure({
+      governor,
+      runtime: governor.governedLearningRuntime,
+      episodeId: governor.evaluationId,
+      episodeSequence: governor.governedLearningEpisodeSequence,
+      cognitiveEpisode,
+      lessonCandidate,
+      visibleEvidenceIds: [...new Set([
+        ...(governor.lastState?.executiveState?.visibleEvidenceIds || []),
+        ...(governor.governedLearningRuntime.mentorDecision?.evidenceReferences || []),
+        cognitiveEpisode.cognitiveEpisodeHash,
+        lessonCandidate.lessonCandidateHash
+      ].filter(Boolean))],
+      createdAt: currentAnalysisAdapters().nowIso()
+    });
+    return {
+      adapterIdentity: governor.governedLearningRuntime.governedLearning.adapterIdentity,
+      lifecycleResult: result.result,
+      candidateId: result.candidateId || "",
+      selectedLessonIds: governor.governedLearningRuntime.governedLearning.appliedLessonIds,
+      trialCandidateIds: governor.governedLearningRuntime.governedLearning.trialCandidateIds,
+      promotionAuthorized: result.promotionAuthorized === true,
+      providerLifecycleAuthority: false
+    };
+  } catch (learningError) {
+    return {
+      adapterIdentity: governor.governedLearningRuntime.governedLearning.adapterIdentity,
+      lifecycleResult: "LEARNING_CAPTURE_REFUSED",
+      refusalCode: cleanText(learningError?.code || "LEARNING_CAPTURE_FAILED"),
+      selectedLessonIds: governor.governedLearningRuntime.governedLearning.appliedLessonIds,
+      trialCandidateIds: governor.governedLearningRuntime.governedLearning.trialCandidateIds,
+      promotionAuthorized: false,
+      providerLifecycleAuthority: false
+    };
   }
 }
 
@@ -2280,6 +2361,37 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     customerMission: createCustomerMissionContext({ ...intake, platform }),
     executionLedger: governorExecutionLedger
   });
+  const governedLearningAdapter = currentAnalysisAdapters().getGovernedLearningAdapter?.() || null;
+  if (governedLearningAdapter) {
+    const episodeSequence = await governedLearningAdapter.nextEpisodeSequence();
+    const memoryContext = await governedLearningAdapter.prepareEpisode({
+      governor: cognitiveGovernor,
+      episodeId: analysisId,
+      episodeSequence,
+      queryFacets: {
+        purpose: [researchPurpose],
+        platform: [platform],
+        pattern: [notes, identity.canonicalProductIdentity?.displayName || ""].filter(Boolean)
+      },
+      queryText: [notes, identity.canonicalProductIdentity?.displayName].filter(Boolean).join(" "),
+      learningMode: "PRODUCT",
+      createdAt: currentAnalysisAdapters().nowIso()
+    });
+    Object.defineProperties(cognitiveGovernor, {
+      governedLearningAdapter: {
+        value: governedLearningAdapter,
+        enumerable: false
+      },
+      governedLearningEpisodeSequence: {
+        value: episodeSequence,
+        enumerable: false
+      },
+      governedLearningMemoryContext: {
+        value: memoryContext,
+        enumerable: false
+      }
+    });
+  }
   attachCurrentTerminalGovernor(cognitiveGovernor);
   completeTerminalStage(TERMINAL_STAGE.GOVERNOR_CONSTRUCTION);
   const liveSearch = await executeLiveComparableSearch({
@@ -2557,7 +2669,7 @@ function deriveCustomerOutcomeEvidence(report = {}, { safetyOnly = false } = {})
   };
 }
 
-function completeCognitiveEvaluation(research = {}, report = {}) {
+async function completeCognitiveEvaluation(research = {}, report = {}) {
   return finalizeCognitiveTerminalOutcome(research, report, {
     purposeDecision: research.pendingPurposeDecision,
     canonicalEvidenceFinalized: true,
@@ -2566,7 +2678,7 @@ function completeCognitiveEvaluation(research = {}, report = {}) {
   });
 }
 
-function completeControlledExecutiveEvaluation(research = {}, report = {}) {
+async function completeControlledExecutiveEvaluation(research = {}, report = {}) {
   const safetyOnly = research.executiveDisposition === "SAFETY_ONLY";
   return finalizeCognitiveTerminalOutcome(research, report, {
     purposeDecision: null,
@@ -2576,7 +2688,7 @@ function completeControlledExecutiveEvaluation(research = {}, report = {}) {
   });
 }
 
-function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
+async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
   purposeDecision = null,
   canonicalEvidenceFinalized = false,
   purposeJudgmentCompleted = false,
@@ -2641,6 +2753,24 @@ function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
   const cognitiveEpisode = buildCognitiveEpisode(governor, { experienceRecordHash });
   const lessonCandidate = buildLessonCandidate(cognitiveEpisode);
   const lastState = governor.lastState || {};
+  const governedLearningResult = governor.governedLearningAdapter && lessonCandidate
+    ? await governor.governedLearningAdapter.captureProductFailure({
+        governor,
+        runtime: governor.governedLearningRuntime,
+        episodeId: governor.evaluationId,
+        episodeSequence: governor.governedLearningEpisodeSequence,
+        cognitiveEpisode,
+        lessonCandidate,
+        visibleEvidenceIds: [...new Set([
+          ...(lastState.executiveState?.visibleEvidenceIds || []),
+          ...(governor.governedLearningRuntime?.mentorDecision?.evidenceReferences || []),
+          cognitiveEpisode.cognitiveEpisodeHash,
+          cognitiveEpisode.linkedExperienceRecordHash,
+          lessonCandidate.lessonCandidateHash
+        ].filter(Boolean))],
+        createdAt: currentAnalysisAdapters().nowIso()
+      })
+    : { result: lessonCandidate ? "LEARNING_ADAPTER_NOT_CONFIGURED" : "NO_LESSON_CANDIDATE" };
   const governorExecutionProof = buildGovernorExecutionProof({
     governor,
     cognitiveEpisode,
@@ -2674,6 +2804,15 @@ function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
     purposeJudgmentAllowed: Boolean(lastState.executiveReadiness?.purposeJudgmentAllowed),
     purposeJudgmentRan: Boolean(lastState.purposeJudgmentCompleted),
     customerOutcomeType: research.executiveDisposition || "PURPOSE_COMPLETE",
+    governedLearning: {
+      adapterIdentity: governor.governedLearningRuntime?.governedLearning?.adapterIdentity || "",
+      selectedLessonIds: governor.governedLearningRuntime?.governedLearning?.appliedLessonIds || [],
+      trialCandidateIds: governor.governedLearningRuntime?.governedLearning?.trialCandidateIds || [],
+      lifecycleResult: governedLearningResult.result,
+      candidateId: governedLearningResult.candidateId || "",
+      promotionAuthorized: governedLearningResult.promotionAuthorized === true,
+      providerLifecycleAuthority: false
+    },
     cognitiveEpisode,
     lessonCandidate,
     executionProof: governorExecutionProof

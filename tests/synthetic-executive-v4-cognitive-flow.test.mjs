@@ -125,10 +125,19 @@ function memoryContext(overrides = {}) {
 
 function runtimeFor(executive, overrides = {}) {
   const governor = createCognitiveGovernor({ evaluationId: overrides.evaluationId || "purpose-neutral-evaluation" });
+  const memory = memoryContext(overrides.memory || {});
+  if (memory.selectedMemoryIds.length) {
+    memory.learningMode = "GOVERNED_TRIAL";
+    memory.trialAuthorization = {
+      authorityType: "GOVERNOR_QUALIFICATION_TRIAL",
+      governorIdentity: governor.governorIdentity,
+      candidateMemoryIds: memory.selectedMemoryIds
+    };
+  }
   return runCanonicalCognitiveRuntime({
     governor,
     snapshot: snapshot(executive, overrides),
-    executiveMemoryContext: memoryContext(overrides.memory || {})
+    executiveMemoryContext: memory
   });
 }
 
@@ -341,11 +350,12 @@ test("production assembly governs forward lesson storage, retrieval, non-reuse, 
   }
 });
 
-test("product and qualification route call the same state-derived canonical runtime", async () => {
-  const [productSource, routeSource, policySource] = await Promise.all([
+test("product and qualification route call the same state-derived canonical runtime and learning adapter", async () => {
+  const [productSource, routeSource, policySource, adapterSource] = await Promise.all([
     readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8"),
     readFile(new URL("../qualification/synthetic-executive/v4-qualification-route/execute-core.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8")
+    readFile(new URL("../lib/cognitive-governor/policy.js", import.meta.url), "utf8"),
+    readFile(new URL("../lib/cognitive-learning/adapter.js", import.meta.url), "utf8")
   ]);
   assert.match(productSource, /runCanonicalCognitiveRuntime\s*\(/);
   assert.match(routeSource, /runCanonicalCognitiveRuntime\s*\(/);
@@ -353,4 +363,8 @@ test("product and qualification route call the same state-derived canonical runt
   assert.doesNotMatch(routeSource, /options:\s*\{\s*boundary/);
   assert.match(policySource, /deriveCognitiveBoundary\s*\(/);
   assert.match(policySource, /boundary:\s*COGNITIVE_BOUNDARY\.AUTO/);
+  assert.match(policySource, /governLearningContext\s*\(/);
+  assert.match(productSource, /GovernedLearningAdapter/);
+  assert.match(routeSource, /governedLearningAdapterIdentity/);
+  assert.match(adapterSource, /KATHERINES_EYE_GOVERNED_LEARNING_ADAPTER_V1/);
 });

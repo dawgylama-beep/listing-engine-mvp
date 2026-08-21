@@ -13,7 +13,7 @@ export const routeRoot = scriptDirectory;
 export const qualificationRoot = path.resolve(routeRoot, "..");
 export const repositoryRoot = path.resolve(qualificationRoot, "..", "..");
 export const corpusRoot = path.join(qualificationRoot, "v4-held-out-corpus");
-export const ROUTE_VERSION = "1.12.41";
+export const ROUTE_VERSION = "1.12.42";
 export const CASE_IDS = Object.freeze(Array.from({ length: 14 }, (_, index) => `KE-V4-C${String(index + 1).padStart(2, "0")}`));
 export const PACKAGE_IDENTITIES = Object.freeze({
   integrityManifestSha256: "a619da7409b8e03618b5a4971ea0a4a4859f25ff60dff425178bd71e0de4cc73",

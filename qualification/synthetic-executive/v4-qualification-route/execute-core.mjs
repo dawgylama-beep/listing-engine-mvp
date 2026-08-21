@@ -310,7 +310,10 @@ async function prepareCaseRuntimeContext({ resultsRoot, caseId, memoryStore, pre
     queryText: [bundle.title, bundle.executiveDemand, ...(Array.isArray(bundle.facts) ? bundle.facts : [])].filter(Boolean).join(" "),
     createdAt: now
   });
-  const selectedMemoryRecords = before.filter((record) => retrievalReceipt.selectedMemoryIds.includes(record.memoryId));
+  const governor = createCognitiveGovernor({
+    evaluationId: caseId,
+    customerMission: createCustomerMissionContext()
+  });
   const memoryContext = {
     runIdentity: prepared.runIdentity.runIdentityHash,
     currentEpisodeId: caseId,
@@ -318,17 +321,22 @@ async function prepareCaseRuntimeContext({ resultsRoot, caseId, memoryStore, pre
     selectedMemoryIds: retrievalReceipt.selectedMemoryIds,
     retrievalReceiptHash: retrievalReceipt.receiptHash,
     startsEmpty: true,
-    forwardOnly: true
+    forwardOnly: true,
+    learningMode: "GOVERNED_TRIAL",
+    trialAuthorization: {
+      authorityType: "GOVERNOR_QUALIFICATION_TRIAL",
+      governorIdentity: governor.governorIdentity,
+      candidateMemoryIds: retrievalReceipt.selectedMemoryIds
+    }
   };
-  const governor = createCognitiveGovernor({
-    evaluationId: caseId,
-    customerMission: createCustomerMissionContext()
-  });
   const runtime = runCanonicalCognitiveRuntime({
     governor,
     snapshot: createV4CognitiveSnapshot(visible, sha256Json(memoryContext)),
     executiveMemoryContext: memoryContext
   });
+  const selectedMemoryRecords = before.filter((record) => (
+    runtime.governedLearning.selectedMemoryIds.includes(record.memoryId)
+  ));
   const context = seal({
     schemaVersion: "1.0",
     recordType: "V4_CANONICAL_COGNITIVE_RUNTIME_CONTEXT",
@@ -340,6 +348,7 @@ async function prepareCaseRuntimeContext({ resultsRoot, caseId, memoryStore, pre
     memoryBeforeIds: before.map((record) => record.memoryId),
     retrievalReceipt,
     selectedMemoryRecords,
+    governedLearningAdapterIdentity: runtime.governedLearning.adapterIdentity,
     canonicalRuntimeIdentity: runtime.runtimeIdentity,
     mentorDecisionIdentity: runtime.mentorDecisionIdentity,
     mentorDecision: runtime.mentorDecision,
