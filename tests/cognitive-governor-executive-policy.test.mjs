@@ -510,7 +510,7 @@ test("the real handler emits a structured non-502 suspended request and never en
     }
   };
   const { response, trace } = await runControlledHandler(identity);
-  assert.equal(response.statusCode, 200);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.payload));
   assert.equal(trace.networkAttempts.length, 0);
   assert.deepEqual(trace.schemas, ["item_identity"]);
   const report = response.payload.valuation;
@@ -557,7 +557,7 @@ test("the real handler converts confirmed structural danger into a safety-only o
     reportType: "listing",
     purchaseIntent: "seller_listing"
   });
-  assert.equal(response.statusCode, 200);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.payload));
   assert.equal(trace.networkAttempts.length, 0);
   assert.deepEqual(trace.schemas, ["item_identity"]);
   const report = response.payload.listing;

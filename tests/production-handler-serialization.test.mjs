@@ -180,7 +180,7 @@ test("real production handler serializes canonical evidence IDs through determin
   }
 
   assert.equal(networkGuard.attempts.length, 0, "all expected external calls must be satisfied by injected adapters");
-  assert.equal(res.statusCode, 200);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.payload));
   assert(res.payload?.valuation, "real handler must serialize the valuation response envelope");
   assert.equal(res.payload.valuation.analysisId, retailRecoveryFixture.analysisId);
   assert.deepEqual(trace.openAISchemas, [
@@ -855,7 +855,7 @@ test("real production handler serializes one active asking offer as one observat
   }
 
   assert.equal(networkGuard.attempts.length, 0);
-  assert.equal(res.statusCode, 200);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.payload));
   assert.equal(finalEvidenceResults.length, 1);
   const finalEvidenceResult = finalEvidenceResults[0];
   validateFinalEvidenceResult(finalEvidenceResult);
@@ -1059,7 +1059,7 @@ test("real production handler preserves resale seller fields while projecting th
   }
 
   assert.equal(networkGuard.attempts.length, 0);
-  assert.equal(res.statusCode, 200);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.payload));
   assert.equal(finalEvidenceResults.length, 1);
   const finalEvidenceResult = finalEvidenceResults[0];
   validateFinalEvidenceResult(finalEvidenceResult);
@@ -1131,7 +1131,7 @@ async function runRetailHandlerForProviderOrder(recoveryRecords, completionDelay
     networkGuard.restore();
   }
   assert.equal(networkGuard.attempts.length, 0);
-  assert.equal(res.statusCode, 200);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.payload));
   assert.equal(finalEvidenceResults.length, 1);
   return {
     finalEvidenceResult: finalEvidenceResults[0],

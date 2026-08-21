@@ -877,6 +877,13 @@
 - Preserved all V4 corpus, evaluator, predicate, threshold, authority-template, budget, frozen-response, and original integrity-invalid evidence identities
 - Authorized no new provider request, response regeneration, manual scoring, deployment, merge, tag, calibration, or V5 activity
 
+## Version 1.12.41 (Completed)
+- Added one purpose-neutral executive-state projection shared by Katherine's Eye product and V4 canonical runtime calls, with state-derived acquisition, refinement, dossier, authority, finalization, purpose, and stopping boundaries
+- Bound mentor evidence only to visible artifact identities, moved all closed V4 cognitive fields into repository-owned response assembly, and limited provider output to bounded failure, uncertainty, analogy, and rationale analysis
+- Added governed forward lesson formation and retrieval with immutable prior records, explicit episode sequencing, run isolation, and no forced analogy for novel or insufficient-evidence states
+- Added offline cognitive-flow proofs for materially different decisions, genuine-only acquisition, duplicate/cycle stops, authority limits, dossier evaluation, closed-field conflict rejection, public-evidence identity safety, memory transfer, and shared product/V4 routing
+- Preserved the sealed V4 corpus, evaluator, seven package identities, original `12/98` not-qualified result, provider-call count of zero, and V5 not-started state
+
 ## Version 2.0
 - User accounts
 - Saved listings

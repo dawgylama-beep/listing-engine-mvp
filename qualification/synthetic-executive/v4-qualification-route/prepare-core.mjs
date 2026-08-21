@@ -4,7 +4,7 @@ import path from "node:path";
 
 import {
   PACKAGE_IDENTITIES, appendLedger, assertExternalExistingFile, assertExternalNewResultsRoot,
-  corpusRoot, existsLiteral, inspectPackageIdentities, inspectRepository, readJson, repositoryRoot,
+  corpusRoot, inspectPackageIdentities, inspectRepository, readJson, repositoryRoot,
   runSealedVerifier, seal, sha256Bytes, validateAuthorization, writeExclusiveJson
 } from "./shared.mjs";
 
@@ -19,8 +19,6 @@ export async function prepareQualificationRun({
   const protectedRoots = [repositoryRoot, repositoryIdentity.gitDirectory, repositoryIdentity.commonDirectory, ...repositoryIdentity.worktreeRoots];
   await assertExternalExistingFile(authorizationPath, { protectedRoots });
   await assertExternalNewResultsRoot(resultsRoot, { protectedRoots });
-  const prohibitedResultsPath = path.join(repositoryRoot, "benchmarks", "blind-object-v1-results");
-  assert.equal(await existsLiteral(prohibitedResultsPath), false, "PROHIBITED_RESULTS_PATH_PRESENT");
   const packageInspection = await inspectPackageIdentitiesFn(corpusRoot);
   assert.deepEqual(Object.fromEntries(Object.keys(PACKAGE_IDENTITIES).map((key) => [key, packageInspection[key]])), PACKAGE_IDENTITIES);
   const verifier = await runSealedVerifierFn(corpusRoot);

@@ -18,7 +18,6 @@ import {
 } from "../lib/object-intelligence/index.js";
 import {
   COGNITIVE_ACTION,
-  COGNITIVE_BOUNDARY,
   buildCognitiveEpisode,
   buildCustomerInputRequest,
   buildLessonCandidate,
@@ -146,7 +145,7 @@ function attachCurrentTerminalProviderRecords(records) {
   return attachTerminalProviderRecords(currentEvaluationTerminalContext(), records);
 }
 
-function decideCognitiveActionWithTerminalEvidence(governor, snapshot, options) {
+function decideCognitiveActionWithTerminalEvidence(governor, snapshot) {
   const authoritativeStateMissing = !governor?.executionLedger?.lifecycleEvents?.some((event) => (
     event.eventType === "AUTHORITATIVE_COGNITIVE_STATE_INITIALIZED"
   ));
@@ -154,7 +153,6 @@ function decideCognitiveActionWithTerminalEvidence(governor, snapshot, options) 
   const { decision } = runCanonicalCognitiveRuntime({
     governor,
     snapshot,
-    options,
     executiveMemoryContext: {
       runIdentity: governor.evaluationId,
       currentEpisodeId: governor.evaluationId,
@@ -2305,6 +2303,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     objectMindState: liveSearch.objectMindState,
     liveSearch,
     initialPlan: initialObjectSearchPlan,
+    directPageCandidates: [],
     providerMaximum: cognitiveProviderMaximum,
     canonicalEvidenceFinalized: false
   });
@@ -2318,8 +2317,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     beginTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
     const customerInputDecision = decideCognitiveActionWithTerminalEvidence(
       cognitiveGovernor,
-      finalizationSnapshot,
-      { boundary: COGNITIVE_BOUNDARY.CUSTOMER_INPUT }
+      finalizationSnapshot
     );
     if (customerInputDecision.actionType === COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT && customerInputDecision.executionPermitted) {
       executeGovernorAuthorizedAction(cognitiveGovernor, customerInputDecision, COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT, {
@@ -2340,6 +2338,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     objectMindState: liveSearch.objectMindState,
     liveSearch,
     initialPlan: initialObjectSearchPlan,
+    directPageCandidates: [],
     providerMaximum: cognitiveProviderMaximum,
     canonicalEvidenceFinalized: false
   });
@@ -2391,8 +2390,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   beginTerminalStage(TERMINAL_STAGE.CANONICAL_EVIDENCE_FINALIZATION);
   const finalizationDecision = decideCognitiveActionWithTerminalEvidence(
     cognitiveGovernor,
-    finalizationSnapshot,
-    { boundary: COGNITIVE_BOUNDARY.FINALIZATION }
+    finalizationSnapshot
   );
   if (finalizationDecision.actionType !== COGNITIVE_ACTION.FINALIZE_EVIDENCE || !finalizationDecision.executionPermitted) {
     throw new Error("Cognitive Governor did not authorize the canonical finalization boundary.");
@@ -2424,14 +2422,14 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     objectMindState: liveSearch.objectMindState,
     liveSearch,
     initialPlan: initialObjectSearchPlan,
+    directPageCandidates: [],
     providerMaximum: cognitiveProviderMaximum,
     canonicalEvidenceFinalized: true
   });
   beginTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
   const pendingPurposeDecision = decideCognitiveActionWithTerminalEvidence(
     cognitiveGovernor,
-    purposeSnapshot,
-    { boundary: COGNITIVE_BOUNDARY.PURPOSE_JUDGMENT }
+    purposeSnapshot
   );
   if (pendingPurposeDecision.actionType !== COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT || !pendingPurposeDecision.executionPermitted) {
     throw new Error("Cognitive Governor did not authorize the downstream purpose boundary.");
@@ -2592,6 +2590,7 @@ function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
     objectMindState: research.liveSearch.objectMindState,
     liveSearch: research.liveSearch,
     initialPlan: research.objectMindState?.searchPlan || [],
+    directPageCandidates: [],
     providerMaximum: research.cognitiveProviderMaximum,
     canonicalEvidenceFinalized,
     purposeJudgmentCompleted,
@@ -2608,8 +2607,7 @@ function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
   }
   const terminalDecision = decideCognitiveActionWithTerminalEvidence(
     governor,
-    completedSnapshot,
-    { boundary: COGNITIVE_BOUNDARY.TERMINAL }
+    completedSnapshot
   );
   const expectedTerminalAction = research.executiveDisposition === "SAFETY_ONLY"
     ? COGNITIVE_ACTION.STOP_COMPLETE
@@ -2864,8 +2862,7 @@ async function executeOpenAIWebComparableSearch({
           providerMaximum: cognitiveProviderMaximum,
           providerAttemptBudget: sharedProviderAttemptBudget,
           directPageAttemptBudget
-        }),
-        { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
+        })
       )
     : null;
 
@@ -3153,8 +3150,7 @@ async function executeOpenAIWebComparableSearch({
             providerMaximum: cognitiveProviderMaximum,
             providerAttemptBudget: sharedProviderAttemptBudget,
             directPageAttemptBudget
-          }),
-          { boundary: COGNITIVE_BOUNDARY.REFINEMENT }
+          })
         )
       : null;
     const authorizedRefinementQueries = !refinementCognitiveDecision || (
@@ -3542,8 +3538,7 @@ async function executeSerperComparableSearch({
           providerMaximum: cognitiveProviderMaximum,
           providerAttemptBudget: sharedProviderAttemptBudget,
           directPageAttemptBudget
-        }),
-        { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION }
+        })
       )
     : null;
   let initialAuthorizationContext = null;
@@ -3718,8 +3713,7 @@ async function executeSerperComparableSearch({
           providerMaximum: cognitiveProviderMaximum,
           providerAttemptBudget: sharedProviderAttemptBudget,
           directPageAttemptBudget
-        }),
-        { boundary: COGNITIVE_BOUNDARY.REFINEMENT }
+        })
       )
     : null;
   const authorizedRefinementPlan = !refinementCognitiveDecision || (
@@ -4412,8 +4406,7 @@ async function executeExactRetailPageDirectEnrichment({
             directPageCandidates: members.map((member) => ({ ...member, objectMindDirectPageEligible: true })),
             providerMaximum: cognitiveProviderMaximum,
             directPageAttemptBudget
-          }),
-          { boundary: COGNITIVE_BOUNDARY.DIRECT_PAGE }
+          })
         )
       : null;
     if (directPageCognitiveDecision && (

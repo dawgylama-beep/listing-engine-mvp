@@ -27,6 +27,9 @@ export function validateMemoryRecord(record) {
   assert.equal(record.schemaVersion, MEMORY_SCHEMA_VERSION);
   assert.ok(MEMORY_TYPES.includes(record.memoryType));
   assert.ok(Array.isArray(record.sourceEpisodeIds) && record.sourceEpisodeIds.length > 0);
+  if (record.sourceEpisodeSequence !== undefined) {
+    assert.ok(Number.isInteger(record.sourceEpisodeSequence) && record.sourceEpisodeSequence > 0);
+  }
   assert.ok(Array.isArray(record.evidenceReferences) && record.evidenceReferences.length > 0);
   assertHash(record.evidenceAggregateHash, "memory evidence aggregate");
   assert.ok(Array.isArray(record.applicabilityBoundaries));
@@ -107,11 +110,6 @@ export class ExecutiveMemoryStore {
   }
 }
 
-function v4Order(episodeId) {
-  const match = String(episodeId || "").match(/^KE-V4-C(\d{2})$/);
-  return match ? Number(match[1]) : null;
-}
-
 function uniqueStrings(values) {
   return [...new Set((Array.isArray(values) ? values : []).filter((value) => typeof value === "string" && value.length > 0))];
 }
@@ -120,7 +118,9 @@ export async function commitGovernedExecutiveMemoryTransition({
   store,
   runIdentity,
   episodeId,
-  responseObject,
+  episodeSequence,
+  authoritativeResponse,
+  responseAssembly,
   retrievalReceipt,
   visibleEvidenceIds,
   mentorDecisionIdentity,
@@ -132,72 +132,77 @@ export async function commitGovernedExecutiveMemoryTransition({
   assertHash(mentorDecisionIdentity, "mentor decision identity");
   assertHash(retrievalReceipt?.receiptHash, "memory retrieval receipt");
   assert.equal(retrievalReceipt.currentEpisodeId, episodeId, "memory retrieval episode differs");
-  const currentOrder = v4Order(episodeId);
-  assert.ok(currentOrder !== null, "V4 episode identity required");
+  assert.ok(Number.isInteger(episodeSequence) && episodeSequence > 0, "forward memory episode sequence required");
+  assert.equal(responseAssembly?.mentorDecisionIdentity, mentorDecisionIdentity, "memory assembly mentor identity differs");
+  assert.equal(responseAssembly?.responseAssemblyHash, sha256Json(authoritativeResponse), "memory response assembly differs");
+  assert.equal(typeof responseAssembly?.lessonAuthorized, "boolean", "governed lesson decision required");
   const existing = await store.list();
   const before = [];
   const replay = [];
   for (const record of existing) {
+    assert.equal(record.runIdentity, runIdentity, "Executive Memory cannot cross run identities");
     for (const sourceEpisodeId of record.sourceEpisodeIds) {
-      const sourceOrder = v4Order(sourceEpisodeId);
-      assert.ok(sourceOrder !== null && sourceOrder <= currentOrder, "Executive Memory must flow only forward");
-      (sourceOrder === currentOrder ? replay : before).push(record);
+      assert.equal(typeof sourceEpisodeId, "string", "Executive Memory source episode identity required");
+      assert.ok(record.sourceEpisodeSequence <= episodeSequence, "Executive Memory must flow only forward");
+      (record.sourceEpisodeSequence === episodeSequence ? replay : before).push(record);
     }
   }
   assert.deepEqual(before.map((record) => record.memoryId), expectedBeforeMemoryIds, "Executive Memory pre-case identity changed");
   assert.ok(replay.length <= 1, "multiple same-episode memory records are prohibited");
 
   const selectedMemoryIds = uniqueStrings(retrievalReceipt.selectedMemoryIds);
-  const applicableMemoryId = responseObject.applicableMemoryId;
+  const applicableMemoryId = authoritativeResponse.applicableMemoryId;
   if (applicableMemoryId !== null) {
     assert.equal(selectedMemoryIds.includes(applicableMemoryId), true, "response applied unselected Executive Memory");
   }
-  if (["NOVEL", "INSUFFICIENT_EVIDENCE"].includes(responseObject.classificationType)) {
+  if (["NOVEL", "DECLARE_NOVEL_FAILURE", "INSUFFICIENT_EVIDENCE", "DECLARE_INSUFFICIENT_EVIDENCE"].includes(authoritativeResponse.classificationType)) {
     assert.equal(applicableMemoryId, null, "novel or insufficient evidence cannot force an analogy");
   }
 
   const visible = new Set(uniqueStrings(visibleEvidenceIds));
-  const evidenceReferences = uniqueStrings(responseObject.evidenceReferences);
-  const requiredEvidenceReferences = uniqueStrings(responseObject.requiredEvidenceReferences);
+  const evidenceReferences = uniqueStrings(authoritativeResponse.evidenceReferences);
+  const requiredEvidenceReferences = uniqueStrings(authoritativeResponse.requiredEvidenceReferences);
   const evidenceAuthorized = evidenceReferences.length > 0
     && requiredEvidenceReferences.length > 0
     && [...evidenceReferences, ...requiredEvidenceReferences].every((item) => visible.has(item));
-  const lessonRequested = responseObject.memoryStatus === "CANDIDATE";
+  const lessonRequested = responseAssembly.lessonAuthorized;
+  assert.equal(authoritativeResponse.memoryStatus === "CANDIDATE", lessonRequested, "memory status differs from governed lesson decision");
   const rejectionReasons = [
-    !responseObject.evidenceSufficient ? "INSUFFICIENT_EVIDENCE" : "",
+    !authoritativeResponse.evidenceSufficient ? "INSUFFICIENT_EVIDENCE" : "",
     !evidenceAuthorized ? "EVIDENCE_NOT_AUTHORIZED" : "",
-    responseObject.unauthorizedEligibleActionExpansion ? "UNAUTHORIZED_ACTION_EXPANSION" : "",
-    !responseObject.selectedActionCompatible ? "MENTOR_ACTION_INCOMPATIBLE" : "",
-    responseObject.forbiddenRecommendationCount !== 0 ? "FORBIDDEN_RECOMMENDATION" : "",
-    responseObject.unsupportedCitationCount !== 0 ? "UNSUPPORTED_CITATION" : ""
+    authoritativeResponse.unauthorizedEligibleActionExpansion ? "UNAUTHORIZED_ACTION_EXPANSION" : "",
+    !authoritativeResponse.selectedActionCompatible ? "MENTOR_ACTION_INCOMPATIBLE" : "",
+    authoritativeResponse.forbiddenRecommendationCount !== 0 ? "FORBIDDEN_RECOMMENDATION" : "",
+    authoritativeResponse.unsupportedCitationCount !== 0 ? "UNSUPPORTED_CITATION" : ""
   ].filter(Boolean);
 
   let acceptedRecord = null;
   if (lessonRequested && rejectionReasons.length === 0) {
     const core = {
       memoryType: "GENERALIZED_LESSON_CANDIDATE",
-      memoryId: `ke-v4-memory-${episodeId.toLowerCase()}-${sha256Json({
+      memoryId: `ke-executive-memory-${String(episodeSequence).padStart(6, "0")}-${sha256Json({
         episodeId,
         evidenceReferences,
-        failureClass: responseObject.failureClass,
-        generalizedRule: responseObject.rationale,
+        failureClass: authoritativeResponse.failureClass,
+        generalizedRule: authoritativeResponse.rationale,
         mentorDecisionIdentity
       }).slice(0, 20)}`,
       sourceEpisodeIds: [episodeId],
+      sourceEpisodeSequence: episodeSequence,
       evidenceReferences,
       evidenceAggregateHash: sha256Json(evidenceReferences),
-      observedFailurePattern: responseObject.failureClass,
-      generalizedRule: responseObject.rationale,
-      triggeringConditions: uniqueStrings([responseObject.classificationType, responseObject.failureScope]),
-      applicabilityBoundaries: uniqueStrings([responseObject.authorityClass, ...responseObject.recommendedOperations]),
-      explicitNonApplicabilityConditions: uniqueStrings(responseObject.prohibitedOperations),
-      recurrenceSignature: `${responseObject.failureClass}:${responseObject.classificationType}`,
-      recommendedActionPattern: responseObject.nextAction,
-      prohibitedActions: uniqueStrings(responseObject.prohibitedOperations),
+      observedFailurePattern: authoritativeResponse.failureClass,
+      generalizedRule: authoritativeResponse.rationale,
+      triggeringConditions: uniqueStrings([authoritativeResponse.classificationType, authoritativeResponse.failureScope]),
+      applicabilityBoundaries: uniqueStrings([authoritativeResponse.authorityClass, ...authoritativeResponse.recommendedOperations]),
+      explicitNonApplicabilityConditions: uniqueStrings(authoritativeResponse.prohibitedOperations),
+      recurrenceSignature: `${authoritativeResponse.failureClass}:${authoritativeResponse.classificationType}`,
+      recommendedActionPattern: authoritativeResponse.nextAction,
+      prohibitedActions: uniqueStrings(authoritativeResponse.prohibitedOperations),
       requiredProofBeforeAdvancement: requiredEvidenceReferences,
-      authorityNormallyRequired: responseObject.authorityClass,
-      confidence: responseObject.evidenceSufficient ? 0.8 : 0.3,
-      unresolvedUncertainty: uniqueStrings([responseObject.uncertaintyCompatibility]),
+      authorityNormallyRequired: authoritativeResponse.authorityClass,
+      confidence: authoritativeResponse.evidenceSufficient ? 0.8 : 0.3,
+      unresolvedUncertainty: uniqueStrings([authoritativeResponse.uncertaintyCompatibility]),
       status: "CANDIDATE",
       predecessorMemoryIds: applicableMemoryId ? [applicableMemoryId] : [],
       runIdentity,

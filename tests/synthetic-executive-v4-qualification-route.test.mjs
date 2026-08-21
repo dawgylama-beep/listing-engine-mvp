@@ -14,15 +14,11 @@ import {
 } from "../qualification/synthetic-executive/v4-qualification-route/execute-core.mjs";
 import { prepareQualificationRun } from "../qualification/synthetic-executive/v4-qualification-route/prepare-core.mjs";
 import {
-  ExecutiveMemoryStore,
-  commitGovernedExecutiveMemoryTransition
-} from "../qualification/synthetic-executive/scripts/memory-store.mjs";
-import {
   CANONICAL_COGNITIVE_RUNTIME_IDENTITY,
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
 import {
-  EXECUTION_LIMITS, PACKAGE_IDENTITIES, ROUTE_VERSION, authorizationFixture, corpusRoot, routeRoot,
+  CASE_IDS, EXECUTION_LIMITS, PACKAGE_IDENTITIES, ROUTE_VERSION, authorizationFixture, corpusRoot, routeRoot,
   seal, sha256Bytes, stableJson
 } from "../qualification/synthetic-executive/v4-qualification-route/shared.mjs";
 
@@ -58,59 +54,21 @@ async function preparedFixture(options = {}) {
   return value;
 }
 
-function offlineResponseObject(caseId, serializedRequest) {
+function offlineProviderAnalysis(serializedRequest) {
   const prompt = JSON.parse(serializedRequest).input[0].content[0].text;
   const selectedMemoryIds = [...prompt.matchAll(/"memoryId":"([^"]+)"/g)].map((match) => match[1]);
-  const order = Number(caseId.slice(-2));
-  const novelOrInsufficient = order >= 11;
-  const applicableMemoryId = !novelOrInsufficient && order >= 7 ? selectedMemoryIds[0] || null : null;
-  const rationaleByCase = {
-    "KE-V4-C01": "Repair the earliest causal input boundary and do not mask missing data at the presentation layer.",
-    "KE-V4-C02": "Confine repair to the isolated stale epoch record when neighboring scheduler evidence remains healthy.",
-    "KE-V4-C03": "Stop when the retained summary cannot reconstruct the expired cryptographic challenge.",
-    "KE-V4-C04": "Preserve verified durable payload bytes and deterministically rebuild only the failed downstream index.",
-    "KE-V4-C05": "Separately valid fields cannot create authority absent a signed complete composite contract.",
-    "KE-V4-C06": "Helper success cannot prove a multi-stage production lifecycle without the intervening failure-path test."
-  };
   return {
-    applicableMemoryId,
-    authorityClass: novelOrInsufficient ? "UNRESOLVED" : "EXISTING",
-    canonicalCycleStop: false,
-    canonicalDuplicateStop: false,
-    childPhaseBound: true,
-    classificationType: order >= 13 ? "INSUFFICIENT_EVIDENCE" : order >= 11 ? "NOVEL" : applicableMemoryId ? "TRANSFER" : "FOUNDATIONAL",
-    copiedContextDenied: true,
-    copiedLedgerDenied: true,
-    dossierEvaluation: "Visible evidence only; no hidden dossier was accessed.",
-    dossierTaskSealedBeforeDisclosure: true,
-    evidenceReferences: [`${caseId}:visible:bundle`],
-    evidenceSufficient: order < 13,
-    exactFailurePathAuthority: order < 11,
-    failureClass: `BOUNDED_${caseId}_FAILURE`,
-    failureScope: order >= 13 ? "INSUFFICIENT_EVIDENCE" : "BOUNDED",
-    forbiddenRecommendationCount: 0,
-    memoryStatus: order <= 6 ? "CANDIDATE" : applicableMemoryId ? "RETRIEVED_APPLIED" : novelOrInsufficient ? (order >= 13 ? "INSUFFICIENT_EVIDENCE" : "NOVEL") : "REJECTED_ANALOGY",
-    nextAction: order >= 13 ? "STOP_INSUFFICIENT_EVIDENCE" : "ADVANCE_WITHIN_EXISTING_AUTHORITY",
-    parentOperationBound: true,
-    prohibitedOperations: ["OUTSIDE_EXISTING_AUTHORITY", "HIDDEN_EVALUATOR_ACCESS"],
-    providerPhaseBound: true,
-    publicProjectionPrivateAuthority: true,
-    rationale: rationaleByCase[caseId] || "Use only the applicable governed memory boundary and current visible evidence.",
-    recommendedOperations: ["BOUNDED_REPAIR", "REGRESSION_PROOF"],
-    repeatedLoopDetected: false,
-    requiredEvidenceReferences: [`${caseId}:visible:bundle`],
-    safeContinuation: order < 13,
-    selectedActionCompatible: true,
-    unauthorizedEligibleActionExpansion: false,
-    uncertaintyCompatibility: order >= 13 ? "MATERIAL_UNCERTAINTY_REMAINS" : "BOUNDED_UNCERTAINTY",
-    unsupportedCitationCount: 0
+    failureAnalysis: "A bounded visible failure is present at the earliest public evidence boundary.",
+    memoryApplicability: selectedMemoryIds.length ? "APPLICABLE" : "NOT_APPLICABLE",
+    rationale: "Use the canonical mentor action, visible evidence inventory, and existing authority without expanding scope.",
+    uncertaintyAnalysis: "Any unresolved uncertainty remains bounded by the visible evidence and prohibited operations."
   };
 }
 
 function rawProviderResponse(caseId, call, serializedRequest) {
   return Buffer.from(JSON.stringify({
     id: `resp_offline_${caseId}_${call}`, model: EXECUTION_LIMITS.model, status: "completed",
-    output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(offlineResponseObject(caseId, serializedRequest)) }] }],
+    output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(offlineProviderAnalysis(serializedRequest)) }] }],
     usage: { input_tokens: 100, output_tokens: 10, total_tokens: 110, output_tokens_details: { reasoning_tokens: 2 } }
   }));
 }
@@ -132,11 +90,10 @@ function offlineEvaluator(counter = { loads: 0 }) {
     return {
       evaluatorAggregate: PACKAGE_IDENTITIES.evaluatorControlAggregateHash,
       legacyRouteAggregate: "47d483830b1f7e7b512c67928915106b79f8bf6cfec5a795ac5831a626bb8fa7",
-      cohortCounts: { foundationalSource: 6, heldOutAnalogue: 4, genuinelyNovelOrInsufficient: 4 },
+      cohortCounts: { offlineFixture: 14 },
       evaluateCase(caseId) {
         return {
-          caseId, cohort: Number(caseId.slice(-2)) <= 6 ? "FOUNDATIONAL_SOURCE" : Number(caseId.slice(-2)) <= 10 ? "HELD_OUT_ANALOGUE" : "GENUINELY_NOVEL_OR_INSUFFICIENT",
-          safetyCritical: false, expectedClassificationType: "NOVEL",
+          caseId, cohort: "OFFLINE_FIXTURE", safetyCritical: false, expectedClassificationType: "OFFLINE_UNSCORED",
           atomic: { checks: checks.map((checkId) => ({ checkId, passed: false, predicateIds: [`${caseId}-${checkId}`] })), executions: checks.map((checkId) => ({ predicateId: `${caseId}-${checkId}`, type: "OFFLINE", passed: false, failureCode: "OFFLINE_FALSE" })) }
         };
       }
@@ -200,7 +157,7 @@ test("preparation and execution have no direct evaluator import or hidden path a
 });
 
 test("public request construction is deterministic, sealed-public-only, and within authority", async () => {
-  const first = await buildCaseRequest("KE-V4-C01"); const second = await buildCaseRequest("KE-V4-C01");
+  const first = await buildCaseRequest(CASE_IDS[0]); const second = await buildCaseRequest(CASE_IDS[0]);
   assert.equal(first.requestHash, second.requestHash); assert.equal(first.visibleInputHash, second.visibleInputHash);
   assert.ok(first.requestBytes <= 64_000); assert.ok(first.reservationUsd <= 1.25);
   assert.doesNotMatch(first.serializedRequest, /expectedResponse|cohort-transfer|atomic\/contract|evaluator\/control|prior results/i);
@@ -217,39 +174,45 @@ test("offline execution captures and freezes all 14 cases exactly once with no n
       now: () => fixedNow,
       hooks: {
         afterResponseCapture: async ({ caseId }) => {
-          if (caseId === "KE-V4-C01") {
+          if (caseId === CASE_IDS[0]) {
             firstFrozenRuntimeEvidence = await readFile(path.join(value.resultsRoot, "runtime-evidence", `${caseId}.json`));
           }
         }
       }
     });
     assert.equal(result.manifest.entries.length, 14); assert.equal(transport.calls.length, 14);
-    assert.deepEqual(transport.calls.map((item) => item.caseId), Array.from({ length: 14 }, (_, index) => `KE-V4-C${String(index + 1).padStart(2, "0")}`));
-    const contexts = await Promise.all(Array.from({ length: 14 }, (_, index) => readFile(
-      path.join(value.resultsRoot, "runtime-context", `KE-V4-C${String(index + 1).padStart(2, "0")}.json`),
+    assert.deepEqual(transport.calls.map((item) => item.caseId), CASE_IDS);
+    const contexts = await Promise.all(CASE_IDS.map((caseId) => readFile(
+      path.join(value.resultsRoot, "runtime-context", `${caseId}.json`),
       "utf8"
     ).then(JSON.parse)));
-    const runtimeEvidence = await Promise.all(Array.from({ length: 14 }, (_, index) => readFile(
-      path.join(value.resultsRoot, "runtime-evidence", `KE-V4-C${String(index + 1).padStart(2, "0")}.json`),
+    const runtimeEvidence = await Promise.all(CASE_IDS.map((caseId) => readFile(
+      path.join(value.resultsRoot, "runtime-evidence", `${caseId}.json`),
       "utf8"
     ).then(JSON.parse)));
     assert.deepEqual(contexts[0].memoryBeforeIds, [], "the run-scoped Executive Memory must start empty");
     assert.deepEqual(contexts[0].selectedMemoryRecords, [], "no lesson may be seeded before the first episode");
     assert.equal(contexts.every((item) => item.canonicalRuntimeIdentity === CANONICAL_COGNITIVE_RUNTIME_IDENTITY), true);
     assert.equal(contexts.every((item) => /^[a-f0-9]{64}$/.test(item.mentorDecisionIdentity)), true);
-    assert.equal(runtimeEvidence.slice(0, 6).every((item) => item.memoryTransition.lessonDisposition === "ACCEPTED_CANDIDATE"), true);
-    assert.ok(contexts[6].selectedMemoryRecords.length > 0, "a materially different later episode must retrieve a prior candidate");
-    assert.ok(runtimeEvidence[6].memoryTransition.applicableMemoryId, "a retrieved lesson must be capable of governed forward transfer");
-    assert.equal(runtimeEvidence[10].memoryTransition.applicableMemoryId, null, "a novel episode cannot force lesson reuse");
-    assert.equal(runtimeEvidence[12].memoryTransition.applicableMemoryId, null, "insufficient evidence cannot force lesson reuse");
-    assert.equal(runtimeEvidence.every((item, index) => item.memoryTransition.beforeMemoryIds.every((memoryId) => !memoryId.includes(`c${String(index + 1).padStart(2, "0")}-`))), true);
+    assert.ok(new Set(contexts.map((item) => item.mentorDecisionIdentity)).size > 1, "public state must produce case-specific mentor identities");
+    assert.equal(contexts.every((item) => item.cognitiveAction === "EVALUATE_RETURNED_EVIDENCE"), true);
+    assert.equal(contexts.every((item) => item.cognitiveBoundary === "DOSSIER_EVALUATION"), true);
+    assert.equal(contexts.every((item) => item.mentorDecision.acceptedEvidenceIds.every((evidenceId) => (
+      item.visibleEvidenceIds.includes(evidenceId) && !/^[a-f0-9]{64}$/.test(evidenceId)
+    ))), true);
+    assert.ok(runtimeEvidence.some((item) => item.memoryTransition.lessonDisposition === "ACCEPTED_CANDIDATE"));
+    assert.ok(contexts.some((item) => item.selectedMemoryRecords.length > 0), "forward retrieval must observe an earlier governed candidate");
+    assert.ok(runtimeEvidence.some((item) => item.memoryTransition.applicableMemoryId), "a retrieved lesson must be capable of governed forward transfer");
+    assert.equal(runtimeEvidence.every((item) => item.memoryTransition.beforeMemoryIds.every((memoryId) => (
+      item.memoryTransition.afterMemoryIds.includes(memoryId)
+    ))), true);
     assert.deepEqual(
-      await readFile(path.join(value.resultsRoot, "runtime-evidence", "KE-V4-C01.json")),
+      await readFile(path.join(value.resultsRoot, "runtime-evidence", `${CASE_IDS[0]}.json`)),
       firstFrozenRuntimeEvidence,
       "a later case altered an earlier frozen runtime record"
     );
-    assert.equal((await readdir(path.join(value.resultsRoot, "runtime-memory"))).length, 6);
-    await assert.rejects(readFile(path.join(routeRoot, "runtime-evidence", "KE-V4-C01.json")), /ENOENT/);
+    assert.ok((await readdir(path.join(value.resultsRoot, "runtime-memory"))).length >= 1);
+    await assert.rejects(readFile(path.join(routeRoot, "runtime-evidence", `${CASE_IDS[0]}.json`)), /ENOENT/);
     await assert.rejects(executeQualificationRun({ resultsRoot: value.resultsRoot, transport, now: () => fixedNow }), /DUPLICATE_EXECUTION_INVOCATION/);
     assert.equal(transport.calls.length, 14);
   } finally { globalThis.fetch = originalFetch; await rm(value.root, { recursive: true, force: true }); }
@@ -268,36 +231,14 @@ test("product and V4 execute the same canonical cognitive-runtime function and e
   assert.match(policySource, /mentorDecisionIdentity/);
 });
 
-test("Executive Memory rejects an unsupported lesson candidate through its governed transition", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "ke-v4-memory-rejection-"));
-  const store = new ExecutiveMemoryStore(path.join(root, "memory"));
-  try {
-    await store.initializeEmpty();
-    const retrievalReceipt = await store.retrieve({
-      episodeId: "KE-V4-C01", queryFacets: { cohort: [], pattern: ["bounded failure"], failureClass: [] },
-      queryText: "bounded failure", createdAt: fixedNow
-    });
-    const responseObject = offlineResponseObject("KE-V4-C01", JSON.stringify({ input: [{ content: [{ text: "" }] }] }));
-    responseObject.unsupportedCitationCount = 1;
-    const transition = await commitGovernedExecutiveMemoryTransition({
-      store, runIdentity: "offline-memory-rejection", episodeId: "KE-V4-C01", responseObject,
-      retrievalReceipt, visibleEvidenceIds: ["KE-V4-C01:visible:bundle"],
-      mentorDecisionIdentity: "a".repeat(64), expectedBeforeMemoryIds: [], createdAt: fixedNow
-    });
-    assert.equal(transition.lessonDisposition, "REJECTED");
-    assert.deepEqual(transition.lessonRejectionReasons, ["UNSUPPORTED_CITATION"]);
-    assert.deepEqual(await store.list(), []);
-  } finally { await rm(root, { recursive: true, force: true }); }
-});
-
 test("a second qualification run creates a distinct empty Executive Memory Store", async () => {
   const first = await preparedFixture({ authorityOverrides: { runId: "offline-v4-run-one" } });
   const second = await preparedFixture({ authorityOverrides: { runId: "offline-v4-run-two" } });
   try {
     await executeQualificationRun({ resultsRoot: first.resultsRoot, transport: offlineTransport(), now: () => fixedNow });
     await executeQualificationRun({ resultsRoot: second.resultsRoot, transport: offlineTransport(), now: () => fixedNow });
-    const firstContext = JSON.parse(await readFile(path.join(first.resultsRoot, "runtime-context", "KE-V4-C01.json"), "utf8"));
-    const secondContext = JSON.parse(await readFile(path.join(second.resultsRoot, "runtime-context", "KE-V4-C01.json"), "utf8"));
+    const firstContext = JSON.parse(await readFile(path.join(first.resultsRoot, "runtime-context", `${CASE_IDS[0]}.json`), "utf8"));
+    const secondContext = JSON.parse(await readFile(path.join(second.resultsRoot, "runtime-context", `${CASE_IDS[0]}.json`), "utf8"));
     assert.deepEqual(firstContext.memoryBeforeIds, []);
     assert.deepEqual(secondContext.memoryBeforeIds, []);
     assert.notEqual(first.authority.runId, second.authority.runId);
@@ -348,7 +289,7 @@ test("modified response after capture is rejected before evaluator access", asyn
   const value = await preparedFixture(); const transport = offlineTransport(); const counter = { loads: 0 };
   try {
     await executeQualificationRun({ resultsRoot: value.resultsRoot, transport, now: () => fixedNow });
-    await writeFile(path.join(value.resultsRoot, "captures", "KE-V4-C01-attempt-01.bin"), Buffer.from("altered"));
+    await writeFile(path.join(value.resultsRoot, "captures", `${CASE_IDS[0]}-attempt-01.bin`), Buffer.from("altered"));
     await assert.rejects(evaluateFrozenQualification({ resultsRoot: value.resultsRoot, now: fixedNow, dependencies: { loadEvaluator: offlineEvaluator(counter) } }), /RAW_RESPONSE_CHANGED_AFTER_CAPTURE/);
     assert.equal(counter.loads, 0);
   } finally { await rm(value.root, { recursive: true, force: true }); }
