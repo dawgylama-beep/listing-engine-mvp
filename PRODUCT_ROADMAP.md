@@ -930,6 +930,12 @@
 - Added neutral offline proofs for stale-default rejection, sequential and concurrent request isolation, visible category/configuration retention, weak-identity broadening, provider-claim refusal, search-result non-replacement, strict provenance, seller and buyer usefulness, shared product/qualification authority, hard network denial, and zero external provider calls
 - Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and main and Production were not changed
 
+## Version 1.12.49 (Completed)
+- Added an explicit root Vercel source-package exclusion for the prohibited legacy result boundary and every descendant
+- Added a synthetic string-only deployment-boundary proof without reading, probing, hashing, materializing, or inventorying the protected directory
+- Preserved the Version 1.12.48 canonical object-research implementation byte-for-byte while sealing Git-sourced Preview deployment containment
+- Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and main and Production were not changed
+
 ## Version 2.0
 - User accounts
 - Saved listings

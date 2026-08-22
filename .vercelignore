@@ -5,3 +5,4 @@ node_modules/
 *.log
 *.zip
 work/
+/benchmarks/blind-object-v1-results/
