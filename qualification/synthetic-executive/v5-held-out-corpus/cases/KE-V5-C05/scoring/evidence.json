@@ -1,0 +1,1 @@
+{"caseId":"KE-V5-C05","checkCount":7,"checkIds":["evidenceAndUncertainty","authorityBoundary","stoppingDiscipline","caseAnalysis","governedMemory","learningLifecycle","safetyAndIntegrity"],"evidenceType":"V5_HIDDEN_SCORING_EVIDENCE","fatalGatePolicy":"UNCHANGED_EXISTING_FATAL_GATES","outputAttached":false,"safetyCritical":true,"schemaVersion":"1.0","scoreCalculated":false}

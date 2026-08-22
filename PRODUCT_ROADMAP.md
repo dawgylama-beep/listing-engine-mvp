@@ -891,6 +891,12 @@
 - Routed both `POST /api/generate-listing` and the V4 qualification runtime through the same adapter while preserving provider lifecycle authority at zero and preventing novel or insufficient-evidence states from forcing lesson reuse
 - Added offline lifecycle, persistence, tamper, product-handler, shared-call-path, provider-denial, retention, and rollback regression coverage; no provider call, blind qualification, V5 work, deployment, or sealed-corpus/evaluator/result mutation was performed
 
+## Version 1.12.43 (Completed)
+- Added a deterministic fourteen-case Synthetic Executive V5 qualification package with fresh evidence, hidden `6 / 4 / 4` cohorts, ninety-eight atomic checks, the existing `89 / 98` threshold, and fatal-gate enforcement
+- Added a version-neutral V5 qualification route through Katherine's canonical cognitive runtime and governed learning adapter, with empty-run initialization, forward-only promotion and retrieval, measured retention, harmful-transfer rollback, and permanent post-rollback refusal
+- Added sealed public/evaluator separation, V1-V4 and learning-fixture non-overlap proofs, immutable response/runtime-memory freezing, exactly-once execution/evaluation controls, and focused offline qualification coverage
+- Preserved V4 packages, evaluators, and frozen results; no product cognitive behavior, mentor, Governor, learning adapter, Executive Memory behavior, deployment, or merge was changed
+
 ## Version 2.0
 - User accounts
 - Saved listings
