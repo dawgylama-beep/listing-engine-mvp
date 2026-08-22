@@ -897,6 +897,12 @@
 - Added sealed public/evaluator separation, V1-V4 and learning-fixture non-overlap proofs, immutable response/runtime-memory freezing, exactly-once execution/evaluation controls, and focused offline qualification coverage
 - Preserved V4 packages, evaluators, and frozen results; no product cognitive behavior, mentor, Governor, learning adapter, Executive Memory behavior, deployment, or merge was changed
 
+## Version 1.12.44 (Completed)
+- Corrected the V5 recovery route to validate append-only Executive Memory by immutable record identity, set inclusion, and forward episode sequence instead of filename lexical prefix
+- Added consumed-capture recovery that recognizes the completed C02 governed-learning transition without redispatching the provider, replaying learning events, or rewriting the immutable response capture
+- Added external recovery-authority binding, consumed-case redispatch denial, duplicate-capture protection, and focused recovery, append-only-memory, duplicate, and quality-retry regression coverage
+- Preserved the sealed V5 package and evaluator, product cognition, mentor, Governor policy, learning adapter behavior, Executive Memory semantics, V4, deployment, and main
+
 ## Version 2.0
 - User accounts
 - Saved listings

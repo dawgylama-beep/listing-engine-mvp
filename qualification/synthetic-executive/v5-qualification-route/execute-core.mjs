@@ -18,10 +18,14 @@ import {
 } from "../scripts/executive-action-registry.mjs";
 import { loadPreparedRun } from "./prepare-core.mjs";
 import {
-  CASE_IDS, EXECUTION_LIMITS, MECHANICAL_RETRY_REASONS, acquireExecutionLock, appendLedger,
-  corpusRoot, existsLiteral, readJson, readLedger, seal, sha256Bytes, sha256Json, stableJson,
-  verifySeal, writeExclusiveBytes, writeExclusiveJson
+  CASE_IDS, EXECUTION_LIMITS, MECHANICAL_RETRY_REASONS, PACKAGE_IDENTITIES,
+  acquireExecutionLock, appendLedger, assertExternalExistingFile, corpusRoot, existsLiteral,
+  inspectRepository, readJson, readLedger, repositoryRoot, seal, sha256Bytes, sha256Json,
+  stableJson, verifySeal, writeExclusiveBytes, writeExclusiveJson
 } from "./shared.mjs";
+
+export const V5_SEALED_PACKAGE_COMMIT = "22484bbde8138bdb8a23fa2628c81e922d546d20";
+export const V5_RECOVERY_COMMIT_SUBJECT = "fix: recover v5 learning transition ordering";
 
 const booleanField = Object.freeze({ type: "boolean" });
 const stringField = (maximum = 512) => Object.freeze({ type: "string", maxLength: maximum });
@@ -145,6 +149,118 @@ export function assertResponseCapture(bytes, complete = true) {
 }
 export function assertMechanicalRetryReason(reason) {
   assert.equal(MECHANICAL_RETRY_REASONS.includes(reason), true, "UNAUTHORIZED_OR_QUALITY_BASED_RETRY"); return true;
+}
+
+export function recoveryDispatchLedgerIdentity(ledger) {
+  const intents = ledger.filter((entry) => entry.kind === "DISPATCH_INTENT_PERSISTED");
+  const responses = ledger.filter((entry) => entry.kind === "PROVIDER_RESPONSE_CAPTURED");
+  const retries = ledger.filter((entry) => entry.kind === "RETRY_AUTHORIZED");
+  return Object.freeze({
+    entryCount: ledger.length,
+    ledgerEntryAggregateHash: sha256Json(ledger.map((entry) => entry.ledgerEntryHash)),
+    dispatchIntentCount: intents.length,
+    providerResponseCount: responses.length,
+    retryCount: retries.length,
+    dispatchedSlots: intents.map((entry) => Object.freeze({
+      caseId: entry.caseId,
+      attempt: entry.attempt,
+      requestHash: entry.requestHash,
+      dispatchIntentHash: entry.dispatchIntentHash
+    }))
+  });
+}
+
+export function assertV5RecoveryAuthorization(authority, {
+  resultsRoot,
+  prepared,
+  repositoryIdentity,
+  originalLedger,
+  c01Terminal,
+  c02Capture
+}) {
+  verifySeal(authority, "recoveryAuthorizationHash");
+  assert.equal(authority.schemaVersion, "1.0");
+  assert.equal(authority.authorityType, "EXTERNAL_APPEND_ONLY_V5_RECOVERY_AUTHORIZATION");
+  assert.equal(authority.authorizationStatus, "AUTHORIZED", "V5_RECOVERY_NOT_AUTHORIZED");
+  assert.equal(authority.singleRecovery, true, "V5_RECOVERY_MUST_BE_SINGLE_USE");
+  assert.equal(authority.resultsRoot, resultsRoot, "V5_RECOVERY_RESULTS_ROOT_MISMATCH");
+  assert.equal(authority.originalRunIdentityHash, prepared.runIdentity.runIdentityHash, "V5_RECOVERY_RUN_IDENTITY_MISMATCH");
+  assert.equal(authority.originalRunId, prepared.runIdentity.runId, "V5_RECOVERY_RUN_ID_MISMATCH");
+  assert.equal(authority.originalPackageCommit, V5_SEALED_PACKAGE_COMMIT, "V5_RECOVERY_PACKAGE_COMMIT_MISMATCH");
+  assert.equal(authority.originalPackageCommit, prepared.runIdentity.repositoryCommit, "V5_RECOVERY_PREPARED_COMMIT_MISMATCH");
+  assert.equal(authority.correctionCommit, repositoryIdentity.head, "V5_RECOVERY_CORRECTION_COMMIT_MISMATCH");
+  assert.equal(repositoryIdentity.parent, V5_SEALED_PACKAGE_COMMIT, "V5_RECOVERY_CORRECTION_PARENT_MISMATCH");
+  assert.equal(repositoryIdentity.subject, V5_RECOVERY_COMMIT_SUBJECT, "V5_RECOVERY_CORRECTION_SUBJECT_MISMATCH");
+  assert.deepEqual(authority.packageIdentities, PACKAGE_IDENTITIES, "V5_RECOVERY_PACKAGE_IDENTITIES_MISMATCH");
+  assert.equal(authority.originalBudgetIdentity, PACKAGE_IDENTITIES.executionBudgetSha256, "V5_RECOVERY_BUDGET_IDENTITY_MISMATCH");
+  assert.equal(
+    authority.originalAuthority.authorizationHash,
+    prepared.authorization.authorizationHash,
+    "V5_RECOVERY_ORIGINAL_AUTHORITY_MISMATCH"
+  );
+  assert.equal(
+    authority.originalAuthority.authorizationReceiptHash,
+    prepared.authorizationReceipt.authorizationReceiptHash,
+    "V5_RECOVERY_AUTHORITY_RECEIPT_MISMATCH"
+  );
+  assert.deepEqual(authority.originalDispatchLedger, recoveryDispatchLedgerIdentity(originalLedger), "V5_RECOVERY_LEDGER_MISMATCH");
+  assert.deepEqual(authority.consumedCaseIds, ["KE-V5-C01", "KE-V5-C02"], "V5_RECOVERY_CONSUMED_CASES_MISMATCH");
+  assert.deepEqual(authority.unattemptedInitialCaseIds, CASE_IDS.slice(2), "V5_RECOVERY_UNATTEMPTED_CASES_MISMATCH");
+  assert.equal(authority.unattemptedInitialCaseSlots, 12, "V5_RECOVERY_SLOT_COUNT_MISMATCH");
+  assert.equal(authority.zeroReplacementAuthorityForConsumedCases, true, "V5_RECOVERY_REPLACEMENT_AUTHORITY_FORBIDDEN");
+  assert.equal(authority.redispatchConsumedCasesPermitted, false, "V5_RECOVERY_REDISPATCH_FORBIDDEN");
+  assert.equal(authority.evaluatorAccessBeforeAllTerminalSealsPermitted, false, "V5_RECOVERY_EVALUATOR_EARLY_ACCESS_FORBIDDEN");
+  assert.deepEqual(authority.c01TerminalIdentity, {
+    terminalHash: c01Terminal.terminalHash,
+    captureHash: c01Terminal.captureHash,
+    responseHash: c01Terminal.responseHash,
+    runtimeEvidenceHash: c01Terminal.runtimeEvidenceHash
+  }, "V5_RECOVERY_C01_IDENTITY_MISMATCH");
+  assert.deepEqual(authority.c02ImmutableResponseIdentity, {
+    captureHash: c02Capture.captureHash,
+    responseHash: c02Capture.responseHash,
+    providerResponseId: c02Capture.providerResponseId,
+    requestHash: c02Capture.requestHash
+  }, "V5_RECOVERY_C02_IDENTITY_MISMATCH");
+  return authority;
+}
+
+async function loadV5RecoveryAuthorization({ resultsRoot, recoveryAuthorityPath, prepared }) {
+  assert.equal(typeof recoveryAuthorityPath, "string", "V5_RECOVERY_AUTHORITY_PATH_REQUIRED");
+  const repositoryIdentity = await inspectRepository();
+  await assertExternalExistingFile(recoveryAuthorityPath, {
+    protectedRoots: [resultsRoot, repositoryRoot, repositoryIdentity.commonDirectory,
+      repositoryIdentity.gitDirectory, ...repositoryIdentity.worktreeRoots]
+  });
+  const authorityBytes = await readFile(recoveryAuthorityPath);
+  const authority = JSON.parse(authorityBytes.toString("utf8"));
+  const originalLedger = await readLedger(resultsRoot);
+  const c01Terminal = verifySeal(await readJson(path.join(resultsRoot, "cases", "KE-V5-C01.terminal.json")), "terminalHash");
+  const c02Capture = verifySeal(await readJson(path.join(resultsRoot, "captures", "KE-V5-C02-attempt-01.json")), "captureHash");
+  assertV5RecoveryAuthorization(authority, {
+    resultsRoot, prepared, repositoryIdentity, originalLedger, c01Terminal, c02Capture
+  });
+  assert.equal(originalLedger.filter((entry) => entry.kind === "DISPATCH_INTENT_PERSISTED").length, 2, "V5_RECOVERY_REQUIRES_EXACTLY_TWO_DISPATCHES");
+  assert.equal(originalLedger.some((entry) => entry.kind === "RETRY_AUTHORIZED"), false, "V5_RECOVERY_RETRY_ALREADY_EXISTS");
+  for (const caseId of ["KE-V5-C01", "KE-V5-C02"]) {
+    const capture = verifySeal(await readJson(path.join(resultsRoot, "captures", `${caseId}-attempt-01.json`)), "captureHash");
+    const intent = verifySeal(await readJson(path.join(resultsRoot, "dispatch-intents", `${caseId}-attempt-01.json`)), "dispatchIntentHash");
+    const raw = await readFile(path.join(resultsRoot, ...capture.rawRelativePath.split("/")));
+    assert.equal(capture.requestHash, intent.requestHash, "V5_RECOVERY_CAPTURE_INTENT_MISMATCH");
+    assert.equal(sha256Bytes(raw), capture.responseHash, "V5_RECOVERY_RAW_RESPONSE_CHANGED");
+    assert.equal(raw.length, capture.responseBytes, "V5_RECOVERY_RAW_RESPONSE_LENGTH_CHANGED");
+  }
+  const c01Evidence = verifySeal(await readJson(path.join(resultsRoot, "runtime-evidence", "KE-V5-C01.json")), "runtimeEvidenceHash");
+  assert.equal(c01Terminal.captureHash, (await readJson(path.join(resultsRoot, "captures", "KE-V5-C01-attempt-01.json"))).captureHash,
+    "V5_RECOVERY_C01_CAPTURE_CHANGED");
+  assert.equal(c01Terminal.runtimeEvidenceHash, c01Evidence.runtimeEvidenceHash, "V5_RECOVERY_C01_EVIDENCE_CHANGED");
+  assert.equal(c01Terminal.responseHash, c01Evidence.responseHash, "V5_RECOVERY_C01_RESPONSE_BINDING_CHANGED");
+  assert.equal(await existsLiteral(path.join(resultsRoot, "cases", "KE-V5-C02.terminal.json")), false, "V5_RECOVERY_C02_ALREADY_TERMINAL");
+  assert.equal(await existsLiteral(path.join(resultsRoot, "runtime-evidence", "KE-V5-C02.json")), false, "V5_RECOVERY_C02_EVIDENCE_ALREADY_EXISTS");
+  assert.equal(await existsLiteral(path.join(resultsRoot, "recovery-authorization-receipt.json")), false, "V5_RECOVERY_ALREADY_AUTHORIZED");
+  assert.equal(await existsLiteral(path.join(resultsRoot, "freeze", "freeze-seal.json")), false, "V5_RECOVERY_FREEZE_ALREADY_EXISTS");
+  assert.equal(await existsLiteral(path.join(resultsRoot, "evaluation", "evaluator-result.json")), false, "V5_RECOVERY_EVALUATION_ALREADY_EXISTS");
+  return Object.freeze({ authority, authoritySourceSha256: sha256Bytes(authorityBytes), repositoryIdentity });
 }
 
 async function loadPublicCase(caseId) {
@@ -694,7 +810,115 @@ function reconstructAuthorizedRuntime(visible, context) {
   return Object.freeze({ governor, runtime });
 }
 
-async function completeCapturedCognitiveRuntime({ resultsRoot, caseId, capture, learningAdapter, prepared, now }) {
+export function validateAppendOnlyMemoryTransition({ context, afterRecords, prepared, expectedAppendedMemoryIds }) {
+  const beforeIds = context.memoryBeforeIds;
+  const priorRecords = context.executiveMemoryContext?.records;
+  assert.equal(Array.isArray(beforeIds), true, "V5_MEMORY_BEFORE_IDENTITIES_REQUIRED");
+  assert.equal(Array.isArray(priorRecords), true, "V5_MEMORY_BEFORE_RECORDS_REQUIRED");
+  assert.deepEqual(priorRecords.map((record) => record.memoryId), beforeIds, "V5_MEMORY_BEFORE_CONTEXT_MISMATCH");
+  const afterIds = afterRecords.map((record) => record.memoryId);
+  assert.equal(new Set(afterIds).size, afterIds.length, "V5_DUPLICATE_MEMORY_IDENTITY");
+  const afterById = new Map(afterRecords.map((record) => [record.memoryId, record]));
+  for (const prior of priorRecords) {
+    const retained = afterById.get(prior.memoryId);
+    assert.ok(retained, "V5_MEMORY_RECORD_DELETED");
+    assert.deepEqual(retained, prior, "V5_MEMORY_RECORD_MUTATED_OR_REPLACED");
+  }
+  assert.equal(beforeIds.every((memoryId) => afterById.has(memoryId)), true, "V5_MEMORY_PRIOR_SET_NOT_INCLUDED");
+  const expected = [...expectedAppendedMemoryIds];
+  assert.equal(new Set(expected).size, expected.length, "V5_EXPECTED_APPEND_IDENTITY_REPLAY");
+  assert.equal(expected.every((memoryId) => !beforeIds.includes(memoryId)), true, "V5_MEMORY_IDENTITY_REPLAY");
+  const appended = afterRecords.filter((record) => !beforeIds.includes(record.memoryId));
+  assert.deepEqual(
+    appended.map((record) => record.memoryId).sort(),
+    [...expected].sort(),
+    "V5_UNAUTHORIZED_MEMORY_INSERTION_OR_MISSING_APPEND"
+  );
+  const runIdentity = prepared.runIdentity.runIdentityHash;
+  assert.equal(afterRecords.every((record) => record.runIdentity === runIdentity), true, "V5_CROSS_RUN_MEMORY_DETECTED");
+  const priorMaximumSequence = priorRecords.reduce((maximum, record) => Math.max(maximum, record.sourceEpisodeSequence), 0);
+  for (const record of appended) {
+    assert.equal(Number.isSafeInteger(record.sourceEpisodeSequence), true, "V5_MEMORY_APPEND_SEQUENCE_REQUIRED");
+    assert.ok(record.sourceEpisodeSequence > priorMaximumSequence, "V5_MEMORY_APPEND_NOT_FORWARD_ONLY");
+    assert.ok(record.sourceEpisodeSequence > context.learningEpisodeSequence, "V5_MEMORY_APPEND_EPISODE_NOT_LATER");
+    assert.ok(record.sourceEpisodeSequence <= context.learningEpisodeSequence + 3, "V5_MEMORY_APPEND_SEQUENCE_UNAUTHORIZED");
+    assert.equal(record.mentorDecisionIdentity, context.mentorDecisionIdentity, "V5_MEMORY_APPEND_GOVERNOR_BINDING_MISMATCH");
+  }
+  const logicalAfterIds = [
+    ...beforeIds,
+    ...appended.sort((left, right) => (
+      left.sourceEpisodeSequence - right.sourceEpisodeSequence || left.memoryId.localeCompare(right.memoryId)
+    )).map((record) => record.memoryId)
+  ];
+  assert.equal(new Set(logicalAfterIds).size, afterRecords.length, "V5_MEMORY_LOGICAL_HISTORY_INCOMPLETE");
+  assert.equal(logicalAfterIds.every((memoryId) => afterById.has(memoryId)), true, "V5_MEMORY_LOGICAL_HISTORY_UNKNOWN_IDENTITY");
+  return Object.freeze({ beforeIds: [...beforeIds], afterIds: logicalAfterIds, appendedRecords: appended });
+}
+
+export function recoverCompletedCandidateTransition({ events, afterRecords, context, learningStatus, learningCategory }) {
+  const failureEvents = events.filter((event) => (
+    event.event_type === "FAILURE_RECORDED"
+    && event.payload?.episode_id === context.caseId
+    && event.payload?.episode_sequence === context.learningEpisodeSequence + 1
+  ));
+  assert.equal(failureEvents.length, 1, "V5_RECOVERY_FAILURE_EVENT_NOT_EXACT");
+  const failure = failureEvents[0];
+  assert.equal(failure.learning_scope_identity, context.runIdentityHash, "V5_RECOVERY_LEARNING_SCOPE_MISMATCH");
+  assert.equal(failure.payload.failure_category, learningCategory, "V5_RECOVERY_FAILURE_CATEGORY_MISMATCH");
+  assert.equal(failure.payload.cognitive_episode_hash, context.visibleEvidenceIds[0], "V5_RECOVERY_COGNITIVE_EVIDENCE_MISMATCH");
+  assert.deepEqual([...failure.payload.evidence_references].sort(), [...context.visibleEvidenceIds].sort(), "V5_RECOVERY_VISIBLE_EVIDENCE_MISMATCH");
+  const diagnoses = events.filter((event) => (
+    event.event_type === "MENTOR_DIAGNOSIS_RECORDED"
+    && event.payload?.failure_id === failure.payload.failure_id
+  ));
+  assert.equal(diagnoses.length, 1, "V5_RECOVERY_DIAGNOSIS_EVENT_NOT_EXACT");
+  const diagnosis = diagnoses[0];
+  assert.equal(diagnosis.sequence, failure.sequence + 1, "V5_RECOVERY_DIAGNOSIS_SEQUENCE_MISMATCH");
+  assert.equal(diagnosis.payload.mentor_decision_identity, context.mentorDecisionIdentity, "V5_RECOVERY_MENTOR_IDENTITY_MISMATCH");
+  const candidates = events.filter((event) => (
+    event.event_type === "LESSON_CANDIDATE_RECORDED"
+    && event.payload?.failure_id === failure.payload.failure_id
+    && event.payload?.diagnosis_id === diagnosis.payload.diagnosis_id
+  ));
+  assert.equal(candidates.length, 1, "V5_RECOVERY_CANDIDATE_EVENT_NOT_EXACT");
+  const candidateEvent = candidates[0];
+  assert.equal(candidateEvent.sequence, diagnosis.sequence + 1, "V5_RECOVERY_CANDIDATE_SEQUENCE_MISMATCH");
+  const memoryRecord = afterRecords.find((record) => record.memoryId === candidateEvent.payload.memory_id);
+  assert.ok(memoryRecord, "V5_RECOVERY_CANDIDATE_MEMORY_MISSING");
+  assert.equal(memoryRecord.contentHash, candidateEvent.payload.memory_hash, "V5_RECOVERY_CANDIDATE_MEMORY_CHANGED");
+  assert.equal(memoryRecord.sourceEpisodeSequence, context.learningEpisodeSequence + 1, "V5_RECOVERY_CANDIDATE_EPISODE_MISMATCH");
+  assert.equal(memoryRecord.mentorDecisionIdentity, context.mentorDecisionIdentity, "V5_RECOVERY_CANDIDATE_GOVERNOR_BINDING_MISMATCH");
+  assert.equal(learningStatus.failures, context.beforeLearningStatus.failures + 1, "V5_RECOVERY_FAILURE_COUNT_MISMATCH");
+  assert.equal(learningStatus.candidates, context.beforeLearningStatus.candidates + 1, "V5_RECOVERY_CANDIDATE_COUNT_MISMATCH");
+  for (const field of ["applications", "qualifications", "promotedLessons", "retainedLessons", "rolledBackLessons"]) {
+    assert.equal(learningStatus[field], context.beforeLearningStatus[field], `V5_RECOVERY_UNEXPECTED_${field.toUpperCase()}_CHANGE`);
+  }
+  assert.equal(learningStatus.lastEpisodeSequence, context.learningEpisodeSequence + 1, "V5_RECOVERY_LEDGER_SEQUENCE_MISMATCH");
+  return Object.freeze({
+    result: "LESSON_CANDIDATE_RECORDED",
+    failureId: failure.payload.failure_id,
+    diagnosisId: diagnosis.payload.diagnosis_id,
+    candidateId: candidateEvent.payload.candidate_id,
+    memoryId: candidateEvent.payload.memory_id,
+    promotionAuthorized: false
+  });
+}
+
+async function recoverExistingC02LearningTransition({ resultsRoot, caseId, learningAdapter, context, learningCategory }) {
+  assert.equal(caseId, "KE-V5-C02", "V5_RECOVERY_EXISTING_TRANSITION_CASE_FORBIDDEN");
+  const verification = await learningAdapter.verify();
+  assert.equal(verification.result, "VALID", "V5_RECOVERY_LEARNING_VERIFICATION_FAILED");
+  const afterRecords = await learningAdapter.memoryStore.list();
+  const learningStatus = await learningAdapter.status();
+  const ledgerText = await readFile(path.join(resultsRoot, "governed-learning", "ledger", "events.jsonl"), "utf8");
+  const events = ledgerText.trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+  const candidate = recoverCompletedCandidateTransition({ events, afterRecords, context, learningStatus, learningCategory });
+  return Object.freeze({ candidate, afterRecords, learningStatus, verification });
+}
+
+async function completeCapturedCognitiveRuntime({
+  resultsRoot, caseId, capture, learningAdapter, prepared, now, recoverExistingLearningTransition = false
+}) {
   const evidencePath = path.join(resultsRoot, "runtime-evidence", `${caseId}.json`);
   if (await existsLiteral(evidencePath)) {
     const existing = verifySeal(await readJson(evidencePath), "runtimeEvidenceHash");
@@ -722,30 +946,33 @@ async function completeCapturedCognitiveRuntime({ resultsRoot, caseId, capture, 
   let qualification = null;
   let promotion = null;
   let application = null;
+  const recovered = recoverExistingLearningTransition
+    ? await recoverExistingC02LearningTransition({ resultsRoot, caseId, learningAdapter, context, learningCategory })
+    : null;
   if (observation?.kind === "QUALIFICATION_TRIAL") {
     assert.equal(typeof learningCategory, "string", "V5_CANONICAL_LEARNING_CATEGORY_REQUIRED");
     const ids = context.visibleEvidenceIds;
     assert.ok(ids.length >= 3, "V5_LEARNING_VISIBLE_EVIDENCE_REQUIRED");
-    candidate = await learningAdapter.captureProductFailure({
-      governor,
-      runtime,
-      episodeId: caseId,
-      episodeSequence: context.learningEpisodeSequence + 1,
-      cognitiveEpisode: {
-        cognitiveEpisodeHash: ids[0],
-        linkedExperienceRecordHash: ids[1]
-      },
-      lessonCandidate: {
-        lessonCandidateHash: ids[2],
-        generalizedFailureCategory: learningCategory,
-        actionSequenceSummary: [{ actionType: context.cognitiveAction }],
-        proposedEngineeringReviewArea: learningCategory,
-        generalizedPreconditions: [learningCategory],
-        subsystem: `V5_CANONICAL_BOUNDARY:${learningCategory}`
-      },
-      visibleEvidenceIds: ids,
-      createdAt: capture.completedAt || now
-    });
+    candidate = recovered?.candidate || await learningAdapter.captureProductFailure({
+        governor,
+        runtime,
+        episodeId: caseId,
+        episodeSequence: context.learningEpisodeSequence + 1,
+        cognitiveEpisode: {
+          cognitiveEpisodeHash: ids[0],
+          linkedExperienceRecordHash: ids[1]
+        },
+        lessonCandidate: {
+          lessonCandidateHash: ids[2],
+          generalizedFailureCategory: learningCategory,
+          actionSequenceSummary: [{ actionType: context.cognitiveAction }],
+          proposedEngineeringReviewArea: learningCategory,
+          generalizedPreconditions: [learningCategory],
+          subsystem: `V5_CANONICAL_BOUNDARY:${learningCategory}`
+        },
+        visibleEvidenceIds: ids,
+        createdAt: capture.completedAt || now
+      });
     const prior = await priorTrialEvidence(resultsRoot, caseId, learningCategory);
     const trials = [...prior.trials, observation].map((trial) => ({
       caseId: trial.caseId || caseId,
@@ -797,11 +1024,16 @@ async function completeCapturedCognitiveRuntime({ resultsRoot, caseId, capture, 
   }
   const afterRecords = await learningAdapter.memoryStore.list();
   const afterLearningStatus = await learningAdapter.status();
-  const beforeIds = context.memoryBeforeIds;
-  const afterIds = afterRecords.map((record) => record.memoryId);
-  assert.deepEqual(afterIds.slice(0, beforeIds.length), beforeIds, "V5_MEMORY_HISTORY_CHANGED");
-  assert.equal(afterRecords.every((record) => record.runIdentity === prepared.runIdentity.runIdentityHash), true,
-    "V5_CROSS_RUN_MEMORY_DETECTED");
+  if (recovered) {
+    assert.deepEqual(afterRecords, recovered.afterRecords, "V5_RECOVERY_MEMORY_CHANGED_DURING_TERMINALIZATION");
+    assert.deepEqual(afterLearningStatus, recovered.learningStatus, "V5_RECOVERY_LEDGER_CHANGED_DURING_TERMINALIZATION");
+  }
+  const expectedAppendedMemoryIds = [candidate?.memoryId, promotion?.lessonId, application?.rollbackMemoryId].filter(Boolean);
+  const validatedMemory = validateAppendOnlyMemoryTransition({
+    context, afterRecords, prepared, expectedAppendedMemoryIds
+  });
+  const beforeIds = validatedMemory.beforeIds;
+  const afterIds = validatedMemory.afterIds;
   const trialObservation = observation?.kind === "QUALIFICATION_TRIAL"
     ? Object.freeze({ caseId, learningCategory, ...observation })
     : null;
@@ -953,10 +1185,21 @@ export async function freezeTerminalResponses(resultsRoot, now = new Date().toIS
   return Object.freeze({ manifest, freezeSeal: sealRecord });
 }
 
-export async function executeQualificationRun({ resultsRoot, transport, resume = false, now = () => new Date().toISOString(), hooks = {} }) {
+export async function executeQualificationRun({
+  resultsRoot,
+  transport,
+  resume = false,
+  recoveryAuthorityPath = null,
+  now = () => new Date().toISOString(),
+  hooks = {}
+}) {
   assert.ok(transport && typeof transport.dispatch === "function", "PRODUCTION_OR_INJECTED_TRANSPORT_REQUIRED");
   const prepared = await loadPreparedRun(resultsRoot);
   assert.equal(await existsLiteral(path.join(resultsRoot, "freeze", "freeze-seal.json")), false, "DUPLICATE_EXECUTION_INVOCATION");
+  assert.equal(Boolean(recoveryAuthorityPath) === resume, true, "V5_RECOVERY_AUTHORITY_AND_RESUME_MUST_MATCH");
+  const recovery = resume
+    ? await loadV5RecoveryAuthorization({ resultsRoot, recoveryAuthorityPath, prepared })
+    : null;
   const learningAdapter = new GovernedLearningAdapter({
     root: path.join(resultsRoot, "governed-learning"),
     learningScopeIdentity: prepared.runIdentity.runIdentityHash
@@ -981,6 +1224,25 @@ export async function executeQualificationRun({ resultsRoot, transport, resume =
   }
   const invocationId = `${resume ? "resume" : "execute"}-${sha256Json({ runId: prepared.runIdentity.runId, at: now() }).slice(0, 24)}`;
   const lock = await acquireExecutionLock(resultsRoot, { resume, invocationId });
+  if (recovery) {
+    const receipt = seal({
+      schemaVersion: "1.0",
+      recordType: "IMMUTABLE_V5_RECOVERY_AUTHORIZATION_RECEIPT",
+      recoveryAuthorization: recovery.authority,
+      recoveryAuthorizationSourceSha256: recovery.authoritySourceSha256,
+      originalRunIdentityHash: prepared.runIdentity.runIdentityHash,
+      correctionCommit: recovery.repositoryIdentity.head,
+      receivedAt: now()
+    }, "recoveryAuthorizationReceiptHash");
+    await writeExclusiveJson(path.join(resultsRoot, "recovery-authorization-receipt.json"), receipt);
+    await appendLedger(resultsRoot, {
+      kind: "RECOVERY_AUTHORITY_ACCEPTED",
+      recoveryAuthorizationHash: recovery.authority.recoveryAuthorizationHash,
+      recoveryAuthorizationReceiptHash: receipt.recoveryAuthorizationReceiptHash,
+      correctionCommit: recovery.repositoryIdentity.head,
+      occurredAt: receipt.receivedAt
+    });
+  }
   await appendLedger(resultsRoot, { kind: resume ? "EXECUTION_RESUMED" : "EXECUTION_INVOKED", invocationId, occurredAt: now() });
   let started = await existsLiteral(path.join(resultsRoot, "states", "001-blind-run-started.json"));
 
@@ -998,10 +1260,13 @@ export async function executeQualificationRun({ resultsRoot, transport, resume =
         continue;
       }
       if (files.captures.length > 0) {
+        assert.equal(files.captures.length, 1, "V5_DUPLICATE_CAPTURE_IDENTITY");
+        assert.equal(files.intents.length, 1, "V5_EXISTING_CAPTURE_DISPATCH_IDENTITY_MISMATCH");
         const capture = verifySeal(await readJson(path.join(resultsRoot, "captures", files.captures.at(-1))), "captureHash");
         if (capture.recordType === "COMPLETE_RAW_PROVIDER_RESPONSE_CAPTURE") {
           const runtimeEvidence = await completeCapturedCognitiveRuntime({
-            resultsRoot, caseId, capture, learningAdapter, prepared, now: now()
+            resultsRoot, caseId, capture, learningAdapter, prepared, now: now(),
+            recoverExistingLearningTransition: Boolean(recovery) && caseId === "KE-V5-C02"
           });
           await terminalize(resultsRoot, caseId, capture, "TERMINAL_CAPTURED", now(), runtimeEvidence); continue;
         }
@@ -1010,6 +1275,9 @@ export async function executeQualificationRun({ resultsRoot, transport, resume =
       while (true) {
         const ledger = await readLedger(resultsRoot); const priorReservedUsd = ledger.filter((item) => item.kind === "DISPATCH_AUTHORITY_RESERVED").reduce((sum, item) => sum + item.reservationUsd, 0);
         const retryCount = ledger.filter((item) => item.kind === "RETRY_AUTHORIZED").length;
+        const initialDispatches = ledger.filter((item) => item.kind === "DISPATCH_INTENT_PERSISTED" && item.attempt === 1);
+        assert.ok(initialDispatches.length < EXECUTION_LIMITS.caseSlots, "INITIAL_CASE_SLOT_CEILING_EXCEEDED");
+        if (recovery) assert.equal(["KE-V5-C01", "KE-V5-C02"].includes(caseId), false, "V5_RECOVERY_CONSUMED_CASE_REDISPATCH_DENIED");
         assertRequestAuthority({ requestBytes: request.requestBytes, outputTokens: 4_000, reservationUsd: request.reservationUsd, priorReservedUsd, retryCount });
         await appendLedger(resultsRoot, { kind: "DISPATCH_AUTHORITY_RESERVED", caseId, attempt, requestHash: request.requestHash, requestBytes: request.requestBytes, reservationUsd: request.reservationUsd, occurredAt: now() });
         if (!started) {
@@ -1036,6 +1304,7 @@ export async function executeQualificationRun({ resultsRoot, transport, resume =
           await terminalize(resultsRoot, caseId, capture, "TERMINAL_CAPTURED", now(), runtimeEvidence); break;
         } catch (error) {
           if (["INTERRUPT_BEFORE_INTENT", "INTERRUPT_AFTER_INTENT", "INTERRUPT_AFTER_CAPTURE"].includes(error?.code)) throw error;
+          if (capture?.recordType === "COMPLETE_RAW_PROVIDER_RESPONSE_CAPTURE") throw error;
           capture = await captureFailure({ resultsRoot, caseId, attempt, request, error, now: now() });
           await appendLedger(resultsRoot, { kind: "PROVIDER_FAILURE_CAPTURED", caseId, attempt, requestHash: request.requestHash, captureHash: capture.captureHash, failureCode: capture.failureCode, occurredAt: now() });
           if (MECHANICAL_RETRY_REASONS.includes(capture.failureCode)) {
