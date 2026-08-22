@@ -196,7 +196,7 @@ async function invokeProductHandler(adapter, analysisId) {
   return { res, providerCalls };
 }
 
-test("POST /api/generate-listing reaches the shared governed adapter and later applies only a Governor-promoted lesson", async () => {
+test("POST /api/generate-listing reaches the shared governed adapter and exposes the authoritative transition", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ke-product-learning-"));
   const adapter = new GovernedLearningAdapter({
     root,
@@ -266,11 +266,15 @@ test("POST /api/generate-listing reaches the shared governed adapter and later a
       episodeSequence: 3,
       createdAt: fixedTime
     });
+    assert.equal(promotion.result, "LESSON_PROMOTED");
 
     const second = await invokeProductHandler(adapter, "materially-different-product-episode");
     assert.equal(second.res.statusCode, 502);
     const secondLearning = second.res.payload.diagnostics.governedLearning;
     assert.deepEqual(secondLearning.selectedLessonIds, [promotion.lessonId]);
+    assert.deepEqual(secondLearning.appliedLessonIds, [promotion.lessonId]);
+    assert.equal(secondLearning.memoryStatus, "RETRIEVED_APPLIED");
+    assert.equal(secondLearning.nonReuseDecision, "AUTHORIZED_TRANSFER");
     assert.deepEqual(secondLearning.trialCandidateIds, []);
     assert.equal(secondLearning.providerLifecycleAuthority, false);
     assert.equal(first.providerCalls.length > 0, true);

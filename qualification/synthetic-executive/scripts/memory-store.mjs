@@ -78,13 +78,20 @@ export class ExecutiveMemoryStore {
     canonicalIso(createdAt, "retrieval time");
     const records = await this.list();
     const queryTokens = tokenize(`${queryText} ${Object.values(queryFacets).flat().join(" ")}`);
+    const revokedMemoryIds = new Set(records
+      .filter((record) => record.status === "REVOKED")
+      .flatMap((record) => record.predecessorMemoryIds || []));
     const candidates = records.map((record) => {
       const recordText = [record.observedFailurePattern, record.generalizedRule, record.recurrenceSignature, ...(record.applicabilityBoundaries || [])].join(" ");
       const semanticScore = overlap(queryTokens, tokenize(recordText));
       const structuredScore = Object.entries(queryFacets).reduce((score, [key, value]) => score + (stableContains(record[key], value) ? 1 : 0), 0) / Math.max(1, Object.keys(queryFacets).length);
       return { memoryId: record.memoryId, status: record.status, candidateScore: Number((semanticScore * 0.6 + structuredScore * 0.4).toFixed(6)) };
     }).sort((a, b) => b.candidateScore - a.candidateScore || a.memoryId.localeCompare(b.memoryId));
-    const selected = candidates.filter((item) => item.candidateScore > 0).slice(0, 3);
+    const selected = candidates.filter((item) => (
+      item.candidateScore > 0
+      && item.status !== "REVOKED"
+      && !revokedMemoryIds.has(item.memoryId)
+    )).slice(0, 3);
     const empty = selected.length === 0;
     const core = {
       schemaVersion: "1.0",
@@ -95,7 +102,12 @@ export class ExecutiveMemoryStore {
       candidateMemoryIds: candidates.map((item) => item.memoryId),
       candidateScores: candidates,
       selectedMemoryIds: selected.map((item) => item.memoryId),
-      rejectedCandidates: candidates.filter((item) => !selected.includes(item)).map((item) => ({ memoryId: item.memoryId, reason: "LOWER_OR_ZERO_RELEVANCE" })),
+      rejectedCandidates: candidates.filter((item) => !selected.includes(item)).map((item) => ({
+        memoryId: item.memoryId,
+        reason: item.status === "REVOKED" || revokedMemoryIds.has(item.memoryId)
+          ? "ROLLED_BACK_OR_REVOKED"
+          : "LOWER_OR_ZERO_RELEVANCE"
+      })),
       resultClassification: empty ? "VALID_EMPTY" : "MATCHES_FOUND",
       recurrencePermitted: !empty,
       novelFailureClassificationPermitted: true,

@@ -9,7 +9,8 @@ import {
   runCanonicalCognitiveRuntime
 } from "../../../lib/cognitive-governor/index.js";
 import {
-  GovernedLearningAdapter
+  GovernedLearningAdapter,
+  projectAuthoritativeMemoryStatus
 } from "../../../lib/cognitive-learning/adapter.js";
 import {
   AUTHORITY_CLASSES,
@@ -549,6 +550,7 @@ async function prepareCaseRuntimeContext({ resultsRoot, caseId, learningAdapter,
     cognitiveAction: runtime.decision.actionType,
     cognitiveStateHash: runtime.decision.inputState.cognitiveStateHash,
     memoryContextHash: runtime.memory.memoryContextHash,
+    authoritativeMemoryTransition: runtime.authoritativeMemoryTransition,
     createdAt: now
   }, "runtimeContextHash");
   await writeExclusiveJson(contextPath, context);
@@ -649,34 +651,21 @@ export function assembleV5CognitiveResponse({ providerAnalysis, runtimeContext }
   const evidenceSufficient = mentor.retainedEvidenceSufficient
     && executive.evidenceCondition === "SUPPORTED"
     && !executive.contradictionPresent;
-  const insufficient = !evidenceSufficient || mentor.nextActionClass === "STOP_INSUFFICIENT_EVIDENCE";
-  const selectedMemoryIds = Array.isArray(runtimeContext.retrievalReceipt?.selectedMemoryIds)
-    ? runtimeContext.retrievalReceipt.selectedMemoryIds
-    : [];
-  const applicableMemoryId = !insufficient
-    && providerAnalysis.memoryApplicability === "APPLICABLE"
-    && selectedMemoryIds.length > 0
-    ? selectedMemoryIds[0]
-    : null;
+  const memoryProjection = projectAuthoritativeMemoryStatus({
+    authoritativeMemoryTransition: runtimeContext.authoritativeMemoryTransition
+  });
+  const insufficient = memoryProjection.memoryStatus === "INSUFFICIENT_EVIDENCE";
+  const selectedMemoryIds = memoryProjection.selectedLessonIds;
+  const applicableMemoryId = memoryProjection.applicableMemoryId;
   const classificationType = insufficient
     ? "DECLARE_INSUFFICIENT_EVIDENCE"
     : applicableMemoryId
       ? "DECLARE_RECURRENCE"
       : "DECLARE_NOVEL_FAILURE";
-  const lessonAuthorized = !insufficient
-    && classificationType === "DECLARE_NOVEL_FAILURE"
-    && runtimeContext.cognitiveAction === COGNITIVE_ACTION.EVALUATE_RETURNED_EVIDENCE
+  const lessonAuthorized = runtimeContext.authoritativeMemoryTransition.lessonCandidacyAuthorized === true
     && evidenceReferences.length > 0
-    && requiredEvidenceReferences.length > 0
-    && mentor.compatibilityAudit?.passed === true
-    && providerAnalysis.memoryApplicability !== "UNRESOLVED";
-  const memoryStatus = insufficient
-    ? "INSUFFICIENT_EVIDENCE"
-    : applicableMemoryId
-      ? "RETRIEVED_APPLIED"
-      : lessonAuthorized
-        ? "CANDIDATE"
-        : selectedMemoryIds.length > 0 ? "REJECTED_ANALOGY" : "NOVEL";
+    && requiredEvidenceReferences.length > 0;
+  const memoryStatus = memoryProjection.memoryStatus;
   const failureScope = insufficient
     ? "INSUFFICIENT_EVIDENCE"
     : executive.failureScope === "ARCHITECTURAL" ? "ARCHITECTURAL" : "BOUNDED";
@@ -731,6 +720,8 @@ export function assembleV5CognitiveResponse({ providerAnalysis, runtimeContext }
     mentorDecisionIdentity: runtimeContext.mentorDecisionIdentity,
     responseAssemblyHash: sha256Json(responseObject),
     lessonAuthorized,
+    authoritativeMemoryTransitionHash: memoryProjection.memoryTransitionHash,
+    providerMemoryClaimAuthoritative: false,
     authoritativeClosedFieldCount: Object.keys(responseObject).length - 2
   });
   return Object.freeze({ responseObject, responseAssembly });
@@ -844,6 +835,11 @@ function reconstructAuthorizedRuntime(visible, context) {
   assert.equal(runtime.runtimeIdentity, context.canonicalRuntimeIdentity, "V5_RUNTIME_IDENTITY_CHANGED");
   assert.equal(runtime.mentorDecisionIdentity, context.mentorDecisionIdentity, "V5_MENTOR_IDENTITY_CHANGED");
   assert.deepEqual(runtime.mentorDecision, context.mentorDecision, "V5_MENTOR_DECISION_CHANGED");
+  assert.deepEqual(
+    runtime.authoritativeMemoryTransition,
+    context.authoritativeMemoryTransition,
+    "V5_AUTHORITATIVE_MEMORY_TRANSITION_CHANGED"
+  );
   return Object.freeze({ governor, runtime });
 }
 
@@ -1004,7 +1000,6 @@ async function completeCapturedCognitiveRuntime({
   const visible = await loadPublicCase(caseId);
   const observation = publicLearningObservation(visible, context.appliedLessonIds);
   const learningCategory = governedLearningCategory(visible);
-  const publicPatternPresent = learningCategory !== null;
   const { governor, runtime } = reconstructAuthorizedRuntime(visible, context);
   let candidate = null;
   let qualification = null;
@@ -1114,6 +1109,7 @@ async function completeCapturedCognitiveRuntime({
       context.executiveMemoryContext.records.some((record) => record.memoryId === memoryId && record.status === "VALIDATED_BY_TRANSFER")
     )),
     providerLifecycleAuthority: false,
+    authoritativeMemoryTransition: context.authoritativeMemoryTransition,
     candidate,
     qualification,
     promotion,
@@ -1139,9 +1135,8 @@ async function completeCapturedCognitiveRuntime({
       promotion,
       application,
       selectedMemoryIds: context.appliedLessonIds,
-      rolledBackReuseDenied: context.beforeLearningStatus.rolledBackLessons > 0
-        && context.appliedLessonIds.length === 0
-        && publicPatternPresent,
+      rollbackRefusals: context.authoritativeMemoryTransition.rollbackRefusals,
+      rolledBackReuseDenied: context.authoritativeMemoryTransition.rollbackRefusals.length > 0,
       novelNonReuse: context.appliedLessonIds.length === 0
         && capture.responseObject.classificationType !== "DECLARE_RECURRENCE",
       qualificationBeforeInfluence: transition.qualificationBeforeInfluence,

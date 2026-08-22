@@ -16,6 +16,9 @@ import {
   GovernedLearningAdapter,
   GovernedLearningError
 } from "../lib/cognitive-learning/adapter.js";
+import { buildProductGovernedLearningProjection } from "../api/generate-listing.js";
+import { assembleV5CognitiveResponse } from "../qualification/synthetic-executive/v5-qualification-route/execute-core.mjs";
+import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
 
 const fixedTime = "2026-08-21T16:00:00.000Z";
 const evidenceAlpha = "visible-learning-evidence-alpha";
@@ -70,6 +73,7 @@ function objectMind(evidenceIds = []) {
 
 function snapshot(evaluationId, {
   insufficient = false,
+  novel = false,
   memoryMarker = "",
   visibleEvidenceIds = [evidenceAlpha, evidenceBeta]
 } = {}) {
@@ -102,6 +106,7 @@ function snapshot(evaluationId, {
       contradictionPresent: false,
       cycleDetected: false,
       duplicateDetected: false,
+      memoryReuseBoundary: novel ? "NOVEL" : "AUTO",
       dossierStage: insufficient ? "NOT_APPLICABLE" : "RETURNED",
       stoppingState: insufficient ? "INSUFFICIENT_EVIDENCE" : "ACTIVE"
     }
@@ -189,9 +194,30 @@ function passingTrials() {
   ];
 }
 
+function qualificationProjection(runtime, memoryApplicability = "APPLICABLE") {
+  return assembleV5CognitiveResponse({
+    providerAnalysis: {
+      failureAnalysis: "Neutral governed-memory analysis.",
+      memoryApplicability,
+      rationale: "Only the canonical transition controls memory state.",
+      uncertaintyAnalysis: "Provider text has no lifecycle authority."
+    },
+    runtimeContext: {
+      mentorDecision: runtime.mentorDecision,
+      mentorDecisionIdentity: runtime.mentorDecisionIdentity,
+      executiveState: runtime.decision.inputState.executiveState,
+      cognitiveAction: runtime.decision.actionType,
+      visibleEvidenceIds: runtime.decision.inputState.executiveState.visibleEvidenceIds,
+      retrievalReceipt: { selectedMemoryIds: runtime.authoritativeMemoryTransition.selectedMemoryIds },
+      authoritativeMemoryTransition: runtime.authoritativeMemoryTransition
+    }
+  }).responseObject;
+}
+
 test("complete governed lifecycle qualifies, promotes, applies, retains, rolls back, and persists", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ke-governed-learning-"));
   const adapter = new GovernedLearningAdapter({ root, learningScopeIdentity: "learning-test-scope" });
+  const networkGuard = installHardNetworkDenial();
   try {
     await adapter.initialize();
     const candidate = await recordInitialFailure(adapter);
@@ -201,16 +227,15 @@ test("complete governed lifecycle qualifies, promotes, applies, retains, rolls b
     const candidateRecord = candidateRecords.find((record) => record.memoryId === candidate.memoryId);
     assert.equal(candidateRecord.status, "CANDIDATE");
 
-    const productContext = {
-      runIdentity: "learning-test-scope",
-      currentEpisodeId: "prequalification-product",
-      records: candidateRecords,
-      selectedMemoryIds: [candidate.memoryId],
-      retrievalReceiptHash: "d".repeat(64),
-      startsEmpty: true,
-      forwardOnly: true,
-      learningMode: "PRODUCT"
-    };
+    const productContext = await adapter.prepareEpisode({
+      governor: createCognitiveGovernor({ evaluationId: "prequalification-product" }),
+      episodeId: "prequalification-product",
+      episodeSequence: 2,
+      queryFacets: { failureClass: [candidateRecord.observedFailurePattern] },
+      queryText: candidateRecord.observedFailurePattern,
+      learningMode: "PRODUCT",
+      createdAt: fixedTime
+    });
     const prequalification = runtimeFor("prequalification-product", { memory: productContext });
     assert.deepEqual(prequalification.runtime.governedLearning.appliedLessonIds, []);
     assert.deepEqual(prequalification.runtime.governedLearning.trialCandidateIds, []);
@@ -258,6 +283,62 @@ test("complete governed lifecycle qualifies, promotes, applies, retains, rolls b
     assert.equal((await restarted.status()).promotedLessons, 1);
     assert.equal((await restarted.verify()).result, "VALID");
 
+    const insufficientGovernor = createCognitiveGovernor({ evaluationId: "insufficient-transfer-boundary" });
+    const insufficientContext = await restarted.prepareEpisode({
+      governor: insufficientGovernor,
+      episodeId: "insufficient-transfer-boundary",
+      episodeSequence: 4,
+      queryFacets: { failureClass: [candidateRecord.observedFailurePattern] },
+      queryText: candidateRecord.observedFailurePattern,
+      createdAt: fixedTime
+    });
+    assert.deepEqual(insufficientContext.selectedMemoryIds, [promotion.lessonId]);
+    const insufficientRuntime = runCanonicalCognitiveRuntime({
+      governor: insufficientGovernor,
+      snapshot: snapshot("insufficient-transfer-boundary", { insufficient: true }),
+      executiveMemoryContext: insufficientContext
+    });
+    assert.deepEqual(insufficientRuntime.authoritativeMemoryTransition.selectedMemoryIds, []);
+    assert.deepEqual(insufficientRuntime.authoritativeMemoryTransition.appliedLessonIds, []);
+    assert.equal(insufficientRuntime.authoritativeMemoryTransition.memoryStatus, "INSUFFICIENT_EVIDENCE");
+    assert.equal(
+      insufficientRuntime.authoritativeMemoryTransition.nonReuseDecision,
+      "INSUFFICIENT_EVIDENCE_NON_REUSE"
+    );
+    assert.equal(qualificationProjection(insufficientRuntime, "APPLICABLE").memoryStatus, "INSUFFICIENT_EVIDENCE");
+    assert.equal(
+      buildProductGovernedLearningProjection(insufficientRuntime).memoryStatus,
+      insufficientRuntime.authoritativeMemoryTransition.memoryStatus
+    );
+
+    const novelGovernor = createCognitiveGovernor({ evaluationId: "novel-material-state" });
+    const novelContextBeforeTransfer = await restarted.prepareEpisode({
+      governor: novelGovernor,
+      episodeId: "novel-material-state",
+      episodeSequence: 4,
+      queryFacets: { failureClass: [candidateRecord.observedFailurePattern] },
+      queryText: candidateRecord.observedFailurePattern,
+      createdAt: fixedTime
+    });
+    assert.deepEqual(novelContextBeforeTransfer.selectedMemoryIds, [promotion.lessonId]);
+    const novelRuntimeBeforeTransfer = runCanonicalCognitiveRuntime({
+      governor: novelGovernor,
+      snapshot: snapshot("novel-material-state", { novel: true, memoryMarker: "NOVEL_MATERIAL_BOUNDARY" }),
+      executiveMemoryContext: novelContextBeforeTransfer
+    });
+    assert.deepEqual(novelRuntimeBeforeTransfer.authoritativeMemoryTransition.selectedMemoryIds, []);
+    assert.deepEqual(novelRuntimeBeforeTransfer.authoritativeMemoryTransition.appliedLessonIds, []);
+    assert.equal(
+      novelRuntimeBeforeTransfer.authoritativeMemoryTransition.nonReuseDecision,
+      "NOVEL_BOUNDARY_NON_REUSE"
+    );
+    assert.equal(novelRuntimeBeforeTransfer.authoritativeMemoryTransition.memoryStatus, "NOVEL");
+    assert.equal(qualificationProjection(novelRuntimeBeforeTransfer, "APPLICABLE").memoryStatus, "NOVEL");
+    assert.equal(
+      buildProductGovernedLearningProjection(novelRuntimeBeforeTransfer).memoryStatus,
+      novelRuntimeBeforeTransfer.authoritativeMemoryTransition.memoryStatus
+    );
+
     const laterContext = await restarted.prepareEpisode({
       governor: createCognitiveGovernor({ evaluationId: "later-materially-different" }),
       episodeId: "later-materially-different",
@@ -270,12 +351,56 @@ test("complete governed lifecycle qualifies, promotes, applies, retains, rolls b
       createdAt: fixedTime
     });
     assert.deepEqual(laterContext.selectedMemoryIds, [promotion.lessonId]);
+    const forgedContext = structuredClone(laterContext);
+    forgedContext.retrievalDecision.selectedMemoryIds = [];
+    assert.throws(
+      () => runCanonicalCognitiveRuntime({
+        governor: createCognitiveGovernor({ evaluationId: "forged-retrieval-transition" }),
+        snapshot: snapshot("forged-retrieval-transition"),
+        executiveMemoryContext: forgedContext
+      }),
+      (error) => error instanceof GovernedLearningError
+        && error.code === "AUTHORITATIVE_MEMORY_RETRIEVAL_DECISION_TAMPERED"
+    );
     const later = runtimeFor("later-materially-different", {
       memory: laterContext,
       memoryMarker: "MATERIALLY_DIFFERENT_LATER_BOUNDARY"
     });
     assert.deepEqual(later.runtime.governedLearning.appliedLessonIds, [promotion.lessonId]);
     assert.equal(later.runtime.governedLearning.providerLifecycleAuthority, false);
+    assert.equal(later.runtime.authoritativeMemoryTransition.memoryStatus, "RETRIEVED_APPLIED");
+    const productProjection = buildProductGovernedLearningProjection(later.runtime, {
+      result: "APPLICATION_PENDING"
+    });
+    assert.equal(productProjection.memoryStatus, "RETRIEVED_APPLIED");
+    assert.deepEqual(productProjection.appliedLessonIds, [promotion.lessonId]);
+    const neutralRouteContext = {
+      mentorDecision: later.runtime.mentorDecision,
+      mentorDecisionIdentity: later.runtime.mentorDecisionIdentity,
+      executiveState: later.runtime.decision.inputState.executiveState,
+      cognitiveAction: later.runtime.decision.actionType,
+      visibleEvidenceIds: later.runtime.decision.inputState.executiveState.visibleEvidenceIds,
+      retrievalReceipt: { selectedMemoryIds: [promotion.lessonId] },
+      authoritativeMemoryTransition: later.runtime.authoritativeMemoryTransition
+    };
+    const providerMemoryClaims = ["APPLICABLE", "NOT_APPLICABLE", "UNRESOLVED"];
+    const qualificationStatuses = providerMemoryClaims.map((memoryApplicability) => {
+      return assembleV5CognitiveResponse({
+        providerAnalysis: {
+          failureAnalysis: "Neutral bounded recurrence analysis.",
+          memoryApplicability,
+          rationale: "The governed runtime, not this analysis, owns the memory disposition.",
+          uncertaintyAnalysis: "No provider-authored memory claim is authoritative."
+        },
+        runtimeContext: neutralRouteContext
+      }).responseObject.memoryStatus;
+    });
+    assert.deepEqual(qualificationStatuses, [
+      "RETRIEVED_APPLIED",
+      "RETRIEVED_APPLIED",
+      "RETRIEVED_APPLIED"
+    ]);
+    assert.equal(qualificationStatuses[0], productProjection.memoryStatus);
 
     const retained = await restarted.recordApplication({
       governor: later.governor,
@@ -327,6 +452,19 @@ test("complete governed lifecycle qualifies, promotes, applies, retains, rolls b
     assert.equal(rolledBack.result, "LESSON_ROLLED_BACK");
     assert.equal(rolledBack.verdict, "REGRESSION");
     assert.equal((await restarted.status()).rolledBackLessons, 1);
+    const postRollbackRetrieval = await restarted.memoryStore.retrieve({
+      episodeId: "post-rollback-retrieval-proof",
+      queryFacets: { pattern: [candidateRecord.observedFailurePattern] },
+      queryText: candidateRecord.observedFailurePattern,
+      createdAt: fixedTime
+    });
+    assert.equal(postRollbackRetrieval.selectedMemoryIds.includes(promotion.lessonId), false);
+    assert.equal(
+      postRollbackRetrieval.rejectedCandidates.some((item) => (
+        item.memoryId === promotion.lessonId && item.reason === "ROLLED_BACK_OR_REVOKED"
+      )),
+      true
+    );
 
     const postRollbackGovernor = createCognitiveGovernor({ evaluationId: "post-rollback" });
     const postRollback = await restarted.prepareEpisode({
@@ -362,17 +500,110 @@ test("complete governed lifecycle qualifies, promotes, applies, retains, rolls b
       (error) => error instanceof GovernedLearningError && error.code === "LESSON_NOT_APPLICABLE"
     );
 
-    const novel = await restarted.prepareEpisode({
+    assert.equal(postRollback.retrievalDecision.resultClassification, "ROLLED_BACK_REFUSED");
+    assert.equal(postRollback.retrievalDecision.rollbackRefusals.length, 1);
+    assert.equal(postRollbackRuntime.authoritativeMemoryTransition.memoryStatus, "REJECTED_ANALOGY");
+    assert.deepEqual(postRollbackRuntime.authoritativeMemoryTransition.selectedMemoryIds, []);
+    assert.deepEqual(postRollbackRuntime.authoritativeMemoryTransition.appliedLessonIds, []);
+    const rollbackProductProjection = buildProductGovernedLearningProjection(postRollbackRuntime, {
+      result: "ROLLBACK_REUSE_REFUSED"
+    });
+    assert.equal(rollbackProductProjection.memoryStatus, "REJECTED_ANALOGY");
+    assert.deepEqual(
+      rollbackProductProjection.rollbackRefusals,
+      postRollbackRuntime.authoritativeMemoryTransition.rollbackRefusals
+    );
+    const rollbackQualificationProjection = assembleV5CognitiveResponse({
+      providerAnalysis: {
+        failureAnalysis: "Neutral later episode after a revoked lesson.",
+        memoryApplicability: "APPLICABLE",
+        rationale: "A model claim cannot reactivate revoked memory.",
+        uncertaintyAnalysis: "The governed refusal is authoritative."
+      },
+      runtimeContext: {
+        mentorDecision: postRollbackRuntime.mentorDecision,
+        mentorDecisionIdentity: postRollbackRuntime.mentorDecisionIdentity,
+        executiveState: postRollbackRuntime.decision.inputState.executiveState,
+        cognitiveAction: postRollbackRuntime.decision.actionType,
+        visibleEvidenceIds: postRollbackRuntime.decision.inputState.executiveState.visibleEvidenceIds,
+        retrievalReceipt: { selectedMemoryIds: [] },
+        authoritativeMemoryTransition: postRollbackRuntime.authoritativeMemoryTransition
+      }
+    }).responseObject;
+    assert.equal(rollbackQualificationProjection.memoryStatus, "REJECTED_ANALOGY");
+    assert.equal(rollbackQualificationProjection.applicableMemoryId, null);
+    assert.equal(
+      rollbackQualificationProjection.memoryStatus,
+      postRollbackRuntime.authoritativeMemoryTransition.memoryStatus
+    );
+
+    const restartedAgain = new GovernedLearningAdapter({ root, learningScopeIdentity: "learning-test-scope" });
+    const secondRefusalGovernor = createCognitiveGovernor({ evaluationId: "second-post-rollback" });
+    const secondRefusal = await restartedAgain.prepareEpisode({
+      governor: secondRefusalGovernor,
+      episodeId: "second-post-rollback",
+      episodeSequence: 7,
+      queryFacets: { pattern: [candidateRecord.observedFailurePattern] },
+      queryText: candidateRecord.observedFailurePattern,
+      createdAt: fixedTime
+    });
+    const secondRefusalRuntime = runCanonicalCognitiveRuntime({
+      governor: secondRefusalGovernor,
+      snapshot: snapshot("second-post-rollback"),
+      executiveMemoryContext: secondRefusal
+    });
+    assert.equal(secondRefusal.retrievalDecision.rollbackRefusals.length, 1);
+    assert.equal(secondRefusalRuntime.authoritativeMemoryTransition.memoryStatus, "REJECTED_ANALOGY");
+    assert.equal((await restartedAgain.status()).rollbackRefusals, 2);
+
+    const novel = await restartedAgain.prepareEpisode({
       governor: createCognitiveGovernor({ evaluationId: "novel-episode" }),
       episodeId: "novel-episode",
-      episodeSequence: 6,
+      episodeSequence: 8,
       queryFacets: { pattern: ["unrelated novel condition"] },
       queryText: "unrelated novel condition",
       createdAt: fixedTime
     });
     assert.deepEqual(novel.selectedMemoryIds, []);
+
+    const durableLedger = await readFile(restartedAgain.paths.ledger, "utf8");
+    const durableLines = durableLedger.trimEnd().split("\n");
+    const refusalIndexes = durableLines
+      .map((line, index) => ({ event: JSON.parse(line), index }))
+      .filter(({ event }) => event.event_type === "LESSON_REUSE_REFUSED")
+      .map(({ index }) => index);
+    assert.equal(refusalIndexes.length, 2);
+    const forgedRefusal = JSON.parse(durableLines[refusalIndexes[0]]);
+    forgedRefusal.payload.reason = "FORGED_REACTIVATION";
+    const forgedLines = [...durableLines];
+    forgedLines[refusalIndexes[0]] = JSON.stringify(forgedRefusal);
+    await writeFile(restartedAgain.paths.ledger, `${forgedLines.join("\n")}\n`, "utf8");
+    await assert.rejects(
+      restartedAgain.verify(),
+      (error) => error instanceof GovernedLearningError && error.code === "LEARNING_LEDGER_TAMPERED"
+    );
+    await writeFile(restartedAgain.paths.ledger, `${durableLedger}${durableLines.at(-1)}\n`, "utf8");
+    await assert.rejects(
+      restartedAgain.verify(),
+      (error) => error instanceof GovernedLearningError && error.code === "LEARNING_LEDGER_ORDER"
+    );
+    const reorderedLines = [...durableLines];
+    [reorderedLines[refusalIndexes[0]], reorderedLines[refusalIndexes[1]]] = [
+      reorderedLines[refusalIndexes[1]],
+      reorderedLines[refusalIndexes[0]]
+    ];
+    await writeFile(restartedAgain.paths.ledger, `${reorderedLines.join("\n")}\n`, "utf8");
+    await assert.rejects(
+      restartedAgain.verify(),
+      (error) => error instanceof GovernedLearningError && error.code === "LEARNING_LEDGER_ORDER"
+    );
+    await writeFile(restartedAgain.paths.ledger, durableLedger, "utf8");
+    assert.equal((await restartedAgain.verify()).result, "VALID");
   } finally {
+    const networkAttempts = [...networkGuard.attempts];
+    networkGuard.restore();
     await rm(root, { recursive: true, force: true });
+    assert.deepEqual(networkAttempts, []);
   }
 });
 
@@ -442,6 +673,22 @@ test("append-only ledger detects byte tampering and imports no provider/network 
       (error) => error instanceof GovernedLearningError
         && ["LEARNING_LEDGER_TAMPERED", "LEARNING_EVENT_TYPE_UNKNOWN"].includes(error.code)
     );
+    await writeFile(adapter.paths.ledger, source, "utf8");
+    const lines = source.trimEnd().split("\n");
+    await writeFile(adapter.paths.ledger, `${source}${lines.at(-1)}\n`, "utf8");
+    await assert.rejects(
+      adapter.verify(),
+      (error) => error instanceof GovernedLearningError && error.code === "LEARNING_LEDGER_ORDER"
+    );
+    await writeFile(adapter.paths.ledger, source, "utf8");
+    [lines[0], lines[1]] = [lines[1], lines[0]];
+    await writeFile(adapter.paths.ledger, `${lines.join("\n")}\n`, "utf8");
+    await assert.rejects(
+      adapter.verify(),
+      (error) => error instanceof GovernedLearningError
+        && ["LEARNING_LEDGER_ORDER", "DIAGNOSIS_FAILURE_REFERENCE"].includes(error.code)
+    );
+    await writeFile(adapter.paths.ledger, source, "utf8");
     const adapterSource = await readFile(new URL("../lib/cognitive-learning/adapter.js", import.meta.url), "utf8");
     assert.doesNotMatch(adapterSource, /node:(?:http|https|net|tls|child_process)|\bfetch\s*\(/);
     assert.match(adapterSource, new RegExp(GOVERNED_LEARNING_ADAPTER_IDENTITY));

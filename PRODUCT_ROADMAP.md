@@ -909,6 +909,13 @@
 - Added final append-only authority binding for both preserved recovery failures and the prior recovery authorization, without changing provider-visible requests or cognitive decisions
 - Preserved the sealed V5 package, evaluator, cases, product cognition, mentor, Governor, learning adapter, Executive Memory implementation, V4, deployment, and main
 
+## Version 1.12.46 (Completed)
+- Made the governed-memory transition the sole authority for externally projected selection, application, non-reuse, and rollback-refusal status across product diagnostics and qualification response assembly
+- Added canonical novel and insufficient-evidence boundaries that force zero selected and applied lessons regardless of retrieval similarity or provider-authored applicability claims
+- Added append-only, HMAC-chained, rollback-event-bound refusal records for every relevant later match to a revoked lesson, including restart-persistent retrieval exclusion
+- Added neutral offline proofs for authorized transfer, harmful rollback, repeated post-rollback refusal, restart durability, transition tamper/replay/reordering denial, shared product/qualification projection, hard network denial, and zero external provider calls
+- Preserved the final sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and no deployment or merge was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

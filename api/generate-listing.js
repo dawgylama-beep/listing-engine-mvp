@@ -36,7 +36,10 @@ import {
   recordCognitiveActionOutcome,
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
-import { GovernedLearningAdapter } from "../lib/cognitive-learning/adapter.js";
+import {
+  GovernedLearningAdapter,
+  projectAuthoritativeMemoryStatus
+} from "../lib/cognitive-learning/adapter.js";
 import {
   TERMINAL_STAGE,
   TERMINAL_TRANSITION,
@@ -1222,6 +1225,20 @@ async function handleGenerateListingRequest(req, res) {
   }
 }
 
+export function buildProductGovernedLearningProjection(runtime, lifecycle = {}) {
+  const authoritative = projectAuthoritativeMemoryStatus(runtime);
+  return Object.freeze({
+    adapterIdentity: runtime.governedLearning.adapterIdentity,
+    ...authoritative,
+    trialCandidateIds: runtime.governedLearning.trialCandidateIds,
+    lifecycleResult: cleanText(lifecycle.result || "NOT_APPLICABLE"),
+    refusalCode: cleanText(lifecycle.refusalCode),
+    candidateId: cleanText(lifecycle.candidateId),
+    promotionAuthorized: lifecycle.promotionAuthorized === true,
+    providerLifecycleAuthority: false
+  });
+}
+
 async function recordGovernedProductFailure(failureEnvelope = {}) {
   const governor = currentEvaluationTerminalContext()?.governor;
   if (!governor?.governedLearningAdapter || !governor?.governedLearningRuntime) {
@@ -1246,7 +1263,8 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
       governor,
       runtime: governor.governedLearningRuntime,
       episodeId: governor.evaluationId,
-      episodeSequence: governor.governedLearningEpisodeSequence,
+      episodeSequence: governor.governedLearningEpisodeSequence
+        + (governor.governedLearningRuntime.authoritativeMemoryTransition.rollbackRefusals.length > 0 ? 1 : 0),
       cognitiveEpisode,
       lessonCandidate,
       visibleEvidenceIds: [...new Set([
@@ -1257,25 +1275,14 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
       ].filter(Boolean))],
       createdAt: currentAnalysisAdapters().nowIso()
     });
-    return {
-      adapterIdentity: governor.governedLearningRuntime.governedLearning.adapterIdentity,
-      lifecycleResult: result.result,
-      candidateId: result.candidateId || "",
-      selectedLessonIds: governor.governedLearningRuntime.governedLearning.appliedLessonIds,
-      trialCandidateIds: governor.governedLearningRuntime.governedLearning.trialCandidateIds,
-      promotionAuthorized: result.promotionAuthorized === true,
-      providerLifecycleAuthority: false
-    };
+    return buildProductGovernedLearningProjection(governor.governedLearningRuntime, result);
   } catch (learningError) {
-    return {
-      adapterIdentity: governor.governedLearningRuntime.governedLearning.adapterIdentity,
+    return buildProductGovernedLearningProjection(governor.governedLearningRuntime, {
       lifecycleResult: "LEARNING_CAPTURE_REFUSED",
       refusalCode: cleanText(learningError?.code || "LEARNING_CAPTURE_FAILED"),
-      selectedLessonIds: governor.governedLearningRuntime.governedLearning.appliedLessonIds,
-      trialCandidateIds: governor.governedLearningRuntime.governedLearning.trialCandidateIds,
-      promotionAuthorized: false,
-      providerLifecycleAuthority: false
-    };
+      result: "LEARNING_CAPTURE_REFUSED",
+      promotionAuthorized: false
+    });
   }
 }
 
@@ -2758,7 +2765,8 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
         governor,
         runtime: governor.governedLearningRuntime,
         episodeId: governor.evaluationId,
-        episodeSequence: governor.governedLearningEpisodeSequence,
+        episodeSequence: governor.governedLearningEpisodeSequence
+          + (governor.governedLearningRuntime.authoritativeMemoryTransition.rollbackRefusals.length > 0 ? 1 : 0),
         cognitiveEpisode,
         lessonCandidate,
         visibleEvidenceIds: [...new Set([
@@ -2804,15 +2812,14 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
     purposeJudgmentAllowed: Boolean(lastState.executiveReadiness?.purposeJudgmentAllowed),
     purposeJudgmentRan: Boolean(lastState.purposeJudgmentCompleted),
     customerOutcomeType: research.executiveDisposition || "PURPOSE_COMPLETE",
-    governedLearning: {
-      adapterIdentity: governor.governedLearningRuntime?.governedLearning?.adapterIdentity || "",
-      selectedLessonIds: governor.governedLearningRuntime?.governedLearning?.appliedLessonIds || [],
-      trialCandidateIds: governor.governedLearningRuntime?.governedLearning?.trialCandidateIds || [],
-      lifecycleResult: governedLearningResult.result,
-      candidateId: governedLearningResult.candidateId || "",
-      promotionAuthorized: governedLearningResult.promotionAuthorized === true,
-      providerLifecycleAuthority: false
-    },
+    governedLearning: governor.governedLearningRuntime
+      ? buildProductGovernedLearningProjection(governor.governedLearningRuntime, governedLearningResult)
+      : {
+        adapterIdentity: "",
+        lifecycleResult: governedLearningResult.result,
+        promotionAuthorized: false,
+        providerLifecycleAuthority: false
+      },
     cognitiveEpisode,
     lessonCandidate,
     executionProof: governorExecutionProof
