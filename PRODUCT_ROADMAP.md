@@ -922,6 +922,14 @@
 - Added deterministic real-handler proofs for antique/collectible, clothing/wearable, and household/consumer requests with explicit known/unknown boundaries, honest evidence stopping, governed-memory non-reuse, hard network denial, and zero external provider calls
 - Preserved the sealed V5 package, responses, evaluator, result, and external evidence; no qualification, provider calibration, deployment, or merge was performed
 
+## Version 1.12.48 (Completed)
+- Added one request-bound canonical research identity derived from current visible evidence and normalized owner facts, with supported configuration, explicit uncertainty, rejected-hypothesis records, and immutable provenance identities
+- Replaced permissive source-route and provider-query identity composition with canonical Object Mind queries whose category and identity-bearing terms are ledgered to current-request observations; unmatched, replayed, inherited, or unsupported terms now fail closed
+- Prevented acquired search evidence from replacing the canonical object class, preserved only governed evidence-supported refinements, and retained the existing provider, refinement, direct-page, Governor, memory, stopping, and authority ceilings
+- Made seller titles usable copy, constrained recommended-price fields to a numerical value/range or explicit `not_established` state, and added category-specific next actions when purchase value remains uncertain
+- Added neutral offline proofs for stale-default rejection, sequential and concurrent request isolation, visible category/configuration retention, weak-identity broadening, provider-claim refusal, search-result non-replacement, strict provenance, seller and buyer usefulness, shared product/qualification authority, hard network denial, and zero external provider calls
+- Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and main and Production were not changed
+
 ## Version 2.0
 - User accounts
 - Saved listings
