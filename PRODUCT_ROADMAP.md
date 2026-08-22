@@ -916,6 +916,12 @@
 - Added neutral offline proofs for authorized transfer, harmful rollback, repeated post-rollback refusal, restart durability, transition tamper/replay/reordering denial, shared product/qualification projection, hard network denial, and zero external provider calls
 - Preserved the final sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and no deployment or merge was performed
 
+## Version 1.12.47 (Completed)
+- Made canonical object identity the sole source for the prominent identified-item field across owner-value, buying, and listing responses, and for listing titles
+- Made visible condition summaries derive from the normalized user intake and purpose-neutral identity instead of provider-authored final-report claims
+- Added deterministic real-handler proofs for antique/collectible, clothing/wearable, and household/consumer requests with explicit known/unknown boundaries, honest evidence stopping, governed-memory non-reuse, hard network denial, and zero external provider calls
+- Preserved the sealed V5 package, responses, evaluator, result, and external evidence; no qualification, provider calibration, deployment, or merge was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

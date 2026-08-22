@@ -102,6 +102,90 @@ const collectibleProviderResponse = Object.freeze({
   ]
 });
 
+const wearableVisualRecognition = Object.freeze({
+  visualSubject: "navy merino wool quarter-zip sweater",
+  visualSubjectCategory: "adult clothing",
+  visualSubjectConfidence: "High",
+  recognizedBrand: "Northline",
+  visibleWords: ["Northline", "100% Merino Wool", "M", "USW-472"],
+  visualEvidence: ["woven neck label", "fiber label", "style tag"],
+  unresolvedVisualQuestions: ["Exact season"]
+});
+
+const wearableIdentity = Object.freeze({
+  visualRecognition: wearableVisualRecognition,
+  ...wearableVisualRecognition,
+  brand: "Northline",
+  manufacturer: "Northline Apparel",
+  model: "USW-472",
+  styleNumber: "USW-472",
+  category: "men's quarter-zip sweater",
+  likelyItemDescription: "Northline navy merino wool quarter-zip sweater, size M",
+  subjectIdentity: "navy merino wool quarter-zip sweater",
+  subjectConfidence: "High",
+  exactProductIdentity: "Northline merino wool quarter-zip sweater style USW-472, size M",
+  exactProductConfidence: "High",
+  productNameOrBoxTitle: "Northline Merino Quarter-Zip",
+  material: "100% merino wool",
+  color: "navy",
+  size: "M",
+  condition: "used_good",
+  visibleText: ["Northline", "100% Merino Wool", "M", "USW-472"],
+  visualIdentityEvidence: ["Northline woven label", "quarter-zip construction", "navy knit"],
+  textIdentityEvidence: ["100% Merino Wool", "M", "USW-472"],
+  strongestSearchableIdentifiers: ["Northline USW-472 merino quarter zip sweater"],
+  identitySummary: "Northline merino wool quarter-zip sweater, style USW-472, size M.",
+  identityUnknowns: ["Exact season", "Whether faint cuff wear will clean fully"],
+  identityConflictNotes: []
+});
+
+const wearableProviderResponse = Object.freeze({
+  organic: [
+    {
+      position: 1,
+      title: "Northline USW-472 merino quarter-zip sweater navy",
+      link: "https://wear.example/items/northline-usw-472",
+      snippet: "Exact style USW-472, navy merino quarter-zip. Size M. Active asking price $32.00."
+    },
+    {
+      position: 2,
+      title: "Northline merino quarter-zip sweater USW-472",
+      link: "https://closet.example/listing/usw-472-navy",
+      snippet: "Exact style USW-472 in navy. Active asking price $28.00. Used good condition."
+    }
+  ]
+});
+
+const wearableListingModelResponse = Object.freeze({
+  platform: "Facebook Marketplace",
+  categorySuggestion: "Men's Sweaters",
+  identifiedItem: "unrelated ceramic table lamp",
+  identificationConfidence: "Certain - provider claim",
+  evidenceFoundInPhotos: ["Northline label", "USW-472 style tag", "size M tag"],
+  searchQueriesUsed: [],
+  sourcesSearched: ["Deterministic provider adapter"],
+  researchResults: ["Two active asking offers were returned."],
+  comparableQuality: ["Active asking evidence only"],
+  recommendedListingPrice: "$32.00",
+  suggestedOfferRange: "$28.00-$32.00",
+  pricingConfidence: "Certain - provider claim",
+  pricingRationale: "Use only canonical evidence.",
+  optimizedListingTitle: "Unrelated Ceramic Table Lamp",
+  listingDescription: "Northline merino wool quarter-zip sweater in navy, size M, with light cuff wear disclosed.",
+  itemSpecifics: ["Brand: Northline", "Style: USW-472", "Size: M", "Material: 100% merino wool"],
+  conditionNotes: ["No condition issue."],
+  suggestedSellingPlatform: "Facebook Marketplace",
+  additionalInformationNeeded: ["Confirm the exact season if known."],
+  title: "Unrelated Ceramic Table Lamp",
+  description: "Northline merino wool quarter-zip sweater in navy, size M, with light cuff wear disclosed.",
+  itemDetails: ["Brand: Northline", "Style: USW-472", "Size: M", "Material: 100% merino wool"],
+  priceStrategy: "Use canonical evidence.",
+  expectedSellingTimeline: "Several weeks",
+  shippingDelivery: "Local pickup or calculated shipping",
+  stagingPhotos: "Show the full sweater, labels, and cuff wear.",
+  sellerNotes: ["Disclose cuff wear.", "Confirm measurements before posting."]
+});
+
 const listingModelResponse = Object.freeze({
   optimizedListingTitle: "Cedarline Privacy Mailers 48 Count",
   title: "Cedarline Privacy Mailers 48 Count",
@@ -144,11 +228,16 @@ function marketValueModelResponse(baseReport) {
 
 function modelResponse(schemaName, evidenceMode) {
   const collectible = evidenceMode === "collectible";
+  const wearable = evidenceMode === "wearable";
   const baseReport = retailRecoveryFixture.finalReport;
   if (schemaName === "item_identity") {
     return {
-      ...(collectible ? collectibleIdentity : retailRecoveryFixture.identity),
-      visualRecognition: collectible ? collectibleVisualRecognition : retailRecoveryFixture.visualRecognition
+      ...(collectible ? collectibleIdentity : wearable ? wearableIdentity : retailRecoveryFixture.identity),
+      visualRecognition: collectible
+        ? collectibleVisualRecognition
+        : wearable
+          ? wearableVisualRecognition
+          : retailRecoveryFixture.visualRecognition
     };
   }
   if (schemaName === "consumer_purchase_decision") {
@@ -158,7 +247,7 @@ function modelResponse(schemaName, evidenceMode) {
     return marketValueModelResponse(baseReport);
   }
   if (schemaName === "marketplace_listing") {
-    return listingModelResponse;
+    return wearable ? wearableListingModelResponse : listingModelResponse;
   }
   throw new Error(`Unexpected deterministic browser schema: ${schemaName}`);
 }
@@ -242,6 +331,15 @@ function buildRetailProviderFixture(requestBody = {}) {
 }
 
 function directPageResult(url, evidenceMode, retailFixture) {
+  if (evidenceMode === "wearable") {
+    return {
+      finalUrl: url,
+      statusCode: 200,
+      elapsedMs: 2,
+      html: "<html><body>Northline USW-472 merino quarter-zip sweater navy size M active asking price $32.00</body></html>",
+      sourceEvidenceText: "Northline USW-472 merino quarter-zip sweater navy size M active asking price $32.00"
+    };
+  }
   if (evidenceMode !== "collectible") {
     const exactPage = url.split("?")[0] === retailFixture.exactUrl.split("?")[0];
     const sourceEvidenceText = exactPage
@@ -304,6 +402,7 @@ export async function buildBrowserHandlerResponse({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     getOpenAIModel: () => "deterministic-browser-model",
     getSerperApiKey: () => "deterministic-serper-placeholder",
+    getGovernedLearningAdapter: () => null,
     createAnalysisId: () => requestBody.analysisId || `analysis-browser-${evidenceMode}`,
     nowMilliseconds: () => {
       clock += 5;
@@ -324,6 +423,8 @@ export async function buildBrowserHandlerResponse({
       return {
         json: evidenceMode === "collectible"
           ? collectibleProviderResponse
+          : evidenceMode === "wearable"
+            ? wearableProviderResponse
           : stage === "stage_7_limited_result_recovery"
             ? retailFixture.recoveryProviderResponse
             : retailFixture.preliminaryProviderResponse,

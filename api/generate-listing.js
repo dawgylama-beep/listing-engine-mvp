@@ -14506,10 +14506,11 @@ function enforceListingResearchHonesty(report, research, platform) {
     : liveSearch.webSearchExecuted
       ? "Live research completed, but no source-backed exact or strong similar comps passed filtering. Pricing is a cautious estimate, not evidence-backed fact."
       : "Live research did not complete. Pricing is a cautious estimate, not evidence-backed fact.";
-  const title = cleanText(report.optimizedListingTitle || report.title || buildIdentifiedItem(identity));
+  const authoritativeIdentifiedItem = buildIdentifiedItem(identity);
+  const title = authoritativeIdentifiedItem;
   const description = cleanText(report.listingDescription || report.description || "Description should be completed after verifying the item details and condition.");
   const itemSpecifics = normalizeFlexibleArray(report.itemSpecifics, 10, normalizeFlexibleArray(report.itemDetails, 10, buildPhotoEvidence(identity)));
-  const conditionNotes = normalizeFlexibleArray(report.conditionNotes, 8, buildConditionNotes(identity));
+  const conditionNotes = buildConditionNotes(identity, buyerIntake);
   const visualFields = buildVisualRecognitionReportFields(identity);
   const identityFields = buildIdentityReportFields(identity, liveSearch);
   const researchVisibility = buildResearchVisibilityFields(liveSearch);
@@ -14518,8 +14519,8 @@ function enforceListingResearchHonesty(report, research, platform) {
     ...report,
     platform,
     categorySuggestion: cleanText(report.categorySuggestion || identity.category || "Uncategorized"),
-    identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
-    identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on photo evidence, visible text, seller notes, and source-routing results."),
+    identifiedItem: authoritativeIdentifiedItem,
+    identificationConfidence: formatCanonicalConfidenceResult(finalEvidenceResult.confidenceResult?.identity, "Identity confidence"),
     ...visualFields,
     ...identityFields,
     ...researchVisibility,
@@ -17697,14 +17698,42 @@ function buildPhotoEvidence(identity) {
   return evidence.slice(0, 12).length ? evidence.slice(0, 12) : ["No strong visible product evidence was extracted. Add closer photos of labels, marks, tags, model numbers, or UPC/barcode details."];
 }
 
-function buildConditionNotes(identity) {
+function buildConditionNotes(identity = {}, buyerIntake = normalizeBuyerIntake({})) {
   const notes = [];
-  for (const value of [identity.condition, identity.wearDamage, identity.missingComponentStatus, identity.packaging]) {
+  const condition = firstKnown(buyerIntake.item_condition, identity.condition);
+  if (hasKnownValue(condition)) {
+    notes.push(`Reported condition: ${formatConditionEvidenceLabel(condition)}.`);
+  }
+
+  const concernLabels = {
+    visible_damage: "Visible damage",
+    missing_parts: "Missing parts",
+    stains_or_wear: "Stains or wear",
+    cracks_or_chips: "Cracks or chips",
+    not_working: "Not working",
+    untested: "Untested",
+    incomplete_set: "Incomplete set",
+    authenticity_concern: "Authenticity concern",
+    odor_or_smoke: "Odor or smoke",
+    other: "Other condition concern"
+  };
+  for (const concern of normalizeStringArray(buyerIntake.condition_concerns, 10)) {
+    notes.push(`Reported condition concern: ${concernLabels[concern] || formatConditionEvidenceLabel(concern)}.`);
+  }
+
+  for (const value of [identity.wearDamage, identity.missingComponentStatus, identity.packaging]) {
     if (hasKnownValue(value)) {
       notes.push(cleanText(value));
     }
   }
-  return notes.length ? notes : ["Condition should be verified from photos and in person before listing."];
+  return [...new Set(notes)].slice(0, 8).length
+    ? [...new Set(notes)].slice(0, 8)
+    : ["Condition should be verified from photos and in person before relying on the result."];
+}
+
+function formatConditionEvidenceLabel(value) {
+  const text = cleanText(value).replace(/_/g, " ");
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : "Not verified";
 }
 
 function buildAdditionalInfoNeeded(identity, reliableResearchFound) {
@@ -18290,6 +18319,8 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
 
   const normalizedReport = {
     ...report,
+    identifiedItem: buildIdentifiedItem(identity),
+    identificationConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.identity, "Identity confidence"),
     decisionResult: canonicalDecisionResult,
     confidenceResult: canonicalConfidenceResult,
     badgeResult: canonicalBadgeResult,
@@ -18323,6 +18354,7 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     expectedSellingTime: resaleGuidance.expectedSellingTime,
     platformSpecificSellingGuidance: resaleGuidance.platformSpecificSellingGuidance,
     itemIdentification: buildItemIdentification(identity),
+    conditionNotes: buildConditionNotes(identity, buyerIntake),
     currentPriceAssessment: canonicalDecisionResult.summary,
     priceConfidence: formatCanonicalConfidenceResult(canonicalConfidenceResult.pricing, "Pricing confidence"),
     aiOnlyRoughValueRange,
@@ -18512,8 +18544,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
   const normalizedReport = {
     ...report,
     buyerIntent: "personal_use",
-    identifiedItem: cleanText(report.identifiedItem || buildIdentifiedItem(identity)),
-    identificationConfidence: ensureConfidenceLayer(report.identificationConfidence, "Medium", "Identification is based on submitted photos, visible text, typed buyer details, and source-routing results."),
+    identifiedItem: buildIdentifiedItem(identity),
+    identificationConfidence: formatCanonicalConfidenceResult(authoritativeConfidenceResult.identity, "Identity confidence"),
     ...visualFields,
     ...identityFields,
     ...researchVisibility,
@@ -18571,6 +18603,7 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
       : [],
     reasonsForCaution: cautionItems,
     productOrConditionRisks: productRisks,
+    conditionNotes: buildConditionNotes(identity, buyerIntake),
     riskFlags: decision.riskFlags,
     betterValueConsiderations,
     researchResults,

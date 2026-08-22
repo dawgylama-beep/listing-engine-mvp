@@ -1104,8 +1104,9 @@ async function runSuccessfulScenario(page, scenario, projectName) {
   await assertCanonicalValuationParity(page, state, scenario);
 
   if (scenario.purpose === "listing") {
-    expect(state.handlerResult.report.optimizedListingTitle).toBe("Cedarline Privacy Mailers 48 Count");
-    await expect(page.locator("#results")).toContainText("Cedarline Privacy Mailers 48 Count");
+    const canonicalTitle = "Cedarline Privacy Mailers, 48-count (UPC 012345678905)";
+    expect(state.handlerResult.report.optimizedListingTitle).toBe(canonicalTitle);
+    await expect(page.locator("#results")).toContainText(canonicalTitle);
   }
 
   if (scenario.copyParity) {

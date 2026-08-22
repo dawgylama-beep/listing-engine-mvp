@@ -214,8 +214,10 @@ for (const scenario of cases) {
       assert.equal(report.platformSpecificSellingGuidance, "Use canonical evidence.");
     }
     if (scenario.expectedPurpose === "seller_listing") {
-      assert.equal(report.optimizedListingTitle, "Cedarline Privacy Mailers 48 Count");
-      assert.equal(report.title, "Cedarline Privacy Mailers 48 Count");
+      const canonicalTitle = "Cedarline Privacy Mailers, 48-count (UPC 012345678905)";
+      assert.equal(report.identifiedItem, canonicalTitle);
+      assert.equal(report.optimizedListingTitle, canonicalTitle);
+      assert.equal(report.title, canonicalTitle);
       assert.equal(report.listingDescription, "Cedarline privacy mailers shown in the submitted photos.");
       assert(report.itemSpecifics.some((item) => item === "Recognized brand: Cedarline"));
       assert.equal(finalEvidenceResult.buyerOfferResult.status, "not_applicable");
