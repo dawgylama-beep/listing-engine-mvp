@@ -14,7 +14,7 @@ export const routeRoot = scriptDirectory;
 export const qualificationRoot = path.resolve(routeRoot, "..");
 export const repositoryRoot = path.resolve(qualificationRoot, "..", "..");
 export const corpusRoot = path.join(qualificationRoot, "v5-held-out-corpus");
-export const ROUTE_VERSION = "1.12.44";
+export const ROUTE_VERSION = "1.12.45";
 export const CASE_IDS = Object.freeze(Array.from({ length: 14 }, (_, index) => `KE-V5-C${String(index + 1).padStart(2, "0")}`));
 
 function sealedPackageIdentities() {

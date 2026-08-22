@@ -903,6 +903,12 @@
 - Added external recovery-authority binding, consumed-case redispatch denial, duplicate-capture protection, and focused recovery, append-only-memory, duplicate, and quality-retry regression coverage
 - Preserved the sealed V5 package and evaluator, product cognition, mentor, Governor policy, learning adapter behavior, Executive Memory semantics, V4, deployment, and main
 
+## Version 1.12.45 (Completed)
+- Corrected V5 recovery to validate the exact nonempty lesson-formation evidence commitment as an authorized subset of the full public runtime-visible artifact set
+- Added denial coverage for empty, unknown, private, hidden, runtime-hash, substituted, duplicated, mutated, and post-formation evidence references
+- Added final append-only authority binding for both preserved recovery failures and the prior recovery authorization, without changing provider-visible requests or cognitive decisions
+- Preserved the sealed V5 package, evaluator, cases, product cognition, mentor, Governor, learning adapter, Executive Memory implementation, V4, deployment, and main
+
 ## Version 2.0
 - User accounts
 - Saved listings

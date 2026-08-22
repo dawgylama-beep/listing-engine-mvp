@@ -25,7 +25,8 @@ import {
 } from "./shared.mjs";
 
 export const V5_SEALED_PACKAGE_COMMIT = "22484bbde8138bdb8a23fa2628c81e922d546d20";
-export const V5_RECOVERY_COMMIT_SUBJECT = "fix: recover v5 learning transition ordering";
+export const V5_PRIOR_RECOVERY_COMMIT = "847cd06b6504fb1e596efc2f15a43d7614b69fe4";
+export const V5_RECOVERY_COMMIT_SUBJECT = "fix: validate v5 lesson evidence subset recovery";
 
 const booleanField = Object.freeze({ type: "boolean" });
 const stringField = (maximum = 512) => Object.freeze({ type: "string", maxLength: maximum });
@@ -188,8 +189,11 @@ export function assertV5RecoveryAuthorization(authority, {
   assert.equal(authority.originalRunId, prepared.runIdentity.runId, "V5_RECOVERY_RUN_ID_MISMATCH");
   assert.equal(authority.originalPackageCommit, V5_SEALED_PACKAGE_COMMIT, "V5_RECOVERY_PACKAGE_COMMIT_MISMATCH");
   assert.equal(authority.originalPackageCommit, prepared.runIdentity.repositoryCommit, "V5_RECOVERY_PREPARED_COMMIT_MISMATCH");
+  assert.equal(authority.priorCorrectionCommit, V5_PRIOR_RECOVERY_COMMIT, "V5_RECOVERY_PRIOR_CORRECTION_COMMIT_MISMATCH");
+  assert.equal(authority.priorRouteVersion, "1.12.44", "V5_RECOVERY_PRIOR_VERSION_MISMATCH");
+  assert.equal(authority.correctionRouteVersion, "1.12.45", "V5_RECOVERY_CORRECTION_VERSION_MISMATCH");
   assert.equal(authority.correctionCommit, repositoryIdentity.head, "V5_RECOVERY_CORRECTION_COMMIT_MISMATCH");
-  assert.equal(repositoryIdentity.parent, V5_SEALED_PACKAGE_COMMIT, "V5_RECOVERY_CORRECTION_PARENT_MISMATCH");
+  assert.equal(repositoryIdentity.parent, V5_PRIOR_RECOVERY_COMMIT, "V5_RECOVERY_CORRECTION_PARENT_MISMATCH");
   assert.equal(repositoryIdentity.subject, V5_RECOVERY_COMMIT_SUBJECT, "V5_RECOVERY_CORRECTION_SUBJECT_MISMATCH");
   assert.deepEqual(authority.packageIdentities, PACKAGE_IDENTITIES, "V5_RECOVERY_PACKAGE_IDENTITIES_MISMATCH");
   assert.equal(authority.originalBudgetIdentity, PACKAGE_IDENTITIES.executionBudgetSha256, "V5_RECOVERY_BUDGET_IDENTITY_MISMATCH");
@@ -257,10 +261,43 @@ async function loadV5RecoveryAuthorization({ resultsRoot, recoveryAuthorityPath,
   assert.equal(c01Terminal.responseHash, c01Evidence.responseHash, "V5_RECOVERY_C01_RESPONSE_BINDING_CHANGED");
   assert.equal(await existsLiteral(path.join(resultsRoot, "cases", "KE-V5-C02.terminal.json")), false, "V5_RECOVERY_C02_ALREADY_TERMINAL");
   assert.equal(await existsLiteral(path.join(resultsRoot, "runtime-evidence", "KE-V5-C02.json")), false, "V5_RECOVERY_C02_EVIDENCE_ALREADY_EXISTS");
-  assert.equal(await existsLiteral(path.join(resultsRoot, "recovery-authorization-receipt.json")), false, "V5_RECOVERY_ALREADY_AUTHORIZED");
+  const priorReceiptPath = path.join(resultsRoot, "recovery-authorization-receipt.json");
+  assert.equal(await existsLiteral(priorReceiptPath), true, "V5_RECOVERY_PRIOR_AUTHORITY_RECEIPT_REQUIRED");
+  const priorReceiptBytes = await readFile(priorReceiptPath);
+  const priorReceipt = verifySeal(JSON.parse(priorReceiptBytes), "recoveryAuthorizationReceiptHash");
+  assert.deepEqual(authority.priorRecoveryAuthority, {
+    recoveryAuthorizationHash: priorReceipt.recoveryAuthorization.recoveryAuthorizationHash,
+    recoveryAuthorizationReceiptHash: priorReceipt.recoveryAuthorizationReceiptHash,
+    receiptFileSha256: sha256Bytes(priorReceiptBytes)
+  }, "V5_RECOVERY_PRIOR_AUTHORITY_BINDING_MISMATCH");
+  const failureDirectories = (await readdir(resultsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && (entry.name === ".execution-active" || entry.name.startsWith(".execution-abandoned-")))
+    .map((entry) => entry.name)
+    .sort();
+  const preservedFailureRecords = [];
+  for (const directory of failureDirectories) {
+    const relativePath = `${directory}/invocation.json`;
+    const bytes = await readFile(path.join(resultsRoot, directory, "invocation.json"));
+    const invocation = verifySeal(JSON.parse(bytes), "invocationHash");
+    preservedFailureRecords.push({
+      relativePath,
+      invocationId: invocation.invocationId,
+      invocationHash: invocation.invocationHash,
+      fileSha256: sha256Bytes(bytes)
+    });
+  }
+  assert.equal(preservedFailureRecords.length, 2, "V5_RECOVERY_REQUIRES_BOTH_FAILURE_RECORDS");
+  assert.deepEqual(authority.preservedFailureRecords, preservedFailureRecords, "V5_RECOVERY_FAILURE_RECORD_BINDING_MISMATCH");
+  const receiptRelativePath = "recovery-authorization-receipt-02.json";
+  assert.equal(await existsLiteral(path.join(resultsRoot, receiptRelativePath)), false, "V5_FINAL_RECOVERY_ALREADY_AUTHORIZED");
   assert.equal(await existsLiteral(path.join(resultsRoot, "freeze", "freeze-seal.json")), false, "V5_RECOVERY_FREEZE_ALREADY_EXISTS");
   assert.equal(await existsLiteral(path.join(resultsRoot, "evaluation", "evaluator-result.json")), false, "V5_RECOVERY_EVALUATION_ALREADY_EXISTS");
-  return Object.freeze({ authority, authoritySourceSha256: sha256Bytes(authorityBytes), repositoryIdentity });
+  return Object.freeze({
+    authority,
+    authoritySourceSha256: sha256Bytes(authorityBytes),
+    repositoryIdentity,
+    receiptRelativePath
+  });
 }
 
 async function loadPublicCase(caseId) {
@@ -855,6 +892,35 @@ export function validateAppendOnlyMemoryTransition({ context, afterRecords, prep
   return Object.freeze({ beforeIds: [...beforeIds], afterIds: logicalAfterIds, appendedRecords: appended });
 }
 
+export function validateRecoveredLessonEvidence({ context, failureEvent, candidateEvent, memoryRecord }) {
+  const visibleIds = context.visibleEvidenceIds;
+  assert.equal(Array.isArray(visibleIds) && visibleIds.length >= 3, true, "V5_RECOVERY_VISIBLE_EVIDENCE_SET_REQUIRED");
+  assert.equal(new Set(visibleIds).size, visibleIds.length, "V5_RECOVERY_VISIBLE_EVIDENCE_SET_DUPLICATED");
+  const originalInputCommitment = visibleIds.slice(0, 3);
+  const eventReferences = failureEvent.payload?.evidence_references;
+  const memoryReferences = memoryRecord.evidenceReferences;
+  assert.equal(Array.isArray(eventReferences) && eventReferences.length > 0, true, "V5_RECOVERY_LESSON_EVIDENCE_EMPTY");
+  assert.equal(Array.isArray(memoryReferences) && memoryReferences.length > 0, true, "V5_RECOVERY_MEMORY_EVIDENCE_EMPTY");
+  assert.equal(new Set(eventReferences).size, eventReferences.length, "V5_RECOVERY_LESSON_EVIDENCE_DUPLICATED");
+  assert.equal(new Set(memoryReferences).size, memoryReferences.length, "V5_RECOVERY_MEMORY_EVIDENCE_DUPLICATED");
+  for (const identity of eventReferences) {
+    assert.equal(typeof identity === "string" && identity.length > 0, true, "V5_RECOVERY_LESSON_EVIDENCE_IDENTITY_INVALID");
+    assert.equal(visibleIds.includes(identity), true, "V5_RECOVERY_LESSON_EVIDENCE_NOT_AUTHORIZED_VISIBLE");
+    assert.equal(/private|hidden|evaluator|runtime|synthetic/i.test(identity), false, "V5_RECOVERY_PRIVATE_OR_SYNTHETIC_EVIDENCE_FORBIDDEN");
+    assert.equal(/^[a-f0-9]{64}$/i.test(identity), false, "V5_RECOVERY_RUNTIME_HASH_EVIDENCE_FORBIDDEN");
+  }
+  assert.deepEqual(eventReferences, memoryReferences, "V5_RECOVERY_LESSON_MEMORY_COMMITMENT_MISMATCH");
+  assert.deepEqual([...eventReferences].sort(), [...originalInputCommitment].sort(), "V5_RECOVERY_LESSON_INPUT_COMMITMENT_MISMATCH");
+  assert.equal(memoryRecord.evidenceAggregateHash, sha256Json(memoryReferences), "V5_RECOVERY_LESSON_EVIDENCE_AGGREGATE_MUTATED");
+  assert.equal(memoryRecord.contentHash, candidateEvent.payload?.memory_hash, "V5_RECOVERY_CANDIDATE_MEMORY_CHANGED");
+  assert.equal(failureEvent.payload?.cognitive_episode_hash, originalInputCommitment[0], "V5_RECOVERY_COGNITIVE_EVIDENCE_MISMATCH");
+  return Object.freeze({
+    committedEvidenceReferences: [...memoryReferences],
+    authorizedVisibleIds: [...visibleIds],
+    unusedAuthorizedVisibleIds: visibleIds.filter((identity) => !memoryReferences.includes(identity))
+  });
+}
+
 export function recoverCompletedCandidateTransition({ events, afterRecords, context, learningStatus, learningCategory }) {
   const failureEvents = events.filter((event) => (
     event.event_type === "FAILURE_RECORDED"
@@ -865,8 +931,6 @@ export function recoverCompletedCandidateTransition({ events, afterRecords, cont
   const failure = failureEvents[0];
   assert.equal(failure.learning_scope_identity, context.runIdentityHash, "V5_RECOVERY_LEARNING_SCOPE_MISMATCH");
   assert.equal(failure.payload.failure_category, learningCategory, "V5_RECOVERY_FAILURE_CATEGORY_MISMATCH");
-  assert.equal(failure.payload.cognitive_episode_hash, context.visibleEvidenceIds[0], "V5_RECOVERY_COGNITIVE_EVIDENCE_MISMATCH");
-  assert.deepEqual([...failure.payload.evidence_references].sort(), [...context.visibleEvidenceIds].sort(), "V5_RECOVERY_VISIBLE_EVIDENCE_MISMATCH");
   const diagnoses = events.filter((event) => (
     event.event_type === "MENTOR_DIAGNOSIS_RECORDED"
     && event.payload?.failure_id === failure.payload.failure_id
@@ -885,7 +949,7 @@ export function recoverCompletedCandidateTransition({ events, afterRecords, cont
   assert.equal(candidateEvent.sequence, diagnosis.sequence + 1, "V5_RECOVERY_CANDIDATE_SEQUENCE_MISMATCH");
   const memoryRecord = afterRecords.find((record) => record.memoryId === candidateEvent.payload.memory_id);
   assert.ok(memoryRecord, "V5_RECOVERY_CANDIDATE_MEMORY_MISSING");
-  assert.equal(memoryRecord.contentHash, candidateEvent.payload.memory_hash, "V5_RECOVERY_CANDIDATE_MEMORY_CHANGED");
+  validateRecoveredLessonEvidence({ context, failureEvent: failure, candidateEvent, memoryRecord });
   assert.equal(memoryRecord.sourceEpisodeSequence, context.learningEpisodeSequence + 1, "V5_RECOVERY_CANDIDATE_EPISODE_MISMATCH");
   assert.equal(memoryRecord.mentorDecisionIdentity, context.mentorDecisionIdentity, "V5_RECOVERY_CANDIDATE_GOVERNOR_BINDING_MISMATCH");
   assert.equal(learningStatus.failures, context.beforeLearningStatus.failures + 1, "V5_RECOVERY_FAILURE_COUNT_MISMATCH");
@@ -1190,15 +1254,19 @@ export async function executeQualificationRun({
   transport,
   resume = false,
   recoveryAuthorityPath = null,
+  recoveryAuthorizationLoader = loadV5RecoveryAuthorization,
+  preparedRunLoader = loadPreparedRun,
   now = () => new Date().toISOString(),
   hooks = {}
 }) {
   assert.ok(transport && typeof transport.dispatch === "function", "PRODUCTION_OR_INJECTED_TRANSPORT_REQUIRED");
-  const prepared = await loadPreparedRun(resultsRoot);
+  assert.equal(typeof preparedRunLoader, "function", "V5_PREPARED_RUN_LOADER_REQUIRED");
+  const prepared = await preparedRunLoader(resultsRoot);
   assert.equal(await existsLiteral(path.join(resultsRoot, "freeze", "freeze-seal.json")), false, "DUPLICATE_EXECUTION_INVOCATION");
   assert.equal(Boolean(recoveryAuthorityPath) === resume, true, "V5_RECOVERY_AUTHORITY_AND_RESUME_MUST_MATCH");
+  assert.equal(typeof recoveryAuthorizationLoader, "function", "V5_RECOVERY_AUTHORIZATION_LOADER_REQUIRED");
   const recovery = resume
-    ? await loadV5RecoveryAuthorization({ resultsRoot, recoveryAuthorityPath, prepared })
+    ? await recoveryAuthorizationLoader({ resultsRoot, recoveryAuthorityPath, prepared })
     : null;
   const learningAdapter = new GovernedLearningAdapter({
     root: path.join(resultsRoot, "governed-learning"),
@@ -1234,7 +1302,7 @@ export async function executeQualificationRun({
       correctionCommit: recovery.repositoryIdentity.head,
       receivedAt: now()
     }, "recoveryAuthorizationReceiptHash");
-    await writeExclusiveJson(path.join(resultsRoot, "recovery-authorization-receipt.json"), receipt);
+    await writeExclusiveJson(path.join(resultsRoot, recovery.receiptRelativePath), receipt);
     await appendLedger(resultsRoot, {
       kind: "RECOVERY_AUTHORITY_ACCEPTED",
       recoveryAuthorizationHash: recovery.authority.recoveryAuthorizationHash,
