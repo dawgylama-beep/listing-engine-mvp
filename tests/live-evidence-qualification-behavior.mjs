@@ -415,13 +415,13 @@ function testSearchBudgetsRemainBounded() {
     notes: "Riverton Rockets 1997 Victory Classic metal tray sold"
   }).filter((record) => record.validationPassed !== false);
 
-  assert(retailPlan.length <= hooks.retailSerperBudgetAllocation.maxProviderCalls, "Retail search plan must remain within the 28-call ceiling.");
-  assertEqual(hooks.retailSerperBudgetAllocation.maxProviderCalls, 28, "Retail ceiling must remain 28.");
+  assert(retailPlan.length <= hooks.retailSerperBudgetAllocation.maxProviderCalls, "Retail search plan must remain within the 8-call ceiling.");
+  assertEqual(hooks.retailSerperBudgetAllocation.maxProviderCalls, 8, "Retail ceiling must remain 8.");
   assert(allocation.some((record) => record.searchPass === "collectible_exact_sold_completed"), "Collectible allocation should include exact sold/completed source checks.");
   assert(allocation.some((record) => record.searchPass === "collectible_exact_auction_completed"), "Collectible allocation should include exact completed-auction source checks.");
   assert(allocation.some((record) => record.searchPass === "collectible_exact_active_bin"), "Collectible allocation should include exact active/BIN source checks.");
   assert(allocation.some((record) => record.searchPass === "collectible_archive_reference"), "Collectible allocation should reserve archive/reference identity coverage.");
-  assert(collectiblePlan.length <= 12, "Non-retail/collectible search plan must remain within the 12-call ceiling.");
+  assert(collectiblePlan.length <= 8, "Non-retail/collectible search plan must remain within the 8-call ceiling.");
   assert(collectiblePlan.some((record) => /collectible_exact_source_recovery|marketplace_domain|auction|sold|completed/i.test(`${record.searchPass} ${record.query}`)), "Collectible plan should allocate bounded calls to exact sold/completed and auction/source recovery.");
 }
 

@@ -15,6 +15,7 @@ import {
   deriveSafetyState,
   executeGovernorAuthorizedAction,
   recordCognitiveActionOutcome,
+  runCanonicalCognitiveRuntime,
   selectNextCognitiveAction
 } from "../lib/cognitive-governor/index.js";
 import { sealExperienceRecord } from "../lib/terminal-evidence.js";
@@ -147,7 +148,7 @@ function responseCapture() {
 }
 
 async function runControlledHandler(identity, { reportType = "marketValue", purchaseIntent = "personal_use" } = {}) {
-  const trace = { schemas: [], stages: [], networkAttempts: [] };
+  const trace = { schemas: [], stages: [], serperCalls: [], networkAttempts: [] };
   const handler = createGenerateListingHandler({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     getOpenAIModel: () => "deterministic-test-model",
@@ -160,7 +161,10 @@ async function runControlledHandler(identity, { reportType = "marketValue", purc
       if (schemaName === "item_identity") return { json: identity, data: { output: [] } };
       throw new Error(`Purpose executor must not run for a controlled executive outcome: ${schemaName}`);
     },
-    requestSerperSearch: async () => ({ json: { organic: [], shopping: [] }, statusCode: 200, elapsedMs: 1 }),
+    requestSerperSearch: async (request) => {
+      trace.serperCalls.push(request?.query || "");
+      return { json: { organic: [], shopping: [] }, statusCode: 200, elapsedMs: 1 };
+    },
     requestBoundedRetailProductPage: async () => {
       throw new Error("Direct page must not run without a qualified candidate.");
     }
@@ -237,6 +241,34 @@ test("REQUEST_CUSTOMER_INPUT records one bounded request, becomes pending, and t
   });
   assert.equal(optimisticOverride.customerInputState.status, CUSTOMER_INPUT_STATUS.PENDING);
   assert.equal(optimisticOverride.customerInputAvailable, false);
+});
+
+test("canonical runtime auto-boundary authorizes its selected customer-input transition", () => {
+  const base = snapshot();
+  const governor = createCognitiveGovernor({ evaluationId: base.evaluationId });
+  const runtime = runCanonicalCognitiveRuntime({
+    governor,
+    snapshot: base,
+    executiveMemoryContext: {
+      runIdentity: base.evaluationId,
+      currentEpisodeId: base.evaluationId,
+      records: [],
+      selectedMemoryIds: [],
+      retrievalReceiptHash: "",
+      startsEmpty: true,
+      forwardOnly: true
+    }
+  });
+  assert.equal(runtime.decision.actionType, COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT);
+  assert.doesNotThrow(() => executeGovernorAuthorizedAction(
+    governor,
+    runtime.decision,
+    COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT,
+    {
+      operationPhase: "CUSTOMER_INPUT_TRANSITION",
+      operation: () => runtime.decision.customerInputRequest
+    }
+  ));
 });
 
 test("a supplied requested field resolves pending state while an unrelated field cannot", () => {
@@ -531,6 +563,45 @@ test("the real handler emits a structured non-502 suspended request and never en
   assert.equal(cognitive.cognitiveEpisode.actionDecisions.some((entry) => entry.actionType === "FINALIZE_EVIDENCE"), false);
   assert.equal(cognitive.cognitiveEpisode.actionDecisions.some((entry) => entry.actionType === "PROCEED_TO_PURPOSE_JUDGMENT"), false);
   assert.equal(cognitive.cognitiveEpisode.actionDecisions.some((entry) => entry.actionType === "STOP_COMPLETE"), false);
+});
+
+test("a safety input selected at the refinement boundary returns a structured partial instead of an authorization 502", async () => {
+  const identity = {
+    visualSubject: "countertop pop-up toaster",
+    visualSubjectCategory: "Small kitchen appliance / toaster",
+    subjectIdentity: "countertop pop-up toaster",
+    subjectConfidence: "High",
+    exactProductIdentity: "Unknown",
+    exactProductConfidence: "Low",
+    condition: "Possibly damaged with an exposed wire visible while partially disassembled",
+    diagnosticVisualDetails: ["Multiple parallel bread slots", "Possibly exposed wire"],
+    additionalEvidenceNeeded: ["clear electrical damage closeup"],
+    identityUnknowns: ["operating condition"],
+    identityHypotheses: [{
+      broaderFamilyIdentity: "pop-up toaster",
+      unresolvedDiscriminators: ["clear electrical damage closeup"],
+      exactnessLevel: "BROADER_FAMILY",
+      confidenceBand: "MEDIUM",
+      supportingObservations: ["Multiple parallel bread slots", "Possibly exposed wire"]
+    }],
+    visualRecognition: {
+      visualSubject: "countertop pop-up toaster",
+      visualSubjectCategory: "Small kitchen appliance / toaster",
+      visualSubjectConfidence: "High",
+      visibleWords: [],
+      distinctiveFeatures: ["Multiple parallel bread slots", "Possibly exposed wire"],
+      stillUnknown: ["operating condition"]
+    }
+  };
+  const { response, trace } = await runControlledHandler(identity);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.payload));
+  assert(trace.serperCalls.length > 0, "the regression must reach real acquisition before suspension");
+  assert(trace.stages.some((stage) => stage.startsWith("REFINEMENT:")), "the regression must reach refinement");
+  assert(trace.stages.some((stage) => stage.startsWith("CUSTOMER_INPUT_TRANSITION:")));
+  const report = response.payload.valuation;
+  assert.equal(report.analysisStatus, "AWAITING_CUSTOMER_INPUT");
+  assert.deepEqual(report.executiveOutcome.requestedFields, ["electrical_damage_closeup"]);
+  assert.equal(Object.hasOwn(report, "recommendation"), false);
 });
 
 test("the real handler converts confirmed structural danger into a safety-only outcome without ordinary listing support", async () => {

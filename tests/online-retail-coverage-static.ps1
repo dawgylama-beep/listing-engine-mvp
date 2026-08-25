@@ -36,7 +36,7 @@ Require-Contains "Office Depot is registry data" $api 'key: "office_depot"'
 Require-Contains "Manufacturer direct target is registry data" $api 'key: "manufacturer_direct"'
 Require-Contains "Online registry selector exists" $api "function buildOnlineRetailSearchTargets"
 Require-Contains "Online category tag detector exists" $api "function detectOnlineRetailCategoryTags"
-Require-Contains "Online stage budget exists" $api "onlineRetail: 4"
+Require-Contains "Online stage budget exists" $api "onlineRetail: 1"
 Require-Contains "Online retail stage exists" $api "stage_5_online_retail"
 Require-Contains "Online stage budget bucket is recorded" $api 'retailBudgetBucket: "onlineRetail"'
 Require-Contains "Online stage uses domain-constrained registry queries" $api "online_retailer_registry_domain_query"

@@ -48,7 +48,7 @@ Require-Contains "Canonical customer serializer preserves displayed-ID order" $c
 Require-Contains "Canonical retailer composition uses displayed customer evidence" $customer "summary.displayedCountByRetailer = countBy(customerEvidence"
 Require-Contains "Limited-result recovery trigger exists" $api "function shouldRunLimitedResultRetailRecovery"
 Require-Contains "Limited-result recovery stage exists" $api "stage_7_limited_result_recovery"
-Require-Contains "Limited-result recovery budget exists" $api "limitedResultRecovery: 3"
+Require-Contains "Limited-result recovery budget exists" $api "limitedResultRecovery: 1"
 Require-Contains "Diagnostics expose normalized barcode identities" $api "normalizedBarcodeIdentities"
 Require-Contains "Diagnostics expose exact retail pages" $api "exactRetailPagesFound"
 Require-Contains "Diagnostics expose returned retailer domains" $api "returnedRetailerDomains"

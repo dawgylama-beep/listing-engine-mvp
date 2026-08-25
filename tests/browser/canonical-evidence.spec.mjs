@@ -753,7 +753,25 @@ async function assertCanonicalValuationParity(page, state, scenario) {
   const report = state.handlerResult.report;
   const summary = page.locator(".consumer-summary-card, .executive-summary-card").first();
   const expectedState = scenario.expectedValuationState || report.valuationEvidenceState;
-  expect(report.valuationEvidenceState).toBe(expectedState);
+  expect(report.valuationEvidenceState, JSON.stringify({
+    expectedState,
+    valuationEvidenceState: report.valuationEvidenceState,
+    rangeResult: report.rangeResult,
+    rangeResults: report.rangeResults,
+    verifiedMarketRange: report.verifiedMarketRange,
+    estimatedFairMarketValue: report.estimatedFairMarketValue,
+    estimatedMarketValue: report.estimatedMarketValue,
+    finalRangeResult: state.handlerResult?.finalEvidenceResult?.rangeResult,
+    finalAccepted: state.handlerResult?.finalEvidenceResult?.acceptedRecords?.map((record) => ({
+      url: record.url,
+      priceType: record.priceType,
+      displayedPrice: record.displayedPrice,
+      canonicalMatchQuality: record.canonicalMatchQuality,
+      rangeEligible: record.rangeEligible,
+      objectMindClassification: record.objectMindClassification,
+      objectMindVerificationState: record.objectMindVerificationState
+    }))
+  })).toBe(expectedState);
   await expect(summary).toHaveAttribute("data-valuation-contract-valid", "true");
   await expect(summary).toHaveAttribute("data-valuation-state", report.valuationEvidenceState);
   await expect(summary).toHaveAttribute("data-valuation-label", report.valuationEvidenceLabel);

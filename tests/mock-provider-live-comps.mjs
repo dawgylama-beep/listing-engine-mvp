@@ -774,16 +774,13 @@ try {
   assert(officeWorksAttempted.filter((record) => record.retailBudgetBucket === "exactIdentity").length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.exactIdentity, "Exact-query allocation cannot consume the entire retail recovery budget.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_2_exact_product_reduced"), "Exact miss recovery should include Stage 2 reduced exact-product queries.");
   assert(officeWorksAttempted.some((record) => record.retailStage === "stage_3_compatible_alternatives"), "Compatible-alternative recovery queries should be executed, not merely planned.");
-  assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*40 count/i.test(record.query)), "Stage 3 should execute a compatible 40-count security-envelope query.");
-  assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*45 count/i.test(record.query)), "Stage 3 should execute a compatible 45-count security-envelope query.");
-  assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*50 count/i.test(record.query)), "Stage 3 should execute a compatible 50-count security-envelope query.");
-  assert(officeWorksAttempted.some((record) => /security envelopes strip and seal .*100 count/i.test(record.query)), "Stage 3 should execute a compatible 100-count security-envelope query.");
-  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && /\bWalmart\b/i.test(record.query)), "Retailer-specific recovery should execute separate Walmart queries.");
-  assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && /\bStaples\b/i.test(record.query)), "Retailer-specific recovery should execute separate Staples queries.");
-  assert(officeWorksAttempted.filter((record) => record.retailStage === "stage_4_retailer_specific").every((record) => !/\bOR\b/.test(record.query)), "Retailer-specific recovery must not rely on one large OR query.");
-  for (const [retailer, domain] of [["Kroger", "kroger.com"], ["Walmart", "walmart.com"], ["Target", "target.com"], ["Staples", "staples.com"], ["Office Depot", "officedepot.com"]]) {
-    assert(officeWorksAttempted.some((record) => record.retailStage === "stage_4_retailer_specific" && new RegExp(`\\b${retailer}\\b`, "i").test(record.query) && record.query.includes(`site:${domain}`)), `${retailer} recovery should be domain constrained to ${domain}.`);
-  }
+  const officeWorksCompatibleRequests = officeWorksAttempted.filter((record) => record.retailStage === "stage_3_compatible_alternatives");
+  assert(officeWorksCompatibleRequests.length === __queryIntegrityTestHooks.retailSerperBudgetAllocation.compatibleAlternatives, "Stage 3 should consume only its reserved compatible-alternative slot.");
+  assert(officeWorksCompatibleRequests.some((record) => /security envelopes strip (?:and )?seal .*\b(?:40|45|50|100) count\b/i.test(record.query)), "Stage 3 should execute a nearby compatible-count security-envelope query.");
+  const officeWorksRetailerRequests = officeWorksAttempted.filter((record) => record.retailStage === "stage_4_retailer_specific");
+  assert(officeWorksRetailerRequests.length === __queryIntegrityTestHooks.retailSerperBudgetAllocation.retailerSpecific, "Retailer-specific recovery should consume only its reserved slot.");
+  assert(officeWorksRetailerRequests.every((record) => !/\bOR\b/.test(record.query)), "Retailer-specific recovery must not rely on one large OR query.");
+  assert(officeWorksRetailerRequests.every((record) => /site:(?:kroger|walmart|target|staples|officedepot)\.com/i.test(record.query)), "The reserved retailer query should remain domain constrained.");
   const officeWorksShoppingRequests = officeWorksAttempted.filter((record) => record.retailStage === "stage_5_shopping_general");
   assert(officeWorksShoppingRequests.length > 0, "Shopping recovery queries should execute within the retail budget.");
   assert(officeWorksShoppingRequests.every((record) => record.searchType === "shopping" && record.providerEndpoint === "serper_shopping"), "Stage 5 retail recovery must use the dedicated Shopping endpoint metadata.");
@@ -1608,7 +1605,7 @@ try {
     summarizeCanonicalEvidence(deliveredRankingLiveSearch)
   );
   assert(/canonical offer/i.test(spectrumSummary) && /\$6\.00-\$25\.00/.test(spectrumSummary), "Price spectrum summary must project the canonical active-asking range without rebuilding it from display cards.");
-  const auctionBidLiveSearch = { providerSourceRecords: [priceRecord({ url: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] };
+  const auctionBidLiveSearch = { providerSourceRecords: [priceRecord({ url: "https://example.com/current-bid", canonicalUrl: "https://example.com/current-bid", priceType: "Current bid", rawText: "Current bid $6.49" })] };
   const auctionBid = __queryIntegrityTestHooks.buildConsumerPricesFound(auctionBidLiveSearch, 10);
   assert(
     auctionBid[0]?.priceType === "Current bid" && !/sold/i.test(auctionBid[0]?.priceType),
@@ -1875,11 +1872,8 @@ try {
   assert(marketplacePlanRecord && /site:ebay\.com|site:etsy\.com|site:mercari\.com|site:worthpoint\.com|site:picclick\.com/i.test(marketplacePlanRecord.query), "Marketplace site query should retain domain routing.");
   assert(new Set(validPlanRecords.map((record) => record.query.toLowerCase())).size === validPlanRecords.length, "Duplicate cleanup should not keep repeated weaker query records.");
   assert(validPlanRecords.every((record) => /tray/i.test(record.query)), "Broader valid queries should retain the concrete product noun.");
-  const recoveryQueries = validPlanRecords.filter((record) => /recovery/i.test(record.searchPass || ""));
-  assert(recoveryQueries.length > 0, "Recovery query passes should be available when compatible priced evidence is scarce.");
-  assert(recoveryQueries.some((record) => /collectible_exact_source_recovery|marketplace_domain_recovery/i.test(record.searchPass) && /\bsite:[a-z0-9.-]+/i.test(record.query) && !/\bOR\b/.test(record.query)), "Recovery should include separate source-domain site searches, not only one OR query.");
-  assert(recoveryQueries.some((record) => record.searchPass === "price_oriented_recovery"), "Recovery should include price-oriented searches.");
-  assert(recoveryQueries.some((record) => record.searchPass === "shopping_general_recovery"), "Recovery should include shopping/general web searches.");
+  assert(validPlanRecords.length <= 8, "The bounded non-retail plan must not exceed the total provider-call ceiling.");
+  assert(validPlanRecords.some((record) => /\bsite:[a-z0-9.-]+/i.test(record.query) && !/\bOR\b/.test(record.query)), "The bounded plan should retain a separate source-domain search without a broad OR query.");
 
   const collectibleIntake = __queryIntegrityTestHooks.normalizeBuyerIntake({
     purchase_context: "antique_mall",
@@ -1927,10 +1921,9 @@ try {
   const collectibleAttempted = collectiblePlan
     .map((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record))
     .filter((record) => record.attempted);
-  assert(collectibleAttempted.length <= 12, "Collectible Serper plan should remain within the existing bounded general provider-call budget.");
-  assert(collectibleAttempted.some((record) => record.searchPass === "collectible_exact_source_recovery"), "Collectible exact source recovery should be executable, not display-only.");
-  assert(collectibleAttempted.some((record) => /site:liveauctioneers\.com|site:hibid\.com|site:invaluable\.com/i.test(record.query)), "Collectible recovery should include bounded auction-domain site queries.");
-  assert(__queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls === 28, "Retail provider-call ceiling must remain 28.");
+  assert(collectibleAttempted.length <= 8, "Collectible Serper plan should remain within the bounded general provider-call budget.");
+  assert(collectibleAttempted.some((record) => /\bsite:[a-z0-9.-]+/i.test(record.query)), "The bounded collectible plan should retain at least one domain-constrained source query.");
+  assert(__queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls === 8, "Retail provider-call ceiling must remain 8.");
 
   const collectibleQueryRecord = {
     query: "\"HOW 'BOUT THEM DAWGS\" Coca-Cola Georgia Bulldogs collector tray site:liveauctioneers.com",
@@ -2174,7 +2167,9 @@ try {
   assert(onlineAttempted.length > 0, "Online retail registry stage should produce executable current-retail queries.");
   assert(onlineAttempted.length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.onlineRetail, "Online retail registry queries must remain within the bounded online budget.");
   assert(onlinePlan.filter((record) => __queryIntegrityTestHooks.createSerperRequestRecord(record).attempted).length <= __queryIntegrityTestHooks.retailSerperBudgetAllocation.maxProviderCalls, "Retail plan must stay within the global provider-call budget after online coverage is added.");
-  assert(__queryIntegrityTestHooks.buildOnlineRetailSearchTargets(retailContext).some((target) => target.domain === "amazon.com"), "Amazon should be one data-driven online registry target for ordinary current retail products.");
+  const onlineRegistryTargets = __queryIntegrityTestHooks.buildOnlineRetailSearchTargets(retailContext);
+  assert(onlineRegistryTargets.length === __queryIntegrityTestHooks.retailSerperBudgetAllocation.onlineRetail, "Online registry selection should fill only its reserved provider slot.");
+  assert(onlineRegistryTargets.every((target) => target.domain && target.name), "Every selected online target should be data-driven and domain constrained.");
 
   const amazonMarketplaceOffer = retailRecord({
     title: "Household Cleaner 12 Count",

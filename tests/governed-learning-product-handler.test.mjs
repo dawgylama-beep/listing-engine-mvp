@@ -196,7 +196,7 @@ async function invokeProductHandler(adapter, analysisId) {
   return { res, providerCalls };
 }
 
-test("POST /api/generate-listing reaches the shared governed adapter and exposes the authoritative transition", async () => {
+test("post-Governor provider transport failure is excluded from cognition at the shared product boundary", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ke-product-learning-"));
   const adapter = new GovernedLearningAdapter({
     root,
@@ -210,75 +210,20 @@ test("POST /api/generate-listing reaches the shared governed adapter and exposes
     assert.equal(firstLearning.adapterIdentity, GOVERNED_LEARNING_ADAPTER_IDENTITY);
     assert.equal(
       firstLearning.lifecycleResult,
-      "LESSON_CANDIDATE_RECORDED",
+      "OPERATIONAL_FAILURE_EXCLUDED_FROM_COGNITION",
       JSON.stringify(first.res.payload.diagnostics)
     );
     assert.equal(firstLearning.promotionAuthorized, false);
     assert.deepEqual(firstLearning.selectedLessonIds, []);
-    assert.equal((await adapter.status()).candidates, 1);
-
-    const candidateId = firstLearning.candidateId;
-    const trials = [
-      {
-        caseId: "product-trial-one",
-        beforeScore: 0.3,
-        afterScore: 0.7,
-        beforeViolations: 1,
-        afterViolations: 0,
-        evidenceRefs: ["product-trial-evidence-one"]
-      },
-      {
-        caseId: "product-trial-two",
-        beforeScore: 0.4,
-        afterScore: 0.75,
-        beforeViolations: 0,
-        afterViolations: 0,
-        evidenceRefs: ["product-trial-evidence-two"]
-      },
-      {
-        caseId: "product-trial-three",
-        beforeScore: 0.45,
-        afterScore: 0.8,
-        beforeViolations: 0,
-        afterViolations: 0,
-        evidenceRefs: ["product-trial-evidence-three"]
-      }
-    ];
-    const qualificationAuthority = authorityRuntime("product-qualification");
-    const qualification = await adapter.qualifyCandidate({
-      governor: qualificationAuthority.governor,
-      runtime: qualificationAuthority.runtime,
-      candidateId,
-      trials,
-      minimumMeanImprovement: 0.2,
-      minimumApplicationImprovement: 0.1,
-      visibleEvidenceIds: trials.flatMap((trial) => trial.evidenceRefs),
-      episodeSequence: 2
-    });
-    assert.equal(qualification.verdict, "PASS");
-
-    const promotionAuthority = authorityRuntime("product-promotion");
-    const promotion = await adapter.promoteQualifiedLesson({
-      governor: promotionAuthority.governor,
-      runtime: promotionAuthority.runtime,
-      qualificationId: qualification.qualificationId,
-      episodeId: "product-promotion",
-      episodeSequence: 3,
-      createdAt: fixedTime
-    });
-    assert.equal(promotion.result, "LESSON_PROMOTED");
-
-    const second = await invokeProductHandler(adapter, "materially-different-product-episode");
-    assert.equal(second.res.statusCode, 502);
-    const secondLearning = second.res.payload.diagnostics.governedLearning;
-    assert.deepEqual(secondLearning.selectedLessonIds, [promotion.lessonId]);
-    assert.deepEqual(secondLearning.appliedLessonIds, [promotion.lessonId]);
-    assert.equal(secondLearning.memoryStatus, "RETRIEVED_APPLIED");
-    assert.equal(secondLearning.nonReuseDecision, "AUTHORIZED_TRANSFER");
-    assert.deepEqual(secondLearning.trialCandidateIds, []);
-    assert.equal(secondLearning.providerLifecycleAuthority, false);
+    assert.deepEqual(firstLearning.appliedLessonIds, []);
+    assert.equal(firstLearning.candidateId, "");
+    assert.equal(firstLearning.failureTaxonomy.failureClass, "PROVIDER_TRANSPORT_FAILURE");
+    assert.equal(firstLearning.failureTaxonomy.cognitiveEntryAuthorized, false);
+    const status = await adapter.status();
+    assert.equal(status.candidates, 0);
+    assert.equal(status.failures, 0);
+    assert.equal(status.productOutcomes, 0);
     assert.equal(first.providerCalls.length > 0, true);
-    assert.equal(second.providerCalls.length > 0, true);
   } finally {
     networkGuard.restore();
     await rm(root, { recursive: true, force: true });

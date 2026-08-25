@@ -387,6 +387,10 @@ test("source-backed identifiers and independent discriminators lead bounded purp
     record.exactVisibleFactsUsed.length >= 2
     && /EXACT_VISIBLE_PHRASE|HYPOTHESIS_DISAMBIGUATION|EXACT_MAKER_OBJECT_TYPE/.test(record.queryType)
   )));
-  assert(discriminatorState.searchPlan.every((record) => record.providerLane === "purpose_neutral_exact"));
+  assert(discriminatorState.searchPlan.every((record) => /^purpose_neutral_(?:exact|close|category)$/.test(record.providerLane)));
+  assert(discriminatorState.searchPlan.some((record) => (
+    record.queryType === "CATEGORY_CONTEXT"
+    && record.providerLane === "purpose_neutral_category"
+  )));
   assert(identifierState.searchPlan.length <= 12 && discriminatorState.searchPlan.length <= 12);
 });

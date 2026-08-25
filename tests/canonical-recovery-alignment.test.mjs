@@ -1666,7 +1666,33 @@ assert.equal(retryRecord.logicalQueryAttempted, true);
 assert.equal(retryRecord.physicalAttemptCount, 2);
 assert.equal(retryRecord.physicalRetryAttemptCount, 1);
 
-for (const ceiling of [28, 12]) {
+for (const [label, signal] of [
+  ["provider response ID", { responseId: "provider-response-present" }],
+  ["reported usage", { usage: { total_tokens: 1 } }],
+  ["product outcome", { productOutcome: { status: "partial" } }],
+  ["cognitive effect", { cognitiveEffect: { status: "recorded" } }]
+]) {
+  assert.equal(hooks.mechanicalRetryEligible(Object.assign(new Error(label), signal), {}), false);
+  const signaledRecord = hooks.createSerperRequestRecord(retryQuery);
+  const signaledBudget = hooks.createPhysicalAttemptBudget(2, "provider_search");
+  let signaledCalls = 0;
+  await assert.rejects(hooks.requestSerperSearchWithBudget({
+    requestRecord: signaledRecord,
+    queryRecord: retryQuery,
+    attemptBudget: signaledBudget,
+    apiKey: "test-only-redacted",
+    maxRetries: 1,
+    requestAdapter: async () => {
+      signaledCalls += 1;
+      throw Object.assign(new Error(`no mechanical retry after ${label}`), signal);
+    }
+  }), new RegExp(label));
+  assert.equal(signaledCalls, 1, `${label} must prohibit retry.`);
+  assert.equal(signaledRecord.physicalRetryAttemptCount, 0);
+}
+assert.equal(hooks.mechanicalRetryEligible(new Error("mechanical transport failure"), {}), true);
+
+for (const ceiling of [8]) {
   const cappedRecord = hooks.createSerperRequestRecord(retryQuery);
   const cappedBudget = hooks.createPhysicalAttemptBudget(ceiling, "provider_search");
   cappedBudget.physicalAttemptCount = ceiling - 1;
@@ -1703,7 +1729,7 @@ function openAIRequestRecord() {
   };
 }
 
-const oneOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const oneOpenAIBudget = hooks.createPhysicalAttemptBudget(8, "provider_search");
 const oneOpenAIRecord = openAIRequestRecord();
 let oneOpenAIAdapterCalls = 0;
 await hooks.requestOpenAIComparableSearchWithBudget({
@@ -1723,7 +1749,7 @@ assert.equal(oneOpenAIRecord.physicalRetryAttemptCount, 0);
 assert.equal(oneOpenAIRecord.physicalAttempts[0].provider, "openai_web_search");
 assert.equal(oneOpenAIRecord.physicalAttempts[0].outcome, "succeeded");
 
-const retryOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const retryOpenAIBudget = hooks.createPhysicalAttemptBudget(8, "provider_search");
 const retryOpenAIRecord = openAIRequestRecord();
 let retryOpenAIAdapterCalls = 0;
 await hooks.requestOpenAIComparableSearchWithBudget({
@@ -1747,7 +1773,7 @@ assert.equal(retryOpenAIRecord.physicalAttemptCount, 2);
 assert.equal(retryOpenAIRecord.physicalRetryAttemptCount, 1);
 assert.deepEqual(retryOpenAIRecord.physicalAttempts.map((attempt) => attempt.outcome), ["failed", "succeeded"]);
 
-for (const ceiling of [28, 12]) {
+for (const ceiling of [8]) {
   const nearlyExhaustedBudget = hooks.createPhysicalAttemptBudget(ceiling, "provider_search");
   nearlyExhaustedBudget.physicalAttemptCount = ceiling - 1;
   const nearlyExhaustedRecord = openAIRequestRecord();
@@ -1792,7 +1818,7 @@ for (const ceiling of [28, 12]) {
   assert.equal(exhaustedRecord.physicalAttemptCount, 0);
 }
 
-const sharedProviderBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const sharedProviderBudget = hooks.createPhysicalAttemptBudget(8, "provider_search");
 const sharedSerperRecord = hooks.createSerperRequestRecord(retryQuery);
 await hooks.requestSerperSearchWithBudget({
   requestRecord: sharedSerperRecord,
@@ -1812,7 +1838,7 @@ await hooks.requestOpenAIComparableSearchWithBudget({
 });
 const sharedAccounting = hooks.buildProviderAttemptAccounting(
   [sharedSerperRecord, sharedOpenAIRecord],
-  { maximumPhysicalProviderAttempts: 28 }
+  { maximumPhysicalProviderAttempts: 8 }
 );
 assert.equal(sharedAccounting.logicalProviderQueryCount, 2);
 assert.equal(sharedAccounting.physicalProviderAttemptCount, 2);
@@ -1821,7 +1847,7 @@ assert.deepEqual(
   ["serper_google", "openai_web_search"],
   "Serper and OpenAI fallback attempts must appear in one provider-search accounting universe."
 );
-const unrelatedOpenAIBudget = hooks.createPhysicalAttemptBudget(28, "provider_search");
+const unrelatedOpenAIBudget = hooks.createPhysicalAttemptBudget(8, "provider_search");
 let unrelatedOpenAICalls = 0;
 await (async () => {
   unrelatedOpenAICalls += 1;

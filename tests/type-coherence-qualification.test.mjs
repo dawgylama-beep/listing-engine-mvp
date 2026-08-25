@@ -296,3 +296,32 @@ test("J: reconciled evidence still enters the one canonical finalizer", () => {
   assert.deepEqual(finalEvidence.views.acceptedIds, finalEvidence.acceptedRecords.map((record) => record.evidenceId));
   assert.equal(finalEvidence.records.length, finalEvidence.acceptedRecords.length + finalEvidence.rejectedRecords.length);
 });
+
+test("K: ordinary product features do not override the canonical sweater, toaster, or clock type", () => {
+  const cases = [
+    {
+      identity: { visualSubject: "crewneck sweater with two long sleeves", subjectIdentity: "crewneck sweater" },
+      context: { itemType: "sweater", productTitle: "crewneck sweater with two long sleeves", notesText: "no box visible" },
+      record: { title: "Basic crewneck knit sweater with long sleeves", url: "https://merchant.example/basic-knit-sweater" },
+      expected: "shirt, jacket, or apparel"
+    },
+    {
+      identity: { visualSubject: "four-slot toaster", subjectIdentity: "countertop toaster" },
+      context: { itemType: "toaster", productTitle: "four-slot toaster", notesText: "no box visible" },
+      record: { title: "Four-slice toaster with removable crumb tray", url: "https://merchant.example/four-slice-toaster" },
+      expected: "small appliance"
+    },
+    {
+      identity: { visualSubject: "pendulum wall clock", subjectIdentity: "wall clock" },
+      context: { itemType: "wall-mounted pendulum clock", productTitle: "pendulum wall clock", notesText: "no box visible" },
+      record: { title: "Octagonal pendulum wall clock", url: "https://merchant.example/pendulum-wall-clock" },
+      expected: "clock"
+    }
+  ];
+  for (const example of cases) {
+    const result = hooks.evaluateComparableItemTypeCompatibility(example.record, example.identity, example.context);
+    assert.equal(result.itemTypeCompatible, true, example.record.title);
+    assert.equal(result.submittedItemType, example.expected, example.record.title);
+    assert.equal(result.candidateItemType, example.expected, example.record.title);
+  }
+});

@@ -1,12 +1,15 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
+  CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS,
   createCanonicalRecoveryView,
   createFinalEvidenceResult,
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
 import { compareObservationPreference, underlyingOfferKey } from "../lib/evidence/dedupe.js";
 import {
+  COMPARABLE_LADDER_LEVELS,
   applyObjectEvidenceVerification,
+  applyGovernedComparableStrategy,
   buildExperienceRecord,
   createEvidenceInformedRefinement,
   createInitialObjectSearchPlan,
@@ -14,6 +17,9 @@ import {
   createPurposeNeutralObjectInput,
   incorporateCandidateEvidence,
   projectCanonicalResearchIdentity,
+  projectCanonicalEvidenceIdentity,
+  selectBoundedComparableSearchPlan,
+  sha256Object,
   stableInternalId,
   withObjectSearchPlan
 } from "../lib/object-intelligence/index.js";
@@ -39,7 +45,10 @@ import {
 } from "../lib/cognitive-governor/index.js";
 import {
   GovernedLearningAdapter,
-  projectAuthoritativeMemoryStatus
+  classifyGovernedResearchApplicability,
+  classifyGovernedResearchOutcome,
+  projectAuthoritativeMemoryStatus,
+  sealGovernedTrialCausalAttribution
 } from "../lib/cognitive-learning/adapter.js";
 import {
   TERMINAL_STAGE,
@@ -62,6 +71,9 @@ const MAX_ANALYSIS_PHOTO_BYTES = 240000;
 const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
 const MAX_MODEL_REQUEST_ESTIMATE = 360000;
 const IMAGE_TOKEN_ESTIMATE_PER_PHOTO = 2500;
+const DEFAULT_VISUAL_IDENTITY_MODEL = "gpt-5.6-luna";
+const VISUAL_IDENTITY_REASONING_EFFORT = "medium";
+const VISUAL_IDENTITY_IMAGE_DETAIL = "original";
 const SAFE_INPUT_TOO_LARGE_MESSAGE = "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
 const SAFE_PROVIDER_ERROR_MESSAGE = "Katherine\u2019s Eye could not complete the analysis right now. Please try again shortly.";
 const outputTokenLimits = Object.freeze({
@@ -76,6 +88,9 @@ const outputTokenLimits = Object.freeze({
 const productionAnalysisAdapters = Object.freeze({
   getOpenAIApiKey: () => process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY,
   getOpenAIModel: () => process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  getVisualIdentityModel: () => DEFAULT_VISUAL_IDENTITY_MODEL,
+  getGovernedLearningMode: () => "PRODUCT",
+  getGovernedTrialRequest: () => null,
   getSerperApiKey: () => process.env.SERPER_API_KEY || "",
   requestOpenAIJson: (args) => requestOpenAIJsonNetwork(args),
   requestSerperSearch: (args) => requestSerperSearchNetwork(args),
@@ -109,7 +124,14 @@ function currentAnalysisAdapters() {
 export function createGenerateListingHandler(adapters = {}) {
   const resolvedAdapters = Object.freeze({
     ...productionAnalysisAdapters,
-    ...adapters
+    ...adapters,
+    getVisualIdentityModel: adapters.getVisualIdentityModel
+      || adapters.getOpenAIModel
+      || productionAnalysisAdapters.getVisualIdentityModel,
+    getGovernedLearningMode: adapters.getGovernedLearningMode
+      || productionAnalysisAdapters.getGovernedLearningMode,
+    getGovernedTrialRequest: adapters.getGovernedTrialRequest
+      || productionAnalysisAdapters.getGovernedTrialRequest
   });
   return (req, res) => analysisAdapterContext.run(resolvedAdapters, () => {
     let initializationError = null;
@@ -192,6 +214,27 @@ function decideCognitiveActionWithTerminalEvidence(governor, snapshot) {
   });
   if (authoritativeStateMissing) completeTerminalStage(TERMINAL_STAGE.AUTHORITATIVE_STATE_INITIALIZATION);
   return runtime.decision;
+}
+
+function executeSelectedCustomerInputTransition(governor, decision, snapshot) {
+  if (
+    !governor
+    || decision?.actionType !== COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT
+    || !decision.executionPermitted
+  ) return false;
+  beginTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
+  executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT, {
+    operationPhase: "CUSTOMER_INPUT_TRANSITION",
+    operation: () => decision.customerInputRequest
+  });
+  recordCognitiveActionOutcome(
+    governor,
+    decision,
+    snapshot,
+    { outcomeCode: "STRUCTURED_CUSTOMER_INPUT_REQUEST_RECORDED" }
+  );
+  completeTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
+  return true;
 }
 
 const listingSchema = {
@@ -1120,6 +1163,15 @@ async function handleGenerateListingRequest(req, res) {
     const body = parseBody(req.body);
     const action = cleanText(body.action);
 
+    if (action === "submit_product_outcome_feedback") {
+      completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
+      beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      const response = await handleProductOutcomeFeedback({ body, res });
+      completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      completeTerminalContext(currentEvaluationTerminalContext());
+      return response;
+    }
+
     if (action === "ask_market_edge") {
       completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
       beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
@@ -1180,6 +1232,12 @@ async function handleGenerateListingRequest(req, res) {
       governorProof: cognitiveDiagnostics?.executionProof
     });
     const payload = reportType === "marketValue" ? { valuation: safeReport } : { listing: safeReport };
+    await recordSuccessfulProductOutcome(payload, {
+      analysisId,
+      experienceRecord,
+      cognitiveDiagnostics,
+      researchDiagnostics: report.searchDiagnostics?.governedResearchStrategy
+    });
     const response = res.status(200).json(payload);
     completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     completeTerminalContext(currentEvaluationTerminalContext());
@@ -1191,7 +1249,17 @@ async function handleGenerateListingRequest(req, res) {
         ? error.clientSafeStatusCode || 413
         : error.httpStatusCode || 502;
     const failureEnvelope = buildFailureEnvelope(currentEvaluationTerminalContext(), error, { httpStatus: statusCode });
-    const governedLearning = await recordGovernedProductFailure(failureEnvelope);
+    const feedbackBoundaryFailure = String(error?.code || "").startsWith("PRODUCT_FEEDBACK")
+      || String(error?.code || "").startsWith("PROVIDER_AUTHORED_FEEDBACK");
+    const governedLearning = feedbackBoundaryFailure
+      ? {
+          adapterIdentity: "",
+          lifecycleResult: "PRODUCT_FEEDBACK_REFUSED",
+          refusalCode: cleanText(error?.code || "PRODUCT_FEEDBACK_REFUSED"),
+          promotionAuthorized: false,
+          providerLifecycleAuthority: false
+        }
+      : await recordGovernedProductFailure(failureEnvelope);
     const diagnostics = { terminalFailure: failureEnvelope, governedLearning };
     if (error.identityConfirmationRequired) {
       return res.status(409).json({
@@ -1232,10 +1300,65 @@ export function buildProductGovernedLearningProjection(runtime, lifecycle = {}) 
     adapterIdentity: runtime.governedLearning.adapterIdentity,
     ...authoritative,
     trialCandidateIds: runtime.governedLearning.trialCandidateIds,
+    trialSelectedCandidateIds: authoritative.trialSelectedCandidateIds,
+    trialAppliedCandidateIds: authoritative.trialAppliedCandidateIds,
     lifecycleResult: cleanText(lifecycle.result || "NOT_APPLICABLE"),
     refusalCode: cleanText(lifecycle.refusalCode),
     candidateId: cleanText(lifecycle.candidateId),
+    failureTaxonomy: lifecycle.failureTaxonomy || null,
     promotionAuthorized: lifecycle.promotionAuthorized === true,
+    providerLifecycleAuthority: false
+  });
+}
+
+export function classifyGovernedProductFailure(failureEnvelope = {}) {
+  const internalCode = cleanText(failureEnvelope.internalCode).toUpperCase();
+  const errorCategory = cleanText(failureEnvelope.errorCategory).toUpperCase();
+  const stageAtFailure = cleanText(failureEnvelope.stageAtFailure).toUpperCase();
+  const httpStatus = Number(failureEnvelope.httpStatus || 0);
+  let failureClass = "INFRASTRUCTURE_FAILURE";
+  if (
+    [401, 403, 429].includes(httpStatus)
+    || /(?:AUTHENTICATION|UNAUTHORIZED|FORBIDDEN|RATE_LIMIT|QUOTA)/.test(internalCode)
+  ) {
+    failureClass = "AUTHENTICATION_OR_RATE_LIMIT_FAILURE";
+  } else if (
+    errorCategory === "PROVIDER_FAILURE"
+    || failureEnvelope.physicalProviderAttemptBegan === true
+    || /(?:PROVIDER|OPENAI|SERPER|NETWORK|TRANSPORT|TIMEOUT|ECONN|FETCH)/.test(internalCode)
+  ) {
+    failureClass = "PROVIDER_TRANSPORT_FAILURE";
+  } else if (
+    errorCategory === "EXPERIENCE_INTEGRITY"
+    || /(?:EVALUATOR|EVALUATION_RESULT|REPORTING|ATTESTATION|EXPERIENCE_INTEGRITY)/.test(internalCode)
+    || /(?:RESPONSE_EMISSION|COGNITIVE_EPISODE_PROOF)/.test(stageAtFailure)
+  ) {
+    failureClass = "EVALUATOR_OR_REPORTING_FAILURE";
+  } else if (/^(?:EVIDENCE_QUALITY|CANONICAL_EVIDENCE_QUALITY|EVIDENCE_COMPATIBILITY)/.test(internalCode)) {
+    failureClass = "EVIDENCE_QUALITY_FAILURE";
+  } else if (/^(?:PURPOSE_RESULT|PURPOSE_JUDGMENT_RESULT|PURPOSE_OUTPUT)_/.test(internalCode)) {
+    failureClass = "PURPOSE_RESULT_INCONSISTENCY";
+  } else if (/^(?:PRODUCT_SEMANTIC|CANONICAL_PRODUCT_RESULT)_/.test(internalCode)) {
+    failureClass = "AUTHENTICATED_PRODUCT_SEMANTIC_FAILURE";
+  }
+  const semanticClass = [
+    "AUTHENTICATED_PRODUCT_SEMANTIC_FAILURE",
+    "EVIDENCE_QUALITY_FAILURE",
+    "PURPOSE_RESULT_INCONSISTENCY"
+  ].includes(failureClass);
+  const cognitiveEntryAuthorized = semanticClass
+    && failureEnvelope.governorReached === true
+    && failureEnvelope.authoritativeStateReached === true
+    && failureEnvelope.partialGovernorLedgerPresent === true
+    && errorCategory !== "PROVIDER_FAILURE";
+  return Object.freeze({
+    taxonomyVersion: "1.0",
+    failureClass,
+    cognitiveEntryAuthorized,
+    authorityBasis: cognitiveEntryAuthorized
+      ? "EVIDENCE_BOUND_CANONICAL_RUNTIME_FAILURE"
+      : "OPERATIONAL_OR_UNBOUND_FAILURE_EXCLUDED",
+    providerTextConsidered: false,
     providerLifecycleAuthority: false
   });
 }
@@ -1249,6 +1372,15 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
       promotionAuthorized: false,
       providerLifecycleAuthority: false
     };
+  }
+  const failureTaxonomy = classifyGovernedProductFailure(failureEnvelope);
+  if (!failureTaxonomy.cognitiveEntryAuthorized) {
+    return buildProductGovernedLearningProjection(governor.governedLearningRuntime, {
+      result: "OPERATIONAL_FAILURE_EXCLUDED_FROM_COGNITION",
+      refusalCode: failureTaxonomy.failureClass,
+      failureTaxonomy,
+      promotionAuthorized: false
+    });
   }
   try {
     const cognitiveEpisode = buildObservedFailureCognitiveEpisode(governor);
@@ -1274,9 +1406,14 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
         cognitiveEpisode.cognitiveEpisodeHash,
         lessonCandidate.lessonCandidateHash
       ].filter(Boolean))],
-      createdAt: currentAnalysisAdapters().nowIso()
+      createdAt: currentAnalysisAdapters().nowIso(),
+      captureAuthority: "EVIDENCE_BOUND_PRODUCT_FAILURE",
+      failureTaxonomy
     });
-    return buildProductGovernedLearningProjection(governor.governedLearningRuntime, result);
+    return buildProductGovernedLearningProjection(governor.governedLearningRuntime, {
+      ...result,
+      failureTaxonomy
+    });
   } catch (learningError) {
     return buildProductGovernedLearningProjection(governor.governedLearningRuntime, {
       lifecycleResult: "LEARNING_CAPTURE_REFUSED",
@@ -1817,22 +1954,22 @@ function buildModelLiveSearchContext(liveSearch = {}) {
     : {};
   return {
     liveSearchStatus: compactModelResearchText(liveSearch.liveSearchStatus),
-    comparableItemsFound: compactModelResearchTextArray(liveSearch.comparableItemsFound, 8),
-    strongComparables: compactModelResearchRecordArray(liveSearch.strongComparables, 8),
-    partialComparables: compactModelResearchRecordArray(liveSearch.partialComparables, 8),
-    itemIdentificationEvidence: compactModelResearchRecordArray(liveSearch.itemIdentificationEvidence, 8),
-    referenceResults: compactModelResearchRecordArray(liveSearch.referenceResults, 8),
-    weakMatches: compactModelResearchRecordArray(liveSearch.weakMatches, 8),
-    rejectedMatches: compactModelResearchRecordArray(liveSearch.rejectedMatches, 8),
-    retailEvidenceAssessments: compactModelResearchRecordArray(liveSearch.retailEvidenceAssessments, 12),
+    comparableItemsFound: compactModelResearchTextArray(liveSearch.comparableItemsFound, 6, 500),
+    strongComparables: compactModelResearchRecordArray(liveSearch.strongComparables, 6),
+    partialComparables: compactModelResearchRecordArray(liveSearch.partialComparables, 6),
+    itemIdentificationEvidence: compactModelResearchRecordArray(liveSearch.itemIdentificationEvidence, 6),
+    referenceResults: compactModelResearchRecordArray(liveSearch.referenceResults, 6),
+    weakMatches: compactModelResearchRecordArray(liveSearch.weakMatches, 4),
+    rejectedMatches: compactModelResearchRecordArray(liveSearch.rejectedMatches, 4),
+    retailEvidenceAssessments: compactModelResearchRecordArray(liveSearch.retailEvidenceAssessments, 8),
     noReliableMatchesReason: compactModelResearchText(liveSearch.noReliableMatchesReason),
     searchEvidenceSummary: compactModelResearchText(liveSearch.searchEvidenceSummary),
-    sourceRoute: compactModelResearchTextArray(liveSearch.sourceRoute, 16, 500),
-    searchQueries: compactModelResearchTextArray(liveSearch.searchQueries, 16, 500),
-    queriesActuallySent: compactModelResearchTextArray(liveSearch.queriesActuallySent, 28, 500),
+    sourceRoute: compactModelResearchTextArray(liveSearch.sourceRoute, 12, 300),
+    searchQueries: compactModelResearchTextArray(liveSearch.searchQueries, 8, 300),
+    queriesActuallySent: compactModelResearchTextArray(liveSearch.queriesActuallySent, 8, 300),
     sourcesSearched: compactModelResearchTextArray(liveSearch.sourcesSearched, 8, 300),
-    domainsActuallyReturned: compactModelResearchTextArray(liveSearch.domainsActuallyReturned, 24, 300),
-    sourceURLsReturned: compactModelResearchTextArray(liveSearch.sourceURLsReturned, 30, 700),
+    domainsActuallyReturned: compactModelResearchTextArray(liveSearch.domainsActuallyReturned, 16, 200),
+    sourceURLsReturned: compactModelResearchTextArray(liveSearch.sourceURLsReturned, 16, 500),
     searchProviderUsed: compactModelResearchText(liveSearch.searchProviderUsed, 300),
     primarySearchProvider: compactModelResearchText(liveSearch.primarySearchProvider, 300),
     serperConfigured: Boolean(liveSearch.serperConfigured),
@@ -1905,10 +2042,12 @@ function compactModelResearchRecord(record) {
     "shippingDisclosure",
     "deliveredCostSupported",
     "date",
+    "observationDate",
     "condition",
     "listingStatus",
     "availabilityStatus",
     "activeSoldReferenceStatus",
+    "marketStatus",
     "currentListingEvidence",
     "sourceType",
     "sourceEvidenceType",
@@ -1918,6 +2057,9 @@ function compactModelResearchRecord(record) {
     "identityMatchStrength",
     "matchQuality",
     "classification",
+    "matchLevel",
+    "materialDifferences",
+    "evidentiaryConfidence",
     "evidenceRole",
     "evidenceType",
     "itemTypeCompatible",
@@ -1994,7 +2136,12 @@ function compactModelResearchRecord(record) {
       compact[field] = rawValue;
       continue;
     }
-    const text = compactModelResearchText(rawValue);
+    const fieldLimit = /^(?:url|canonicalUrl|destinationUrl|originalSourceUrl|sourceURL)$/i.test(field)
+      ? 700
+      : /^(?:sourceEvidenceText|snippet|rawText)$/i.test(field)
+        ? 500
+        : 300;
+    const text = compactModelResearchText(rawValue, fieldLimit);
     if (text) compact[field] = text;
   }
   return compact;
@@ -2156,7 +2303,10 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
   }
   const report = await executePendingPurposeJudgment(research, () => (
     generateFinalListingReport({ apiKey, model, platform, notes, research })
-  ));
+  ), { workflow: "listing", platform });
+  if (report.analysisStatus === "PARTIAL_PROVIDER_FAILURE") {
+    return completeRecoverablePartialEvaluation(research, report);
+  }
   return completeCognitiveEvaluation(
     research,
     enforceListingResearchHonesty(report, research, platform)
@@ -2246,7 +2396,11 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
       searchQueries,
       liveSearch,
       buyerIntake: intake
-    }));
+    }), { workflow: "personal_buy", platform });
+
+    if (report.analysisStatus === "PARTIAL_PROVIDER_FAILURE") {
+      return completeRecoverablePartialEvaluation(research, report);
+    }
 
     return completeCognitiveEvaluation(
       research,
@@ -2256,7 +2410,11 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
 
   const report = await executePendingPurposeJudgment(research, () => generateFinalMarketValueReport({
     apiKey, model, platform, notes, identity, sourceRoute, searchQueries, liveSearch, buyerIntake: intake
-  }));
+  }), { workflow: isOwnerValueIntent(intake.purchase_intent) ? "owner_value" : "resale", platform });
+
+  if (report.analysisStatus === "PARTIAL_PROVIDER_FAILURE") {
+    return completeRecoverablePartialEvaluation(research, report);
+  }
 
   return completeCognitiveEvaluation(
     research,
@@ -2296,6 +2454,10 @@ function buildControlledExecutiveReport(research = {}) {
   const report = {
     analysisStatus: status,
     requestedPurposeComplete: false,
+    pricingState: "not_established",
+    valuationEvidenceState: "insufficient",
+    fairValue: "Not established",
+    whyValueIsNotEstablished: "The current canonical identity or retained comparable evidence is insufficient for a responsible numeric value judgment.",
     safetyOutcomeComplete: safetyOnly,
     title: safetyOnly ? "Safety action required" : "More information is needed",
     description: safetyOnly
@@ -2336,11 +2498,486 @@ function buildControlledExecutiveReport(research = {}) {
   return report;
 }
 
+function researchPlanProjection(searchPlan = []) {
+  return normalizeArray(searchPlan).map((record) => ({
+    queryId: cleanText(record.queryId),
+    query: cleanText(record.query),
+    queryType: cleanText(record.queryType),
+    comparableLadderLevel: cleanText(record.comparableLadderLevel),
+    providerLane: cleanText(record.providerLane),
+    phase: cleanText(record.phase),
+    identityTermProvenance: normalizeArray(record.identityTermProvenance).map((entry) => ({
+      term: cleanText(entry.term),
+      role: cleanText(entry.role),
+      provenance: cleanText(entry.provenance),
+      observationIds: normalizeArray(entry.observationIds).map((identity) => cleanText(identity))
+    }))
+  }));
+}
+
+function deriveGovernedResearchEvidenceRisk(objectMindState = {}, searchPlan = []) {
+  const plan = researchPlanProjection(searchPlan);
+  const count = (level) => plan.filter((record) => record.comparableLadderLevel === level).length;
+  const unsupportedQueryTermCount = plan.filter((record) => (
+    !record.identityTermProvenance.some((entry) => entry.role === "CANONICAL_OBJECT_CATEGORY")
+    || record.identityTermProvenance.some((entry) => !entry.observationIds.length)
+  )).length;
+  const unresolved = objectMindState.resolvedIdentity?.exactnessClassification !== "EXACT_ITEM"
+    ? Math.max(1, normalizeArray(objectMindState.resolvedIdentity?.additionalEvidenceNeeded).length)
+    : 0;
+  const researchEvidenceRisk = Object.freeze({
+    canonicalIdentityUnresolvedCount: unresolved,
+    unsupportedQueryTermCount,
+    exactComparableCount: count("EXACT"),
+    closeComparableCount: count("CLOSE"),
+    categoryComparableCount: count("CATEGORY"),
+    weakPriceProvenanceCount: 0,
+    valueJudgmentExceedsEvidenceCount: 0
+  });
+  return Object.freeze({
+    researchEvidenceRisk,
+    applicabilityDecision: classifyGovernedResearchApplicability(researchEvidenceRisk),
+    researchPlanHash: sha256Object(plan)
+  });
+}
+
+function comparableTraceUrl(record = {}) {
+  return cleanText(record.canonicalUrl || record.destinationUrl || record.url || record.originalUrl);
+}
+
+function comparableTraceKey(record = {}) {
+  return cleanText(
+    comparableTraceUrl(record)
+    || record.sourceRecordId
+    || record.providerRecordId
+    || record.evidenceId
+    || record.title
+  ).toLowerCase();
+}
+
+function comparableTraceRejected(record = {}) {
+  return record.itemTypeCompatible === false
+    || /(?:mismatch|incompatible|contradicted)/i.test(cleanText(record.itemTypeCompatibilityStatus))
+    || /^(?:REJECTED)$/i.test(cleanText(record.objectMindVerificationState))
+    || /^(?:SIMILAR_OBJECT|UNRELATED)$/i.test(cleanText(record.objectMindClassification))
+    || /(?:rejected|weak)/i.test(cleanText(record.identityMatchStrength || record.classification));
+}
+
+function comparableTraceLevel(record = {}) {
+  if (!record || comparableTraceRejected(record)) return "rejected";
+  const text = cleanText([
+    record.canonicalMatchQuality,
+    record.matchLevel,
+    record.identityMatchStrength,
+    record.classification,
+    record.objectMindClassification
+  ].filter(Boolean).join(" "));
+  if (record.exactIdentity === true || /(?:^|\b)(?:Exact|EXACT_ITEM)(?:\b|$)/i.test(text)) return "exact";
+  if (/Strong compatible|Strong Similar|Partial|Close comparable|EXACT_DESIGN_VARIATION_UNRESOLVED/i.test(text)) return "close";
+  if (record.itemTypeCompatible === true || /Compatible|Reference Only|Category comparable|INSUFFICIENT_EVIDENCE/i.test(text)) return "category";
+  return "rejected";
+}
+
+function isolateCategoryComparablePricing(record = {}) {
+  if (cleanText(record.comparableLadderLevel).toUpperCase() !== "CATEGORY") return record;
+  return {
+    ...record,
+    displayedPriceText: "",
+    displayedPrice: "",
+    priceText: "",
+    price: null,
+    parsedPrice: null,
+    canonicalPrice: null,
+    currency: "",
+    priceEvidenceType: "Reference Without Price",
+    priceType: "Reference Without Price",
+    priceTypeLabel: "Price unavailable",
+    influencedVerifiedMarketRange: "No - category context cannot establish pricing.",
+    includedInPreliminaryAskingPriceRange: "No - category context cannot establish pricing.",
+    pricingAuthority: "CATEGORY_CONTEXT_ONLY"
+  };
+}
+
+function countComparableTraceLevels(records = []) {
+  const counts = { exact: 0, close: 0, category: 0 };
+  for (const record of normalizeArray(records)) {
+    const level = comparableTraceLevel(record);
+    if (Object.hasOwn(counts, level)) counts[level] += 1;
+  }
+  return counts;
+}
+
+function comparablePlanLevel(record = {}, planById = new Map(), planByQuery = new Map()) {
+  const owner = planById.get(cleanText(record.objectMindQueryId || record.queryId))
+    || planByQuery.get(cleanText(record.query).toLowerCase());
+  const explicit = cleanText(record.comparableLadderLevel || owner?.comparableLadderLevel).toUpperCase();
+  if (["EXACT", "CLOSE", "CATEGORY"].includes(explicit)) return explicit;
+  const lane = cleanText(record.objectMindProviderLane || record.providerLane || owner?.providerLane);
+  if (/category|broad/i.test(lane)) return "CATEGORY";
+  if (/close|similar|alternative/i.test(lane)) return "CLOSE";
+  if (/exact/i.test(lane)) return "EXACT";
+  return "";
+}
+
+function comparablePlanMaps(objectMindState = {}, records = []) {
+  const plan = [
+    ...normalizeArray(objectMindState.searchPlan),
+    ...normalizeArray(records)
+  ];
+  return {
+    planById: new Map(plan.map((record) => [
+      cleanText(record.queryId || record.objectMindQueryId),
+      record
+    ]).filter(([key]) => key)),
+    planByQuery: new Map(plan.map((record) => [
+      cleanText(record.query).toLowerCase(),
+      record
+    ]).filter(([key]) => key))
+  };
+}
+
+async function executeBoundedComparableFallback({
+  queryRecords = [],
+  objectMindState = {},
+  executeLevel,
+  evidenceSufficientAfterLevel = () => false
+} = {}) {
+  const uniqueRecords = [];
+  const signatures = new Set();
+  for (const record of normalizeArray(queryRecords)) {
+    const signature = cleanText(record.query).toLowerCase();
+    if (!signature || signatures.has(signature)) continue;
+    signatures.add(signature);
+    uniqueRecords.push(record);
+  }
+  const { planById, planByQuery } = comparablePlanMaps(objectMindState, uniqueRecords);
+  const attemptedLevels = [];
+  let stoppedAfterLevel = "";
+  for (const level of COMPARABLE_LADDER_LEVELS) {
+    const levelRecords = uniqueRecords.filter((record) => (
+      comparablePlanLevel(record, planById, planByQuery) === level
+    ));
+    if (!levelRecords.length) continue;
+    await executeLevel(levelRecords, level);
+    attemptedLevels.push(level);
+    if (level !== "CATEGORY" && await evidenceSufficientAfterLevel(level)) {
+      stoppedAfterLevel = level;
+      break;
+    }
+  }
+  return Object.freeze({
+    attemptedLevels: Object.freeze([...attemptedLevels]),
+    fullLadderAttempted: COMPARABLE_LADDER_LEVELS.every((level) => attemptedLevels.includes(level)),
+    stoppedAfterLevel,
+    boundedQueryCount: uniqueRecords.length
+  });
+}
+
+function assessComparableLadderRetention(records = [], {
+  level = "EXACT",
+  identity = {},
+  buyerIntake = normalizeBuyerIntake({}),
+  context = null,
+  providerRequestRecords = []
+} = {}) {
+  const acceptedMatchLevels = level === "EXACT"
+    ? new Set(["exact"])
+    : new Set(["exact", "close"]);
+  const eligibleRecords = normalizeArray(records).filter((record) => (
+    acceptedMatchLevels.has(comparableTraceLevel(record))
+  ));
+  const canonicalRecoveryView = buildCanonicalRecoveryViewForRecords(eligibleRecords, {
+    identity,
+    buyerIntake,
+    context,
+    providerRequestRecords
+  });
+  const retainedPricedEvidenceCount = Number(canonicalRecoveryView.priceBearingAcceptedCount || 0);
+  return Object.freeze({
+    level,
+    retainedEvidenceCount: Number(canonicalRecoveryView.deduplicatedAcceptedCount || 0),
+    retainedPricedEvidenceCount,
+    exactRetainedPricedEvidenceCount: Number(canonicalRecoveryView.exactPriceBearingAcceptedCount || 0),
+    sufficient: retainedPricedEvidenceCount >= CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS,
+    supportEvidenceIds: Object.freeze([...normalizeArray(canonicalRecoveryView.recoveryStoppingSupportIds)])
+  });
+}
+
+function isStaleOrIrrelevantComparable(record = {}) {
+  return /(?:stale|expired|removed|irrelevant|unrelated|non-product|editorial|category page|search results)/i.test(cleanText([
+    record.rejectionReason,
+    record.objectMindRejectionReason,
+    record.exclusionReason,
+    record.listingStatus,
+    record.pageType
+  ].filter(Boolean).join(" ")));
+}
+
+function buildComparableFunnelDiagnostics(liveSearch = {}, {
+  candidateRecords = [],
+  canonicalObservations = [],
+  finalEvidenceResult = liveSearch.finalEvidenceResult || null
+} = {}) {
+  const acquisitionRecords = normalizeArray(
+    liveSearch.sourceAcquisitionRecords?.length
+      ? liveSearch.sourceAcquisitionRecords
+      : liveSearch.providerSourceRecords
+  );
+  const normalizedRecords = normalizeArray(liveSearch.providerSourceRecords);
+  const providerRequests = normalizeArray(liveSearch.providerRequestRecords);
+  const plan = [
+    ...normalizeArray(liveSearch.objectMindState?.searchPlan),
+    ...normalizeArray(liveSearch.queriesPrioritized)
+  ];
+  const planById = new Map(plan.map((record) => [cleanText(record.queryId || record.objectMindQueryId), record]).filter(([key]) => key));
+  const planByQuery = new Map(plan.map((record) => [cleanText(record.query).toLowerCase(), record]).filter(([key]) => key));
+  const attemptedRequests = providerRequests.filter((record) => (
+    record.attempted === true || record.logicalQueryAttempted === true || Number(record.physicalAttemptCount || 0) > 0
+  ));
+  const attemptedLevels = new Set(attemptedRequests
+    .map((record) => comparablePlanLevel(record, planById, planByQuery))
+    .filter(Boolean));
+  const fullLadderExecuted = COMPARABLE_LADDER_LEVELS.every((level) => attemptedLevels.has(level));
+  const traceableAcquisition = acquisitionRecords.filter((record) => /^https?:\/\//i.test(comparableTraceUrl(record)));
+  const acceptedRecords = normalizeArray(finalEvidenceResult?.acceptedRecords);
+  const serializedRecords = normalizeArray(finalEvidenceResult?.customerEvidence);
+  const acceptedKeys = new Set(acceptedRecords.map(comparableTraceKey).filter(Boolean));
+  const legitimateNormalized = normalizedRecords.filter((record) => (
+    /^https?:\/\//i.test(comparableTraceUrl(record))
+    && comparableTraceLevel(record) !== "rejected"
+    && !isStaleOrIrrelevantComparable(record)
+  ));
+  const strategyDiscardedCandidateCount = finalEvidenceResult
+    ? legitimateNormalized.filter((record) => !acceptedKeys.has(comparableTraceKey(record))).length
+    : 0;
+  const expectedSerializedCount = normalizeArray(finalEvidenceResult?.views?.displayedIds).length;
+  const serializationLossCount = Math.max(0, expectedSerializedCount - serializedRecords.length);
+  const uniqueTraceableAcquisitionCount = new Set(traceableAcquisition.map(comparableTraceKey).filter(Boolean)).size;
+  const missingOrMalformedPriceCount = normalizedRecords.filter((record) => {
+    const amount = getVisibleItemPriceAmount(record);
+    return !Number.isFinite(amount) || amount <= 0;
+  }).length;
+  const unsupportedSaleStatusCount = normalizedRecords.filter((record) => {
+    const amount = getVisibleItemPriceAmount(record);
+    if (!Number.isFinite(amount) || amount <= 0) return false;
+    return /(?:Unknown Price Type|No Usable Price Evidence|Reference Without Price|Non-Transactional|Bulk\/Lot)/i.test(
+      normalizePriceTypeLabel(record.priceType || record.priceEvidenceType, record)
+    );
+  }).length;
+  const exactMatchFailureRetainedAsClose = normalizedRecords.filter((record) => (
+    comparablePlanLevel(record, planById, planByQuery) === "EXACT"
+    && comparableTraceLevel(record) === "close"
+  )).length;
+  const closeMatchFailureRetainedAsCategory = normalizedRecords.filter((record) => (
+    comparablePlanLevel(record, planById, planByQuery) === "CLOSE"
+    && comparableTraceLevel(record) === "category"
+  )).length;
+  return Object.freeze({
+    schemaVersion: "1.0",
+    stageOrder: Object.freeze([
+      "SEARCH_RESPONSE", "RESULT_EXTRACTION", "OFFER_CANDIDATE", "NORMALIZATION",
+      "IDENTITY_MATCHING", "EVIDENCE_GRADING", "RETENTION", "RESPONSE_SERIALIZATION"
+    ]),
+    stageCounts: Object.freeze({
+      searchResponse: providerRequests.reduce((sum, record) => sum + Number(record.providerSourceCount || 0), 0),
+      resultExtraction: acquisitionRecords.length,
+      offerCandidate: traceableAcquisition.length,
+      normalization: normalizedRecords.length,
+      identityMatching: Object.values(countComparableTraceLevels(normalizedRecords)).reduce((sum, value) => sum + value, 0),
+      evidenceGrading: normalizeArray(candidateRecords).length || normalizeArray(canonicalObservations).length,
+      retention: acceptedRecords.length,
+      responseSerialization: serializedRecords.length
+    }),
+    normalizedComparableCounts: Object.freeze(countComparableTraceLevels(normalizedRecords)),
+    retainedComparableCounts: Object.freeze(countComparableTraceLevels(acceptedRecords)),
+    serializedComparableCounts: Object.freeze(countComparableTraceLevels(serializedRecords)),
+    rejectionReasons: Object.freeze({
+      missingSourceUrl: acquisitionRecords.filter((record) => !/^https?:\/\//i.test(comparableTraceUrl(record))).length,
+      missingOrMalformedPrice: missingOrMalformedPriceCount,
+      unsupportedSaleStatus: unsupportedSaleStatusCount,
+      duplicateEvidence: Math.max(0, traceableAcquisition.length - uniqueTraceableAcquisitionCount),
+      identityMismatch: normalizedRecords.filter(comparableTraceRejected).length,
+      exactMatchFailureRetainedAsClose,
+      closeMatchFailureRetainedAsCategory,
+      staleOrIrrelevant: normalizedRecords.filter(isStaleOrIrrelevantComparable).length,
+      acquisitionOrTransportFailure: attemptedRequests.filter((record) => !record.succeeded).length,
+      strategyDiscardedCandidate: strategyDiscardedCandidateCount,
+      serializationLoss: serializationLossCount
+    }),
+    fullLadderExecuted,
+    fullLadderAttempted: fullLadderExecuted,
+    attemptedLadderLevels: Object.freeze([...attemptedLevels].sort())
+  });
+}
+
+function refreshGovernedResearchOutcome(liveSearch = {}, options = {}) {
+  if (!liveSearch.finalEvidenceResult && !options.finalEvidenceResult) return null;
+  const funnel = buildComparableFunnelDiagnostics(liveSearch, options);
+  const preInterventionDecision = liveSearch.governedResearchStrategy?.preInterventionResearchApplicabilityDecision
+    || liveSearch.governedResearchStrategy?.researchApplicabilityDecision
+    || null;
+  const unsupportedQueryTermCount = Number(preInterventionDecision?.features?.unsupportedQueryTermCount || 0);
+  const retained = funnel.retainedComparableCounts;
+  const providerRequests = normalizeArray(liveSearch.providerRequestRecords);
+  const attempted = providerRequests.filter((record) => (
+    record.attempted === true || record.logicalQueryAttempted === true || Number(record.physicalAttemptCount || 0) > 0
+  ));
+  const succeeded = attempted.filter((record) => record.succeeded === true);
+  const transportFailureCount = attempted.filter((record) => !record.succeeded).length;
+  const groundedPlan = unsupportedQueryTermCount === 0 && funnel.attemptedLadderLevels.length > 0;
+  const outcomeDecision = classifyGovernedResearchOutcome({
+    providerCallsAttempted: attempted.length,
+    providerCallsSucceeded: succeeded.length,
+    transportFailureCount,
+    traceableSourceCount: funnel.stageCounts.offerCandidate,
+    normalizedCandidateCount: funnel.stageCounts.normalization,
+    exactComparableCount: retained.exact,
+    closeComparableCount: retained.close,
+    categoryComparableCount: retained.category,
+    strategyDiscardedCandidateCount: funnel.rejectionReasons.strategyDiscardedCandidate,
+    serializationLossCount: funnel.rejectionReasons.serializationLoss,
+    unsupportedQueryTermCount,
+    weakPriceProvenanceCount: 0,
+    valueJudgmentExceedsEvidenceCount: 0,
+    groundedPlan,
+    fullLadderExecuted: funnel.fullLadderExecuted
+  });
+  liveSearch.governedResearchStrategy = {
+    ...(liveSearch.governedResearchStrategy || {}),
+    preInterventionResearchApplicabilityDecision: preInterventionDecision,
+    researchApplicabilityDecision: outcomeDecision,
+    researchOutcomeDecision: outcomeDecision,
+    comparableFunnel: funnel,
+    providerLifecycleAuthority: false
+  };
+  liveSearch.searchDiagnostics = {
+    ...(liveSearch.searchDiagnostics || {}),
+    comparableFunnel: funnel,
+    governedResearchStrategy: liveSearch.governedResearchStrategy
+  };
+  return outcomeDecision;
+}
+
+function governedResearchStrategySnapshot({ analysisId, objectMindState, searchPlan }) {
+  const visibleEvidenceIds = (objectMindState.observedFacts || [])
+    .map((fact) => fact.observationId)
+    .filter(Boolean)
+    .slice(0, 24);
+  return {
+    evaluationId: analysisId,
+    objectMindState,
+    evidenceRecords: objectMindState.candidateEvidence || [],
+    providerRequests: [],
+    initialPlan: searchPlan,
+    refinementPlan: [],
+    directPageCandidates: [],
+    providerBudget: { maximum: 8, consumed: 0 },
+    directPageBudget: { maximum: 2, consumed: 0 },
+    executiveState: {
+      missionObjective: "Apply a qualified comparable-research strategy without changing canonical visual identity.",
+      finishLine: "Balance exact, close, and category research within the existing provider budget.",
+      earliestCausalBoundary: "CANONICAL_RESEARCH_PLAN",
+      visibleEvidenceIds,
+      requiredEvidenceIds: visibleEvidenceIds,
+      evidenceCondition: "SUPPORTED",
+      failureCondition: "COMPARABLE_RESEARCH_STRATEGY_RISK",
+      failureScope: "BOUNDED",
+      uncertaintyClass: "NONE",
+      authorityClass: "EXISTING",
+      permittedOperations: ["GOVERNED_RESEARCH_STRATEGY_APPLICATION"],
+      prohibitedOperations: ["VISUAL_IDENTITY_REPLACEMENT", "PROVIDER_LIFECYCLE_TRANSITION", "MEMORY_PROMOTION"],
+      safeContinuation: true,
+      newMechanismRequired: false,
+      contradictionPresent: false,
+      cycleDetected: false,
+      duplicateDetected: false,
+      memoryReuseBoundary: "ANALOGUE",
+      dossierStage: "CAPABLE",
+      stoppingState: "ACTIVE"
+    }
+  };
+}
+
+function executeGovernedResearchStrategy({ cognitiveGovernor, objectMindState, searchPlan, analysisId }) {
+  const memoryContext = cognitiveGovernor.governedLearningMemoryContext || {};
+  const selected = new Set(memoryContext.selectedMemoryIds || []);
+  const selectedStrategy = (memoryContext.records || []).some((record) => (
+    selected.has(record.memoryId)
+    && record.recommendedActionPattern === COGNITIVE_ACTION.APPLY_GOVERNED_RESEARCH_STRATEGY
+  ));
+  const beforeHash = sha256Object(researchPlanProjection(searchPlan));
+  if (!selectedStrategy) {
+    return {
+      executed: false,
+      runtime: null,
+      searchPlan,
+      beforeHash,
+      afterHash: beforeHash,
+      causalAttribution: null
+    };
+  }
+  const snapshot = governedResearchStrategySnapshot({ analysisId, objectMindState, searchPlan });
+  const decision = decideCognitiveActionWithTerminalEvidence(cognitiveGovernor, snapshot);
+  if (
+    decision.actionType !== COGNITIVE_ACTION.APPLY_GOVERNED_RESEARCH_STRATEGY
+    || !decision.executionPermitted
+  ) throw new Error("Cognitive Governor did not authorize the selected research-strategy lesson.");
+  const balancedPlan = executeGovernorAuthorizedAction(
+    cognitiveGovernor,
+    decision,
+    COGNITIVE_ACTION.APPLY_GOVERNED_RESEARCH_STRATEGY,
+    {
+      operationPhase: "GOVERNED_RESEARCH_STRATEGY_APPLICATION",
+      operation: () => applyGovernedComparableStrategy(objectMindState, searchPlan, { maximumQueries: 8 })
+    }
+  );
+  const afterHash = sha256Object(researchPlanProjection(balancedPlan));
+  recordCognitiveActionOutcome(
+    cognitiveGovernor,
+    decision,
+    governedResearchStrategySnapshot({ analysisId, objectMindState, searchPlan: balancedPlan }),
+    { outcomeCode: "GOVERNED_RESEARCH_STRATEGY_APPLIED" }
+  );
+  return {
+    executed: true,
+    runtime: cognitiveGovernor.governedLearningRuntime,
+    decision,
+    searchPlan: balancedPlan,
+    beforeHash,
+    afterHash,
+    causalAttribution: null
+  };
+}
+
+function projectGovernedResearchStrategyEvidence(strategy = {}, applicabilityDecision = null) {
+  const runtime = strategy.runtime;
+  return {
+    executed: strategy.executed === true,
+    actionType: COGNITIVE_ACTION.APPLY_GOVERNED_RESEARCH_STRATEGY,
+    selectedLessonIds: runtime?.governedLearning?.selectedMemoryIds || [],
+    appliedLessonIds: runtime?.governedLearning?.appliedLessonIds || [],
+    trialCandidateIds: runtime?.governedLearning?.trialCandidateIds || [],
+    trialSelectedCandidateIds: runtime?.authoritativeMemoryTransition?.trialSelectedCandidateIds || [],
+    trialAppliedCandidateIds: runtime?.authoritativeMemoryTransition?.trialAppliedCandidateIds || [],
+    memoryTransitionHash: runtime?.authoritativeMemoryTransition?.memoryTransitionHash || "",
+    preInterventionResearchApplicabilityDecision: applicabilityDecision,
+    researchApplicabilityDecision: applicabilityDecision,
+    frozenPreInterventionStateHash: strategy.beforeHash,
+    researchPlanBeforeHash: strategy.beforeHash,
+    researchPlanAfterHash: strategy.afterHash,
+    researchPlanChanged: strategy.beforeHash !== strategy.afterHash,
+    causalAttribution: strategy.causalAttribution || null,
+    providerLifecycleAuthority: false
+  };
+}
+
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
   const intake = buyerIntake || normalizeBuyerIntake({});
   const neutralInput = createPurposeNeutralObjectInput({ notes, buyerIntake: intake });
-  const extractedIdentity = await extractItemIdentity({ apiKey, model, photos, neutralInput });
-  const visualRecognition = extractedIdentity.visualRecognition;
+  const visualIdentityModel = currentAnalysisAdapters().getVisualIdentityModel();
+  const rawVisualIdentity = await extractItemIdentity({ apiKey, model: visualIdentityModel, photos, neutralInput });
+  const extractedIdentity = projectCanonicalEvidenceIdentity(rawVisualIdentity);
+  let visualRecognition = extractedIdentity.visualRecognition;
   let identity = finalizeIdentityForResearch(extractedIdentity, intake);
   let objectMindState = createObjectMindState({
     analysisId,
@@ -2355,14 +2992,14 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     throw createIdentityConfirmationRequiredError(identity.canonicalProductIdentity);
   }
 
-  const initialObjectSearchPlan = createInitialObjectSearchPlan(objectMindState, { maximumQueries: 12 });
+  let initialObjectSearchPlan = createInitialObjectSearchPlan(objectMindState, { maximumQueries: 8 });
   objectMindState = withObjectSearchPlan(objectMindState, initialObjectSearchPlan);
-  const sourceRoute = routeMarketSources(identity, intake, platform);
-  const searchQueries = initialObjectSearchPlan.map((record) => record.query);
-  const searchContext = buildSearchQueryContext(identity, sourceRoute, notes, intake);
-  const cognitiveProviderMaximum = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
+  let sourceRoute = routeMarketSources(identity, intake, platform);
+  let searchQueries = initialObjectSearchPlan.map((record) => record.query);
+  let searchContext = buildSearchQueryContext(identity, sourceRoute, notes, intake);
+  let cognitiveProviderMaximum = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
     ? retailSerperBudgetAllocation.maxProviderCalls
-    : 12;
+    : 8;
   beginTerminalStage(TERMINAL_STAGE.GOVERNOR_CONSTRUCTION);
   const governorExecutionLedger = createGovernorExecutionLedger({ evaluationId: analysisId });
   const cognitiveGovernor = createCognitiveGovernor({
@@ -2371,8 +3008,26 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     executionLedger: governorExecutionLedger
   });
   const governedLearningAdapter = currentAnalysisAdapters().getGovernedLearningAdapter?.() || null;
+  const researchRisk = deriveGovernedResearchEvidenceRisk(objectMindState, initialObjectSearchPlan);
+  const frozenPreInterventionStateHash = researchRisk.researchPlanHash;
   if (governedLearningAdapter) {
     const episodeSequence = await governedLearningAdapter.nextEpisodeSequence();
+    const learningMode = currentAnalysisAdapters().getGovernedLearningMode({
+      analysisId,
+      researchPurpose,
+      researchEvidenceRisk: researchRisk.researchEvidenceRisk,
+      researchApplicabilityDecision: researchRisk.applicabilityDecision,
+      frozenPreInterventionStateHash
+    });
+    const trialRequest = await currentAnalysisAdapters().getGovernedTrialRequest({
+      analysisId,
+      researchPurpose,
+      learningMode,
+      governor: cognitiveGovernor,
+      researchEvidenceRisk: researchRisk.researchEvidenceRisk,
+      researchApplicabilityDecision: researchRisk.applicabilityDecision,
+      frozenPreInterventionStateHash
+    });
     const memoryContext = await governedLearningAdapter.prepareEpisode({
       governor: cognitiveGovernor,
       episodeId: analysisId,
@@ -2380,10 +3035,13 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
       queryFacets: {
         purpose: [researchPurpose],
         platform: [platform],
-        pattern: [notes, identity.canonicalProductIdentity?.displayName || ""].filter(Boolean)
+        pattern: [notes, identity.canonicalProductIdentity?.displayName || ""].filter(Boolean),
+        researchEvidenceRisk: researchRisk.researchEvidenceRisk,
+        frozenPreInterventionStateHash
       },
       queryText: [notes, identity.canonicalProductIdentity?.displayName].filter(Boolean).join(" "),
-      learningMode: "PRODUCT",
+      learningMode,
+      trialRequest,
       createdAt: currentAnalysisAdapters().nowIso()
     });
     Object.defineProperties(cognitiveGovernor, {
@@ -2403,6 +3061,24 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   }
   attachCurrentTerminalGovernor(cognitiveGovernor);
   completeTerminalStage(TERMINAL_STAGE.GOVERNOR_CONSTRUCTION);
+  const governedResearchStrategy = governedLearningAdapter
+    ? executeGovernedResearchStrategy({
+        cognitiveGovernor,
+        objectMindState,
+        searchPlan: initialObjectSearchPlan,
+        analysisId
+      })
+    : {
+        executed: false,
+        runtime: null,
+        searchPlan: initialObjectSearchPlan,
+        beforeHash: frozenPreInterventionStateHash,
+        afterHash: frozenPreInterventionStateHash,
+        causalAttribution: null
+      };
+  initialObjectSearchPlan = governedResearchStrategy.searchPlan;
+  objectMindState = withObjectSearchPlan(objectMindState, initialObjectSearchPlan);
+  searchQueries = initialObjectSearchPlan.map((record) => record.query);
   const liveSearch = await executeLiveComparableSearch({
     apiKey,
     model,
@@ -2417,6 +3093,56 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     cognitiveGovernor,
     cognitiveProviderMaximum
   });
+  if (governedResearchStrategy.executed) {
+    const transition = governedResearchStrategy.runtime.authoritativeMemoryTransition;
+    const provider = normalizeArray(liveSearch.providerRequestRecords).find((record) => (
+      /^[a-f0-9]{64}$/i.test(cleanText(record.providerRequestIdentity || record.logicalProviderRequestIdentity))
+    ));
+    const execution = [...(cognitiveGovernor.executionLedger?.controlledExecutionEvents || [])]
+      .reverse()
+      .find((event) => event.operationPhase === "GOVERNED_RESEARCH_STRATEGY_APPLICATION");
+    const trialCandidateMemoryId = transition.trialAppliedCandidateIds[0] || "";
+    const appliedLessonId = transition.appliedLessonIds[0] || "";
+    const trialAuthorization = cognitiveGovernor.governedLearningMemoryContext?.trialAuthorization;
+    if (provider && execution) {
+      governedResearchStrategy.causalAttribution = sealGovernedTrialCausalAttribution({
+        trialRole: trialCandidateMemoryId ? "APPLICABLE_INTERVENTION" : "AUTHORIZED_LESSON_TRANSFER",
+        candidateId: trialCandidateMemoryId ? trialAuthorization?.candidateId || "" : "",
+        candidateMemoryId: trialCandidateMemoryId || appliedLessonId,
+        applicabilityDecisionHash: researchRisk.applicabilityDecision.applicabilityDecisionHash,
+        applicabilityClassification: researchRisk.applicabilityDecision.classification,
+        trialAuthorizationId: trialCandidateMemoryId ? trialAuthorization?.trialAuthorizationId || "" : "",
+        trialSelectedCandidateIds: transition.trialSelectedCandidateIds,
+        trialAppliedCandidateIds: transition.trialAppliedCandidateIds,
+        memoryTransitionHash: transition.memoryTransitionHash,
+        mentorActionId: governedResearchStrategy.decision.actionType,
+        mentorDecisionIdentity: governedResearchStrategy.runtime.mentorDecisionIdentity,
+        governorDecisionIdentity: governedResearchStrategy.decision.decisionIdentity,
+        governorExecutionEventIdentity: execution.executionEventIdentity,
+        governorAuthorized: execution.status === "COMPLETED",
+        strategyApplied: true,
+        providerRequestIdentity: provider.providerRequestIdentity || provider.logicalProviderRequestIdentity,
+        newEvidenceIdentity: sha256Object(normalizeArray(liveSearch.providerSourceRecords)),
+        frozenPreInterventionStateHash,
+        beforeStateHash: governedResearchStrategy.beforeHash,
+        afterStateHash: governedResearchStrategy.afterHash,
+        researchPlanBeforeHash: governedResearchStrategy.beforeHash,
+        researchPlanAfterHash: governedResearchStrategy.afterHash,
+        researchPlanChanged: governedResearchStrategy.beforeHash !== governedResearchStrategy.afterHash,
+        interventionOnlyDifference: !trialCandidateMemoryId
+          || trialAuthorization?.frozenPreInterventionStateHash === frozenPreInterventionStateHash,
+        providerLifecycleAuthority: false
+      });
+    }
+  }
+  liveSearch.governedResearchStrategy = projectGovernedResearchStrategyEvidence(
+    governedResearchStrategy,
+    researchRisk.applicabilityDecision
+  );
+  liveSearch.searchDiagnostics = {
+    ...(liveSearch.searchDiagnostics || {}),
+    governedResearchStrategy: liveSearch.governedResearchStrategy
+  };
   liveSearch.analysisId = analysisId;
   liveSearch.objectMindState = liveSearch.objectMindState || objectMindState;
   const finalizationSnapshot = buildCognitiveHandlerSnapshot({
@@ -2435,24 +3161,11 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   });
   const customerInputRequest = buildCustomerInputRequest(preFinalState);
   if (customerInputRequest && !preFinalState.customerInputAlreadyRequested) {
-    beginTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
     const customerInputDecision = decideCognitiveActionWithTerminalEvidence(
       cognitiveGovernor,
       finalizationSnapshot
     );
-    if (customerInputDecision.actionType === COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT && customerInputDecision.executionPermitted) {
-      executeGovernorAuthorizedAction(cognitiveGovernor, customerInputDecision, COGNITIVE_ACTION.REQUEST_CUSTOMER_INPUT, {
-        operationPhase: "CUSTOMER_INPUT_TRANSITION",
-        operation: () => customerInputDecision.customerInputRequest
-      });
-      recordCognitiveActionOutcome(
-        cognitiveGovernor,
-        customerInputDecision,
-        finalizationSnapshot,
-        { outcomeCode: "STRUCTURED_CUSTOMER_INPUT_REQUEST_RECORDED" }
-      );
-    }
-    completeTerminalStage(TERMINAL_STAGE.CUSTOMER_INPUT_TRANSITION);
+    executeSelectedCustomerInputTransition(cognitiveGovernor, customerInputDecision, finalizationSnapshot);
   }
   const executiveSnapshot = buildCognitiveHandlerSnapshot({
     cognitiveGovernor,
@@ -2476,6 +3189,15 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   const insufficientBeforePurpose = executiveState.executiveReadiness?.stopInsufficientEvidenceEligible
     && !executiveState.evidenceSufficiency?.evidenceSufficientForPurpose;
   if (suspendedForInput || inputRequiredButNotRequested || safetyOnlyOutcome || unresolvedSafety || insufficientBeforePurpose) {
+    if (insufficientBeforePurpose) {
+      refreshGovernedResearchOutcome(liveSearch, {
+        finalEvidenceResult: {
+          acceptedRecords: [],
+          customerEvidence: [],
+          views: { displayedIds: [] }
+        }
+      });
+    }
     sealResearchExperienceRecord(liveSearch, {
       state: liveSearch.objectMindState,
       sourcesFound: normalizeArray(liveSearch.providerSourceRecords),
@@ -2570,24 +3292,99 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   };
 }
 
-function executePendingPurposeJudgment(research = {}, operation) {
+function isRecoverablePurposeProviderFailure(error = {}) {
+  const status = Number(error.statusCode || error.httpStatusCode || 0);
+  const text = `${error.name || ""} ${error.code || ""} ${error.openAIErrorCode || ""} ${error.category || ""} ${error.message || ""}`;
+  return status === 429
+    || status >= 500
+    || error instanceof SyntaxError
+    || /timeout|timed out|transport|network|fetch|provider|empty response|malformed|invalid json|econn|abort/i.test(text);
+}
+
+function buildRecoverablePurposePartialReport(research = {}, { workflow = "owner_value", platform = "", error = {} } = {}) {
+  const identity = research.identity || {};
+  const canonicalCategory = cleanText(identity.canonicalResearchIdentity?.objectCategory)
+    || cleanText(identity.subjectIdentity)
+    || "ordinary object";
+  const listingTitle = buildCanonicalListingTitle(identity) || canonicalCategory;
+  const remainingUnknowns = normalizeStringArray([
+    identity.identityUnknowns,
+    identity.additionalEvidenceNeeded,
+    identity.canonicalResearchIdentity?.ambiguityStatus === "CANONICAL_CATEGORY_ESTABLISHED"
+      ? "Exact maker, model, or variation remains unverified."
+      : "Exact product identity remains unresolved."
+  ].flat(Infinity), 12);
+  const failureCode = cleanText(error.code || error.openAIErrorCode || error.name || "DOWNSTREAM_PROVIDER_FAILURE").slice(0, 100);
+  const nextAction = `Provide a clear label, maker mark, model number, or configuration photo for the ${canonicalCategory}, then retry the purpose judgment.`;
+  const partial = {
+    analysisStatus: "PARTIAL_PROVIDER_FAILURE",
+    requestedPurposeComplete: false,
+    pricingState: "not_established",
+    valuationEvidenceState: "insufficient",
+    identifiedItem: canonicalCategory,
+    itemIdentification: canonicalCategory,
+    itemIdentificationConfidence: cleanText(identity.subjectConfidence || "Low"),
+    title: workflow === "listing" ? listingTitle : `Partial ${canonicalCategory} report`,
+    description: workflow === "listing"
+      ? `Preliminary listing copy for the photographed ${canonicalCategory}. Exact maker, model, material, age, and authenticity are included only when visibly supported.`
+      : `Katherine’s Eye identified the photographed object as a ${canonicalCategory}, but the downstream purpose model did not return a usable response.`,
+    optimizedListingTitle: workflow === "listing" ? listingTitle : "",
+    listingTitle: workflow === "listing" ? listingTitle : "",
+    listingDescription: workflow === "listing"
+      ? `Photographed ${canonicalCategory}. See photos for visible condition and verify labels, dimensions, and completeness before purchase.`
+      : "",
+    recommendedListingPrice: "not_established",
+    fairValue: "Not established",
+    estimatedFairValue: "Not established",
+    pricingConfidence: "Low - the downstream purpose operation failed before a supported purpose judgment was produced.",
+    knownFacts: [canonicalCategory],
+    remainingUnknowns,
+    researchOperationFailed: "downstream purpose judgment",
+    researchFailureCode: failureCode,
+    whyValueIsNotEstablished: "A valid canonical identity was preserved, but no completed downstream purpose judgment is available. Existing active, retail, category, or weak evidence is not converted into realized fair value.",
+    nextBestAction: nextAction,
+    additionalInformationNeeded: remainingUnknowns,
+    researchResults: normalizeArray(research.liveSearch?.strongComparables)
+      .concat(normalizeArray(research.liveSearch?.partialComparables))
+      .slice(0, 8),
+    comparableQuality: "Only the retained source records remain authoritative; weak or mismatched records do not establish value.",
+    platform,
+    searchDiagnostics: {
+      ...(research.liveSearch?.searchDiagnostics || {}),
+      recoverablePartialResponse: {
+        returned: true,
+        preservedCanonicalIdentity: true,
+        failedOperation: "downstream purpose judgment",
+        failureCode,
+        genericHttp502Avoided: true
+      }
+    }
+  };
+  return partial;
+}
+
+async function executePendingPurposeJudgment(research = {}, operation, partialOptions = {}) {
   const governor = research.cognitiveGovernor;
   const decision = research.pendingPurposeDecision;
   if (!governor || !decision) {
     throw new Error("Cognitive Governor purpose authorization is missing.");
   }
-  const result = executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT, {
-    operationPhase: "PURPOSE_JUDGMENT",
-    operation
-  });
-  if (result && typeof result.then === "function") {
-    return result.then((value) => {
-      completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
-      return value;
+  try {
+    const result = executeGovernorAuthorizedAction(governor, decision, COGNITIVE_ACTION.PROCEED_TO_PURPOSE_JUDGMENT, {
+      operationPhase: "PURPOSE_JUDGMENT",
+      operation
     });
+    const value = result && typeof result.then === "function" ? await result : result;
+    completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
+    return value;
+  } catch (error) {
+    if (!isRecoverablePurposeProviderFailure(error)) throw error;
+    completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT, {
+      outcome: "RECOVERABLE_PROVIDER_FAILURE",
+      failureCode: cleanText(error.code || error.name || "DOWNSTREAM_PROVIDER_FAILURE").slice(0, 100)
+    });
+    return buildRecoverablePurposePartialReport(research, { ...partialOptions, error });
   }
-  completeTerminalStage(TERMINAL_STAGE.PURPOSE_JUDGMENT);
-  return result;
 }
 
 function cognitiveAttemptCount(providerRequests = [], { directPage = false } = {}) {
@@ -2605,7 +3402,7 @@ function buildCognitiveHandlerSnapshot({
   initialPlan = [],
   refinementPlan = [],
   directPageCandidates = liveSearch.providerSourceRecords || [],
-  providerMaximum = 12,
+  providerMaximum = 8,
   providerAttemptBudget = null,
   directPageAttemptBudget = null,
   canonicalEvidenceFinalized = Boolean(liveSearch.finalEvidenceResult),
@@ -2778,7 +3575,8 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
           cognitiveEpisode.linkedExperienceRecordHash,
           lessonCandidate.lessonCandidateHash
         ].filter(Boolean))],
-        createdAt: currentAnalysisAdapters().nowIso()
+        createdAt: currentAnalysisAdapters().nowIso(),
+        captureAuthority: "CANONICAL_TERMINAL_COGNITIVE_EPISODE"
       })
     : { result: lessonCandidate ? "LEARNING_ADAPTER_NOT_CONFIGURED" : "NO_LESSON_CANDIDATE" };
   const governorExecutionProof = buildGovernorExecutionProof({
@@ -2894,7 +3692,7 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
     ...photos.map((photo) => ({
       type: "input_image",
       image_url: photo.dataUrl,
-      detail: "high"
+      detail: VISUAL_IDENTITY_IMAGE_DETAIL
     }))
   ];
 
@@ -2905,6 +3703,8 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
     schemaName: "item_identity",
     schema: itemIdentitySchema
   });
+  payload.reasoning = { effort: VISUAL_IDENTITY_REASONING_EFFORT };
+  payload.store = false;
 
   const response = (await requestOpenAIJson({ apiKey, payload })).json;
   completeTerminalStage(TERMINAL_STAGE.OBJECT_OBSERVATION);
@@ -2916,7 +3716,7 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
 async function executeLiveComparableSearch(args) {
   const context = buildSearchQueryContext(args.identity, args.sourceRoute, args.notes, args.buyerIntake);
   const providerAttemptBudget = createPhysicalAttemptBudget(
-    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 8,
     "provider_search"
   );
   const serperApiKey = getSerperApiKey();
@@ -2967,7 +3767,7 @@ async function executeOpenAIWebComparableSearch({
   requestAdapter = requestOpenAIJson,
   directPageRequestAdapter = requestBoundedRetailProductPage,
   cognitiveGovernor = null,
-  cognitiveProviderMaximum = 12,
+  cognitiveProviderMaximum = 8,
   cognitiveInitialActionContinuation = false,
   cognitiveInitialAuthorizationContext = null
 }) {
@@ -2975,17 +3775,24 @@ async function executeOpenAIWebComparableSearch({
   const requestStartedAtMs = currentTimeMilliseconds();
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const sharedProviderAttemptBudget = providerAttemptBudget || createPhysicalAttemptBudget(
-    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 8,
     "provider_search"
   );
   const directPageAttemptBudget = createPhysicalAttemptBudget(
     directPageEnrichmentMaxAttempts,
     "direct_page_enrichment"
   );
-  const queriesPrioritized = attachObjectSearchPlanProvenance(
-    buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes }),
-    objectMindState
-  );
+  const queriesPrioritized = objectMindState?.canonicalResearchIdentity?.canonicalResearchIdentityId
+    ? buildCanonicalObjectSerperSearchPlan({
+        context,
+        sourceCategories: buildSourcesTargeted(sourceRoute),
+        marketplaceDomains: selectMarketplaceAllowedDomains(context, sourceRoute, buyerIntake).slice(0, 5),
+        objectMindState
+      })
+    : attachObjectSearchPlanProvenance(
+        buildDomainDirectedSearchPlan({ searchQueries, sourceRoute, identity, buyerIntake, notes }),
+        objectMindState
+      );
   const providerRequestRecords = [];
   attachCurrentTerminalProviderRecords(providerRequestRecords);
   const providerResponseSummaries = [];
@@ -3033,6 +3840,7 @@ async function executeOpenAIWebComparableSearch({
       objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
       objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
       objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane || "purpose_neutral_exact"),
+      comparableLadderLevel: cleanText(queryRecord.comparableLadderLevel),
       provider: "OpenAI web_search",
       providerKey: "openai_web_search",
       providerEndpoint: "openai_web_search",
@@ -3179,6 +3987,7 @@ async function executeOpenAIWebComparableSearch({
     }
   };
 
+  let comparableLadderExecution = null;
   const executeInitialQueries = async (authorization) => {
     if (cognitiveGovernor && !cognitiveInitialActionContinuation) {
       Object.defineProperty(cognitiveGovernor, "initialAcquisitionAuthorizationContext", {
@@ -3188,7 +3997,35 @@ async function executeOpenAIWebComparableSearch({
         enumerable: false
       });
     }
-    for (const queryRecord of queriesPrioritized.slice()) await executeQueryRecord(queryRecord, authorization);
+    const hasComparableLadder = queriesPrioritized.some((record) => (
+      COMPARABLE_LADDER_LEVELS.includes(cleanText(record.comparableLadderLevel).toUpperCase())
+    ));
+    if (!hasComparableLadder) {
+      for (const queryRecord of queriesPrioritized.slice()) await executeQueryRecord(queryRecord, authorization);
+      return;
+    }
+    comparableLadderExecution = await executeBoundedComparableFallback({
+      queryRecords: queriesPrioritized,
+      objectMindState,
+      executeLevel: async (records) => {
+        for (const queryRecord of records) {
+          if (Number(sharedProviderAttemptBudget.physicalAttemptCount || 0) >= Number(sharedProviderAttemptBudget.maximumAttempts || 0)) break;
+          await executeQueryRecord(queryRecord, authorization);
+        }
+      },
+      evidenceSufficientAfterLevel: (level) => {
+        const normalized = coalesceIdenticalSerperTransportRecords(
+          normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
+        );
+        return assessComparableLadderRetention(normalized, {
+          level,
+          identity,
+          buyerIntake,
+          context,
+          providerRequestRecords
+        }).sufficient;
+      }
+    });
   };
   if (cognitiveGovernor && initialCognitiveDecision) {
     await executeGovernorAuthorizedAction(cognitiveGovernor, initialCognitiveDecision, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE, {
@@ -3265,16 +4102,21 @@ async function executeOpenAIWebComparableSearch({
 
   let verifiedSourceRecords = initialVerifiedSourceRecords;
   if (objectMindState?.objectStateId) {
-    const refinement = createEvidenceInformedRefinement(objectMindState, verifiedSourceRecords, {
-      attemptedQueries: providerRequestRecords
-        .filter((record) => Number(record.physicalAttemptCount || 0) > 0)
-        .map((record) => record.query),
-      maximumQueries: Math.min(4, Math.max(
-        0,
-        Number(sharedProviderAttemptBudget.maximumAttempts || 0)
-          - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
-      ))
-    });
+    const refinement = comparableLadderExecution?.stoppedAfterLevel
+      ? {
+          state: incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "INITIAL" }),
+          searchPlan: []
+        }
+      : createEvidenceInformedRefinement(objectMindState, verifiedSourceRecords, {
+          attemptedQueries: providerRequestRecords
+            .filter((record) => Number(record.physicalAttemptCount || 0) > 0)
+            .map((record) => record.query),
+          maximumQueries: Math.min(4, Math.max(
+            0,
+            Number(sharedProviderAttemptBudget.maximumAttempts || 0)
+              - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
+          ))
+        });
     objectMindState = refinement.state;
     const refinementQueries = finalizeOpenAIObjectMindRefinementQueries(
       context,
@@ -3288,25 +4130,31 @@ async function executeOpenAIWebComparableSearch({
       )
     );
     if (cognitiveGovernor && refinementQueries.length) beginTerminalStage(TERMINAL_STAGE.REFINEMENT);
-    const refinementCognitiveDecision = cognitiveGovernor && refinementQueries.length
-      ? decideCognitiveActionWithTerminalEvidence(
+    const refinementCognitiveSnapshot = cognitiveGovernor && refinementQueries.length
+      ? buildCognitiveHandlerSnapshot({
           cognitiveGovernor,
-          buildCognitiveHandlerSnapshot({
-            cognitiveGovernor,
-            objectMindState,
-            liveSearch: { providerRequestRecords, providerSourceRecords: verifiedSourceRecords },
-            initialPlan: objectMindState?.searchPlan || queriesPrioritized,
-            refinementPlan: refinementQueries,
-            providerMaximum: cognitiveProviderMaximum,
-            providerAttemptBudget: sharedProviderAttemptBudget,
-            directPageAttemptBudget
-          })
-        )
+          objectMindState,
+          liveSearch: { providerRequestRecords, providerSourceRecords: verifiedSourceRecords },
+          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+          refinementPlan: refinementQueries,
+          providerMaximum: cognitiveProviderMaximum,
+          providerAttemptBudget: sharedProviderAttemptBudget,
+          directPageAttemptBudget
+        })
       : null;
-    const authorizedRefinementQueries = !refinementCognitiveDecision || (
+    const refinementCognitiveDecision = refinementCognitiveSnapshot
+      ? decideCognitiveActionWithTerminalEvidence(cognitiveGovernor, refinementCognitiveSnapshot)
+      : null;
+    executeSelectedCustomerInputTransition(
+      cognitiveGovernor,
+      refinementCognitiveDecision,
+      refinementCognitiveSnapshot
+    );
+    const refinementAuthorized = !refinementCognitiveDecision || (
       refinementCognitiveDecision.actionType === COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
       && refinementCognitiveDecision.executionPermitted
-    ) ? refinementQueries : [];
+    );
+    const authorizedRefinementQueries = refinementAuthorized ? refinementQueries : [];
     queriesPrioritized.push(...authorizedRefinementQueries);
     const executeRefinementQueries = async (authorization) => {
       for (const queryRecord of authorizedRefinementQueries) {
@@ -3314,7 +4162,7 @@ async function executeOpenAIWebComparableSearch({
         await executeQueryRecord(queryRecord, authorization);
       }
     };
-    if (cognitiveGovernor && refinementCognitiveDecision) {
+    if (cognitiveGovernor && refinementCognitiveDecision && refinementAuthorized) {
       await executeGovernorAuthorizedAction(cognitiveGovernor, refinementCognitiveDecision, COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH, {
         operationPhase: "REFINEMENT_PROVIDER_SEARCH",
         operation: executeRefinementQueries
@@ -3326,7 +4174,7 @@ async function executeOpenAIWebComparableSearch({
       normalizeSerperCandidateRecords(providerSourceRecords, identity, context, objectMindState)
     );
     objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "REFINEMENT" });
-    if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted) {
+    if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted && refinementAuthorized) {
       recordCognitiveActionOutcome(
         cognitiveGovernor,
         refinementCognitiveDecision,
@@ -3359,6 +4207,12 @@ async function executeOpenAIWebComparableSearch({
     });
     objectMindState = incorporateCandidateEvidence(objectMindState, verifiedSourceRecords, { phase: "DIRECT_PAGE_VERIFICATION" });
   }
+  applySerperRecordAccountingToRequests(
+    providerRequestRecords,
+    providerResponseSummaries,
+    verifiedSourceRecords,
+    context
+  );
 
   const normalizedResult = normalizeLiveSearchResult({
     result: mergeLiveSearchResults(resultList),
@@ -3389,6 +4243,7 @@ async function executeOpenAIWebComparableSearch({
     providerSourceRecords,
     verifiedSourceRecords
   );
+  normalizedResult.comparableLadderExecution = comparableLadderExecution;
   normalizedResult.objectMindState = objectMindState;
   return normalizedResult;
 }
@@ -3411,7 +4266,8 @@ function finalizeOpenAIObjectMindRefinementQueries(context = {}, sourceRoute = [
       objectMindIdentityTermProvenance: record.identityTermProvenance,
       objectMindDiscriminatorTested: record.discriminatorTested,
       objectMindPhase: "REFINEMENT",
-      objectMindProviderLane: record.providerLane
+      objectMindProviderLane: record.providerLane,
+      comparableLadderLevel: cleanText(record.comparableLadderLevel || "CLOSE")
     }))
     .filter((record) => record.query);
 }
@@ -3421,15 +4277,15 @@ function getSerperApiKey() {
 }
 
 const retailSerperBudgetAllocation = Object.freeze({
-  maxProviderCalls: 28,
-  exactIdentity: 6,
-  exactProductReduced: 3,
-  compatibleAlternatives: 4,
-  retailerSpecific: 5,
-  onlineRetail: 4,
-  shoppingGeneral: 2,
+  maxProviderCalls: 8,
+  exactIdentity: 2,
+  exactProductReduced: 1,
+  compatibleAlternatives: 1,
+  retailerSpecific: 1,
+  onlineRetail: 1,
+  shoppingGeneral: 1,
   localRetail: 1,
-  limitedResultRecovery: 3
+  limitedResultRecovery: 1
 });
 
 const directPageEnrichmentMaxAttempts = 2;
@@ -3507,6 +4363,32 @@ function buildProviderAttemptAccounting(providerRequestRecords = [], {
   };
 }
 
+function mechanicalRetryEligible(error = {}, requestRecord = {}) {
+  const response = error.response && typeof error.response === "object" ? error.response : {};
+  const data = error.data && typeof error.data === "object"
+    ? error.data
+    : response.data && typeof response.data === "object"
+      ? response.data
+      : {};
+  const providerResponseIdentity = cleanText(
+    error.providerResponseId
+    || error.responseId
+    || error.requestId
+    || response.id
+    || data.id
+    || requestRecord.providerResponseId
+    || requestRecord.responseId
+  );
+  const usage = error.usage || response.usage || data.usage || requestRecord.usage;
+  const productOutcome = error.productOutcome || response.productOutcome || data.productOutcome || requestRecord.productOutcome;
+  const cognitiveEffect = error.cognitiveEffect
+    || response.cognitiveEffect
+    || data.cognitiveEffect
+    || requestRecord.cognitiveEffect
+    || requestRecord.cognitiveOutcome;
+  return !providerResponseIdentity && !usage && !productOutcome && !cognitiveEffect;
+}
+
 async function requestSerperSearchWithBudget({
   requestRecord,
   queryRecord,
@@ -3552,7 +4434,7 @@ async function requestSerperSearchWithBudget({
         "serper_authentication_failure",
         "serper_rate_limited",
         "serper_shopping_unavailable"
-      ].includes(diagnostic.category)) {
+      ].includes(diagnostic.category) || !mechanicalRetryEligible(error, requestRecord)) {
         throw error;
       }
     }
@@ -3596,7 +4478,7 @@ async function requestOpenAIComparableSearchWithBudget({
       return response;
     } catch (error) {
       recordPhysicalAttemptOutcome(requestRecord, "failed");
-      if (!retry && isWebSearchOptionCompatibilityError(error)) {
+      if (!retry && isWebSearchOptionCompatibilityError(error) && mechanicalRetryEligible(error, requestRecord)) {
         onCompatibilityError(error);
         continue;
       }
@@ -3658,13 +4540,13 @@ async function executeSerperComparableSearch({
   providerAttemptBudget,
   requestAdapter = requestSerperSearch,
   cognitiveGovernor = null,
-  cognitiveProviderMaximum = 12
+  cognitiveProviderMaximum = 8
 }) {
   const searchStartedAt = currentTimeIso();
   const requestStartedAtMs = currentTimeMilliseconds();
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const sharedProviderAttemptBudget = providerAttemptBudget || createPhysicalAttemptBudget(
-    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 12,
+    isCurrentRetailOnlyMode(context.retailEvidenceMode) ? retailSerperBudgetAllocation.maxProviderCalls : 8,
     "provider_search"
   );
   const directPageAttemptBudget = createPhysicalAttemptBudget(
@@ -3678,6 +4560,7 @@ async function executeSerperComparableSearch({
   const providerErrors = [];
   const rawProviderRecords = [];
   const rawProviderRecordsByPlan = [];
+  let comparableLadderExecution = null;
   if (cognitiveGovernor) beginTerminalStage(TERMINAL_STAGE.INITIAL_ACQUISITION);
   const initialCognitiveDecision = cognitiveGovernor
     ? decideCognitiveActionWithTerminalEvidence(
@@ -3696,14 +4579,19 @@ async function executeSerperComparableSearch({
   let initialAuthorizationContext = null;
 
   providerRequestRecords.forEach((requestRecord, index) => {
-    if (!requestRecord.attempted) {
+    if (!requestRecord.validationPassed) {
       providerResponseSummaries.push(createSerperPreflightRejectedResponseSummary(queriesPrioritized[index], requestRecord));
     }
   });
+  providerRequestRecords
+    .filter((requestRecord) => requestRecord.validationPassed)
+    .forEach((requestRecord) => {
+      requestRecord.attempted = false;
+    });
 
   const executableRequests = providerRequestRecords
-    .map((requestRecord, index) => ({ requestRecord, queryRecord: queriesPrioritized[index] }))
-    .filter(({ requestRecord }) => requestRecord.attempted);
+    .map((requestRecord, planIndex) => ({ requestRecord, queryRecord: queriesPrioritized[planIndex], planIndex }))
+    .filter(({ requestRecord }) => requestRecord.validationPassed);
   const executeInitialProviderRequests = async (authorization) => {
     initialAuthorizationContext = authorization;
     if (cognitiveGovernor) {
@@ -3724,7 +4612,7 @@ async function executeSerperComparableSearch({
         requestRecord.governorScopeClassification = "OUTSIDE_GOVERNOR_SCOPE";
       }
     }
-    await Promise.all(executableRequests.map(async ({ requestRecord, queryRecord }, planIndex) => {
+    const executeProviderBatch = (batch) => Promise.all(batch.map(async ({ requestRecord, queryRecord, planIndex }) => {
     try {
       const response = await requestSerperSearchWithBudget({
         requestRecord,
@@ -3793,6 +4681,38 @@ async function executeSerperComparableSearch({
       });
     }
     }));
+    const hasComparableLadder = executableRequests.some(({ queryRecord }) => (
+      COMPARABLE_LADDER_LEVELS.includes(cleanText(queryRecord.comparableLadderLevel).toUpperCase())
+    ));
+    if (!hasComparableLadder) {
+      await executeProviderBatch(executableRequests);
+      return;
+    }
+    comparableLadderExecution = await executeBoundedComparableFallback({
+      queryRecords: executableRequests.map(({ queryRecord }) => queryRecord),
+      objectMindState,
+      executeLevel: async (levelRecords) => {
+        const identities = new Set(levelRecords.map((record) => cleanText(record.objectMindQueryId || record.query)));
+        await executeProviderBatch(executableRequests.filter(({ queryRecord }) => (
+          identities.has(cleanText(queryRecord.objectMindQueryId || queryRecord.query))
+        )));
+      },
+      evidenceSufficientAfterLevel: (level) => {
+        const normalized = coalesceIdenticalSerperTransportRecords(normalizeSerperCandidateRecords(
+          rawProviderRecordsByPlan.flatMap((records) => records || []),
+          identity,
+          context,
+          objectMindState
+        ));
+        return assessComparableLadderRetention(normalized, {
+          level,
+          identity,
+          buyerIntake,
+          context,
+          providerRequestRecords
+        }).sufficient;
+      }
+    });
   };
   if (cognitiveGovernor && initialCognitiveDecision) {
     await executeGovernorAuthorizedAction(cognitiveGovernor, initialCognitiveDecision, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE, {
@@ -3843,35 +4763,46 @@ async function executeSerperComparableSearch({
   }
 
   let dedupedRecords = initialDedupedRecords;
-  const refinement = createEvidenceInformedRefinement(objectMindState || {}, dedupedRecords, {
-    attemptedQueries: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
-    maximumQueries: Math.min(4, Math.max(
-      0,
-      Number(sharedProviderAttemptBudget.maximumAttempts || 0)
-        - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
-    ))
-  });
+  const refinement = comparableLadderExecution?.stoppedAfterLevel
+    ? {
+        state: incorporateCandidateEvidence(objectMindState || {}, dedupedRecords, { phase: "INITIAL" }),
+        searchPlan: []
+      }
+    : createEvidenceInformedRefinement(objectMindState || {}, dedupedRecords, {
+        attemptedQueries: providerRequestRecords.filter((record) => record.attempted).map((record) => record.query),
+        maximumQueries: Math.min(4, Math.max(
+          0,
+          Number(sharedProviderAttemptBudget.maximumAttempts || 0)
+            - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
+        ))
+      });
   objectMindState = refinement.state;
   if (cognitiveGovernor && refinement.searchPlan.length) beginTerminalStage(TERMINAL_STAGE.REFINEMENT);
-  const refinementCognitiveDecision = cognitiveGovernor && refinement.searchPlan.length
-    ? decideCognitiveActionWithTerminalEvidence(
+  const refinementCognitiveSnapshot = cognitiveGovernor && refinement.searchPlan.length
+    ? buildCognitiveHandlerSnapshot({
         cognitiveGovernor,
-        buildCognitiveHandlerSnapshot({
-          cognitiveGovernor,
-          objectMindState,
-          liveSearch: { providerRequestRecords, providerSourceRecords: dedupedRecords },
-          initialPlan: objectMindState?.searchPlan || queriesPrioritized,
-          refinementPlan: refinement.searchPlan,
-          providerMaximum: cognitiveProviderMaximum,
-          providerAttemptBudget: sharedProviderAttemptBudget,
-          directPageAttemptBudget
-        })
-      )
+        objectMindState,
+        liveSearch: { providerRequestRecords, providerSourceRecords: dedupedRecords },
+        initialPlan: objectMindState?.searchPlan || queriesPrioritized,
+        refinementPlan: refinement.searchPlan,
+        providerMaximum: cognitiveProviderMaximum,
+        providerAttemptBudget: sharedProviderAttemptBudget,
+        directPageAttemptBudget
+      })
     : null;
-  const authorizedRefinementPlan = !refinementCognitiveDecision || (
+  const refinementCognitiveDecision = refinementCognitiveSnapshot
+    ? decideCognitiveActionWithTerminalEvidence(cognitiveGovernor, refinementCognitiveSnapshot)
+    : null;
+  executeSelectedCustomerInputTransition(
+    cognitiveGovernor,
+    refinementCognitiveDecision,
+    refinementCognitiveSnapshot
+  );
+  const refinementAuthorized = !refinementCognitiveDecision || (
     refinementCognitiveDecision.actionType === COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH
     && refinementCognitiveDecision.executionPermitted
-  ) ? refinement.searchPlan : [];
+  );
+  const authorizedRefinementPlan = refinementAuthorized ? refinement.searchPlan : [];
   let refinementAuthorizationContext = null;
   const runRefinement = (authorization) => {
     refinementAuthorizationContext = authorization;
@@ -3893,15 +4824,17 @@ async function executeSerperComparableSearch({
       governorAuthorizationContext: authorization
     });
   };
-  const refinementResult = cognitiveGovernor && refinementCognitiveDecision
+  const refinementResult = cognitiveGovernor && refinementCognitiveDecision && refinementAuthorized
     ? await executeGovernorAuthorizedAction(cognitiveGovernor, refinementCognitiveDecision, COGNITIVE_ACTION.REFINE_EVIDENCE_SEARCH, {
         operationPhase: "REFINEMENT_PROVIDER_SEARCH",
         operation: runRefinement
       })
-    : await runRefinement(null);
+    : refinementAuthorized
+      ? await runRefinement(null)
+      : { records: dedupedRecords, objectMindState };
   dedupedRecords = refinementResult.records;
   objectMindState = refinementResult.objectMindState;
-  if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted) {
+  if (cognitiveGovernor && refinementCognitiveDecision?.executionPermitted && refinementAuthorized) {
     recordCognitiveActionOutcome(
       cognitiveGovernor,
       refinementCognitiveDecision,
@@ -3957,6 +4890,7 @@ async function executeSerperComparableSearch({
     buyerIntake,
     notes
   });
+  normalizedResult.comparableLadderExecution = comparableLadderExecution;
   normalizedResult.objectMindState = objectMindState;
   return normalizedResult;
 }
@@ -3991,7 +4925,8 @@ function finalizeObjectMindRefinementQueries(context = {}, sourceRoute = [], que
       objectMindIdentityTermProvenance: record.identityTermProvenance,
       objectMindDiscriminatorTested: record.discriminatorTested,
       objectMindPhase: "REFINEMENT",
-      objectMindProviderLane: record.providerLane
+      objectMindProviderLane: record.providerLane,
+      comparableLadderLevel: cleanText(record.comparableLadderLevel || "CLOSE")
     };
   });
 }
@@ -4007,7 +4942,7 @@ async function executeObjectMindRefinementSearch({
   providerErrors = [],
   rawProviderRecords = [],
   currentRecords = [],
-  providerAttemptBudget = createPhysicalAttemptBudget(12, "provider_search"),
+  providerAttemptBudget = createPhysicalAttemptBudget(8, "provider_search"),
   requestAdapter = requestSerperSearch,
   objectMindState = null,
   cognitiveGovernor = null,
@@ -4501,7 +5436,7 @@ async function executeExactRetailPageDirectEnrichment({
   requestAdapter = requestBoundedRetailProductPage,
   objectMindState = null,
   cognitiveGovernor = null,
-  cognitiveProviderMaximum = 12
+  cognitiveProviderMaximum = 8
 } = {}) {
   const remainingBudget = Math.max(
     0,
@@ -4993,6 +5928,7 @@ function createSerperRequestRecord(queryRecord) {
     objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
     objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
     objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
+    comparableLadderLevel: cleanText(queryRecord.comparableLadderLevel),
     queryModifierProvenance: normalizeArray(queryRecord.queryModifierProvenance).slice(0, 16),
     authoritativeQueryProvenanceDecision: cleanText(queryRecord.authoritativeQueryProvenanceDecision),
     provider: "Serper Google Search",
@@ -5208,6 +6144,7 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, origina
     objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
     objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
     objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
+    comparableLadderLevel: cleanText(queryRecord.comparableLadderLevel),
     title: cleanText(title || canonicalUrl),
     url: canonicalUrl,
     canonicalUrl,
@@ -5745,6 +6682,7 @@ const SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS = Object.freeze([
   "objectMindDiscriminatorTested",
   "objectMindPhase",
   "objectMindProviderLane",
+  "comparableLadderLevel",
   "originalProviderUrl",
   "originalProviderUrls",
   "sourceExtractionProvenance",
@@ -6109,7 +7047,7 @@ function annotateOpenAIFallbackResult(openaiResult, serperResult) {
   const providerCallBudget = Number(
     serperDiagnostics.providerCallBudget
     || openaiDiagnostics.providerCallBudget
-    || 12
+    || 8
   );
   const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
     maximumPhysicalProviderAttempts: providerCallBudget,
@@ -6242,7 +7180,7 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   const validRecords = [];
   const rejectedRecords = [];
   const signatureIndexes = new Map();
-  const addRecord = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [], maxValidRecords = 12 }) => {
+  const addRecord = ({ query, rawCandidate = query, candidateOrigin = "", searchPass, marketplaceDomains: requestedDomains = [], maxValidRecords = 8 }) => {
     const normalizedCandidate = cleanSerperQuery(query);
     const finalQuery = normalizedCandidate;
     const validation = validateSerperQueryCandidate(finalQuery, context, { searchPass, marketplaceDomains: requestedDomains, rawCandidate });
@@ -6325,33 +7263,33 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
   });
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass === "collectible_exact_source_recovery").slice(0, hasCollectibleAllocationPlan ? 1 : 2)) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass === "marketplace_domain_recovery").slice(0, 1)) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass === "price_oriented_recovery").slice(0, 1)) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass === "shopping_general_recovery")) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   for (const record of recoveryCandidates.filter((item) => item.searchPass !== "marketplace_domain_recovery" && item.searchPass !== "price_oriented_recovery" && item.searchPass !== "shopping_general_recovery")) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   for (const record of fallbackCandidates) {
-    if (validRecords.length >= 12) break;
-    addRecord({ ...record, maxValidRecords: 12 });
+    if (validRecords.length >= 8) break;
+    addRecord({ ...record, maxValidRecords: 8 });
   }
 
   if (!validRecords.length) {
@@ -6362,7 +7300,7 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     });
   }
 
-  const initialProviderLimit = objectMindState?.objectStateId ? 8 : 12;
+  const initialProviderLimit = objectMindState?.objectStateId ? 4 : 8;
   return attachObjectSearchPlanProvenance([
     ...validRecords.slice(0, initialProviderLimit),
     ...rejectedRecords.slice(0, 24)
@@ -6370,6 +7308,243 @@ function buildSerperSearchPlan({ searchQueries = [], sourceRoute = [], identity 
     ...record,
     priority: index + 1
   })), objectMindState);
+}
+
+async function completeRecoverablePartialEvaluation(research = {}, report = {}) {
+  return finalizeCognitiveTerminalOutcome(research, report, {
+    purposeDecision: research.pendingPurposeDecision,
+    canonicalEvidenceFinalized: true,
+    purposeJudgmentCompleted: true,
+    customerOutcome: deriveCustomerOutcomeEvidence(report)
+  });
+}
+
+async function recordSuccessfulProductOutcome(payload, {
+  analysisId,
+  experienceRecord,
+  cognitiveDiagnostics,
+  researchDiagnostics
+} = {}) {
+  const governor = currentEvaluationTerminalContext()?.governor;
+  const adapter = governor?.governedLearningAdapter;
+  const runtime = governor?.governedLearningRuntime;
+  if (!adapter || !runtime) return null;
+  const cognitiveEpisode = cognitiveDiagnostics?.cognitiveEpisode;
+  return adapter.recordProductOutcome({
+    governor,
+    runtime,
+    episodeId: analysisId,
+    episodeSequence: governor.governedLearningEpisodeSequence,
+    responseHash: sha256Object(payload),
+    originalEvidenceIdentity: experienceRecord?.experienceRecordHash,
+    cognitiveEpisodeHash: cognitiveEpisode?.cognitiveEpisodeHash,
+    submittedObjectFingerprint: cognitiveEpisode?.submittedObjectFingerprint,
+    memoryTransitionHash: runtime.authoritativeMemoryTransition.memoryTransitionHash,
+    causalAttribution: researchDiagnostics?.causalAttribution || null,
+    frozenPreInterventionStateHash: researchDiagnostics?.frozenPreInterventionStateHash || "",
+    researchPlanStateHash: researchDiagnostics?.researchPlanAfterHash || researchDiagnostics?.researchPlanBeforeHash || "",
+    researchApplicabilityDecisionHash: researchDiagnostics?.researchApplicabilityDecision?.applicabilityDecisionHash || "",
+    createdAt: currentAnalysisAdapters().nowIso()
+  });
+}
+
+function productFeedbackSnapshot(feedbackEnvelope, evaluationId) {
+  const feedbackEvidenceId = `product-feedback-${feedbackEnvelope.feedbackId.slice(0, 24)}`;
+  const correctionEvidenceId = `correction-provenance-${feedbackEnvelope.correction.evidenceProvenance.sourceIdentity.slice(0, 24)}`;
+  const observedFacts = [
+    {
+      observationId: feedbackEvidenceId,
+      factType: "product_outcome_failure",
+      value: `${feedbackEnvelope.failedClaim.claimClass} ${feedbackEnvelope.failedClaim.failureKind}`,
+      normalizedValue: cleanText(`${feedbackEnvelope.failedClaim.claimClass} ${feedbackEnvelope.failedClaim.failureKind}`).toLowerCase(),
+      certaintyBand: "HIGH",
+      origin: "OWNER_VERIFIED_PRODUCT_OUTCOME"
+    },
+    {
+      observationId: correctionEvidenceId,
+      factType: "correction_provenance",
+      value: `${feedbackEnvelope.correction.correctedState} ${feedbackEnvelope.correction.evidenceProvenance.sourceType}`,
+      normalizedValue: cleanText(`${feedbackEnvelope.correction.correctedState} ${feedbackEnvelope.correction.evidenceProvenance.sourceType}`).toLowerCase(),
+      certaintyBand: "HIGH",
+      origin: "EXTERNAL_AUTHORITATIVE_FEEDBACK"
+    }
+  ];
+  const candidateEvidence = observedFacts.map((fact) => ({
+    evidenceId: fact.observationId,
+    sourceRecordId: fact.observationId,
+    exactnessClassification: "COMPATIBLE",
+    verificationState: "VERIFIED",
+    sourceEvidenceText: fact.value
+  }));
+  const objectMindState = {
+    objectStateId: `feedback-object-${feedbackEnvelope.feedbackId.slice(0, 20)}`,
+    identityStateHash: feedbackEnvelope.originalEvidenceIdentity,
+    requestIdentity: {
+      inputImageIds: [`bound-image-evidence-${feedbackEnvelope.originalEvidenceIdentity.slice(0, 16)}`],
+      inputDescriptionProvenance: { sha256: feedbackEnvelope.responseHash }
+    },
+    observedFacts,
+    observationConflicts: [],
+    identityHypotheses: [{
+      candidateId: `feedback-hypothesis-${feedbackEnvelope.feedbackId.slice(0, 16)}`,
+      exactCandidateLabel: "Verified product outcome failure",
+      broaderFamilyIdentity: "product outcome feedback",
+      exactnessLevel: "EXACT",
+      confidenceBand: "HIGH",
+      supportingObservationIds: observedFacts.map((fact) => fact.observationId),
+      contradictingObservations: [],
+      unresolvedDiscriminators: []
+    }],
+    resolvedIdentity: {
+      selectedCandidateId: `feedback-hypothesis-${feedbackEnvelope.feedbackId.slice(0, 16)}`,
+      stableIdentityKey: `feedback-binding-${feedbackEnvelope.feedbackId.slice(0, 16)}`,
+      exactnessClassification: "EXACT_ITEM",
+      bestSupportedCustomerIdentity: "Verified product outcome failure",
+      broaderFallbackIdentity: "product outcome feedback",
+      limitations: [],
+      additionalEvidenceNeeded: []
+    },
+    searchPlan: [],
+    candidateEvidence
+  };
+  return {
+    evaluationId,
+    objectMindState,
+    evidenceRecords: candidateEvidence,
+    providerRequests: [],
+    initialPlan: [],
+    refinementPlan: [],
+    directPageCandidates: [],
+    providerBudget: { maximum: 0, consumed: 0 },
+    directPageBudget: { maximum: 0, consumed: 0 },
+    executiveState: {
+      missionObjective: "Diagnose one authenticated product outcome failure within existing learning authority.",
+      finishLine: "Record an evidence-bound inert strategy candidate without product influence.",
+      earliestCausalBoundary: "AUTHENTICATED_PRODUCT_OUTCOME_FEEDBACK",
+      visibleEvidenceIds: observedFacts.map((fact) => fact.observationId),
+      requiredEvidenceIds: observedFacts.map((fact) => fact.observationId),
+      evidenceCondition: "SUPPORTED",
+      failureCondition: feedbackEnvelope.failedClaim.failureKind,
+      failureScope: "BOUNDED",
+      uncertaintyClass: "NONE",
+      authorityClass: "EXISTING",
+      permittedOperations: ["RETURNED_EVIDENCE_EVALUATION"],
+      prohibitedOperations: ["PROVIDER_LIFECYCLE_TRANSITION", "PRODUCT_INFLUENCE", "LESSON_PROMOTION"],
+      safeContinuation: true,
+      newMechanismRequired: false,
+      contradictionPresent: false,
+      cycleDetected: false,
+      duplicateDetected: false,
+      memoryReuseBoundary: "NOVEL",
+      dossierStage: "RETURNED",
+      stoppingState: "ACTIVE"
+    }
+  };
+}
+
+async function handleProductOutcomeFeedback({ body, res }) {
+  const adapter = currentAnalysisAdapters().getGovernedLearningAdapter?.();
+  const feedbackEnvelope = body.feedbackEnvelope;
+  if (!adapter || !feedbackEnvelope || typeof feedbackEnvelope !== "object") {
+    throw createHandlerResponseError({
+      statusCode: 400,
+      code: "PRODUCT_FEEDBACK_AUTHORITY_REQUIRED",
+      message: "Authenticated product outcome feedback is required."
+    });
+  }
+  const evaluationId = cleanText(
+    currentEvaluationTerminalContext()?.evaluationId
+    || `feedback-${feedbackEnvelope.feedbackId || "invalid"}`
+  ).slice(0, 120);
+  const governor = createCognitiveGovernor({
+    evaluationId,
+    customerMission: createCustomerMissionContext({ purchase_intent: "product_feedback" }),
+    executionLedger: createGovernorExecutionLedger({ evaluationId })
+  });
+  const episodeSequence = await adapter.nextEpisodeSequence();
+  const memoryContext = await adapter.prepareEpisode({
+    governor,
+    episodeId: evaluationId,
+    episodeSequence,
+    queryFacets: { purpose: ["PRODUCT_OUTCOME_FEEDBACK"] },
+    queryText: "authenticated product outcome feedback",
+    learningMode: "FEEDBACK",
+    createdAt: currentAnalysisAdapters().nowIso()
+  });
+  Object.defineProperties(governor, {
+    governedLearningAdapter: { value: adapter, enumerable: false },
+    governedLearningEpisodeSequence: { value: episodeSequence, enumerable: false },
+    governedLearningMemoryContext: { value: memoryContext, enumerable: false }
+  });
+  attachCurrentTerminalGovernor(governor);
+  const snapshot = productFeedbackSnapshot(feedbackEnvelope, evaluationId);
+  const runtime = runCanonicalCognitiveRuntime({
+    governor,
+    snapshot,
+    executiveMemoryContext: memoryContext
+  });
+  Object.defineProperty(governor, "governedLearningRuntime", {
+    value: runtime,
+    writable: true,
+    configurable: true,
+    enumerable: false
+  });
+  if (runtime.decision.actionType !== COGNITIVE_ACTION.EVALUATE_RETURNED_EVIDENCE) {
+    throw Object.assign(new Error("Authenticated feedback did not reach the canonical mentor evaluation action."), {
+      code: "PRODUCT_FEEDBACK_MENTOR_ROUTE_INVALID"
+    });
+  }
+  executeGovernorAuthorizedAction(governor, runtime.decision, COGNITIVE_ACTION.EVALUATE_RETURNED_EVIDENCE, {
+    operationPhase: "RETURNED_EVIDENCE_EVALUATION",
+    operation: () => ({ feedbackAcceptedForDiagnosis: true })
+  });
+  recordCognitiveActionOutcome(governor, runtime.decision, snapshot, {
+    outcomeCode: "AUTHENTICATED_PRODUCT_FAILURE_DIAGNOSED"
+  });
+  const cognitiveEpisode = buildObservedFailureCognitiveEpisode(governor);
+  const lessonCandidate = buildObservedFailureLessonCandidate(cognitiveEpisode, {
+    failureCategory: feedbackEnvelope.failedClaim?.failureKind,
+    subsystem: "PRODUCT_OUTCOME_FEEDBACK"
+  });
+  const visibleEvidenceIds = [...new Set([
+    ...snapshot.executiveState.visibleEvidenceIds,
+    ...(runtime.mentorDecision.evidenceReferences || []),
+    cognitiveEpisode.cognitiveEpisodeHash,
+    lessonCandidate.lessonCandidateHash,
+    feedbackEnvelope.feedbackId,
+    feedbackEnvelope.responseHash,
+    feedbackEnvelope.originalEvidenceIdentity,
+    feedbackEnvelope.memoryTransitionHash
+  ].filter(Boolean))];
+  const result = await adapter.captureProductFailure({
+    governor,
+    runtime,
+    episodeId: evaluationId,
+    episodeSequence,
+    cognitiveEpisode,
+    lessonCandidate,
+    visibleEvidenceIds,
+    createdAt: currentAnalysisAdapters().nowIso(),
+    feedbackEnvelope,
+    captureAuthority: "AUTHENTICATED_PRODUCT_OUTCOME_FEEDBACK"
+  });
+  const memoryRecord = (await adapter.memoryStore.list()).find((record) => record.memoryId === result.memoryId);
+  return res.status(200).json(sanitizeClientVisiblePayload({
+    feedback: {
+      result: result.result,
+      feedbackId: result.feedbackId,
+      failureId: result.failureId,
+      diagnosisId: result.diagnosisId,
+      candidateId: result.candidateId,
+      memoryId: result.memoryId,
+      mentorDecisionIdentity: runtime.mentorDecisionIdentity,
+      mentorDiagnosis: runtime.mentorDecision,
+      inertStrategyCandidate: memoryRecord,
+      authoritativeMemoryTransition: runtime.authoritativeMemoryTransition,
+      promotionAuthorized: false,
+      providerLifecycleAuthority: false
+    }
+  }));
 }
 
 function buildCanonicalObjectSerperSearchPlan({
@@ -6380,23 +7555,27 @@ function buildCanonicalObjectSerperSearchPlan({
 } = {}) {
   const category = cleanText(objectMindState.canonicalResearchIdentity?.objectCategory);
   const normalizedCategory = normalizeComparableText(category);
-  const baseRecords = normalizeArray(objectMindState.searchPlan)
+  const baseRecords = selectBoundedComparableSearchPlan(normalizeArray(objectMindState.searchPlan)
     .filter((record) => record.query && record.identityTermProvenance?.some((entry) => entry.role === "CANONICAL_OBJECT_CATEGORY"))
-    .filter((record) => normalizeComparableText(record.query).includes(normalizedCategory))
-    .slice(0, 6);
+    .filter((record) => normalizeComparableText(record.query).includes(normalizedCategory)), { maximumQueries: 8 });
   const records = [];
   const signatures = new Set();
   const maximum = isCurrentRetailOnlyMode(context.retailEvidenceMode)
     ? Math.min(8, retailSerperBudgetAllocation.maxProviderCalls)
     : 8;
+  const levelLimits = { EXACT: 3, CLOSE: 3, CATEGORY: 2 };
+  const levelCounts = { EXACT: 0, CLOSE: 0, CATEGORY: 0 };
   const add = (owner, {
     query = owner.query,
     candidateOrigin = "canonical_object_plan",
-    searchPass = "open_web_exact",
+    searchPass = "",
     domains = [],
     modifiers = []
   } = {}) => {
     if (!owner || records.length >= maximum) return;
+    const comparableLadderLevel = cleanText(owner.comparableLadderLevel).toUpperCase();
+    if (!COMPARABLE_LADDER_LEVELS.includes(comparableLadderLevel)) return;
+    if (levelCounts[comparableLadderLevel] >= levelLimits[comparableLadderLevel]) return;
     const finalQuery = cleanSerperQuery(finalizeSearchQueryCandidate(query, context, domains.length ? 18 : 14));
     if (!finalQuery || !normalizeComparableText(finalQuery).includes(normalizedCategory)) return;
     const signature = `${querySemanticSignature(finalQuery)}|${domains.join("|").toLowerCase()}`;
@@ -6408,7 +7587,13 @@ function buildCanonicalObjectSerperSearchPlan({
       candidateOrigin,
       normalizedCandidate: finalQuery,
       finalQuery,
-      searchPass,
+      searchPass: searchPass || (
+        comparableLadderLevel === "EXACT"
+          ? "open_web_exact"
+          : comparableLadderLevel === "CLOSE"
+            ? "close_comparable_fallback"
+            : "category_comparable_fallback"
+      ),
       sourceRoute: sourceCategories,
       marketplaceDomains: domains,
       allowedDomains: domains,
@@ -6424,16 +7609,21 @@ function buildCanonicalObjectSerperSearchPlan({
       objectMindDiscriminatorTested: owner.discriminatorTested,
       objectMindPhase: owner.phase,
       objectMindProviderLane: owner.providerLane,
+      comparableLadderLevel,
       queryModifierProvenance: modifiers.map((modifier) => ({
         term: modifier,
         role: "GOVERNED_RESEARCH_MODIFIER",
         provenance: "REPOSITORY_SEARCH_POLICY"
       }))
     });
+    levelCounts[comparableLadderLevel] += 1;
   };
 
-  for (const owner of baseRecords.slice(0, 4)) add(owner);
-  const primary = baseRecords[0];
+  const exactRecords = baseRecords.filter((record) => record.comparableLadderLevel === "EXACT");
+  const closeRecords = baseRecords.filter((record) => record.comparableLadderLevel === "CLOSE");
+  const categoryRecords = baseRecords.filter((record) => record.comparableLadderLevel === "CATEGORY");
+  const primary = exactRecords[0];
+  if (primary) add(primary);
   if (primary && marketplaceDomains.length) {
     add(primary, {
       query: buildSerperMarketplaceQuery(primary.query, marketplaceDomains),
@@ -6466,6 +7656,9 @@ function buildCanonicalObjectSerperSearchPlan({
       modifiers: ["active listing", "price"]
     });
   }
+  for (const owner of exactRecords.slice(1)) add(owner);
+  for (const owner of closeRecords) add(owner, { searchPass: "close_comparable_fallback" });
+  for (const owner of categoryRecords) add(owner, { searchPass: "category_comparable_fallback" });
   return attachObjectSearchPlanProvenance(records, objectMindState);
 }
 
@@ -6641,6 +7834,7 @@ function attachObjectSearchPlanProvenance(records = [], objectMindState = null) 
       objectMindProviderLane: cleanText(record.objectMindProviderLane || owner?.providerLane || (
         phase === "REFINEMENT" ? "purpose_neutral_refinement" : "purpose_neutral_exact"
       )),
+      comparableLadderLevel: cleanText(record.comparableLadderLevel || owner?.comparableLadderLevel),
       authoritativeQueryProvenanceDecision: owner && categoryBound
         ? "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
         : "REFUSED_UNBOUND_IDENTITY_TERM"
@@ -6693,7 +7887,19 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
   const stage6 = "stage_6_local_retail";
 
   if (primaryBarcode) {
-    for (const identityCode of (barcodeIdentities.length ? barcodeIdentities : [primaryBarcode]).slice(0, 3)) {
+    add({
+      query: primaryBarcode,
+      rawCandidate: primaryBarcode,
+      searchPass: stage1,
+      retailStage: stage1,
+      retailStageLabel: "Stage 1 - Exact identity",
+      retailBudgetBucket: "exactIdentity",
+      candidateOrigin: "retail_exact_upc"
+    });
+    if (storeName) {
+      add({ query: compactWords([storeName, primaryBarcode]), searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_store_upc" });
+    }
+    for (const identityCode of barcodeIdentities.filter((candidate) => candidate !== primaryBarcode).slice(0, 2)) {
       add({
         query: identityCode,
         rawCandidate: primaryBarcode,
@@ -6701,10 +7907,9 @@ function buildRetailStagedSearchQueries(context = {}, modelSearchQueries = []) {
         retailStage: stage1,
         retailStageLabel: "Stage 1 - Exact identity",
         retailBudgetBucket: "exactIdentity",
-        candidateOrigin: identityCode === primaryBarcode ? "retail_exact_upc" : "retail_exact_barcode_equivalent"
+        candidateOrigin: "retail_exact_barcode_equivalent"
       });
     }
-    add({ query: compactWords([storeName, primaryBarcode]), searchPass: stage1, retailStage: stage1, retailStageLabel: "Stage 1 - Exact identity", retailBudgetBucket: "exactIdentity", candidateOrigin: "retail_store_upc" });
     if (context.retailerDomain) {
       add({
         query: buildSerperSingleMarketplaceQuery(primaryBarcode, context.retailerDomain),
@@ -8359,7 +9564,7 @@ function itemTypeTokens(itemType) {
 const comparableItemTypeDefinitions = [
   { key: "replacement_piece", label: "replacement part or single piece", priority: 125, patterns: [/\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b/i, /\bparts?\s+only\b/i, /\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i] },
   { key: "accessory_component", label: "accessory, component, or installation kit", priority: 123, patterns: [/\baccessor(?:y|ies)\b/i, /\binstallation\s+kits?\b/i, /\bmounting\s+kits?\b/i, /\bhiding\s+kits?\b/i, /\bcomponents?\b/i] },
-  { key: "serving_tray", label: "serving/decorative tray", priority: 120, patterns: [/\b(?:serving|decorative|collector|collectible|advertising|display|bar)?\s*trays?\b/i, /\bplatters?\b/i] },
+  { key: "serving_tray", label: "serving/decorative tray", priority: 120, patterns: [/\b(?:serving|decorative|collector|collectible|advertising|display|bar)\s+trays?\b/i, /\bplatters?\b/i] },
   { key: "bottle", label: "bottle", priority: 118, patterns: [/\bbottles?\b/i] },
   { key: "sign", label: "sign or wall plaque", priority: 116, patterns: [/\bsigns?\b/i, /\bwall\s+plaques?\b/i, /\btin\s+signs?\b/i] },
   { key: "plate", label: "plate", priority: 114, patterns: [/\bplates?\b/i, /\bcollector\s+plates?\b/i] },
@@ -8372,6 +9577,7 @@ const comparableItemTypeDefinitions = [
   { key: "sticker_decal", label: "sticker or decal", priority: 110, patterns: [/\bstickers?\b/i, /\bdecals?\b/i, /\bwindow\s+clings?\b/i] },
   { key: "box", label: "box or container", priority: 108, patterns: [/\bbox(?:es)?\b/i, /\bcrates?\b/i] },
   { key: "canister", label: "canister, jar, or storage container", priority: 108, patterns: [/\bcanisters?\b/i, /\bcookie\s+jars?\b/i, /\bjars?\b/i, /\bstorage\s+containers?\b/i] },
+  { key: "serving_tray", label: "serving/decorative tray", priority: 105, patterns: [/\btrays?\b/i] },
   { key: "bowl", label: "bowl", priority: 106, patterns: [/\bbowls?\b/i] },
   { key: "complete_set", label: "complete set", priority: 105, patterns: [/\bcomplete\s+sets?\b/i, /\bsets?\s+of\s+\d+\b/i, /\b\d+\s*[- ]?\s*piece\s+sets?\b/i] },
   { key: "book", label: "book or manual", priority: 104, patterns: [/\bbooks?\b/i, /\bmanuals?\b/i, /\bcatalogs?\b/i] },
@@ -8388,10 +9594,11 @@ const comparableItemTypeDefinitions = [
   { key: "envelope_box", label: "boxed envelope package", priority: 110, patterns: [/\b(?:security|privacy|business|self[- ]?seal|peel[- ]?and[- ]?seal|gummed)?\s*(?:envelopes?|mailers?)\b/i, /\b(?:box|pack|package|carton)\s+of\s+\d{1,5}\s+(?:envelopes?|mailers?)\b/i, /\b\d{1,5}\s*[- ]?(?:count|ct|pack|pk)\s+(?:security\s+|privacy\s+|business\s+)?(?:envelopes?|mailers?)\b/i] },
   { key: "bag", label: "bag, purse, or tote", priority: 104, patterns: [/\bbags?\b/i, /\bpurses?\b/i, /\bhandbags?\b/i, /\btotes?\b/i] },
   { key: "wallet", label: "wallet", priority: 104, patterns: [/\bwallets?\b/i] },
+  { key: "clock", label: "clock", priority: 107, patterns: [/\bclocks?\b/i, /\bpendulum\s+timepieces?\b/i] },
   { key: "watch", label: "watch", priority: 104, patterns: [/\bwatch(?:es)?\b/i, /\bwristwatch(?:es)?\b/i] },
   { key: "phone", label: "phone", priority: 104, patterns: [/\bphones?\b/i, /\bsmartphones?\b/i, /\biphones?\b/i, /\bandroid\s+phones?\b/i] },
   { key: "laptop", label: "laptop or computer", priority: 104, patterns: [/\blaptops?\b/i, /\bnotebooks?\b/i, /\bcomputers?\b/i, /\bmacbooks?\b/i, /\bchromebooks?\b/i] },
-  { key: "electronics_accessory", label: "electronics accessory", priority: 106, patterns: [/\bchargers?\b/i, /\bbatter(?:y|ies)\b/i, /\bkeyboards?\b/i, /\bsleeves?\b/i] },
+  { key: "electronics_accessory", label: "electronics accessory", priority: 106, patterns: [/\bchargers?\b/i, /\bbatter(?:y|ies)\b/i, /\bkeyboards?\b/i, /\b(?:laptop|notebook|tablet|phone|computer)\s+sleeves?\b/i, /\bsleeve\s+cases?\b/i] },
   { key: "household_cleaner", label: "household cleaner or cleaning supply", priority: 106, patterns: [/\bcleaners?\b/i, /\bcleaning\s+(?:supplies|sprays?|wipes?)\b/i, /\bdisinfect(?:ant|ing)\b/i, /\bdetergents?\b/i] },
   { key: "toiletry", label: "toiletry or personal-care product", priority: 106, patterns: [/\bshampoo\b/i, /\bconditioner\b/i, /\bbody\s+wash\b/i, /\btoothpaste\b/i, /\bdeodorants?\b/i, /\blotions?\b/i, /\bsoaps?\b/i] },
   { key: "grocery", label: "grocery or packaged food", priority: 106, patterns: [/\bcereals?\b/i, /\bsnacks?\b/i, /\bcoffee\b/i, /\btea\b/i, /\bpasta\b/i, /\bpackaged\s+food\b/i, /\bgrocer(?:y|ies)\b/i] },
@@ -8610,7 +9817,8 @@ function buildItemTypeCompatibilityResult({
 function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, context = {}) {
   const submittedText = buildSubmittedItemTypeText(identity, context);
   const candidateText = buildCandidateSourceBackedIdentityText(record, { includeUrl: true, includeRaw: true });
-  const submitted = detectCanonicalComparableItemType(submittedText);
+  const canonicalSubmitted = detectCanonicalComparableItemType(context.itemType);
+  const submitted = canonicalSubmitted.key ? canonicalSubmitted : detectCanonicalComparableItemType(submittedText);
   const titleUrlCandidate = detectCanonicalComparableItemType([record.title, record.url, record.canonicalUrl].filter(Boolean).join(" "));
   const candidate = titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
   const normalizedSubmitted = detectAuthoritativeSubmittedItemType(identity, context);
@@ -9484,6 +10692,7 @@ function isNoPriceIdentityReference(record = {}, visible = serperRecordToVisible
 }
 
 function serperRecordToVisibleResearchRecord(record = {}) {
+  record = isolateCategoryComparablePricing(record);
   const classification = record.identityMatchStrength === "Exact"
     ? "Exact Match"
     : record.identityMatchStrength === "Strong Similar"
@@ -9495,39 +10704,58 @@ function serperRecordToVisibleResearchRecord(record = {}) {
           : record.identityMatchStrength === "Weak"
             ? "Weak Match"
             : "Rejected Match";
-  const normalizedPriceType = normalizePriceTypeLabel(record.priceEvidenceType, record);
+  const displayedPriceText = cleanText(record.displayedPriceText || record.displayedPrice || record.priceText);
+  const priceEvidenceType = cleanText(record.priceEvidenceType || record.priceType);
+  const normalizedPriceType = normalizePriceTypeLabel(priceEvidenceType, record);
   const status = /Completed Auction/i.test(normalizedPriceType)
-    ? "completed auction evidence"
+    ? "sold/completed evidence"
     : /Verified Sold|Confirmed Sold/i.test(normalizedPriceType)
-      ? "confirmed sold evidence"
+      ? "sold/completed evidence"
       : /Closed Unsold Listing/i.test(normalizedPriceType)
-      ? "closed unsold reference"
+      ? "category/reference context"
       : /Auction Current Bid/i.test(normalizedPriceType)
-        ? "current auction bid"
+        ? "active asking evidence"
         : /Auction Opening Bid/i.test(normalizedPriceType)
-          ? "auction opening bid"
+          ? "active asking evidence"
           : /Auction Estimate|Estimated\/Guide Price/i.test(normalizedPriceType)
-            ? "auction estimate/reference"
+            ? "category/reference context"
             : /Active Asking|Buy It Now|Active Listing|Shopping Offer/i.test(normalizedPriceType)
-      ? "active/reference asking evidence"
+      ? "active asking evidence"
       : /Price Unavailable/i.test(normalizedPriceType)
-        ? "price unavailable"
-        : "reference/no-price evidence";
+        ? "category/reference context"
+      : "category/reference context";
+  const matchLevel = record.identityMatchStrength === "Exact"
+    ? "Exact comparable"
+    : ["Strong Similar", "Partial"].includes(record.identityMatchStrength)
+      ? "Close comparable"
+      : "Category comparable";
+  const evidentiaryConfidence = record.identityMatchStrength === "Exact" && record.sourceBacked
+    ? "High"
+    : ["Strong Similar", "Partial"].includes(record.identityMatchStrength) && record.sourceBacked
+      ? "Medium"
+      : "Low";
   return {
     title: record.title || record.url || "Source result",
     source: record.domain || record.source || "Serper Google result",
     url: record.url,
     canonicalUrl: record.canonicalUrl,
-    displayedPrice: record.displayedPriceText,
-    price: record.displayedPriceText,
-    parsedPrice: record.parsedPrice,
-    currency: record.currency,
-    priceType: record.priceEvidenceType,
+    displayedPrice: displayedPriceText,
+    price: displayedPriceText,
+    parsedPrice: Number.isFinite(record.parsedPrice) ? record.parsedPrice : parseDisplayedPrice(displayedPriceText),
+    currency: displayedPriceText
+      ? cleanText(record.currency).toUpperCase() === "$" ? "USD" : cleanText(record.currency || record.currencyCode || "USD")
+      : "",
+    observationDate: cleanText(record.date || record.observationDate),
+    marketStatus: status,
+    priceType: priceEvidenceType,
     priceTypeLabel: record.priceTypeLabel,
     evidenceType: record.evidenceType || record.evidenceRole || classification,
     delivery: record.delivery,
     condition: inferConditionFromSerperRecord(record),
     classification,
+    matchLevel,
+    materialDifferences: cleanText(record.materialDifferences || record.itemIdentityDifferences) || (matchLevel === "Exact comparable" ? "No material difference established from the retained source record." : "Exact configuration or condition differs or remains unresolved."),
+    evidentiaryConfidence,
     identityMatchStrength: record.identityMatchStrength,
     itemTypeCompatible: record.itemTypeCompatible,
     submittedItemType: record.submittedItemType,
@@ -9557,6 +10785,7 @@ function serperRecordToVisibleResearchRecord(record = {}) {
     objectMindQueryType: record.objectMindQueryType,
     objectMindPhase: record.objectMindPhase,
     objectMindProviderLane: record.objectMindProviderLane,
+    comparableLadderLevel: record.comparableLadderLevel,
     objectMindClassification: record.objectMindClassification,
     objectMindVerificationState: record.objectMindVerificationState,
     objectMindSupportingAttributes: record.objectMindSupportingAttributes,
@@ -9572,9 +10801,9 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       `Provider: serper_google`,
       `Source/platform/site: ${record.domain || "Unknown source"}`,
       `Title: ${record.title || "Title not supplied"}`,
-      record.displayedPriceText ? `Price: ${record.displayedPriceText}` : "",
+      displayedPriceText ? `Price: ${displayedPriceText}` : "",
       record.delivery ? `Shipping/Delivery: ${record.delivery}` : "",
-      `Price Type: ${record.priceEvidenceType}`,
+      `Price Type: ${priceEvidenceType}`,
       `Price Label: ${record.priceTypeLabel}`,
       `Evidence Type: ${record.evidenceType || record.evidenceRole || classification}`,
       `URL: ${record.url}`,
@@ -9626,7 +10855,7 @@ function buildSerperSearchDiagnostics({ sourceRoute = [], searchQueries = [], qu
   const retailBudget = retailSerperBudgetAllocation;
   const providerCallBudget = isCurrentRetailOnlyMode(context.retailEvidenceMode)
     ? retailBudget.maxProviderCalls
-    : 12;
+    : 8;
   const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
     maximumPhysicalProviderAttempts: providerCallBudget,
     maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
@@ -11358,7 +12587,13 @@ function buildCanonicalProductIdentity(identity = {}, buyerIntake = normalizeBuy
   const productName = buildCanonicalProductName({
     categoryProfile,
     brand,
-    productTitle: firstKnown(intake.item_name, identity.productNameOrBoxTitle, identity.exactProductIdentity, identity.likelyItemDescription),
+    productTitle: firstKnown(
+      intake.item_name,
+      identity.productNameOrBoxTitle,
+      identity.exactProductIdentity,
+      identity.canonicalResearchIdentity?.objectCategory,
+      identity.likelyItemDescription
+    ),
     evidenceText: strongEvidenceText,
     variant: closureOrVariant
   });
@@ -13722,7 +14957,7 @@ function buildSearchDiagnostics({ searchQueries = [], queriesActuallySent = [], 
   const context = buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake);
   const providerCallBudget = isCurrentRetailOnlyMode(context.retailEvidenceMode)
     ? retailSerperBudgetAllocation.maxProviderCalls
-    : 12;
+    : 8;
   const providerAccounting = buildProviderAttemptAccounting(providerRequestRecords, {
     maximumPhysicalProviderAttempts: providerCallBudget,
     maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
@@ -13927,6 +15162,7 @@ function sanitizeProviderRequestRecord(record = {}) {
     objectMindDiscriminatorTested: cleanText(record.objectMindDiscriminatorTested),
     objectMindPhase: cleanText(record.objectMindPhase),
     objectMindProviderLane: cleanText(record.objectMindProviderLane),
+    comparableLadderLevel: cleanText(record.comparableLadderLevel),
     queryModifierProvenance: normalizeArray(record.queryModifierProvenance).slice(0, 16),
     authoritativeQueryProvenanceDecision: cleanText(record.authoritativeQueryProvenanceDecision),
     provider: cleanText(record.provider || "OpenAI web_search"),
@@ -14274,6 +15510,7 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     && displayedPrice
     && /exact|strong/i.test(visibleClassification)
     && isQualifiedVerifiedSoldPriceEvidence({ priceType, priceTypeLabel, rawText, url, source, sourceBacked: url ? "URL provided by result text" : "" }, priceTypeLabel, visibleClassification);
+  const matchLevel = comparableMatchLevel({ classification: visibleClassification }, bucketName);
 
   return {
     title,
@@ -14281,12 +15518,20 @@ function normalizeResearchResultRecord(value, bucketName, citations = [], identi
     url: url || "",
     canonicalUrl: canonicalizeComparableUrl(url) || url || "",
     displayedPrice,
-    currency: displayedPrice ? "$" : "",
+    currency: displayedPrice ? "USD" : "",
+    observationDate: extractLabeledResultPart(rawText, /(?:observation\s+date|date)\s*[:=-]\s*([^|;.]+)/i),
     priceType,
     priceTypeLabel,
+    marketStatus: comparableMarketStatus({ sourceType, activeSoldReferenceStatus: inferActiveSoldReferenceStatus(priceType, rawText) }, priceTypeLabel),
     delivery,
     condition: extractLabeledResultPart(rawText, /condition\s*[:=-]\s*([^|;.]+)/i),
     classification: visibleClassification,
+    matchLevel,
+    materialDifferences: extractIdentityDifferences(rawText)
+      || (matchLevel === "Exact comparable"
+        ? "No decision-critical identity difference was established; condition may still differ."
+        : "Exact maker, model, configuration, or condition differs or remains unresolved."),
+    evidentiaryConfidence: comparableEvidenceConfidence({ url, classification: visibleClassification, matchLevel }, bucketName),
     itemTypeCompatible,
     submittedItemType: cleanText(extractLabeledResultPart(rawText, /submitted\s+item\s+type\s*[:=-]\s*([^|;.]+)/i)) || itemTypeCompatibility.submittedItemType,
     candidateItemType: cleanText(extractLabeledResultPart(rawText, /candidate\s+item\s+type\s*[:=-]\s*([^|;.]+)/i)) || itemTypeCompatibility.candidateItemType,
@@ -14636,8 +15881,37 @@ function extractRejectionReason(text, classification) {
   return found ? found[1] : `Not reliable enough for valuation. Classification: ${classification}.`;
 }
 
+function stripRejectedCanonicalIdentityClaims(value, identity = {}) {
+  const rejectedValues = normalizeStringArray(
+    identity.canonicalEvidenceProjection?.rejectedClaims?.map((claim) => claim?.value),
+    32
+  )
+    .filter((claim) => claim.length >= 2)
+    .sort((left, right) => right.length - left.length);
+  if (!rejectedValues.length) return value;
+  const sanitize = (input) => {
+    if (Array.isArray(input)) return input.map(sanitize).filter((item) => item !== "");
+    if (input && typeof input === "object") {
+      return Object.fromEntries(Object.entries(input).map(([key, child]) => [key, sanitize(child)]));
+    }
+    if (typeof input !== "string") return input;
+    let text = input;
+    for (const claim of rejectedValues) {
+      const expression = new RegExp(claim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      text = text.replace(expression, "");
+    }
+    return text
+      .replace(/\s+([,.;:])/g, "$1")
+      .replace(/([,;:])\s*([,;:])/g, "$1")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  };
+  return sanitize(value);
+}
+
 function enforceListingResearchHonesty(report, research, platform) {
   const { identity, liveSearch, buyerIntake = normalizeBuyerIntake({}) } = research;
+  report = stripRejectedCanonicalIdentityClaims(report, identity);
   buildConsumerPricesFound(
     liveSearch,
     getConsumerAskingPriceNumber(buyerIntake, identity),
@@ -14701,9 +15975,9 @@ function enforceListingResearchHonesty(report, research, platform) {
     searchCompleted: Boolean(liveSearch.webSearchExecuted),
     workflow: "listing"
   });
-  return applyCanonicalDecisionProjection(evidenceLabeledReport, finalEvidenceResult, {
+  return reconcileCanonicalResponsePriceState(applyCanonicalDecisionProjection(evidenceLabeledReport, finalEvidenceResult, {
     workflow: "seller_listing"
-  });
+  }), { workflow: "listing", reliableResearchFound, finalEvidenceResult });
 }
 
 function buildListingSearchQueriesUsed(liveSearch) {
@@ -14822,6 +16096,33 @@ function normalizeResearchRecordArray(value, bucketName) {
     .slice(0, 8);
 }
 
+function comparableMatchLevel(record = {}, bucketName = "") {
+  const strength = cleanText(record.matchLevel || record.identityMatchStrength || record.classification);
+  if (/exact/i.test(strength) || bucketName === "strongComparables" && /exact/i.test(strength)) return "Exact comparable";
+  if (/strong similar|partial|close/i.test(strength) || bucketName === "partialComparables") return "Close comparable";
+  return "Category comparable";
+}
+
+function comparableEvidenceConfidence(record = {}, bucketName = "") {
+  const supplied = cleanText(record.evidentiaryConfidence);
+  if (supplied) return supplied;
+  const sourceBacked = Boolean(cleanText(record.url || record.canonicalUrl || record.sourceBacked));
+  const level = comparableMatchLevel(record, bucketName);
+  if (sourceBacked && level === "Exact comparable") return "High";
+  if (sourceBacked && level === "Close comparable") return "Medium";
+  return "Low";
+}
+
+function comparableMarketStatus(record = {}, priceTypeLabel = "") {
+  const supplied = cleanText(record.marketStatus);
+  if (supplied) return supplied;
+  const text = `${priceTypeLabel} ${record.activeSoldReferenceStatus || ""} ${record.sourceType || ""}`;
+  if (/verified sold|confirmed sold|completed auction|sold\/completed/i.test(text)) return "sold/completed evidence";
+  if (/retail|shopping offer/i.test(text)) return "current retail alternative";
+  if (/active asking|buy it now|active listing|asking/i.test(text)) return "active asking evidence";
+  return "category/reference context";
+}
+
 function normalizeExistingResearchRecord(item, bucketName) {
   const rawText = cleanText(item.rawText || Object.entries(item).map(([key, value]) => `${key}: ${value}`).join(" | "));
   const url = cleanText(item.url || extractFirstUrl(rawText));
@@ -14839,18 +16140,32 @@ function normalizeExistingResearchRecord(item, bucketName) {
   const nonMarketReason = /Bulk\/Lot Reference/i.test(priceTypeLabel)
     ? "Bulk/lot reference - unit price not established."
     : "Non-transactional reference - not a market transaction.";
+  const classification = nonMarketTransaction
+    ? priceTypeLabel === "Bulk/Lot Reference" ? "Rejected - Bulk/Lot Reference" : "Rejected - Not a Market Transaction"
+    : cleanText(item.classification) || inferResultClassification(rawText, bucketName);
+  const matchLevel = comparableMatchLevel({ ...item, classification }, bucketName);
   return {
     title: cleanText(item.title) || extractResultTitle(rawText, cleanText(item.source), url),
     source: cleanText(item.source) || inferSourceFromResult(rawText, url),
     url,
     canonicalUrl: cleanText(item.canonicalUrl) || canonicalizeComparableUrl(url) || url,
     displayedPrice,
-    currency: cleanText(item.currency) || (displayedPrice ? "$" : ""),
+    currency: displayedPrice
+      ? cleanText(item.currency).toUpperCase() === "$" ? "USD" : cleanText(item.currency || "USD")
+      : "",
+    observationDate: cleanText(item.observationDate || item.date),
     priceType,
     priceTypeLabel,
+    marketStatus: comparableMarketStatus(item, priceTypeLabel),
     delivery: cleanText(item.delivery || item.shipping),
     condition: cleanText(item.condition),
-    classification: nonMarketTransaction ? (priceTypeLabel === "Bulk/Lot Reference" ? "Rejected - Bulk/Lot Reference" : "Rejected - Not a Market Transaction") : cleanText(item.classification) || inferResultClassification(rawText, bucketName),
+    classification,
+    matchLevel,
+    materialDifferences: cleanText(item.materialDifferences || item.itemIdentityDifferences)
+      || (matchLevel === "Exact comparable"
+        ? "No decision-critical identity difference was established; condition may still differ."
+        : "Exact maker, model, configuration, or condition differs or remains unresolved."),
+    evidentiaryConfidence: comparableEvidenceConfidence({ ...item, classification, matchLevel }, bucketName),
     identityMatchStrength: cleanText(item.identityMatchStrength),
     evidenceType: cleanText(item.evidenceType) || extractLabeledResultPart(rawText, /evidence\s*type\s*[:=-]\s*([^|;.]+)/i),
     itemTypeCompatible: item.itemTypeCompatible === true || cleanText(item.itemTypeCompatible).toLowerCase() === "true",
@@ -15330,7 +16645,9 @@ function buildCanonicalEvidenceObservations(records = [], {
         || record.url
         || destinationUrl
       );
-      const parsedPrice = getVisibleItemPriceAmount(record);
+      const comparableLadderLevel = cleanText(record.comparableLadderLevel).toUpperCase();
+      const categoryContextOnly = comparableLadderLevel === "CATEGORY";
+      const parsedPrice = categoryContextOnly ? null : getVisibleItemPriceAmount(record);
       const quantity = Number.isFinite(Number(record.quantity || record.packageQuantity))
         ? Number(record.quantity || record.packageQuantity)
         : assessment?.packageQuantity || extractPackQuantityNumber([
@@ -15339,7 +16656,7 @@ function buildCanonicalEvidenceObservations(records = [], {
             record.rawText,
             record.candidatePackQuantity
           ].join(" "));
-      const exactIdentity = Boolean(
+      const exactIdentity = !categoryContextOnly && Boolean(
         record.exactIdentity
         || /exact|tier_1/i.test(cleanText(
           record.identityMatchStrength
@@ -15350,7 +16667,9 @@ function buildCanonicalEvidenceObservations(records = [], {
         ))
       );
       const providedPriceType = cleanText(record.priceType || record.priceEvidenceType || record.priceTypeLabel);
-      const priceType = currentRetail
+      const priceType = categoryContextOnly
+        ? "Price unavailable"
+        : currentRetail
         ? Number.isFinite(parsedPrice) ? "Current Retail Price" : "Price unavailable"
         : /^confirmed sold$/i.test(providedPriceType)
           ? "Verified Sold"
@@ -15396,11 +16715,15 @@ function buildCanonicalEvidenceObservations(records = [], {
         retailerDomain: assessment?.retailerDomain || record.retailerDomain || record.domain,
         retailerDisplayName: assessment?.retailerDisplayName || record.retailerDisplayName || record.source,
         price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
+        parsedPrice: Number.isFinite(parsedPrice) ? parsedPrice : null,
+        displayedPriceText: categoryContextOnly ? "" : record.displayedPriceText,
         quantity: Number.isFinite(quantity) ? quantity : null,
         dimensions: extractCanonicalObservationDimensions(record),
         packageType: record.packageType || record.productForm,
         designIdentity: record.designIdentity || record.designDescription,
         exactIdentity,
+        comparableLadderLevel,
+        pricingAuthority: categoryContextOnly ? "CATEGORY_CONTEXT_ONLY" : "CANONICAL_EVIDENCE_POLICY",
         pageType: currentRetail
           ? record.pageType
             || record.offerClassification
@@ -15467,7 +16790,7 @@ function buildCanonicalRecoveryViewForRecords(records = [], {
     providerAccounting: buildProviderAttemptAccounting(providerRequestRecords, {
       maximumPhysicalProviderAttempts: isCurrentRetailOnlyMode(searchContext.retailEvidenceMode)
         ? retailSerperBudgetAllocation.maxProviderCalls
-        : 12,
+        : 8,
       maximumPhysicalDirectPageAttempts: directPageEnrichmentMaxAttempts,
       rawProviderObservationCount: records.length
     })
@@ -15675,9 +16998,10 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   const searchContext = buildSearchQueryContext(identity, [], "", buyerIntake);
   const currentRetail = isCurrentRetailOnlyMode(searchContext.retailEvidenceMode);
   const objectMindState = liveSearch.objectMindState || null;
-  const providerObservations = objectMindState?.objectStateId
+  const verifiedProviderObservations = objectMindState?.objectStateId
     ? applyObjectEvidenceVerification(objectMindState, normalizeArray(liveSearch.providerSourceRecords))
     : normalizeArray(liveSearch.providerSourceRecords);
+  const providerObservations = verifiedProviderObservations.map(isolateCategoryComparablePricing);
   const providerResearchBuckets = bucketSerperRecords(providerObservations, { perBucketLimit: null });
   const providerEnrichedCandidates = currentRetail
     ? providerResearchBuckets.itemIdentificationEvidence
@@ -15699,10 +17023,19 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   for (const record of candidateRecords) {
     const alreadyPromotedRetailCard = Boolean(record.retailEvidenceTier && record.itemPriceAmount);
     const preserveNoPriceIdentity = isNoPriceIdentityReference(record) && !Number.isFinite(getVisibleItemPriceAmount(record));
+    const preserveTraceableComparableContext = !Number.isFinite(getVisibleItemPriceAmount(record))
+      && /^https?:\/\//i.test(comparableTraceUrl(record))
+      && record.itemTypeCompatible === true
+      && /Partial|Reference Only|Close comparable|Category comparable/i.test(cleanText(
+        record.identityMatchStrength || record.classification || record.matchLevel
+      ))
+      && !comparableTraceRejected(record)
+      && !isStaleOrIrrelevantComparable(record)
+      && !isBulkLotReferenceWithoutUnitPrice(record);
     const preserveExactAuctionContext = /exact/i.test(cleanText(record.identityMatchStrength || record.classification || record.matchQuality))
       && /current bid|opening bid|auction estimate|closed unsold/i.test(cleanText(record.priceType || record.priceEvidenceType));
-    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record) && !preserveNoPriceIdentity && !preserveExactAuctionContext) continue;
-    const enriched = alreadyPromotedRetailCard || preserveNoPriceIdentity || preserveExactAuctionContext
+    if (!alreadyPromotedRetailCard && !isPriceFoundEligible(record) && !preserveNoPriceIdentity && !preserveTraceableComparableContext && !preserveExactAuctionContext) continue;
+    const enriched = alreadyPromotedRetailCard || preserveNoPriceIdentity || preserveTraceableComparableContext || preserveExactAuctionContext
       ? { ...record }
       : buildPriceFoundRecord(record, askingPriceNumber);
     legacyCandidates.push(enriched);
@@ -15780,6 +17113,11 @@ function buildConsumerPricesFound(liveSearch = {}, askingPriceNumber = null, { i
   liveSearch.finalEvidenceConfidenceResult = finalEvidenceResult.confidenceResult;
   liveSearch.finalEvidenceBadgeResult = finalEvidenceResult.badgeResult;
   liveSearch.finalEvidenceBuyerOfferResult = finalEvidenceResult.buyerOfferResult;
+  refreshGovernedResearchOutcome(liveSearch, {
+    candidateRecords,
+    canonicalObservations,
+    finalEvidenceResult
+  });
   const finalObjectMindState = objectMindState?.objectStateId
     ? incorporateCandidateEvidence(objectMindState, canonicalObservations, { phase: "CANONICAL_FINALIZATION" })
     : null;
@@ -15911,6 +17249,19 @@ function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
     deliveredCostAmount: Number.isFinite(deliveredAmount) ? deliveredAmount : null,
     deliveredCostStatus: Number.isFinite(deliveredAmount) ? "established" : "not_established",
     priceType,
+    currency: cleanText(record.currency || record.currencyCode) || (Number.isFinite(itemAmount) ? "USD" : ""),
+    observationDate: cleanText(record.observationDate || record.date || record.observedAt),
+    matchLevel: cleanText(record.matchLevel) || comparableMatchLevel(record),
+    materialDifferences: cleanText(record.materialDifferences || record.knownDifferences || record.itemIdentityDifferences),
+    evidentiaryConfidence: cleanText(record.evidentiaryConfidence),
+    identityMatchStrength: cleanText(record.identityMatchStrength),
+    exactIdentity: record.exactIdentity === true,
+    objectMindSourceId: cleanText(record.objectMindSourceId),
+    objectMindClassification: cleanText(record.objectMindClassification),
+    objectMindVerificationState: cleanText(record.objectMindVerificationState),
+    objectMindSupportingAttributes: normalizeArray(record.objectMindSupportingAttributes),
+    objectMindConflictingAttributes: normalizeArray(record.objectMindConflictingAttributes),
+    objectMindRejectionReason: cleanText(record.objectMindRejectionReason),
     matchQuality: cleanText(record.classification || record.identityMatchStrength) || "Comparable Match",
     listingStatus,
     conciseLimitation: buildPriceFoundLimitation(record, priceType, shipping, listingStatus),
@@ -15918,6 +17269,8 @@ function buildPriceFoundRecord(record = {}, askingPriceNumber = null) {
     itemTypeCompatible: record.itemTypeCompatible === true,
     submittedItemType: cleanText(record.submittedItemType),
     candidateItemType: cleanText(record.candidateItemType),
+    itemTypeCompatibilityStatus: cleanText(record.itemTypeCompatibilityStatus),
+    itemTypeCompatibilityExplanation: cleanText(record.itemTypeCompatibilityExplanation),
     condition: cleanText(record.condition),
     sourceBacked: cleanText(record.sourceBacked),
     rawText: cleanText(record.rawText)
@@ -17594,9 +18947,116 @@ function applyCanonicalDecisionProjection(report = {}, finalEvidenceResult = {},
   projection.retailPurchaseDecision = recommendation;
   projection.purchaserDecision = decisionSummary;
   return applyCanonicalCustomerEvidenceProjection(
-    applyCanonicalBuyerOfferProjection(projection, finalEvidenceResult),
+    applyCanonicalRangeResponseProjection(
+      applyCanonicalBuyerOfferProjection(projection, finalEvidenceResult),
+      finalEvidenceResult,
+      { workflow }
+    ),
     finalEvidenceResult
   );
+}
+
+function applyCanonicalRangeResponseProjection(report = {}, finalEvidenceResult = {}, { workflow = "buyer" } = {}) {
+  const rangeResult = finalEvidenceResult.rangeResult || {};
+  const rangeResults = finalEvidenceResult.rangeResults || {};
+  const retailLimitResult = finalEvidenceResult.retailLimitResult || {};
+  const projection = {
+    ...report,
+    rangeResult,
+    rangeResults,
+    retailLimitResult,
+    rangeSupportEvidenceIds: normalizeStringArray(rangeResult.evidenceIds, 64),
+    rangeSupportUnderlyingOfferIds: normalizeStringArray(rangeResult.underlyingOfferIds, 64),
+    retailLimitSupportEvidenceIds: normalizeStringArray(retailLimitResult.evidenceIds, 64),
+    retailLimitSupportUnderlyingOfferIds: normalizeStringArray(retailLimitResult.underlyingOfferIds, 64)
+  };
+  const retailContract = /current-retail-only/i.test(cleanText(report.retailEvidenceMode))
+    || ["current_retail", "retail_unverified"].includes(cleanText(report.valuationEvidenceState).toLowerCase());
+  if (workflow === "seller_listing" || retailContract) {
+    return projection;
+  }
+
+  if (rangeResult.status === "established"
+      && Number.isFinite(rangeResult.low)
+      && Number.isFinite(rangeResult.high)) {
+    const range = formatMoneyRangeFromAmounts(rangeResult.low, rangeResult.high);
+    const common = {
+      ...projection,
+      valuationEvidenceExplanation: `${rangeResult.independentOfferCount} independent canonical offer${rangeResult.independentOfferCount === 1 ? "" : "s"} support this range.`,
+      fairValueNotEstablished: ""
+    };
+    if (rangeResult.priceType === "verified_sold") {
+      return {
+        ...common,
+        valuationEvidenceState: "supported",
+        valuationEvidenceLabel: cleanText(rangeResult.priceTypeLabel || "Verified Market Range"),
+        verifiedMarketRange: `Verified Market Range - ${range}`,
+        currentAskingPriceRange: "",
+        preliminaryReferenceRange: "",
+        estimatedFairMarketValue: "",
+        estimatedMarketValue: "",
+        fairPriceRange: [],
+        priceBasis: `Canonical verified-sold evidence: ${rangeResult.independentOfferCount} independent qualified offers establish ${range}.`,
+        noReliableComparableItemsFound: "",
+        liveComparableSearchStatus: "Live Search Completed - Source-Backed Comps Found"
+      };
+    }
+    if (rangeResult.priceType === "active_asking") {
+      return {
+        ...common,
+        valuationEvidenceState: "current_asking",
+        valuationEvidenceLabel: cleanText(rangeResult.priceTypeLabel || "Current Asking-Price Range"),
+        verifiedMarketRange: "",
+        currentAskingPriceRange: `Current Asking-Price Range - ${range}`,
+        preliminaryReferenceRange: "",
+        estimatedFairMarketValue: "",
+        estimatedMarketValue: "",
+        fairPriceRange: [],
+        priceBasis: `Canonical active-asking evidence: ${rangeResult.independentOfferCount} independent qualified offers establish ${range}; this is not verified sold value.`
+      };
+    }
+    return {
+      ...common,
+      valuationEvidenceState: "preliminary",
+      valuationEvidenceLabel: cleanText(rangeResult.priceTypeLabel || "Preliminary Reference Range"),
+      verifiedMarketRange: "",
+      currentAskingPriceRange: "",
+      preliminaryReferenceRange: `Preliminary Reference Range - ${range}`,
+      estimatedFairMarketValue: "",
+      estimatedMarketValue: "",
+      fairPriceRange: []
+    };
+  }
+
+  if (rangeResult.status === "single_observation") {
+    return {
+      ...projection,
+      valuationEvidenceState: "single_observation",
+      valuationEvidenceLabel: "Single Price Observation",
+      valuationEvidenceExplanation: `One ${cleanText(rangeResult.observedPriceType || "price observation").toLowerCase()} was observed; no numerical market range was established.`,
+      verifiedMarketRange: "",
+      currentAskingPriceRange: "",
+      preliminaryReferenceRange: "",
+      estimatedFairMarketValue: "",
+      estimatedMarketValue: "",
+      fairPriceRange: [],
+      fairValueNotEstablished: "Fair Value: Not established"
+    };
+  }
+
+  return {
+    ...projection,
+    valuationEvidenceState: "insufficient",
+    valuationEvidenceLabel: "Fair Value Not Established",
+    valuationEvidenceExplanation: cleanText(rangeResult.insufficiencyReason) || "Canonical evidence did not establish a numerical range.",
+    verifiedMarketRange: "",
+    currentAskingPriceRange: "",
+    preliminaryReferenceRange: "",
+    estimatedFairMarketValue: "",
+    estimatedMarketValue: "",
+    fairPriceRange: [],
+    fairValueNotEstablished: "Fair Value: Not established"
+  };
 }
 
 function applyCanonicalCustomerEvidenceProjection(report = {}, finalEvidenceResult = {}) {
@@ -17753,7 +19213,7 @@ function buildListingPriceState(value, reliableResearchFound) {
   const boundedValue = normalizeStructuredPriceValue(value);
   return boundedValue
     ? {
-        status: "established",
+        status: reliableResearchFound ? "established" : "preliminary",
         value: boundedValue,
         confidence: reliableResearchFound ? "source_backed" : "low_confidence_estimate"
       }
@@ -17762,6 +19222,119 @@ function buildListingPriceState(value, reliableResearchFound) {
         value: null,
         confidence: "insufficient_evidence"
       };
+}
+
+function reconcileCanonicalResponsePriceState(report = {}, {
+  workflow = "",
+  reliableResearchFound = false,
+  finalEvidenceResult = {}
+} = {}) {
+  const output = { ...report };
+  const acceptedIds = new Set(normalizeArray(finalEvidenceResult.acceptedRecords).map((record) => cleanText(record.evidenceId)).filter(Boolean));
+  const authoritativePriceIds = normalizeStringArray(finalEvidenceResult.views?.priceBearingIds, 64)
+    .filter((evidenceId) => acceptedIds.has(evidenceId));
+  const authoritativeRetainedPricedEvidenceCount = authoritativePriceIds.length;
+  const pricingEvidenceAvailable = authoritativeRetainedPricedEvidenceCount > 0;
+  output.pricingEvidenceAvailable = pricingEvidenceAvailable;
+  output.canonicalPricingEvidenceAvailable = pricingEvidenceAvailable;
+  output.authoritativeRetainedPricedEvidenceCount = authoritativeRetainedPricedEvidenceCount;
+  output.searchDiagnostics = {
+    ...(output.searchDiagnostics || {}),
+    pricingEvidenceAvailable,
+    canonicalPricingEvidenceAvailable: pricingEvidenceAvailable,
+    authoritativeRetainedPricedEvidenceCount,
+    authoritativeRetainedPricedEvidenceIds: authoritativePriceIds
+  };
+  if (!pricingEvidenceAvailable) {
+    const unavailable = "Insufficient evidence - no retained priced canonical evidence is available.";
+    output.pricingState = "not_established";
+    output.pricingEvidenceState = "insufficient";
+    output.valuationEvidenceState = "insufficient";
+    output.valuationEvidenceLabel = "Fair Value Not Established";
+    output.valuationEvidenceExplanation = unavailable;
+    output.fairValueNotEstablished = "Fair Value: Not established";
+    output.currentPriceAssessment = unavailable;
+    output.pricingRationale = unavailable;
+    output.priceBasis = unavailable;
+    output.estimatedFairMarketValue = "";
+    output.estimatedMarketValue = "";
+    output.verifiedMarketRange = "";
+    output.currentAskingPriceRange = "";
+    output.preliminaryReferenceRange = "";
+    output.aiOnlyRoughValueRange = "";
+    output.fairPriceRange = [];
+    output.recommendedListingPrice = null;
+    output.recommendedOffer = null;
+    output.openingOffer = null;
+    output.targetPurchasePrice = null;
+    output.maximumRecommendedPrice = null;
+    output.maximumRecommendedBuyPrice = null;
+    output.walkAwayPrice = "";
+    if (workflow === "listing") {
+      output.recommendedListingPriceState = {
+        status: "not_established",
+        value: null,
+        confidence: "insufficient_evidence"
+      };
+    }
+    return output;
+  }
+  if (workflow === "listing") {
+    const boundedValue = normalizeStructuredPriceValue(output.recommendedListingPrice);
+    const adequateEvidence = reliableResearchFound
+      && boundedValue
+      && !/insufficient|not_established/i.test(cleanText(output.pricingEvidenceState || output.valuationEvidenceState));
+    const status = adequateEvidence ? "established" : boundedValue ? "preliminary" : "not_established";
+    output.recommendedListingPrice = boundedValue || null;
+    output.recommendedListingPriceState = {
+      status,
+      value: boundedValue || null,
+      confidence: status === "established"
+        ? "source_backed"
+        : status === "preliminary"
+          ? "low_confidence_estimate"
+          : "insufficient_evidence"
+    };
+    output.pricingState = status;
+    return output;
+  }
+
+  const evidenceState = cleanText(output.valuationEvidenceState).toLowerCase();
+  const canonicalRangeValue = output.rangeResult?.status === "established"
+    && Number.isFinite(output.rangeResult.low)
+    && Number.isFinite(output.rangeResult.high)
+    ? formatMoneyRangeFromAmounts(output.rangeResult.low, output.rangeResult.high)
+    : "";
+  const numericValue = normalizeStructuredPriceValue(firstKnown(
+    output.estimatedFairMarketValue,
+    output.estimatedMarketValue,
+    output.verifiedMarketRange,
+    output.fairPriceRange,
+    canonicalRangeValue
+  ));
+  if (evidenceState === "supported" && numericValue) {
+    output.pricingState = "established";
+    output.fairValueNotEstablished = "";
+    return output;
+  }
+  if (evidenceState === "supported") {
+    output.valuationEvidenceState = "insufficient";
+    output.valuationEvidenceLabel = "Fair Value Not Established";
+    output.valuationEvidenceExplanation = "The response did not contain a supported numeric value or range.";
+    output.estimatedFairMarketValue = "";
+    output.estimatedMarketValue = "";
+    output.fairPriceRange = [];
+    output.fairValueNotEstablished = "Fair Value: Not established";
+    output.pricingState = "not_established";
+    return output;
+  }
+  output.pricingState = ["preliminary", "current_asking", "single_observation", "current_retail"].includes(evidenceState)
+    ? "preliminary"
+    : "not_established";
+  if (output.pricingState === "not_established" && !cleanText(output.fairValueNotEstablished)) {
+    output.fairValueNotEstablished = "Fair Value: Not established";
+  }
+  return output;
 }
 
 function normalizeStructuredPriceValue(value) {
@@ -18413,6 +19986,7 @@ function normalizeMoneyLabelArray(value) {
 }
 
 function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuyerIntake({}), identity = {}, platform = "") {
+  report = stripRejectedCanonicalIdentityClaims(report, identity);
   const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = liveSearch.webSearchExecuted;
   const comparableItemsFound = sourceBackedCompsFound ? liveSearch.comparableItemsFound : [];
@@ -18554,8 +20128,12 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
   const purposeReport = isOwnerValueIntent(buyerIntake.purchase_intent)
     ? applyOwnerValueReportModel(labeledReport, buyerIntake, identity, platform, { reliableCompsFound, searchCompleted })
     : labeledReport;
-  return applyCanonicalDecisionProjection(purposeReport, finalEvidenceResult, {
+  return reconcileCanonicalResponsePriceState(applyCanonicalDecisionProjection(purposeReport, finalEvidenceResult, {
     workflow: isOwnerValueIntent(buyerIntake.purchase_intent) ? "owner_value" : "buyer"
+  }), {
+    workflow: isOwnerValueIntent(buyerIntake.purchase_intent) ? "owner_value" : "buyer",
+    reliableResearchFound: reliableCompsFound,
+    finalEvidenceResult
   });
 }
 
@@ -18613,6 +20191,7 @@ function stripOwnerBuyingLanguage(value = "") {
 
 function enforceConsumerDecisionHonesty(report, research, buyerIntake = normalizeBuyerIntake({}), platform = "") {
   const { identity = {}, liveSearch = {} } = research;
+  report = stripRejectedCanonicalIdentityClaims(report, identity);
   const sourceBackedCompsFound = liveSearch.liveSearchStatus === "Live Search Completed - Source-Backed Comps Found";
   const searchCompleted = Boolean(liveSearch.webSearchExecuted);
   const comparableItemsFound = sourceBackedCompsFound ? normalizeStringArray(liveSearch.comparableItemsFound, 6) : [];
@@ -18815,7 +20394,10 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     canonicalRangeResult: authoritativeRange
   });
   const retailGuardedReport = applyCurrentRetailDecisionFirewall(guardedReport, retailEvidenceProfile);
-  return applyCanonicalDecisionProjection(retailGuardedReport, finalEvidenceResult, { workflow: "personal_use" });
+  return reconcileCanonicalResponsePriceState(
+    applyCanonicalDecisionProjection(retailGuardedReport, finalEvidenceResult, { workflow: "personal_use" }),
+    { workflow: "personal_use", reliableResearchFound: reliableCompsFound, finalEvidenceResult }
+  );
 }
 
 function buildCanonicalPurchaseGuidance({ identity = {}, askingPriceNumber = null, rangeResult = {}, reliableCompsFound = false } = {}) {
@@ -20152,9 +21734,13 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
   const conflicts = normalizeStringArray(identity.identityConflictNotes, 6);
   const canonical = identity.canonicalProductIdentity || {};
   const canonicalTitle = cleanText(canonical.customerFacingTitle);
+  const canonicalCategory = cleanText(identity.canonicalResearchIdentity?.objectCategory);
+  const verifiedExactIdentity = getVerifiedExactProductIdentity(identity.exactProductIdentity);
 
-  if (canonicalTitle) {
+  if (canonicalTitle && !/^(?:unverified|unknown|not verified)/i.test(canonicalTitle)) {
     known.push(`Canonical product identity: ${canonicalTitle}`);
+  } else if (canonicalCategory) {
+    known.push(`Canonical object category: ${canonicalCategory}`);
   }
   if (hasKnownValue(identity.subjectIdentity)) {
     known.push(`Subject: ${identity.subjectIdentity}`);
@@ -20184,7 +21770,7 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
   return {
     subjectIdentity: identity.subjectIdentity || "Unknown subject",
     subjectConfidence: identity.subjectConfidence || "Unclear",
-    exactProductIdentity: canonicalTitle || identity.exactProductIdentity || "Not verified",
+    exactProductIdentity: verifiedExactIdentity || "Not verified",
     exactProductConfidence: identity.exactProductConfidence || "Low - exact product not verified.",
     makerDateLicensingStatus: makerDateLicensing,
     whatIsKnown: known.length ? known.slice(0, 8) : ["Broad subject identity needs stronger visual, text, or user-provided evidence."],
@@ -20632,14 +22218,18 @@ function buildCanonicalListingTitle(identity = {}) {
   const configuration = normalizeArray(identity.canonicalResearchIdentity?.configurationAttributes)
     .filter((attribute) => /package_count|package_quantity|dimensions|construction|material|design|diagnostic_visual_detail/.test(attribute.factType))
     .map((attribute) => cleanText(attribute.value))
-    .filter((value) => value && value.split(/\s+/).length <= 5)
+    .filter((value) => (
+      value
+      && value.split(/\s+/).length <= 5
+      && !/\b(?:image|label|mark|photo|photograph|unknown|unverified|not verified|visible)\b/i.test(value)
+    ))
     .slice(0, 2);
   const values = [
     firstKnown(identity.brand, identity.brandSeries, identity.manufacturer),
     firstKnown(identity.color),
     ...configuration,
     category
-  ].filter(hasKnownValue);
+  ].filter((value) => hasKnownValue(value) && !/^(?:unknown|unverified|not verified|not provided|none)$/i.test(cleanText(value)));
   const seen = new Set();
   const title = values.filter((value) => {
     const normalized = normalizeComparableText(value);
@@ -21448,6 +23038,7 @@ function normalizeProviderSourceRecord(source, queryRecord = {}, {
     objectMindDiscriminatorTested: cleanText(queryRecord.objectMindDiscriminatorTested),
     objectMindPhase: cleanText(queryRecord.objectMindPhase || "INITIAL"),
     objectMindProviderLane: cleanText(queryRecord.objectMindProviderLane),
+    comparableLadderLevel: cleanText(queryRecord.comparableLadderLevel),
     sourceExtractionProvenance: [extractionProvenance],
     sourceExtractionObservationCount: 1,
     sourceExtractionIndex: Number(sourceIndex || 0),
@@ -21701,6 +23292,7 @@ export const __queryIntegrityTestHooks = {
   buildRetailStagedSearchQueries,
   buildRetailSerperSearchPlan,
   buildSerperSearchDiagnostics,
+  serperRecordToVisibleResearchRecord,
   buildRetailSearchDiagnostics,
   retailSerperBudgetAllocation,
   onlineRetailerRegistry,
@@ -21719,6 +23311,9 @@ export const __queryIntegrityTestHooks = {
   createRecoveryAssessment,
   buildCanonicalSubjectIdentity,
   buildCanonicalEvidenceObservations,
+  buildComparableFunnelDiagnostics,
+  executeBoundedComparableFallback,
+  assessComparableLadderRetention,
   buildCanonicalRecoveryViewForRecords,
   buildLimitedResultRetailRecoveryQueries,
   shouldRunLimitedResultRetailRecovery,
@@ -21757,6 +23352,7 @@ export const __queryIntegrityTestHooks = {
   consumePhysicalAttempt,
   recordPhysicalAttemptOutcome,
   buildProviderAttemptAccounting,
+  mechanicalRetryEligible,
   requestSerperSearchWithBudget,
   requestOpenAIComparableSearchWithBudget,
   executeOpenAIWebComparableSearch,
@@ -21780,6 +23376,7 @@ export const __queryIntegrityTestHooks = {
   buildEquivalentCustomerRetailOfferKey,
   buildPriceSpectrumSummary,
   buildListingPriceTextForTest: buildListingPriceText,
+  reconcileCanonicalResponsePriceState,
   buildCanonicalListingTitle,
   buildCanonicalPurchaseGuidance,
   buildCurrentPurchaseOptionSummary,

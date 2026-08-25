@@ -936,6 +936,13 @@
 - Preserved the Version 1.12.48 canonical object-research implementation byte-for-byte while sealing Git-sourced Preview deployment containment
 - Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; V5 was not rerun or rescored, V6 was not started, and main and Production were not changed
 
+## Version 1.12.50 (Completed)
+- Made canonical comparable acquisition progress through bounded exact, close, and category stages under the existing provider ceiling, with evidence-based stopping and no dependency on optional learned rebalancing
+- Preserved explicit close-comparable differences and category-context limitations through normalization and serialization, while preventing category-only evidence from establishing a price
+- Reconciled pricing availability and current-price claims to retained canonical priced evidence, returning an explicit insufficient-evidence state when no priced evidence survives
+- Added hard-network-denied regressions for three structurally different object classes, fallback transitions and stopping, duplicate and unrelated rejection, category pricing isolation, serialization, and obsolete exact-only learning trials
+- Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; no live provider call, qualification, deployment, push, merge, or main operation was performed
+
 ## Version 2.0
 - User accounts
 - Saved listings

@@ -30,8 +30,8 @@ $checks = @(
   @{ Name = "Frontend styles technical report sections"; Text = $styles; Pattern = ".technical-report-section" },
   @{ Name = "Frontend styles compact consumer sections"; Text = $styles; Pattern = ".consumer-compact-section" },
   @{ Name = "Mock test covers no-price secondary exact visibility"; Text = $mock; Pattern = "Exact secondary-market no-price references may remain visible as source-backed exact evidence." },
-  @{ Name = "Mock test covers recovery query passes"; Text = $mock; Pattern = "Recovery query passes should be available" },
-  @{ Name = "Mock test covers separate source-domain site searches"; Text = $mock; Pattern = "separate source-domain site searches" },
+  @{ Name = "Mock test covers the bounded non-retail plan"; Text = $mock; Pattern = "The bounded non-retail plan must not exceed the total provider-call ceiling." },
+  @{ Name = "Mock test covers a separate source-domain search"; Text = $mock; Pattern = "The bounded plan should retain a separate source-domain search without a broad OR query." },
   @{ Name = "Mock test covers zero priced identity range exclusion"; Text = $mock; Pattern = "No-price reference/archive evidence must not support Preliminary Asking-Price Range." }
 )
 

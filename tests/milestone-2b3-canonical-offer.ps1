@@ -30,7 +30,7 @@ Require-Count "Canonical buyer-offer authority" $offerSource "export function de
 Require-Count "Production finalizer invocation" $apiSource "createFinalEvidenceResult\s*\(" 1
 Require-Count "Canonical buyer-offer projection" $apiSource "function applyCanonicalBuyerOfferProjection\s*\(" 1
 Require-Count "Canonical decision projection" $apiSource "function applyCanonicalDecisionProjection\s*\(" 1
-Require-Count "Canonical buyer and seller response completion" $apiSource "return applyCanonicalDecisionProjection\(" 3
+Require-Count "Canonical buyer and seller response completion" $apiSource "reconcileCanonicalResponsePriceState\(\s*applyCanonicalDecisionProjection\(" 3
 
 $legacyBuyerAuthorities = @(
   "function buildConsumerOffer\s*\(",
@@ -98,9 +98,9 @@ if ($apiSource -notmatch "function enforceListingResearchHonesty[\s\S]*?workflow
     $apiSource -notmatch "listingDescription:\s*description") {
   throw "Seller listing output must retain its fields while receiving canonical evidence projection."
 }
-if ($apiSource -notmatch "maxProviderCalls:\s*28" -or
-    $apiSource -notmatch "providerCallBudget =[\s\S]*?: 12;") {
-  throw "Provider ceilings must remain retail 28 and collectible 12."
+if ($apiSource -notmatch "maxProviderCalls:\s*8" -or
+    $apiSource -notmatch "providerCallBudget =[\s\S]*?: 8;") {
+  throw "Provider ceilings must remain retail 8 and collectible 8."
 }
 
 $gitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--unified=0", "--", "api/generate-listing.js", "lib/evidence")

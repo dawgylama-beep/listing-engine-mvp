@@ -45,16 +45,16 @@ if ($validatorSource -notmatch "diagnostic canonicalDecisionSupportEvidenceIds d
     $validatorSource -notmatch "diagnostic canonicalBadgeSupportEvidenceIds do not match") {
   throw "FinalEvidenceResult validator is missing canonical diagnostic-support parity checks."
 }
-if (($apiSource | Select-String -Pattern "return applyCanonicalDecisionProjection\(" -AllMatches).Matches.Count -ne 3) {
+if (($apiSource | Select-String -Pattern "reconcileCanonicalResponsePriceState\(\s*applyCanonicalDecisionProjection\(" -AllMatches).Matches.Count -ne 3) {
   throw "Both buyer report paths and the seller report path must finish with canonical response projection."
 }
 if ($apiSource -match "function buildConsumerOffer\s*\(|function buildConsumerNegotiationGuidance\s*\(|function buildMaximumRecommendedPricePolicy\s*\(" -or
     $offerSource -notmatch "export function deriveCanonicalBuyerOfferResult\s*\(") {
   throw "Post-2B-2 negotiation policy must have exactly one canonical buyer-offer authority."
 }
-if ($apiSource -notmatch "maxProviderCalls:\s*28" -or
-    $apiSource -notmatch "providerCallBudget =[\s\S]*?: 12;") {
-  throw "Provider ceilings must remain retail 28 and collectible 12."
+if ($apiSource -notmatch "maxProviderCalls:\s*8" -or
+    $apiSource -notmatch "providerCallBudget =[\s\S]*?: 8;") {
+  throw "Provider ceilings must remain retail 8 and collectible 8."
 }
 
 $gitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--unified=0", "--", "api/generate-listing.js", "lib/evidence")

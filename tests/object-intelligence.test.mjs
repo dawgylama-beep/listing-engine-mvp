@@ -978,7 +978,7 @@ test("customer purpose cannot alter verified exactness and zero verified exacts 
   );
 });
 
-test("provider and direct-page ceilings remain 12, 28, and 2 with one reserved refinement phase", () => {
+test("ordinary and retail provider search ceilings are eight with at most two direct pages", () => {
   const upc = validUpc("75123456789");
   const identity = {
     brand: "Silverline Office",
@@ -1009,9 +1009,7 @@ test("provider and direct-page ceilings remain 12, 28, and 2 with one reserved r
     objectMindState: state
   });
   assert(standard.filter((record) => record.validationPassed !== false).length <= 8);
-  assert(standard.filter((record) => record.validationPassed !== false).length + 4 <= 12);
-  assert(retail.filter((record) => record.validationPassed !== false).length <= 24);
-  assert(retail.filter((record) => record.validationPassed !== false).length + 4 <= 28);
+  assert(retail.filter((record) => record.validationPassed !== false).length <= 8);
   assert.equal(hooks.directPageEnrichmentMaxAttempts, 2);
-  assert.equal(hooks.retailSerperBudgetAllocation.maxProviderCalls, 28);
+  assert.equal(hooks.retailSerperBudgetAllocation.maxProviderCalls, 8);
 });

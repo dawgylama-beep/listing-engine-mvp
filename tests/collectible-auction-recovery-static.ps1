@@ -72,8 +72,8 @@ $checks = @(
   @{ Name = "Mock proves related-only cannot create range"; Text = $mock; Pattern = "Related items cannot create a range when the exact current listing lacks sold-price evidence." },
   @{ Name = "Mock proves recovery when different designs survive"; Text = $mock; Pattern = "Exact-result recovery should trigger when only different designs survive." },
   @{ Name = "Mock proves exact suppressed recovery"; Text = $mock; Pattern = "Exact-result recovery should trigger when exact raw candidates are suppressed before the customer list." },
-  @{ Name = "Mock proves general cap remains bounded"; Text = $mock; Pattern = "Collectible Serper plan should remain within the existing bounded general provider-call budget." },
-  @{ Name = "Mock proves retail ceiling unchanged"; Text = $mock; Pattern = "Retail provider-call ceiling must remain 28." }
+  @{ Name = "Mock proves general cap remains bounded"; Text = $mock; Pattern = "Collectible Serper plan should remain within the bounded general provider-call budget." },
+  @{ Name = "Mock proves retail ceiling unchanged"; Text = $mock; Pattern = "Retail provider-call ceiling must remain 8." }
 )
 
 foreach ($check in $checks) {

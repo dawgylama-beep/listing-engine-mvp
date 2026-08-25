@@ -199,7 +199,9 @@ test("real production handler serializes canonical evidence IDs through determin
   );
   assert.equal(contributions.reduce((total, item) => total + item.images.length, 0), 1);
   assert.equal(contributions[0].images.length, 1);
-  assert.equal(contributions[0].images[0].detail, "high");
+  assert.equal(contributions[0].images[0].detail, "original");
+  assert.equal(trace.openAIPayloads[0].reasoning?.effort, "medium");
+  assert.equal(trace.openAIPayloads[0].store, false);
   assert.equal(contributions[0].decodedImageBytes, 220000);
   assert.equal(trace.modelRequestBudgets[0].decodedImageBytes, 220000);
   assert.equal(trace.modelRequestBudgets[0].imageDataCharacters, req.body.photos[0].dataUrl.length);
@@ -568,7 +570,7 @@ test("ordinary browser-sized UPC input completes with dense bounded research con
   assert.equal(budgetObservations[0].imageDataCharacters, requestBody.photos[0].dataUrl.length);
   assert.equal(budgetObservations[1].imageCount, 0);
   assert(budgetObservations[1].ordinaryPayloadCharacters < 120000);
-  assert(serperCalls > 0 && serperCalls <= 28);
+  assert(serperCalls > 0 && serperCalls <= 8);
   assert(directPageCalls <= 2);
   assert.equal(finalEvidenceResults.length, 1);
   validateFinalEvidenceResult(finalEvidenceResults[0]);
@@ -905,15 +907,12 @@ test("real production handler serializes one active asking offer as one observat
   assert.deepEqual(report.buyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
   assert.deepEqual(report.searchDiagnostics.canonicalBuyerOfferSupportEvidenceIds, finalEvidenceResult.buyerOfferResult.supportingEvidenceIds);
   assert.equal(finalEvidenceResult.confidenceResult.pricing.level, "low");
-  assert.notEqual(
-    finalEvidenceResult.confidenceResult.identity.level,
-    finalEvidenceResult.confidenceResult.pricing.level,
-    JSON.stringify(finalEvidenceResult.acceptedRecords.map((record) => ({
-      objectMindClassification: record.objectMindClassification,
-      objectMindVerificationState: record.objectMindVerificationState,
-      canonicalMatchQuality: record.canonicalMatchQuality,
-      priceType: record.priceType
-    })))
+  assert.equal(finalEvidenceResult.confidenceResult.identity.level, "low");
+  assert.equal(report.searchDiagnostics.canonicalIdentityConfidence, "low");
+  assert.equal(
+    report.searchDiagnostics.queriesActuallySent.some((query) => /Refreshment Brand|RB-F99-CR/i.test(query)),
+    false,
+    "unsupported model-only brand and model claims must not enter research queries"
   );
   assert.equal(finalEvidenceResult.decisionResult.recommendationCode, "need_more_information");
   assert.equal(finalEvidenceResult.badgeResult.code, "asking_price_context_only");

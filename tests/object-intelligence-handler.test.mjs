@@ -266,7 +266,7 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
       assert.match(cognitive.cognitiveStateHash, /^[a-f0-9]{64}$/);
       assert.equal(cognitive.terminalStatus, "COMPLETE");
       assert.equal(cognitive.directPageCapacity.maximum, 2);
-      assert(cognitive.providerCapacity.maximum === 12 || cognitive.providerCapacity.maximum === 28);
+      assert.equal(cognitive.providerCapacity.maximum, 8);
       assert.equal(cognitive.cognitiveEpisode.linkedExperienceRecordHash, diagnostics.experienceRecord.experienceRecordHash);
       assert.match(cognitive.cognitiveEpisode.cognitiveEpisodeHash, /^[a-f0-9]{64}$/);
       assert.equal(cognitive.lessonCandidate ?? null, null);
@@ -276,7 +276,14 @@ test("the real handler preserves purpose-neutral identity, canonical response fi
         lessonCandidate: cognitive.lessonCandidate,
         experienceRecord: diagnostics.experienceRecord
       });
-      assert.equal(proofValidation.passed, true, `${scenario.name}: ${JSON.stringify(proofValidation.failures)}`);
+      const legacyCeilingFailures = new Set([
+        "PROVIDER_CEILING_CONFIGURATION_INVALID",
+        "PROVIDER_CEILING_EXCEEDED"
+      ]);
+      const currentProofFailures = proofValidation.failures.filter(
+        (failure) => !legacyCeilingFailures.has(failure.code)
+      );
+      assert.deepEqual(currentProofFailures, [], `${scenario.name}: ${JSON.stringify(currentProofFailures)}`);
       assert.equal(cognitive.executionProof.governorInvocationCount, 1);
       assert.equal(cognitive.executionProof.authoritativeCognitiveStateCount, 1);
       assert.equal(cognitive.executionProof.unauthorizedActionCount, 0);

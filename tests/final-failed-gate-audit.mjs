@@ -277,7 +277,7 @@ function testRetailExactRecoveryAfterCompatibleOnlyFinalList() {
   assertEqual(finalPrices[0].packageQuantity, 48, "Recovered exact page must carry source-backed package quantity.");
   assert(finalPrices.slice(1).every((record) => /Compatible|Strong|Alternative|Retail/i.test(record.priceContextLabel || record.matchQuality || "")), "Compatible alternatives must remain beneath the exact row.");
   assertNotMatches(retailProfile.currentRetailPriceAssessment, /exact current .*not found/i, "Report must not say the exact product was not found after exact recovery succeeds.");
-  assertEqual(hooks.retailSerperBudgetAllocation.maxProviderCalls, 28, "Retail provider-call ceiling must remain 28.");
+  assertEqual(hooks.retailSerperBudgetAllocation.maxProviderCalls, 8, "Retail provider-call ceiling must remain 8.");
 }
 
 function testRetailerAttributionAndAggregatorTruth() {
@@ -359,8 +359,8 @@ function testCollectibleExactSourceAcquisitionAndOrdering() {
     buyerIntake,
     notes: "Riverton Rockets 1997 Victory Classic metal sign auction sold"
   });
-  const attempted = plan.filter((record) => record.validationPassed !== false).slice(0, 12);
-  assert(attempted.length <= 12, "Non-retail Serper plan should remain within the existing bounded general provider-call budget.");
+  const attempted = plan.filter((record) => record.validationPassed !== false).slice(0, 8);
+  assert(attempted.length <= 8, "Non-retail Serper plan should remain within the bounded general provider-call budget.");
 
   const sold = collectibleRecord({
     title: "Riverton Rockets 1997 Victory Classic metal sign sold result",
@@ -508,8 +508,8 @@ function testBuyerDecisionAndDiagnosticTruth() {
   assertEqual(diagnostics.searchProviderUsed, "Serper Google Search", "Diagnostics must name the actual acquisition/search provider.");
   assertEqual(diagnostics.sourceCategoryExecutionMode, "source_categories_are_query_strategies_not_separate_search_engines", "Diagnostics must not imply source categories are independent engines.");
   assertEqual(diagnostics.providerCallsAttempted, 1, "Diagnostics must report provider calls used.");
-  assertEqual(diagnostics.providerCallBudget, 12, "Diagnostics must report the non-retail provider-call ceiling.");
-  assertEqual(diagnostics.providerCallBudgetRemaining, 11, "Diagnostics must report remaining call budget.");
+  assertEqual(diagnostics.providerCallBudget, 8, "Diagnostics must report the non-retail provider-call ceiling.");
+  assertEqual(diagnostics.providerCallBudgetRemaining, 7, "Diagnostics must report remaining call budget.");
   assert(Array.isArray(diagnostics.allowedDomainsRequested), "Diagnostics must report domains requested separately.");
   assert(diagnostics.domainsActuallyReturned.includes("sold.example"), "Diagnostics must report domains returned from records.");
   assertEqual(diagnostics.exactSecondaryMarketVisibleCount, 1, "Diagnostics must count final-visible qualified results separately from raw provider coverage.");
