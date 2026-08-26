@@ -16,7 +16,15 @@ import {
   buildInertLessonCandidateFromMentorDiagnosis,
   buildReflectionObservation
 } from "../lib/experience-reflection.js";
-import { LESSON_GATE_STATE, reviewLessonCandidate } from "../lib/lesson-gate.js";
+import {
+  LESSON_GATE_MINIMUM_INDEPENDENT_EPISODES,
+  LESSON_GATE_MINIMUM_INDEPENDENT_OBJECT_CLASSES,
+  LESSON_GATE_STATE,
+  buildEvidenceAcquisitionRequirement,
+  evaluateEvidenceAcquisitionInventory,
+  reviewLessonCandidate,
+  validateEvidenceAcquisitionRequirement
+} from "../lib/lesson-gate.js";
 import { sha256Object } from "../lib/object-intelligence/stable.js";
 
 function hash(label) {
@@ -272,4 +280,79 @@ test("the existing lesson Governor accepts only independently supported diagnosi
   assert.equal(governorReview.proofEligible, true);
   assert.equal(governorReview.independentEpisodeCount, 2);
   assert.equal(governorReview.independentObjectClassCount, 2);
+});
+
+test("a deficit-only gate block yields one deterministic immutable evidence-acquisition requirement", () => {
+  const diagnosis = originate([observation("requirement-source")]).diagnoses[0];
+  const candidate = buildInertLessonCandidateFromMentorDiagnosis(diagnosis);
+  const requirement = buildEvidenceAcquisitionRequirement(candidate);
+  const replay = buildEvidenceAcquisitionRequirement(candidate);
+
+  assert.deepEqual(replay, requirement);
+  assert.equal(Object.isFrozen(requirement), true);
+  assert.equal(Object.isFrozen(requirement.evidenceDeficits), true);
+  assert.match(requirement.requirementId, /^evidence-acquisition-[a-f0-9]{24}$/);
+  assert.match(requirement.requirementHash, /^[a-f0-9]{64}$/);
+  assert.equal(validateEvidenceAcquisitionRequirement(requirement, candidate).valid, true);
+  assert.equal(requirement.candidateBinding.candidateId, candidate.candidateId);
+  assert.equal(requirement.candidateBinding.candidateHash, candidate.candidateHash);
+  assert.equal(requirement.candidateBinding.diagnosisId, diagnosis.diagnosisId);
+  assert.equal(requirement.candidateBinding.diagnosisHash, diagnosis.candidateHash);
+  assert.equal(requirement.thresholds.minimumIndependentEpisodes, LESSON_GATE_MINIMUM_INDEPENDENT_EPISODES);
+  assert.equal(requirement.thresholds.minimumIndependentObjectClasses, LESSON_GATE_MINIMUM_INDEPENDENT_OBJECT_CLASSES);
+  assert.deepEqual(requirement.evidenceDeficits, {
+    additionalIndependentEpisodesRequired: 1,
+    additionalIndependentObjectClassesRequired: 1
+  });
+  assert.equal(requirement.eligibleEvidenceContract.hardNetworkDenialRequired, true);
+  assert.deepEqual(new Set(Object.values(requirement.authorityBoundary)), new Set([false]));
+});
+
+test("evidence inventory rejects duplicate episodes and reused object classes without changing candidate authority", () => {
+  const consumed = observation("consumed-source", { objectClass: "consumed-object" });
+  const diagnosis = originate([consumed]).diagnoses[0];
+  const candidate = buildInertLessonCandidateFromMentorDiagnosis(diagnosis);
+  const requirement = buildEvidenceAcquisitionRequirement(candidate);
+  const newIndependent = observation("new-independent", { objectClass: "new-object" });
+  const duplicateEpisode = observation("new-record-same-episode", {
+    episode: "consumed-source-episode",
+    objectClass: "another-object"
+  });
+  const reusedObjectClass = observation("new-episode-same-object", { objectClass: "consumed-object" });
+  const tamperedObservation = structuredClone(observation("tampered-inventory-observation"));
+  tamperedObservation.actualState = "MUTATED_AFTER_HASHING";
+  const inventory = evaluateEvidenceAcquisitionInventory({
+    requirement,
+    candidate,
+    observations: [reusedObjectClass, newIndependent, duplicateEpisode, newIndependent, tamperedObservation]
+  });
+
+  assert.equal(inventory.acceptedObservationCount, 1);
+  assert.equal(inventory.rejectedObservationCount, 4);
+  assert.equal(inventory.evidenceThresholdMetForFreshMentorReview, true);
+  assert(inventory.rejectedObservations.some((entry) => entry.reasons.includes("DUPLICATE_EPISODE")));
+  assert(inventory.rejectedObservations.some((entry) => entry.reasons.includes("REUSED_OBJECT_CLASS")));
+  assert(inventory.rejectedObservations.some((entry) => entry.reasons.includes("BATCH_DUPLICATE_EPISODE")));
+  assert(inventory.rejectedObservations.some((entry) => entry.reasons.includes("UNAUTHENTICATED_EPISODE_OBSERVATION")));
+  assert.deepEqual(new Set(Object.values(inventory.authorityBoundary)), new Set([false]));
+  assert.equal(candidate.persistAsMemory, false);
+  assert.equal(candidate.promotionAuthorized, false);
+  assert.equal(candidate.runtimeConsumptionAuthorized, false);
+});
+
+test("evidence-acquisition hashes and candidate bindings fail closed under mutation", () => {
+  const diagnosis = originate([observation("binding-source")]).diagnoses[0];
+  const candidate = buildInertLessonCandidateFromMentorDiagnosis(diagnosis);
+  const requirement = buildEvidenceAcquisitionRequirement(candidate);
+  const tampered = structuredClone(requirement);
+  tampered.evidenceDeficits.additionalIndependentEpisodesRequired = 0;
+  const validation = validateEvidenceAcquisitionRequirement(tampered, candidate);
+  assert.equal(validation.valid, false);
+  assert(validation.failures.includes("REQUIREMENT_HASH_MISMATCH"));
+  assert(validation.failures.includes("REQUIREMENT_CONTENT_MISMATCH"));
+  assert.throws(() => evaluateEvidenceAcquisitionInventory({
+    requirement: tampered,
+    candidate,
+    observations: []
+  }), /Evidence acquisition requirement rejected/);
 });

@@ -951,6 +951,7 @@
 - Added varied synthetic regressions for authentication, determinism, order invariance, duplicate replay, downstream causal ordering, competing explanations, generality, tamper rejection, and pre-Governor inertness
 - Added the pure diagnosis-to-inert-candidate transition through the existing Lesson Gate contract, preserving source diagnosis identity, frozen trial obligations, uncertainty, risks, rejection, rollback, and zero operative authority
 - Kept the Lesson Gate's two-independent-episode and two-independent-object-class preproof threshold intact; the first two V4/V5-derived candidates authentically disposition as `PROOF_BLOCKED` before trial execution, persistence, or promotion
+- Made deficit-only `PROOF_BLOCKED` dispositions actionable through deterministic immutable evidence-acquisition requirements bound to candidate, diagnosis, causal-signature, and frozen-trial identities, with exact deficits, duplicate/reused-object rejection, hard network denial, and no lifecycle authority
 
 ## Version 2.0
 - User accounts
