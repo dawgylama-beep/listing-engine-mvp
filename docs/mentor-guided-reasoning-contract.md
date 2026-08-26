@@ -34,6 +34,12 @@ The origination report separates authenticated internal causal failures from ext
 
 Origination is deterministic, order invariant, duplicate-idempotent, local, and provider-free. Every report and diagnosis explicitly sets persistence, promotion, runtime consumption, and product-change authority to false. A diagnosis is evidence for a later governed review; it is not a learned lesson, Governor authorization, memory transition, or product repair.
 
+## Inert candidate transition
+
+`buildInertLessonCandidateFromMentorDiagnosis` performs the bounded, non-persistent transition from a hash-valid Mentor diagnosis to the existing Lesson Gate candidate contract. It preserves the diagnosis identity and hash, authenticated supporting observations, causal signature, scope, exclusions, confidence, uncertainty, fixed-trial requirements, measurable target, risks, rejection conditions, and rollback conditions. The resulting candidate remains unauthorized for persistence, promotion, runtime consumption, product change, provider lifecycle effects, global promotion, or cross-product transfer.
+
+The existing Lesson Gate independently reviews causal support before issuing a regression Charter. At least two independent authenticated episodes across two independent object classes are required. `PROOF_BLOCKED` is a terminal preproof disposition for the current evidence: no fixed-trial Charter, proof, persistence, promotion, reconstruction, or application may be fabricated after that decision. New independently authenticated evidence may originate a new hash-addressed review; it does not mutate or upgrade the blocked candidate.
+
 ## Governance and claims
 
 The contract does not alter a frozen qualification corpus, prompt, bridge, scorer, route, broker, schema, serializer, envelope, authority, execution record, evaluator, or result seal. Closed diagnostic material is not a remediation input and is not eligible for blind reuse.

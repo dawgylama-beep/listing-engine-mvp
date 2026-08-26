@@ -13,8 +13,10 @@ import {
   FAILURE_CLASSIFICATION,
   HISTORICAL_TRUST_CLASS,
   REFLECTION_OUTCOME,
+  buildInertLessonCandidateFromMentorDiagnosis,
   buildReflectionObservation
 } from "../lib/experience-reflection.js";
+import { LESSON_GATE_STATE, reviewLessonCandidate } from "../lib/lesson-gate.js";
 import { sha256Object } from "../lib/object-intelligence/stable.js";
 
 function hash(label) {
@@ -232,4 +234,42 @@ test("originated diagnoses remain inert and contain no object or episode identit
   const source = await readFile(new URL("../lib/cognitive-governor/mentor-guided-reasoning.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /fetch\s*\(|requestOpenAI|providerRequest|child_process|node:fs|writeFile|appendFile|memoryPromotion/i);
   assert.doesNotMatch(source, /\b(?:V4|V5)-C\d+\b|qualification-run-001/i);
+});
+
+test("Mentor diagnoses become hash-addressed inert candidates without gaining lifecycle authority", () => {
+  const diagnosis = originate([observation("single-supported-failure")]).diagnoses[0];
+  const candidate = buildInertLessonCandidateFromMentorDiagnosis(diagnosis);
+  assert.equal(candidate.origin.diagnosisId, diagnosis.diagnosisId);
+  assert.equal(candidate.origin.diagnosisHash, diagnosis.candidateHash);
+  assert.equal(candidate.supportingObservations[0].episodeIdentity, diagnosis.supportingEpisodes[0].episodeIdentity);
+  assert.match(candidate.candidateId, /^lesson-candidate-[a-f0-9]{24}$/);
+  assert.match(candidate.candidateHash, /^[a-f0-9]{64}$/);
+  assert.equal(candidate.fixedTrialRequirementsHash, sha256Object(diagnosis.requiredFixedTrials));
+  assert.deepEqual(candidate.fixedTrialRequirements, diagnosis.requiredFixedTrials);
+  for (const field of [
+    "persistAsMemory",
+    "promotionAuthorized",
+    "runtimeConsumptionAuthorized",
+    "productChangeAuthorized",
+    "providerLifecycleAuthority"
+  ]) assert.equal(candidate[field], false, field);
+
+  const governorReview = reviewLessonCandidate(candidate);
+  assert.equal(governorReview.state, LESSON_GATE_STATE.PROOF_BLOCKED);
+  assert.equal(governorReview.proofEligible, false);
+  assert(governorReview.reasons.includes("INSUFFICIENT_INDEPENDENT_EPISODES"));
+  assert(governorReview.reasons.includes("INSUFFICIENT_INDEPENDENT_OBJECT_CLASSES"));
+});
+
+test("the existing lesson Governor accepts only independently supported diagnosis-derived candidates for fixed proof", () => {
+  const diagnosis = originate([
+    observation("supported-one", { objectClass: "independent-one" }),
+    observation("supported-two", { objectClass: "independent-two" })
+  ]).diagnoses[0];
+  const candidate = buildInertLessonCandidateFromMentorDiagnosis(diagnosis);
+  const governorReview = reviewLessonCandidate(candidate);
+  assert.equal(governorReview.state, LESSON_GATE_STATE.PROOF_REQUIRED);
+  assert.equal(governorReview.proofEligible, true);
+  assert.equal(governorReview.independentEpisodeCount, 2);
+  assert.equal(governorReview.independentObjectClassCount, 2);
 });

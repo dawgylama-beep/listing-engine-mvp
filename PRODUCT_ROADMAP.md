@@ -949,6 +949,8 @@
 - Required every diagnosis to state support, violated invariant, cause-versus-symptom evidence, confidence and uncertainty, competing explanations, generalized principle, scope and exclusions, fixed trials, measurable improvement, risks, rejection, and rollback conditions
 - Kept all originated reports and diagnoses non-persistent, non-promoted, unavailable to runtime consumption, and unauthorized for product change before a separate Governor-controlled lifecycle
 - Added varied synthetic regressions for authentication, determinism, order invariance, duplicate replay, downstream causal ordering, competing explanations, generality, tamper rejection, and pre-Governor inertness
+- Added the pure diagnosis-to-inert-candidate transition through the existing Lesson Gate contract, preserving source diagnosis identity, frozen trial obligations, uncertainty, risks, rejection, rollback, and zero operative authority
+- Kept the Lesson Gate's two-independent-episode and two-independent-object-class preproof threshold intact; the first two V4/V5-derived candidates authentically disposition as `PROOF_BLOCKED` before trial execution, persistence, or promotion
 
 ## Version 2.0
 - User accounts
