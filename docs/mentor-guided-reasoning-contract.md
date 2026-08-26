@@ -26,6 +26,14 @@ The production integration remains one internal assertion inside `selectNextCogn
 
 The typed decision contract exposes `retainedEvidenceSufficient`, `authorityClass`, `failureScope`, `safeIndependentContinuation`, and `nextActionClass` as independent atoms. Narrative explanation may support those atoms but cannot replace them.
 
+## Diagnosis origination
+
+Version 1.12.52 adds a bounded `originateMentorDiagnosisCandidates` entry point to the same Mentor module. It accepts only hash-valid reflection observations from a sealed authoritative Experience or frozen verified diagnostic source. It does not accept raw anecdotes, unauthenticated legacy records, object-specific answers, or unverified episode summaries.
+
+The origination report separates authenticated internal causal failures from external insufficiency, provider or transport failures, downstream symptoms, expected customer or safety stops, successful counterevidence, contradictions, and insufficient causal support. Internal failures produce hash-addressed provisional diagnoses containing their supporting episodes, earliest failure stage, violated invariant, cause-versus-symptom evidence, confidence and uncertainty, competing explanations, generalized corrective principle, scope and exclusions, fixed trial obligations, expected measurable improvement, safety and transfer risks, and rejection and rollback conditions.
+
+Origination is deterministic, order invariant, duplicate-idempotent, local, and provider-free. Every report and diagnosis explicitly sets persistence, promotion, runtime consumption, and product-change authority to false. A diagnosis is evidence for a later governed review; it is not a learned lesson, Governor authorization, memory transition, or product repair.
+
 ## Governance and claims
 
 The contract does not alter a frozen qualification corpus, prompt, bridge, scorer, route, broker, schema, serializer, envelope, authority, execution record, evaluator, or result seal. Closed diagnostic material is not a remediation input and is not eligible for blind reuse.

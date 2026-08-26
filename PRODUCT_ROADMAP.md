@@ -943,6 +943,13 @@
 - Added hard-network-denied regressions for three structurally different object classes, fallback transitions and stopping, duplicate and unrelated rejection, category pricing isolation, serialization, and obsolete exact-only learning trials
 - Preserved the sealed V5 package, frozen responses, evaluator, result, and external evidence; no live provider call, qualification, deployment, push, merge, or main operation was performed
 
+## Version 1.12.52 (Completed)
+- Added deterministic Mentor origination of hash-addressed provisional diagnoses from authenticated historical episode observations without a model, provider, or network call
+- Separated internal causal failures from external insufficiency, provider or transport failures, downstream symptoms, expected stops, contradictions, counterevidence, and insufficient support
+- Required every diagnosis to state support, violated invariant, cause-versus-symptom evidence, confidence and uncertainty, competing explanations, generalized principle, scope and exclusions, fixed trials, measurable improvement, risks, rejection, and rollback conditions
+- Kept all originated reports and diagnoses non-persistent, non-promoted, unavailable to runtime consumption, and unauthorized for product change before a separate Governor-controlled lifecycle
+- Added varied synthetic regressions for authentication, determinism, order invariance, duplicate replay, downstream causal ordering, competing explanations, generality, tamper rejection, and pre-Governor inertness
+
 ## Version 2.0
 - User accounts
 - Saved listings
