@@ -11,6 +11,10 @@ import {
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
 import { GovernedLearningAdapter } from "../lib/cognitive-learning/adapter.js";
+import {
+  buildEvidenceAcquisitionRequirement,
+  reviewLessonCandidate
+} from "../lib/lesson-gate.js";
 import { sha256Object } from "../lib/object-intelligence/index.js";
 import { retailRecoveryFixture } from "./fixtures/production-shaped-evidence.mjs";
 import { installHardNetworkDenial } from "./helpers/hard-network-denial.mjs";
@@ -160,6 +164,17 @@ function feedbackCorrection(providerAuthored = false) {
       sourceIdentity: "e".repeat(64),
       providerAuthored
     }
+  };
+}
+
+function lessonGateBinding(feedback) {
+  return {
+    candidateId: feedback.candidateId,
+    failureId: feedback.failureId,
+    diagnosisId: feedback.diagnosisId,
+    memoryId: feedback.memoryId,
+    memoryContentHash: feedback.inertStrategyCandidate.contentHash,
+    mentorDecisionIdentity: feedback.mentorDecisionIdentity
   };
 }
 
@@ -601,6 +616,62 @@ test("authenticated visible-object-class failure reaches the same Mentor boundar
     assert.equal(accepted.payload.feedback.promotionAuthorized, false);
     assert.equal(accepted.payload.feedback.providerLifecycleAuthority, false);
     assert.equal((await adapter.status()).promotedLessons, 0);
+
+    const binding = lessonGateBinding(accepted.payload.feedback);
+    const gateCandidate = await adapter.reconstructLessonGateCandidate(binding);
+    const gateReview = reviewLessonCandidate(gateCandidate);
+    assert.equal(gateReview.candidateIntegrity.valid, true);
+    assert.equal(gateReview.candidateIntegrity.hashMatch, true);
+    assert.equal(gateReview.candidateIntegrity.nonOperative, true);
+    assert.equal(gateReview.independentEpisodeCount, 0);
+    assert.equal(gateReview.independentObjectClassCount, 0);
+    assert.deepEqual(gateReview.reasons, [
+      "CAUSALITY_NOT_INTERNAL",
+      "INSUFFICIENT_INDEPENDENT_EPISODES",
+      "INSUFFICIENT_INDEPENDENT_OBJECT_CLASSES",
+      "UNREGISTERED_CAUSAL_MECHANISM"
+    ]);
+    assert.equal(gateCandidate.causalSignature.causalityDomain, "UNRESOLVED");
+    assert.equal(gateCandidate.origin.governedLearningBinding.candidateEventId, binding.candidateId);
+    assert.equal(gateCandidate.origin.governedLearningBinding.failureId, binding.failureId);
+    assert.equal(gateCandidate.origin.governedLearningBinding.diagnosisId, binding.diagnosisId);
+    assert.equal(gateCandidate.origin.governedLearningBinding.memoryId, binding.memoryId);
+    assert.equal(gateCandidate.origin.governedLearningBinding.memoryContentHash, binding.memoryContentHash);
+    assert.equal(
+      gateCandidate.origin.governedLearningBinding.mentorDecisionIdentity,
+      binding.mentorDecisionIdentity
+    );
+    assert.throws(
+      () => buildEvidenceAcquisitionRequirement(gateCandidate),
+      /deficit-only PROOF_BLOCKED candidate/
+    );
+
+    for (const field of [
+      "failureId",
+      "diagnosisId",
+      "memoryContentHash",
+      "mentorDecisionIdentity"
+    ]) {
+      await assert.rejects(
+        adapter.reconstructLessonGateCandidate({ ...binding, [field]: "f".repeat(64) }),
+        (error) => error.code === "LESSON_GATE_CANDIDATE_BINDING_MISMATCH"
+      );
+    }
+    await assert.rejects(
+      adapter.reconstructLessonGateCandidate({ ...binding, memoryId: "substituted-memory" }),
+      (error) => error.code === "LESSON_GATE_CANDIDATE_BINDING_MISMATCH"
+    );
+    await assert.rejects(
+      adapter.reconstructLessonGateCandidate({ ...binding, candidateId: "f".repeat(64) }),
+      (error) => error.code === "LESSON_GATE_CANDIDATE_NOT_FOUND"
+    );
+    await assert.rejects(
+      adapter.reconstructLessonGateCandidate({ ...binding, causalityDomain: "INTERNAL" }),
+      (error) => error.code === "LEARNING_UNKNOWN_FIELD"
+    );
+    const tamperedGateCandidate = structuredClone(gateCandidate);
+    tamperedGateCandidate.origin.governedLearningBinding.failureId = "f".repeat(64);
+    assert(reviewLessonCandidate(tamperedGateCandidate).reasons.includes("CANDIDATE_INTEGRITY_INVALID"));
   } finally {
     networkGuard.restore();
     await rm(root, { recursive: true, force: true });
@@ -638,6 +709,10 @@ test("the canonical fallback makes an obsolete exact-only trial inapplicable wit
     });
     assert.equal(feedback.statusCode, 200, JSON.stringify(feedback.payload));
     const candidateId = feedback.payload.feedback.candidateId;
+    await assert.rejects(
+      adapter.reconstructLessonGateCandidate(lessonGateBinding(feedback.payload.feedback)),
+      (error) => error.code === "LESSON_GATE_FEEDBACK_DOMAIN_UNSUPPORTED"
+    );
     const riskyProduct = offlineProductHandler(adapter, {
       learningMode: "GOVERNED_TRIAL",
       identityMode: "strategy_risk",

@@ -267,6 +267,38 @@ test("Mentor diagnoses become hash-addressed inert candidates without gaining li
   assert.equal(governorReview.proofEligible, false);
   assert(governorReview.reasons.includes("INSUFFICIENT_INDEPENDENT_EPISODES"));
   assert(governorReview.reasons.includes("INSUFFICIENT_INDEPENDENT_OBJECT_CLASSES"));
+
+  const substitutedCounts = structuredClone(diagnosis);
+  substitutedCounts.confidence.independentlySupportingEpisodeCount = 99;
+  substitutedCounts.confidence.independentObjectClassCount = 99;
+  substitutedCounts.candidateHash = "";
+  substitutedCounts.candidateHash = sha256Object(substitutedCounts);
+  const evidenceCounted = buildInertLessonCandidateFromMentorDiagnosis(substitutedCounts);
+  assert.equal(evidenceCounted.independentlySupportingEpisodeCount, 1);
+  assert.equal(evidenceCounted.independentObjectClassCount, 1);
+});
+
+test("Gate candidates preserve non-internal causality and leave unsupported mechanisms unregistered", () => {
+  const diagnosis = originate([observation("causal-boundary-source")]).diagnoses[0];
+  const external = structuredClone(diagnosis);
+  external.causeVsSymptomEvidence.causalityDomain = CAUSALITY_DOMAIN.EXTERNAL;
+  external.applicability.causalityDomain = CAUSALITY_DOMAIN.EXTERNAL;
+  external.scope.causalityDomain = CAUSALITY_DOMAIN.EXTERNAL;
+  external.candidateHash = "";
+  external.candidateHash = sha256Object(external);
+  const externalCandidate = buildInertLessonCandidateFromMentorDiagnosis(external);
+  const externalReview = reviewLessonCandidate(externalCandidate);
+  assert.equal(externalCandidate.causalSignature.causalityDomain, CAUSALITY_DOMAIN.EXTERNAL);
+  assert(externalReview.reasons.includes("CAUSALITY_NOT_INTERNAL"));
+
+  const unsupported = structuredClone(diagnosis);
+  unsupported.causeVsSymptomEvidence.causalMechanism = CAUSAL_MECHANISM.UNSUPPORTED_OBJECT_IDENTITY;
+  unsupported.applicability.causalMechanism = CAUSAL_MECHANISM.UNSUPPORTED_OBJECT_IDENTITY;
+  unsupported.scope.causalMechanism = CAUSAL_MECHANISM.UNSUPPORTED_OBJECT_IDENTITY;
+  unsupported.candidateHash = "";
+  unsupported.candidateHash = sha256Object(unsupported);
+  const unsupportedCandidate = buildInertLessonCandidateFromMentorDiagnosis(unsupported);
+  assert(reviewLessonCandidate(unsupportedCandidate).reasons.includes("UNREGISTERED_CAUSAL_MECHANISM"));
 });
 
 test("the existing lesson Governor accepts only independently supported diagnosis-derived candidates for fixed proof", () => {
