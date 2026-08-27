@@ -952,6 +952,10 @@
 - Added the pure diagnosis-to-inert-candidate transition through the existing Lesson Gate contract, preserving source diagnosis identity, frozen trial obligations, uncertainty, risks, rejection, rollback, and zero operative authority
 - Kept the Lesson Gate's two-independent-episode and two-independent-object-class preproof threshold intact; the first two V4/V5-derived candidates authentically disposition as `PROOF_BLOCKED` before trial execution, persistence, or promotion
 - Made deficit-only `PROOF_BLOCKED` dispositions actionable through deterministic immutable evidence-acquisition requirements bound to candidate, diagnosis, causal-signature, and frozen-trial identities, with exact deficits, duplicate/reused-object rejection, hard network denial, and no lifecycle authority
+- Added read-only authentication of frozen independently evaluated product-success artifacts against Katherine's existing HMAC ledger, binding input/image, provider responses, output, evaluator, model, adapter, policy/schema, active lesson bundle, provenance, and fatal-regression state
+- Added truthful Mentor success dispositions and pure novel-success explanation origination; programmed competence, expected success, insufficient causal support, external cause, and contradictory evidence produce no candidate
+- Added a cryptographically bound inert success-candidate transition through the existing Lesson Gate, with the originating episode excluded, two additional independent episodes and object classes required, immutable fixed trials, success-specific evidence acquisition, and zero persistence or lifecycle authority
+- Preserved the existing Governor adapter's unbound-nomination refusal, fresh-process reconstruction, measured retention, rejection, rollback, and post-rollback refusal without creating a second Governor, ledger, memory system, or learning framework
 
 ## Version 2.0
 - User accounts
