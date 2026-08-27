@@ -548,6 +548,65 @@ test("authenticated product feedback reaches the canonical mentor and produces o
   }
 });
 
+test("authenticated visible-object-class failure reaches the same Mentor boundary without gaining product authority", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "ke-product-identity-feedback-"));
+  const adapter = new GovernedLearningAdapter({ root, learningScopeIdentity: "product-identity-feedback-scope" });
+  const networkGuard = installHardNetworkDenial();
+  try {
+    const outcome = await recordOutcome(adapter, "identity-product-outcome", 1, "7");
+    const envelope = await adapter.authorizeProductOutcomeFeedback({
+      episodeId: "identity-product-outcome",
+      responseHash: outcome.responseHash,
+      originalEvidenceIdentity: outcome.originalEvidenceIdentity,
+      failedClaim: {
+        claimPath: "valuation.identifiedItem",
+        claimClass: "VISIBLE_OBJECT_CLASS_IDENTIFICATION",
+        assertedValue: "The returned broad identity omitted the authenticated visible object class.",
+        failureKind: "FAILED_VISIBLE_OBJECT_CLASS_IDENTIFICATION"
+      },
+      correction: {
+        correctedState: "VISIBLE_OBJECT_CLASS_SUPPORTED",
+        evidenceProvenance: {
+          authorityClass: "OWNER_AUTHORIZED_INDEPENDENT_EVALUATOR",
+          sourceType: "AUTHENTICATED_FROZEN_IMAGE_AND_PRODUCT_RESPONSE_REVIEW",
+          sourceIdentity: "e".repeat(64),
+          providerAuthored: false
+        }
+      },
+      issuedAt: fixedTime
+    });
+    const handler = createGenerateListingHandler({
+      getGovernedLearningAdapter: () => adapter,
+      nowIso: () => fixedTime,
+      createAnalysisId: () => "identity-feedback-diagnosis"
+    });
+    const accepted = await invoke(handler, {
+      analysisId: "identity-feedback-diagnosis",
+      action: "submit_product_outcome_feedback",
+      feedbackEnvelope: envelope
+    });
+    assert.equal(accepted.statusCode, 200, JSON.stringify(accepted.payload));
+    assert.equal(accepted.payload.feedback.result, "LESSON_CANDIDATE_RECORDED");
+    assert.equal(accepted.payload.feedback.mentorDiagnosis.selectedActionId, COGNITIVE_ACTION.EVALUATE_RETURNED_EVIDENCE);
+    assert.equal(accepted.payload.feedback.inertStrategyCandidate.status, "CANDIDATE");
+    assert.equal(
+      accepted.payload.feedback.inertStrategyCandidate.recommendedActionPattern,
+      COGNITIVE_ACTION.EVALUATE_RETURNED_EVIDENCE
+    );
+    assert.deepEqual(
+      accepted.payload.feedback.inertStrategyCandidate.requiredApplicabilitySignals,
+      ["VISIBLE_OBJECT_CLASS_IDENTIFICATION_RISK"]
+    );
+    assert.equal(accepted.payload.feedback.inertStrategyCandidate.feedbackBinding.feedbackId, envelope.feedbackId);
+    assert.equal(accepted.payload.feedback.promotionAuthorized, false);
+    assert.equal(accepted.payload.feedback.providerLifecycleAuthority, false);
+    assert.equal((await adapter.status()).promotedLessons, 0);
+  } finally {
+    networkGuard.restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("the canonical fallback makes an obsolete exact-only trial inapplicable without changing Luna identity", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ke-product-research-action-"));
   const adapter = new GovernedLearningAdapter({ root, learningScopeIdentity: "research-action-scope" });

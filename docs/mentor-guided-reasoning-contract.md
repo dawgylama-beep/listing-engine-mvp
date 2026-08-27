@@ -50,6 +50,10 @@ Version 1.12.52 also adds the missing read-only success entry into the same gove
 
 `buildInertLessonCandidateFromMentorSuccess` cryptographically binds the authenticated success origin and Mentor explanation to the existing Lesson Gate candidate contract. The originating episode and object class are deliberately excluded from the candidate's independent support. The unchanged Gate minimum therefore requires two additional authenticated episodes across two additional object classes before a fixed Charter can be issued. Deficit-only candidates receive the existing immutable evidence-acquisition treatment with success-specific origin-reuse, duplicate-source, duplicate-episode, reused-object-class, and behavior-signature checks. A Charter additionally binds the frozen success-trial requirements and records origin exclusion. Candidate creation remains pure and inert; it does not write lesson memory or imply that qualification, reconstruction, later application, measured improvement, or product learning occurred.
 
+## Authenticated product-feedback domains
+
+The product-outcome feedback boundary accepts hash-bound comparable-research failures and visible-object-class identification failures. Both use the same `EVALUATE_RETURNED_EVIDENCE` Mentor action, HMAC-bound outcome feedback, evidence visibility checks, forward-only ledger, and inert candidate store. Research feedback retains its existing governed-research action and applicability contract. Visible-object-class feedback preserves the authenticated correction only as returned evidence, recommends no product identity mutation, and requires a separate object-class risk signal and independent proof before any bounded trial. Unsupported feedback domains still fail closed, and neither route grants provider, promotion, persistence-to-qualified-memory, or product-change authority.
+
 ## Governance and claims
 
 The contract does not alter a frozen qualification corpus, prompt, bridge, scorer, route, broker, schema, serializer, envelope, authority, execution record, evaluator, or result seal. Closed diagnostic material is not a remediation input and is not eligible for blind reuse.
