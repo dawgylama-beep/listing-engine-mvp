@@ -2563,7 +2563,10 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     analysisId
   });
   if (research.executiveDisposition) {
-    return completeControlledExecutiveEvaluation(research, buildControlledExecutiveReport(research));
+    return completeControlledExecutiveEvaluation(research, buildControlledExecutiveReport(research, {
+      workflow: "listing",
+      platform
+    }));
   }
   const report = await executePendingPurposeJudgment(research, () => (
     generateFinalListingReport({ apiKey, model, platform, notes, research })
@@ -2686,7 +2689,217 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
   );
 }
 
-function buildControlledExecutiveReport(research = {}) {
+function isSupportedControlledListingCategory(canonicalIdentity = {}) {
+  const category = cleanText(canonicalIdentity.objectCategory);
+  return Boolean(
+    category
+    && normalizeArray(canonicalIdentity.categoryObservationIds).length
+    && !/INSUFFICIENT/i.test(cleanText(canonicalIdentity.categoryConfidence))
+    && canonicalIdentity.ambiguityStatus !== "INSUFFICIENT_VISIBLE_EVIDENCE"
+    && !/^(?:ordinary\s+object|(?:generic\s+)?(?:item|object|product)|unknown(?:\s+(?:item|object|product|subject))?|unidentified(?:\s+(?:item|object|product))?|unresolved(?:\s+(?:item|object|product|subject))?)$/i.test(category)
+  );
+}
+
+function uniqueControlledListingText(values = [], maximum = 12) {
+  const seen = new Set();
+  const results = [];
+  for (const value of normalizeArray(values).flat(Infinity)) {
+    const text = cleanText(value);
+    const normalized = normalizeComparableText(text);
+    if (
+      !text
+      || !normalized
+      || /^(?:unknown|unverified|not verified|not provided|not visible|none|n\/a)$/i.test(text)
+      || seen.has(normalized)
+    ) continue;
+    seen.add(normalized);
+    results.push(text);
+    if (results.length >= maximum) break;
+  }
+  return results;
+}
+
+function controlledListingTrait(value = "") {
+  const text = cleanText(value)
+    .replace(/^(?:visible|visibly|photographed|appears?\s+to\s+be)\s+/i, "")
+    .replace(/[.;:]+$/g, "")
+    .trim();
+  if (
+    !text
+    || text.split(/\s+/).length > 5
+    || /\b(?:appears?|could|maybe|might|possibly|probably|unknown|unverified)\b/i.test(text)
+  ) return "";
+  return text;
+}
+
+function buildEvidenceBoundedUncertaintyListing(research = {}, { platform = "" } = {}) {
+  if (research.executiveDisposition !== "INSUFFICIENT_EVIDENCE") return null;
+  const identity = research.identity || {};
+  const objectMindState = research.objectMindState || research.liveSearch?.objectMindState || {};
+  const canonicalIdentity = identity.canonicalResearchIdentity
+    || objectMindState.canonicalResearchIdentity
+    || {};
+  if (!isSupportedControlledListingCategory(canonicalIdentity)) return null;
+
+  const category = cleanText(canonicalIdentity.objectCategory);
+  const visual = normalizeVisualRecognition(identity.visualRecognition || {});
+  const canonicalAttributes = normalizeArray(canonicalIdentity.configurationAttributes)
+    .filter((attribute) => cleanText(attribute?.provenance) === "CANONICAL_VISIBLE_EVIDENCE");
+  const attributeValues = (pattern) => uniqueControlledListingText(canonicalAttributes
+    .filter((attribute) => pattern.test(cleanText(attribute?.factType)))
+    .map((attribute) => attribute.value), 8);
+  const materials = attributeValues(/^material$/i);
+  const colors = uniqueControlledListingText(visual.visibleColors, 6);
+  const forms = attributeValues(/^(?:shape|construction)$/i);
+  const motifs = uniqueControlledListingText([
+    attributeValues(/^(?:design|diagnostic_visual_detail)$/i),
+    visual.distinctiveFeatures
+  ], 8);
+  const visibleEvidence = uniqueControlledListingText([
+    `Object category: ${category}`,
+    colors.map((value) => `Visible color: ${value}`),
+    materials.map((value) => `Visible material evidence: ${value}`),
+    forms.map((value) => `Visible form or construction: ${value}`),
+    motifs.map((value) => `Visible motif or feature: ${value}`),
+    visual.visualEvidence
+  ], 12);
+  const conditionEvidence = uniqueControlledListingText([
+    visual.visualEvidence,
+    visual.distinctiveFeatures,
+    identity.diagnosticVisualDetails
+  ], 12)
+    .filter((value) => /\b(?:break|broken|chip|crack|craze|damage|dent|discolor|fade|fray|hole|loss|missing|repair|scratch|soil|stain|tear|wear|worn)\w*\b/i.test(value))
+    .slice(0, 8);
+  const conditionNotes = conditionEvidence.length
+    ? conditionEvidence.map((value) => `Visible condition observation: ${value}`)
+    : ["Condition cannot be confirmed from the available photographs."];
+  const itemSpecifics = uniqueControlledListingText([
+    `Category: ${category}`,
+    colors.map((value) => `Color: ${value}`),
+    materials.map((value) => `Material evidence: ${value}`),
+    forms.map((value) => `Form or construction: ${value}`),
+    motifs.map((value) => `Motif or visible feature: ${value}`),
+    conditionNotes,
+    "Exact maker, origin, date, authenticity, and model: Not established."
+  ], 10);
+  const titleTraits = uniqueControlledListingText([
+    colors.map(controlledListingTrait),
+    materials.map(controlledListingTrait),
+    motifs.map(controlledListingTrait)
+  ], 3).filter((value) => {
+    const normalized = normalizeComparableText(value);
+    const normalizedCategory = normalizeComparableText(category);
+    return normalized && !normalizedCategory.includes(normalized) && !normalized.includes(normalizedCategory);
+  });
+  const listingTitle = uniqueControlledListingText([...titleTraits, category], 4)
+    .join(" ")
+    .replace(/\b(\w+)(?:\s+\1\b)+/gi, "$1")
+    .slice(0, 120);
+  const remainingUnknowns = uniqueControlledListingText([
+    "Exact maker, origin, date, authenticity, model, and valuation remain unverified.",
+    identity.identityUnknowns,
+    visual.stillUnknown,
+    research.executiveState?.unresolvedIdentityDiscriminators
+  ], 12);
+  const allowedHypothesisIds = new Set(normalizeArray(canonicalIdentity.allowedHypothesisIds));
+  const plausibleAlternatives = uniqueControlledListingText([
+    visual.possibleInterpretations,
+    normalizeArray(objectMindState.identityHypotheses)
+      .filter((candidate) => allowedHypothesisIds.has(candidate?.candidateId))
+      .map((candidate) => candidate?.broaderFamilyIdentity)
+  ], 6)
+    .filter((value) => normalizeComparableText(value) !== normalizeComparableText(category))
+    .map((value) => `Plausible but unverified interpretation: ${value}`);
+  if (!plausibleAlternatives.length) {
+    plausibleAlternatives.push(`The exact subtype within the supported ${category} category remains uncertain.`);
+  }
+  const additionalInformationNeeded = uniqueControlledListingText([
+    "Clear full-object photographs from the front, back, both sides, top, underside, and base.",
+    "Close photographs of every maker mark, signature, stamp, label, number, seam, and attachment point.",
+    "A photograph beside a ruler plus exact height, width, depth, and weight.",
+    "Close photographs of edges, base, high-wear areas, and every chip, crack, stain, repair, loss, or other condition concern.",
+    "A complete group photograph showing all parts, accessories, and any missing components.",
+    identity.additionalEvidenceNeeded
+  ], 8);
+  const researchNextSteps = [
+    `Compare the supported ${category} category using only the visible material, color, motif, form, dimensions, and condition details.`,
+    "Transcribe exact marks or labels before adding a maker, origin, date, model, or authenticity claim.",
+    "Compare only items with compatible form, dimensions, material, completeness, and condition.",
+    "Use qualified transaction evidence for pricing; category-only references and active asking prices do not establish value."
+  ];
+  const visibleDescription = visibleEvidence.slice(1).length
+    ? visibleEvidence.slice(1).join("; ")
+    : `The available photographs support the broad category ${category}, but no narrower visible details can be stated safely.`;
+  const listingDescription = `${category}. Visible evidence: ${visibleDescription}. ${conditionNotes.join(" ")} Exact maker, origin, date, authenticity, model, and valuation are not established.`;
+  const pricingRationale = "Pricing evidence is insufficient. No qualified, identity-compatible transaction evidence supports a responsible numeric listing price.";
+
+  return {
+    platform: cleanText(platform),
+    categorySuggestion: category,
+    identifiedItem: category,
+    itemIdentification: category,
+    identificationConfidence: cleanText(canonicalIdentity.categoryConfidence || "Bounded category only"),
+    visualRecognitionSummary: `The available photographs support the broad category ${category}; narrower identity remains unresolved.`,
+    visualSubject: category,
+    visualSubjectCategory: category,
+    visualSubjectConfidence: cleanText(canonicalIdentity.categoryConfidence || "Bounded category only"),
+    visualRecognitionEvidence: visibleEvidence,
+    visualRecognitionUnknowns: remainingUnknowns,
+    subjectIdentity: category,
+    subjectConfidence: cleanText(canonicalIdentity.categoryConfidence || "Bounded category only"),
+    exactProductIdentity: "Not established",
+    exactProductConfidence: "Insufficient",
+    makerDateLicensingStatus: "Maker, origin, date, licensing, and authenticity are not established.",
+    whatIsKnown: visibleEvidence,
+    whatIsStillUnknown: [...remainingUnknowns, ...plausibleAlternatives],
+    evidenceFoundInPhotos: visibleEvidence,
+    searchQueriesUsed: [],
+    sourcesSearched: ["No qualified pricing source was retained for a numeric price judgment."],
+    researchResults: ["No qualified comparable evidence supports a numeric listing price."],
+    comparableQuality: ["Insufficient for pricing; broader category evidence is not treated as an exact comparable."],
+    searchLimitations: [
+      "No qualified identity-compatible pricing evidence was retained.",
+      ...researchNextSteps
+    ],
+    recommendedListingPrice: "Not established",
+    recommendedListingPriceState: {
+      status: "not_established",
+      amount: null,
+      currency: "",
+      basisCode: "INSUFFICIENT_PRICING_EVIDENCE"
+    },
+    suggestedOfferRange: "Not established",
+    pricingStatus: "insufficient",
+    pricingEvidenceState: "insufficient",
+    pricingConfidence: "Insufficient",
+    pricingRationale,
+    optimizedListingTitle: listingTitle,
+    listingTitle,
+    listingDescription,
+    itemSpecifics,
+    conditionNotes,
+    suggestedSellingPlatform: cleanText(platform) || "Selected marketplace platform",
+    additionalInformationNeeded,
+    title: listingTitle,
+    description: listingDescription,
+    itemDetails: itemSpecifics.slice(0, 8),
+    priceStrategy: pricingRationale,
+    expectedSellingTimeline: "Not estimated because exact identity and pricing evidence remain insufficient.",
+    shippingDelivery: "Measure and weigh the packaged item before selecting shipping terms.",
+    stagingPhotos: additionalInformationNeeded.join(" "),
+    sellerNotes: [
+      "Use this as an evidence-bounded draft and verify all item-specific details before publishing.",
+      "Do not add maker, origin, date, authenticity, model, or price claims without supporting evidence.",
+      ...plausibleAlternatives
+    ].slice(0, 6),
+    visibleFacts: visibleEvidence,
+    remainingUnknowns,
+    plausibleAlternatives,
+    researchNextSteps
+  };
+}
+
+function buildControlledExecutiveReport(research = {}, { workflow = "", platform = "" } = {}) {
   const state = research.executiveState || {};
   const request = research.cognitiveGovernor?.requestedCustomerInput || null;
   const safety = state.safetyState || {};
@@ -2759,6 +2972,20 @@ function buildControlledExecutiveReport(research = {}) {
       ...(research.liveSearch?.searchDiagnostics || {})
     }
   };
+  const evidenceBoundedListing = workflow === "listing"
+    ? buildEvidenceBoundedUncertaintyListing(research, { platform })
+    : null;
+  if (evidenceBoundedListing) {
+    return {
+      ...report,
+      ...evidenceBoundedListing,
+      executiveOutcome: {
+        ...report.executiveOutcome,
+        safelySupportedListingDraftEmitted: true,
+        pricingJudgmentWithheld: true
+      }
+    };
+  }
   return report;
 }
 
@@ -23874,6 +24101,8 @@ export const __queryIntegrityTestHooks = {
   buildListingPriceTextForTest: buildListingPriceText,
   reconcileCanonicalResponsePriceState,
   buildCanonicalListingTitle,
+  buildControlledExecutiveReport,
+  buildEvidenceBoundedUncertaintyListing,
   buildCanonicalPurchaseGuidance,
   buildCurrentPurchaseOptionSummary,
   summarizeConsumerVisiblePriceEvidence,

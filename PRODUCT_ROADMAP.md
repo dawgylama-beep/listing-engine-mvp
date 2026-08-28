@@ -958,6 +958,9 @@
 - Connected delayed local-beta website evaluations to the governed ledger with exact episode, product-outcome, request, raw-response, canonical-response, evaluator, criteria, evaluation-byte, evaluation-hash, and PASS/FAIL bindings plus exact-once replay and fail-closed artifact reconstruction
 - Routed authenticated website PASS through the existing success inventory and Mentor, authenticated FAIL through the existing causally unresolved failure Mentor boundary, and allowed only a genuinely novel Mentor success explanation to create an inert candidate for the unchanged Lesson Gate
 - Preserved the existing Governor adapter's unbound-nomination refusal, fresh-process reconstruction, measured retention, rejection, rollback, and post-rollback refusal without creating a second Governor, ledger, memory system, or learning framework
+- Preserved a safely supported marketplace-listing draft when the executive terminal correctly stops for insufficient exact identity, condition, or pricing evidence, while keeping the purpose incomplete and numeric pricing explicitly insufficient
+- Bound uncertainty drafts to the governed canonical object category and visible evidence only, retained full refusal without a supported broad category, and preserved safety and customer-input stops
+- Added hard-network-denied regressions across figurine, textile, and metal-box categories for visible-only copy, condition uncertainty, explicit alternatives and evidence requests, pricing refusal, and unsupported-category refusal
 
 ## Version 2.0
 - User accounts
