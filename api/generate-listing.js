@@ -48,6 +48,7 @@ import {
 import { createProgrammedCompetenceManifest } from "../lib/cognitive-governor/mentor-success-origination.js";
 import {
   GovernedLearningAdapter,
+  buildProductFailureEvidenceHandoff,
   classifyGovernedResearchApplicability,
   classifyGovernedResearchOutcome,
   projectAuthoritativeMemoryStatus,
@@ -60,6 +61,7 @@ import {
   attachTerminalGovernor,
   attachTerminalProviderRecords,
   buildFailureEnvelope,
+  buildTerminalProviderMetering,
   completeTerminalContext,
   createEvaluationTerminalContext,
   recordTerminalStage,
@@ -291,6 +293,17 @@ async function prepareWebsiteCognition({
 
 function responseBytes(payload) {
   return Buffer.from(JSON.stringify(payload), "utf8");
+}
+
+function completeProductFailureEvidenceHandoff(visibleEvidenceIds = [], evidenceReferences = []) {
+  const completeVisibilityInventory = [...visibleEvidenceIds];
+  for (const identity of evidenceReferences) {
+    if (!completeVisibilityInventory.includes(identity)) completeVisibilityInventory.push(identity);
+  }
+  return buildProductFailureEvidenceHandoff({
+    visibleEvidenceIds: completeVisibilityInventory,
+    evidenceReferences
+  });
 }
 
 function websiteCognitiveDisposition({ error, governedLearning } = {}) {
@@ -1499,6 +1512,7 @@ async function handleGenerateListingRequest(req, res) {
           statusCode: responseStatus,
           requestBytes: websiteCognition.requestBytes,
           responseBytes: responseBytes(payload),
+          providerMetering: buildTerminalProviderMetering(context, { zeroRetryMode: true }),
           cognitiveDisposition: websiteCognitiveDisposition({ error, governedLearning }),
           createdAt: currentAnalysisAdapters().nowIso()
         });
@@ -1623,6 +1637,15 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
       ),
       subsystem: "PRODUCT_HANDLER"
     });
+    const evidenceReferences = [
+      cognitiveEpisode.cognitiveEpisodeHash,
+      cognitiveEpisode.linkedExperienceRecordHash,
+      lessonCandidate.lessonCandidateHash
+    ].filter(Boolean);
+    const evidenceHandoff = completeProductFailureEvidenceHandoff([
+      ...(governor.lastState?.executiveState?.visibleEvidenceIds || []),
+      ...(governor.governedLearningRuntime.mentorDecision?.evidenceReferences || [])
+    ], evidenceReferences);
     const result = await governor.governedLearningAdapter.captureProductFailure({
       governor,
       runtime: governor.governedLearningRuntime,
@@ -1631,12 +1654,8 @@ async function recordGovernedProductFailure(failureEnvelope = {}) {
         + (governor.governedLearningRuntime.authoritativeMemoryTransition.rollbackRefusals.length > 0 ? 1 : 0),
       cognitiveEpisode,
       lessonCandidate,
-      visibleEvidenceIds: [...new Set([
-        ...(governor.lastState?.executiveState?.visibleEvidenceIds || []),
-        ...(governor.governedLearningRuntime.mentorDecision?.evidenceReferences || []),
-        cognitiveEpisode.cognitiveEpisodeHash,
-        lessonCandidate.lessonCandidateHash
-      ].filter(Boolean))],
+      visibleEvidenceIds: evidenceHandoff.visibleEvidenceIds,
+      evidenceReferences: evidenceHandoff.evidenceReferences,
       createdAt: currentAnalysisAdapters().nowIso(),
       captureAuthority: "EVIDENCE_BOUND_PRODUCT_FAILURE",
       failureTaxonomy
@@ -2075,24 +2094,38 @@ function requestOpenAIJson(args) {
     logicalQueryAttempted: true,
     physicalAttemptCount: 1,
     physicalRetryAttemptCount: 0,
-    physicalAttempts: [{ attempt: 1, retry: false, provider: "openai_model", outcome: "started" }],
+    physicalAttempts: [],
     succeeded: false,
     statusCode: null,
     errorCode: "",
     failureStage: ""
   };
+  configureProviderRequestMetering(record, { payload: args?.payload, provider: "openai_model" });
+  record.physicalAttempts = [{
+    attempt: 1,
+    retry: false,
+    provider: "openai_model",
+    outcome: "started",
+    requestedModel: record.requestedModel,
+    returnedModel: "",
+    statusCode: null,
+    reportedTokens: normalizeReportedProviderTokens(),
+    conservativeAuthorizationExposure: record.conservativeAuthorizationExposure,
+    exactBilledDollars: null,
+    exactBilledDollarsStatus: "NOT_REPORTED_BY_PROVIDER"
+  }];
   attachCurrentTerminalProviderRecords([record]);
   const complete = (value) => {
-    record.physicalAttempts[0].outcome = "succeeded";
+    recordPhysicalAttemptOutcome(record, "succeeded", value);
     record.succeeded = true;
-    record.statusCode = Number(value?.statusCode || 0) || null;
     return value;
   };
   const fail = (error) => {
-    record.physicalAttempts[0].outcome = "failed";
+    recordPhysicalAttemptOutcome(record, "failed", error);
     record.succeeded = false;
-    record.statusCode = Number(error?.statusCode || 0) || null;
-    record.errorCode = cleanText(error?.code || error?.name || "model_provider_failure").slice(0, 100);
+    record.errorCode = cleanText(
+      error?.openAIErrorCode || error?.code || error?.name || "model_provider_failure"
+    ).slice(0, 100);
     record.failureStage = record.errorCode;
     throw error;
   };
@@ -3790,6 +3823,17 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
   const cognitiveEpisode = buildCognitiveEpisode(governor, { experienceRecordHash });
   const lessonCandidate = buildLessonCandidate(cognitiveEpisode);
   const lastState = governor.lastState || {};
+  const failureEvidenceReferences = lessonCandidate ? [
+    cognitiveEpisode.cognitiveEpisodeHash,
+    cognitiveEpisode.linkedExperienceRecordHash,
+    lessonCandidate.lessonCandidateHash
+  ].filter(Boolean) : [];
+  const failureEvidenceHandoff = lessonCandidate
+    ? completeProductFailureEvidenceHandoff([
+        ...(lastState.executiveState?.visibleEvidenceIds || []),
+        ...(governor.governedLearningRuntime?.mentorDecision?.evidenceReferences || [])
+      ], failureEvidenceReferences)
+    : null;
   const governedLearningResult = governor.governedLearningAdapter && lessonCandidate
     ? await governor.governedLearningAdapter.captureProductFailure({
         governor,
@@ -3799,13 +3843,8 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
           + (governor.governedLearningRuntime.authoritativeMemoryTransition.rollbackRefusals.length > 0 ? 1 : 0),
         cognitiveEpisode,
         lessonCandidate,
-        visibleEvidenceIds: [...new Set([
-          ...(lastState.executiveState?.visibleEvidenceIds || []),
-          ...(governor.governedLearningRuntime?.mentorDecision?.evidenceReferences || []),
-          cognitiveEpisode.cognitiveEpisodeHash,
-          cognitiveEpisode.linkedExperienceRecordHash,
-          lessonCandidate.lessonCandidateHash
-        ].filter(Boolean))],
+        visibleEvidenceIds: failureEvidenceHandoff.visibleEvidenceIds,
+        evidenceReferences: failureEvidenceHandoff.evidenceReferences,
         createdAt: currentAnalysisAdapters().nowIso(),
         captureAuthority: "CANONICAL_TERMINAL_COGNITIVE_EPISODE"
       })
@@ -4521,6 +4560,92 @@ const retailSerperBudgetAllocation = Object.freeze({
 
 const directPageEnrichmentMaxAttempts = 2;
 
+function maximumProviderRetriesForCurrentExecution() {
+  return websiteCognitionMode() === WEBSITE_COGNITION_LOCAL_BETA_MODE ? 0 : 1;
+}
+
+function normalizeReportedProviderTokens(value = null) {
+  const usage = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const integerOrNull = (candidate) => Number.isSafeInteger(candidate) && candidate >= 0 ? candidate : null;
+  const inputTokens = integerOrNull(usage.input_tokens ?? usage.inputTokens);
+  const cachedInputTokens = integerOrNull(
+    usage.input_tokens_details?.cached_tokens
+    ?? usage.cached_input_tokens
+    ?? usage.cachedInputTokens
+  );
+  const outputTokens = integerOrNull(usage.output_tokens ?? usage.outputTokens);
+  const reasoningTokens = integerOrNull(
+    usage.output_tokens_details?.reasoning_tokens
+    ?? usage.reasoning_tokens
+    ?? usage.reasoningTokens
+  );
+  const totalTokens = integerOrNull(usage.total_tokens ?? usage.totalTokens);
+  const available = [inputTokens, cachedInputTokens, outputTokens, reasoningTokens, totalTokens]
+    .some((candidate) => candidate !== null);
+  return {
+    availability: available ? "REPORTED" : "NOT_REPORTED",
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    reasoningTokens,
+    totalTokens
+  };
+}
+
+function providerAuthorizationExposure(payload = null, maximumPhysicalAttempts = 1) {
+  const maximumOutputTokens = Number.isSafeInteger(payload?.max_output_tokens)
+    && payload.max_output_tokens > 0
+    ? payload.max_output_tokens
+    : null;
+  return {
+    classification: "CONSERVATIVE_REQUEST_AUTHORIZATION_EXPOSURE",
+    maximumPhysicalAttempts,
+    maximumOutputTokens,
+    exactBilledDollars: null,
+    exactBilledDollarsStatus: "NOT_REPORTED_BY_PROVIDER"
+  };
+}
+
+function configureProviderRequestMetering(requestRecord = {}, {
+  payload = null,
+  provider = "",
+  maximumPhysicalAttempts = maximumProviderRetriesForCurrentExecution() + 1
+} = {}) {
+  requestRecord.maximumPhysicalAttemptsPerLogicalRequest = maximumPhysicalAttempts;
+  requestRecord.requestedModel = cleanText(payload?.model || requestRecord.requestedModel);
+  requestRecord.conservativeAuthorizationExposure = providerAuthorizationExposure(
+    payload,
+    maximumPhysicalAttempts
+  );
+  requestRecord.reportedTokens = requestRecord.reportedTokens || normalizeReportedProviderTokens();
+  requestRecord.exactBilledDollars = null;
+  requestRecord.exactBilledDollarsStatus = "NOT_REPORTED_BY_PROVIDER";
+  if (provider) requestRecord.providerKey = cleanText(requestRecord.providerKey || provider);
+  return requestRecord;
+}
+
+function providerAttemptMetering(value = {}, fallbackModel = "") {
+  const data = value?.data && typeof value.data === "object" ? value.data : {};
+  const statusCode = Number(
+    value?.statusCode
+    || value?.openAIStatusCode
+    || data?.statusCode
+    || 0
+  ) || null;
+  const reportedTokens = normalizeReportedProviderTokens(
+    value?.providerUsage
+    || value?.usage
+    || data?.usage
+  );
+  return {
+    statusCode,
+    returnedModel: cleanText(value?.returnedModel || data?.model || fallbackModel),
+    reportedTokens,
+    exactBilledDollars: null,
+    exactBilledDollarsStatus: "NOT_REPORTED_BY_PROVIDER"
+  };
+}
+
 function createPhysicalAttemptBudget(maximumAttempts = 0, category = "provider_search") {
   return {
     category,
@@ -4531,6 +4656,15 @@ function createPhysicalAttemptBudget(maximumAttempts = 0, category = "provider_s
 }
 
 function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false, provider = "" } = {}) {
+  if (!Number.isSafeInteger(requestRecord.maximumPhysicalAttemptsPerLogicalRequest)) {
+    configureProviderRequestMetering(requestRecord, { provider });
+  }
+  if (
+    Number(requestRecord.physicalAttemptCount || 0)
+    >= Number(requestRecord.maximumPhysicalAttemptsPerLogicalRequest || 1)
+  ) {
+    return false;
+  }
   if (Number(budget.physicalAttemptCount || 0) >= Number(budget.maximumAttempts || 0)) {
     return false;
   }
@@ -4548,22 +4682,36 @@ function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false
       retry,
       budgetCategory: cleanText(budget.category),
       provider: cleanText(provider || requestRecord.providerKey || requestRecord.provider),
-      outcome: "started"
+      outcome: "started",
+      requestedModel: cleanText(requestRecord.requestedModel),
+      returnedModel: "",
+      statusCode: null,
+      reportedTokens: normalizeReportedProviderTokens(),
+      conservativeAuthorizationExposure: requestRecord.conservativeAuthorizationExposure,
+      exactBilledDollars: null,
+      exactBilledDollarsStatus: "NOT_REPORTED_BY_PROVIDER"
     }
   ];
   return true;
 }
 
-function recordPhysicalAttemptOutcome(requestRecord = {}, outcome = "") {
+function recordPhysicalAttemptOutcome(requestRecord = {}, outcome = "", providerResult = {}) {
   const attempts = normalizeArray(requestRecord.physicalAttempts);
   if (!attempts.length) {
     return;
   }
+  const metering = providerAttemptMetering(providerResult, requestRecord.requestedModel);
   attempts[attempts.length - 1] = {
     ...attempts[attempts.length - 1],
-    outcome: cleanText(outcome || "unknown")
+    outcome: cleanText(outcome || "unknown"),
+    ...metering
   };
   requestRecord.physicalAttempts = attempts;
+  requestRecord.statusCode = metering.statusCode ?? requestRecord.statusCode ?? null;
+  requestRecord.returnedModel = metering.returnedModel;
+  requestRecord.reportedTokens = metering.reportedTokens;
+  requestRecord.exactBilledDollars = null;
+  requestRecord.exactBilledDollarsStatus = "NOT_REPORTED_BY_PROVIDER";
 }
 
 function buildProviderAttemptAccounting(providerRequestRecords = [], {
@@ -4626,11 +4774,20 @@ async function requestSerperSearchWithBudget({
   attemptBudget,
   apiKey,
   maxRetries = 1,
+  governedMaximumRetries = maximumProviderRetriesForCurrentExecution(),
   requestAdapter = requestSerperSearch
 } = {}) {
   requestRecord.logicalQueryAttempted = true;
+  const effectiveMaxRetries = Math.min(
+    Math.max(0, Number(maxRetries || 0)),
+    Math.max(0, Number(governedMaximumRetries || 0))
+  );
+  configureProviderRequestMetering(requestRecord, {
+    provider: "serper_google",
+    maximumPhysicalAttempts: effectiveMaxRetries + 1
+  });
   let lastError = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     if (!consumePhysicalAttempt(attemptBudget, requestRecord, {
       retry: attempt > 0,
       provider: "serper_google"
@@ -4654,13 +4811,13 @@ async function requestSerperSearchWithBudget({
         timeoutMs: 7000,
         maxRetries: 0
       });
-      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded", response);
       return response;
     } catch (error) {
-      recordPhysicalAttemptOutcome(requestRecord, "failed");
+      recordPhysicalAttemptOutcome(requestRecord, "failed", error);
       lastError = error;
       const diagnostic = classifySerperError(error);
-      if (attempt >= maxRetries || [
+      if (attempt >= effectiveMaxRetries || [
         "invalid_query_preflight",
         "serper_authentication_failure",
         "serper_rate_limited",
@@ -4682,11 +4839,19 @@ async function requestOpenAIComparableSearchWithBudget({
   apiKey,
   buildPayload,
   requestAdapter = requestOpenAIJson,
+  governedMaximumRetries = maximumProviderRetriesForCurrentExecution(),
   onCompatibilityError = () => {}
 } = {}) {
   requestRecord.logicalQueryAttempted = true;
-  for (let attempt = 0; attempt <= 1; attempt += 1) {
+  const effectiveMaxRetries = Math.max(0, Number(governedMaximumRetries || 0));
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     const retry = attempt > 0;
+    const payload = buildPayload({ retry, attempt });
+    configureProviderRequestMetering(requestRecord, {
+      payload,
+      provider: "openai_web_search",
+      maximumPhysicalAttempts: effectiveMaxRetries + 1
+    });
     if (!consumePhysicalAttempt(attemptBudget, requestRecord, {
       retry,
       provider: "openai_web_search"
@@ -4703,13 +4868,18 @@ async function requestOpenAIComparableSearchWithBudget({
     try {
       const response = await requestAdapter({
         apiKey,
-        payload: buildPayload({ retry, attempt })
+        payload
       });
-      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded", response);
       return response;
     } catch (error) {
-      recordPhysicalAttemptOutcome(requestRecord, "failed");
-      if (!retry && isWebSearchOptionCompatibilityError(error) && mechanicalRetryEligible(error, requestRecord)) {
+      recordPhysicalAttemptOutcome(requestRecord, "failed", error);
+      if (
+        attempt < effectiveMaxRetries
+        && !retry
+        && isWebSearchOptionCompatibilityError(error)
+        && mechanicalRetryEligible(error, requestRecord)
+      ) {
         onCompatibilityError(error);
         continue;
       }
@@ -5795,7 +5965,7 @@ async function executeExactRetailPageDirectEnrichment({
         if (cognitiveGovernor) completeTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
         break;
       }
-      recordPhysicalAttemptOutcome(requestRecord, "succeeded");
+      recordPhysicalAttemptOutcome(requestRecord, "succeeded", result);
       requestRecord.succeeded = true;
       requestRecord.statusCode = result.statusCode;
       requestRecord.elapsedMilliseconds = result.elapsedMs;
@@ -5827,7 +5997,7 @@ async function executeExactRetailPageDirectEnrichment({
       }
     } catch (error) {
       if (/^Governor authorization rejected:/.test(String(error?.message || ""))) throw error;
-      recordPhysicalAttemptOutcome(requestRecord, "failed");
+      recordPhysicalAttemptOutcome(requestRecord, "failed", error);
       const message = sanitizeErrorText(error.message || "Direct product-page enrichment failed.");
       requestRecord.succeeded = false;
       requestRecord.errorCode = cleanText(error.code || "direct_product_page_fetch_failed");
@@ -6063,7 +6233,7 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
     });
     clearTimeout(timeout);
     if (response.status >= 300 && response.status < 400) {
-      recordPhysicalAttemptOutcome(attemptState.requestRecord, "redirect");
+      recordPhysicalAttemptOutcome(attemptState.requestRecord, "redirect", { statusCode: response.status });
       const location = cleanText(response.headers.get("location"));
       const nextUrl = location ? new URL(location, finalCandidate).toString() : "";
       if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
@@ -7595,6 +7765,9 @@ async function recordSuccessfulProductOutcome(payload, {
     statusCode: 200,
     requestBytes: websiteCognition.requestBytes,
     responseBytes: exactResponseBytes,
+    providerMetering: buildTerminalProviderMetering(currentEvaluationTerminalContext(), {
+      zeroRetryMode: true
+    }),
     productOutcomeId: outcome.outcomeId,
     cognitiveDisposition: {
       boundary: "MENTOR_SUCCESS",
@@ -7780,16 +7953,19 @@ async function handleProductOutcomeFeedback({ body, res }) {
     failureCategory: feedbackEnvelope.failedClaim?.failureKind,
     subsystem: "PRODUCT_OUTCOME_FEEDBACK"
   });
-  const visibleEvidenceIds = [...new Set([
-    ...snapshot.executiveState.visibleEvidenceIds,
-    ...(runtime.mentorDecision.evidenceReferences || []),
+  const evidenceReferences = [
     cognitiveEpisode.cognitiveEpisodeHash,
+    cognitiveEpisode.linkedExperienceRecordHash,
     lessonCandidate.lessonCandidateHash,
     feedbackEnvelope.feedbackId,
     feedbackEnvelope.responseHash,
     feedbackEnvelope.originalEvidenceIdentity,
     feedbackEnvelope.memoryTransitionHash
-  ].filter(Boolean))];
+  ].filter(Boolean);
+  const evidenceHandoff = completeProductFailureEvidenceHandoff([
+    ...snapshot.executiveState.visibleEvidenceIds,
+    ...(runtime.mentorDecision.evidenceReferences || [])
+  ], evidenceReferences);
   const result = await adapter.captureProductFailure({
     governor,
     runtime,
@@ -7797,7 +7973,8 @@ async function handleProductOutcomeFeedback({ body, res }) {
     episodeSequence,
     cognitiveEpisode,
     lessonCandidate,
-    visibleEvidenceIds,
+    visibleEvidenceIds: evidenceHandoff.visibleEvidenceIds,
+    evidenceReferences: evidenceHandoff.evidenceReferences,
     createdAt: currentAnalysisAdapters().nowIso(),
     feedbackEnvelope,
     captureAuthority: "AUTHENTICATED_PRODUCT_OUTCOME_FEEDBACK"
@@ -12449,17 +12626,46 @@ async function requestOpenAIJsonNetwork({ apiKey, payload }) {
           type: data.error && data.error.type,
           code: data.error && data.error.code,
           message
-        })
+        }),
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
       });
     }
 
     const outputText = extractOutputText(data);
     if (!outputText) {
-      throw new Error("OpenAI returned an empty response.");
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        code: "empty_response",
+        message: "OpenAI returned an empty response.",
+        category: "provider_response_invalid",
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
+      });
     }
 
+    let json;
+    try {
+      json = JSON.parse(outputText);
+    } catch (cause) {
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        code: "invalid_json_response",
+        message: "OpenAI returned an invalid structured response.",
+        category: "provider_response_invalid",
+        cause,
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
     return {
-      json: JSON.parse(outputText),
+      json,
       data,
       statusCode: response.status
     };
@@ -23075,7 +23281,19 @@ function getQuotedQueryPhrase(query) {
   return match ? match[1].trim() : "";
 }
 
-function createOpenAIRequestError({ statusCode = null, type = "", code = "", message = "OpenAI API request failed.", category = "provider_error", timedOut = false, cause = null }) {
+function createOpenAIRequestError({
+  statusCode = null,
+  type = "",
+  code = "",
+  message = "OpenAI API request failed.",
+  category = "provider_error",
+  timedOut = false,
+  cause = null,
+  returnedModel = "",
+  providerUsage = null,
+  providerResponseId = "",
+  providerRequestId = ""
+}) {
   const error = new Error(sanitizeErrorText(message));
   error.openAIStatusCode = statusCode;
   error.openAIErrorType = sanitizeErrorText(type);
@@ -23083,6 +23301,10 @@ function createOpenAIRequestError({ statusCode = null, type = "", code = "", mes
   error.openAIErrorMessage = sanitizeErrorText(message);
   error.liveSearchErrorCategory = category;
   error.timedOut = timedOut;
+  error.returnedModel = cleanText(returnedModel);
+  error.providerUsage = providerUsage && typeof providerUsage === "object" ? providerUsage : null;
+  error.providerResponseId = cleanText(providerResponseId);
+  error.providerRequestId = cleanText(providerRequestId);
   if (cause) {
     error.cause = cause;
   }

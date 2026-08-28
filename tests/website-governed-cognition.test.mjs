@@ -360,6 +360,18 @@ test("the website success path persists exact bindings, reconstructs fresh, and 
     assert.equal(stored.artifact.cognitiveDisposition.boundary, "MENTOR_SUCCESS");
     assert.equal(stored.artifact.cognitiveDisposition.result, "INDEPENDENT_EVALUATION_REQUIRED");
     assert.equal(stored.artifact.cognitiveDisposition.candidatePresent, false);
+    assert.equal(stored.artifact.providerMetering.zeroRetryMode, true);
+    assert(stored.artifact.providerMetering.logicalRequestCount > 0);
+    assert.equal(
+      stored.artifact.providerMetering.physicalAttemptCount,
+      stored.artifact.providerMetering.logicalRequestCount
+    );
+    assert.equal(stored.artifact.providerMetering.physicalRetryAttemptCount, 0);
+    assert(stored.artifact.providerMetering.attempts.every((record) => (
+      record.maximumPhysicalAttemptsPerLogicalRequest === 1
+      && record.physicalAttemptCount <= 1
+      && record.physicalAttempts.every((attempt) => attempt.retry === false)
+    )));
     const finalizedRequest = JSON.parse(stored.requestBytes.toString("utf8"));
     assert.equal(finalizedRequest.requestType, "KATHERINES_EYE_FINALIZED_GENERATE_LISTING_REQUEST");
     assert.equal(finalizedRequest.route, "/api/generate-listing");
@@ -405,6 +417,10 @@ test("the website success path persists exact bindings, reconstructs fresh, and 
     assert.equal(fresh.requestSha256, stored.artifact.request.sha256);
     assert.equal(fresh.responseSha256, stored.artifact.response.sha256);
     assert.equal(fresh.canonicalResponseHash, stored.artifact.response.canonicalObjectHash);
+    assert.equal(fresh.providerMeteringHash, stored.artifact.providerMetering.meteringHash);
+    assert.equal(fresh.logicalProviderRequestCount, stored.artifact.providerMetering.logicalRequestCount);
+    assert.equal(fresh.physicalProviderAttemptCount, stored.artifact.providerMetering.physicalAttemptCount);
+    assert.equal(fresh.physicalProviderRetryAttemptCount, 0);
     assert.equal(fresh.cognitiveDisposition.result, "INDEPENDENT_EVALUATION_REQUIRED");
     assert.equal(fresh.successInventoryCount, 0);
     assert.equal(fresh.mentorObservationCount, 0);
@@ -672,6 +688,12 @@ test("the website failure path persists its real non-candidate disposition and r
     assert.equal(stored.artifact.cognitiveDisposition.boundary, "OPERATIONAL_FAILURE");
     assert.equal(stored.artifact.cognitiveDisposition.result, "OPERATIONAL_FAILURE_EXCLUDED_FROM_COGNITION");
     assert.equal(stored.artifact.cognitiveDisposition.candidatePresent, false);
+    assert.equal(stored.artifact.providerMetering.zeroRetryMode, true);
+    assert.equal(stored.artifact.providerMetering.physicalRetryAttemptCount, 0);
+    assert.equal(
+      stored.artifact.providerMetering.physicalAttemptCount,
+      stored.artifact.providerMetering.logicalRequestCount
+    );
     const providerCallCount = product.calls.length;
     const duplicate = await invoke(product.handler, request);
     assert.equal(duplicate.statusCode, first.statusCode);
@@ -688,6 +710,8 @@ test("the website failure path persists its real non-candidate disposition and r
     assert.equal(fresh.terminalKind, "FAILURE");
     assert.equal(fresh.cognitiveDisposition.boundary, "OPERATIONAL_FAILURE");
     assert.equal(fresh.cognitiveDisposition.result, "OPERATIONAL_FAILURE_EXCLUDED_FROM_COGNITION");
+    assert.equal(fresh.providerMeteringHash, stored.artifact.providerMetering.meteringHash);
+    assert.equal(fresh.physicalProviderRetryAttemptCount, 0);
     assert.equal(fresh.candidateOriginated, false);
     assert.equal(fresh.promotionAuthorized, false);
     assert.equal(fresh.productChangeAuthorized, false);
