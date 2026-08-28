@@ -4,7 +4,7 @@ import { createProgrammedCompetenceManifest } from "../../lib/cognitive-governor
 import { GovernedLearningAdapter } from "../../lib/cognitive-learning/adapter.js";
 import { installHardNetworkDenial } from "./hard-network-denial.mjs";
 
-const [root, learningScopeIdentity, episodeId] = process.argv.slice(2);
+const [root, learningScopeIdentity, episodeId, programmedBehaviorIdsSource = "[]"] = process.argv.slice(2);
 if (!root || !learningScopeIdentity || !episodeId) {
   throw new Error("root, learning scope, and episode identity are required");
 }
@@ -12,10 +12,10 @@ if (!root || !learningScopeIdentity || !episodeId) {
 const networkGuard = installHardNetworkDenial();
 try {
   const adapter = new GovernedLearningAdapter({ root, learningScopeIdentity });
+  const programmedBehaviorIds = JSON.parse(programmedBehaviorIdsSource);
   const reconstruction = await adapter.reconstructWebsiteCognition({
     episodeId,
-    frozenSuccessArtifacts: [],
-    programmedCompetenceManifest: createProgrammedCompetenceManifest([])
+    programmedCompetenceManifest: createProgrammedCompetenceManifest(programmedBehaviorIds)
   });
   const websiteOutcome = reconstruction.websiteOutcome;
   process.stdout.write(`${JSON.stringify({
@@ -26,9 +26,17 @@ try {
     canonicalResponseHash: websiteOutcome.artifact.response.canonicalObjectHash,
     terminalKind: websiteOutcome.artifact.terminalKind,
     statusCode: websiteOutcome.artifact.statusCode,
+    evaluationDisposition: reconstruction.websiteEvaluation?.artifact?.evaluationDisposition || "",
+    evaluationBytesSha256: reconstruction.websiteEvaluation?.artifact?.evaluation?.sha256 || "",
+    evaluationHash: reconstruction.websiteEvaluation?.artifact?.evaluation?.evaluationReportHash || "",
     cognitiveDisposition: reconstruction.cognitiveDisposition,
     successInventoryCount: reconstruction.successInventory?.authenticatedSuccessObservations?.length || 0,
     mentorObservationCount: reconstruction.mentorSuccessOrigination?.explanations?.length || 0,
+    mentorSuccessDisposition: reconstruction.mentorSuccessOrigination?.nonCandidateDispositions?.[0]?.disposition || "",
+    mentorFailureObservationHash: reconstruction.mentorFailureObservation?.observationHash || "",
+    mentorFailureDisposition: reconstruction.mentorFailureOrigination?.nonDiagnosticDispositions?.[0]?.disposition || "",
+    lessonCandidateCount: reconstruction.lessonCandidates?.length || 0,
+    lessonGateReviewCount: reconstruction.lessonGateReviews?.length || 0,
     candidateOriginated: reconstruction.candidateOriginated,
     qualificationAuthorized: reconstruction.qualificationAuthorized,
     promotionAuthorized: reconstruction.promotionAuthorized,

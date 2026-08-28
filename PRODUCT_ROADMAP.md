@@ -955,6 +955,8 @@
 - Added read-only authentication of frozen independently evaluated product-success artifacts against Katherine's existing HMAC ledger, binding input/image, provider responses, output, evaluator, model, adapter, policy/schema, active lesson bundle, provenance, and fatal-regression state
 - Added truthful Mentor success dispositions and pure novel-success explanation origination; programmed competence, expected success, insufficient causal support, external cause, and contradictory evidence produce no candidate
 - Added a cryptographically bound inert success-candidate transition through the existing Lesson Gate, with the originating episode excluded, two additional independent episodes and object classes required, immutable fixed trials, success-specific evidence acquisition, and zero persistence or lifecycle authority
+- Connected delayed local-beta website evaluations to the governed ledger with exact episode, product-outcome, request, raw-response, canonical-response, evaluator, criteria, evaluation-byte, evaluation-hash, and PASS/FAIL bindings plus exact-once replay and fail-closed artifact reconstruction
+- Routed authenticated website PASS through the existing success inventory and Mentor, authenticated FAIL through the existing causally unresolved failure Mentor boundary, and allowed only a genuinely novel Mentor success explanation to create an inert candidate for the unchanged Lesson Gate
 - Preserved the existing Governor adapter's unbound-nomination refusal, fresh-process reconstruction, measured retention, rejection, rollback, and post-rollback refusal without creating a second Governor, ledger, memory system, or learning framework
 
 ## Version 2.0
