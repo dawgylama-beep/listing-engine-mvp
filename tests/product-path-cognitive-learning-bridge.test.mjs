@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -120,9 +121,9 @@ async function productRuntime(adapter, evaluationId, episodeSequence) {
   return { governor, runtime, memoryContext };
 }
 
-async function recordOutcome(adapter, evaluationId, episodeSequence, seed) {
+async function recordOutcome(adapter, evaluationId, episodeSequence, seed, overrides = {}) {
   const authority = await productRuntime(adapter, evaluationId, episodeSequence);
-  const responseHash = seed.repeat(64);
+  const responseHash = overrides.responseHash || seed.repeat(64);
   const originalEvidenceIdentity = String.fromCharCode(seed.charCodeAt(0) + 1).repeat(64);
   const cognitiveEpisodeHash = String.fromCharCode(seed.charCodeAt(0) + 2).repeat(64);
   await adapter.recordProductOutcome({
@@ -568,7 +569,43 @@ test("authenticated visible-object-class failure reaches the same Mentor boundar
   const adapter = new GovernedLearningAdapter({ root, learningScopeIdentity: "product-identity-feedback-scope" });
   const networkGuard = installHardNetworkDenial();
   try {
-    const outcome = await recordOutcome(adapter, "identity-product-outcome", 1, "7");
+    const returnedIdentity = "The returned broad identity omitted the authenticated visible object class.";
+    const productResponse = { valuation: { identifiedItem: returnedIdentity } };
+    const productResponseArtifactSource = `${JSON.stringify(productResponse, null, 2)}\n`;
+    const productResponseArtifactSha256 = createHash("sha256")
+      .update(productResponseArtifactSource, "utf8")
+      .digest("hex");
+    const evaluationArtifact = {
+      object_type: "KATHERINE_VISIBLE_OUTCOME_EVALUATION",
+      schema_version: "1.0.0",
+      rubric_id: "KATHERINE_VISIBLE_OUTCOME_EVALUATOR_V1",
+      independent: true,
+      provider_authored: false,
+      self_evaluation: false,
+      episode_id: "identity-product-outcome",
+      cohort: "ORIGINATION",
+      ground_truth_object_class: "household vessel",
+      ground_truth_transmitted_to_product: false,
+      checks: {
+        http_200_product_response: true,
+        product_output_hash_authenticated: true,
+        cognitive_and_experience_integrity_present: true,
+        visible_object_class_or_unambiguous_synonym_supported: false,
+        contradictory_object_class_detected: false,
+        unresolved_fatal_regression: false
+      },
+      result: "FAILURE",
+      failure_preservation: ["INSUFFICIENT_IDENTITY_SUPPORT"],
+      product_output_sha256: productResponseArtifactSha256,
+      evaluated_at: fixedTime
+    };
+    const evaluationArtifactSource = `${JSON.stringify(evaluationArtifact, null, 2)}\n`;
+    const evaluationArtifactSha256 = createHash("sha256")
+      .update(evaluationArtifactSource, "utf8")
+      .digest("hex");
+    const outcome = await recordOutcome(adapter, "identity-product-outcome", 1, "7", {
+      responseHash: sha256Object(productResponse)
+    });
     const envelope = await adapter.authorizeProductOutcomeFeedback({
       episodeId: "identity-product-outcome",
       responseHash: outcome.responseHash,
@@ -576,15 +613,15 @@ test("authenticated visible-object-class failure reaches the same Mentor boundar
       failedClaim: {
         claimPath: "valuation.identifiedItem",
         claimClass: "VISIBLE_OBJECT_CLASS_IDENTIFICATION",
-        assertedValue: "The returned broad identity omitted the authenticated visible object class.",
+        assertedValue: returnedIdentity,
         failureKind: "FAILED_VISIBLE_OBJECT_CLASS_IDENTIFICATION"
       },
       correction: {
-        correctedState: "VISIBLE_OBJECT_CLASS_SUPPORTED",
+        correctedState: "VISIBLE_OBJECT_CLASS_HOUSEHOLD_VESSEL",
         evidenceProvenance: {
           authorityClass: "OWNER_AUTHORIZED_INDEPENDENT_EVALUATOR",
           sourceType: "AUTHENTICATED_FROZEN_IMAGE_AND_PRODUCT_RESPONSE_REVIEW",
-          sourceIdentity: "e".repeat(64),
+          sourceIdentity: evaluationArtifactSha256,
           providerAuthored: false
         }
       },
@@ -640,6 +677,63 @@ test("authenticated visible-object-class failure reaches the same Mentor boundar
     assert.equal(
       gateCandidate.origin.governedLearningBinding.mentorDecisionIdentity,
       binding.mentorDecisionIdentity
+    );
+    const freshAdapter = new GovernedLearningAdapter({
+      root,
+      learningScopeIdentity: "product-identity-feedback-scope"
+    });
+    const adjudicationRequest = {
+      ...binding,
+      evaluationArtifactSource,
+      productResponseArtifactSource
+    };
+    const adjudication = await freshAdapter.adjudicateMentorIdentityCausality(adjudicationRequest);
+    assert.equal(adjudication.artifactBinding.evaluationArtifactSha256, evaluationArtifactSha256);
+    assert.equal(adjudication.artifactBinding.productResponseArtifactSha256, productResponseArtifactSha256);
+    assert.equal(adjudication.artifactBinding.outcomeResponseHash, sha256Object(productResponse));
+    assert.equal(adjudication.observation.outcome, "FAILURE");
+    assert.equal(adjudication.observation.failureClassification, "UNSUPPORTED_OBJECT_IDENTITY");
+    assert.equal(adjudication.observation.causalMechanism, "UNRESOLVED_TERMINAL_FAILURE");
+    assert.equal(adjudication.observation.causalityDomain, "UNRESOLVED");
+    assert.equal(adjudication.observation.eligibleForLessonSupport, false);
+    assert.equal(adjudication.mentorReport.authenticatedObservationCount, 1);
+    assert.equal(adjudication.mentorReport.diagnoses.length, 0);
+    assert.deepEqual(adjudication.mentorReport.nonDiagnosticDispositions.map((entry) => entry.disposition), [
+      "INSUFFICIENT_CAUSAL_SUPPORT"
+    ]);
+    assert.equal(adjudication.mentorDisposition, "INSUFFICIENT_CAUSAL_SUPPORT");
+    assert.equal(adjudication.terminalDisposition, "CAUSAL_ATTRIBUTION_INSUFFICIENT");
+    assert.equal(adjudication.candidateOriginated, false);
+    assert.deepEqual(new Set([
+      adjudication.persistenceAuthorized,
+      adjudication.qualificationAuthorized,
+      adjudication.promotionAuthorized,
+      adjudication.runtimeConsumptionAuthorized,
+      adjudication.productChangeAuthorized,
+      adjudication.providerLifecycleAuthority
+    ]), new Set([false]));
+    assert.doesNotMatch(JSON.stringify(adjudication), /household vessel|VISIBLE_OBJECT_CLASS_HOUSEHOLD_VESSEL/i);
+    await assert.rejects(
+      freshAdapter.adjudicateMentorIdentityCausality({ ...adjudicationRequest, causalityDomain: "INTERNAL" }),
+      (error) => error.code === "LEARNING_UNKNOWN_FIELD"
+    );
+    const causalInjection = structuredClone(evaluationArtifact);
+    causalInjection.causal_mechanism = "QUALIFIED_EVIDENCE_LOST_BEFORE_FINALIZATION";
+    await assert.rejects(
+      freshAdapter.adjudicateMentorIdentityCausality({
+        ...adjudicationRequest,
+        evaluationArtifactSource: `${JSON.stringify(causalInjection, null, 2)}\n`
+      }),
+      (error) => error.code === "LEARNING_UNKNOWN_FIELD"
+    );
+    await assert.rejects(
+      freshAdapter.adjudicateMentorIdentityCausality({
+        ...adjudicationRequest,
+        productResponseArtifactSource: `${JSON.stringify({
+          valuation: { identifiedItem: "Substituted product output." }
+        }, null, 2)}\n`
+      }),
+      (error) => error.code === "MENTOR_IDENTITY_EVALUATION_BINDING_INVALID"
     );
     assert.throws(
       () => buildEvidenceAcquisitionRequirement(gateCandidate),
