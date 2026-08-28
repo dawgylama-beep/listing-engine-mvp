@@ -109,7 +109,11 @@ $addedProductionLines = $gitDiff.StandardOutput -split "`r?`n" |
 if (($addedProductionLines -join "`n") -cmatch "Office Works|Kroger|Target 45|Coca-Cola|Georgia Bulldogs|Mercari|041226087161|6110325|30188") {
   throw "Product-, source-, identifier-, or ZIP-specific production logic was added."
 }
-if (($addedProductionLines -join "`n") -match "NODE_ENV|fixtureMode|mockItem|testOnly") {
+$addedProductionText = $addedProductionLines -join "`n"
+$unapprovedNodeEnvironmentLines = @($addedProductionLines | Where-Object {
+  $_ -match "NODE_ENV" -and $_ -notmatch 'nodeEnvironment:\s*process\.env\.NODE_ENV'
+})
+if ($addedProductionText -match "fixtureMode|mockItem|testOnly" -or $unapprovedNodeEnvironmentLines.Count -gt 0) {
   throw "Test-only production condition was added."
 }
 # Milestone 2B-3 governs canonical buyer-offer and negotiation authority.

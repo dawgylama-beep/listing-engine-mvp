@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import path from "node:path";
 import {
   CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS,
   createCanonicalRecoveryView,
@@ -20,6 +21,7 @@ import {
   projectCanonicalEvidenceIdentity,
   selectBoundedComparableSearchPlan,
   sha256Object,
+  stableObjectJson,
   stableInternalId,
   withObjectSearchPlan
 } from "../lib/object-intelligence/index.js";
@@ -43,6 +45,7 @@ import {
   recordCognitiveActionOutcome,
   runCanonicalCognitiveRuntime
 } from "../lib/cognitive-governor/index.js";
+import { createProgrammedCompetenceManifest } from "../lib/cognitive-governor/mentor-success-origination.js";
 import {
   GovernedLearningAdapter,
   classifyGovernedResearchApplicability,
@@ -72,6 +75,8 @@ const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
 const MAX_MODEL_REQUEST_ESTIMATE = 360000;
 const IMAGE_TOKEN_ESTIMATE_PER_PHOTO = 2500;
 const DEFAULT_VISUAL_IDENTITY_MODEL = "gpt-5.6-luna";
+const WEBSITE_COGNITION_LOCAL_BETA_MODE = "LOCAL_BETA";
+const WEBSITE_COGNITION_DISABLED_MODE = "DISABLED";
 const VISUAL_IDENTITY_REASONING_EFFORT = "medium";
 const VISUAL_IDENTITY_IMAGE_DETAIL = "original";
 const SAFE_INPUT_TOO_LARGE_MESSAGE = "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
@@ -98,6 +103,7 @@ const productionAnalysisAdapters = Object.freeze({
   nowMilliseconds: () => Date.now(),
   nowIso: () => new Date().toISOString(),
   createAnalysisId: () => `analysis-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  getWebsiteCognitionMode: () => configuredWebsiteCognition().mode,
   getGovernedLearningAdapter: () => configuredGovernedLearningAdapter(),
   onModelRequestBudget: () => {},
   onFinalEvidenceResult: () => {},
@@ -117,6 +123,54 @@ function configuredGovernedLearningAdapter() {
   return configuredLearningAdapters.get(root);
 }
 
+export function resolveWebsiteCognitionConfiguration({
+  mode = "",
+  root = "",
+  vercelEnvironment = "",
+  nodeEnvironment = ""
+} = {}) {
+  const production = String(vercelEnvironment || "").trim().toLowerCase() === "production"
+    || String(nodeEnvironment || "").trim().toLowerCase() === "production";
+  if (production) {
+    return Object.freeze({ mode: WEBSITE_COGNITION_DISABLED_MODE, root: "", production: true });
+  }
+  const normalizedMode = String(mode || "").trim().toUpperCase();
+  if (!normalizedMode) {
+    return Object.freeze({ mode: WEBSITE_COGNITION_DISABLED_MODE, root: "", production: false });
+  }
+  if (normalizedMode !== WEBSITE_COGNITION_LOCAL_BETA_MODE) {
+    const error = new Error("Website cognition mode is invalid.");
+    error.code = "WEBSITE_COGNITION_MODE_INVALID";
+    throw error;
+  }
+  const normalizedRoot = String(root || "").trim();
+  if (!normalizedRoot || !path.isAbsolute(normalizedRoot) || normalizedRoot.includes("\0")) {
+    const error = new Error("A valid absolute learning root is required for local-beta website cognition.");
+    error.code = "WEBSITE_COGNITION_ROOT_INVALID";
+    throw error;
+  }
+  return Object.freeze({
+    mode: WEBSITE_COGNITION_LOCAL_BETA_MODE,
+    root: path.resolve(normalizedRoot),
+    production: false
+  });
+}
+
+function configuredWebsiteCognition() {
+  try {
+    return resolveWebsiteCognitionConfiguration({
+      mode: process.env.KATHERINES_EYE_GOVERNED_COGNITION_MODE,
+      root: process.env.KATHERINES_EYE_LEARNING_ROOT,
+      vercelEnvironment: process.env.VERCEL_ENV,
+      nodeEnvironment: process.env.NODE_ENV
+    });
+  } catch (error) {
+    error.httpStatusCode = 500;
+    error.clientSafeMessage = "Katherine’s Eye local governed cognition is not configured correctly.";
+    throw error;
+  }
+}
+
 function currentAnalysisAdapters() {
   return analysisAdapterContext.getStore() || productionAnalysisAdapters;
 }
@@ -131,7 +185,9 @@ export function createGenerateListingHandler(adapters = {}) {
     getGovernedLearningMode: adapters.getGovernedLearningMode
       || productionAnalysisAdapters.getGovernedLearningMode,
     getGovernedTrialRequest: adapters.getGovernedTrialRequest
-      || productionAnalysisAdapters.getGovernedTrialRequest
+      || productionAnalysisAdapters.getGovernedTrialRequest,
+    getWebsiteCognitionMode: adapters.getWebsiteCognitionMode
+      || productionAnalysisAdapters.getWebsiteCognitionMode
   });
   return (req, res) => analysisAdapterContext.run(resolvedAdapters, () => {
     let initializationError = null;
@@ -146,10 +202,121 @@ export function createGenerateListingHandler(adapters = {}) {
     }
     const terminalContext = createEvaluationTerminalContext({ evaluationId });
     Object.defineProperty(terminalContext, "initializationError", { value: initializationError, enumerable: false });
+    Object.defineProperty(terminalContext, "websiteCognition", {
+      value: null,
+      writable: true,
+      enumerable: false
+    });
     return evaluationTerminalContext.run(
       terminalContext,
       () => handleGenerateListingRequest(req, res)
     );
+  });
+}
+
+function finalizedWebsiteRequestBytes({
+  analysisId,
+  reportType,
+  platform,
+  notes,
+  photos,
+  buyerIntake
+} = {}) {
+  return Buffer.from(stableObjectJson({
+    schemaVersion: "1.0",
+    requestType: "KATHERINES_EYE_FINALIZED_GENERATE_LISTING_REQUEST",
+    method: "POST",
+    route: "/api/generate-listing",
+    analysisId,
+    reportType,
+    platform,
+    notes,
+    photos,
+    buyerIntake
+  }), "utf8");
+}
+
+function websiteCognitionMode() {
+  const mode = cleanText(currentAnalysisAdapters().getWebsiteCognitionMode?.()).toUpperCase()
+    || WEBSITE_COGNITION_DISABLED_MODE;
+  if (![WEBSITE_COGNITION_LOCAL_BETA_MODE, WEBSITE_COGNITION_DISABLED_MODE].includes(mode)) {
+    throw createHandlerResponseError({
+      statusCode: 500,
+      code: "WEBSITE_COGNITION_MODE_INVALID",
+      message: "Katherine’s Eye local governed cognition is not configured correctly."
+    });
+  }
+  return mode;
+}
+
+async function prepareWebsiteCognition({
+  analysisId,
+  reportType,
+  platform,
+  notes,
+  photos,
+  buyerIntake
+} = {}) {
+  if (websiteCognitionMode() !== WEBSITE_COGNITION_LOCAL_BETA_MODE) return null;
+  const adapter = currentAnalysisAdapters().getGovernedLearningAdapter?.() || null;
+  if (
+    !adapter
+    || typeof adapter.websiteOutcome !== "function"
+    || typeof adapter.productOutcome !== "function"
+    || typeof adapter.recordWebsiteOutcome !== "function"
+    || typeof adapter.reconstructWebsiteCognition !== "function"
+  ) {
+    throw createHandlerResponseError({
+      statusCode: 500,
+      code: "WEBSITE_COGNITION_ADAPTER_REQUIRED",
+      message: "Katherine’s Eye local governed cognition is not configured correctly."
+    });
+  }
+  const requestBytes = finalizedWebsiteRequestBytes({
+    analysisId,
+    reportType,
+    platform,
+    notes,
+    photos,
+    buyerIntake
+  });
+  const existing = await adapter.websiteOutcome(analysisId, { requestBytes });
+  if (!existing && await adapter.productOutcome(analysisId)) {
+    throw Object.assign(new Error("A product outcome exists without its authenticated website terminal record."), {
+      code: "WEBSITE_OUTCOME_INCOMPLETE_WRITE"
+    });
+  }
+  return Object.freeze({ adapter, requestBytes, existing });
+}
+
+function responseBytes(payload) {
+  return Buffer.from(JSON.stringify(payload), "utf8");
+}
+
+function websiteCognitiveDisposition({ error, governedLearning } = {}) {
+  const binding = governedLearning?.websiteCognitionBinding || {};
+  const failureId = cleanText(binding.failureId);
+  const identityConfirmationRequired = error?.identityConfirmationRequired === true;
+  const cognitiveFailure = governedLearning?.failureTaxonomy?.cognitiveEntryAuthorized === true;
+  return Object.freeze({
+    boundary: identityConfirmationRequired
+      ? "EXPECTED_STOP"
+      : cognitiveFailure
+        ? "MENTOR_FAILURE"
+        : "OPERATIONAL_FAILURE",
+    result: identityConfirmationRequired
+      ? "IDENTITY_CONFIRMATION_REQUIRED"
+      : cleanText(governedLearning?.lifecycleResult || "OPERATIONAL_FAILURE_EXCLUDED_FROM_COGNITION"),
+    failureId,
+    diagnosisId: failureId ? cleanText(binding.diagnosisId) : "",
+    candidateId: failureId ? cleanText(binding.candidateId) : "",
+    mentorDecisionIdentity: failureId ? cleanText(binding.mentorDecisionIdentity) : "",
+    candidatePresent: Boolean(failureId && binding.candidateId),
+    qualificationAuthorized: false,
+    promotionAuthorized: false,
+    runtimeConsumptionAuthorized: false,
+    productChangeAuthorized: false,
+    providerLifecycleAuthority: false
   });
 }
 
@@ -1197,6 +1364,24 @@ async function handleGenerateListingRequest(req, res) {
     }
 
     const safePhotos = validateAndNormalizePhotos(photos);
+    const websiteCognition = await prepareWebsiteCognition({
+      analysisId,
+      reportType,
+      platform,
+      notes,
+      photos: safePhotos,
+      buyerIntake
+    });
+    currentEvaluationTerminalContext().websiteCognition = websiteCognition;
+    if (websiteCognition?.existing) {
+      completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
+      beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      const replayPayload = JSON.parse(websiteCognition.existing.responseBytes.toString("utf8"));
+      const response = res.status(websiteCognition.existing.artifact.statusCode).json(replayPayload);
+      completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
+      completeTerminalContext(currentEvaluationTerminalContext());
+      return response;
+    }
     const apiKey = currentAnalysisAdapters().getOpenAIApiKey();
 
     if (!apiKey) {
@@ -1236,7 +1421,8 @@ async function handleGenerateListingRequest(req, res) {
       analysisId,
       experienceRecord,
       cognitiveDiagnostics,
-      researchDiagnostics: report.searchDiagnostics?.governedResearchStrategy
+      researchDiagnostics: report.searchDiagnostics?.governedResearchStrategy,
+      websiteCognition
     });
     const response = res.status(200).json(payload);
     completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
@@ -1261,42 +1447,77 @@ async function handleGenerateListingRequest(req, res) {
         }
       : await recordGovernedProductFailure(failureEnvelope);
     const diagnostics = { terminalFailure: failureEnvelope, governedLearning };
+    let responseStatus = 502;
+    let payload;
     if (error.identityConfirmationRequired) {
-      return res.status(409).json({
+      responseStatus = 409;
+      payload = {
         action: "identity_confirmation_required",
         error: error.message,
         confirmation: sanitizeClientVisiblePayload(error.confirmation || {}),
         diagnostics
-      });
-    }
-
-    if (error.clientSafeCode) {
-      return res.status(error.clientSafeStatusCode || 413).json({
+      };
+    } else if (error.clientSafeCode) {
+      responseStatus = error.clientSafeStatusCode || 413;
+      payload = {
         error: error.clientSafeMessage || SAFE_INPUT_TOO_LARGE_MESSAGE,
         code: error.clientSafeCode,
         diagnostics
-      });
-    }
-
-    if (error.httpStatusCode) {
-      return res.status(error.httpStatusCode).json({
+      };
+    } else if (error.httpStatusCode) {
+      responseStatus = error.httpStatusCode;
+      payload = {
         error: error.clientSafeMessage || SAFE_PROVIDER_ERROR_MESSAGE,
         code: failureEnvelope.internalCode,
         diagnostics
-      });
+      };
+    } else {
+      payload = {
+        error: SAFE_PROVIDER_ERROR_MESSAGE,
+        code: failureEnvelope.internalCode,
+        diagnostics
+      };
     }
-
-    return res.status(502).json({
-      error: SAFE_PROVIDER_ERROR_MESSAGE,
-      code: failureEnvelope.internalCode,
-      diagnostics
-    });
+    const context = currentEvaluationTerminalContext();
+    const websiteCognition = context?.websiteCognition;
+    const governor = context?.governor;
+    const websitePersistenceFailure = String(error?.code || "").startsWith("WEBSITE_OUTCOME_");
+    if (
+      websiteCognition
+      && !feedbackBoundaryFailure
+      && !websitePersistenceFailure
+      && governor?.governedLearningAdapter === websiteCognition.adapter
+      && governor?.governedLearningRuntime
+    ) {
+      try {
+        await websiteCognition.adapter.recordWebsiteOutcome({
+          governor,
+          runtime: governor.governedLearningRuntime,
+          episodeId: governor.evaluationId,
+          episodeSequence: governor.governedLearningEpisodeSequence,
+          terminalKind: error.identityConfirmationRequired ? "EXPECTED_STOP" : "FAILURE",
+          statusCode: responseStatus,
+          requestBytes: websiteCognition.requestBytes,
+          responseBytes: responseBytes(payload),
+          cognitiveDisposition: websiteCognitiveDisposition({ error, governedLearning }),
+          createdAt: currentAnalysisAdapters().nowIso()
+        });
+      } catch (persistenceError) {
+        responseStatus = 502;
+        payload = {
+          error: SAFE_PROVIDER_ERROR_MESSAGE,
+          code: cleanText(persistenceError?.code || "WEBSITE_OUTCOME_PERSISTENCE_REFUSED"),
+          diagnostics
+        };
+      }
+    }
+    return res.status(responseStatus).json(payload);
   }
 }
 
 export function buildProductGovernedLearningProjection(runtime, lifecycle = {}) {
   const authoritative = projectAuthoritativeMemoryStatus(runtime);
-  return Object.freeze({
+  const projection = {
     adapterIdentity: runtime.governedLearning.adapterIdentity,
     ...authoritative,
     trialCandidateIds: runtime.governedLearning.trialCandidateIds,
@@ -1308,7 +1529,17 @@ export function buildProductGovernedLearningProjection(runtime, lifecycle = {}) 
     failureTaxonomy: lifecycle.failureTaxonomy || null,
     promotionAuthorized: lifecycle.promotionAuthorized === true,
     providerLifecycleAuthority: false
+  };
+  Object.defineProperty(projection, "websiteCognitionBinding", {
+    value: Object.freeze({
+      failureId: cleanText(lifecycle.failureId),
+      diagnosisId: cleanText(lifecycle.diagnosisId),
+      candidateId: cleanText(lifecycle.candidateId),
+      mentorDecisionIdentity: cleanText(runtime.mentorDecisionIdentity)
+    }),
+    enumerable: false
   });
+  return Object.freeze(projection);
 }
 
 export function classifyGovernedProductFailure(failureEnvelope = {}) {
@@ -7323,14 +7554,16 @@ async function recordSuccessfulProductOutcome(payload, {
   analysisId,
   experienceRecord,
   cognitiveDiagnostics,
-  researchDiagnostics
+  researchDiagnostics,
+  websiteCognition = null
 } = {}) {
   const governor = currentEvaluationTerminalContext()?.governor;
   const adapter = governor?.governedLearningAdapter;
   const runtime = governor?.governedLearningRuntime;
   if (!adapter || !runtime) return null;
   const cognitiveEpisode = cognitiveDiagnostics?.cognitiveEpisode;
-  return adapter.recordProductOutcome({
+  const createdAt = currentAnalysisAdapters().nowIso();
+  const outcome = await adapter.recordProductOutcome({
     governor,
     runtime,
     episodeId: analysisId,
@@ -7344,8 +7577,49 @@ async function recordSuccessfulProductOutcome(payload, {
     frozenPreInterventionStateHash: researchDiagnostics?.frozenPreInterventionStateHash || "",
     researchPlanStateHash: researchDiagnostics?.researchPlanAfterHash || researchDiagnostics?.researchPlanBeforeHash || "",
     researchApplicabilityDecisionHash: researchDiagnostics?.researchApplicabilityDecision?.applicabilityDecisionHash || "",
-    createdAt: currentAnalysisAdapters().nowIso()
+    createdAt
   });
+  if (!websiteCognition) return outcome;
+  if (websiteCognition.adapter !== adapter) {
+    throw Object.assign(new Error("Website cognition adapter identity changed during the request."), {
+      code: "WEBSITE_OUTCOME_ADAPTER_IDENTITY_MISMATCH"
+    });
+  }
+  const exactResponseBytes = responseBytes(payload);
+  const recorded = await adapter.recordWebsiteOutcome({
+    governor,
+    runtime,
+    episodeId: analysisId,
+    episodeSequence: governor.governedLearningEpisodeSequence,
+    terminalKind: "SUCCESS",
+    statusCode: 200,
+    requestBytes: websiteCognition.requestBytes,
+    responseBytes: exactResponseBytes,
+    productOutcomeId: outcome.outcomeId,
+    cognitiveDisposition: {
+      boundary: "MENTOR_SUCCESS",
+      result: "INDEPENDENT_EVALUATION_REQUIRED",
+      failureId: "",
+      diagnosisId: "",
+      candidateId: "",
+      mentorDecisionIdentity: "",
+      candidatePresent: false,
+      qualificationAuthorized: false,
+      promotionAuthorized: false,
+      runtimeConsumptionAuthorized: false,
+      productChangeAuthorized: false,
+      providerLifecycleAuthority: false
+    },
+    createdAt
+  });
+  const reconstruction = await adapter.reconstructWebsiteCognition({
+    episodeId: analysisId,
+    requestBytes: websiteCognition.requestBytes,
+    responseBytes: exactResponseBytes,
+    frozenSuccessArtifacts: [],
+    programmedCompetenceManifest: createProgrammedCompetenceManifest([])
+  });
+  return Object.freeze({ outcome, recorded, reconstruction });
 }
 
 function productFeedbackSnapshot(feedbackEnvelope, evaluationId) {
