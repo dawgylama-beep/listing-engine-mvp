@@ -8,3 +8,5 @@ qualification/synthetic-executive/episodes/visible/KE-P7-H03/artifacts/authoriza
 qualification/synthetic-executive/episodes/visible/KE-P7-H04/artifacts/authorization-before-attempt.txt text eol=lf
 qualification/synthetic-executive/episodes/visible/KE-P7-H05/artifacts/authorization-before-attempt.txt text eol=lf
 qualification/synthetic-executive/episodes/visible/KE-P7-H06/artifacts/authorization-before-attempt.txt text eol=lf
+lib/cognitive-learning/independent-evaluator-authority/public/** -text
+tests/fixtures/independent-evaluator-public-authority/** -text

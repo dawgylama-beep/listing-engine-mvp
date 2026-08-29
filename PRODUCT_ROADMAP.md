@@ -965,6 +965,9 @@
 - Added bounded, deterministic exact-and-close direct-offer hydration with authenticated price provenance, item-specific URL requirements, and explicit ceiling and no-evidence diagnostics
 - Retained supported close comparables without claiming exact maker or model identity, strengthened canonical-offer deduplication, and kept category-only evidence outside pricing authority
 - Required retained price-bearing evidence before research can be classified as clear, preserving numeric suppression and `insufficient` pricing when qualified evidence is absent
+- Pinned the independently commissioned Ed25519 evaluator public key and signed authority manifest, including the frozen evaluator, rubric, source-checkpoint, threshold, dimension, and validity identities
+- Required signed customer-photo evaluations to authenticate every score and image/request/response binding before Katherine's HMAC ledger can store them; unsigned, caller-asserted, self-authenticated, substituted, replayed, duplicate-sequence, expired, or untrusted records fail closed
+- Kept signed conformance fixtures outside product evaluation ingestion and kept authenticated PASS results in the product-quality lane unless separate causal evidence supports the existing governed cognition chain
 
 ## Version 2.0
 - User accounts

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "PUBLIC_EVALUATOR_PACKAGE_MANIFEST",
+  "packageId": "KE-INDEPENDENT-CUSTOMER-PHOTO-EVALUATOR-AUTHORITY-E7839920EA546777-PUBLIC-PACKAGE",
+  "description": "Portable public verification package; contains no private signing material.",
+  "hashConvention": "Artifact hashes are raw-file SHA-256. self.sha256 is SHA-256 of canonical sorted JSON with self.sha256 empty and the exact final self.byteCount retained.",
+  "self": {
+    "path": "public-package-manifest.json",
+    "byteCount": 2221,
+    "sha256": "b3d7621e8687a16eb6905f45266d6b260c22d3e419e89aceb79fb49b202f9ec0"
+  },
+  "artifacts": [
+    {
+      "path": "authority-manifest.json",
+      "byteCount": 2838,
+      "sha256": "0bcd544082d8aa1487fc76f9396bf63fb31e48557c7eabac4617cd86cc7e2a88"
+    },
+    {
+      "path": "authority-manifest.sig",
+      "byteCount": 64,
+      "sha256": "eeb7e06b2b783e8bedb63b065731d10b009be344911a0799fc76430b6b4b30ae"
+    },
+    {
+      "path": "conformance.mjs",
+      "byteCount": 7193,
+      "sha256": "97dafe07e947a693f6e3572ce896721bdb7623763c81d3b2f23e596918138bcf"
+    },
+    {
+      "path": "evaluator.mjs",
+      "byteCount": 9956,
+      "sha256": "14e7c73ae93f8bd79cc0a9a49446879b3a14ee5d4fe17ffa62fa2cf80ac5c21b"
+    },
+    {
+      "path": "fixtures/evaluation-sequence-1.json",
+      "byteCount": 3536,
+      "sha256": "38d444e6ba88e03bd3d41565e005d8b3768e6867a900dbb5b528bdb6f99f515e"
+    },
+    {
+      "path": "fixtures/evaluation-sequence-2.json",
+      "byteCount": 3560,
+      "sha256": "7f13ff23bdc80c32862c99b0c95bffc2dd3c76553fb57a491cc9824a05deec6c"
+    },
+    {
+      "path": "public-key.pem",
+      "byteCount": 113,
+      "sha256": "5f7b05db0eafc0db660d8e116e2431c306525baf2a796d32a12b257dbb3b6f18"
+    },
+    {
+      "path": "README.md",
+      "byteCount": 2061,
+      "sha256": "14d11b10b090af1ebc1d8a0675a4fe74ff59fac2925128d5ed66197d5ba25c78"
+    },
+    {
+      "path": "rubric-v1.json",
+      "byteCount": 5617,
+      "sha256": "52753055891fdd06bc4fd555bb3c81936e55cb1424598b5b582c6b0cf4edeb1f"
+    },
+    {
+      "path": "verifier.mjs",
+      "byteCount": 12260,
+      "sha256": "fa329efb16cd63855771fc6c1f7b083ce7b56303bf2e176aec8cd16eaba3b123"
+    }
+  ]
+}

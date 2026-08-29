@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "INDEPENDENT_CUSTOMER_PHOTO_EVALUATION",
+  "evaluationClass": "CONFORMANCE_FIXTURE",
+  "evaluator": {
+    "id": "KATHERINE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_V1",
+    "version": "1.0.0"
+  },
+  "authorityManifest": {
+    "id": "KE-INDEPENDENT-CUSTOMER-PHOTO-EVALUATOR-AUTHORITY-E7839920EA546777",
+    "sha256": "c8fe2074062c0d9c4d60f5f3520a4446c02dafccd0dffb1460d39a4249a99386"
+  },
+  "productBinding": {
+    "product": "Katherine's Eye",
+    "version": "1.12.52",
+    "commit": "0b13ffb64eca5d48a921413efa2bd3ffe6f4e5df",
+    "tree": "cf36d83355ed6cbab80e86bc388e5ecdf84674a6"
+  },
+  "rubric": {
+    "id": "KATHERINE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_RUBRIC_V1",
+    "sha256": "52753055891fdd06bc4fd555bb3c81936e55cb1424598b5b582c6b0cf4edeb1f",
+    "passThreshold": 0.7
+  },
+  "bindings": {
+    "image": {
+      "sha256": "097062dc4fc45a21670c961cae8dc9e70c6b7006a6a7cb446946d3b224212f23",
+      "byteCount": 2
+    },
+    "requestSha256": "77b38b7d1aa05151f5eb768ad9365b3657cc9748f5934f4246fa8295d1cfd183",
+    "rawResponseSha256": "52229835f72a7506d81231e778cc436b2532137e0c47ba7622303ea806084c12",
+    "canonicalResponseHash": "a0a74d2b948e3040b349886f29601c3abd0985eba3640c1f356d42e5a149f059"
+  },
+  "scores": {
+    "identityAccuracy": 0.75,
+    "purposeAccuracy": 0.75,
+    "conditionAccuracy": 0.75,
+    "evidenceTraceability": 0.75,
+    "uncertaintyCalibration": 0.75,
+    "decisionUsefulness": 0.75,
+    "schemaCoverage": 0.75,
+    "regressionSafety": 0.75
+  },
+  "disposition": "PASS",
+  "evidenceReferences": [
+    "conformance://2/condition.defects",
+    "conformance://2/condition.no-inference",
+    "conformance://2/condition.pricing-impact",
+    "conformance://2/condition.visible-facts",
+    "conformance://2/decision.concise",
+    "conformance://2/decision.direct-answer",
+    "conformance://2/decision.next-step",
+    "conformance://2/decision.price-context",
+    "conformance://2/evidence.claim-links",
+    "conformance://2/evidence.comparable-provenance",
+    "conformance://2/evidence.disposition-separation",
+    "conformance://2/evidence.no-fabrication",
+    "conformance://2/identity.attributes",
+    "conformance://2/identity.evidence-alignment",
+    "conformance://2/identity.no-unsupported-terms",
+    "conformance://2/identity.primary-object",
+    "conformance://2/purpose.action",
+    "conformance://2/purpose.context",
+    "conformance://2/purpose.no-drift",
+    "conformance://2/purpose.route",
+    "conformance://2/regression.no-harmful-change",
+    "conformance://2/regression.no-provider-invention",
+    "conformance://2/regression.no-secret-exposure",
+    "conformance://2/regression.safeguards",
+    "conformance://2/schema.hash-bindings",
+    "conformance://2/schema.machine-valid",
+    "conformance://2/schema.required-fields",
+    "conformance://2/schema.required-sections",
+    "conformance://2/uncertainty.confidence",
+    "conformance://2/uncertainty.material-unknowns",
+    "conformance://2/uncertainty.no-overclaim",
+    "conformance://2/uncertainty.range"
+  ],
+  "fatalFailures": [],
+  "nonce": "8060654e-452b-4cbc-abaa-daf96b805679",
+  "sequence": 2,
+  "evaluatedAt": "2026-08-29T18:16:48.110Z",
+  "integrity": {
+    "canonicalization": "RFC8785-LIKE-SORTED-JSON-V1",
+    "payloadSha256": "a153a0fbf91403541c80fe3661a3cb96e1458dc85de0da3e2bd2867357e5e4e7",
+    "signatureAlgorithm": "Ed25519",
+    "keyId": "KE-ICEA-ED25519-E7839920EA5467778980",
+    "signatureBase64": "vl3t2rY92jALi/byUYGRPj5KIIOCfh/6bJwONT0q6PTpbLOsrAabTY0L5LmPbCQQWUn3+PvjPW/CwoD77ERWCw=="
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "INDEPENDENT_EVALUATOR_AUTHORITY_MANIFEST",
+  "manifestId": "KE-INDEPENDENT-CUSTOMER-PHOTO-EVALUATOR-AUTHORITY-E7839920EA546777",
+  "evaluator": {
+    "id": "KATHERINE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_V1",
+    "version": "1.0.0"
+  },
+  "productBinding": {
+    "product": "Katherine's Eye",
+    "version": "1.12.52",
+    "commit": "0b13ffb64eca5d48a921413efa2bd3ffe6f4e5df",
+    "tree": "cf36d83355ed6cbab80e86bc388e5ecdf84674a6"
+  },
+  "authorityScope": {
+    "action": "EXECUTABLE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_CONNECTION",
+    "allowedEvaluationClasses": [
+      "CUSTOMER_PHOTO",
+      "CONFORMANCE_FIXTURE"
+    ],
+    "scoreAuthority": "Independent evaluator rubric observations only; scores and disposition are derived by the frozen executable.",
+    "prohibitedScoreSources": [
+      "Katherine product generator",
+      "provider output",
+      "Mentor",
+      "Governor",
+      "adapter",
+      "mission controller"
+    ],
+    "networkRequired": false
+  },
+  "rubric": {
+    "id": "KATHERINE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_RUBRIC_V1",
+    "schemaVersion": "1.0",
+    "path": "rubric-v1.json",
+    "sha256": "52753055891fdd06bc4fd555bb3c81936e55cb1424598b5b582c6b0cf4edeb1f",
+    "dimensions": [
+      "identityAccuracy",
+      "purposeAccuracy",
+      "conditionAccuracy",
+      "evidenceTraceability",
+      "uncertaintyCalibration",
+      "decisionUsefulness",
+      "schemaCoverage",
+      "regressionSafety"
+    ],
+    "passThreshold": 0.7
+  },
+  "executable": {
+    "id": "KATHERINE_INDEPENDENT_CUSTOMER_PHOTO_EVALUATOR_EXECUTABLE_V1",
+    "path": "evaluator.mjs",
+    "sha256": "14e7c73ae93f8bd79cc0a9a49446879b3a14ee5d4fe17ffa62fa2cf80ac5c21b",
+    "runtime": "Node.js >= 24",
+    "inputPolicy": "Assessment path must resolve inside the access-confined authority inbox; externally supplied final scores are rejected by schema."
+  },
+  "publicKey": {
+    "algorithm": "Ed25519",
+    "keyId": "KE-ICEA-ED25519-E7839920EA5467778980",
+    "path": "public-key.pem",
+    "spkiSha256": "e7839920ea5467778980c795688acc10f584f935b2fd1fc839b468ad35e14c4e"
+  },
+  "signedBindings": [
+    "image.sha256",
+    "image.byteCount",
+    "requestSha256",
+    "rawResponseSha256",
+    "canonicalResponseHash",
+    "scores",
+    "disposition",
+    "evidenceReferences",
+    "nonce",
+    "sequence",
+    "evaluator.id",
+    "evaluator.version",
+    "authorityManifest.id",
+    "authorityManifest.sha256",
+    "rubric.sha256",
+    "productBinding"
+  ],
+  "validity": {
+    "notBefore": "2026-08-29T18:16:48.105Z",
+    "notAfter": "2027-08-29T18:16:48.105Z"
+  },
+  "integrity": {
+    "canonicalization": "RFC8785-LIKE-SORTED-JSON-V1",
+    "manifestSha256": "c8fe2074062c0d9c4d60f5f3520a4446c02dafccd0dffb1460d39a4249a99386",
+    "detachedSignaturePath": "authority-manifest.sig"
+  }
+}
