@@ -961,6 +961,10 @@
 - Preserved a safely supported marketplace-listing draft when the executive terminal correctly stops for insufficient exact identity, condition, or pricing evidence, while keeping the purpose incomplete and numeric pricing explicitly insufficient
 - Bound uncertainty drafts to the governed canonical object category and visible evidence only, retained full refusal without a supported broad category, and preserved safety and customer-input stops
 - Added hard-network-denied regressions across figurine, textile, and metal-box categories for visible-only copy, condition uncertainty, explicit alternatives and evidence requests, pricing refusal, and unsupported-category refusal
+- Cleaned comparable queries to remove unsupported identity and photo-narration language while retaining bounded category and configuration anchors
+- Added bounded, deterministic exact-and-close direct-offer hydration with authenticated price provenance, item-specific URL requirements, and explicit ceiling and no-evidence diagnostics
+- Retained supported close comparables without claiming exact maker or model identity, strengthened canonical-offer deduplication, and kept category-only evidence outside pricing authority
+- Required retained price-bearing evidence before research can be classified as clear, preserving numeric suppression and `insufficient` pricing when qualified evidence is absent
 
 ## Version 2.0
 - User accounts

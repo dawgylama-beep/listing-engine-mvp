@@ -24,7 +24,7 @@ $checks = @(
   @{ Name = "Candidate unknown type is not compatible"; Text = $api; Pattern = "candidate_type_unknown" },
   @{ Name = "Set scope mismatch is handled"; Text = $api; Pattern = "set_scope_mismatch" },
   @{ Name = "Shared wording cannot override product type"; Text = $api; Pattern = "Shared brand, date, event, or theme wording cannot make different product types comparable." },
-  @{ Name = "Match classifier receives compatibility"; Text = $api; Pattern = "classifySerperIdentityMatch(enrichedRecord, identity, context, itemTypeCompatibility)" },
+  @{ Name = "Price-authenticated match classifier receives compatibility"; Text = $api; Pattern = "classifySerperIdentityMatch(authenticatedRecord, identity, context, itemTypeCompatibility)" },
   @{ Name = "Classifier gates valuation-unsafe product forms"; Text = $api; Pattern = "if (!isComparableItemTypeValuationSafe(compatibility))" },
   @{ Name = "Evidence role receives compatibility"; Text = $api; Pattern = 'function buildSerperEvidenceRole(identityMatchStrength = "", priceEvidenceType = "", itemTypeCompatibility = {})' },
   @{ Name = "Non-valuation influence reason exists"; Text = $api; Pattern = "function buildNonValuationInfluenceReason" },

@@ -39,7 +39,7 @@ $checks = @(
   @{ Name = "Retail alternative query validation exists"; Text = $api; Pattern = "function hasCurrentRetailAlternativeQueryAnchor" },
   @{ Name = "Retail alternative source promotion exists"; Text = $api; Pattern = "function hasCurrentRetailAlternativeSourceSupport" },
   @{ Name = "Shopping offers normalize to active current offers"; Text = $api; Pattern = "Shopping Offer" },
-  @{ Name = "Organic price extractor avoids shipping-only prices"; Text = $api; Pattern = "shipping|delivery|freight|pickup|save|savings|coupon|review|rating" },
+  @{ Name = "Organic price extractor avoids shipping-only and promotional prices"; Text = $api; Pattern = "shipping|delivery|freight|postage|pickup|save|savings|coupon|discount|cashback|review|rating" },
   @{ Name = "Wide package-size mismatch still rejects"; Text = $api; Pattern = "Package count differs too much for retail price comparison" },
   @{ Name = "Category context is excluded from retail price decisions"; Text = $api; Pattern = 'packageCompatibility.label !== "Retail Category Context"' },
   @{ Name = "Compatible alternatives are customer-facing"; Text = $api; Pattern = "Compatible Current Retail Alternatives" },

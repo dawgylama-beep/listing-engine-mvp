@@ -19,6 +19,7 @@ function outcomeFeatures(overrides = {}) {
     exactComparableCount: 0,
     closeComparableCount: 0,
     categoryComparableCount: 0,
+    priceBearingComparableCount: 0,
     strategyDiscardedCandidateCount: 0,
     serializationLossCount: 0,
     unsupportedQueryTermCount: 0,
@@ -258,7 +259,8 @@ test("research outcome taxonomy distinguishes strategy loss, transport failure, 
   const grounded = classifyGovernedResearchOutcome(outcomeFeatures({
     exactComparableCount: 1,
     closeComparableCount: 1,
-    categoryComparableCount: 1
+    categoryComparableCount: 1,
+    priceBearingComparableCount: 2
   }));
   assert.equal(grounded.classification, GOVERNED_RESEARCH_APPLICABILITY.CLEAR);
   assert.equal(grounded.applicable, false);

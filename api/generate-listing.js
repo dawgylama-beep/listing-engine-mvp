@@ -3225,6 +3225,7 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
   const attemptedRequests = providerRequests.filter((record) => (
     record.attempted === true || record.logicalQueryAttempted === true || Number(record.physicalAttemptCount || 0) > 0
   ));
+  const directPageRequests = attemptedRequests.filter((record) => /direct_product_page_fetch/i.test(record.providerEndpoint || record.providerKey));
   const attemptedLevels = new Set(attemptedRequests
     .map((record) => comparablePlanLevel(record, planById, planByQuery))
     .filter(Boolean));
@@ -3267,7 +3268,7 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
     schemaVersion: "1.0",
     stageOrder: Object.freeze([
       "SEARCH_RESPONSE", "RESULT_EXTRACTION", "OFFER_CANDIDATE", "NORMALIZATION",
-      "IDENTITY_MATCHING", "EVIDENCE_GRADING", "RETENTION", "RESPONSE_SERIALIZATION"
+      "IDENTITY_MATCHING", "DIRECT_PAGE_HYDRATION", "EVIDENCE_GRADING", "RETENTION", "RESPONSE_SERIALIZATION"
     ]),
     stageCounts: Object.freeze({
       searchResponse: providerRequests.reduce((sum, record) => sum + Number(record.providerSourceCount || 0), 0),
@@ -3275,8 +3276,11 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
       offerCandidate: traceableAcquisition.length,
       normalization: normalizedRecords.length,
       identityMatching: Object.values(countComparableTraceLevels(normalizedRecords)).reduce((sum, value) => sum + value, 0),
+      directPageHydrationAttempted: directPageRequests.length,
+      directPageHydrationSucceeded: directPageRequests.filter((record) => record.succeeded === true).length,
       evidenceGrading: normalizeArray(candidateRecords).length || normalizeArray(canonicalObservations).length,
       retention: acceptedRecords.length,
+      priceBearingRetention: normalizeArray(finalEvidenceResult?.views?.priceBearingIds).length,
       responseSerialization: serializedRecords.length
     }),
     normalizedComparableCounts: Object.freeze(countComparableTraceLevels(normalizedRecords)),
@@ -3292,6 +3296,8 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
       closeMatchFailureRetainedAsCategory,
       staleOrIrrelevant: normalizedRecords.filter(isStaleOrIrrelevantComparable).length,
       acquisitionOrTransportFailure: attemptedRequests.filter((record) => !record.succeeded).length,
+      directPageCeilingExcluded: normalizedRecords.filter((record) => record.enrichmentDisposition === "DIRECT_PAGE_HYDRATION_CEILING_EXCLUDED").length,
+      directPageNoSupportedEvidence: normalizedRecords.filter((record) => record.enrichmentDisposition === "DIRECT_PAGE_HYDRATION_NO_SUPPORTED_EVIDENCE").length,
       strategyDiscardedCandidate: strategyDiscardedCandidateCount,
       serializationLoss: serializationLossCount
     }),
@@ -3325,6 +3331,9 @@ function refreshGovernedResearchOutcome(liveSearch = {}, options = {}) {
     exactComparableCount: retained.exact,
     closeComparableCount: retained.close,
     categoryComparableCount: retained.category,
+    priceBearingComparableCount: Number(
+      (options.finalEvidenceResult || liveSearch.finalEvidenceResult)?.views?.priceBearingIds?.length || 0
+    ),
     strategyDiscardedCandidateCount: funnel.rejectionReasons.strategyDiscardedCandidate,
     serializationLossCount: funnel.rejectionReasons.serializationLoss,
     unsupportedQueryTermCount,
@@ -6053,6 +6062,44 @@ async function executeLimitedResultRetailRecovery({
   return recoveredRecords;
 }
 
+function directComparableLadderLevel(record = {}) {
+  const level = cleanText(record.comparableLadderLevel).toUpperCase();
+  if (level === "EXACT" || level === "CLOSE" || level === "CATEGORY") return level;
+  return /close|compatible|broader|configuration/i.test(cleanText(record.objectMindQueryType || record.searchPass))
+    ? "CLOSE"
+    : "EXACT";
+}
+
+function isPromisingDirectOfferCandidate(record = {}, context = {}) {
+  if (directComparableLadderLevel(record) === "CATEGORY") return false;
+  if (record.priceAuthenticated === true || isLikelyCategoryOrSearchPageRecord(record)) return false;
+  if (/mismatch|conflict/.test(cleanText(record.itemTypeCompatibilityStatus).toLowerCase())) return false;
+  if (normalizeArray(record.objectMindConflictingAttributes).length || isAccessoryOnlyOfferCandidate(record, context)) return false;
+  const itemSpecificUrl = unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  if (!isLikelyRetailProductPageUrl(itemSpecificUrl)
+    && !isLikelyItemSpecificMarketplaceUrl(itemSpecificUrl)
+    && !/product_or_listing|specific_offer|auction_lot/i.test(cleanText(record.pageType || record.offerClassification))) {
+    return false;
+  }
+  return record.objectMindDirectPageEligible === true
+    || record.itemTypeCompatible === true
+    || /^(?:Exact|Strong Similar|Partial)$/i.test(cleanText(record.identityMatchStrength));
+}
+
+function directOfferHydrationPriority(record = {}) {
+  const level = directComparableLadderLevel(record);
+  let score = level === "EXACT" ? 80 : level === "CLOSE" ? 60 : 0;
+  if (record.objectMindDirectPageEligible === true) score += 25;
+  if (record.itemTypeCompatible === true) score += 20;
+  if (!Number.isFinite(record.parsedPrice)) score += 15;
+  if (/Exact|Strong Similar/i.test(cleanText(record.identityMatchStrength))) score += 10;
+  else if (/Partial/i.test(cleanText(record.identityMatchStrength))) score += 5;
+  if (record.sourceType === "shopping") score += 3;
+  const position = Number(record.position || 0);
+  if (position > 0) score += Math.max(0, 10 - Math.min(10, position));
+  return score;
+}
+
 async function executeExactRetailPageDirectEnrichment({
   context = {},
   identity = context,
@@ -6076,7 +6123,7 @@ async function executeExactRetailPageDirectEnrichment({
   const candidatesByUrl = new Map();
   for (const record of currentRecords
     .filter((candidate) => !candidate.objectMindDirectPageVerified)
-    .filter((candidate) => candidate.objectMindDirectPageEligible || isLikelyExactRetailProductPage(candidate, context))
+    .filter((candidate) => isPromisingDirectOfferCandidate(candidate, context))
     .filter((candidate) => isApprovedRetailProductPageFetchUrl(candidate.destinationUrl || candidate.url || candidate.canonicalUrl, context, candidate))) {
     const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
     if (url) {
@@ -6091,23 +6138,52 @@ async function executeExactRetailPageDirectEnrichment({
     cleanText(record.sourceRecordId || record.providerRecordId || record.resultId),
     cleanText(record.destinationUrl || record.url || record.canonicalUrl)
   ].join("\u001f");
-  const candidates = [...candidatesByUrl.entries()]
+  const rankedCandidates = [...candidatesByUrl.entries()]
     .map(([url, members]) => {
       const orderedMembers = members.slice().sort((left, right) => (
-        compareSerperTransportText(stableCandidateKey(left), stableCandidateKey(right))
+        directOfferHydrationPriority(right) - directOfferHydrationPriority(left)
+        || compareSerperTransportText(stableCandidateKey(left), stableCandidateKey(right))
       ));
       return {
         url,
         members: orderedMembers,
+        level: directComparableLadderLevel(orderedMembers[0]),
+        priority: directOfferHydrationPriority(orderedMembers[0]),
         key: `${url}\u001e${orderedMembers.map(stableCandidateKey).join("\u001d")}`
       };
     })
-    .sort((left, right) => compareSerperTransportText(left.key, right.key))
-    .slice(0, remainingBudget);
-  if (!candidates.length) {
-    return currentRecords;
+    .sort((left, right) => right.priority - left.priority || compareSerperTransportText(left.key, right.key));
+  const candidates = [];
+  const perLevelCounts = { EXACT: 0, CLOSE: 0 };
+  const perLevelMaximum = { EXACT: 2, CLOSE: 2 };
+  for (const level of ["EXACT", "CLOSE"]) {
+    if (candidates.length >= remainingBudget) break;
+    const candidate = rankedCandidates.find((item) => item.level === level);
+    if (!candidate) continue;
+    candidates.push(candidate);
+    perLevelCounts[level] += 1;
   }
-  let enrichedRecords = [...currentRecords];
+  for (const candidate of rankedCandidates) {
+    if (candidates.length >= remainingBudget) break;
+    if (candidates.includes(candidate)) continue;
+    if (!perLevelMaximum[candidate.level] || perLevelCounts[candidate.level] >= perLevelMaximum[candidate.level]) continue;
+    perLevelCounts[candidate.level] += 1;
+    candidates.push(candidate);
+  }
+  const selectedUrls = new Set(candidates.map((candidate) => candidate.url));
+  let enrichedRecords = currentRecords.map((record) => {
+    const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
+    if (!url || !candidatesByUrl.has(url)) return record;
+    return {
+      ...record,
+      enrichmentDisposition: selectedUrls.has(url)
+        ? "DIRECT_PAGE_HYDRATION_SELECTED"
+        : "DIRECT_PAGE_HYDRATION_CEILING_EXCLUDED"
+    };
+  });
+  if (!candidates.length) {
+    return enrichedRecords;
+  }
   let priority = providerRequestRecords.length + 1;
   for (const { url: candidateUrl, members } of candidates) {
     const record = members[0];
@@ -6215,11 +6291,21 @@ async function executeExactRetailPageDirectEnrichment({
           }
           return enrichExactRetailPageRecord({
             ...observation,
+            enrichmentDisposition: "DIRECT_PAGE_HYDRATED",
             url: result.finalUrl || observation.url,
             canonicalUrl: canonicalizeComparableUrl(result.finalUrl || observation.url),
             pageHtml: result.html,
             sourceEvidenceText: result.sourceEvidenceText
           }, context);
+        });
+      } else {
+        enrichedRecords = enrichedRecords.map((observation) => {
+          const observationUrl = canonicalizeComparableUrl(unwrapRetailDestinationUrl(
+            observation.destinationUrl || observation.url || observation.canonicalUrl
+          ));
+          return observationUrl === candidateUrl
+            ? { ...observation, enrichmentDisposition: "DIRECT_PAGE_HYDRATION_NO_SUPPORTED_EVIDENCE" }
+            : observation;
         });
       }
     } catch (error) {
@@ -6241,6 +6327,14 @@ async function executeExactRetailPageDirectEnrichment({
         ...createDirectProductPageFetchResponseSummary(requestRecord),
         errorCode: requestRecord.errorCode,
         errorMessage: message
+      });
+      enrichedRecords = enrichedRecords.map((observation) => {
+        const observationUrl = canonicalizeComparableUrl(unwrapRetailDestinationUrl(
+          observation.destinationUrl || observation.url || observation.canonicalUrl
+        ));
+        return observationUrl === candidateUrl
+          ? { ...observation, enrichmentDisposition: "DIRECT_PAGE_HYDRATION_FAILED" }
+          : observation;
       });
     }
     if (cognitiveGovernor && directPageCognitiveDecision?.executionPermitted) {
@@ -6785,6 +6879,11 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, origina
     offerCondition: cleanText(offerCondition),
     displayedPriceText: normalizeMoneyLabelText(cleanText(displayedPriceText)),
     parsedPrice: parseDisplayedPrice(displayedPriceText),
+    priceProvenance: displayedPriceText
+      ? sourceType === "shopping"
+        ? "SERPER_SHOPPING_STRUCTURED_PRICE"
+        : "SERPER_SEARCH_RESULT_METADATA_PRICE"
+      : "",
     currency: displayedPriceText ? "$" : "",
     sourceType: cleanText(sourceType),
     position: Number(position || 0),
@@ -6803,20 +6902,102 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, origina
   };
 }
 
+function isAccessoryOnlyOfferCandidate(record = {}, context = {}) {
+  const submitted = normalizeComparableText([
+    context.itemType,
+    context.productTitle,
+    context.subjectIdentity,
+    context.exactProductIdentity
+  ].join(" "));
+  if (/\b(?:accessory|attachment|replacement part|cover|case|adapter|component)\b/.test(submitted)) {
+    return false;
+  }
+  const candidate = normalizeComparableText([record.title, record.snippet, record.url].join(" "));
+  return /\b(?:replacement|accessory|cover|case|adapter|attachment|spare)\b[^.;|]{0,60}\b(?:for|fits?|compatible with)\b/.test(candidate)
+    || /\b(?:toaster|clock|sweater|jumper)\s+(?:cover|case|part|parts|adapter|replacement)\b/.test(candidate);
+}
+
+function authenticateComparablePriceEvidence(record = {}, itemTypeCompatibility = {}, context = {}) {
+  const url = canonicalizeComparableUrl(record.destinationUrl || record.url || record.canonicalUrl);
+  const amount = Number.isFinite(record.parsedPrice)
+    ? Number(record.parsedPrice)
+    : parseDisplayedPrice(record.displayedPriceText || record.displayedPrice || record.price);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { authenticated: false, amount: null, provenance: "", reason: "No parseable offered-object price was present." };
+  }
+  if (!url || isLikelyCategoryOrSearchPageRecord(record)) {
+    return { authenticated: false, amount: null, provenance: "", reason: "A traceable item-specific source URL was not established." };
+  }
+  if (/mismatch|conflict/.test(cleanText(itemTypeCompatibility.status).toLowerCase()) || isAccessoryOnlyOfferCandidate(record, context)) {
+    return { authenticated: false, amount: null, provenance: "", reason: "The price was not attached to a compatible offered object." };
+  }
+  const directSource = cleanText(record.exactRetailPageEvidence?.priceSource || record.priceProvenance);
+  if (record.directProductPage === true
+    && record.sourceEvidenceText
+    && /^DIRECT_PRODUCT_PAGE_(?:STRUCTURED_PRICE|VISIBLE_OFFER_PRICE)$/.test(directSource)) {
+    return { authenticated: true, amount, provenance: directSource, reason: "Authenticated item-specific product page price." };
+  }
+  if (record.sourceType === "shopping" && record.priceProvenance === "SERPER_SHOPPING_STRUCTURED_PRICE") {
+    return { authenticated: true, amount, provenance: record.priceProvenance, reason: "Structured shopping-result price field." };
+  }
+  const metadataPrice = parseDisplayedPrice([record.title, record.snippet, record.sourceEvidenceText].filter(Boolean).join(" | "));
+  if (Number.isFinite(metadataPrice) && Math.abs(metadataPrice - amount) < 0.005) {
+    return {
+      authenticated: true,
+      amount,
+      provenance: record.priceProvenance || "SUPPORTED_SEARCH_RESULT_METADATA_PRICE",
+      reason: "Supported item-specific search metadata price."
+    };
+  }
+  return { authenticated: false, amount: null, provenance: "", reason: "The price appeared only in unsupported or noisy metadata." };
+}
+
+function applyAuthenticatedComparablePrice(record = {}, decision = {}) {
+  if (!decision.authenticated) {
+    return {
+      ...record,
+      displayedPriceText: "",
+      displayedPrice: "",
+      parsedPrice: null,
+      price: undefined,
+      itemPriceAmount: null,
+      currency: "",
+      priceAuthenticated: false,
+      priceAuthenticationReason: decision.reason,
+      priceProvenance: ""
+    };
+  }
+  return {
+    ...record,
+    displayedPriceText: formatSourceMoney(decision.amount),
+    parsedPrice: decision.amount,
+    currency: "USD",
+    priceAuthenticated: true,
+    priceAuthenticationReason: decision.reason,
+    priceProvenance: decision.provenance,
+    fieldProvenance: {
+      ...(record.fieldProvenance || {}),
+      price: decision.provenance
+    }
+  };
+}
+
 function normalizeSerperCandidateRecords(records = [], identity = {}, context = {}, objectMindState = null) {
   const normalizedRecords = records
     .filter((record) => record.url && /^https?:\/\//i.test(record.url))
     .map((record) => {
       const enrichedRecord = enrichExactRetailPageRecord(record, context);
       const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(enrichedRecord, identity, context);
-      const identityMatchStrength = classifySerperIdentityMatch(enrichedRecord, identity, context, itemTypeCompatibility);
-      const priceEvidenceType = classifySerperPriceEvidence(enrichedRecord);
+      const priceDecision = authenticateComparablePriceEvidence(enrichedRecord, itemTypeCompatibility, context);
+      const authenticatedRecord = applyAuthenticatedComparablePrice(enrichedRecord, priceDecision);
+      const identityMatchStrength = classifySerperIdentityMatch(authenticatedRecord, identity, context, itemTypeCompatibility);
+      const priceEvidenceType = classifySerperPriceEvidence(authenticatedRecord);
       const valuationBearing = isValuationBearingComparable(identityMatchStrength, priceEvidenceType, itemTypeCompatibility);
-      const preliminaryRangeIncluded = isPreliminaryAskingPriceRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, enrichedRecord);
-      const verifiedMarketInfluence = isVerifiedMarketRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, enrichedRecord);
-      const rejectionReason = buildSerperRejectionReason(enrichedRecord, identityMatchStrength, context, itemTypeCompatibility);
+      const preliminaryRangeIncluded = isPreliminaryAskingPriceRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, authenticatedRecord);
+      const verifiedMarketInfluence = isVerifiedMarketRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, authenticatedRecord);
+      const rejectionReason = buildSerperRejectionReason(authenticatedRecord, identityMatchStrength, context, itemTypeCompatibility);
       return {
-        ...enrichedRecord,
+        ...authenticatedRecord,
         itemTypeCompatible: itemTypeCompatibility.itemTypeCompatible,
         submittedItemType: itemTypeCompatibility.submittedItemType,
         candidateItemType: itemTypeCompatibility.candidateItemType,
@@ -6830,7 +7011,7 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
         candidatePackQuantity: itemTypeCompatibility.candidatePackQuantity || "",
         identityMatchStrength,
         priceEvidenceType,
-        priceTypeLabel: normalizePriceTypeLabel(priceEvidenceType, enrichedRecord),
+        priceTypeLabel: normalizePriceTypeLabel(priceEvidenceType, authenticatedRecord),
         retained: !/Rejected/i.test(identityMatchStrength),
         rejectionReason,
         sourceBacked: "URL-cited",
@@ -9873,26 +10054,22 @@ function extractExactRetailPageEvidence(record = {}, context = {}) {
     packageQuantity: Number.isFinite(pageEvidence.packageQuantity) ? pageEvidence.packageQuantity : Number.isFinite(packageQuantity) ? packageQuantity : null,
     availabilityText: cleanText(pageEvidence.availabilityText || availabilityText),
     priceAmount: Number.isFinite(pageEvidence.priceAmount) ? pageEvidence.priceAmount : null,
+    priceSource: cleanText(pageEvidence.priceSource),
     sourceEvidenceText: cleanText(pageEvidence.sourceEvidenceText),
     enrichmentMode: pageEvidence.sourceEvidenceText ? "direct_product_page_html" : "search_result_metadata_only"
   };
 }
 
 function enrichExactRetailPageRecord(record = {}, context = {}) {
-  if (!isLikelyExactRetailProductPage(record, context)) {
+  const hasDirectPagePayload = Boolean(record.pageHtml || record.productPageHtml || record.html);
+  if (!isLikelyExactRetailProductPage(record, context) && !hasDirectPagePayload) {
     return record;
   }
   const evidence = extractExactRetailPageEvidence(record, context);
-  const pagePrice = parseDisplayedPrice([
-    Number.isFinite(evidence.priceAmount) ? formatSourceMoney(evidence.priceAmount) : "",
-    record.displayedPriceText,
-    record.price,
-    record.snippet,
-    shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
-    evidence.sourceEvidenceText,
-    record.title
-  ].join(" "));
-  const displayedPriceText = record.displayedPriceText || (Number.isFinite(pagePrice) ? formatSourceMoney(pagePrice) : "");
+  const pagePrice = Number.isFinite(evidence.priceAmount) ? evidence.priceAmount : null;
+  const displayedPriceText = Number.isFinite(pagePrice)
+    ? formatSourceMoney(pagePrice)
+    : record.displayedPriceText;
   const packageText = Number.isFinite(evidence.packageQuantity) ? `${evidence.packageQuantity} count` : "";
   const rawText = [
     shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
@@ -9911,9 +10088,14 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
     domain: evidence.retailerDomain || record.domain,
     destinationUrl: evidence.destinationUrl || record.destinationUrl,
     displayedPriceText,
-    parsedPrice: Number.isFinite(record.parsedPrice) ? record.parsedPrice : pagePrice,
+    parsedPrice: Number.isFinite(pagePrice) ? pagePrice : record.parsedPrice,
     priceEvidenceType: Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
-    exactRetailPage: true,
+    priceProvenance: Number.isFinite(pagePrice) ? evidence.priceSource : record.priceProvenance,
+    priceAuthenticated: Number.isFinite(pagePrice) ? true : record.priceAuthenticated,
+    directProductPage: evidence.enrichmentMode === "direct_product_page_html",
+    sourceQuality: evidence.enrichmentMode === "direct_product_page_html" ? "direct_product_page" : record.sourceQuality,
+    directPageProvenance: evidence.enrichmentMode === "direct_product_page_html" ? evidence.priceSource || "DIRECT_PRODUCT_PAGE" : record.directPageProvenance,
+    exactRetailPage: isLikelyExactRetailProductPage(record, context),
     exactRetailPageEvidence: evidence,
     exactPageRecoveryStatus: evidence.enrichmentMode === "direct_product_page_html"
       ? "exact_retailer_page_enriched_from_direct_product_page"
@@ -9932,7 +10114,8 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
       sourceEvidenceText: "",
       priceAmount: null,
       packageQuantity: null,
-      availabilityText: ""
+      availabilityText: "",
+      priceSource: ""
     };
   }
   const sourceText = cleanText(stripHtmlForEvidenceText(html)).slice(0, 2000);
@@ -9941,20 +10124,75 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
     ...extractHtmlAttributeValues(html, /<[^>]+\bitemprop=["']price["'][^>]*\bcontent=["']([^"']+)["'][^>]*>/gi),
     ...extractHtmlAttributeValues(html, /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
   ].join(" "));
-  const priceAmount = parseDisplayedPrice([structuredText, sourceText].join(" ")) || extractStructuredRetailPriceAmount([structuredText, sourceText].join(" "));
+  const structuredPriceAmount = extractStructuredOfferPriceFromHtml(html);
+  const visiblePriceAmount = parseDisplayedPrice(sourceText);
+  const priceAmount = Number.isFinite(structuredPriceAmount) ? structuredPriceAmount : visiblePriceAmount;
+  const priceSource = Number.isFinite(structuredPriceAmount)
+    ? "DIRECT_PRODUCT_PAGE_STRUCTURED_PRICE"
+    : Number.isFinite(visiblePriceAmount)
+      ? "DIRECT_PRODUCT_PAGE_VISIBLE_OFFER_PRICE"
+      : "";
   const packageQuantity = extractPackQuantityNumber(sourceText);
   const availabilityText = cleanText([structuredText, sourceText].join(" ")).match(/\b(?:in stock|out of stock|available|unavailable|pickup|delivery|add to cart)[^|.;]{0,80}/i)?.[0] || "";
   const barcodeHits = extractSupportedBarcodeIdentitySetFromText([structuredText, sourceText].join(" "));
   const matchingBarcode = normalizeStringArray(context.barcodeIdentitySet, 24).some((identityCode) => barcodeHits.includes(identityCode));
-  const submittedFamily = normalizeComparableText(deriveRetailProductFamily(context));
   const pageSupportsObject = matchingBarcode
-    || (submittedFamily && containsNormalizedPhrase(normalizeComparableText(sourceText), submittedFamily));
+    || directPageSupportsSubmittedFamily(sourceText, context);
   return {
     sourceEvidenceText: pageSupportsObject ? sourceText : "",
     priceAmount: pageSupportsObject && Number.isFinite(priceAmount) ? priceAmount : null,
     packageQuantity: pageSupportsObject && Number.isFinite(packageQuantity) ? packageQuantity : null,
-    availabilityText: pageSupportsObject ? availabilityText : ""
+    availabilityText: pageSupportsObject ? availabilityText : "",
+    priceSource: pageSupportsObject && Number.isFinite(priceAmount) ? priceSource : ""
   };
+}
+
+function directPageSupportsSubmittedFamily(sourceText = "", context = {}) {
+  const text = normalizeComparableText(sourceText);
+  const submittedFamily = normalizeComparableText(deriveRetailProductFamily(context));
+  if (!text || !submittedFamily) return false;
+  if (containsNormalizedPhrase(text, submittedFamily)) return true;
+  const familyTokens = itemTypeTokens(submittedFamily)
+    .filter((token) => token.length >= 4 && !/^(?:item|product|object|electric|vintage|antique)$/.test(token));
+  return familyTokens.some((token) => new RegExp(`\\b${escapeRegExp(token)}s?\\b`, "i").test(text));
+}
+
+function boundedStructuredPriceNumber(value) {
+  const text = cleanText(value);
+  const match = text.match(/^\s*(?:USD\s*)?\$?\s*(\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:USD)?\s*$/i);
+  const amount = match ? Number(match[1].replace(/,/g, "")) : null;
+  return Number.isFinite(amount) && amount > 0 && amount < 100000 ? amount : null;
+}
+
+function collectJsonLdOfferPrices(value, prices = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectJsonLdOfferPrices(item, prices);
+    return prices;
+  }
+  if (!value || typeof value !== "object") return prices;
+  const types = normalizeArray(value["@type"]).map((item) => cleanText(item).toLowerCase());
+  if (types.includes("offer")) {
+    const amount = boundedStructuredPriceNumber(value.price);
+    if (Number.isFinite(amount)) prices.push(amount);
+  }
+  for (const child of Object.values(value)) collectJsonLdOfferPrices(child, prices);
+  return prices;
+}
+
+function extractStructuredOfferPriceFromHtml(html = "") {
+  const prices = [
+    ...extractHtmlAttributeValues(html, /<meta\b[^>]*(?:property|name)=["'](?:product:price:amount|og:price:amount)["'][^>]*content=["']([^"']+)["'][^>]*>/gi),
+    ...extractHtmlAttributeValues(html, /<[^>]+\bitemprop=["']price["'][^>]*\bcontent=["']([^"']+)["'][^>]*>/gi)
+  ].map(boundedStructuredPriceNumber).filter(Number.isFinite);
+  for (const script of extractHtmlAttributeValues(html, /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      collectJsonLdOfferPrices(JSON.parse(script), prices);
+    } catch {
+      // Invalid structured data is ignored; visible offer text must qualify independently.
+    }
+  }
+  const distinct = [...new Set(prices)];
+  return distinct.length === 1 ? distinct[0] : null;
 }
 
 function extractStructuredRetailPriceAmount(value = "") {
@@ -16332,26 +16570,46 @@ function extractDisplayedPrice(text) {
   const source = String(text || "");
   const moneyPattern = "\\$\\s*\\d{1,6}(?:,\\d{3})*(?:\\.\\d{1,2})?";
   const labeledPatterns = [
-    new RegExp(`\\b(?:sale\\s+price|current\\s+price|retail\\s+price|store\\s+price|package\\s+price|item\\s+price|price|now)\\s*(?:is|:|=|-)?\\s*(${moneyPattern})`, "i"),
+    new RegExp(`\\b(?:sale\\s+price|current\\s+price|retail\\s+price|store\\s+price|package\\s+price|item\\s+price|asking\\s+price|listed\\s+for|sold\\s+for|buy\\s*it\\s*now|active\\s+listing(?:\\s+price)?|current\\s+(?:auction\\s+)?bid|high(?:est)?\\s+bid|opening\\s+bid|starting\\s+bid|minimum\\s+bid|auction\\s+estimate|guide\\s+price|estimated\\s+at|price|now)\\s*(?:is|:|=|-)?\\s*(${moneyPattern})`, "i"),
     new RegExp(`(${moneyPattern})\\s*(?:each|per\\s+(?:pack|package|box)|/\\s*(?:pack|box))`, "i")
   ];
   for (const pattern of labeledPatterns) {
     const match = source.match(pattern);
-    if (match) {
+    if (match && !isRejectedOfferPriceOccurrence(source, (match.index || 0) + match[0].lastIndexOf(match[1]), match[1].length, { labeled: true })) {
       return normalizeMoneyLabelText(match[1]);
     }
   }
   for (const match of source.matchAll(new RegExp(moneyPattern, "g"))) {
     const amountText = match[0];
     const start = match.index || 0;
-    const before = source.slice(Math.max(0, start - 36), start).toLowerCase();
-    const after = source.slice(start + amountText.length, start + amountText.length + 36).toLowerCase();
-    if (/\b(?:shipping|delivery|freight|pickup|save|savings|coupon|review|rating)\b/.test(`${before} ${after}`)) {
+    if (isRejectedOfferPriceOccurrence(source, start, amountText.length)) {
       continue;
     }
-    return normalizeMoneyLabelText(amountText);
+    const nearby = source.slice(Math.max(0, start - 56), start + amountText.length + 56);
+    const standalone = source.trim() === amountText.trim();
+    if (standalone || /\b(?:active|asking|available|buy|checkout|current|for\s+sale|in\s+stock|listed|offer|price|retail|sale|sold)\b/i.test(nearby)) {
+      return normalizeMoneyLabelText(amountText);
+    }
   }
   return "";
+}
+
+function isRejectedOfferPriceOccurrence(source = "", start = 0, length = 0, { labeled = false } = {}) {
+  const before = source.slice(Math.max(0, start - 56), start).toLowerCase();
+  const after = source.slice(start + length, start + length + 56).toLowerCase();
+  const immediateBefore = before.slice(-28);
+  const immediateAfter = after.slice(0, 36);
+  if (/\b(?:per\s+month|a\s+month|monthly|month|mo\.?|financ(?:e|ing)|payment|installment|affirm|afterpay|klarna)\b/.test(`${immediateBefore} ${immediateAfter}`)) {
+    return true;
+  }
+  const referencePrice = /\b(?:was|regular(?:ly)?|original(?:ly)?|list\s+price|msrp|compare\s+at|strikethrough)\s*[:=-]?\s*$/.test(immediateBefore);
+  if (labeled) {
+    return referencePrice || /\b(?:shipping|delivery|freight|postage)\s*$/.test(immediateBefore);
+  }
+  if (/\b(?:shipping|delivery|freight|postage|pickup|save|savings|coupon|discount|cashback|review|rating)\b/.test(`${immediateBefore} ${immediateAfter}`)) {
+    return true;
+  }
+  return referencePrice;
 }
 
 function inferPriceType(text) {
@@ -23379,6 +23637,14 @@ function removeUnsupportedQueryDescriptors(value, context = {}) {
   }
 
   text = text
+    .replace(/\bthere\s+(?:is|are)\b/gi, "")
+    .replace(/\b(?:one|two|three|four|single|multiple|\d+)\s+((?:[a-z][a-z-]*\s+){0,3}[a-z][a-z-]*)\s+(?:is\s+)?(?:visible|shown|pictured|photographed)\b/gi, "$1")
+    .replace(/\b(?:in|from)\s+(?:the\s+)?(?:photo|image|picture|photograph)\b/gi, "")
+    .replace(/\b(?:appears?|seems?|looks?)\s+(?:to\s+be|like)?\b/gi, "")
+    .replace(/\b(?:possibly|probably|perhaps|maybe|might\s+be|may\s+be|uncertain|unclear|not\s+(?:fully\s+)?certain)\b/gi, "")
+    .replace(/\b(?:the\s+)?(?:dial|face|garment|silhouette|housing|body|item|object|product)\s+(?:has|have|with|shows?|features?|depicts?)\b/gi, "")
+    .replace(/^(?:the\s+)?(?:garment|item|object|product)\s+/i, "")
+    .replace(/\b(?:visible|shown|pictured|photographed)\b/gi, "")
     .replace(/\b(?:prominent|bold|large|red|black|white|green|blue|yellow|gold|silver)\s+(?:lettering|letters|text|wording|font|type)\b/gi, "")
     .replace(/\btext on\b/gi, "")
     .replace(/\b(?:features?|shows?|depicts?)\b/gi, "")
@@ -23386,7 +23652,24 @@ function removeUnsupportedQueryDescriptors(value, context = {}) {
     .replace(/\s+/g, " ")
     .trim();
 
-  return text;
+  return removeNarrativeSentencePunctuation(text);
+}
+
+function removeNarrativeSentencePunctuation(value = "") {
+  const protectedValues = [];
+  const protectedText = String(value).replace(
+    /\bsite:[a-z0-9.-]+\.[a-z]{2,}\b|\b\d+\.\d+\b/gi,
+    (match) => {
+      const token = `ZXQMARKETTOKEN${protectedValues.length}ZXQ`;
+      protectedValues.push(match);
+      return token;
+    }
+  );
+  let text = protectedText.replace(/[.!?;]+/g, " ");
+  protectedValues.forEach((item, index) => {
+    text = text.replace(`ZXQMARKETTOKEN${index}ZXQ`, item);
+  });
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function finalizeSearchQueryCandidate(value, context = {}, maxTerms = 12) {
@@ -24041,7 +24324,12 @@ export const __queryIntegrityTestHooks = {
   buildLimitedResultRetailRecoveryQueries,
   shouldRunLimitedResultRetailRecovery,
   isLikelyExactRetailProductPage,
+  isPromisingDirectOfferCandidate,
+  directOfferHydrationPriority,
   enrichExactRetailPageRecord,
+  extractDirectRetailProductPageEvidence,
+  extractStructuredOfferPriceFromHtml,
+  authenticateComparablePriceEvidence,
   detectOnlineRetailCategoryTags,
   finalizeSearchQueryCandidate,
   findUnsupportedQueryTerms,

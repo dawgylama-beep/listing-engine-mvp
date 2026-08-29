@@ -346,6 +346,7 @@ test("zero retained priced evidence drives every pricing-availability field and 
     exactComparableCount: 0,
     closeComparableCount: 0,
     categoryComparableCount: 0,
+    priceBearingComparableCount: 0,
     strategyDiscardedCandidateCount: 0,
     serializationLossCount: 0,
     unsupportedQueryTermCount: 0,

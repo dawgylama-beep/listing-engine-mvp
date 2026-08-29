@@ -20,7 +20,7 @@ $checks = @(
   @{ Name = "Serper plan validates before execution"; Text = $api; Pattern = "validateSerperQueryCandidate(finalQuery, context" },
   @{ Name = "Invalid candidates are recorded as preflight"; Text = $api; Pattern = "invalid_query_preflight" },
   @{ Name = "Invalid records are not attempted"; Text = $api; Pattern = "attempted: validationPassed" },
-  @{ Name = "Provider execution filters attempted requests"; Text = $api; Pattern = ".filter(({ requestRecord }) => requestRecord.attempted)" },
+  @{ Name = "Provider execution filters locally validated requests"; Text = $api; Pattern = ".filter(({ requestRecord }) => requestRecord.validationPassed)" },
   @{ Name = "Serper request receives prevalidated flag"; Text = $api; Pattern = "prevalidated: queryRecord.validationPassed !== false" },
   @{ Name = "Transport validator keeps defensive guard"; Text = $api; Pattern = "function validateSerperTransportQuery" },
   @{ Name = "List-like visible phrase parser exists"; Text = $api; Pattern = "function parseListLikeSearchPhrases" },
