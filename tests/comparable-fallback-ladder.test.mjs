@@ -319,10 +319,22 @@ test("zero retained priced evidence drives every pricing-availability field and 
   const reconciled = hooks.reconcileCanonicalResponsePriceState({
     valuationEvidenceState: "supported",
     pricingEvidenceState: "supported",
+    pricingStatus: "supported",
+    purchaserDecision: "Owner Value Assessment — Canonical pricing evidence is available for valuation context.",
+    decisionResult: {
+      purpose: "owner_value",
+      status: "assessment_only",
+      summary: "Owner Value Assessment — Canonical pricing evidence is available for valuation context."
+    },
     currentPriceAssessment: "Canonical pricing evidence is available.",
     pricingRationale: "A supported range is available.",
     estimatedMarketValue: "$80-$100",
-    recommendedListingPrice: "$95"
+    suggestedListingPrice: "$95",
+    expectedSalePrice: "$90",
+    minimumAcceptablePrice: "$75",
+    recommendedListingPrice: "$95",
+    fairPriceRange: [80, 100],
+    customerEvidenceSummary: { counts: { accepted: 0, priceBearing: 0 } }
   }, {
     workflow: "listing",
     reliableResearchFound: true,
@@ -332,10 +344,23 @@ test("zero retained priced evidence drives every pricing-availability field and 
   assert.equal(reconciled.canonicalPricingEvidenceAvailable, false);
   assert.equal(reconciled.authoritativeRetainedPricedEvidenceCount, 0);
   assert.equal(reconciled.pricingState, "not_established");
+  assert.equal(reconciled.pricingStatus, "insufficient");
   assert.equal(reconciled.valuationEvidenceState, "insufficient");
-  assert.match(reconciled.currentPriceAssessment, /no retained priced canonical evidence is available/i);
+  assert.match(reconciled.currentPriceAssessment, /pricing is not established/i);
+  assert.match(reconciled.pricingRationale, /pricing is not established/i);
+  assert.match(reconciled.purchaserDecision, /pricing evidence is insufficient/i);
+  assert.doesNotMatch(reconciled.purchaserDecision, /pricing evidence is available/i);
+  assert.equal(reconciled.decisionResult.status, "insufficient");
+  assert.equal(reconciled.decisionResult.summary, reconciled.purchaserDecision);
+  assert.equal(reconciled.customerEvidenceSummary.counts.accepted, 0);
+  assert.equal(reconciled.customerEvidenceSummary.counts.priceBearing, 0);
   assert.equal(reconciled.estimatedMarketValue, "");
+  assert.equal(reconciled.suggestedListingPrice, "");
+  assert.equal(reconciled.expectedSalePrice, "");
+  assert.equal(reconciled.minimumAcceptablePrice, "");
+  assert.deepEqual(reconciled.fairPriceRange, []);
   assert.equal(reconciled.recommendedListingPrice, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(reconciled)), reconciled);
 
   const zeroOutcome = classifyGovernedResearchOutcome({
     providerCallsAttempted: 5,

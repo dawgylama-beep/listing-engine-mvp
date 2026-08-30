@@ -94,6 +94,40 @@ test("retail price above the canonical limit produces an unfavorable traceable d
   assert(supportRecords(value, value.decisionResult.supportingEvidenceIds).every((record) => record.decisionEligible));
 });
 
+test("owner-value language follows retained price-bearing evidence availability", () => {
+  const unavailable = result({
+    analysisId: "owner-value-without-price-bearing-evidence",
+    analysisMode: "collectible",
+    targetIdentity: { category: "decorative household object" },
+    observations: [offer({ id: "identity-only", price: null, priceType: "Price unavailable" })],
+    purpose: "owner_value"
+  });
+  assert.equal(unavailable.counts.acceptedCount, 1);
+  assert.equal(unavailable.counts.priceBearingCount, 0);
+  assert.equal(unavailable.rangeResult.status, "insufficient");
+  assert.equal(unavailable.decisionResult.status, "insufficient");
+  assert.match(unavailable.decisionResult.summary, /pricing evidence is insufficient/i);
+  assert.doesNotMatch(unavailable.decisionResult.summary, /pricing evidence is available/i);
+
+  const available = result({
+    analysisId: "owner-value-with-price-bearing-evidence",
+    analysisMode: "collectible",
+    targetIdentity: { category: "decorative household object" },
+    observations: [offer({
+      id: "priced-owner-context",
+      price: 25,
+      priceType: "Active asking price"
+    })],
+    purpose: "owner_value"
+  });
+  assert.equal(available.counts.priceBearingCount, 1);
+  assert.deepEqual(
+    available.views.priceBearingIds,
+    available.priceBearing.map((record) => record.evidenceId)
+  );
+  assert.match(available.decisionResult.summary, /pricing evidence is available/i);
+});
+
 test("retail price at the canonical limit stays conditional without an unsupported best-price claim", () => {
   const value = result({
     analysisId: "retail-at-limit",

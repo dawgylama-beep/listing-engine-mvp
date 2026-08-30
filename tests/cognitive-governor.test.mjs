@@ -16,6 +16,7 @@ import {
   createCognitiveState,
   createCustomerMissionContext,
   decideCognitiveAction,
+  executeGovernorAuthorizedAction,
   lessonCandidateByteLength,
   normalizeQueryIdentity,
   recordCognitiveActionOutcome,
@@ -161,7 +162,18 @@ test("initial acquisition executes as one cognitive action and cannot repeat unc
     providerBudget: { maximum: 12, consumed: 2 }
   }), { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION });
   assert.notEqual(repeated.actionType, COGNITIVE_ACTION.ACQUIRE_INITIAL_EVIDENCE);
-  assert.equal(repeated.executionPermitted, false);
+  assert.equal(repeated.actionType, COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE);
+  assert.equal(repeated.executionPermitted, true);
+  const terminal = executeGovernorAuthorizedAction(
+    governor,
+    repeated,
+    COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE,
+    {
+      operationPhase: "TERMINAL_STOP_TRANSITION",
+      operation: () => ({ terminalStatus: "INSUFFICIENT_EVIDENCE" })
+    }
+  );
+  assert.equal(terminal.terminalStatus, "INSUFFICIENT_EVIDENCE");
 });
 
 test("provider fallback continuation updates the initial outcome without a second cognitive action", () => {
@@ -345,7 +357,7 @@ test("a repeated knowledge/legal-state combination triggers bounded cycle preven
   const first = decideCognitiveAction(governor, snapshot(), { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION });
   assert.equal(first.executionPermitted, true);
   const repeated = decideCognitiveAction(governor, snapshot(), { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION });
-  assert.equal(repeated.executionPermitted, false);
+  assert.equal(repeated.executionPermitted, true);
   assert.equal(repeated.actionType, COGNITIVE_ACTION.STOP_INSUFFICIENT_EVIDENCE);
   assert(repeated.reasonCodes.includes(COGNITIVE_REASON.CYCLE_DETECTED));
   assert.equal(governor.cycleDetections.length, 1);

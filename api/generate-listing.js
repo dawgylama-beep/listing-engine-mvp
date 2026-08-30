@@ -2,8 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import {
   CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS,
+  canonicalPricingUnavailableDecisionSummary,
   createCanonicalRecoveryView,
   createFinalEvidenceResult,
+  deriveCanonicalPricingAvailability,
   validateCustomerEvidenceCompatibilityProjection
 } from "../lib/evidence/index.js";
 import { compareObservationPreference, underlyingOfferKey } from "../lib/evidence/dedupe.js";
@@ -20195,11 +20197,10 @@ function reconcileCanonicalResponsePriceState(report = {}, {
   finalEvidenceResult = {}
 } = {}) {
   const output = { ...report };
-  const acceptedIds = new Set(normalizeArray(finalEvidenceResult.acceptedRecords).map((record) => cleanText(record.evidenceId)).filter(Boolean));
-  const authoritativePriceIds = normalizeStringArray(finalEvidenceResult.views?.priceBearingIds, 64)
-    .filter((evidenceId) => acceptedIds.has(evidenceId));
-  const authoritativeRetainedPricedEvidenceCount = authoritativePriceIds.length;
-  const pricingEvidenceAvailable = authoritativeRetainedPricedEvidenceCount > 0;
+  const pricingAvailability = deriveCanonicalPricingAvailability(finalEvidenceResult);
+  const authoritativePriceIds = [...pricingAvailability.evidenceIds];
+  const authoritativeRetainedPricedEvidenceCount = pricingAvailability.count;
+  const pricingEvidenceAvailable = pricingAvailability.available;
   output.pricingEvidenceAvailable = pricingEvidenceAvailable;
   output.canonicalPricingEvidenceAvailable = pricingEvidenceAvailable;
   output.authoritativeRetainedPricedEvidenceCount = authoritativeRetainedPricedEvidenceCount;
@@ -20211,8 +20212,12 @@ function reconcileCanonicalResponsePriceState(report = {}, {
     authoritativeRetainedPricedEvidenceIds: authoritativePriceIds
   };
   if (!pricingEvidenceAvailable) {
-    const unavailable = "Insufficient evidence - no retained priced canonical evidence is available.";
+    const unavailable = "Pricing is not established - no retained priced canonical evidence is available.";
+    const unavailableDecision = canonicalPricingUnavailableDecisionSummary(
+      output.decisionResult?.purpose || workflow
+    );
     output.pricingState = "not_established";
+    output.pricingStatus = "insufficient";
     output.pricingEvidenceState = "insufficient";
     output.valuationEvidenceState = "insufficient";
     output.valuationEvidenceLabel = "Fair Value Not Established";
@@ -20221,12 +20226,26 @@ function reconcileCanonicalResponsePriceState(report = {}, {
     output.currentPriceAssessment = unavailable;
     output.pricingRationale = unavailable;
     output.priceBasis = unavailable;
+    output.purchaserDecision = unavailableDecision;
+    output.recommendationRationale = unavailableDecision;
+    output.reasonsToBuy = [];
+    if (output.decisionResult && typeof output.decisionResult === "object") {
+      output.decisionResult = {
+        ...output.decisionResult,
+        status: "insufficient",
+        summary: unavailableDecision
+      };
+    }
+    output.fairValue = "Not established";
     output.estimatedFairMarketValue = "";
     output.estimatedMarketValue = "";
     output.verifiedMarketRange = "";
     output.currentAskingPriceRange = "";
     output.preliminaryReferenceRange = "";
     output.aiOnlyRoughValueRange = "";
+    output.suggestedListingPrice = "";
+    output.expectedSalePrice = "";
+    output.minimumAcceptablePrice = "";
     output.fairPriceRange = [];
     output.recommendedListingPrice = null;
     output.recommendedOffer = null;

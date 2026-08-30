@@ -968,6 +968,8 @@
 - Pinned the independently commissioned Ed25519 evaluator public key and signed authority manifest, including the frozen evaluator, rubric, source-checkpoint, threshold, dimension, and validity identities
 - Required signed customer-photo evaluations to authenticate every score and image/request/response binding before Katherine's HMAC ledger can store them; unsigned, caller-asserted, self-authenticated, substituted, replayed, duplicate-sequence, expired, or untrusted records fail closed
 - Kept signed conformance fixtures outside product evaluation ingestion and kept authenticated PASS results in the product-quality lane unless separate causal evidence supports the existing governed cognition chain
+- Made Governor-selected insufficient-evidence stops executable when a bounded boundary has no remaining candidate or a repeated action is blocked, preserving the useful customer artifact without repeating provider work or weakening safety stops
+- Centralized customer pricing availability on retained price-bearing canonical evidence so zero retained prices consistently produce an insufficient, not-established disposition with no numeric value while traceable priced evidence remains usable
 
 ## Version 2.0
 - User accounts

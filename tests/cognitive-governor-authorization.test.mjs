@@ -488,10 +488,15 @@ test("canonical ledger counts one Governor, one authoritative state, and every d
   assert.equal(governor.executionLedger.decisionInvocations.length, 1);
   recordCognitiveActionOutcome(governor, decision, snapshot({ providerRequests: [{ physicalAttemptCount: 1 }] }));
   const stopped = decideCognitiveAction(governor, snapshot({ providerRequests: [{ physicalAttemptCount: 1 }], providerBudget: { maximum: 1, consumed: 1 }, customerInputAvailable: false }), { boundary: COGNITIVE_BOUNDARY.INITIAL_ACQUISITION });
-  assert.equal(stopped.executionPermitted, false);
+  assert.equal(stopped.executionPermitted, true);
   assert.ok(stopped.actionType.startsWith("STOP_"));
   assert.equal(governor.executionLedger.decisionInvocations.length, 2);
-  assert.equal(governor.executionLedger.decisionInvocations[1].selectedButNonexecutedTerminal, true);
+  assert.equal(governor.executionLedger.decisionInvocations[1].selectedButNonexecutedTerminal, false);
+  const terminal = executeGovernorAuthorizedAction(governor, stopped, stopped.actionType, {
+    operationPhase: "TERMINAL_STOP_TRANSITION",
+    operation: () => ({ terminalStatus: "INSUFFICIENT_EVIDENCE" })
+  });
+  assert.equal(terminal.terminalStatus, "INSUFFICIENT_EVIDENCE");
 });
 
 test("the canonical ledger rejects a second Governor construction", () => {
