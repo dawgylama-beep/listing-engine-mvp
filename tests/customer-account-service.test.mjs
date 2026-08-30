@@ -59,7 +59,7 @@ test("accounts, sessions, history ownership, rename, delete, retention, export, 
   assert.equal(alice.account.username, "alice_7");
   await assert.rejects(
     service.register({ username: "ALICE_7", password: "different safe password" }),
-    (error) => error.code === "username_unavailable"
+    (error) => error.code === "registration_unavailable" && error.status === 400
   );
   await assert.rejects(
     service.login({ username: "alice_7", password: "wrong password" }),

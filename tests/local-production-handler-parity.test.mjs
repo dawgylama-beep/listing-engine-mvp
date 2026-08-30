@@ -319,6 +319,8 @@ function sanitizedChildEnvironment({
       environment[name] = value;
     }
   }
+  delete environment.VERCEL_ENV;
+  delete environment.KATHERINES_EYE_PUBLIC_ORIGIN;
   Object.assign(environment, {
     OPENAI_API_KEY: "disabled-local-parity-test",
     OPEN_API_KEY: "disabled-local-parity-test",
@@ -331,7 +333,8 @@ function sanitizedChildEnvironment({
     KATHERINES_EYE_PARITY_CHILD: "1",
     KATHERINES_EYE_ADAPTER_DENY_NETWORK: "1",
     KATHERINES_EYE_PARITY_TRACE_PATH: tracePath,
-    KATHERINES_EYE_PARITY_NETWORK_TRACE_PATH: networkTracePath
+    KATHERINES_EYE_PARITY_NETWORK_TRACE_PATH: networkTracePath,
+    KATHERINES_EYE_ACCOUNT_STORE_PATH: path.join(path.dirname(tracePath), `accounts-${path.basename(tracePath)}.json`)
   });
   const dotenvPath = path.join(root, ".env");
   if (fs.existsSync(dotenvPath)) {
@@ -1456,7 +1459,7 @@ test("static source proves bridge-only dispatch and physical legacy removal", ()
   assert.match(bridgeRouteSource, /local_handler_transport_error/);
   assert.match(routeSource, /\/api\/customer-account/);
   assert.match(routeSource, /\^\(GET\|POST\|PATCH\|DELETE\)\$/);
-  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 3);
+  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 4);
   assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingBridge\b/g) || []).length, 2);
   for (const functionName of removedLegacyPowerShellFunctions) {
     const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1477,9 +1480,74 @@ test("static source proves bridge-only dispatch and physical legacy removal", ()
   assert.equal((bridgeSource.match(/createGenerateListingHandler\(adapters\)/g) || []).length, 1);
   assert.match(bridgeSource, /pathname === "\/api\/customer-account"/);
   assert.match(bridgeSource, /new URL\("\.\.\/api\/customer-account\.js", import\.meta\.url\)/);
+  assert.match(bridgeSource, /pathname === "\/api\/beta-readiness"/);
+  assert.match(bridgeSource, /new URL\("\.\.\/api\/beta-readiness\.js", import\.meta\.url\)/);
   assert.match(bridgeSource, /rawBodyBase64/);
   assert.doesNotMatch(bridgeSource, /https?:\/\/(?:www\.)?katherineseye\.com/i);
   assert.doesNotMatch(bridgeSource, /createFinalEvidenceResult|assembleFinalEvidence|deriveCanonicalRange|deriveCanonicalDecision/);
+});
+
+test("local bridge preserves account origin, CSRF, cookie, readiness, and request-size boundaries", async () => {
+  const server = await startServer();
+  try {
+    const origin = `http://127.0.0.1:${server.port}`;
+    const requestJson = async (method, requestPath, body, headers = {}) => {
+      const response = await loopbackRequest({
+        port: server.port,
+        method,
+        requestPath,
+        body: body == null ? Buffer.alloc(0) : Buffer.from(JSON.stringify(body), "utf8"),
+        headers: {
+          ...(body == null ? {} : { "Content-Type": "application/json", Origin: origin }),
+          ...headers
+        }
+      });
+      return { response, payload: JSON.parse(response.body.toString("utf8")) };
+    };
+
+    const readiness = await requestJson("GET", "/api/beta-readiness", null);
+    assert.equal(readiness.response.statusCode, 200);
+    assert.equal(readiness.payload.state, "local_ready");
+
+    const registered = await requestJson("POST", "/api/customer-account", {
+      action: "register",
+      username: "bridge_account",
+      password: "a private bridge password"
+    });
+    assert.equal(registered.response.statusCode, 200);
+    assert.match(registered.payload.session.csrfToken, /^[a-f0-9]{64}$/);
+    const setCookie = Array.isArray(registered.response.headers["set-cookie"])
+      ? registered.response.headers["set-cookie"][0]
+      : registered.response.headers["set-cookie"];
+    const cookie = setCookie.split(";")[0];
+
+    const rejected = await requestJson("POST", "/api/customer-account", {
+      action: "save_listing",
+      snapshot: { title: "Rejected without CSRF" }
+    }, { Cookie: cookie });
+    assert.equal(rejected.response.statusCode, 403);
+    assert.equal(rejected.payload.code, "csrf_verification_failed");
+
+    const saved = await requestJson("POST", "/api/customer-account", {
+      action: "save_listing",
+      snapshot: { title: "Saved through the bridge", uploadedImage: "forbidden-image-bytes" }
+    }, { Cookie: cookie, "X-CSRF-Token": registered.payload.session.csrfToken });
+    assert.equal(saved.response.statusCode, 200);
+    assert.doesNotMatch(JSON.stringify(saved.payload), /forbidden-image-bytes/);
+
+    const oversized = await loopbackRequest({
+      port: server.port,
+      method: "POST",
+      requestPath: "/api/customer-account",
+      body: Buffer.alloc(256 * 1024 + 1, 0x20),
+      headers: { "Content-Type": "application/json", Origin: origin }
+    });
+    assert.equal(oversized.statusCode, 413);
+    assert.equal(JSON.parse(oversized.body.toString("utf8")).code, "request_body_too_large");
+    assert.equal(readTrace(server.networkTracePath).length, 0);
+  } finally {
+    await stopServer(server);
+  }
 });
 
 async function runAskParityRegression() {

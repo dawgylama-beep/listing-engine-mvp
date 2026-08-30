@@ -23,11 +23,14 @@ const SAFE_RESPONSE_HEADERS = new Set([
   "cache-control",
   "content-language",
   "content-type",
+  "cross-origin-resource-policy",
   "etag",
   "last-modified",
+  "referrer-policy",
   "retry-after",
   "set-cookie",
   "vary",
+  "x-content-type-options",
   "x-request-id"
 ]);
 
@@ -239,6 +242,13 @@ async function main() {
       throw new Error("customer_account_handler_export_unavailable");
     }
     handler = customerAccountHandler;
+  } else if (pathname === "/api/beta-readiness") {
+    const handlerModuleUrl = new URL("../api/beta-readiness.js", import.meta.url);
+    const { default: betaReadinessHandler } = await import(handlerModuleUrl.href);
+    if (typeof betaReadinessHandler !== "function") {
+      throw new Error("beta_readiness_handler_export_unavailable");
+    }
+    handler = betaReadinessHandler;
   } else {
     throw new Error("unsupported_handler_route");
   }

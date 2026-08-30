@@ -513,6 +513,19 @@
           </section>
 
           <details class="delete-account-disclosure">
+            <summary>Change password</summary>
+            <form id="change-password-form" class="account-form compact-account-form">
+              <p>Changing your password signs out every other session and rotates this one.</p>
+              <label for="change-password-current">Current password</label>
+              <input id="change-password-current" name="currentPassword" type="password" autocomplete="current-password" required>
+              <label for="change-password-new">New password</label>
+              <input id="change-password-new" name="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required aria-describedby="change-password-guidance">
+              <p id="change-password-guidance" class="field-note">Use at least 10 characters. A long, unique passphrase works well.</p>
+              <button class="secondary-button" type="submit">Change password</button>
+            </form>
+          </details>
+
+          <details class="delete-account-disclosure">
             <summary>Delete account and saved reports</summary>
             <form id="delete-account-form" class="account-form compact-account-form">
               <p>This permanently deletes the account and every saved report. Uploaded images are not part of account history.</p>

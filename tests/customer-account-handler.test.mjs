@@ -22,9 +22,16 @@ function responseCapture() {
   };
 }
 
-async function call(handler, { method = "GET", url = "/api/customer-account", cookie = "", body = null } = {}) {
+async function call(handler, { method = "GET", url = "/api/customer-account", cookie = "", body = null, csrfToken = "", headers = {} } = {}) {
   const response = responseCapture();
-  await handler({ method, url, headers: cookie ? { cookie } : {}, body }, response);
+  const requestHeaders = { host: "localhost:5175", ...headers };
+  if (["POST", "PATCH", "DELETE"].includes(method)) {
+    requestHeaders.origin ||= "http://localhost:5175";
+    requestHeaders["content-type"] ||= "application/json";
+  }
+  if (cookie) requestHeaders.cookie = cookie;
+  if (csrfToken) requestHeaders["x-csrf-token"] = csrfToken;
+  await handler({ method, url, headers: requestHeaders, body }, response);
   return response;
 }
 
@@ -38,6 +45,7 @@ test("handler issues an HttpOnly strict cookie and never returns its opaque toke
   assert.equal(registered.statusCode, 200);
   assert.match(registered.headers["set-cookie"], /^ke_beta_session=[A-Za-z0-9_-]+; Path=\/; HttpOnly; SameSite=Strict;/);
   assert.equal(registered.payload.session.token, undefined);
+  assert.match(registered.payload.session.csrfToken, /^[a-f0-9]{64}$/);
   assert.equal(registered.headers["cache-control"], "no-store");
 
   const cookie = registered.headers["set-cookie"].split(";")[0];
@@ -50,6 +58,7 @@ test("handler issues an HttpOnly strict cookie and never returns its opaque toke
   const signedOut = await call(handler, {
     method: "POST",
     cookie,
+    csrfToken: registered.payload.session.csrfToken,
     body: JSON.stringify({ action: "logout" })
   });
   assert.match(signedOut.headers["set-cookie"], /Max-Age=0/);

@@ -6,6 +6,8 @@ param(
 $RootDir = $PSScriptRoot
 $PublicDir = Join-Path $RootDir "public"
 $MaxBodyBytes = 30 * 1024 * 1024
+$AccountMaxBodyBytes = 256 * 1024
+$MaxHeaderBytes = 64 * 1024
 $AppVersion = "1.12.52"
 $LocalBridgeProtocolVersion = 1
 $LocalBridgePath = Join-Path $RootDir "scripts\local-generate-listing-bridge.mjs"
@@ -28,6 +30,7 @@ function Handle-Client {
     if ($null -eq $Request) {
       return
     }
+    $Request.ClientAddress = [string]$Client.Client.RemoteEndPoint.Address
     if ($Request.IsOversizedRequest) {
       try {
         Complete-OversizedRequest $Client $Stream $Request
@@ -44,6 +47,14 @@ function Handle-Client {
         Send-Json $Stream 413 @{
           error = "Request body is too large."
           code = "request_body_too_large"
+        }
+      } catch {
+      }
+    } elseif ($_.Exception.Message -eq "Request headers are too large.") {
+      try {
+        Send-Json $Stream 431 @{
+          error = "Request headers are too large."
+          code = "request_headers_too_large"
         }
       } catch {
       }
@@ -145,6 +156,11 @@ function Route-Request {
     return
   }
 
+  if ($Request.Path -eq "/api/beta-readiness" -and $Request.Method -eq "GET") {
+    Invoke-LocalGenerateListingHandler $Stream $Request
+    return
+  }
+
   if ($Request.Method -eq "POST" -and $Request.Path -eq "/api/reverse-geocode") {
     Handle-ReverseGeocode $Stream $Request
     return
@@ -207,8 +223,13 @@ function Get-BridgeRequestHeaders {
     "Accept-Language",
     "Content-Type",
     "Cookie",
+    "Host",
     "Origin",
+    "Sec-Fetch-Site",
     "User-Agent",
+    "X-CSRF-Token",
+    "X-Forwarded-Host",
+    "X-Forwarded-Proto",
     "X-Requested-With"
   )
   $SafeHeaders = [ordered]@{}
@@ -235,11 +256,15 @@ function Invoke-LocalGenerateListingBridge {
     throw "Request body is too large."
   }
 
+  $SafeRequestHeaders = Get-BridgeRequestHeaders $Request.Headers
+  if ($Request.ClientAddress -and $Request.ClientAddress.Length -le 240) {
+    $SafeRequestHeaders["x-katherine-client-origin"] = [string]$Request.ClientAddress
+  }
   $Envelope = [ordered]@{
     protocolVersion = $LocalBridgeProtocolVersion
     method = [string]$Request.Method
     url = [string]$Request.Url
-    headers = Get-BridgeRequestHeaders $Request.Headers
+    headers = $SafeRequestHeaders
     rawBodyBase64 = [System.Convert]::ToBase64String($BodyBytes)
     correlationId = "ke-local-$([guid]::NewGuid().ToString('N'))"
   }
@@ -490,8 +515,8 @@ function Read-HttpRequest {
     }
 
     $Memory.Write($Buffer, 0, $Read)
-    if ($Memory.Length -gt $MaxBodyBytes) {
-      throw "Request body is too large."
+    if ($Memory.Length -gt $MaxHeaderBytes) {
+      throw "Request headers are too large."
     }
 
     $HeaderEnd = Find-HeaderEnd $Memory.ToArray()
@@ -508,6 +533,11 @@ function Read-HttpRequest {
   if ($RequestParts.Count -lt 2) {
     return $null
   }
+
+  $RawPath = $RequestParts[1]
+  $PathOnly = ($RawPath -split "\?")[0]
+  $PathOnly = [System.Uri]::UnescapeDataString($PathOnly)
+  $RequestBodyLimit = if ($PathOnly -eq "/api/customer-account") { $AccountMaxBodyBytes } else { $MaxBodyBytes }
 
   $Headers = @{}
   for ($Index = 1; $Index -lt $HeaderLines.Count; $Index++) {
@@ -532,7 +562,7 @@ function Read-HttpRequest {
     }
   }
 
-  if ($ContentLength -gt $MaxBodyBytes) {
+  if ($ContentLength -gt $RequestBodyLimit) {
     $BodyStart = $HeaderEnd + 4
     $BufferedBodyByteCount = [Math]::Max([long]0, [long]$AllBytes.Length - $BodyStart)
     return @{
@@ -560,10 +590,6 @@ function Read-HttpRequest {
 
     $BodyMemory.Write($Buffer, 0, $Read)
   }
-
-  $RawPath = $RequestParts[1]
-  $PathOnly = ($RawPath -split "\?")[0]
-  $PathOnly = [System.Uri]::UnescapeDataString($PathOnly)
 
   return @{
     Method = $RequestParts[0].ToUpperInvariant()
@@ -660,7 +686,7 @@ function Send-HandlerBytes {
   foreach ($HeaderName in $Headers.Keys) {
     $NormalizedName = [string]$HeaderName
     $HeaderValue = [string]$Headers[$HeaderName]
-    if ($NormalizedName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|set-cookie|vary|x-request-id)$") {
+    if ($NormalizedName -match "^(?i:cache-control|content-language|content-type|cross-origin-resource-policy|etag|last-modified|referrer-policy|retry-after|set-cookie|vary|x-content-type-options|x-request-id)$") {
       if ($NormalizedName -ieq "Content-Type") {
         $HasContentType = $true
       }
@@ -701,6 +727,12 @@ function Send-Bytes {
     "Content-Type: $ContentType",
     "Content-Length: $($Bytes.Length)",
     "Cache-Control: no-store",
+    "Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' blob: data:; object-src 'none'; script-src 'self'; style-src 'self'",
+    "Cross-Origin-Opener-Policy: same-origin",
+    "Permissions-Policy: camera=(self), geolocation=(self), microphone=()",
+    "Referrer-Policy: strict-origin-when-cross-origin",
+    "X-Content-Type-Options: nosniff",
+    "X-Frame-Options: DENY",
     "Connection: close",
     "",
     ""
@@ -725,6 +757,9 @@ function Get-ReasonPhrase {
     405 { return "Method Not Allowed" }
     409 { return "Conflict" }
     413 { return "Payload Too Large" }
+    415 { return "Unsupported Media Type" }
+    429 { return "Too Many Requests" }
+    431 { return "Request Header Fields Too Large" }
     500 { return "Internal Server Error" }
     502 { return "Bad Gateway" }
     503 { return "Service Unavailable" }

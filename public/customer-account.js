@@ -15,6 +15,7 @@
   const signoutButton = document.querySelector("#account-signout-button");
   const retentionForm = document.querySelector("#retention-form");
   const retentionSelect = document.querySelector("#history-retention-days");
+  const passwordForm = document.querySelector("#change-password-form");
   const exportButton = document.querySelector("#account-export-button");
   const deleteAccountForm = document.querySelector("#delete-account-form");
   const accountHistoryButton = document.querySelector("#account-history-button");
@@ -35,6 +36,7 @@
   let currentReportSections = [];
   let currentReportWorkflow = "personal_use";
   let accountPanelReturnFocus = null;
+  let csrfToken = "";
 
   const cleanText = (value, maximum = 1200) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, maximum);
   const listValues = (value, maximumItems = 16) => {
@@ -48,11 +50,17 @@
   async function requestAccount(url = "/api/customer-account", options = {}) {
     let response;
     try {
+      const method = String(options.method || "GET").toUpperCase();
+      const headers = {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(csrfToken && method !== "GET" ? { "X-CSRF-Token": csrfToken } : {}),
+        ...(options.headers || {})
+      };
       response = await fetch(url, {
         credentials: "same-origin",
         cache: "no-store",
         ...options,
-        headers: options.body ? { "Content-Type": "application/json", ...(options.headers || {}) } : options.headers
+        headers
       });
     } catch {
       const error = new Error("Private beta accounts are unavailable in this environment.");
@@ -71,6 +79,8 @@
       error.status = response.status;
       throw error;
     }
+    const nextCsrfToken = cleanText(payload.csrfToken || payload.session?.csrfToken, 128);
+    if (nextCsrfToken) csrfToken = nextCsrfToken;
     return payload;
   }
 
@@ -108,6 +118,7 @@
       accountServiceAvailable = true;
     } catch (error) {
       account = null;
+      csrfToken = "";
       accountServiceAvailable = !["account_service_unavailable", "account_request_failed"].includes(error.code) && error.status !== 404 && error.status !== 503;
     }
     renderAccountState();
@@ -491,6 +502,7 @@
     } catch {
     }
     account = null;
+    csrfToken = "";
     historyPanel.hidden = true;
     setAccountStatus("Signed out.", "success");
     renderAccountState();
@@ -507,6 +519,30 @@
       renderAccountState();
     } catch (error) {
       setAccountStatus(error.message, "error");
+    }
+  });
+  passwordForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const values = new FormData(passwordForm);
+    const submitButton = passwordForm.querySelector("button[type='submit']");
+    submitButton.disabled = true;
+    try {
+      const payload = await requestAccount("/api/customer-account", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "change_password",
+          currentPassword: values.get("currentPassword"),
+          newPassword: values.get("newPassword")
+        })
+      });
+      account = payload.account;
+      passwordForm.reset();
+      setAccountStatus("Password changed. Other signed-in sessions were revoked.", "success");
+      renderAccountState();
+    } catch (error) {
+      setAccountStatus(error.message, "error");
+    } finally {
+      submitButton.disabled = false;
     }
   });
   exportButton?.addEventListener("click", async () => {
@@ -533,6 +569,7 @@
         body: JSON.stringify({ action: "delete_account", password })
       });
       account = null;
+      csrfToken = "";
       deleteAccountForm.reset();
       historyPanel.hidden = true;
       setAccountStatus("Account and saved reports deleted.", "success");

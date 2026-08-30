@@ -133,7 +133,11 @@ The Windows local server includes a private beta account foundation. Accounts us
 
 By default, the local server keeps its account store outside the repository in the current Windows user’s local application-data directory. Saved reports expire after 30 days unless the signed-in customer selects 7 or 90 days. Customers can rename or delete individual reports, export their customer account data without credentials or session tokens, and delete the entire account.
 
-Online beta accounts are intentionally unavailable until a durable production persistence adapter is configured. The current file adapter is for the persistent Windows local server, not ephemeral serverless storage. The interface reports that dependency honestly; it does not claim durable online accounts when the dependency is absent. Photo analysis does not require an account.
+Online beta accounts are intentionally unavailable until a reviewed durable persistence adapter is connected. The current file adapter is accepted only for the persistent Windows local server and is rejected in Vercel Preview and Production, where an ephemeral filesystem would lose account state. The versioned durable-store boundary requires atomic compare-and-swap ownership mutations, shared authentication throttling, and deterministic retention cleanup. Photo analysis does not require an account.
+
+Account mutations require same-origin JSON requests and a session-bound CSRF token. Authentication attempts are bounded per username and source; successful authentication rotates the current session, and a password change revokes every other session. Password records use a parameter-authenticated scrypt format and migrate the earlier format after a successful login.
+
+`GET /api/beta-readiness` reports `local_ready`, `preview_blocked`, or `preview_ready` without exposing configuration values. The current online default is intentionally `preview_blocked` until durable persistence is selected and integrated. See [BETA_PREVIEW_CHECKLIST.md](./BETA_PREVIEW_CHECKLIST.md) for the controlled release gate and environment-key names.
 
 ## Deploy Online With Vercel
 

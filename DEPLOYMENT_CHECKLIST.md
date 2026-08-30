@@ -2,6 +2,8 @@
 
 Use this checklist before uploading Katherine’s Eye to GitHub and Vercel.
 
+> This legacy product-deployment walkthrough is not the controlled beta account gate and does not authorize a deployment. Before any beta Preview, complete [BETA_PREVIEW_CHECKLIST.md](./BETA_PREVIEW_CHECKLIST.md) and require `/api/beta-readiness` to return `preview_ready`. The current online default remains `preview_blocked` until a reviewed durable account adapter is connected; never substitute Vercel’s temporary filesystem or the local Windows account file.
+
 ## Preflight Safety Check
 
 - Confirm `.gitignore` exists.

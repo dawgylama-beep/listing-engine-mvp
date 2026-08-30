@@ -991,3 +991,12 @@
 - Added a private per-user Windows file adapter outside the repository. Online beta accounts remain visibly unavailable until a durable production data adapter is configured; photo analysis remains usable without an account.
 - Added desktop/mobile styling, visible focus, semantic dialog/history controls, empty/error/loading states, reduced-motion behavior, and deterministic offline coverage.
 - Kept Version `1.12.52`; no provider, controller, network, deployment, publication, Preview, or Production effect is part of this foundation.
+
+## Version 1.12.52 (Completed)
+
+- Added same-origin and session-bound CSRF enforcement, strict JSON/body limits, generic account-creation failure behavior, durable per-identity/source authentication throttling, session rotation, and password-change revocation.
+- Added parameter-authenticated `scrypt-v2` records with bounded legacy migration, absolute sessions, matching secure-cookie clearing, and browser/server response hardening.
+- Hardened the local file store with schema validation and migration, bounded lock recovery, atomic durable writes, last-known-good recovery, link/path rejection, and private file modes where the operating system supports them.
+- Added a compare-and-swap durable persistence contract that preserves atomic username, ownership, throttle, session, deletion, export, and retention mutations without selecting or inventing an external service.
+- Added a secret-free readiness endpoint and controlled beta Preview checklist. Local file persistence is explicitly rejected as an online/serverless substitute; Preview remains blocked until a reviewed durable adapter and exact HTTPS public origin are connected.
+- Preserved Version `1.12.52`; no provider, controller, network, deployment, publication, Preview, or Production effect is part of this hardening.
