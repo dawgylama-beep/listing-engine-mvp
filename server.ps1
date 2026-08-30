@@ -140,6 +140,11 @@ function Route-Request {
     return
   }
 
+  if ($Request.Path -eq "/api/customer-account" -and $Request.Method -match "^(GET|POST|PATCH|DELETE)$") {
+    Invoke-LocalGenerateListingHandler $Stream $Request
+    return
+  }
+
   if ($Request.Method -eq "POST" -and $Request.Path -eq "/api/reverse-geocode") {
     Handle-ReverseGeocode $Stream $Request
     return
@@ -201,6 +206,7 @@ function Get-BridgeRequestHeaders {
     "Accept",
     "Accept-Language",
     "Content-Type",
+    "Cookie",
     "Origin",
     "User-Agent",
     "X-Requested-With"
@@ -257,6 +263,11 @@ function Invoke-LocalGenerateListingBridge {
   $StartInfo.RedirectStandardInput = $true
   $StartInfo.RedirectStandardOutput = $true
   $StartInfo.RedirectStandardError = $true
+  if (-not [System.Environment]::GetEnvironmentVariable("KATHERINES_EYE_ACCOUNT_STORE_PATH", "Process")) {
+    $LocalAccountData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+    $LocalAccountStore = Join-Path $LocalAccountData "KatherinesEye\beta-customer-accounts.json"
+    $StartInfo.Environment["KATHERINES_EYE_ACCOUNT_STORE_PATH"] = $LocalAccountStore
+  }
   $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
   if ($StartInfo.PSObject.Properties.Name -contains "StandardOutputEncoding") {
     $StartInfo.StandardOutputEncoding = $Utf8NoBom
@@ -340,7 +351,7 @@ function Invoke-LocalGenerateListingBridge {
       $HeaderName = [string]$Property.Name
       $HeaderValue = [string]$Property.Value
       if (
-        $HeaderName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|vary|x-request-id)$" -and
+        $HeaderName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|set-cookie|vary|x-request-id)$" -and
         $HeaderValue.Length -le 8192 -and
         $HeaderValue -notmatch "[\r\n]"
       ) {
@@ -649,7 +660,7 @@ function Send-HandlerBytes {
   foreach ($HeaderName in $Headers.Keys) {
     $NormalizedName = [string]$HeaderName
     $HeaderValue = [string]$Headers[$HeaderName]
-    if ($NormalizedName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|vary|x-request-id)$") {
+    if ($NormalizedName -match "^(?i:cache-control|content-language|content-type|etag|last-modified|retry-after|set-cookie|vary|x-request-id)$") {
       if ($NormalizedName -ieq "Content-Type") {
         $HasContentType = $true
       }
@@ -708,6 +719,7 @@ function Get-ReasonPhrase {
   switch ($StatusCode) {
     200 { return "OK" }
     400 { return "Bad Request" }
+    401 { return "Unauthorized" }
     403 { return "Forbidden" }
     404 { return "Not Found" }
     405 { return "Method Not Allowed" }
@@ -715,6 +727,7 @@ function Get-ReasonPhrase {
     413 { return "Payload Too Large" }
     500 { return "Internal Server Error" }
     502 { return "Bad Gateway" }
+    503 { return "Service Unavailable" }
     default { return "OK" }
   }
 }

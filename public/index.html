@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/styles.css?v=1.12.52">
   </head>
   <body>
+    <a class="skip-link" href="#listing-form">Skip to photo analysis</a>
     <main class="app-shell">
       <section class="workspace" aria-labelledby="app-title">
         <div class="panel input-panel">
@@ -33,6 +34,10 @@
             <p class="brand-descriptor">Your guide to identifying, valuing, buying, and selling the things around you.</p>
             <p class="brand-intro">Begin with photographs—even when you do not know the item’s exact name. Clear marks, labels, and condition details help Katherine’s Eye give you a more useful answer.</p>
             <p class="version-badge">Version 1.12.52</p>
+            <div class="customer-nav" aria-label="Customer account">
+              <button id="account-menu-button" class="brand-utility-button" type="button" aria-haspopup="dialog" aria-controls="account-panel" aria-expanded="false">Account</button>
+              <button id="history-menu-button" class="brand-utility-button" type="button" hidden>Saved history</button>
+            </div>
           </header>
 
           <form id="listing-form" class="listing-form">
@@ -82,6 +87,7 @@
                 </div>
                 <p class="field-note">Add up to 6 photographs. You do not need to know the answer before you begin.</p>
               </div>
+              <p class="supported-photo-guidance">Best suited to ordinary household goods, tools, décor, apparel, collectibles, and retail items. Katherine’s Eye may stop when an item is unsafe, prohibited, or outside the supported object boundary.</p>
               <ul class="photo-guidance-list" aria-label="Helpful photographs">
                 <li>Front</li>
                 <li>Back</li>
@@ -90,6 +96,10 @@
                 <li>Damage or condition</li>
                 <li>Packaging, when relevant</li>
               </ul>
+              <div id="photo-dropzone" class="photo-dropzone" role="button" tabindex="0" aria-describedby="photo-dropzone-help photo-feedback">
+                <strong>Drop item photos here</strong>
+                <span id="photo-dropzone-help">or press Enter to choose files. JPEG, PNG, WebP, and common camera images up to 20 MB each work best.</span>
+              </div>
               <div class="photo-inputs photo-actions">
                 <div class="photo-control compact-photo-control">
                   <label class="photo-action" for="camera-photo">
@@ -106,7 +116,15 @@
                   <input id="photos" class="visually-hidden-file" name="photos" type="file" accept="image/*" multiple>
                 </div>
               </div>
+              <p id="photo-feedback" class="photo-feedback" role="status" aria-live="polite"></p>
               <div id="photo-preview" class="photo-grid" aria-live="polite"></div>
+              <aside class="privacy-promise" aria-label="Photo privacy">
+                <div>
+                  <strong>Your photos are for this analysis.</strong>
+                  <p>Katherine’s Eye does not add uploaded image files to saved history. Only the customer report is saved when you explicitly choose Save.</p>
+                </div>
+                <button id="privacy-details-button" class="text-button" type="button">Privacy controls</button>
+              </aside>
             </div>
 
             <section id="buyer-intake-section" class="field buyer-intake" aria-labelledby="buyer-intake-title">
@@ -360,6 +378,8 @@
             </div>
             <div id="output-actions" class="output-actions" hidden>
               <button id="new-item-button" class="secondary-button" type="button">New Item</button>
+              <button id="save-listing-button" class="secondary-button" type="button" hidden>Save to history</button>
+              <button id="open-history-button" class="secondary-button" type="button" hidden>History</button>
               <button id="copy-all" class="secondary-button" type="button" disabled>Copy All</button>
               <button id="feedback-button" class="secondary-button" type="button" aria-expanded="false">Send Feedback</button>
             </div>
@@ -376,6 +396,24 @@
               <button id="feedback-copy-button" class="primary-button" type="button">Copy Feedback</button>
             </div>
             <p id="feedback-status" class="feedback-status" role="status" aria-live="polite"></p>
+          </section>
+
+          <section id="history-panel" class="history-panel" aria-labelledby="history-title" tabindex="-1" hidden>
+            <header class="history-heading">
+              <div>
+                <p class="eyebrow">Private to your account</p>
+                <h2 id="history-title">Saved listing history</h2>
+              </div>
+              <button id="close-history-button" class="secondary-button" type="button">Close history</button>
+            </header>
+            <p class="history-helper">Saved reports contain customer-facing text and source links, not uploaded image files. Each entry expires on your chosen schedule.</p>
+            <div id="history-status" class="status" role="status" aria-live="polite"></div>
+            <div class="history-layout">
+              <div id="history-list" class="history-list" aria-live="polite"></div>
+              <article id="history-detail" class="history-detail" aria-live="polite">
+                <p>Select a saved result to revisit it.</p>
+              </article>
+            </div>
           </section>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -408,6 +446,85 @@
       </section>
     </main>
 
+    <div id="account-panel-backdrop" class="account-panel-backdrop" hidden></div>
+    <aside id="account-panel" class="account-panel" role="dialog" aria-modal="true" aria-labelledby="account-panel-title" hidden tabindex="-1">
+      <div class="account-panel-shell">
+        <header class="account-panel-header">
+          <div>
+            <p class="eyebrow">Private beta account</p>
+            <h2 id="account-panel-title">Your Katherine’s Eye account</h2>
+          </div>
+          <button id="account-close-button" class="account-close-button" type="button" aria-label="Close account panel">Close</button>
+        </header>
+
+        <div id="account-service-status" class="account-service-status" role="status" aria-live="polite"></div>
+
+        <div id="account-signed-out-view">
+          <p class="account-intro">Create a unique username to save customer reports privately, or sign in to revisit your history.</p>
+          <div class="account-auth-grid">
+            <form id="account-register-form" class="account-form">
+              <h3>Create an account</h3>
+              <label for="register-username">Username</label>
+              <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="24" pattern="[A-Za-z][A-Za-z0-9_]{2,23}" required aria-describedby="username-guidance">
+              <p id="username-guidance" class="field-note">3–24 letters, numbers, or underscores; begin with a letter. Usernames are case-insensitively unique.</p>
+              <label for="register-password">Password</label>
+              <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+              <label class="consent-check"><input id="account-consent" type="checkbox" required> I understand that only reports I explicitly save are retained, and I can delete them or my account.</label>
+              <button class="primary-button" type="submit">Create account</button>
+            </form>
+
+            <form id="account-login-form" class="account-form">
+              <h3>Sign in</h3>
+              <label for="login-username">Username</label>
+              <input id="login-username" name="username" type="text" autocomplete="username" required>
+              <label for="login-password">Password</label>
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+              <button class="primary-button" type="submit">Sign in</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="account-signed-in-view" hidden>
+          <section class="account-summary-card" aria-labelledby="account-username">
+            <div>
+              <p class="mini-eyebrow">Signed in as</p>
+              <h3 id="account-username"></h3>
+            </div>
+            <button id="account-signout-button" class="secondary-button" type="button">Sign out</button>
+          </section>
+
+          <section class="privacy-controls" aria-labelledby="privacy-controls-title">
+            <p class="mini-eyebrow">Privacy and retention</p>
+            <h3 id="privacy-controls-title">Control what is kept</h3>
+            <p>Uploaded image files are not stored in account history. Saved customer reports are private to this account and expire automatically.</p>
+            <form id="retention-form" class="retention-form">
+              <label for="history-retention-days">Keep saved reports for</label>
+              <select id="history-retention-days" name="historyRetentionDays">
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+              </select>
+              <button class="secondary-button" type="submit">Update retention</button>
+            </form>
+            <div class="privacy-actions">
+              <button id="account-export-button" class="secondary-button" type="button">Download my data</button>
+              <button id="account-history-button" class="secondary-button" type="button">Open saved history</button>
+            </div>
+          </section>
+
+          <details class="delete-account-disclosure">
+            <summary>Delete account and saved reports</summary>
+            <form id="delete-account-form" class="account-form compact-account-form">
+              <p>This permanently deletes the account and every saved report. Uploaded images are not part of account history.</p>
+              <label for="delete-account-password">Current password</label>
+              <input id="delete-account-password" name="password" type="password" autocomplete="current-password" required>
+              <button class="danger-button" type="submit">Delete my account</button>
+            </form>
+          </details>
+        </div>
+      </div>
+    </aside>
+
     <div id="help-panel-backdrop" class="help-panel-backdrop" hidden></div>
     <aside id="help-panel" class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-panel-title" hidden tabindex="-1">
       <div class="help-panel-shell">
@@ -433,5 +550,6 @@
 
     <script src="/customer-evidence.js?v=1.12.52"></script>
     <script src="/app.js?v=1.12.52"></script>
+    <script src="/customer-account.js?v=1.12.52"></script>
   </body>
 </html>

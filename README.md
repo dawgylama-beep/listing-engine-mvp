@@ -127,6 +127,14 @@ powershell -ExecutionPolicy Bypass -File .\server.ps1
 
 Then open `http://localhost:5175`.
 
+## Private beta accounts and saved history
+
+The Windows local server includes a private beta account foundation. Accounts use unique normalized usernames, password hashes, opaque server-owned sessions, and server-side ownership checks. Saved history contains only the customer-facing report you explicitly save; uploaded image files are not stored with history.
+
+By default, the local server keeps its account store outside the repository in the current Windows user’s local application-data directory. Saved reports expire after 30 days unless the signed-in customer selects 7 or 90 days. Customers can rename or delete individual reports, export their customer account data without credentials or session tokens, and delete the entire account.
+
+Online beta accounts are intentionally unavailable until a durable production persistence adapter is configured. The current file adapter is for the persistent Windows local server, not ephemeral serverless storage. The interface reports that dependency honestly; it does not claim durable online accounts when the dependency is absent. Photo analysis does not require an account.
+
 ## Deploy Online With Vercel
 
 This project is now Vercel-ready.

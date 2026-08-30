@@ -1454,7 +1454,9 @@ test("static source proves bridge-only dispatch and physical legacy removal", ()
   const bridgeRouteSource = serverSource.slice(bridgeRouteStart, bridgeRouteEnd);
   assert.match(bridgeRouteSource, /Invoke-LocalGenerateListingBridge/);
   assert.match(bridgeRouteSource, /local_handler_transport_error/);
-  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 2);
+  assert.match(routeSource, /\/api\/customer-account/);
+  assert.match(routeSource, /\^\(GET\|POST\|PATCH\|DELETE\)\$/);
+  assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingHandler\b/g) || []).length, 3);
   assert.equal((serverSource.match(/\bInvoke-LocalGenerateListingBridge\b/g) || []).length, 2);
   for (const functionName of removedLegacyPowerShellFunctions) {
     const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1473,6 +1475,8 @@ test("static source proves bridge-only dispatch and physical legacy removal", ()
   assert.match(bridgeSource, /new URL\("\.\.\/api\/generate-listing\.js", import\.meta\.url\)/);
   assert.match(bridgeSource, /createGenerateListingHandler\(adapters\)/);
   assert.equal((bridgeSource.match(/createGenerateListingHandler\(adapters\)/g) || []).length, 1);
+  assert.match(bridgeSource, /pathname === "\/api\/customer-account"/);
+  assert.match(bridgeSource, /new URL\("\.\.\/api\/customer-account\.js", import\.meta\.url\)/);
   assert.match(bridgeSource, /rawBodyBase64/);
   assert.doesNotMatch(bridgeSource, /https?:\/\/(?:www\.)?katherineseye\.com/i);
   assert.doesNotMatch(bridgeSource, /createFinalEvidenceResult|assembleFinalEvidence|deriveCanonicalRange|deriveCanonicalDecision/);

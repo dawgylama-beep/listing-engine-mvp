@@ -26,6 +26,7 @@ const SAFE_RESPONSE_HEADERS = new Set([
   "etag",
   "last-modified",
   "retry-after",
+  "set-cookie",
   "vary",
   "x-request-id"
 ]);
@@ -221,14 +222,26 @@ function createResponseCapture() {
 
 async function main() {
   const requestEnvelope = await readInputEnvelope();
-  const adapters = await loadAdapters();
-  const handlerModuleUrl = new URL("../api/generate-listing.js", import.meta.url);
-  const { createGenerateListingHandler } = await import(handlerModuleUrl.href);
-  if (typeof createGenerateListingHandler !== "function") {
-    throw new Error("production_handler_export_unavailable");
+  const pathname = new URL(requestEnvelope.url, "http://katherines-eye.local").pathname;
+  let handler;
+  if (pathname === "/api/generate-listing") {
+    const adapters = await loadAdapters();
+    const handlerModuleUrl = new URL("../api/generate-listing.js", import.meta.url);
+    const { createGenerateListingHandler } = await import(handlerModuleUrl.href);
+    if (typeof createGenerateListingHandler !== "function") {
+      throw new Error("production_handler_export_unavailable");
+    }
+    handler = createGenerateListingHandler(adapters);
+  } else if (pathname === "/api/customer-account") {
+    const handlerModuleUrl = new URL("../api/customer-account.js", import.meta.url);
+    const { default: customerAccountHandler } = await import(handlerModuleUrl.href);
+    if (typeof customerAccountHandler !== "function") {
+      throw new Error("customer_account_handler_export_unavailable");
+    }
+    handler = customerAccountHandler;
+  } else {
+    throw new Error("unsupported_handler_route");
   }
-
-  const handler = createGenerateListingHandler(adapters);
   const capture = createResponseCapture();
   await handler({
     method: requestEnvelope.method,

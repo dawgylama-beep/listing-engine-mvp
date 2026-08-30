@@ -81,7 +81,7 @@ $assetVersionPattern = [regex]::Escape($activeVersionExpectations.ActiveVersion)
 Require-True ($index -match ('<script src="/customer-evidence\.js\?v=' + $assetVersionPattern + '"></script>\s*<script src="/app\.js\?v=' + $assetVersionPattern + '"></script>')) "Browser presentation model is not loaded before app.js."
 Require-True ($api -match 'maxProviderCalls:\s*8') "Retail provider ceiling changed from 8."
 Require-True ($api -match '\? retailBudget\.maxProviderCalls\s*:\s*8') "Collectible provider ceiling changed from 8."
-Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 53) "Current PowerShell entry-point count is not exactly 53."
+Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq 54) "Current PowerShell entry-point count is not exactly 54."
 Require-True ($package.packageManager -ceq "npm@11.16.0") "The approved npm packageManager declaration changed."
 Require-True ($package.devDependencies.'@playwright/test' -ceq "1.62.0") "The exact Milestone 2C-2 Playwright development dependency changed."
 Require-True ($null -eq $package.dependencies -or @($package.dependencies.PSObject.Properties.Name).Count -eq 0) "A production package dependency was added."
@@ -96,7 +96,7 @@ $changed = @($gitChanged.StandardOutput -split "`r?`n" | Where-Object { $_.Lengt
 # serialization authority. Local server transport and local/production
 # handler parity are governed by Milestone 2D-2.
 if ($changed -contains "PRODUCT_ROADMAP.md") {
-  $roadmapGitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "PRODUCT_ROADMAP.md")
+  $roadmapGitDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--ignore-space-at-eol", "--", "PRODUCT_ROADMAP.md")
   $roadmapDiff = $roadmapGitDiff.StandardOutput
   $addedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^\+(?!\+\+)' })
   $removedRoadmapLines = @($roadmapDiff -split "`r?`n" | Where-Object { $_ -match '^-(?!--)' })

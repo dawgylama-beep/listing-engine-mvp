@@ -2,6 +2,7 @@ const form = document.querySelector("#listing-form");
 const cameraInput = document.querySelector("#camera-photo");
 const photosInput = document.querySelector("#photos");
 const preview = document.querySelector("#photo-preview");
+const photoFeedback = document.querySelector("#photo-feedback");
 const statusBox = document.querySelector("#status");
 const results = document.querySelector("#results");
 const workflowInputs = Array.from(document.querySelectorAll('input[name="workflow_mode"]'));
@@ -621,6 +622,7 @@ const MAX_PROCESSED_PHOTO_DIMENSION = 1400;
 const MIN_PROCESSED_PHOTO_DIMENSION = 240;
 const INITIAL_PROCESSED_PHOTO_QUALITY = 0.82;
 const MIN_PROCESSED_PHOTO_QUALITY = 0.42;
+const MAX_SOURCE_PHOTO_BYTES = 20 * 1024 * 1024;
 
 let latestReport = null;
 let latestSections = workflowConfigs[defaultWorkflow].sections;
@@ -888,13 +890,24 @@ function handleLibraryPhotoChange() {
 function appendSelectedPhotoFiles(files) {
   const existingSignatures = new Set(selectedPhotoFiles.map(getPhotoFileSignature));
   const additions = [];
+  const rejected = [];
 
   for (const file of files) {
     if (selectedPhotoFiles.length + additions.length >= MAX_PHOTO_COUNT) {
+      rejected.push("Only the first 6 photos were kept.");
       break;
+    }
+    if (!file || !String(file.type || "").toLowerCase().startsWith("image/")) {
+      rejected.push(`${file?.name || "That file"} is not a supported image.`);
+      continue;
+    }
+    if (!Number(file.size) || Number(file.size) > MAX_SOURCE_PHOTO_BYTES) {
+      rejected.push(`${file.name || "That image"} must be between 1 byte and 20 MB.`);
+      continue;
     }
     const signature = getPhotoFileSignature(file);
     if (!signature || existingSignatures.has(signature)) {
+      if (signature && existingSignatures.has(signature)) rejected.push(`${file.name || "That image"} was already added.`);
       continue;
     }
     existingSignatures.add(signature);
@@ -902,6 +915,14 @@ function appendSelectedPhotoFiles(files) {
   }
 
   selectedPhotoFiles = [...selectedPhotoFiles, ...additions].slice(0, MAX_PHOTO_COUNT);
+  if (photoFeedback) {
+    photoFeedback.textContent = rejected.length
+      ? rejected.join(" ")
+      : additions.length
+        ? `${additions.length} photo${additions.length === 1 ? "" : "s"} added. ${selectedPhotoFiles.length} of ${MAX_PHOTO_COUNT} selected.`
+        : "";
+    photoFeedback.className = `photo-feedback${rejected.length ? " is-error" : additions.length ? " is-success" : ""}`;
+  }
 }
 
 function getPhotoFileSignature(file) {
@@ -2166,6 +2187,7 @@ async function preparePhotos(photoFiles = getSelectedPhotoFiles(), submissionSta
 function renderReport(report, sections) {
   stopLoadingProgress();
   setReportActionsVisible(true);
+  globalThis.KatherinesEyeCustomerAccount?.setCurrentReport?.(report, sections, currentWorkflow);
   const renderId = `report-${++reportRenderSequence}`;
   results.className = "results";
   results.setAttribute("aria-busy", "false");
@@ -4493,6 +4515,7 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
   helper.textContent = "Add clear photos and any details you know.";
   intro.append(copy, helper);
   results.replaceChildren(intro);
+  globalThis.KatherinesEyeCustomerAccount?.setCurrentReport?.(null, [], currentWorkflow);
 }
 
 function setReportActionsVisible(visible) {
@@ -4536,9 +4559,11 @@ function startLoadingProgress(config, requestId, workflow) {
       return;
     }
 
+    const previousIndex = loadingProgressIndex;
     loadingProgressIndex = Math.min(loadingProgressIndex + 1, stages.length - 1);
-    renderLoadingProgress(stages, loadingProgressIndex);
-    setStatus(stages[loadingProgressIndex], "loading");
+    const delayed = previousIndex === stages.length - 1 && loadingProgressIndex === stages.length - 1;
+    renderLoadingProgress(stages, loadingProgressIndex, { delayed });
+    setStatus(delayed ? "This is taking longer than usual. You may cancel safely; Katherine’s Eye will not retry automatically." : stages[loadingProgressIndex], "loading");
   }, 1500);
 }
 
@@ -4559,7 +4584,7 @@ function getLoadingStages(workflow) {
   ];
 }
 
-function renderLoadingProgress(stages, activeIndex) {
+function renderLoadingProgress(stages, activeIndex, { delayed = false } = {}) {
   results.className = "results loading-state";
   results.setAttribute("aria-busy", "true");
   setReportActionsVisible(false);
@@ -4572,7 +4597,9 @@ function renderLoadingProgress(stages, activeIndex) {
   const title = document.createElement("h3");
   title.textContent = "Taking a careful look";
   const helper = document.createElement("p");
-  helper.textContent = "Katherine’s Eye is examining identity and market evidence. The active line shows where the review is focused—not a percentage complete.";
+  helper.textContent = delayed
+    ? "This review is taking longer than usual. You can keep waiting or cancel; canceling does not start another provider request."
+    : "Katherine’s Eye is examining identity and market evidence. The active line shows where the review is focused—not a percentage complete.";
 
   const list = document.createElement("ol");
   list.className = "loading-steps";
@@ -4586,7 +4613,18 @@ function renderLoadingProgress(stages, activeIndex) {
     list.appendChild(item);
   });
 
-  card.append(title, helper, list);
+  const cancelButton = document.createElement("button");
+  cancelButton.className = "secondary-button loading-cancel-button";
+  cancelButton.type = "button";
+  cancelButton.textContent = "Cancel analysis";
+  cancelButton.addEventListener("click", () => {
+    abortActiveRequest();
+    setLoading(false, currentWorkflow);
+    renderEmpty(workflowConfigs[currentWorkflow] || workflowConfigs[defaultWorkflow]);
+    setStatus("Analysis canceled. Nothing was retried automatically; adjust your photos or details before starting again.", "success");
+  });
+
+  card.append(title, helper, list, cancelButton);
   results.replaceChildren(card);
 }
 

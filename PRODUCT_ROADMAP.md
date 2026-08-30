@@ -980,3 +980,14 @@
 
 ## Future Ideas
 - Real sold-comps and source links
+
+## Version 1.12.52 (Completed)
+
+- Built a warm, photo-first landing and analysis workspace with accessible drag/drop, explicit file feedback, honest staged/delayed progress, and customer-controlled cancellation without automatic retry.
+- Preserved customer report hierarchy for identification, listing content, condition, evidence provenance, pricing disposition, uncertainty, alternatives, requested photographs, and next research steps while keeping internal governance and private evidence out of account history.
+- Added server-owned beta accounts with normalized unique usernames, reserved-name rejection, scrypt password records, opaque HttpOnly SameSite sessions, and explicit sign-in/sign-out behavior.
+- Added private saved history with explicit save, list, detail, rename, and delete operations and server-side ownership checks on every operation.
+- Enforced zero uploaded-image retention in saved history. Customer report retention defaults to 30 days and can be reduced to 7 days or extended explicitly to 90 days; account export and deletion exclude credentials and session tokens.
+- Added a private per-user Windows file adapter outside the repository. Online beta accounts remain visibly unavailable until a durable production data adapter is configured; photo analysis remains usable without an account.
+- Added desktop/mobile styling, visible focus, semantic dialog/history controls, empty/error/loading states, reduced-motion behavior, and deterministic offline coverage.
+- Kept Version `1.12.52`; no provider, controller, network, deployment, publication, Preview, or Production effect is part of this foundation.
