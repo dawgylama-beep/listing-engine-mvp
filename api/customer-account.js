@@ -1,15 +1,9 @@
-import path from "node:path";
-import {
-  createCustomerAccountService,
-  createFileCustomerAccountStore
-} from "../lib/customer-account/service.js";
+import { resolveCustomerAccountRuntime } from "../lib/customer-account/runtime.js";
 
 const SESSION_COOKIE_NAME = "ke_beta_session";
 const MAX_ACCOUNT_REQUEST_BODY_BYTES = 256 * 1024;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "DELETE"]);
 const UNAUTHENTICATED_MUTATIONS = new Set(["register", "login"]);
-let configuredService = null;
-let configuredStorePath = "";
 
 function json(res, status, payload, headers = {}) {
   res.status(status);
@@ -133,18 +127,6 @@ function sourceIdentity(req, environment) {
   return (forwarded || direct || "unknown").slice(0, 240);
 }
 
-function defaultService(environment) {
-  if (runtimeProfile(environment) !== "local") return null;
-  const storePath = String(environment.KATHERINES_EYE_ACCOUNT_STORE_PATH || "").trim();
-  if (!storePath || !path.isAbsolute(storePath)) return null;
-  const resolved = path.resolve(storePath);
-  if (!configuredService || configuredStorePath !== resolved) {
-    configuredStorePath = resolved;
-    configuredService = createCustomerAccountService({ store: createFileCustomerAccountStore(resolved) });
-  }
-  return configuredService;
-}
-
 async function dispatch(service, req, body) {
   const url = requestUrl(req);
   const bodyAction = String(body.action || "").trim();
@@ -176,18 +158,18 @@ async function dispatch(service, req, body) {
   throw error;
 }
 
-export function createCustomerAccountHandler({ service = null, environment = process.env } = {}) {
+export function createCustomerAccountHandler({ service = null, environment = process.env, resolveRuntime = resolveCustomerAccountRuntime } = {}) {
   return async function customerAccountHandler(req, res) {
-    const activeService = service || defaultService(environment);
-    if (!activeService) {
-      json(res, 503, {
-        error: "Private beta accounts are not configured in this environment.",
-        code: "account_service_unavailable"
-      });
-      return;
-    }
-
     try {
+      const runtime = service ? null : await resolveRuntime({ environment });
+      const activeService = service || runtime?.service;
+      if (!activeService) {
+        json(res, 503, {
+          error: "Private beta accounts are not configured in this environment.",
+          code: "account_service_unavailable"
+        });
+        return;
+      }
       const method = String(req.method || "").toUpperCase();
       if (!new Set(["GET", "POST", "PATCH", "DELETE"]).has(method)) {
         throw Object.assign(new Error("Method not allowed."), { status: 405, code: "method_not_allowed" });

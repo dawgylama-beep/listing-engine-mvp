@@ -1000,3 +1000,11 @@
 - Added a compare-and-swap durable persistence contract that preserves atomic username, ownership, throttle, session, deletion, export, and retention mutations without selecting or inventing an external service.
 - Added a secret-free readiness endpoint and controlled beta Preview checklist. Local file persistence is explicitly rejected as an online/serverless substitute; Preview remains blocked until a reviewed durable adapter and exact HTTPS public origin are connected.
 - Preserved Version `1.12.52`; no provider, controller, network, deployment, publication, Preview, or Production effect is part of this hardening.
+
+## Version 1.12.52 (Completed)
+
+- Connected the existing schema-2 beta account contract to a `postgres-v1` adapter with verified TLS, parameterized SQL, safe empty-schema initialization, revision-bound atomic compare-and-swap, and bounded conflict handling.
+- Preserved account and history ownership isolation, normalized username uniqueness, persistent authentication throttling, absolute sessions, password-change revocation, retention cleanup, export, and deletion through one durable state contract.
+- Made Preview and Production fail closed when the adapter, database binding, public origin, schema, state, connection, or TLS verification is unavailable or incompatible; filesystem persistence remains local-only.
+- Kept readiness responses secret-free and added deterministic offline coverage for initialization, snapshots, concurrent updates, lifecycle security, cleanup, corruption rejection, and Preview configuration.
+- Preserved Version `1.12.52`; external resource provisioning, Preview publication, and deployed verification remain separately controller-gated.

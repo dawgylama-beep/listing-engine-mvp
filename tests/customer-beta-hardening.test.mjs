@@ -312,9 +312,19 @@ test("readiness distinguishes local, blocked Preview, and fully bound Preview wi
   assert.equal(local.state, "local_ready");
   const blocked = assessCustomerBetaReadiness({ environment: { VERCEL_ENV: "preview" } });
   assert.equal(blocked.state, "preview_blocked");
-  assert.deepEqual(blocked.blockers, ["https_public_origin_not_configured", "durable_account_persistence_not_connected"]);
-  const previewEnvironment = { VERCEL_ENV: "preview", KATHERINES_EYE_PUBLIC_ORIGIN: "https://candidate.katherineseye.test" };
+  assert.deepEqual(blocked.blockers, [
+    "https_public_origin_not_configured",
+    "postgres_account_adapter_not_configured",
+    "postgres_database_url_not_configured"
+  ]);
+  const previewEnvironment = {
+    VERCEL_ENV: "preview",
+    KATHERINES_EYE_PUBLIC_ORIGIN: "https://candidate.katherineseye.test",
+    KATHERINES_EYE_ACCOUNT_STORE_ADAPTER: "postgres-v1",
+    KATHERINES_EYE_ACCOUNT_DATABASE_URL: "configured-preview-database-binding"
+  };
   const readyContract = {
+    adapter: "postgres-v1",
     kind: "durable_compare_and_swap",
     schemaVersion: "2.0",
     atomicOwnershipMutations: true,
