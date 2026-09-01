@@ -174,6 +174,26 @@ test("zero-retry OpenAI 4xx and 5xx attempts retain complete available terminal 
   }
 });
 
+test("zero-retry terminal metering keeps unattempted provider records within the one-attempt ceiling", () => {
+  const metering = buildTerminalProviderMetering({
+    providerRecordCollections: [[{
+      provider: "Unattempted deterministic evidence source",
+      logicalQueryAttempted: false,
+      physicalAttemptCount: 0,
+      physicalRetryAttemptCount: 0,
+      physicalAttempts: []
+    }]]
+  }, { zeroRetryMode: true });
+
+  assert.equal(metering.zeroRetryMode, true);
+  assert.equal(metering.logicalRequestCount, 0);
+  assert.equal(metering.physicalAttemptCount, 0);
+  assert.equal(metering.physicalRetryAttemptCount, 0);
+  assert.equal(metering.attempts[0].maximumPhysicalAttemptsPerLogicalRequest, 1);
+  assert.equal(metering.attempts[0].conservativeAuthorizationExposure.maximumPhysicalAttempts, 1);
+  assert.equal(metering.meteringHash, sha256Object({ ...metering, meteringHash: "" }));
+});
+
 test("zero-retry limits the Serper and shared direct-transport layers to one physical attempt", async () => {
   const queryRecord = {
     query: "bounded provider evidence query",
