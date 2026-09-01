@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "1.0",
+  "protocolId": "KATHERINE_REVISION_24_FINITE_CAUSAL_TRIAL_V1",
+  "frozenAt": "2026-09-01T00:00:00.000Z",
+  "sourceBinding": {
+    "version": "1.12.52",
+    "branch": "codex/r20-pg",
+    "commit": "15315b1cad79cacd93f2da568409f7d1aac61552",
+    "tree": "021c525e2bcd653ecd813a847c414cae4d0755e1"
+  },
+  "networkPolicy": "HARD_DENY",
+  "providerBehavior": "REPOSITORY_DETERMINISTIC_LOCAL_ADAPTERS_ONLY",
+  "maximumAdditionalProductEpisodes": 10,
+  "thresholdPolicy": "UNCHANGED_REPOSITORY_GOVERNOR_THRESHOLDS",
+  "candidateSelectionPolicy": {
+    "callerMayChooseOrAuthorCandidate": false,
+    "selection": "EARLIEST_AUTHENTIC_NEW_CANDIDATE_ORIGINATED_BY_THE_REAL_MENTOR_THAT_THE_UNCHANGED_GOVERNOR_ACCEPTS_FOR_A_FIXED_CAUSAL_TRIAL",
+    "historicalCandidatesMayNotBePromotedOrRewritten": true,
+    "stopWhenNoEligibleCandidateExists": "EVIDENCE_INSUFFICIENT"
+  },
+  "authenticatedPredecessors": [
+    {
+      "memoryId": "ke-learning-candidate-5c101a10a188c15e3a5bbacbc2f929e1",
+      "contentHash": "f0e59e8007cadb68efa8dea37934ac8defbc64226a732bc075d5ce0e0895bddf",
+      "candidateId": "965e2e29f24566b7008acde9ab1a867509a49f9118303b579862425e8c75220f",
+      "mentorDecisionIdentity": "102afc175129795732ee1cec2495ea960ffd31ec2338d9e136b52866fd600a3c",
+      "governorDisposition": "EVIDENCE_INSUFFICIENT / PREQUALIFICATION_PROOF_BLOCKED"
+    },
+    {
+      "memoryId": "ke-learning-candidate-9396e27059251b20ebd59f7d8d0745e5",
+      "contentHash": "795a820c3872e037a074769915d8f3aad62ba09df0f4b1e92575cc3b5a09771b",
+      "candidateId": "bce1229df4c02cd7fbc8bb4cc5b136253248d675dbd432e56e4f686bc851160b",
+      "mentorDecisionIdentity": "bc3d265e8e6ac003d1d5bf29dfe1c444c2eea820e82f86e60c8dd632c90c740f",
+      "governorDisposition": "EVIDENCE_INSUFFICIENT / PREQUALIFICATION_PROOF_BLOCKED"
+    }
+  ],
+  "diagnosisCases": [
+    {
+      "position": 1,
+      "caseId": "R24-DIAGNOSIS-COLLECTIBLE",
+      "fixture": "collectible",
+      "purpose": "marketValue",
+      "objectClass": "sports advertising collectible"
+    },
+    {
+      "position": 2,
+      "caseId": "R24-DIAGNOSIS-WEARABLE",
+      "fixture": "wearable",
+      "purpose": "listing",
+      "objectClass": "adult clothing"
+    }
+  ],
+  "qualificationCases": [
+    {
+      "caseId": "R24-QUALIFICATION-APPLICABLE-ONE",
+      "role": "APPLICABLE_INTERVENTION",
+      "productEpisodes": 2
+    },
+    {
+      "caseId": "R24-QUALIFICATION-APPLICABLE-TWO",
+      "role": "APPLICABLE_INTERVENTION",
+      "productEpisodes": 2
+    },
+    {
+      "caseId": "R24-QUALIFICATION-CONTROL",
+      "role": "NON_APPLICABLE_CONTROL",
+      "productEpisodes": 2
+    }
+  ],
+  "heldOutCase": {
+    "caseId": "R24-HELD-OUT-RETAIL",
+    "fixture": "retail",
+    "purpose": "marketValue",
+    "objectClass": "household office supply",
+    "predecessorBaseline": "FRESH_PROCESS_BEFORE_ANY_PROMOTION",
+    "laterApplication": "FRESH_PROCESS_ONLY_AFTER_AUTHENTIC_PROMOTION",
+    "productEpisodes": 2,
+    "notQualificationEvidence": true
+  },
+  "measurement": {
+    "source": "CUSTOMER_VISIBLE_PRODUCT_RESPONSE_AND_CANONICAL_EVIDENCE_VALIDATOR",
+    "manuallySuppliedScoresProhibited": true,
+    "improvementRequired": true,
+    "harmfulRegressionAllowed": false,
+    "frozenFields": [
+      "identifiedItem",
+      "identificationConfidence",
+      "valuationEvidenceState",
+      "fairValueNotEstablished",
+      "optimizedListingTitle",
+      "pricingConfidence",
+      "customerEvidence",
+      "whatIsKnown",
+      "whatIsStillUnknown"
+    ]
+  },
+  "stopConditions": [
+    "NO_AUTHENTIC_MENTOR_CANDIDATE",
+    "NO_GOVERNOR_TRIAL_ELIGIBLE_CANDIDATE",
+    "AUTHENTIC_INDEPENDENT_EVALUATION_UNAVAILABLE",
+    "CAUSAL_CHAIN_INCOMPLETE",
+    "CONTRADICTION_OR_REGRESSION",
+    "EPISODE_CEILING_REACHED"
+  ],
+  "prohibited": [
+    "MANUAL_DIAGNOSIS",
+    "MANUAL_CANDIDATE",
+    "MANUAL_SCORE",
+    "MANUAL_MEMORY_INJECTION",
+    "THRESHOLD_CHANGE",
+    "SYNTHETIC_CONFORMANCE_EVALUATION_AS_PRODUCT_EVIDENCE",
+    "NETWORK",
+    "PROVIDER_CALL"
+  ]
+}

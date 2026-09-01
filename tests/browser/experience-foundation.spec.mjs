@@ -116,6 +116,14 @@ async function installLocalOnlyGuard(page) {
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname === "127.0.0.1" && url.port === "4177") {
+      if (url.pathname === "/api/customer-account") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ account: null })
+        });
+        return;
+      }
       await route.continue();
       return;
     }
@@ -200,6 +208,9 @@ test("aesthetic foundation renders sixteen deterministic customer states at desk
     await openFresh(page);
     await expect(page.getByText("Your guide to identifying, valuing, buying, and selling the things around you.", { exact: true })).toBeVisible();
     await expect(page.locator("#workflow-field legend")).toContainText("What would you like help with?");
+    await expect(page.getByRole("link", { name: "Add photos" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Add photos" })).toHaveAttribute("href", "#photo-stage");
+    await expect(page.locator(".empty-state-steps li")).toHaveCount(3);
     await verifyState(page, viewport.name, "01-opening");
 
     const resalePurpose = page.getByRole("radio", { name: /Buying to Resell/i });

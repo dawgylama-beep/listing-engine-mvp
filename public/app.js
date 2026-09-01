@@ -4508,12 +4508,30 @@ function renderEmpty(config = workflowConfigs[defaultWorkflow]) {
 
   const intro = document.createElement("div");
   intro.className = "first-run-card compact-empty-card";
-  const copy = document.createElement("p");
-  copy.textContent = "Your guidance will appear here after Katherine’s Eye reviews the item.";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "summary-eyebrow";
+  eyebrow.textContent = "A clear, evidence-aware report";
+  const heading = document.createElement("h3");
+  heading.textContent = "See what Katherine’s Eye can establish—and what still needs checking.";
+  const steps = document.createElement("ul");
+  steps.className = "empty-state-steps";
+  for (const [title, description] of [
+    ["Identify", "Separate visible facts from plausible alternatives."],
+    ["Understand value", "See usable price evidence or an honest not-established result."],
+    ["Decide what’s next", "Get practical photo, research, buying, or listing steps."]
+  ]) {
+    const item = document.createElement("li");
+    const strong = document.createElement("strong");
+    const detail = document.createElement("span");
+    strong.textContent = title;
+    detail.textContent = description;
+    item.append(strong, detail);
+    steps.appendChild(item);
+  }
   const helper = document.createElement("p");
   helper.className = "first-run-helper";
-  helper.textContent = "Add clear photos and any details you know.";
-  intro.append(copy, helper);
+  helper.textContent = "Start with clear photographs. Uncertainty stays visible throughout the report.";
+  intro.append(eyebrow, heading, steps, helper);
   results.replaceChildren(intro);
   globalThis.KatherinesEyeCustomerAccount?.setCurrentReport?.(null, [], currentWorkflow);
 }

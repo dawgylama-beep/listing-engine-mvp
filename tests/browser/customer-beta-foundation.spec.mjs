@@ -82,7 +82,7 @@ test("account, private save, history, rename, retention, and delete controls wor
 
   await page.locator("#account-close-button").click();
   await page.evaluate(() => {
-    KatherinesEyeCustomerAccount.setCurrentReport({
+    const report = {
       subjectIdentity: "Walnut valet tray",
       exactProductConfidence: "Moderate",
       identitySummary: "A divided wooden tray with an unverified maker mark.",
@@ -92,7 +92,9 @@ test("account, private save, history, rename, retention, and delete controls wor
       whatIsStillUnknown: ["Maker", "Condition beneath divider"],
       requestedAdditionalPhotos: ["Underside", "Maker mark"],
       recommendedResearchSteps: ["Search the visible mark after photographing it clearly."]
-    }, [], "personal_use");
+    };
+    setReportActionsVisible(true);
+    KatherinesEyeCustomerAccount.setCurrentReport(report, [], "personal_use");
   });
   await expect(page.locator("#save-listing-button")).toBeVisible();
   await page.locator("#save-listing-button").click();

@@ -1008,3 +1008,9 @@
 - Made Preview and Production fail closed when the adapter, database binding, public origin, schema, state, connection, or TLS verification is unavailable or incompatible; filesystem persistence remains local-only.
 - Kept readiness responses secret-free and added deterministic offline coverage for initialization, snapshots, concurrent updates, lifecycle security, cleanup, corruption rejection, and Preview configuration.
 - Preserved Version `1.12.52`; external resource provisioning, Preview publication, and deployed verification remain separately controller-gated.
+
+## Version 1.12.52 (Completed)
+
+- Ran a frozen hard-network-denied governed-learning trial through Katherine’s authentic product, Mentor, Governor, memory, reconstruction, and applicability boundaries; the evidence remained insufficient for qualification, so no lesson was promoted, applied, retained, rejected, or rolled back.
+- Rebalanced the desktop analysis workspace, added a prominent photo entry point, compacted the mobile purpose chooser, and strengthened empty, progress, uncertainty, account, and history presentation without changing product semantics.
+- Preserved Version `1.12.52`; no provider, network, controller, authority, Preview, Production, push, deployment, publication, spending, or product-learning claim is part of this refinement.

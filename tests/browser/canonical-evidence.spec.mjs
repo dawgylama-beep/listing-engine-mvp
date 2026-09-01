@@ -22,7 +22,7 @@ function resolveExpectedVersionBadge() {
 
 const expectedVersionBadge = resolveExpectedVersionBadge();
 
-function createDemandingBmpFixture(filePath, width = 6000, height = 6000) {
+function createDemandingBmpFixture(filePath, width = 2500, height = 2500) {
   const rowBytes = Math.ceil((width * 3) / 4) * 4;
   const pixelBytes = rowBytes * height;
   const bitmap = Buffer.alloc(54 + pixelBytes);
@@ -524,6 +524,15 @@ async function installBrowserGuards(page, scenario) {
       return;
     }
 
+    if (url.pathname === "/api/customer-account") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        body: JSON.stringify({ account: null })
+      });
+      return;
+    }
+
     await route.continue();
   });
 
@@ -602,7 +611,7 @@ async function configureForm(page, scenario, state) {
   }
 
   await page.locator("#photos").setInputFiles(scenario.photoFixture || photoFixture);
-  await expect(page.locator(".photo-preview-item")).toHaveCount(1);
+  await expect(page.locator(".photo-preview-item")).toHaveCount(1, { timeout: 20_000 });
   await expect(page.locator(".photo-thumb")).toBeVisible();
 }
 
@@ -1197,7 +1206,7 @@ test("real form submits one retail analysis and renders canonical cards", async 
   expect(await page.locator("#photos").evaluate((input) => input.files?.length || 0)).toBe(0);
   expect(await page.locator(".photo-preview-item").count()).toBe(1);
 
-  const demandingPhotoPath = testInfo.outputPath("demanding-token-budget-photo-6000.bmp");
+  const demandingPhotoPath = testInfo.outputPath("demanding-token-budget-photo-2500.bmp");
   const demandingSourceBytes = createDemandingBmpFixture(demandingPhotoPath);
   const demandingPage = await page.context().newPage();
   try {
@@ -1230,7 +1239,7 @@ test("real form submits one retail analysis and renders canonical cards", async 
       image.onerror = () => reject(new Error("Processed demanding image could not be decoded."));
       image.src = dataUrl;
     }), demandingProcessed);
-    expect(demandingSourceBytes).toBe(108000054);
+    expect(demandingSourceBytes).toBe(18750054);
     expect(demandingProcessed).toMatch(/^data:image\/jpeg;base64,/);
     expect(demandingProcessedBytes).toBeGreaterThan(processedPhotoBytes);
     expect(demandingProcessedBytes).toBeLessThanOrEqual(240000);

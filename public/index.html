@@ -35,6 +35,7 @@
             <p class="brand-intro">Begin with photographs—even when you do not know the item’s exact name. Clear marks, labels, and condition details help Katherine’s Eye give you a more useful answer.</p>
             <p class="version-badge">Version 1.12.52</p>
             <div class="customer-nav" aria-label="Customer account">
+              <a class="brand-primary-link" href="#photo-stage">Add photos</a>
               <button id="account-menu-button" class="brand-utility-button" type="button" aria-haspopup="dialog" aria-controls="account-panel" aria-expanded="false">Account</button>
               <button id="history-menu-button" class="brand-utility-button" type="button" hidden>Saved history</button>
             </div>
@@ -79,7 +80,7 @@
               </div>
             </fieldset>
 
-            <div class="field photo-stage">
+            <div id="photo-stage" class="field photo-stage">
               <div class="photo-stage-header">
                 <div>
                   <p class="mini-eyebrow"><span class="step-number">2</span> Add photographs</p>
@@ -418,7 +419,16 @@
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
           <div id="results" class="results empty-state">
-            <p>Your guidance will appear here after Katherine’s Eye reviews the photographs and the details you choose to share.</p>
+            <div class="first-run-card compact-empty-card">
+              <p class="summary-eyebrow">A clear, evidence-aware report</p>
+              <h3>See what Katherine’s Eye can establish—and what still needs checking.</h3>
+              <ul class="empty-state-steps">
+                <li><strong>Identify</strong><span>Separate visible facts from plausible alternatives.</span></li>
+                <li><strong>Understand value</strong><span>See usable price evidence or an honest not-established result.</span></li>
+                <li><strong>Decide what’s next</strong><span>Get practical photo, research, buying, or listing steps.</span></li>
+              </ul>
+              <p class="first-run-helper">Start with clear photographs. Uncertainty stays visible throughout the report.</p>
+            </div>
           </div>
 
           <section id="ask-panel" class="ask-panel" aria-labelledby="ask-title" hidden>

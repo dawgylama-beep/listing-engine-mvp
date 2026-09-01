@@ -386,7 +386,8 @@ function malformedPayload(payload, envelope) {
 export async function buildBrowserHandlerResponse({
   requestBody,
   evidenceMode = "retail",
-  malformedCanonical = false
+  malformedCanonical = false,
+  governedLearningAdapter = null
 } = {}) {
   if (!requestBody || typeof requestBody !== "object") {
     throw new Error("A real browser request body is required.");
@@ -402,7 +403,8 @@ export async function buildBrowserHandlerResponse({
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     getOpenAIModel: () => "deterministic-browser-model",
     getSerperApiKey: () => "deterministic-serper-placeholder",
-    getGovernedLearningAdapter: () => null,
+    getGovernedLearningAdapter: () => governedLearningAdapter,
+    getWebsiteCognitionMode: () => governedLearningAdapter ? "LOCAL_BETA" : "DISABLED",
     createAnalysisId: () => requestBody.analysisId || `analysis-browser-${evidenceMode}`,
     nowMilliseconds: () => {
       clock += 5;
@@ -448,7 +450,10 @@ export async function buildBrowserHandlerResponse({
   }
 
   if (response.statusCode !== 200 || !response.payload) {
-    throw new Error(`Deterministic production handler failed with status ${response.statusCode}.`);
+    throw new Error(
+      `Deterministic production handler failed with status ${response.statusCode}`
+      + `${response.payload?.code ? ` (${response.payload.code})` : ""}.`
+    );
   }
   if (networkGuard.attempts.length !== 0) {
     throw new Error(`Unexpected Node network attempts: ${JSON.stringify(networkGuard.attempts)}`);

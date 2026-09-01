@@ -4744,3 +4744,262 @@ body.account-panel-open {
     transform: none !important;
   }
 }
+
+/* Revision 24: customer hierarchy and responsive composition */
+.app-shell {
+  width: min(1340px, calc(100% - 40px));
+}
+
+.workspace {
+  grid-template-columns: minmax(520px, 600px) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.brand-header {
+  padding: 30px 28px 26px;
+}
+
+.brand-header h1 {
+  font-size: clamp(2.7rem, 4vw, 3.45rem);
+}
+
+.brand-header .brand-descriptor {
+  margin-top: 14px;
+  font-size: 1.06rem;
+  line-height: 1.38;
+}
+
+.brand-header .brand-intro {
+  margin-top: 9px;
+  line-height: 1.48;
+}
+
+.brand-header .version-badge {
+  margin-top: 12px;
+}
+
+.customer-nav {
+  align-items: center;
+  margin-top: 14px;
+}
+
+.brand-primary-link,
+.brand-utility-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-primary-link {
+  padding: 9px 16px;
+  border: 1px solid #efc596;
+  border-radius: 999px;
+  background: #efc596;
+  color: #312728;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.brand-primary-link:hover,
+.brand-primary-link:focus-visible {
+  border-color: #fff1de;
+  background: #fff1de;
+  outline: 3px solid rgba(239, 197, 150, 0.38);
+  outline-offset: 2px;
+}
+
+.listing-form {
+  padding: 24px 28px 30px;
+}
+
+.workflow-option {
+  min-height: 88px;
+}
+
+.workflow-option:has(input:checked) strong::after {
+  display: inline-block;
+  margin: 4px 0 0 8px;
+  vertical-align: 2px;
+}
+
+.photo-stage {
+  scroll-margin-top: 18px;
+}
+
+.photo-stage:target {
+  outline: 3px solid rgba(166, 124, 61, 0.34);
+  outline-offset: 4px;
+}
+
+.output-panel {
+  background: #fffefa;
+}
+
+.empty-state {
+  min-height: 0;
+  padding: 24px;
+  border-style: solid;
+  background: #fbf6ed;
+}
+
+.compact-empty-card {
+  gap: 12px;
+  max-width: none;
+}
+
+.compact-empty-card h3 {
+  max-width: 24ch;
+  font-family: var(--font-serif);
+  font-size: clamp(1.42rem, 2.4vw, 1.9rem);
+  font-weight: 400;
+  line-height: 1.18;
+}
+
+.empty-state-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty-state-steps li {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #ded2c3;
+  border-radius: 10px;
+  background: #fffdf8;
+}
+
+.empty-state-steps strong {
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+}
+
+.empty-state-steps span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.status.is-error,
+.status.is-loading,
+.status.is-success {
+  border-left-width: 4px;
+}
+
+.loading-card {
+  border-top: 3px solid var(--gold);
+}
+
+.identity-limitation {
+  padding: 12px;
+  border: 1px solid #e2cca0;
+  border-radius: 8px;
+  background: var(--warn-soft);
+}
+
+.history-item-actions .secondary-button,
+.history-item-actions .text-danger-button,
+.privacy-actions .secondary-button {
+  min-height: 44px;
+}
+
+.history-item-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.history-item-actions .secondary-button:first-of-type {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    width: min(760px, calc(100% - 32px));
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-shell {
+    width: min(100% - 20px, 600px);
+    padding: 10px 0 28px;
+  }
+
+  .brand-header {
+    padding: 64px 18px 22px;
+  }
+
+  .brand-header h1 {
+    max-width: 100%;
+    font-size: 2.42rem;
+  }
+
+  .brand-header .brand-descriptor {
+    font-size: 1rem;
+  }
+
+  .brand-header .brand-intro {
+    font-size: 0.87rem;
+  }
+
+  .customer-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer-nav .brand-primary-link,
+  .customer-nav .brand-utility-button {
+    min-height: 48px;
+    width: 100%;
+  }
+
+  .listing-form,
+  .output-panel,
+  .account-panel-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .workflow-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .workflow-option {
+    min-height: 136px;
+    padding: 12px 10px;
+  }
+
+  .workflow-option strong {
+    font-size: 0.95rem;
+    line-height: 1.15;
+  }
+
+  .workflow-option small {
+    font-size: 0.74rem;
+    line-height: 1.35;
+  }
+
+  .workflow-option:has(input:checked) strong::after {
+    display: block;
+    margin: 5px 0 0;
+  }
+
+  .empty-state {
+    padding: 18px;
+  }
+
+  .empty-state-steps {
+    grid-template-columns: 1fr;
+  }
+}
