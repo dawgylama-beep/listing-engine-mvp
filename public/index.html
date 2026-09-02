@@ -18,6 +18,63 @@
   <body>
     <a class="skip-link" href="#listing-form">Skip to photo analysis</a>
     <main class="app-shell">
+      <aside class="object-border-gallery" aria-hidden="true">
+        <span class="border-object border-object-clock" data-object="clock">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <circle cx="32" cy="32" r="25" fill="#f4e6c7" stroke="#7b4d35" stroke-width="3"/>
+            <circle cx="32" cy="32" r="19" fill="#fffaf0" stroke="#c9995b" stroke-width="2"/>
+            <path d="M32 17v3M47 32h-3M32 47v-3M17 32h3" stroke="#7b4d35" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M32 32V23M32 32l8 5" stroke="#5c3142" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="2.5" fill="#5c3142"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-vase" data-object="vase">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M24 8h16l-2 10c0 4 10 10 10 23 0 10-7 15-16 15s-16-5-16-15c0-13 10-19 10-23L24 8Z" fill="#b7d2c2" stroke="#315f5a" stroke-width="2.5"/>
+            <path d="M25 17h14M20 37c8 5 16 5 24 0" fill="none" stroke="#f8efe0" stroke-width="3" stroke-linecap="round"/>
+            <path d="M27 28c3-4 7-4 10 0" fill="none" stroke="#b86b62" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-camera" data-object="camera">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M12 20h10l4-6h13l4 6h9a5 5 0 0 1 5 5v23a5 5 0 0 1-5 5H12a5 5 0 0 1-5-5V25a5 5 0 0 1 5-5Z" fill="#48515a" stroke="#272c31" stroke-width="2.5"/>
+            <circle cx="33" cy="36" r="12" fill="#dce5e4" stroke="#c99052" stroke-width="3"/>
+            <circle cx="33" cy="36" r="6" fill="#557b7d"/>
+            <rect x="46" y="25" width="7" height="5" rx="2" fill="#e7c77f"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-jewelry" data-object="jewelry">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M13 13c3 22 11 36 19 36s16-14 19-36" fill="none" stroke="#c49a49" stroke-width="3" stroke-linecap="round"/>
+            <path d="m32 37 8 8-8 12-8-12 8-8Z" fill="#b8d8d6" stroke="#8b5b36" stroke-width="2.5"/>
+            <path d="m32 40 4 5-4 7-4-7 4-5Z" fill="#f7fbf7"/>
+            <circle cx="13" cy="12" r="3" fill="#b76d61"/><circle cx="51" cy="12" r="3" fill="#b76d61"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-handbag" data-object="handbag">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M18 25h28l6 29H12l6-29Z" fill="#a96857" stroke="#633b35" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M23 27v-6c0-7 4-11 9-11s9 4 9 11v6" fill="none" stroke="#633b35" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M14 39h36" stroke="#d99b73" stroke-width="2"/>
+            <circle cx="32" cy="38" r="3" fill="#e5c076"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-lamp" data-object="lamp">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M19 10h26l7 20H12l7-20Z" fill="#e7c980" stroke="#7e5a35" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M32 30v21M23 55h18" stroke="#5d5249" stroke-width="3" stroke-linecap="round"/>
+            <path d="M18 18h28" stroke="#f8eed1" stroke-width="2"/>
+          </svg>
+        </span>
+        <span class="border-object border-object-collectible" data-object="collectible">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <path d="M19 50c-3-8-2-18 4-24l-2-9 8 5c5-2 11-1 15 2l7-4-2 11c3 8 0 17-7 22" fill="#d8c6aa" stroke="#6c5949" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M20 52h28M26 51c0-7 1-12 6-15M41 51c0-6-2-10-7-13" fill="none" stroke="#6c5949" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="39" cy="29" r="2" fill="#372d28"/>
+            <path d="M44 35c3 1 5 0 6-2" fill="none" stroke="#6c5949" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+      </aside>
       <section class="workspace" aria-labelledby="app-title">
         <div class="panel input-panel">
           <header class="brand-header">
@@ -42,34 +99,38 @@
           </header>
 
           <form id="listing-form" class="listing-form">
+            <section id="personalized-greeting" class="personalized-greeting" aria-labelledby="personalized-greeting-title" aria-live="polite" hidden>
+              <h2 id="personalized-greeting-title"></h2>
+              <p>Show me what caught your eye. I’ll help identify it, compare prices, and figure out what it may be worth.</p>
+            </section>
             <fieldset id="workflow-field" class="field workflow-field" aria-describedby="workflow-helper">
               <legend><span class="step-number">1</span> What would you like help with?</legend>
               <div class="workflow-options" role="radiogroup" aria-label="Workflow">
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="personal_use" checked>
                   <span>
-                    <strong>Buying for Myself</strong>
+                    <strong>Shopping for myself</strong>
                     <small>Check the item, the price, and the smartest place to buy.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="resale">
                   <span>
-                    <strong>Buying to Resell</strong>
+                    <strong>Shopping to resell</strong>
                     <small>Understand the margin, risk, likely sale value, and best selling path.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="market_value">
                   <span>
-                    <strong>What’s It Worth?</strong>
+                    <strong>Checking what I own</strong>
                     <small>Identify the object and understand the evidence supporting its value.</small>
                   </span>
                 </label>
                 <label class="workflow-option">
                   <input type="radio" name="workflow_mode" value="listing">
                   <span>
-                    <strong>Create a Listing</strong>
+                    <strong>Getting ready to sell</strong>
                     <small>Build a practical plan for pricing, presenting, and selling the item.</small>
                   </span>
                 </label>
@@ -81,6 +142,16 @@
             </fieldset>
 
             <div id="photo-stage" class="field photo-stage">
+              <span class="photo-ladybug" aria-hidden="true">
+                <svg viewBox="0 0 32 32" focusable="false">
+                  <path d="M14 7c0-3 1-5 3-6M18 7c1-3 3-4 5-4" fill="none" stroke="#332724" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="16" cy="8" r="5" fill="#332724"/>
+                  <path d="M16 11c-8 0-11 6-10 12 1 5 5 8 10 8s9-3 10-8c1-6-2-12-10-12Z" fill="#c84b3f" stroke="#332724" stroke-width="1.5"/>
+                  <path d="M16 12v18" stroke="#332724" stroke-width="1.5"/>
+                  <circle cx="11" cy="18" r="1.7" fill="#332724"/><circle cx="21" cy="18" r="1.7" fill="#332724"/>
+                  <circle cx="10" cy="24" r="1.6" fill="#332724"/><circle cx="22" cy="24" r="1.6" fill="#332724"/>
+                </svg>
+              </span>
               <div class="photo-stage-header">
                 <div>
                   <p class="mini-eyebrow"><span class="step-number">2</span> Add photographs</p>
@@ -166,8 +237,8 @@
                   <label for="purchase_intent">Buying for</label>
                   <select id="purchase_intent" name="purchase_intent">
                     <option value="">Select one</option>
-                    <option value="personal_use">Buying for Myself</option>
-                    <option value="resale">Buying to Resell</option>
+                    <option value="personal_use">Shopping for myself</option>
+                    <option value="resale">Shopping to resell</option>
                     <option value="both">Both / Not sure yet</option>
                     <option value="unknown">Not sure</option>
                   </select>
@@ -375,7 +446,7 @@
           <div class="output-heading">
             <div>
               <p id="output-eyebrow" class="eyebrow">Personal-Use Decision</p>
-              <h2 id="output-title">Buying for Myself</h2>
+              <h2 id="output-title">Shopping for myself</h2>
             </div>
             <div id="output-actions" class="output-actions" hidden>
               <button id="new-item-button" class="secondary-button" type="button">New Item</button>
@@ -477,6 +548,9 @@
               <label for="register-username">Username</label>
               <input id="register-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="24" pattern="[A-Za-z][A-Za-z0-9_]{2,23}" required aria-describedby="username-guidance">
               <p id="username-guidance" class="field-note">3–24 letters, numbers, or underscores; begin with a letter. Usernames are case-insensitively unique.</p>
+              <label for="register-preferred-name">What would you like Katherine to call you?</label>
+              <input id="register-preferred-name" name="preferredName" type="text" autocomplete="nickname" maxlength="60" required aria-describedby="preferred-name-guidance">
+              <p id="preferred-name-guidance" class="field-note">This does not need to be unique. Your username remains your login.</p>
               <label for="register-password">Password</label>
               <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
               <label class="consent-check"><input id="account-consent" type="checkbox" required> I understand that only reports I explicitly save are retained, and I can delete them or my account.</label>
@@ -501,6 +575,17 @@
               <h3 id="account-username"></h3>
             </div>
             <button id="account-signout-button" class="secondary-button" type="button">Sign out</button>
+          </section>
+
+          <section class="profile-controls" aria-labelledby="profile-controls-title">
+            <p class="mini-eyebrow">Personalization</p>
+            <h3 id="profile-controls-title">How Katherine greets you</h3>
+            <form id="preferred-name-form" class="account-form compact-account-form">
+              <label for="account-preferred-name">Preferred name</label>
+              <input id="account-preferred-name" name="preferredName" type="text" autocomplete="nickname" maxlength="60" required aria-describedby="account-preferred-name-guidance">
+              <p id="account-preferred-name-guidance" class="field-note">Private to your account. Your username remains your login.</p>
+              <button class="secondary-button" type="submit">Update preferred name</button>
+            </form>
           </section>
 
           <section class="privacy-controls" aria-labelledby="privacy-controls-title">
@@ -560,6 +645,7 @@
         <div class="help-panel-body">
           <section id="help-category-view" aria-labelledby="help-categories-title">
             <h3 id="help-categories-title">Choose a topic</h3>
+            <p class="help-category-intro">Pick a short guide for accounts, photos, results, saved history, or your current goal.</p>
             <ul id="help-category-list" class="help-category-list"></ul>
           </section>
 

@@ -26,6 +26,7 @@ test("account, private save, history, rename, retention, and delete controls wor
       state.account = {
         id: "account-browser",
         username: String(body.username).toLowerCase(),
+        preferredName: String(body.preferredName).trim(),
         createdAt: "2026-08-30T12:00:00.000Z",
         preferences: { historyRetentionDays: 30, imageRetention: "none" }
       };
@@ -58,6 +59,10 @@ test("account, private save, history, rename, retention, and delete controls wor
       state.account.preferences.historyRetentionDays = body.historyRetentionDays;
       return respond(200, { account: state.account });
     }
+    if (action === "profile") {
+      state.account.preferredName = String(body.preferredName).trim();
+      return respond(200, { account: state.account });
+    }
     if (action === "delete_account") {
       state.account = null;
       state.listings = [];
@@ -74,11 +79,19 @@ test("account, private save, history, rename, retention, and delete controls wor
   await page.locator("#account-menu-button").click();
   await expect(page.locator("#account-panel")).toBeVisible();
   await page.locator("#register-username").fill("Beta_User");
+  await page.locator("#register-preferred-name").fill("Guest <em>one</em>");
   await page.locator("#register-password").fill("a private beta password");
   await page.locator("#account-consent").check();
   await page.locator("#account-register-form button[type='submit']").click();
   await expect(page.locator("#account-username")).toHaveText("@beta_user");
   await expect(page.locator("#account-service-status")).toContainText("Account created");
+  await expect(page.locator("#personalized-greeting-title")).toHaveText("Hi, Guest <em>one</em>! Are we shopping, selling, or just looking around today?");
+  await expect(page.locator("#personalized-greeting-title em")).toHaveCount(0);
+
+  await page.locator("#account-preferred-name").fill("Account Two");
+  await page.locator("#preferred-name-form button[type='submit']").click();
+  await expect(page.locator("#personalized-greeting-title")).toHaveText("Hi, Account Two! Are we shopping, selling, or just looking around today?");
+  await expect(page.locator("#account-service-status")).toContainText("Preferred name updated");
 
   await page.locator("#account-close-button").click();
   await page.evaluate(() => {
@@ -120,6 +133,63 @@ test("account, private save, history, rename, retention, and delete controls wor
   await page.locator(".history-item").getByRole("button", { name: "Delete", exact: true }).click();
   await page.locator(".history-item").getByRole("button", { name: "Confirm delete" }).click();
   await expect(page.locator(".history-empty-state")).toBeVisible();
+});
+
+test("authenticated accounts render only their own preferred-name greeting", async ({ page, context }) => {
+  const secondPage = await context.newPage();
+  const installAccountRoute = async (targetPage, username, preferredName) => {
+    await targetPage.route("**/api/customer-account**", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        account: {
+          id: `account-${username}`,
+          username,
+          preferredName,
+          createdAt: "2026-08-30T12:00:00.000Z",
+          preferences: { historyRetentionDays: 30, imageRetention: "none" }
+        }
+      })
+    }));
+  };
+  await installAccountRoute(page, "account_one", "Account One");
+  await installAccountRoute(secondPage, "account_two", "Account Two");
+  await Promise.all([page.goto("/"), secondPage.goto("/")]);
+
+  await expect(page.locator("#personalized-greeting-title")).toHaveText("Hi, Account One! Are we shopping, selling, or just looking around today?");
+  await expect(page.locator("#personalized-greeting-title")).not.toContainText("Account Two");
+  await expect(secondPage.locator("#personalized-greeting-title")).toHaveText("Hi, Account Two! Are we shopping, selling, or just looking around today?");
+  await expect(secondPage.locator("#personalized-greeting-title")).not.toContainText("Account One");
+  await secondPage.close();
+});
+
+test("long preferred names fit mobile and legacy accounts fall back to their username", async ({ page }) => {
+  const longPreferredName = "L".repeat(60);
+  const account = {
+    id: "account-mobile",
+    username: "legacy_mobile_user",
+    preferredName: longPreferredName,
+    createdAt: "2026-08-30T12:00:00.000Z",
+    preferences: { historyRetentionDays: 30, imageRetention: "none" }
+  };
+  await page.route("**/api/customer-account**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ account })
+  }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await expect(page.locator("#personalized-greeting-title")).toHaveText(`Hi, ${longPreferredName}! Are we shopping, selling, or just looking around today?`);
+  await expect(page.getByRole("radio", { name: /Shopping for myself/i })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Shopping to resell/i })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Checking what I own/i })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Getting ready to sell/i })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  delete account.preferredName;
+  await page.reload();
+  await expect(page.locator("#personalized-greeting-title")).toHaveText("Hi, legacy_mobile_user! Are we shopping, selling, or just looking around today?");
 });
 
 test("photo drop zone and privacy controls are keyboard reachable on mobile and desktop", async ({ page }) => {

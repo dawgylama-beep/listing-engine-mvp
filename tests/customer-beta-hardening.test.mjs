@@ -206,6 +206,16 @@ test("account mutations require exact origin, JSON, and a session-bound CSRF tok
   assert.equal(usernameChange.statusCode, 405);
   assert.equal((await service.session(cookie.split("=")[1])).account.username, "origin_user");
 
+  const profileUpdate = await call(handler, {
+    method: "PATCH",
+    cookie,
+    csrfToken: registered.payload.session.csrfToken,
+    body: JSON.stringify({ action: "profile", preferredName: "  Account label  " })
+  });
+  assert.equal(profileUpdate.statusCode, 200);
+  assert.equal(profileUpdate.payload.account.preferredName, "Account label");
+  assert.equal((await service.session(cookie.split("=")[1])).account.username, "origin_user");
+
   const oversized = await call(handler, {
     method: "POST",
     body: "{}",
@@ -326,7 +336,7 @@ test("readiness distinguishes local, blocked Preview, and fully bound Preview wi
   const readyContract = {
     adapter: "postgres-v1",
     kind: "durable_compare_and_swap",
-    schemaVersion: "2.0",
+    schemaVersion: CUSTOMER_ACCOUNT_SCHEMA_VERSION,
     atomicOwnershipMutations: true,
     retentionCleanup: true,
     sharedAuthenticationThrottle: true

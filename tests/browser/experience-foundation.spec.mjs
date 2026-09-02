@@ -9,7 +9,7 @@ const photoFixture = path.join(repositoryRoot, "tests", "fixtures", "browser", "
 const visualReviewDirectory = String(process.env.KE_AESTHETIC_REVIEW_DIR || "").trim();
 
 const viewports = Object.freeze([
-  { name: "desktop", width: 1440, height: 1000 },
+  { name: "desktop", width: 1440, height: 900 },
   { name: "tablet", width: 768, height: 1024 },
   { name: "mobile", width: 390, height: 844 }
 ]);
@@ -166,7 +166,7 @@ async function assertViewportIntegrity(page) {
       .filter((box) => box.left < -1 || box.right > window.innerWidth + 1)
       .slice(0, 8);
     const keyTargets = [
-      ...document.querySelectorAll(".workflow-option, .photo-action, .primary-button, .price-found-action, .technical-details-summary")
+      ...document.querySelectorAll(".workflow-option, .photo-action, .primary-button, .price-found-action, .technical-details-summary, .help-menu-button, .help-category-button, .help-back-button, .help-close-button")
     ].filter(visible).map((element) => {
       const box = element.getBoundingClientRect();
       return { label: element.textContent.trim().slice(0, 60), width: box.width, height: box.height };
@@ -182,6 +182,110 @@ async function assertViewportIntegrity(page) {
   expect(metrics.overflow, JSON.stringify(metrics.overflow, null, 2)).toEqual([]);
   expect(metrics.shortTargets, JSON.stringify(metrics.shortTargets, null, 2)).toEqual([]);
 }
+
+test("Help & Instructions stays friendly, accessible, and usable by keyboard", async ({ page }, testInfo) => {
+  const guard = await installLocalOnlyGuard(page);
+  await openFresh(page);
+  const helpButton = page.locator("#help-menu-button");
+  const helpDialog = page.getByRole("dialog", { name: "Help & Instructions" });
+
+  await helpButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(helpDialog).toBeVisible();
+  await expect(helpDialog).toHaveAttribute("aria-modal", "true");
+  await expect(helpButton).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#help-category-list .help-category-button")).toHaveCount(12);
+  const accountTopic = page.locator('[data-help-category="your-account"]');
+  await expect(accountTopic).toHaveAccessibleName(/Your account/);
+  await expect(accountTopic).toBeFocused();
+
+  const lastTopic = page.locator("#help-category-list .help-category-button").last();
+  await lastTopic.focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#help-close-button")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(lastTopic).toBeFocused();
+
+  await accountTopic.click();
+  await expect(page.locator("#help-detail-title")).toHaveText("Your account");
+  await expect(page.locator("#help-detail-content")).toContainText("unique username");
+  await expect(page.locator("#help-detail-content")).toContainText("preferred name Katherine should use");
+  await expect(page.locator("#help-detail-content")).toContainText("Use Sign out");
+  await expect(page.locator("#help-back-button")).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await page.locator('[data-help-category="how-katherine-helps"]').click();
+  await expect(page.locator("#help-detail-content")).toContainText("best-supported object or product match");
+  await expect(page.locator("#help-detail-content")).toContainText("still uncertain");
+  await expect(page.locator("#help-detail-content")).toContainText("must not present identity, price, availability, or value as certain");
+  await page.locator("#help-back-button").click();
+
+  await page.locator('[data-help-category="saved-history"]').click();
+  await expect(page.locator("#help-detail-content")).toContainText("Open Saved history");
+  await expect(page.locator("#help-detail-content")).toContainText("rename it");
+  await expect(page.locator("#help-detail-content")).toContainText("Delete any saved report");
+  await page.locator("#help-back-button").click();
+
+  await lastTopic.scrollIntoViewIfNeeded();
+  await expect(lastTopic).toBeVisible();
+  await assertViewportIntegrity(page);
+  const helpMetrics = await page.evaluate(() => {
+    const parseRgb = (value) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = (value) => {
+      const channels = parseRgb(value).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrast = (foreground, background) => {
+      const first = luminance(foreground);
+      const second = luminance(background);
+      return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+    };
+    const panel = document.querySelector("#help-panel").getBoundingClientRect();
+    const body = document.querySelector(".help-panel-body");
+    const header = document.querySelector(".help-panel-header");
+    const heading = document.querySelector("#help-panel-title");
+    const category = document.querySelector(".help-category-button");
+    const visibleHelpTargets = [...document.querySelectorAll(".help-close-button, .help-category-button")]
+      .filter((element) => {
+        const box = element.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      })
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        return { width: box.width, height: box.height };
+      });
+    return {
+      panelWithinViewport: panel.left >= -1 && panel.right <= innerWidth + 1 && panel.top >= -1 && panel.bottom <= innerHeight + 1,
+      panelOverflowY: getComputedStyle(body).overflowY,
+      pageScrollLocked: getComputedStyle(document.body).overflow === "hidden",
+      shortTargets: visibleHelpTargets.filter((target) => target.width < 44 || target.height < 44),
+      headerContrast: contrast(getComputedStyle(heading).color, getComputedStyle(header).backgroundColor),
+      categoryContrast: contrast(getComputedStyle(category).color, getComputedStyle(category).backgroundColor)
+    };
+  });
+  expect(helpMetrics.panelWithinViewport).toBe(true);
+  expect(["auto", "scroll"]).toContain(helpMetrics.panelOverflowY);
+  expect(helpMetrics.pageScrollLocked).toBe(true);
+  expect(helpMetrics.shortTargets).toEqual([]);
+  expect(helpMetrics.headerContrast).toBeGreaterThanOrEqual(4.5);
+  expect(helpMetrics.categoryContrast).toBeGreaterThanOrEqual(4.5);
+  await captureReview(page, testInfo.project.name, "help-instructions");
+
+  await page.keyboard.press("Escape");
+  await expect(helpDialog).toBeHidden();
+  await expect(helpButton).toBeFocused();
+  await helpButton.press("Enter");
+  await page.locator("#help-close-button").focus();
+  await page.keyboard.press("Enter");
+  await expect(helpDialog).toBeHidden();
+  await expect(helpButton).toBeFocused();
+  expect(guard.externalRequests).toEqual([]);
+  expect(guard.consoleErrors).toEqual([]);
+  expect(guard.pageErrors).toEqual([]);
+});
 
 async function captureReview(page, viewportName, stateName) {
   if (!visualReviewDirectory) return;
@@ -211,9 +315,26 @@ test("aesthetic foundation renders sixteen deterministic customer states at desk
     await expect(page.getByRole("link", { name: "Add photos" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Add photos" })).toHaveAttribute("href", "#photo-stage");
     await expect(page.locator(".empty-state-steps li")).toHaveCount(3);
+    await expect(page.locator(".object-border-gallery")).toHaveAttribute("aria-hidden", "true");
+    await expect(page.locator(".border-object")).toHaveCount(7);
+    await expect(page.locator(".border-object:visible")).toHaveCount(viewport.name === "desktop" ? 7 : 3);
+    await expect(page.locator(".photo-ladybug")).toBeVisible();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(page.locator(".photo-ladybug")).toHaveCSS("animation-name", "none");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const decorativePlacement = await page.evaluate(() => {
+      const stage = document.querySelector("#photo-stage").getBoundingClientRect();
+      const ladybug = document.querySelector(".photo-ladybug").getBoundingClientRect();
+      return {
+        crossesUpperEdge: ladybug.top < stage.top && ladybug.bottom > stage.top,
+        clearsStageCopy: ladybug.bottom < document.querySelector(".photo-stage-header h2").getBoundingClientRect().top
+      };
+    });
+    expect(decorativePlacement.crossesUpperEdge).toBe(true);
+    expect(decorativePlacement.clearsStageCopy).toBe(true);
     await verifyState(page, viewport.name, "01-opening");
 
-    const resalePurpose = page.getByRole("radio", { name: /Buying to Resell/i });
+    const resalePurpose = page.getByRole("radio", { name: /Shopping to resell/i });
     await resalePurpose.check();
     await expect(resalePurpose).toBeChecked();
     const selectedStyle = await page.locator(".workflow-option:has(input:checked)").evaluate((element) => getComputedStyle(element).boxShadow);

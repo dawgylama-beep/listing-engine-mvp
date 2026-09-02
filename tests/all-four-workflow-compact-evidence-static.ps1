@@ -43,10 +43,10 @@ foreach ($workflow in @(
   Require-Contains "Workflow remains available: $workflow" $app $workflow
 }
 foreach ($title in @(
-  'title: "Buying for Myself"',
-  'title: "Buying to Resell"',
-  'It Worth?"',
-  'title: "Create a Listing"'
+  'title: "Shopping for myself"',
+  'title: "Shopping to resell"',
+  'title: "Checking what I own"',
+  'title: "Getting ready to sell"'
 )) {
   Require-Contains "Workflow title remains available: $title" $app $title
 }

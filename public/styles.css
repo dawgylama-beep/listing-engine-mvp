@@ -167,7 +167,8 @@ button {
   align-items: center;
   gap: 8px;
   max-width: calc(100% - 36px);
-  min-height: 38px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 8px 10px;
   border: 1px solid rgba(244, 216, 155, 0.5);
   border-radius: 8px;
@@ -400,7 +401,8 @@ h3 {
 
 .help-back-button,
 .help-close-button {
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 8px 10px;
   border: 1px solid rgba(244, 216, 155, 0.44);
   border-radius: 8px;
@@ -421,12 +423,20 @@ h3 {
 
 .help-panel-body {
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 18px;
 }
 
 .help-panel-body h3 {
   margin-bottom: 12px;
   font-size: 1rem;
+}
+
+.help-category-intro {
+  margin: -4px 0 14px;
+  color: #40504b;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .help-category-list {
@@ -475,6 +485,7 @@ h3 {
 
 .help-detail-content {
   display: grid;
+  min-width: 0;
   gap: 12px;
   color: #263a35;
   line-height: 1.5;
@@ -482,6 +493,7 @@ h3 {
 
 .help-intro,
 .help-explanation,
+.help-example,
 .help-steps,
 .help-definition-list {
   margin: 0;
@@ -4074,6 +4086,22 @@ a:focus-visible {
   }
 }
 
+.help-example {
+  padding: 12px;
+  border: 1px solid #cbded7;
+  border-radius: 8px;
+  background: #eef6f2;
+  color: #18352f;
+  font-weight: 700;
+}
+
+.help-steps li,
+.help-example,
+.help-explanation,
+.help-definition-list dd {
+  overflow-wrap: anywhere;
+}
+
 /* Customer beta experience foundation */
 body {
   background: #eee8de;
@@ -5001,5 +5029,249 @@ body.account-panel-open {
 
   .empty-state-steps {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Katherine beta character and border gallery */
+.app-shell {
+  position: relative;
+}
+
+.workspace {
+  position: relative;
+  z-index: 1;
+  margin-inline: 72px;
+}
+
+.object-border-gallery {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.border-object {
+  position: absolute;
+  display: block;
+  opacity: 0.82;
+  filter: drop-shadow(0 8px 8px rgba(59, 43, 34, 0.12));
+}
+
+.border-object svg,
+.photo-ladybug svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.border-object-clock {
+  top: 94px;
+  left: 5px;
+  width: 54px;
+  transform: rotate(-7deg);
+}
+
+.border-object-vase {
+  top: 116px;
+  right: 8px;
+  width: 50px;
+  transform: rotate(5deg);
+}
+
+.border-object-camera {
+  top: 330px;
+  left: 1px;
+  width: 60px;
+  transform: rotate(4deg);
+}
+
+.border-object-jewelry {
+  top: 316px;
+  right: 3px;
+  width: 56px;
+  transform: rotate(-5deg);
+}
+
+.border-object-handbag {
+  top: 580px;
+  left: 9px;
+  width: 51px;
+  transform: rotate(-4deg);
+}
+
+.border-object-lamp {
+  top: 552px;
+  right: 8px;
+  width: 52px;
+  transform: rotate(5deg);
+}
+
+.border-object-collectible {
+  top: 748px;
+  right: 12px;
+  width: 48px;
+  transform: rotate(-4deg);
+}
+
+.photo-stage {
+  position: relative;
+}
+
+.photo-ladybug {
+  position: absolute;
+  top: -15px;
+  right: 28px;
+  z-index: 2;
+  display: block;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 3px rgba(59, 43, 34, 0.18));
+  transform: rotate(8deg);
+  transform-origin: 50% 70%;
+  animation: ladybug-settle 900ms cubic-bezier(0.2, 0.8, 0.25, 1) 180ms both;
+}
+
+@keyframes ladybug-settle {
+  0% {
+    opacity: 0;
+    transform: translate(-9px, -7px) rotate(-16deg);
+  }
+
+  64% {
+    opacity: 1;
+    transform: translate(2px, 1px) rotate(12deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(8deg);
+  }
+}
+
+@media (max-width: 1100px) {
+  .workspace {
+    margin-inline: 0;
+  }
+
+  .object-border-gallery {
+    position: relative;
+    inset: auto;
+    display: flex;
+    width: min(420px, calc(100% - 40px));
+    min-height: 50px;
+    margin: 0 auto 10px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .border-object {
+    position: static;
+    display: none;
+    width: 40px;
+    transform: none;
+  }
+
+  .border-object-clock,
+  .border-object-vase,
+  .border-object-camera {
+    display: block;
+  }
+
+  .border-object-vase {
+    width: 36px;
+  }
+
+  .border-object-camera {
+    width: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  .object-border-gallery {
+    width: min(270px, calc(100% - 56px));
+    min-height: 42px;
+    margin-bottom: 6px;
+  }
+
+  .border-object-clock {
+    width: 34px;
+  }
+
+  .border-object-vase {
+    width: 31px;
+  }
+
+  .border-object-camera {
+    width: 38px;
+  }
+
+  .photo-ladybug {
+    right: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-ladybug {
+    animation: none;
+    transform: rotate(8deg);
+  }
+}
+
+/* Private account personalization */
+.personalized-greeting {
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 18px 20px;
+  border: 1px solid #d9c7b6;
+  border-left: 4px solid var(--gold);
+  border-radius: 14px;
+  background: #fbf5eb;
+}
+
+.personalized-greeting[hidden] {
+  display: none;
+}
+
+.personalized-greeting h2 {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.personalized-greeting p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-controls {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid #d8cbbb;
+  border-radius: 14px;
+  background: #fffdf8;
+}
+
+.profile-controls h3 {
+  font-family: var(--font-serif);
+  font-size: 1.22rem;
+}
+
+.profile-controls .secondary-button {
+  justify-self: start;
+}
+
+@media (max-width: 600px) {
+  .personalized-greeting {
+    padding: 15px 16px;
+  }
+
+  .personalized-greeting h2 {
+    font-size: 1.2rem;
   }
 }

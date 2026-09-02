@@ -116,25 +116,25 @@ function dataUrlByteLength(dataUrl) {
 
 const purposes = Object.freeze({
   personal_use: {
-    radioName: /Buying for Myself/i,
+    radioName: /Shopping for myself/i,
     requestPurpose: "personal_use",
     canonicalPurpose: "personal",
     reportType: "marketValue"
   },
   resale: {
-    radioName: /Buying to Resell/i,
+    radioName: /Shopping to resell/i,
     requestPurpose: "resale",
     canonicalPurpose: "resale",
     reportType: "marketValue"
   },
   market_value: {
-    radioName: /What’s It Worth\?/i,
+    radioName: /Checking what I own/i,
     requestPurpose: "owner_value",
     canonicalPurpose: "owner_value",
     reportType: "marketValue"
   },
   listing: {
-    radioName: /Create a Listing/i,
+    radioName: /Getting ready to sell/i,
     requestPurpose: "seller_listing",
     canonicalPurpose: "seller_listing",
     reportType: "listing"

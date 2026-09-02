@@ -39,22 +39,28 @@ function Require-Count($Name, $Text, $Pattern, $Expected) {
 }
 
 $categories = @(
-  "Buying for Myself",
-  "Buying to Resell",
-  "Create a Listing",
-  "Taking Good Photos",
-  "Using Location",
-  "Understanding Your Results"
+  "Your account",
+  "Choose your goal",
+  "Take useful photos",
+  "How Katherine helps",
+  "Saved history",
+  "Privacy & safety",
+  "Shopping for myself",
+  "Shopping to resell",
+  "Checking what I own",
+  "Getting ready to sell",
+  "Using location",
+  "Read your results"
 )
 
 $workflowInstructionChecks = @(
-  "Buying for Myself",
+  "Shopping for myself",
   "Analyze Purchase",
-  "Buying to Resell",
+  "Shopping to resell",
   "Analyze Resale",
-  "It Worth?",
+  "Checking what I own",
   "Estimate Value",
-  "Create a Listing",
+  "Getting ready to sell",
   "Prepare to Sell"
 )
 
@@ -99,10 +105,37 @@ Require-Contains "Details use numbered instruction lists" $app 'const list = doc
 foreach ($category in $categories) {
   Require-Contains "Help category exists: $category" $app "title: `"$category`""
 }
-Require-Contains "Help category exists: What's It Worth?" $app 'It Worth?",'
-
 foreach ($instruction in $workflowInstructionChecks) {
   Require-Contains "Workflow instruction exists: $instruction" $app $instruction
+}
+
+$customerHelpChecks = @(
+  "Choose a unique username",
+  "You’ll use it with your password whenever you sign in",
+  "preferred name Katherine should use when speaking to you",
+  "Use Sign out when you are finished",
+  "Shopping for myself when you are comparing an item or store price",
+  "Shopping to resell when you need to weigh purchase cost",
+  "Checking what I own when you already have the item",
+  "Getting ready to sell when you want pricing and listing guidance",
+  "add up to six photographs",
+  "labels, maker’s marks, signatures, model numbers, serial numbers, or barcodes",
+  "condition, including wear, cracks, stains, missing parts, or other damage",
+  "Identify the best-supported object or product match",
+  "Compare available retailer, marketplace, auction, or reference evidence",
+  "Estimate value or a price limit only when the retained evidence supports it",
+  "what is known from what is still uncertain",
+  "Open Saved history from the header or account panel",
+  "rename it so it is easier to recognize later",
+  "Delete any saved report you no longer want",
+  "One customer cannot open another customer’s history",
+  "Uploaded image files are not stored in saved history",
+  "precise coordinates are not stored",
+  "must not invent searches, prices, sales, shipping, inventory, availability, or source support",
+  "must not present identity, price, availability, or value as certain"
+)
+foreach ($copy in $customerHelpChecks) {
+  Require-Contains "Current customer Help explains: $copy" $app $copy
 }
 
 Require-Contains "Purpose How to do this control exists" $index 'id="purpose-help-link" class="purpose-help-link"'
@@ -128,10 +161,26 @@ Require-Contains "Body scroll unlocks on close" $app 'document.body.classList.re
 Require-Contains "CSS body scroll lock exists" $styles "body.help-panel-open"
 Require-Contains "Help panel is fixed" $styles ".help-panel"
 Require-Contains "Mobile help panel goes full screen" $styles "width: 100%;"
+Require-Contains "Friendly examples render as plain text" $app 'example.textContent = category.example;'
+Require-Contains "Help panel contains scrolling content" $styles "overflow: auto;"
+Require-Contains "Help panel contains overscroll" $styles "overscroll-behavior: contain;"
+Require-Contains "Help copy wraps safely" $styles "overflow-wrap: anywhere;"
+if ($styles -notmatch "\.help-menu-button\s*\{[\s\S]*?min-height:\s*44px;") {
+  $failed += "Help menu button keeps a 44px touch target"
+}
+if ($styles -notmatch "\.help-back-button,\s*\.help-close-button\s*\{[\s\S]*?min-height:\s*44px;") {
+  $failed += "Help back and close buttons keep 44px touch targets"
+}
+if ($styles -notmatch "\.help-category-button\s*\{[\s\S]*?min-height:\s*48px;") {
+  $failed += "Help topic buttons keep 48px touch targets"
+}
 
 Require-NotContains "Buying detailed instructions are not openly rendered in HTML" $index "Take or upload clear photos of the product"
 Require-NotContains "Resale detailed instructions are not openly rendered in HTML" $index "Asking prices are not the same as completed sales"
 Require-NotContains "Definitions are not openly rendered in HTML" $index "Availability Unconfirmed"
+foreach ($unsupportedFeature in @("email recovery", "email verification", "verification email", "password reset link", "Forgot password")) {
+  Require-NotContains "Help does not invent unsupported account feature: $unsupportedFeature" $app $unsupportedFeature
+}
 Require-Count "Only one purpose help link exists" $index 'id="purpose-help-link"' 1
 Require-Count "Only one help panel exists" $index 'id="help-panel"' 1
 

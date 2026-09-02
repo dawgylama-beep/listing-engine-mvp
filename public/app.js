@@ -358,7 +358,7 @@ const workflowConfigs = {
     purchaseIntent: "personal_use",
     sections: consumerSections,
     eyebrow: "Personal-Use Buying Decision",
-    title: "Buying for Myself",
+    title: "Shopping for myself",
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for personal-use value...",
     activeLabel: "Analyzing...",
@@ -389,7 +389,7 @@ const workflowConfigs = {
     workflow: "resale",
     purchaseIntent: "resale",
     eyebrow: "Resale Buying Decision",
-    title: "Buying to Resell",
+    title: "Shopping to resell",
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for resale potential...",
     activeLabel: "Analyzing...",
@@ -421,7 +421,7 @@ const workflowConfigs = {
     purchaseIntent: "owner_value",
     sections: ownerValueSections,
     eyebrow: "Owner Value Assessment",
-    title: "What’s It Worth?",
+    title: "Checking what I own",
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Searching comparable items for owner value...",
     activeLabel: "Valuing...",
@@ -452,7 +452,7 @@ const workflowConfigs = {
     workflow: "listing",
     purchaseIntent: "seller_listing",
     eyebrow: "Seller Pricing and Listing Plan",
-    title: "Create a Listing",
+    title: "Getting ready to sell",
     emptyMessage: "Your recommendation will appear here after analysis.",
     loadingMessage: "Researching seller pricing and listing support...",
     activeLabel: "Creating...",
@@ -502,96 +502,171 @@ const workflowHelpCategoryMap = Object.freeze({
 
 const helpInstructionCategories = Object.freeze([
   {
+    id: "your-account",
+    title: "Your account",
+    intro: "An account keeps saved reports connected to one private sign-in.",
+    steps: [
+      "Choose a unique username. You’ll use it with your password whenever you sign in.",
+      "Create a password and keep both credentials private, especially on a shared device.",
+      "Add the preferred name Katherine should use when speaking to you. It does not need to be unique.",
+      "Open Account to sign in. Use Sign out when you are finished.",
+      "In account settings, you can change your preferred name, password, and saved-report retention."
+    ],
+    example: "Example: Your username can stay river_market while Katherine greets you with the private name you chose.",
+    explanation: "Your preferred name is for greeting only. It is not used to sign in, find the account, decide ownership, or grant access."
+  },
+  {
+    id: "choose-your-goal",
+    title: "Choose your goal",
+    intro: "Start by telling Katherine what you are trying to do.",
+    steps: [
+      "Choose Shopping for myself when you are comparing an item or store price for your own use.",
+      "Choose Shopping to resell when you need to weigh purchase cost, likely resale value, fees, and risk.",
+      "Choose Checking what I own when you already have the item and want help understanding what it may be worth.",
+      "Choose Getting ready to sell when you want pricing and listing guidance for an item you own."
+    ],
+    example: "Example: A lamp in a shop fits Shopping for myself; a camera from a yard sale may fit Shopping to resell.",
+    explanation: "Your choice changes the questions and guidance, but Katherine does not buy, sell, or publish anything for you."
+  },
+  {
+    id: "taking-good-photos",
+    title: "Take useful photos",
+    intro: "You can add up to six photographs. A few clear views are usually more helpful than many distant ones.",
+    steps: [
+      "Show the whole object from the front and back.",
+      "Add close views of labels, maker’s marks, signatures, model numbers, serial numbers, or barcodes.",
+      "Photograph the actual condition, including wear, cracks, stains, missing parts, or other damage.",
+      "Use bright, even light and keep important words in focus.",
+      "Avoid glare, covered labels, and distant photographs when a closer view is possible."
+    ],
+    example: "Example: For a handbag, show the full bag, interior label, hardware, corners, lining, and any visible wear.",
+    explanation: "Uploaded image files are used for this analysis and are not added to saved history."
+  },
+  {
+    id: "how-katherine-helps",
+    title: "How Katherine helps",
+    intro: "Katherine combines what is visible in your photos with the details you provide.",
+    steps: [
+      "Identify the best-supported object or product match and separate what is known from what is still uncertain.",
+      "Compare available retailer, marketplace, auction, or reference evidence without treating every asking price as a completed sale.",
+      "Estimate value or a price limit only when the retained evidence supports it.",
+      "Explain important differences, missing evidence, and confidence in plain language.",
+      "Recommend practical next steps, such as another photo, a label check, source verification, or a safer buying or selling decision."
+    ],
+    example: "Example: If a model number is blurry, Katherine may identify the object type but ask for a clearer label before naming an exact model.",
+    explanation: "Katherine may need clearer photographs or more details. She must not present identity, price, availability, or value as certain when the evidence does not support that certainty."
+  },
+  {
+    id: "saved-history",
+    title: "Saved history",
+    intro: "Saved history is private to the signed-in account and keeps only reports you choose to save.",
+    steps: [
+      "Sign in and complete an analysis.",
+      "Choose Save to history when you want to keep that customer report.",
+      "Open Saved history from the header or account panel.",
+      "Open a saved report to review it, or rename it so it is easier to recognize later.",
+      "Delete any saved report you no longer want.",
+      "Use account settings to choose how long saved reports are kept."
+    ],
+    example: "Example: Rename “Walnut tray” to “Entryway tray” so you can find it quickly later.",
+    explanation: "One customer cannot open another customer’s history. Uploaded image files are not stored with saved reports, and reports expire according to the account’s retention setting."
+  },
+  {
+    id: "privacy-and-safety",
+    title: "Privacy & safety",
+    intro: "Katherine keeps customer controls visible and makes cautious stops when needed.",
+    steps: [
+      "Only reports you explicitly save are added to your private history.",
+      "Uploaded image files are not stored in saved history.",
+      "Approximate area or a ZIP code may help with nearby price context; precise coordinates are not stored.",
+      "Keep your username and password private, and sign out after using a shared device.",
+      "Katherine may stop when an item appears unsafe, prohibited, unsupported, or too uncertain for a responsible answer."
+    ],
+    explanation: "Katherine must not invent searches, prices, sales, shipping, inventory, availability, or source support. Check source pages and item condition before acting on a recommendation."
+  },
+  {
     id: "buying-for-myself",
-    title: "Buying for Myself",
+    title: "Shopping for myself",
     workflow: "personal_use",
     steps: [
-      "Select “Buying for Myself.”",
-      "Take or upload clear photos of the product, packaging, barcode, model number, and price label.",
+      "Select “Shopping for myself.”",
+      "Add clear photos of the product, packaging, barcode, model number, condition, and price label.",
       "Enter the store’s name.",
       "Enter the price you are being asked to pay.",
       "Use your location or enter a ZIP code if you want nearby price context.",
       "Add the product name, brand, model, quantity, or UPC when known.",
       "Select “Analyze Purchase.”",
-      "Review the purchase decision and the Where to Buy list.",
+      "Review the purchase decision, uncertainty, price evidence, and next step.",
       "Open a retailer link or directions to verify the current price and availability before purchasing."
     ],
-    explanation: "Katherine’s Eye may show the exact product or compatible alternatives. A price found online does not guarantee local inventory."
+    example: "Example: Add the shelf price and package count when deciding whether a household item is a good buy.",
+    explanation: "Katherine may show the exact product or a compatible alternative. A price found online does not guarantee local inventory."
   },
   {
     id: "buying-to-resell",
-    title: "Buying to Resell",
+    title: "Shopping to resell",
     workflow: "resale",
     steps: [
-      "Select “Buying to Resell.”",
+      "Select “Shopping to resell.”",
       "Add clear photos of the item, labels, identifiers, and condition.",
       "Enter the price you would pay.",
       "Add known brand, model, age, quantity, and condition details.",
       "Select the intended resale marketplace when requested.",
       "Select “Analyze Resale.”",
-      "Review expected resale value, likely costs, profit potential, demand, risk, and recommended maximum purchase price.",
+      "Review any supported resale value, likely costs, profit potential, uncertainty, risk, and price limit.",
       "Verify source listings before buying."
     ],
-    explanation: "Asking prices are not the same as completed sales, and fees, shipping, taxes, and unsold inventory affect profit."
+    example: "Example: Include a missing charger or damaged box because those details can change resale value and risk.",
+    explanation: "Asking prices are not the same as completed sales. Fees, shipping, taxes, condition, and unsold inventory can affect profit."
   },
   {
     id: "value-something-i-own",
-    title: "What’s It Worth?",
+    title: "Checking what I own",
     workflow: "market_value",
     steps: [
-      "Select “What’s It Worth?”",
+      "Select “Checking what I own.”",
       "Photograph the full item from several angles.",
       "Photograph maker marks, labels, signatures, model numbers, serial numbers, and damage.",
       "Enter anything known about its brand, age, origin, size, materials, and condition.",
       "Select “Estimate Value.”",
-      "Review the estimated value range, evidence quality, and confidence.",
+      "Review any supported value range, evidence quality, uncertainty, and confidence.",
       "Open supporting sources when available."
     ],
-    explanation: "Better identification and condition evidence generally produce a stronger valuation."
+    example: "Example: A clear maker’s mark and photographs of hidden damage can materially change the estimate.",
+    explanation: "Better identification and condition evidence can support a stronger estimate. If evidence is insufficient, Katherine will say that value is not established."
   },
   {
     id: "sell-something-i-own",
-    title: "Create a Listing",
+    title: "Getting ready to sell",
     workflow: "listing",
     steps: [
-      "Select “Create a Listing.”",
+      "Select “Getting ready to sell.”",
       "Add clear photos showing the complete item and its actual condition.",
       "Enter known brand, model, age, measurements, included parts, and defects.",
       "Select the selling platform when requested.",
       "Enter shipping or pickup information when known.",
       "Select “Prepare to Sell.”",
-      "Review suggested asking price, likely selling range, listing guidance, and supporting evidence.",
+      "Review any supported asking-price guidance, likely selling range, uncertainty, listing help, and evidence.",
       "Copy or edit the generated listing before publishing."
     ],
-    explanation: "Katherine’s Eye prepares guidance but does not automatically publish the listing or guarantee a sale."
-  },
-  {
-    id: "taking-good-photos",
-    title: "Taking Good Photos",
-    steps: [
-      "Use bright, even lighting.",
-      "Photograph the entire item.",
-      "Add close-ups of the front, back, sides, labels, barcode, model number, and price.",
-      "Photograph flaws, damage, missing parts, or wear.",
-      "Keep text in focus and fill most of the frame.",
-      "Avoid glare, fingers covering labels, and distant photographs."
-    ]
+    example: "Example: Show included accessories and every flaw before using the draft as a starting point for your listing.",
+    explanation: "Katherine prepares guidance but does not automatically publish the listing or guarantee a price or sale."
   },
   {
     id: "using-location",
-    title: "Using Location",
+    title: "Using location",
     steps: [
       "Tap “Use My Location.”",
       "Allow location access when the browser asks.",
       "If access fails or is denied, enter a ZIP code manually.",
       "Continue without location when nearby pricing is unnecessary."
     ],
-    explanation: "Approximate location is used for nearby price context. It does not prove that an item is currently in stock. Customers must check with the retailer for price and availability."
+    explanation: "Approximate location is used for nearby price context, and precise coordinates are not stored. Location does not prove that an item is in stock; check with the retailer for current price and availability."
   },
   {
     id: "understanding-your-results",
-    title: "Understanding Your Results",
-    intro: "These labels explain what Katherine’s Eye is telling you.",
+    title: "Read your results",
+    intro: "These labels explain what Katherine is telling you and where caution still matters.",
     definitions: [
       ["Exact Product", "The evidence appears to identify the same item."],
       ["Compatible Alternative", "A similar item serving the same purpose, but not necessarily the same brand or package."],
@@ -600,6 +675,7 @@ const helpInstructionCategories = Object.freeze([
       ["Unit Price", "Price per item, ounce, foot, or other supported unit."],
       ["Price Limit", "The recommended maximum based on available evidence."],
       ["Confidence", "How strongly the evidence supports the conclusion."],
+      ["Uncertainty", "What is still unknown, conflicting, or not supported well enough to claim."],
       ["Availability Unconfirmed", "A price was found, but inventory was not verified."],
       ["View at Retailer", "Opens the supporting retailer page."],
       ["Directions", "Opens a supported nearby location."],
@@ -804,6 +880,13 @@ function renderHelpDetail(category) {
       list.append(item);
     }
     helpDetailContent.append(list);
+  }
+
+  if (category.example) {
+    const example = document.createElement("p");
+    example.className = "help-example";
+    example.textContent = category.example;
+    helpDetailContent.append(example);
   }
 
   if (category.explanation) {
@@ -1980,7 +2063,7 @@ function getDisplayConfig(config, report) {
     return {
       ...config,
       eyebrow: "Personal-Use Buying Decision",
-      title: "Buying for Myself"
+      title: "Shopping for myself"
     };
   }
 

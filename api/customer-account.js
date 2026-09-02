@@ -149,6 +149,7 @@ async function dispatch(service, req, body) {
   if (req.method === "PATCH" && action === "change_password") return service.changePassword(token, body);
   if (req.method === "PATCH" && action === "rename_listing") return service.renameListing(token, body.listingId, body.name);
   if (req.method === "PATCH" && action === "preferences") return service.updatePreferences(token, body);
+  if (req.method === "PATCH" && action === "profile") return service.updateProfile(token, body);
   if (req.method === "DELETE" && action === "delete_listing") return service.deleteListing(token, body.listingId);
   if (req.method === "DELETE" && action === "delete_account") return service.deleteAccount(token, body.password);
 

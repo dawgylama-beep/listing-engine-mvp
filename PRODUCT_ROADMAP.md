@@ -1014,3 +1014,14 @@
 - Ran a frozen hard-network-denied governed-learning trial through Katherine’s authentic product, Mentor, Governor, memory, reconstruction, and applicability boundaries; the evidence remained insufficient for qualification, so no lesson was promoted, applied, retained, rejected, or rolled back.
 - Rebalanced the desktop analysis workspace, added a prominent photo entry point, compacted the mobile purpose chooser, and strengthened empty, progress, uncertainty, account, and history presentation without changing product semantics.
 - Preserved Version `1.12.52`; no provider, network, controller, authority, Preview, Production, push, deployment, publication, spending, or product-learning claim is part of this refinement.
+
+## Version 1.12.52 (Completed)
+
+- Added a lightweight repository-owned object gallery around the desktop workspace with original clock, vase, camera, jewelry, handbag, lamp, and collectible illustrations.
+- Reduced the gallery to three small pictures above the composition on tablet and mobile layouts, preserving the existing customer workflow and screen space.
+- Added a decorative illustrated ladybug resting on the photo-upload panel edge, with a restrained entrance and an explicit reduced-motion override.
+- Added a private, changeable preferred name to beta accounts with username fallback for legacy records, an in-place schema-3 account-store/PostgreSQL migration, and no preferred-name role in authentication, authorization, ownership, or lookup.
+- Added an authenticated, dynamically personalized greeting and warmer purpose labels while preserving the existing workflow values and behavior.
+- Rewrote Help & Instructions as short customer guides for account access, preferred names, shopping and selling goals, useful photographs, evidence and uncertainty, saved-history controls, privacy, safety, and honest product limits.
+- Added offline static, service, PostgreSQL, and browser regression coverage for decorative semantics, exact object count, responsive visibility, ladybug placement, reduced motion, private name isolation, legacy fallback, safe text rendering, long-name wrapping, and the required `1440×900` and `390×844` review states.
+- Preserved Version `1.12.52`; provider behavior, saved-history ownership, cognition, controller policy, and deployment semantics are unchanged.

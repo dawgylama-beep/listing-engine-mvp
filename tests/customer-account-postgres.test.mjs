@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBetaReadinessHandler } from "../api/beta-readiness.js";
-import { createCustomerAccountService } from "../lib/customer-account/service.js";
+import { CUSTOMER_ACCOUNT_SCHEMA_VERSION, createCustomerAccountService } from "../lib/customer-account/service.js";
 import {
   createPostgresCustomerAccountStore,
   POSTGRES_ACCOUNT_STORE_KEY,
@@ -57,7 +57,7 @@ function fakePostgres(initialRow = null) {
           forcedConflicts -= 1;
           return { rows: [], rowCount: 0, command: "UPDATE 0" };
         }
-        if (!row || row.schema_version !== parameters[1] || row.revision !== parameters[2]) {
+        if (!row || ![parameters[1], parameters[5], parameters[6]].includes(row.schema_version) || row.revision !== parameters[2]) {
           return { rows: [], rowCount: 0, command: "UPDATE 0" };
         }
         row = { schema_version: parameters[1], revision: parameters[3], state_json: parameters[4] };
@@ -83,7 +83,7 @@ test("postgres-v1 initializes an empty schema and performs revision-bound compar
   const database = fakePostgres();
   const store = createPostgresCustomerAccountStore({ query: database.query.bind(database) });
   const empty = await store.read();
-  assert.equal(empty.schemaVersion, "2.0");
+  assert.equal(empty.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
   assert.equal(empty.revision, 0);
   assert.deepEqual(empty.accounts, {});
   const next = structuredClone(empty);
@@ -91,6 +91,35 @@ test("postgres-v1 initializes an empty schema and performs revision-bound compar
   assert.equal(await store.compareAndSwap({ expectedRevision: 0, nextState: next }), true);
   assert.equal((await store.read()).revision, 1);
   assert.equal(database.calls.filter(({ sql }) => sql === POSTGRES_ACCOUNT_STORE_SQL.initialize).length, 1);
+});
+
+test("postgres-v1 migrates schema-2 accounts in place with a username preferred-name fallback", async () => {
+  const seedDatabase = fakePostgres();
+  const seedService = createCustomerAccountService({
+    store: createPostgresCustomerAccountStore({ query: seedDatabase.query.bind(seedDatabase) })
+  });
+  const registered = await seedService.register({
+    username: "legacy_pg_user",
+    password,
+    preferredName: "Temporary label"
+  });
+  const legacySnapshot = JSON.parse(seedDatabase.row.state_json);
+  legacySnapshot.schemaVersion = "2.0";
+  delete legacySnapshot.accounts[registered.account.id].preferredName;
+  const legacyDatabase = fakePostgres({
+    schema_version: "2.0",
+    revision: seedDatabase.row.revision,
+    state_json: JSON.stringify(legacySnapshot)
+  });
+  const migratedService = createCustomerAccountService({
+    store: createPostgresCustomerAccountStore({ query: legacyDatabase.query.bind(legacyDatabase) })
+  });
+
+  assert.equal((await migratedService.session(registered.session.token)).account.preferredName, "legacy_pg_user");
+  assert.equal(legacyDatabase.row.schema_version, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
+  const migratedSnapshot = JSON.parse(legacyDatabase.row.state_json);
+  assert.equal(migratedSnapshot.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
+  assert.equal(migratedSnapshot.accounts[registered.account.id].preferredName, "legacy_pg_user");
 });
 
 test("postgres-v1 retries bounded conflicts and preserves concurrent unique accounts", async () => {
@@ -193,12 +222,12 @@ test("postgres-v1 persists sessions, shared throttling, retention, revocation, a
 });
 
 test("postgres-v1 rejects incompatible and corrupt durable snapshots", async () => {
-  const incompatible = fakePostgres({ schema_version: "3.0", revision: "0", state_json: JSON.stringify({ schemaVersion: "3.0", revision: 0 }) });
+  const incompatible = fakePostgres({ schema_version: "4.0", revision: "0", state_json: JSON.stringify({ schemaVersion: "4.0", revision: 0 }) });
   await assert.rejects(
     createPostgresCustomerAccountStore({ query: incompatible.query.bind(incompatible) }).read(),
     (error) => error.code === "customer_account_postgres_schema_mismatch"
   );
-  const corrupt = fakePostgres({ schema_version: "2.0", revision: "1", state_json: "{}" });
+  const corrupt = fakePostgres({ schema_version: CUSTOMER_ACCOUNT_SCHEMA_VERSION, revision: "1", state_json: "{}" });
   await assert.rejects(
     createPostgresCustomerAccountStore({ query: corrupt.query.bind(corrupt) }).read(),
     (error) => error.code === "customer_account_postgres_corrupt"

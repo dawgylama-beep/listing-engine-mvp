@@ -10,9 +10,13 @@
   const signedOutView = document.querySelector("#account-signed-out-view");
   const signedInView = document.querySelector("#account-signed-in-view");
   const accountUsername = document.querySelector("#account-username");
+  const personalizedGreeting = document.querySelector("#personalized-greeting");
+  const personalizedGreetingTitle = document.querySelector("#personalized-greeting-title");
   const registerForm = document.querySelector("#account-register-form");
   const loginForm = document.querySelector("#account-login-form");
   const signoutButton = document.querySelector("#account-signout-button");
+  const preferredNameForm = document.querySelector("#preferred-name-form");
+  const preferredNameInput = document.querySelector("#account-preferred-name");
   const retentionForm = document.querySelector("#retention-form");
   const retentionSelect = document.querySelector("#history-retention-days");
   const passwordForm = document.querySelector("#change-password-form");
@@ -102,9 +106,16 @@
     openHistoryButton.hidden = !signedIn;
     saveListingButton.hidden = !(signedIn && currentReport);
     accountButton.textContent = signedIn ? `@${account.username}` : "Account";
+    personalizedGreeting.hidden = !signedIn;
     if (signedIn) {
+      const preferredName = String(account.preferredName || account.username || "").trim() || account.username;
       accountUsername.textContent = `@${account.username}`;
+      preferredNameInput.value = preferredName;
+      personalizedGreetingTitle.textContent = `Hi, ${preferredName}! Are we shopping, selling, or just looking around today?`;
       retentionSelect.value = String(account.preferences?.historyRetentionDays || 30);
+    } else {
+      preferredNameInput.value = "";
+      personalizedGreetingTitle.textContent = "";
     }
     if (accountServiceAvailable === false && !signedIn) {
       setAccountStatus("Private beta accounts need a configured secure account store in this environment. Photo analysis remains available without an account.", "neutral");
@@ -173,9 +184,11 @@
     submitButton.disabled = true;
     setAccountStatus(action === "register" ? "Creating your private account…" : "Signing in…", "loading");
     try {
+      const requestBody = { action, username: values.get("username"), password: values.get("password") };
+      if (action === "register") requestBody.preferredName = values.get("preferredName");
       const payload = await requestAccount("/api/customer-account", {
         method: "POST",
-        body: JSON.stringify({ action, username: values.get("username"), password: values.get("password") })
+        body: JSON.stringify(requestBody)
       });
       account = payload.account;
       accountServiceAvailable = true;
@@ -519,6 +532,24 @@
       renderAccountState();
     } catch (error) {
       setAccountStatus(error.message, "error");
+    }
+  });
+  preferredNameForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = preferredNameForm.querySelector("button[type='submit']");
+    submitButton.disabled = true;
+    try {
+      const payload = await requestAccount("/api/customer-account", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "profile", preferredName: preferredNameInput.value })
+      });
+      account = payload.account;
+      setAccountStatus("Preferred name updated.", "success");
+      renderAccountState();
+    } catch (error) {
+      setAccountStatus(error.message, "error");
+    } finally {
+      submitButton.disabled = false;
     }
   });
   passwordForm?.addEventListener("submit", async (event) => {

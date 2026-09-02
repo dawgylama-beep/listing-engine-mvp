@@ -4,10 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  CUSTOMER_ACCOUNT_SCHEMA_VERSION,
+  MAX_PREFERRED_NAME_CHARACTERS,
   createCustomerAccountService,
   createFileCustomerAccountStore,
   createMemoryCustomerAccountStore,
   sanitizeHistorySnapshot,
+  validatePreferredName,
   validateUsername
 } from "../lib/customer-account/service.js";
 
@@ -37,6 +40,61 @@ test("usernames normalize case, enforce shape, and reject reserved names", () =>
   assert.equal(validateUsername("ab").code, "invalid_username");
   assert.equal(validateUsername("7alice").code, "invalid_username");
   assert.equal(validateUsername("Katherine").code, "reserved_username");
+});
+
+test("preferred names are trimmed, bounded, private to their account, and never used as credentials", async () => {
+  const store = createMemoryCustomerAccountStore();
+  const service = createCustomerAccountService({ store });
+  const first = await service.register({ username: "orbit_user", password: "first private password", preferredName: "  Account One  " });
+  const second = await service.register({ username: "harbor_user", password: "second private password", preferredName: "Account Two" });
+  const sameName = await service.register({ username: "cabin_user", password: "third private password", preferredName: "Account One" });
+
+  assert.equal(first.account.preferredName, "Account One");
+  assert.equal(second.account.preferredName, "Account Two");
+  assert.equal(sameName.account.preferredName, "Account One");
+  assert.equal((await service.session(first.session.token)).account.preferredName, "Account One");
+  assert.equal((await service.session(second.session.token)).account.preferredName, "Account Two");
+  const privateListing = await service.saveListing(first.session.token, sampleSnapshot);
+  await assert.rejects(
+    service.getListing(sameName.session.token, privateListing.listing.id),
+    (error) => error.code === "listing_not_found"
+  );
+  await assert.rejects(
+    service.login({ username: "Account One", password: "first private password" }),
+    (error) => error.code === "invalid_credentials"
+  );
+
+  const safePlainTextName = "<b>Account One & Co.</b>";
+  assert.equal((await service.updateProfile(first.session.token, { preferredName: safePlainTextName })).account.preferredName, safePlainTextName);
+  assert.equal((await service.session(first.session.token)).account.preferredName, safePlainTextName);
+  assert.equal((await service.session(second.session.token)).account.preferredName, "Account Two");
+  const raw = await store.read();
+  assert.equal(raw.accounts[first.account.id].preferredName, safePlainTextName);
+  assert.equal(raw.accounts[second.account.id].preferredName, "Account Two");
+
+  assert.equal(validatePreferredName("x".repeat(MAX_PREFERRED_NAME_CHARACTERS)).ok, true);
+  assert.equal(validatePreferredName("x".repeat(MAX_PREFERRED_NAME_CHARACTERS + 1)).code, "invalid_preferred_name");
+  assert.equal(validatePreferredName("line\nbreak").code, "invalid_preferred_name");
+  await assert.rejects(
+    service.updateProfile(first.session.token, { preferredName: " " }),
+    (error) => error.code === "invalid_preferred_name"
+  );
+});
+
+test("legacy account snapshots migrate with a username preferred-name fallback", async () => {
+  const seedStore = createMemoryCustomerAccountStore();
+  const seedService = createCustomerAccountService({ store: seedStore });
+  const registered = await seedService.register({ username: "legacy_user", password: "legacy private password" });
+  const legacyState = await seedStore.read();
+  legacyState.schemaVersion = "2.0";
+  delete legacyState.accounts[registered.account.id].preferredName;
+
+  const migratedStore = createMemoryCustomerAccountStore(legacyState);
+  const migratedService = createCustomerAccountService({ store: migratedStore });
+  assert.equal((await migratedService.session(registered.session.token)).account.preferredName, "legacy_user");
+  const migratedState = await migratedStore.read();
+  assert.equal(migratedState.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
+  assert.equal(migratedState.accounts[registered.account.id].preferredName, "legacy_user");
 });
 
 test("history snapshots are allowlisted and image retention is always disabled", () => {
