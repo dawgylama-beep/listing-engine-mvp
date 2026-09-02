@@ -1025,3 +1025,9 @@
 - Rewrote Help & Instructions as short customer guides for account access, preferred names, shopping and selling goals, useful photographs, evidence and uncertainty, saved-history controls, privacy, safety, and honest product limits.
 - Added offline static, service, PostgreSQL, and browser regression coverage for decorative semantics, exact object count, responsive visibility, ladybug placement, reduced motion, private name isolation, legacy fallback, safe text rendering, long-name wrapping, and the required `1440×900` and `390×844` review states.
 - Preserved Version `1.12.52`; provider behavior, saved-history ownership, cognition, controller policy, and deployment semantics are unchanged.
+
+## Version 1.12.52 (Completed)
+
+- Corrected preferred-name persistence to remain an optional, strictly allowlisted property inside the canonical schema-2 account payload, while preserving existing records byte-for-byte when no preferred name is present.
+- Kept username as the authentication identifier and public fallback without persisting that fallback as a preferred name; no schema-3 database write is permitted.
+- Preserved Version `1.12.52`; account IDs, password state, sessions, history ownership, isolation, provider behavior, and deployment semantics are unchanged.

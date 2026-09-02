@@ -81,20 +81,27 @@ test("preferred names are trimmed, bounded, private to their account, and never 
   );
 });
 
-test("legacy account snapshots migrate with a username preferred-name fallback", async () => {
+test("schema-2 accounts preserve an absent preferred name and expose a username fallback", async () => {
   const seedStore = createMemoryCustomerAccountStore();
   const seedService = createCustomerAccountService({ store: seedStore });
   const registered = await seedService.register({ username: "legacy_user", password: "legacy private password" });
   const legacyState = await seedStore.read();
-  legacyState.schemaVersion = "2.0";
-  delete legacyState.accounts[registered.account.id].preferredName;
+  assert.equal(legacyState.schemaVersion, "2.0");
+  assert.equal(Object.hasOwn(legacyState.accounts[registered.account.id], "preferredName"), false);
 
-  const migratedStore = createMemoryCustomerAccountStore(legacyState);
-  const migratedService = createCustomerAccountService({ store: migratedStore });
-  assert.equal((await migratedService.session(registered.session.token)).account.preferredName, "legacy_user");
-  const migratedState = await migratedStore.read();
-  assert.equal(migratedState.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
-  assert.equal(migratedState.accounts[registered.account.id].preferredName, "legacy_user");
+  const reconstructedStore = createMemoryCustomerAccountStore(legacyState);
+  const reconstructedService = createCustomerAccountService({ store: reconstructedStore });
+  assert.equal((await reconstructedService.session(registered.session.token)).account.preferredName, "legacy_user");
+  const reconstructedState = await reconstructedStore.read();
+  assert.equal(reconstructedState.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
+  assert.equal(Object.hasOwn(reconstructedState.accounts[registered.account.id], "preferredName"), false);
+
+  const unknownProperty = structuredClone(legacyState);
+  unknownProperty.accounts[registered.account.id].preferred_name = "prohibited alias";
+  assert.throws(
+    () => createMemoryCustomerAccountStore(unknownProperty),
+    /invalid account record/
+  );
 });
 
 test("history snapshots are allowlisted and image retention is always disabled", () => {

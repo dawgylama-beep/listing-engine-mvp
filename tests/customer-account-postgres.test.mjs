@@ -93,7 +93,7 @@ test("postgres-v1 initializes an empty schema and performs revision-bound compar
   assert.equal(database.calls.filter(({ sql }) => sql === POSTGRES_ACCOUNT_STORE_SQL.initialize).length, 1);
 });
 
-test("postgres-v1 migrates schema-2 accounts in place with a username preferred-name fallback", async () => {
+test("postgres-v1 preserves schema-2 preferred-name presence and absence without relabeling", async () => {
   const seedDatabase = fakePostgres();
   const seedService = createCustomerAccountService({
     store: createPostgresCustomerAccountStore({ query: seedDatabase.query.bind(seedDatabase) })
@@ -104,22 +104,27 @@ test("postgres-v1 migrates schema-2 accounts in place with a username preferred-
     preferredName: "Temporary label"
   });
   const legacySnapshot = JSON.parse(seedDatabase.row.state_json);
-  legacySnapshot.schemaVersion = "2.0";
   delete legacySnapshot.accounts[registered.account.id].preferredName;
   const legacyDatabase = fakePostgres({
     schema_version: "2.0",
     revision: seedDatabase.row.revision,
     state_json: JSON.stringify(legacySnapshot)
   });
-  const migratedService = createCustomerAccountService({
+  const reconstructedService = createCustomerAccountService({
     store: createPostgresCustomerAccountStore({ query: legacyDatabase.query.bind(legacyDatabase) })
   });
 
-  assert.equal((await migratedService.session(registered.session.token)).account.preferredName, "legacy_pg_user");
+  assert.equal((await reconstructedService.session(registered.session.token)).account.preferredName, "legacy_pg_user");
   assert.equal(legacyDatabase.row.schema_version, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
-  const migratedSnapshot = JSON.parse(legacyDatabase.row.state_json);
-  assert.equal(migratedSnapshot.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
-  assert.equal(migratedSnapshot.accounts[registered.account.id].preferredName, "legacy_pg_user");
+  const reconstructedSnapshot = JSON.parse(legacyDatabase.row.state_json);
+  assert.equal(reconstructedSnapshot.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
+  assert.equal(Object.hasOwn(reconstructedSnapshot.accounts[registered.account.id], "preferredName"), false);
+
+  const personalized = await reconstructedService.updateProfile(registered.session.token, { preferredName: "Legacy Shopper" });
+  assert.equal(personalized.account.preferredName, "Legacy Shopper");
+  const personalizedSnapshot = JSON.parse(legacyDatabase.row.state_json);
+  assert.equal(personalizedSnapshot.schemaVersion, "2.0");
+  assert.equal(personalizedSnapshot.accounts[registered.account.id].preferredName, "Legacy Shopper");
 });
 
 test("postgres-v1 retries bounded conflicts and preserves concurrent unique accounts", async () => {
