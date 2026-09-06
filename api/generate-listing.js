@@ -69,6 +69,7 @@ import {
   recordTerminalStage,
   sealExperienceRecord
 } from "../lib/terminal-evidence.js";
+import { requestKatherineSccInference } from "../lib/katherine-mission-runner.js";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 const evaluationTerminalContext = new AsyncLocalStorage();
@@ -101,7 +102,7 @@ const productionAnalysisAdapters = Object.freeze({
   getGovernedLearningMode: () => "PRODUCT",
   getGovernedTrialRequest: () => null,
   getSerperApiKey: () => process.env.SERPER_API_KEY || "",
-  requestOpenAIJson: (args) => requestOpenAIJsonNetwork(args),
+  requestOpenAIJson: ({ payload }) => requestKatherineSccInference({ payload }),
   requestSerperSearch: (args) => requestSerperSearchNetwork(args),
   requestBoundedRetailProductPage: (...args) => requestBoundedRetailProductPageNetwork(...args),
   nowMilliseconds: () => Date.now(),
@@ -13049,96 +13050,6 @@ function createResponsesPayload({ model, systemText, userContent, schemaName, sc
       }
     }
   };
-}
-
-async function requestOpenAIJsonNetwork({ apiKey, payload }) {
-  const controller = new AbortController();
-  let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, 90000);
-
-  try {
-    let response;
-    try {
-      response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-    } catch (error) {
-      throw createOpenAIRequestError({
-        message: timedOut ? "OpenAI request timed out." : error.message || "OpenAI API request failed.",
-        category: timedOut || error.name === "AbortError" ? "timeout" : "provider_error",
-        timedOut: timedOut || error.name === "AbortError",
-        cause: error
-      });
-    }
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const message = data.error && data.error.message ? data.error.message : "OpenAI API request failed.";
-      throw createOpenAIRequestError({
-        statusCode: response.status,
-        type: data.error && data.error.type,
-        code: data.error && data.error.code,
-        message,
-        category: classifyOpenAIErrorDetails({
-          statusCode: response.status,
-          type: data.error && data.error.type,
-          code: data.error && data.error.code,
-          message
-        }),
-        returnedModel: data.model,
-        providerUsage: data.usage,
-        providerResponseId: data.id,
-        providerRequestId: response.headers.get("x-request-id")
-      });
-    }
-
-    const outputText = extractOutputText(data);
-    if (!outputText) {
-      throw createOpenAIRequestError({
-        statusCode: response.status,
-        code: "empty_response",
-        message: "OpenAI returned an empty response.",
-        category: "provider_response_invalid",
-        returnedModel: data.model,
-        providerUsage: data.usage,
-        providerResponseId: data.id,
-        providerRequestId: response.headers.get("x-request-id")
-      });
-    }
-
-    let json;
-    try {
-      json = JSON.parse(outputText);
-    } catch (cause) {
-      throw createOpenAIRequestError({
-        statusCode: response.status,
-        code: "invalid_json_response",
-        message: "OpenAI returned an invalid structured response.",
-        category: "provider_response_invalid",
-        cause,
-        returnedModel: data.model,
-        providerUsage: data.usage,
-        providerResponseId: data.id,
-        providerRequestId: response.headers.get("x-request-id")
-      });
-    }
-    return {
-      json,
-      data,
-      statusCode: response.status
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 function normalizeIdentity(identity) {

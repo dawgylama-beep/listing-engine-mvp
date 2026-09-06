@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0",
+  "recordType": "KATHERINES_EYE_SCC_ROLE_REGISTRY",
+  "runtimeId": "KATHERINES_EYE_SCC_RUNTIME_V1",
+  "foundation": {
+    "name": "SYNTHETIC_COGNITIVE_CORE",
+    "version": "0.2.4",
+    "packageRoot": "sha256:6c588b9e86ba1669b95499e04ddc49d32cc69ba36b201d68ae287dc79c61ab68"
+  },
+  "roles": {
+    "PRODUCT_OPERATOR": {
+      "jobs": ["RUN_WHOLE_MISSION_PREFLIGHT", "BOUNDED_PRODUCT_INFERENCE"]
+    },
+    "MENTOR": {
+      "jobs": ["DIAGNOSE_AUTHENTICATED_PRODUCT_FAILURE"]
+    },
+    "EVALUATOR": {
+      "jobs": ["EVALUATE_FIXED_TRIALS"]
+    },
+    "GOVERNOR": {
+      "jobs": ["GOVERN_LESSON_LIFECYCLE"]
+    },
+    "FRESH_RECONSTRUCTION": {
+      "jobs": ["RECONSTRUCT_DURABLE_CHECKPOINT"]
+    }
+  },
+  "closedJobSet": [
+    "RUN_WHOLE_MISSION_PREFLIGHT",
+    "BOUNDED_PRODUCT_INFERENCE",
+    "DIAGNOSE_AUTHENTICATED_PRODUCT_FAILURE",
+    "EVALUATE_FIXED_TRIALS",
+    "GOVERN_LESSON_LIFECYCLE",
+    "RECONSTRUCT_DURABLE_CHECKPOINT"
+  ],
+  "jobContracts": {
+    "RECONSTRUCT_DURABLE_CHECKPOINT": {
+      "role": "FRESH_RECONSTRUCTION",
+      "workflowState": "KATHERINE_CHECKPOINT_AUTHENTICATED",
+      "workflowTransition": "AUTHENTICATE_KATHERINE_CHECKPOINT->LOAD_AND_VERIFY_KATHERINE_TEXTBOOK"
+    },
+    "RUN_WHOLE_MISSION_PREFLIGHT": {
+      "role": "PRODUCT_OPERATOR",
+      "workflowState": "KATHERINE_TEXTBOOK_VERIFIED",
+      "workflowTransition": "LOAD_AND_VERIFY_KATHERINE_TEXTBOOK->WHOLE_MISSION_PREFLIGHT_COMPLETE"
+    },
+    "BOUNDED_PRODUCT_INFERENCE": {
+      "role": "PRODUCT_OPERATOR",
+      "workflowStates": ["WHOLE_MISSION_PREFLIGHT_COMPLETE", "KATHERINE_PRODUCT_REQUEST_VALIDATED"],
+      "workflowTransitions": [
+        "WHOLE_MISSION_PREFLIGHT_COMPLETE->PENDING_NATIVE_OWNER_AUTHORITY",
+        "KATHERINE_PRODUCT_REQUEST_VALIDATED->KATHERINE_BOUNDED_INFERENCE_VALIDATED"
+      ]
+    },
+    "DIAGNOSE_AUTHENTICATED_PRODUCT_FAILURE": {
+      "role": "MENTOR",
+      "workflowState": "AUTHENTICATED_FAILURE_RECORDED",
+      "workflowTransition": "AUTHENTICATED_FAILURE_RECORDED->MENTOR_DIAGNOSIS_COMPLETE"
+    },
+    "EVALUATE_FIXED_TRIALS": {
+      "role": "EVALUATOR",
+      "workflowState": "FIXED_TRIALS_RECORDED",
+      "workflowTransition": "FIXED_TRIALS_RECORDED->INDEPENDENT_EVALUATION_COMPLETE"
+    },
+    "GOVERN_LESSON_LIFECYCLE": {
+      "role": "GOVERNOR",
+      "workflowState": "INDEPENDENT_EVALUATION_COMPLETE",
+      "workflowTransition": "INDEPENDENT_EVALUATION_COMPLETE->GOVERNOR_DECISION_COMPLETE"
+    }
+  },
+  "isolation": {
+    "projectId": "katherine-eye",
+    "genericAgentAllowed": false,
+    "directModuleAdmissionAllowed": false,
+    "manualPromptAdmissionAllowed": false,
+    "crossProductContentAllowed": false
+  },
+  "authorityBoundary": {
+    "selectsWorkflowTransition": false,
+    "executesExternalEffects": false,
+    "accessesReplaySigner": false,
+    "missionControllerUsedOnlyForExternalEffects": true
+  }
+}

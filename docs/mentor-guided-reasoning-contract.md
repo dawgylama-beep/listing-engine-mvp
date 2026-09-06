@@ -77,3 +77,13 @@ The originating feedback and evaluator prove that a visible-object-class failure
 The contract does not alter a frozen qualification corpus, prompt, bridge, scorer, route, broker, schema, serializer, envelope, authority, execution record, evaluator, or result seal. Closed diagnostic material is not a remediation input and is not eligible for blind reuse.
 
 The fixture evaluator is deterministic, offline, non-persistent, and test-only. Passing its regressions proves only that the declared rules behave as implemented. It does not prove qualification, learning, cognitive improvement, deployment, activation, or memory improvement.
+
+## Installed Synthetic Cognitive Core admission
+
+Katherine's installed deterministic dispatcher starts a dedicated SCC worker before assigning cognitive work. The worker authenticates the Katherine registration successor, complete textbook package, role registry, governed-memory identity, repository commit and tree, parent process, runner nonce, and exact job contract. It then creates Katherine's canonical Cognitive Governor and canonical cognitive runtime before accepting a typed job. Missing or invalid startup proof, direct module admission, an unknown role or job, a generic role template, a changed workflow transition, or cross-product content stops the job before inference.
+
+Production OpenAI requests enter only through this SCC worker. The API handler retains deterministic request budgeting and terminal metering, but it no longer owns a direct OpenAI transport. The worker validates structured output and writes HMAC-authenticated startup and job receipts through Katherine's existing governed-learning adapter. Those receipts are explicitly non-authorizing: they cannot access the replay signer, approve external effects, promote lessons, or replace the existing Mentor and Governor lifecycle.
+
+The learning writer uses a single authenticated pending transaction for each ledger batch and any associated memory records. A fresh process completes an authenticated interrupted append from the immutable ledger prefix before reconstruction. Older valid memory records without a matching lifecycle event remain visible only as `ineligibleUnmatchedRecordIds`; they cannot be selected or promoted and are not rewritten.
+
+The mission controller is outside this cognitive path. Local reconstruction, preflight, inference admission, Mentor diagnosis, independent evaluation, and Governor review neither import controller code nor write its mission ledger. The controller is consulted only when the deterministic workflow reaches a separately authenticated external-effect transition.

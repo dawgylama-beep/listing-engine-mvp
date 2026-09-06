@@ -1,4 +1,4 @@
-import handler, { __queryIntegrityTestHooks } from "../api/generate-listing.js";
+import { __queryIntegrityTestHooks, createGenerateListingHandler } from "../api/generate-listing.js";
 import {
   applyObjectEvidenceVerification,
   createObjectMindState,
@@ -14,6 +14,29 @@ const fakeSerperKeyValue = ["test", "serper", "placeholder"].join("-");
 let activeFixture = null;
 let livePayloads = [];
 let serperPayloads = [];
+
+async function requestMockOpenAIJson({ apiKey, payload }) {
+  const response = await globalThis.fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw Object.assign(new Error(data.error?.message || "Mock OpenAI request failed."), {
+      code: data.error?.code || `PROVIDER_HTTP_${response.status}`,
+      httpStatusCode: response.status,
+      data,
+      statusCode: response.status
+    });
+  }
+  const outputText = data.output_text || data.output?.flatMap((item) => item.content || [])
+    .find((item) => item.type === "output_text")?.text;
+  if (!outputText) throw new Error("Mock OpenAI response was empty.");
+  return { json: JSON.parse(outputText), data, statusCode: response.status };
+}
+
+const handler = createGenerateListingHandler({ requestOpenAIJson: requestMockOpenAIJson });
 
 function assert(condition, message) {
   if (!condition) {

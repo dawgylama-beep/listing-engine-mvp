@@ -1031,3 +1031,13 @@
 - Corrected preferred-name persistence to remain an optional, strictly allowlisted property inside the canonical schema-2 account payload, while preserving existing records byte-for-byte when no preferred name is present.
 - Kept username as the authentication identifier and public fallback without persisting that fallback as a preferred name; no schema-3 database write is permitted.
 - Preserved Version `1.12.52`; account IDs, password state, sessions, history ownership, isolation, provider behavior, and deployment semantics are unchanged.
+
+## Version 1.12.52 (Completed)
+
+- Installed Katherine's deterministic mission dispatcher and dedicated SCC worker at the real cognitive job-admission boundary, with authenticated product knowledge, source, role, process, session, workflow, and governed-memory startup receipts.
+- Routed production OpenAI inference through the SCC worker and removed the API handler's direct OpenAI transport while preserving injected offline test adapters, request budgeting, terminal metering, and structured-output validation.
+- Added a closed role/job registry for product operation, Mentor, evaluator, Governor, and fresh reconstruction; raw generic role dispatch and direct module admission fail closed.
+- Added HMAC-authenticated SCC startup and job receipts to Katherine's existing governed-learning ledger and crash-recoverable atomic ledger/memory batches without adding another memory store or authority system.
+- Quarantined historical memory records lacking an authenticated lifecycle binding as ineligible without rewriting or promoting them.
+- Proved 100 repeated dry Preview missions through the installed dispatcher with 26/26 whole-mission checks, zero provider calls, zero external effects, zero cross-product content, no controller involvement, and fresh-worker reconstruction.
+- Preserved Version `1.12.52`; this local cognitive-runtime installation performs no push, deployment, provider call, replay mutation, signer access, native approval, Preview, Production, or main-branch change.
