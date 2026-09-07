@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -20,7 +20,10 @@ import {
   createKatherineMissionRunner,
   runKatherinePreviewDryMission
 } from "../lib/katherine-mission-runner.js";
-import { startKatherineSccRuntime } from "../lib/katherine-scc-runtime.js";
+import {
+  authenticateKatherineOperatingPackage,
+  startKatherineSccRuntime
+} from "../lib/katherine-scc-runtime.js";
 import { sha256Object, stableObjectJson } from "../lib/object-intelligence/stable.js";
 import { sealMemoryRecord } from "../qualification/synthetic-executive/scripts/memory-store.mjs";
 
@@ -119,6 +122,20 @@ test("the installed Katherine dispatcher enforces SCC cognition for one hundred 
     assert.equal(runner.startup.startupReceipt.processId, runner.workerProcessId);
     assert.equal(runner.startup.startupReceipt.textbookSha256,
       "1fb3000d3267d690637b640ffed98826ec569d4503b3f8c9cea31bf4f0467f89");
+    assert.equal(runner.startup.startupReceipt.runtimeId, "KATHERINES_EYE_SCC_RUNTIME_V1");
+    assert.deepEqual(runner.startup.startupReceipt.runtimeIdentityLineage,
+      ["KATHERINE_SCC_RUNTIME_V1", "KATHERINES_EYE_SCC_RUNTIME_V1"]);
+    assert.equal(runner.startup.startupReceipt.productId, "katherine-eye");
+    assert.equal(runner.startup.startupReceipt.packageVersion, "1.4.0");
+    assert.equal(runner.startup.startupReceipt.packageTrustRootSha256,
+      "282789dea8a1751e6a990ca6b23e276f4f623f13c977dc79e79b49278d5dcba2");
+    assert.match(runner.startup.startupReceipt.packageRegistrationSha256, /^[a-f0-9]{64}$/u);
+    assert.match(runner.startup.startupReceipt.governorIdentity, /^governor-[a-f0-9]+$/u);
+    assert.match(runner.startup.startupReceipt.governorIdentitySha256, /^[a-f0-9]{64}$/u);
+    assert.equal(runner.startup.startupReceipt.learningScopeIdentity, "katherines-eye-product");
+    assert.match(runner.startup.startupReceipt.learningRootSha256, /^[a-f0-9]{64}$/u);
+    assert.equal(runner.startup.startupReceipt.authorityEffect, false);
+    assert.equal(runner.startup.startupReceipt.externalEffects, false);
     assert.equal(runner.startup.crossProductContentLoaded, false);
     assert.equal(runner.startup.controllerInvolved, false);
 
@@ -163,6 +180,30 @@ test("the installed Katherine dispatcher enforces SCC cognition for one hundred 
     if (runner) await runner.close();
     if (freshRunner) await freshRunner.close();
     await rm(learningRoot, { recursive: true, force: true });
+  }
+});
+
+test("the SCC authenticates the active package from the owner-protected pointer and stable trust root", async () => {
+  const sourceRoot = "C:/Users/dawgy/.agents/skills/cognitive-mission-operator/references/katherine-eye";
+  const trustPolicyPath = "C:/Users/dawgy/.agents/skills/cognitive-mission-operator/SKILL.md";
+  const packageRoot = await mkdtemp(path.join(os.tmpdir(), "katherine-package-auth-"));
+  try {
+    await cp(sourceRoot, packageRoot, { recursive: true });
+    const authenticated = await authenticateKatherineOperatingPackage({ packageRoot, trustPolicyPath });
+    assert.equal(authenticated.packageVersion, "1.4.0");
+    assert.equal(authenticated.runtimeId, "KATHERINES_EYE_SCC_RUNTIME_V1");
+    assert.deepEqual(authenticated.runtimeIdentityLineage,
+      ["KATHERINE_SCC_RUNTIME_V1", "KATHERINES_EYE_SCC_RUNTIME_V1"]);
+    assert.equal(authenticated.admissionContract.learningScopeIdentity, "katherines-eye-product");
+
+    const activeRegistration = path.join(packageRoot, authenticated.registrationPath);
+    await writeFile(activeRegistration, Buffer.concat([await readFile(activeRegistration), Buffer.from(" ")]));
+    await assert.rejects(
+      authenticateKatherineOperatingPackage({ packageRoot, trustPolicyPath }),
+      /KATHERINE_SCC_ACTIVE_REGISTRATION_POINTER_MISMATCH/u
+    );
+  } finally {
+    await rm(packageRoot, { recursive: true, force: true });
   }
 });
 
