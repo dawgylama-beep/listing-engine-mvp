@@ -822,7 +822,7 @@ function isHelpPanelOpen() {
 }
 
 function focusHelpElement(element) {
-  window.setTimeout(() => element?.focus(), 0);
+  element?.focus();
 }
 
 function showHelpCategoryList(options = {}) {
