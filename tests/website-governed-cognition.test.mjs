@@ -288,6 +288,15 @@ test("local-beta configuration is explicit, requires an absolute root, and canno
   assert.deepEqual(resolveWebsiteCognitionConfiguration({
     mode: "LOCAL_BETA",
     root: absoluteRoot,
+    vercelEnvironment: "preview"
+  }), {
+    mode: "DISABLED",
+    root: "",
+    production: false
+  });
+  assert.deepEqual(resolveWebsiteCognitionConfiguration({
+    mode: "LOCAL_BETA",
+    root: absoluteRoot,
     nodeEnvironment: "production"
   }), {
     mode: "DISABLED",

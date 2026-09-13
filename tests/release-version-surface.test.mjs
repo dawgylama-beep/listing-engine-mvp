@@ -13,7 +13,7 @@ import {
 
 test("authoritative release Version aligns every active presentation surface", async () => {
   const result = await inspectReleaseVersionSurfaces();
-  assert.equal(result.version, "1.12.50");
+  assert.equal(result.version, "1.12.52");
   assert.equal(result.serverVersion, result.version);
   assert.equal(result.indexSurface.documentVersion, result.version);
   assert.equal(result.indexSurface.badgeText, result.label);
@@ -28,6 +28,9 @@ test("authoritative release Version aligns every active presentation surface", a
   const historicalText = await readFile(historicalPath, "utf8");
   const historical = await inspectV2ResponseBoundaryRecoveryRelease(repositoryRoot, historicalText);
   assert.equal(historical.version, v2ResponseBoundaryRecoveryHistoricalIdentity.version);
+  const windowsCheckoutText = historicalText.replace(/\r?\n/gu, "\r\n");
+  const windowsCheckoutHistorical = await inspectV2ResponseBoundaryRecoveryRelease(repositoryRoot, windowsCheckoutText);
+  assert.equal(windowsCheckoutHistorical.releaseHash, historical.releaseHash);
   const mutatedHistorical = structuredClone(historical);
   mutatedHistorical.version = result.version;
   await assert.rejects(
@@ -41,7 +44,7 @@ test("authoritative release Version aligns every active presentation surface", a
 test("full multi-digit patch Version is preserved in source, DOM text, and asset identities", async () => {
   const indexHtml = await readFile(path.join(repositoryRoot, "public", "index.html"), "utf8");
   const syntheticVersion = "7.8.123";
-  const syntheticHtml = indexHtml.replaceAll("1.12.50", syntheticVersion);
+  const syntheticHtml = indexHtml.replaceAll("1.12.52", syntheticVersion);
   const result = inspectIndexVersionSurface(syntheticHtml, syntheticVersion);
 
   assert.equal(formatReleaseVersion(syntheticVersion), "Version 7.8.123");

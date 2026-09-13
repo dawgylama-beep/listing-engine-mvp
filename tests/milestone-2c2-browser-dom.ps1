@@ -6,7 +6,7 @@ $lockfilePath = Join-Path $root "package-lock.json"
 $playwrightCommand = Join-Path $root "node_modules\.bin\playwright.cmd"
 $artifactRoot = Join-Path $root "test-results"
 $expectedPlaywrightVersion = "1.62.0"
-$expectedPowerShellEntryPoints = 53
+$expectedPowerShellEntryPoints = 54
 $serverProcessPattern = "tests[\\/]+helpers[\\/]+browser-test-server\.mjs"
 
 Remove-Item Env:OPENAI_API_KEY -ErrorAction SilentlyContinue
@@ -40,7 +40,7 @@ Require-True ($lockfileMetadata.lockfileVersion -eq 3) "The npm lockfile version
 Require-True ($lockfileMetadata.rootPlaywright -ceq $expectedPlaywrightVersion) "The lockfile root does not pin the expected @playwright/test version."
 Require-True ($installedPackage.version -ceq $expectedPlaywrightVersion) "The installed @playwright/test version differs from the exact package pin."
 Require-True (Test-Path -LiteralPath $playwrightCommand -PathType Leaf) "The local Playwright command is unavailable."
-Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq $expectedPowerShellEntryPoints) "The PowerShell entry-point count is not exactly 53."
+Require-True (@(Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter "*.ps1").Count -eq $expectedPowerShellEntryPoints) "The PowerShell entry-point count is not exactly 54."
 
 $chromiumExecutable = (& node --input-type=module -e "import { chromium } from 'playwright'; console.log(chromium.executablePath());").Trim()
 if ($LASTEXITCODE -ne 0) {

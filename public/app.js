@@ -1121,6 +1121,7 @@ async function handleSubmit(event) {
   setOutputHeading(config);
   const request = startWorkflowRequest(workflow);
   const submissionState = { stage: submissionStages.IDLE };
+  document.querySelector("#analysis-failure-details").hidden = true;
   setLoading(true, workflow);
   startLoadingProgress(config, request.id, workflow);
 
@@ -1163,6 +1164,7 @@ async function handleSubmit(event) {
     }
 
     setSubmissionStage(submissionState, submissionStages.API_RESPONSE);
+    submissionState.httpStatus = response.status;
     let data;
     try {
       data = await response.json();
@@ -1185,7 +1187,7 @@ async function handleSubmit(event) {
 
     const rawReport = data[config.responseKey];
     if (!rawReport) {
-      throw new Error(config.errorMessage);
+      throw createSubmissionError("The analysis response did not contain a report.", submissionStages.API_RESPONSE, "api_report_missing");
     }
     const report = rawReport;
 
@@ -1221,6 +1223,12 @@ async function handleSubmit(event) {
     clearItemSession({ abortAsk: true });
     renderEmpty(config);
     setStatus(getFriendlyErrorMessage(error, config, submissionState), "error");
+    // Only locally generated identifiers and numeric transport status are retained.
+    // Never include provider messages, request bodies, photos, or credentials.
+    const failureDetails = document.querySelector("#analysis-failure-details");
+    document.querySelector("#analysis-failure-reference").textContent =
+      `Reference: ${request.analysisId}; stage: ${submissionState.stage}; HTTP: ${submissionState.httpStatus || "no response"}.`;
+    failureDetails.hidden = false;
   } finally {
     if (isCurrentRequest(request.id, workflow)) {
       activeRequestController = null;
@@ -4735,6 +4743,8 @@ function setStatus(message, type) {
 }
 
 function clearStatus() {
+  const failureDetails = document.querySelector("#analysis-failure-details");
+  if (failureDetails) failureDetails.hidden = true;
   statusBox.textContent = "";
   statusBox.className = "status";
 }
@@ -4808,6 +4818,22 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
     return "The analysis completed, but the report could not be displayed. Please try again.";
   }
 
+  if (submissionState.httpStatus === 429) {
+    return "The analysis service is busy or has reached its request limit. Your selected photos are still here. Please try later.";
+  }
+
+  if (submissionState.httpStatus >= 500) {
+    return "The analysis service could not complete this request. Your selected photos are still here; you do not need to retake them. Please report this problem using the reference below.";
+  }
+
+  if ([401, 403].includes(submissionState.httpStatus)) {
+    return "This analysis request was not authorized. Please check your private Preview access with the person who invited you.";
+  }
+
+  if (error?.code === "api_report_missing") {
+    return "The service returned no usable report. Your selected photos are still here. Please report this problem using the reference below.";
+  }
+
   if (/no results/i.test(message)) {
     return "We could not find an exact match. Try one full-item photo plus one close-up of the label, mark, model number, barcode, or damage.";
   }
@@ -4820,7 +4846,7 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
     return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
   }
 
-  return `${config.errorMessage} The most useful next step is one clear full-item photo plus one close-up of any label, mark, model number, barcode, or condition issue.`;
+  return `${config.errorMessage} We could not establish the cause. Your selected photos are still here. Please report this problem using the reference below.`;
 }
 
 function toggleFeedbackPanel() {

@@ -207,7 +207,7 @@ test("the SCC authenticates the active package from the owner-protected pointer 
   }
 });
 
-test("production OpenAI inference has one SCC-only transport and no controller coupling", async () => {
+test("installed local-beta inference stays SCC-bound while hosted analysis uses the deployable provider transport", async () => {
   const [handler, runtime, runner, dispatcher, registry] = await Promise.all([
     readFile(new URL("../api/generate-listing.js", import.meta.url), "utf8"),
     readFile(new URL("../lib/katherine-scc-runtime.js", import.meta.url), "utf8"),
@@ -215,8 +215,10 @@ test("production OpenAI inference has one SCC-only transport and no controller c
     readFile(new URL("../scripts/katherine-mission-dispatcher.mjs", import.meta.url), "utf8"),
     readFile(new URL("../lib/katherine-scc-role-registry.json", import.meta.url), "utf8")
   ]);
-  assert.doesNotMatch(handler, /api\.openai\.com\/v1\/responses/u);
+  assert.equal((handler.match(/api\.openai\.com\/v1\/responses/gu) || []).length, 1);
+  assert.match(handler, /productionOpenAITransport/u);
   assert.match(handler, /requestKatherineSccInference/u);
+  assert.match(handler, /DIRECT_PROVIDER/u);
   assert.equal((runtime.match(/api\.openai\.com\/v1\/responses/gu) || []).length, 1);
   assert.doesNotMatch(`${runtime}\n${runner}\n${dispatcher}`, /mission-ledger|synthetic-mission-controller|controller-authority-continuity/u);
   assert.doesNotMatch(runner, /\.\.\.process\.env/u);

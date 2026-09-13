@@ -36,7 +36,7 @@ $checks = @(
   @{ Name = "Serper initial and refinement requests share one provider attempt budget"; Text = $api; Pattern = "attemptBudget: sharedProviderAttemptBudget"; MinimumCount = 2 },
   @{ Name = "Refinement and retail recovery receive the existing shared provider budget"; Text = $api; Pattern = "providerAttemptBudget: sharedProviderAttemptBudget"; MinimumCount = 2 },
   @{ Name = "Direct-page enrichment has a separate two-attempt ceiling"; Text = $api; Pattern = "const directPageEnrichmentMaxAttempts = 2;" },
-  @{ Name = "Direct-page candidates are sliced to remaining direct capacity"; Text = $api; Pattern = ".slice(0, remainingBudget)" },
+  @{ Name = "Direct-page candidate collection stops at remaining direct capacity"; Text = $api; Pattern = "if (candidates.length >= remainingBudget) break;"; MinimumCount = 2 },
   @{ Name = "Direct-page fetches consume only the direct-page budget"; Text = $api; Pattern = "consumePhysicalAttempt(directPageAttemptBudget" },
   @{ Name = "Object intelligence permits only one refinement phase"; Text = $objectResolution; Pattern = "if (Number(evidenceState.refinementCount || 0) >= 1)" },
   @{ Name = "Object intelligence records only a refinement phase that was actually triggered"; Text = $objectResolution; Pattern = "refinementCount: Number(evidenceState.refinementCount || 0) + (refinementTriggered ? 1 : 0)" },

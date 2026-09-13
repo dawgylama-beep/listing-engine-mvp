@@ -2,6 +2,7 @@
   "use strict";
 
   const accountButton = document.querySelector("#account-menu-button");
+  const createAccountButton = document.querySelector("#account-create-button");
   const historyMenuButton = document.querySelector("#history-menu-button");
   const accountPanel = document.querySelector("#account-panel");
   const accountBackdrop = document.querySelector("#account-panel-backdrop");
@@ -105,7 +106,8 @@
     historyMenuButton.hidden = !signedIn;
     openHistoryButton.hidden = !signedIn;
     saveListingButton.hidden = !(signedIn && currentReport);
-    accountButton.textContent = signedIn ? `@${account.username}` : "Account";
+    accountButton.textContent = signedIn ? `@${account.username}` : "Sign in";
+    if (createAccountButton) createAccountButton.hidden = signedIn;
     personalizedGreeting.hidden = !signedIn;
     if (signedIn) {
       const preferredName = String(account.preferredName || account.username || "").trim() || account.username;
@@ -140,14 +142,17 @@
       .filter((element) => !element.disabled && !element.closest("[hidden]"));
   }
 
-  function openAccountPanel({ focusPrivacy = false } = {}) {
+  function openAccountPanel({ focusPrivacy = false, intent = "login" } = {}) {
     accountPanelReturnFocus = document.activeElement;
     accountPanel.hidden = false;
     accountBackdrop.hidden = false;
     document.body.classList.add("account-panel-open");
     accountButton.setAttribute("aria-expanded", "true");
-    const target = focusPrivacy && account ? retentionSelect : focusableAccountElements()[0] || accountPanel;
+    createAccountButton?.setAttribute("aria-expanded", "true");
+    const credentialInput = document.querySelector(intent === "register" ? "#register-username" : "#login-username");
+    const target = focusPrivacy && account ? retentionSelect : !account ? credentialInput : focusableAccountElements()[0] || accountPanel;
     target.focus();
+    target.scrollIntoView({ block: "nearest" });
   }
 
   function closeAccountPanel() {
@@ -155,6 +160,7 @@
     accountBackdrop.hidden = true;
     document.body.classList.remove("account-panel-open");
     accountButton.setAttribute("aria-expanded", "false");
+    createAccountButton?.setAttribute("aria-expanded", "false");
     if (accountPanelReturnFocus?.focus) accountPanelReturnFocus.focus();
   }
 
@@ -496,6 +502,7 @@
     }
   }
 
+  createAccountButton?.addEventListener("click", () => openAccountPanel({ intent: "register" }));
   accountButton?.addEventListener("click", () => openAccountPanel());
   accountBackdrop?.addEventListener("click", closeAccountPanel);
   accountCloseButton?.addEventListener("click", closeAccountPanel);

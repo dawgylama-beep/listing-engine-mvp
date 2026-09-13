@@ -42,6 +42,10 @@ const canonicalize = (value) => Array.isArray(value)
   ? value.map(canonicalize)
   : (value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])])) : value);
 const sha256Bytes = (value) => crypto.createHash("sha256").update(value).digest("hex");
+const sha256GitCanonicalText = (value) => sha256Bytes(Buffer.from(
+  Buffer.isBuffer(value) ? value.toString("utf8").replace(/\r\n/gu, "\n") : String(value).replace(/\r\n/gu, "\n"),
+  "utf8"
+));
 const sha256Json = (value) => sha256Bytes(Buffer.from(JSON.stringify(canonicalize(value)), "utf8"));
 
 function exactKeys(value, expected, label) {
@@ -80,7 +84,7 @@ async function inspectObservabilityRelease(rootDirectory, releaseText, version, 
     seenPaths.add(item.relativePath);
     if (verifyCurrentArtifacts) {
       const bytes = await readFile(path.join(rootDirectory, item.relativePath));
-      assert.equal(sha256Bytes(bytes), item.sha256, `${item.relativePath} differs from the sealed observability release.`);
+      assert.equal(sha256GitCanonicalText(bytes), item.sha256, `${item.relativePath} differs from the sealed observability release.`);
     }
   }
   exactKeys(release.activityAssertions, [
@@ -125,7 +129,7 @@ async function inspectResponseEvidenceRepairRelease(rootDirectory, releaseText, 
   for (const item of record.artifactHashes) {
     exactKeys(item, ["relativePath", "sha256"], "Response-evidence repair artifact hash");
     assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
-    if (verifyCurrentArtifacts) assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the response-evidence repair seal.`);
+    if (verifyCurrentArtifacts) assert.equal(sha256GitCanonicalText(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the response-evidence repair seal.`);
   }
   for (const value of Object.values(record.activityAssertions)) assert.equal(value, 0);
   const core = structuredClone(record); delete core.releaseHash;
@@ -160,7 +164,7 @@ async function inspectV2CaseScopedCompletionRelease(rootDirectory, releaseText, 
   for (const item of record.artifactHashes) {
     exactKeys(item, ["relativePath", "sha256"], "V2 case-scoped completion artifact hash");
     assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
-    assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 case-scoped completion seal.`);
+    assert.equal(sha256GitCanonicalText(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 case-scoped completion seal.`);
   }
   const core = structuredClone(record); delete core.releaseHash;
   assert.equal(sha256Json(core), record.releaseHash, "V2 case-scoped completion release hash differs.");
@@ -175,7 +179,7 @@ export async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, re
     "responseBoundary", "sourceSeal", "recovery", "evaluation", "activityCounts", "preservation",
     "artifactHashes", "artifactCount", "artifactAggregateHash", "releaseHash"
   ], "V2 response-boundary recovery release");
-  assert.equal(sha256Bytes(Buffer.from(releaseText, "utf8")), identity.fileSha256, "Historical V2 response-boundary recovery release bytes differ from their pinned identity.");
+  assert.equal(sha256GitCanonicalText(releaseText), identity.fileSha256, "Historical V2 response-boundary recovery release bytes differ from their pinned identity.");
   assert.equal(record.schemaVersion, identity.schemaVersion);
   assert.equal(record.releaseType, identity.releaseType);
   assert.equal(record.releaseState, identity.releaseState);
@@ -197,7 +201,7 @@ export async function inspectV2ResponseBoundaryRecoveryRelease(rootDirectory, re
   for (const item of record.artifactHashes) {
     exactKeys(item, ["relativePath", "sha256"], "V2 response-boundary recovery artifact hash");
     assert.equal(seen.has(item.relativePath), false); seen.add(item.relativePath); assert.match(item.sha256, HASH);
-    if (verifyCurrentArtifacts) assert.equal(sha256Bytes(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 response-boundary recovery seal.`);
+    if (verifyCurrentArtifacts) assert.equal(sha256GitCanonicalText(await readFile(path.join(rootDirectory, item.relativePath))), item.sha256, `${item.relativePath} differs from the V2 response-boundary recovery seal.`);
   }
   const core = structuredClone(record); delete core.releaseHash;
   assert.equal(sha256Json(core), record.releaseHash, "V2 response-boundary recovery release hash differs.");

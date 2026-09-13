@@ -86,6 +86,10 @@
               </span>
               <span class="help-menu-label">Help & Instructions</span>
             </button>
+            <nav class="beta-account-entry" aria-label="Your account">
+              <button id="account-menu-button" class="brand-utility-button" type="button" aria-haspopup="dialog" aria-controls="account-panel" aria-expanded="false">Sign in</button>
+              <button id="account-create-button" class="brand-utility-button" type="button" aria-haspopup="dialog" aria-controls="account-panel" aria-expanded="false">Create account</button>
+            </nav>
             <p class="brand-kicker">Everyday object intelligence</p>
             <h1 id="app-title"><span>Katherine’s</span> Eye</h1>
             <p class="brand-descriptor">Your guide to identifying, valuing, buying, and selling the things around you.</p>
@@ -93,7 +97,6 @@
             <p class="version-badge">Version 1.12.52</p>
             <div class="customer-nav" aria-label="Customer account">
               <a class="brand-primary-link" href="#photo-stage">Add photos</a>
-              <button id="account-menu-button" class="brand-utility-button" type="button" aria-haspopup="dialog" aria-controls="account-panel" aria-expanded="false">Account</button>
               <button id="history-menu-button" class="brand-utility-button" type="button" hidden>Saved history</button>
             </div>
           </header>
@@ -489,6 +492,11 @@
           </section>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
+          <details id="analysis-failure-details" hidden>
+            <summary>Details to share when reporting this problem</summary>
+            <p id="analysis-failure-reference"></p>
+            <p>Share this reference and what you were trying to do with the person who invited you. Do not send passwords or private photographs.</p>
+          </details>
           <div id="results" class="results empty-state">
             <div class="first-run-card compact-empty-card">
               <p class="summary-eyebrow">A clear, evidence-aware report</p>
@@ -541,7 +549,8 @@
         <div id="account-service-status" class="account-service-status" role="status" aria-live="polite"></div>
 
         <div id="account-signed-out-view">
-          <p class="account-intro">Create a unique username to save customer reports privately, or sign in to revisit your history.</p>
+          <p class="account-intro">Create a unique username to save reports privately, or sign in to revisit your history. This is your Katherine’s Eye account, separate from access to the private Preview.</p>
+          <p id="password-recovery-note" class="field-note">Keep your password in a password manager. Password reset is not available in this beta.</p>
           <div class="account-auth-grid">
             <form id="account-register-form" class="account-form">
               <h3>Create an account</h3>
@@ -551,8 +560,8 @@
               <label for="register-preferred-name">What would you like Katherine to call you?</label>
               <input id="register-preferred-name" name="preferredName" type="text" autocomplete="nickname" maxlength="60" required aria-describedby="preferred-name-guidance">
               <p id="preferred-name-guidance" class="field-note">This does not need to be unique. Your username remains your login.</p>
-              <label for="register-password">Password</label>
-              <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+              <label for="register-password">Password (at least 10 characters)</label>
+              <input aria-describedby="password-recovery-note" id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
               <label class="consent-check"><input id="account-consent" type="checkbox" required> I understand that only reports I explicitly save are retained, and I can delete them or my account.</label>
               <button class="primary-button" type="submit">Create account</button>
             </form>

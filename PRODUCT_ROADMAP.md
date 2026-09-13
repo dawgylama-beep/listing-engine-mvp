@@ -1,5 +1,18 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Completed)
+
+### Private beta usability and hosted-analysis repair (prepared; not deployed)
+- Visible Sign in and Create account entry before the introduction, with direct form focus.
+- Password-recovery limitation disclosed before signup.
+- Analysis failures distinguish service rejection, throttling, and missing reports; selected photos remain available.
+- Collapsed failure reference includes local analysis ID, stage, and HTTP status only.
+- Desktop/mobile regression coverage includes actual account service and controlled-provider report/save/logout/login/history.
+- Reproduced the deployed handler's pre-provider 502 under a Preview-equivalent environment: the unconditional SCC subprocess path required owner-local learning/package/Git state unavailable to Vercel. Hosted analysis now uses the server-only provider transport; explicit non-hosted local-beta cognition retains SCC authentication.
+- Live provider success remains unverified until the exact candidate is published under authenticated external authority and the real photo-to-history flow is exercised without provider substitution.
+- Before inviting testers: verify an invited non-team user can open the protected Preview, use the same Preview origin on both devices, and complete live analysis/save/reopen. Never share an owner session or automation bypass token.
+
+
 ## Version 1.0 (Completed)
 - Web MVP
 - Photo upload

@@ -70,6 +70,7 @@ import {
   sealExperienceRecord
 } from "../lib/terminal-evidence.js";
 import { requestKatherineSccInference } from "../lib/katherine-mission-runner.js";
+import { validateContractSchemaValue } from "../qualification/synthetic-executive/scripts/bounded-request-contract.mjs";
 
 const analysisAdapterContext = new AsyncLocalStorage();
 const evaluationTerminalContext = new AsyncLocalStorage();
@@ -102,7 +103,7 @@ const productionAnalysisAdapters = Object.freeze({
   getGovernedLearningMode: () => "PRODUCT",
   getGovernedTrialRequest: () => null,
   getSerperApiKey: () => process.env.SERPER_API_KEY || "",
-  requestOpenAIJson: ({ payload }) => requestKatherineSccInference({ payload }),
+  requestOpenAIJson: (args) => requestProductionOpenAIJson(args),
   requestSerperSearch: (args) => requestSerperSearchNetwork(args),
   requestBoundedRetailProductPage: (...args) => requestBoundedRetailProductPageNetwork(...args),
   nowMilliseconds: () => Date.now(),
@@ -134,10 +135,12 @@ export function resolveWebsiteCognitionConfiguration({
   vercelEnvironment = "",
   nodeEnvironment = ""
 } = {}) {
-  const production = String(vercelEnvironment || "").trim().toLowerCase() === "production"
+  const normalizedVercelEnvironment = String(vercelEnvironment || "").trim().toLowerCase();
+  const production = normalizedVercelEnvironment === "production"
     || String(nodeEnvironment || "").trim().toLowerCase() === "production";
-  if (production) {
-    return Object.freeze({ mode: WEBSITE_COGNITION_DISABLED_MODE, root: "", production: true });
+  const hosted = normalizedVercelEnvironment === "preview" || normalizedVercelEnvironment === "production";
+  if (hosted || production) {
+    return Object.freeze({ mode: WEBSITE_COGNITION_DISABLED_MODE, root: "", production });
   }
   const normalizedMode = String(mode || "").trim().toUpperCase();
   if (!normalizedMode) {
@@ -159,6 +162,28 @@ export function resolveWebsiteCognitionConfiguration({
     root: path.resolve(normalizedRoot),
     production: false
   });
+}
+
+function productionOpenAITransport(configuration = {}) {
+  return resolveWebsiteCognitionConfiguration(configuration).mode === WEBSITE_COGNITION_LOCAL_BETA_MODE
+    ? "KATHERINE_SCC"
+    : "DIRECT_PROVIDER";
+}
+
+function configuredProductionOpenAITransport() {
+  return productionOpenAITransport({
+    mode: process.env.KATHERINES_EYE_GOVERNED_COGNITION_MODE,
+    root: process.env.KATHERINES_EYE_LEARNING_ROOT,
+    vercelEnvironment: process.env.VERCEL_ENV,
+    nodeEnvironment: process.env.NODE_ENV
+  });
+}
+
+function requestProductionOpenAIJson(args) {
+  if (configuredProductionOpenAITransport() === "KATHERINE_SCC") {
+    return requestKatherineSccInference({ payload: args?.payload });
+  }
+  return requestOpenAIJsonNetwork(args);
 }
 
 function configuredWebsiteCognition() {
@@ -23751,6 +23776,100 @@ function createOpenAIRequestError({
   return error;
 }
 
+async function requestOpenAIJsonNetwork({ apiKey, payload }) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 90000);
+
+  try {
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `katherine-product-${sha256Object(payload)}`
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (error) {
+      throw createOpenAIRequestError({
+        message: timedOut ? "OpenAI request timed out." : error.message || "OpenAI API request failed.",
+        category: timedOut || error.name === "AbortError" ? "timeout" : "provider_error",
+        timedOut: timedOut || error.name === "AbortError",
+        cause: error
+      });
+    }
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data.error && data.error.message ? data.error.message : "OpenAI API request failed.";
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        type: data.error && data.error.type,
+        code: data.error && data.error.code,
+        message,
+        category: classifyOpenAIErrorDetails({
+          statusCode: response.status,
+          type: data.error && data.error.type,
+          code: data.error && data.error.code,
+          message
+        }),
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
+
+    const outputText = extractOutputText(data);
+    if (!outputText) {
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        code: "empty_response",
+        message: "OpenAI returned an empty response.",
+        category: "provider_response_invalid",
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
+
+    let json;
+    try {
+      json = JSON.parse(outputText);
+      if (payload?.text?.format?.schema) {
+        validateContractSchemaValue(json, payload.text.format.schema);
+      }
+    } catch (cause) {
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        code: "invalid_json_response",
+        message: "OpenAI returned an invalid structured response.",
+        category: "provider_response_invalid",
+        cause,
+        returnedModel: data.model,
+        providerUsage: data.usage,
+        providerResponseId: data.id,
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
+    return {
+      json,
+      data,
+      statusCode: response.status
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function classifyOpenAIErrorDetails({ statusCode, type, code, message }) {
   const haystack = [type, code, message].map((value) => String(value || "").toLowerCase()).join(" ");
 
@@ -24217,6 +24336,8 @@ function parseBody(body) {
 }
 
 export const __queryIntegrityTestHooks = {
+  productionOpenAITransport,
+  requestProductionOpenAIJson,
   normalizeBuyerIntake,
   finalizeIdentityForResearch,
   buildCanonicalProductIdentity,

@@ -5275,3 +5275,17 @@ body.account-panel-open {
     font-size: 1.2rem;
   }
 }
+
+/* Keep beta account entry visible before the introductory copy. */
+.beta-account-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-right: 80px;
+  margin-bottom: 24px;
+}
+.beta-account-entry .brand-utility-button { min-height: 48px; }
+#analysis-failure-details { margin: 12px 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .beta-account-entry { flex-direction: column; align-items: flex-start; }
+}
