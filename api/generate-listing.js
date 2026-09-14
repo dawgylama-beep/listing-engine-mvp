@@ -4170,6 +4170,7 @@ async function finalizeCognitiveTerminalOutcome(research = {}, report = {}, {
     searchDiagnostics: {
       ...(research.liveSearch.searchDiagnostics || {}),
       ...(report.searchDiagnostics || {}),
+      objectIntelligence: research.liveSearch.searchDiagnostics?.objectIntelligence,
       cognitiveGovernor: diagnostics
     }
   };

@@ -465,6 +465,102 @@ test("real production handler serializes canonical evidence IDs through determin
   }
 });
 
+test("hosted handler keeps the canonical sealed Experience when a downstream report carries stale diagnostics", async () => {
+  let clock = Date.parse(retailRecoveryFixture.fixedNow);
+  const staleExperienceRecord = {
+    schemaVersion: "1.0",
+    objectStateId: "stale-downstream-report-record",
+    experienceRecordHash: "f".repeat(64)
+  };
+  const handler = createGenerateListingHandler({
+    getOpenAIApiKey: () => "deterministic-openai-placeholder",
+    getOpenAIModel: () => "deterministic-test-model",
+    getSerperApiKey: () => "deterministic-serper-placeholder",
+    createAnalysisId: () => "analysis-response-attestation-collision",
+    nowMilliseconds: () => {
+      clock += 5;
+      return clock;
+    },
+    nowIso: () => new Date(clock).toISOString(),
+    requestOpenAIJson: async ({ payload }) => {
+      const schemaName = payload?.text?.format?.name;
+      if (schemaName === "item_identity") {
+        return {
+          json: {
+            ...retailRecoveryFixture.identity,
+            visualRecognition: retailRecoveryFixture.visualRecognition
+          },
+          data: { output: [] }
+        };
+      }
+      if (schemaName === "consumer_purchase_decision") {
+        return {
+          json: {
+            ...retailRecoveryFixture.finalReport,
+            analysisStatus: "PARTIAL_PROVIDER_FAILURE",
+            searchDiagnostics: {
+              objectIntelligence: { experienceRecord: staleExperienceRecord }
+            }
+          },
+          data: { output: [] }
+        };
+      }
+      throw new Error(`Unexpected deterministic OpenAI schema request: ${schemaName}`);
+    },
+    requestSerperSearch: async ({ queryRecord }) => ({
+      json: queryRecord?.retailStage === "stage_7_limited_result_recovery"
+        ? retailRecoveryFixture.recoveryProviderResponse
+        : retailRecoveryFixture.preliminaryProviderResponse,
+      statusCode: 200,
+      elapsedMs: 4
+    }),
+    requestBoundedRetailProductPage: async () => retailRecoveryFixture.directPageResult
+  });
+  const req = {
+    method: "POST",
+    body: {
+      reportType: "marketValue",
+      platform: "",
+      notes: "041226087161",
+      photos: [{
+        name: "attestation-collision.jpg",
+        dataUrl: "data:image/jpeg;base64,iVBORw0KGgo="
+      }],
+      buyerIntake: retailRecoveryFixture.buyerIntake
+    }
+  };
+  const res = createResponseCapture();
+  const networkGuard = installHardNetworkDenial();
+  try {
+    await handler(req, res);
+  } finally {
+    networkGuard.restore();
+  }
+
+  assert.equal(networkGuard.attempts.length, 0);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.payload));
+  const report = res.payload.valuation;
+  const experienceRecord = report.searchDiagnostics.objectIntelligence.experienceRecord;
+  const cognitiveDiagnostics = report.searchDiagnostics.cognitiveGovernor;
+  const attestation = validateFinalExperienceAttestation({
+    experienceRecord,
+    cognitiveEpisode: cognitiveDiagnostics.cognitiveEpisode,
+    governorProof: cognitiveDiagnostics.executionProof
+  });
+  assert.equal(attestation.valid, true, JSON.stringify(attestation));
+  assert.notEqual(experienceRecord.experienceRecordHash, staleExperienceRecord.experienceRecordHash);
+
+  const tampered = structuredClone(experienceRecord);
+  tampered.objectStateId = "tampered-after-response";
+  const tamperedAttestation = validateFinalExperienceAttestation({
+    experienceRecord: tampered,
+    cognitiveEpisode: cognitiveDiagnostics.cognitiveEpisode,
+    governorProof: cognitiveDiagnostics.executionProof
+  });
+  assert.equal(tamperedAttestation.valid, false);
+  assert.equal(tamperedAttestation.mismatches[0], "EXPERIENCE_HASH_MISMATCH");
+});
+
 test("ordinary browser-sized UPC input completes with dense bounded research context", async () => {
   const budgetObservations = [];
   const modelPurposes = [];
