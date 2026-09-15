@@ -16972,6 +16972,13 @@ function buildResearchVisibilityFields(liveSearch = {}) {
   ].slice(0, 24);
   const searchLimitations = buildSearchLimitations(liveSearch, resultsFound);
   const visibleResearchResultCount = resultsFound.length;
+  const customerSourceFindings = buildCustomerSourceFindings({
+    itemIdentificationEvidence,
+    partialComparables,
+    referenceResults,
+    rejectedMatches
+  });
+  const customerSearchTrace = buildCustomerSearchTrace(liveSearch, resultsFound);
 
   return {
     resultsFound,
@@ -16983,10 +16990,138 @@ function buildResearchVisibilityFields(liveSearch = {}) {
     rejectedMatches,
     searchLimitations,
     visibleResearchResultCount,
-    searchDiagnostics: liveSearch.searchDiagnostics || null,
+    customerSourceFindings,
+    customerEvidenceSummaryText: buildCustomerEvidenceSummaryText({
+      customerSourceFindings,
+      strongComparables,
+      resultsFound,
+      webSearchExecuted: Boolean(liveSearch.webSearchExecuted)
+    }),
+    searchDiagnostics: {
+      ...(liveSearch.searchDiagnostics || {}),
+      customerSearchTrace
+    },
     referenceRangeBasis: visibleResearchResultCount
       ? `${visibleResearchResultCount} visible source-backed result${visibleResearchResultCount === 1 ? "" : "s"} were returned. Strong results can support value; partial/reference results can only support a preliminary range; weak/rejected matches do not establish fair value.`
       : "No visible structured source records were returned, so a preliminary reference range is not supported."
+  };
+}
+
+function buildCustomerSourceFindings({
+  itemIdentificationEvidence = [],
+  partialComparables = [],
+  referenceResults = [],
+  rejectedMatches = []
+} = {}) {
+  const identityRejectedUrls = new Set(normalizeArray(rejectedMatches)
+    .filter((record) => /mismatch|product type differs|item type|broad category|partial visual/i.test(`${record?.classification || ""} ${record?.evidenceRole || ""} ${record?.rejectionReason || ""}`))
+    .map((record) => canonicalizeComparableUrl(cleanText(record?.url || record?.canonicalUrl)))
+    .filter(Boolean));
+  const candidates = [
+    ...normalizeArray(itemIdentificationEvidence).map((record) => ({ record, relationship: "Identity match" })),
+    ...normalizeArray(partialComparables).map((record) => ({ record, relationship: "Related comparison" })),
+    ...normalizeArray(referenceResults).map((record) => ({ record, relationship: "Background reference" })),
+    ...normalizeArray(rejectedMatches)
+      .filter((record) => /non-transactional reference/i.test(`${record?.classification || ""} ${record?.evidenceRole || ""} ${record?.rejectionReason || ""}`))
+      .map((record) => ({ record, relationship: "Background reference" }))
+  ];
+  const seen = new Set();
+  const findings = [];
+  for (const { record, relationship } of candidates) {
+    const url = cleanText(record?.url || record?.canonicalUrl);
+    const title = cleanText(record?.title);
+    if (!url || !/^https?:\/\//i.test(url) || !title) continue;
+    const identity = canonicalizeComparableUrl(url) || url;
+    if (identityRejectedUrls.has(identity)) continue;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    findings.push({
+      title,
+      sourceLabel: cleanText(record.source || record.providerLabel || hostnameFromUrl(url) || "Source"),
+      destinationUrl: url,
+      relationship,
+      whyItHelps: buildCustomerSourceFindingExplanation(record, relationship),
+      valuationUse: "Not used to set a price."
+    });
+    if (findings.length >= 6) break;
+  }
+  return findings;
+}
+
+function buildCustomerSourceFindingExplanation(record = {}, relationship = "") {
+  if (relationship === "Identity match") {
+    return "This source supports the item identity, but it does not provide a usable price for this exact configuration.";
+  }
+  if (relationship === "Related comparison") {
+    const difference = cleanText(record.materialDifferences || record.itemIdentityDifferences || record.rejectionReason);
+    return difference
+      ? `This is a related item, not an exact match: ${difference}`
+      : "This is a related item; the exact model, size, package, or condition is not confirmed as the same.";
+  }
+  return "This source adds identification or category context, but it is not a qualifying price comparison.";
+}
+
+function buildCustomerEvidenceSummaryText({
+  customerSourceFindings = [],
+  strongComparables = [],
+  resultsFound = [],
+  webSearchExecuted = false
+} = {}) {
+  if (normalizeArray(strongComparables).length) {
+    return "Qualified source-backed price records are shown below. Their match, price type, shipping, and limitations remain part of the decision.";
+  }
+  if (normalizeArray(customerSourceFindings).length) {
+    const count = customerSourceFindings.length;
+    return `${count} source${count === 1 ? "" : "s"} helped identify this item or compare it with a related item. None supplied qualifying price evidence for this exact item, so no value range was established.`;
+  }
+  if (normalizeArray(resultsFound).length) {
+    return "Search results were returned, but none matched closely enough to support identification or a price decision. Rejection reasons remain in Technical Search Details.";
+  }
+  return webSearchExecuted
+    ? "Search completed without a usable source match. More item-specific evidence is needed before Katherine’s Eye can identify or value it responsibly."
+    : "Source research did not complete, so the answer is limited to the submitted photos and details.";
+}
+
+function buildCustomerSearchTrace(liveSearch = {}, resultsFound = []) {
+  const diagnostics = liveSearch.searchDiagnostics && typeof liveSearch.searchDiagnostics === "object"
+    ? liveSearch.searchDiagnostics
+    : {};
+  const sanitizedQueries = [...new Set(normalizeArray(
+    diagnostics.queriesActuallySent?.length ? diagnostics.queriesActuallySent : liveSearch.queriesActuallySent
+  ).map(cleanText).filter((query) => query && !isInternalPromptFragment(query)))].slice(0, 20);
+  const returnedSourceReferences = [];
+  const rejectionReasons = [];
+  const seenSources = new Set();
+  const seenRejections = new Set();
+  for (const record of normalizeArray(resultsFound)) {
+    const url = cleanText(record?.url || record?.canonicalUrl);
+    if (!url || !/^https?:\/\//i.test(url)) continue;
+    const identity = canonicalizeComparableUrl(url) || url;
+    const reference = {
+      title: cleanText(record.title || "Source result"),
+      sourceLabel: cleanText(record.source || record.providerLabel || hostnameFromUrl(url) || "Source"),
+      url,
+      classification: cleanText(record.classification || record.identityMatchStrength || "Unclassified"),
+      evidenceRole: cleanText(record.evidenceRole)
+    };
+    if (!seenSources.has(identity)) {
+      seenSources.add(identity);
+      returnedSourceReferences.push(reference);
+    }
+    const reason = cleanText(record.rejectionReason || record.itemIdentityDifferences);
+    const rejectionKey = `${identity}|${reason}`;
+    if (reason && !seenRejections.has(rejectionKey) && /weak|reject|mismatch|not used|not valuation|partial/i.test(`${reference.classification} ${reference.evidenceRole} ${reason}`)) {
+      seenRejections.add(rejectionKey);
+      rejectionReasons.push({ ...reference, reason });
+    }
+    if (returnedSourceReferences.length >= 24) break;
+  }
+  return {
+    schemaVersion: "1.0",
+    sanitizedQueries,
+    returnedSourceReferences,
+    rejectionReasons: rejectionReasons.slice(0, 12),
+    retentionLimitation: "This report retains sanitized queries and bounded source/rejection projections, not complete raw provider payloads."
   };
 }
 
@@ -20677,7 +20812,7 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     ...sanitized,
     valuationEvidenceState: "insufficient",
     valuationEvidenceLabel: "Fair Value Not Established",
-    valuationEvidenceExplanation: "Zero visible structured source-backed comparable results were retained. Market value is not established.",
+    valuationEvidenceExplanation: "No compatible price evidence qualified for valuation. Identity and reference sources may still be useful, but market value is not established.",
     pricingEvidenceState: workflow === "listing" ? "insufficient" : sanitized.pricingEvidenceState,
     estimatedFairMarketValue: null,
     estimatedMarketValue: null,
@@ -20698,13 +20833,13 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
     recommendedListingPrice: null,
     suggestedOfferRange: null,
     fairValueNotEstablished: "Fair Value: Not established",
-    whatThisMeans: isRetailReport ? retailLowDownsideText : "The current search did not return visible source-backed comparable evidence. Fair value is not established.",
+    whatThisMeans: isRetailReport ? retailLowDownsideText : "The current search did not return qualifying compatible price evidence. Identification and reference sources may still help, but fair value is not established.",
     priceBasis: isRetailReport
       ? "Price not verified - the current search did not return compatible source-backed current retail prices."
-      : "Fair value not established - the current search did not return visible source-backed comparable evidence.",
+      : "Fair value not established - the current search did not return qualifying compatible price evidence.",
     currentPriceAssessment: isRetailReport
       ? `Price Not Verified - ${retailLowDownsideText}`
-      : "Insufficient evidence - no source-backed market comparison is supported.",
+      : "Insufficient price evidence - no compatible source-backed price comparison qualified.",
     pricingRationale: isRetailReport ? retailLowDownsideText : safeLowDownsideText,
     cautiousBuyExplanation: "",
     consumerDownsideRisk: askingPriceText
@@ -20712,12 +20847,12 @@ function applyZeroEvidenceGuard(report, { workflow = "" } = {}) {
       : "No asking price was available for a downside-only personal-use assessment.",
     reasonsForCaution: mergeStringArrays(
       sanitized.reasonsForCaution,
-      ["No visible source-backed comparable evidence was retained.", "Market value was not established."],
+      ["No compatible source-backed price evidence qualified for valuation.", "Market value was not established."],
       8
     ),
     additionalInformationNeeded: mergeStringArrays(
       sanitized.additionalInformationNeeded,
-      ["Visible exact or strong source-backed comparable records are needed before showing source-backed price guidance."],
+      ["A compatible exact or strong source-backed price record is needed before showing price guidance."],
       8
     )
   };
@@ -21223,6 +21358,18 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     rangeResult: authoritativeRange,
     reliableCompsFound
   });
+  const customerMissingDetails = buildCustomerMissingDetails({
+    identity,
+    buyerIntake,
+    conditionProfile,
+    reliableCompsFound
+  });
+  const customerConfidenceSummary = buildCustomerConfidenceSummary({
+    identity,
+    identityConfidence: authoritativeConfidenceResult.identity,
+    pricingConfidence: authoritativeConfidenceResult.pricing,
+    customerMissingDetails
+  });
 
   const normalizedReport = {
     ...report,
@@ -21232,6 +21379,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     ...visualFields,
     ...identityFields,
     ...researchVisibility,
+    customerConfidenceSummary,
+    customerMissingDetails,
     evidenceFoundInPhotos: buildPhotoEvidence(identity),
     purchaseContextSummary: buildPurchaseContextSummary(buyerIntake),
     retailEvidenceMode: retailEvidenceProfile.retailEvidenceMode,
@@ -21921,6 +22070,125 @@ function buildConsumerAdditionalInfoNeeded(value, { reliableCompsFound, buyerInt
   }
 
   return needed.slice(0, 8);
+}
+
+function buildCustomerMissingDetails({
+  identity = {},
+  buyerIntake = normalizeBuyerIntake({}),
+  conditionProfile = {},
+  reliableCompsFound = false
+} = {}) {
+  const details = [];
+  const itemText = [
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.subjectIdentity,
+    identity.category,
+    identity.likelyItemDescription,
+    identity.productNameOrBoxTitle,
+    buyerIntake.item_name
+  ].map(cleanText).join(" ").toLowerCase();
+  const packagedRetail = isRetailStorePurchaseContext(buyerIntake.purchase_context)
+    || /\b(?:jar|bottle|box|bag|can|package|pack|grocery|food|spread|beverage|cosmetic|household)\b/.test(itemText);
+  const mechanicalObject = /\b(?:tool|device|machine|mechanism|mechanical|crank|motor|appliance|instrument)\b/.test(itemText);
+
+  if (packagedRetail) {
+    if (!hasKnownValue(identity.packageQuantity) && !hasKnownValue(identity.unitCount) && !hasKnownValue(identity.netWeight) && !hasKnownValue(identity.size)) {
+      addUnique(details, "Exact package size and count from the front label.");
+    }
+    if (!getSearchBarcodeDigits(identity, buyerIntake)) {
+      addUnique(details, "A clear barcode/UPC photo from the back or underside.");
+    }
+    if (!hasKnownValue(identity.variant) && !hasKnownValue(identity.flavor) && !hasKnownValue(identity.styleNumber)) {
+      addUnique(details, "The exact variety or version printed on the package.");
+    }
+  } else if (mechanicalObject) {
+    if (!hasCustomerKnownIdentityValue(identity.brand) && !hasCustomerKnownIdentityValue(identity.manufacturer) && !hasCustomerKnownIdentityValue(identity.makerIdentity)) {
+      addUnique(details, "Close photos of every maker’s mark, logo, stamp, or patent number.");
+    }
+    if (!hasCustomerKnownIdentityValue(identity.model) && !hasCustomerKnownIdentityValue(identity.sku) && !hasCustomerKnownIdentityValue(identity.styleNumber)) {
+      addUnique(details, "The model or part number, if one appears on the base, back, or moving parts.");
+    }
+    if (!hasCustomerKnownIdentityValue(identity.dimensions) && !hasCustomerKnownIdentityValue(identity.size)) {
+      addUnique(details, "A full side view beside a ruler, plus what moves when the handle or mechanism is operated.");
+    }
+  } else {
+    if (!hasCustomerKnownIdentityValue(identity.brand) && !hasCustomerKnownIdentityValue(identity.manufacturer) && !hasCustomerKnownIdentityValue(identity.makerIdentity)) {
+      addUnique(details, "A close photo of any maker’s mark, label, signature, or stamped wording.");
+    }
+    if (!hasCustomerKnownIdentityValue(identity.model) && !hasCustomerKnownIdentityValue(identity.sku) && !getSearchBarcodeDigits(identity, buyerIntake)) {
+      addUnique(details, "Any model, item, serial, SKU, or barcode number.");
+    }
+    if (!hasCustomerKnownIdentityValue(identity.dimensions) && !hasCustomerKnownIdentityValue(identity.size)) {
+      addUnique(details, "Overall dimensions and clear views of the front, back, and underside.");
+    }
+  }
+
+  if (conditionProfile.isUnknown && details.length < 3) {
+    addUnique(details, mechanicalObject
+      ? "Whether it operates normally and whether any parts are missing."
+      : "Condition and whether any parts, accessories, or packaging are missing.");
+  }
+  if (!reliableCompsFound && details.length < 3 && !packagedRetail) {
+    addUnique(details, "One distinctive feature that separates this item from similar-looking objects.");
+  }
+  return details.slice(0, 3);
+}
+
+function hasCustomerKnownIdentityValue(value) {
+  const text = cleanText(value);
+  return Boolean(text) && !/^(?:unknown|not verified|unverified|unclear|none|n\/a|insufficient)\b/i.test(text);
+}
+
+function buildCustomerConfidenceSummary({
+  identity = {},
+  identityConfidence = {},
+  pricingConfidence = {},
+  customerMissingDetails = []
+} = {}) {
+  const subject = firstCustomerKnownIdentity(
+    identity.likelyItemDescription,
+    identity.subjectIdentity,
+    identity.visualSubject,
+    identity.visualSubjectCategory,
+    identity.category
+  ) || "the broad item type";
+  const exactIdentity = getVerifiedExactProductIdentity(identity.exactProductIdentity);
+  const photoLevel = customerConfidenceLevel(identity.subjectConfidence || identity.visualSubjectConfidence, "Unclear");
+  const exactLevel = exactIdentity
+    ? customerConfidenceLevel(identityConfidence?.level || identity.exactProductConfidence, "Low")
+    : "Insufficient";
+  const priceLevel = customerConfidenceLevel(pricingConfidence?.level, "Insufficient");
+  const missing = normalizeStringArray(customerMissingDetails, 3);
+  const primaryMissing = cleanText(missing[0]).replace(/[.!?]+$/, "");
+  const sentenceMissing = primaryMissing ? `${primaryMissing.charAt(0).toLowerCase()}${primaryMissing.slice(1)}` : "";
+  return {
+    photoMatch: `Photo match: ${photoLevel} — the photos support ${subject}.`,
+    exactItem: exactIdentity && !/^(?:Low|Insufficient)$/i.test(exactLevel)
+      ? `Exact item: ${exactLevel} — ${exactIdentity}.`
+      : exactIdentity
+        ? `Exact item: ${exactLevel} — ${exactIdentity} is the likely product, but it still needs ${sentenceMissing || "a decisive configuration detail"}.`
+        : `Exact item: ${exactLevel} — needs ${sentenceMissing || "a decisive label, model, size, or maker detail"}.`,
+    priceSupport: /^(?:Low|Insufficient)$/i.test(priceLevel)
+      ? `Price support: ${priceLevel} — no qualifying compatible price evidence established a value range.`
+      : `Price support: ${priceLevel} — the displayed value uses qualifying compatible price evidence.`
+  };
+}
+
+function customerConfidenceLevel(value, fallback = "Unclear") {
+  const text = cleanText(typeof value === "object" ? value?.level || value?.label : value).toLowerCase();
+  if (/\bhigh\b|\bstrong\b/.test(text)) return "High";
+  if (/\bmedium\b|\bmoderate\b|\bplausible\b/.test(text)) return "Medium";
+  if (/\binsufficient\b|\bnot established\b|\bunavailable\b/.test(text)) return "Insufficient";
+  if (/\blow\b|\bweak\b/.test(text)) return "Low";
+  return fallback;
+}
+
+function firstCustomerKnownIdentity(...values) {
+  for (const value of values) {
+    if (hasCustomerKnownIdentityValue(value)) return cleanText(value);
+  }
+  return "";
 }
 
 function getConsumerAskingPriceNumber(buyerIntake, identity = {}) {

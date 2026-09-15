@@ -156,6 +156,112 @@ const wearableProviderResponse = Object.freeze({
   ]
 });
 
+const retailIncompleteVisualRecognition = Object.freeze({
+  visualSubject: "Nutella hazelnut cocoa spread jar",
+  visualSubjectCategory: "packaged grocery spread",
+  visualSubjectConfidence: "High",
+  recognizedBrand: "Nutella",
+  visibleWords: ["nutella", "hazelnut spread with cocoa"],
+  visibleColors: ["white", "red", "black"],
+  distinctiveFeatures: ["white lid", "Nutella wordmark", "clear spread jar"],
+  visualEvidence: ["Nutella wordmark", "hazelnut spread label", "clear jar"],
+  uncertaintyNotes: ["Net weight and barcode are not visible."],
+  unresolvedVisualQuestions: ["Exact jar size", "UPC", "market-specific package version"]
+});
+
+const retailIncompleteIdentity = Object.freeze({
+  visualRecognition: retailIncompleteVisualRecognition,
+  ...retailIncompleteVisualRecognition,
+  brand: "Nutella",
+  manufacturer: "Ferrero",
+  category: "hazelnut cocoa spread",
+  likelyItemDescription: "Nutella hazelnut cocoa spread jar",
+  subjectIdentity: "Nutella hazelnut cocoa spread jar",
+  subjectConfidence: "High",
+  exactProductIdentity: "Unverified exact product - Nutella hazelnut cocoa spread jar; exact package size is not confirmed.",
+  exactProductConfidence: "Low - net weight, UPC, and package version are not visible.",
+  productNameOrBoxTitle: "Nutella Hazelnut Spread with Cocoa",
+  visibleText: ["nutella", "hazelnut spread with cocoa"],
+  visualIdentityEvidence: ["Nutella wordmark", "hazelnut spread label", "clear jar"],
+  textIdentityEvidence: ["nutella", "hazelnut spread with cocoa"],
+  strongestSearchableIdentifiers: ["Nutella hazelnut spread with cocoa jar"],
+  identitySummary: "Nutella hazelnut cocoa spread jar; exact size and UPC are not visible.",
+  identityUnknowns: ["Exact jar size", "UPC", "market-specific package version"],
+  identityConflictNotes: []
+});
+
+const retailIncompleteProviderResponse = Object.freeze({
+  organic: [
+    {
+      position: 1,
+      title: "Nutella Hazelnut Spread with Cocoa",
+      link: "https://www.nutella.com/us/en/products/nutella",
+      snippet: "Official Nutella product page describing the branded hazelnut spread. Package size and price are unavailable in this result."
+    },
+    {
+      position: 2,
+      title: "Nutella hazelnut spread package guide",
+      link: "https://www.ferrerofoodservice.com/us/en/products/nutella",
+      snippet: "Ferrero reference page for Nutella hazelnut spread. Multiple package formats exist. Price unavailable."
+    },
+    {
+      position: 3,
+      title: "Generic hazelnut spread family-size jar",
+      link: "https://grocer.example/products/generic-hazelnut-spread-family-size",
+      snippet: "Different brand and unknown package size. Price unavailable."
+    }
+  ]
+});
+
+const unidentifiedVisualRecognition = Object.freeze({
+  visualSubject: "vintage hand-cranked metal mechanism",
+  visualSubjectCategory: "unidentified mechanical object",
+  visualSubjectConfidence: "Medium",
+  visibleWords: [],
+  visibleColors: ["dark metal", "wood"],
+  distinctiveFeatures: ["side crank", "cast-metal body", "wooden handle"],
+  visualEvidence: ["side crank", "cast-metal housing", "wooden grip"],
+  possibleInterpretations: ["small grinder", "winder", "bench-mounted kitchen or workshop mechanism"],
+  uncertaintyNotes: ["No maker mark, scale reference, or view of the base is visible."],
+  unresolvedVisualQuestions: ["Function", "maker", "model", "dimensions"]
+});
+
+const unidentifiedIdentity = Object.freeze({
+  visualRecognition: unidentifiedVisualRecognition,
+  ...unidentifiedVisualRecognition,
+  category: "unidentified hand-cranked mechanism",
+  likelyItemDescription: "vintage hand-cranked cast-metal mechanism with wooden handle",
+  subjectIdentity: "vintage hand-cranked metal mechanism",
+  subjectConfidence: "Medium",
+  exactProductIdentity: "Not verified",
+  exactProductConfidence: "Insufficient - function, maker, model, and dimensions are unknown.",
+  condition: "unknown",
+  visibleText: [],
+  visualIdentityEvidence: ["side crank", "cast-metal housing", "wooden grip"],
+  textIdentityEvidence: [],
+  strongestSearchableIdentifiers: ["vintage hand crank cast metal mechanism wooden handle"],
+  identitySummary: "Vintage hand-cranked metal mechanism; exact function and maker are not verified.",
+  identityUnknowns: ["Function", "maker", "model", "dimensions"],
+  identityConflictNotes: ["The visible form could fit more than one tool or kitchen-device category."]
+});
+
+const unidentifiedProviderResponse = Object.freeze({
+  organic: [
+    {
+      position: 1,
+      title: "Hand-cranked cast-metal mechanisms: identification guide",
+      link: "https://museum.example/reference/hand-cranked-mechanisms",
+      snippet: "Reference guide comparing grinders, winders, and small bench mechanisms. Maker marks and base shape are needed for identification. Price unavailable."
+    },
+    {
+      position: 2,
+      title: "Antique cast-iron coffee grinder with drawer",
+      link: "https://market.example/item/cast-iron-coffee-grinder-with-drawer",
+      snippet: "Coffee grinder with wooden drawer and hopper. The photographed object has no visible drawer or hopper. Price unavailable."
+    }
+  ]
+});
+
 const wearableListingModelResponse = Object.freeze({
   platform: "Facebook Marketplace",
   categorySuggestion: "Men's Sweaters",
@@ -229,15 +335,29 @@ function marketValueModelResponse(baseReport) {
 function modelResponse(schemaName, evidenceMode) {
   const collectible = evidenceMode === "collectible";
   const wearable = evidenceMode === "wearable";
+  const retailIncomplete = evidenceMode === "retail-incomplete";
+  const unidentified = evidenceMode === "unidentified";
   const baseReport = retailRecoveryFixture.finalReport;
   if (schemaName === "item_identity") {
     return {
-      ...(collectible ? collectibleIdentity : wearable ? wearableIdentity : retailRecoveryFixture.identity),
+      ...(collectible
+        ? collectibleIdentity
+        : wearable
+          ? wearableIdentity
+          : retailIncomplete
+            ? retailIncompleteIdentity
+            : unidentified
+              ? unidentifiedIdentity
+              : retailRecoveryFixture.identity),
       visualRecognition: collectible
         ? collectibleVisualRecognition
         : wearable
           ? wearableVisualRecognition
-          : retailRecoveryFixture.visualRecognition
+          : retailIncomplete
+            ? retailIncompleteVisualRecognition
+            : unidentified
+              ? unidentifiedVisualRecognition
+              : retailRecoveryFixture.visualRecognition
     };
   }
   if (schemaName === "consumer_purchase_decision") {
@@ -331,6 +451,24 @@ function buildRetailProviderFixture(requestBody = {}) {
 }
 
 function directPageResult(url, evidenceMode, retailFixture) {
+  if (evidenceMode === "retail-incomplete") {
+    return {
+      finalUrl: url,
+      statusCode: 200,
+      elapsedMs: 2,
+      html: "<html><body>Nutella hazelnut spread with cocoa. Multiple package sizes are available. Price unavailable.</body></html>",
+      sourceEvidenceText: "Nutella hazelnut spread with cocoa multiple package sizes price unavailable"
+    };
+  }
+  if (evidenceMode === "unidentified") {
+    return {
+      finalUrl: url,
+      statusCode: 200,
+      elapsedMs: 2,
+      html: "<html><body>Hand-cranked cast-metal mechanism reference guide. Maker mark and base shape required. Price unavailable.</body></html>",
+      sourceEvidenceText: "Hand-cranked cast-metal mechanism reference guide maker mark base shape required price unavailable"
+    };
+  }
   if (evidenceMode === "wearable") {
     return {
       finalUrl: url,
@@ -427,9 +565,13 @@ export async function buildBrowserHandlerResponse({
           ? collectibleProviderResponse
           : evidenceMode === "wearable"
             ? wearableProviderResponse
-          : stage === "stage_7_limited_result_recovery"
-            ? retailFixture.recoveryProviderResponse
-            : retailFixture.preliminaryProviderResponse,
+            : evidenceMode === "retail-incomplete"
+              ? retailIncompleteProviderResponse
+              : evidenceMode === "unidentified"
+                ? unidentifiedProviderResponse
+                : stage === "stage_7_limited_result_recovery"
+                  ? retailFixture.recoveryProviderResponse
+                  : retailFixture.preliminaryProviderResponse,
         statusCode: 200,
         elapsedMs: 2
       };
@@ -479,7 +621,8 @@ export async function buildBrowserHandlerResponse({
       providerStages,
       directPageRequests,
       finalizerExecutions: finalized.length,
-      unexpectedNodeNetworkAttempts: networkGuard.attempts
+      unexpectedNodeNetworkAttempts: networkGuard.attempts,
+      customerSearchTrace: response.payload[envelope]?.searchDiagnostics?.customerSearchTrace || null
     }
   };
 }

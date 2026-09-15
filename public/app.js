@@ -2291,8 +2291,9 @@ function renderReport(report, sections) {
 
   if (isConsumerReport(report)) {
     reportRoot.appendChild(renderConsumerCompactSummary(report, currentWorkflow));
+    appendReportSection(reportRoot, renderCustomerSourceFindingsSection(report));
     reportRoot.appendChild(renderActionPlan(report, currentWorkflow));
-    reportRoot.appendChild(renderCanonicalCustomerEvidenceSection(report));
+    appendReportSection(reportRoot, renderCanonicalCustomerEvidenceSection(report));
     reportRoot.appendChild(renderCustomerTechnicalSearchDetails(report));
     appendEndOfReport(reportRoot);
     results.replaceChildren(reportRoot);
@@ -2301,7 +2302,7 @@ function renderReport(report, sections) {
 
   reportRoot.appendChild(renderExecutiveSummary(report, currentWorkflow));
   reportRoot.appendChild(renderActionPlan(report, currentWorkflow));
-  reportRoot.appendChild(renderCanonicalCustomerEvidenceSection(report));
+  appendReportSection(reportRoot, renderCanonicalCustomerEvidenceSection(report));
 
   const whyCards = buildSectionCards(report, sections, isWhySection);
   const whyGroup = renderReportGroup({
@@ -2346,6 +2347,10 @@ function renderReport(report, sections) {
   results.replaceChildren(reportRoot);
 }
 
+function appendReportSection(parent, section) {
+  if (section) parent.appendChild(section);
+}
+
 function renderReportIdentityHeader(report = {}) {
   const card = document.createElement("article");
   card.className = "report-identity-header";
@@ -2356,8 +2361,10 @@ function renderReportIdentityHeader(report = {}) {
   eyebrow.className = "summary-eyebrow";
   eyebrow.textContent = "What Katherine’s Eye sees";
   const title = document.createElement("h3");
+  const exactProductIdentity = firstNonEmpty(report.exactProductIdentity);
+  const verifiedExactProductIdentity = isCustomerVerifiedIdentity(exactProductIdentity) ? exactProductIdentity : "";
   title.textContent = firstNonEmpty(
-    report.exactProductIdentity,
+    verifiedExactProductIdentity,
     report.subjectIdentity,
     report.identifiedItem,
     report.itemIdentification,
@@ -2365,12 +2372,7 @@ function renderReportIdentityHeader(report = {}) {
     report.optimizedListingTitle,
     "More information is needed to identify this item"
   );
-  const subtitleValue = firstNonEmpty(
-    report.identitySummary,
-    report.visualRecognitionSummary,
-    report.visualSubjectCategory,
-    report.categorySuggestion
-  );
+  const subtitleValue = buildCustomerIdentitySubtitle(report, verifiedExactProductIdentity);
   text.append(eyebrow, title);
   if (subtitleValue) {
     const subtitle = document.createElement("p");
@@ -2379,35 +2381,57 @@ function renderReportIdentityHeader(report = {}) {
     text.appendChild(subtitle);
   }
 
-  const confidenceValue = firstNonEmpty(
-    report.identificationConfidence,
-    report.itemIdentificationConfidence,
-    report.exactProductConfidence,
-    report.subjectConfidence,
-    report.visualSubjectConfidence
-  );
+  const confidenceSummary = getCustomerConfidenceSummary(report);
+  const confidenceValue = [confidenceSummary.photoMatch, confidenceSummary.exactItem].filter(Boolean).join(" ");
   const confidence = document.createElement("p");
   confidence.className = `identity-confidence${confidenceValue ? "" : " is-unavailable"}`;
   confidence.textContent = confidenceValue
-    ? `Identification confidence: ${normalizeDisplayValue(confidenceValue)}`
-    : "Identification confidence was not supplied.";
+    ? normalizeDisplayValue(confidenceValue)
+    : "Photo and exact-item confidence were not supplied.";
 
   card.append(text, confidence);
 
-  const limitationValue = firstNonEmpty(
-    report.whatIsStillUnknown,
-    report.visualRecognitionUnknowns,
-    report.identityConflicts,
-    report.missingDetails
-  );
+  const customerMissingDetails = normalizeArray(report.customerMissingDetails).slice(0, 3);
+  const limitationValue = customerMissingDetails.length
+    ? customerMissingDetails
+    : firstNonEmpty(report.whatIsStillUnknown, report.visualRecognitionUnknowns, report.identityConflicts);
   if (limitationValue) {
     const limitation = document.createElement("p");
     limitation.className = "identity-limitation";
-    limitation.textContent = `Important limitation: ${normalizeDisplayValue(limitationValue)}`;
+    limitation.textContent = `To improve this answer: ${normalizeDisplayValue(limitationValue)}`;
     card.appendChild(limitation);
   }
 
   return card;
+}
+
+function isCustomerVerifiedIdentity(value) {
+  const text = String(value || "").trim();
+  return Boolean(text) && !/^(?:not verified|unknown|unverified|insufficient|needs? verification)/i.test(text);
+}
+
+function buildCustomerIdentitySubtitle(report = {}, verifiedExactProductIdentity = "") {
+  if (verifiedExactProductIdentity) {
+    return `The photos and supplied details support this exact-item identification. Pricing still depends on compatible source evidence.`;
+  }
+  const subject = firstNonEmpty(report.subjectIdentity, report.visualSubject, report.identifiedItem);
+  if (subject) {
+    return `The broad item appears to be ${subject}. The exact version is not confirmed yet.`;
+  }
+  return firstNonEmpty(report.visualSubjectCategory, report.categorySuggestion, "More item-specific detail is needed.");
+}
+
+function getCustomerConfidenceSummary(report = {}) {
+  const supplied = report.customerConfidenceSummary && typeof report.customerConfidenceSummary === "object"
+    ? report.customerConfidenceSummary
+    : {};
+  const photoLevel = firstNonEmpty(report.subjectConfidence, report.visualSubjectConfidence, "Unclear");
+  const exactLevel = firstNonEmpty(report.identificationConfidence, report.exactProductConfidence, "Insufficient");
+  return {
+    photoMatch: firstNonEmpty(supplied.photoMatch, `Photo match: ${normalizeDisplayValue(photoLevel)}`),
+    exactItem: firstNonEmpty(supplied.exactItem, `Exact item: ${normalizeDisplayValue(exactLevel)}`),
+    priceSupport: firstNonEmpty(supplied.priceSupport, `Price support: ${getConfidenceText(report)}`)
+  };
 }
 
 function renderActionPlan(report = {}, workflow = currentWorkflow) {
@@ -2431,7 +2455,13 @@ function renderActionPlan(report = {}, workflow = currentWorkflow) {
   list.className = "action-plan-list";
   const definitions = getActionPlanDefinitions(workflow);
   for (const definition of definitions) {
-    const selected = definition.keys
+    if (definition.label === "Where to buy" && !normalizeArray(report.customerEvidence).length) {
+      continue;
+    }
+    const keys = definition.label === "What would improve confidence"
+      ? ["customerMissingDetails", ...definition.keys]
+      : definition.keys;
+    const selected = keys
       .map((key) => ({ key, value: report[key] }))
       .find(({ value }) => shouldRenderSection(definition.label, value));
     if (!selected) {
@@ -2442,7 +2472,7 @@ function renderActionPlan(report = {}, workflow = currentWorkflow) {
     item.dataset.sourceField = selected.key;
     const itemTitle = document.createElement("h4");
     itemTitle.textContent = definition.label;
-    item.append(itemTitle, renderValue(selected.value));
+    item.append(itemTitle, renderCustomerValue(selected.value));
     list.appendChild(item);
   }
 
@@ -3082,7 +3112,7 @@ function renderExecutiveSummary(report, workflow) {
     const term = document.createElement("dt");
     const detail = document.createElement("dd");
     term.textContent = name;
-    detail.textContent = value;
+    detail.textContent = customerFacingText(value);
     item.append(term, detail);
     metrics.appendChild(item);
   });
@@ -3219,11 +3249,16 @@ function getExecutiveSummary(report, workflow) {
 }
 
 function renderConfidenceExplainer(report) {
-  const support = getCanonicalConfidenceSupport(report);
+  const confidenceSummary = getCustomerConfidenceSummary(report);
+  const support = [
+    confidenceSummary.photoMatch,
+    confidenceSummary.exactItem,
+    confidenceSummary.priceSupport
+  ].filter(Boolean);
   const block = document.createElement("div");
   block.className = "confidence-explainer";
   const title = document.createElement("h4");
-  title.textContent = `Confidence: ${getConfidenceText(report)}`;
+  title.textContent = "How confident is this?";
   block.appendChild(title);
   if (support.length) {
     const list = document.createElement("ul");
@@ -3235,7 +3270,7 @@ function renderConfidenceExplainer(report) {
     block.appendChild(list);
   } else {
     const unavailable = document.createElement("p");
-    unavailable.textContent = "No additional confidence explanation was supplied in this report.";
+    unavailable.textContent = "The report did not include enough information to explain confidence.";
     block.appendChild(unavailable);
   }
   return block;
@@ -3429,6 +3464,36 @@ function normalizeDisplayValue(value) {
   }
 
   return String(value || "").replace(/\\n/g, " ").trim();
+}
+
+function customerFacingText(value) {
+  return String(value || "")
+    .replace(/Pricing is not established - no retained priced canonical evidence is available\.?/gi, "No qualifying price evidence was available, so a value range was not established.")
+    .replace(/No accepted, decision-eligible, independent current-retail offer had a usable canonical price and truthful package comparison\.?/gi, "No compatible current-retail price was verified for the same package.")
+    .replace(/Pricing confidence uses 0 canonical supporting evidence records\. Basis: no qualified priced evidence\. Limits: At least two independent offers did not establish the primary numerical range\.?/gi, "No qualifying prices were found. At least two independent compatible offers are needed for a price range.")
+    .replace(/canonical supporting evidence records?/gi, "verified supporting records")
+    .replace(/decision-eligible/gi, "compatible")
+    .replace(/primary numerical range/gi, "price range")
+    .replace(/canonical price/gi, "verified price")
+    .replace(/source-backed exact or strong similar comparable result/gi, "closely matching source price")
+    .replace(/canonical product identity/gi, "exact product identity")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function renderCustomerValue(value) {
+  if (Array.isArray(value)) {
+    const list = document.createElement("ul");
+    value.filter(Boolean).forEach((entry) => {
+      const item = document.createElement("li");
+      item.textContent = customerFacingText(entry && typeof entry === "object" ? formatResearchRecordText(entry) : entry);
+      list.appendChild(item);
+    });
+    return list;
+  }
+  const paragraph = document.createElement("p");
+  paragraph.textContent = customerFacingText(value);
+  return paragraph;
 }
 
 function normalizeArray(value) {
@@ -3980,7 +4045,7 @@ function renderConsumerSummary(report) {
     const term = document.createElement("dt");
     const detail = document.createElement("dd");
     term.textContent = name;
-    detail.textContent = value;
+    detail.textContent = customerFacingText(value);
     item.append(term, detail);
     grid.appendChild(item);
   }
@@ -4008,14 +4073,16 @@ function renderConsumerCompactSummary(report, workflow) {
         "Current Retail Price Not Verified"
       ));
       appendConsumerCompactSection(details, "Current Retail Price Assessment", report.currentRetailPriceAssessment);
+      appendConsumerCompactSection(details, "What the sources support", report.customerEvidenceSummaryText);
       appendConsumerPriceAnalysisDisclosure(details, report);
 
-      card.append(renderConfidenceExplainer(report), details, copyButton);
+      card.append(details, copyButton);
       return card;
     }
   }
 
   appendConsumerCompactSection(details, "Evidence Summary", firstNonEmpty(
+    report.customerEvidenceSummaryText,
     report.customerPricingSummary,
     report.priceRangeAnalysis,
     report.searchEvidenceSummary,
@@ -4025,19 +4092,17 @@ function renderConsumerCompactSummary(report, workflow) {
     "Evidence is limited to the submitted photos, notes, and any source-backed records shown below."
   ));
 
-  appendConsumerCompactSection(details, "Purchase Context", report.purchaseContextSummary);
-  appendConsumerCompactSection(details, "Barcode Search Status", report.barcodeSearchStatus);
-  appendConsumerCompactSection(details, "Local Store Context", report.localStoreContext);
-  appendConsumerCompactSection(details, "Retail Price Context", report.retailPriceContext);
-  appendConsumerCompactSection(details, "Package / Unit Price Context", report.packageUnitPriceContext);
+  appendConsumerCompactSection(details, "What could change the answer", firstNonEmpty(
+    report.conditionNotes,
+    report.productOrConditionRisks,
+    report.reasonsForCaution
+  ));
+  if (normalizeArray(report.customerEvidence).length) {
+    appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation);
+    appendConsumerCompactSection(details, "Current Purchase Option Summary", report.currentPurchaseOptionSummary);
+  }
 
-  appendConsumerCompactSection(details, "Maximum Price Guard", report.maximumRecommendedPriceExplanation);
-
-  appendConsumerCompactSection(details, "Current Purchase Option Summary", report.currentPurchaseOptionSummary);
-
-  appendConsumerCompactSection(details, "Price Spectrum Summary", report.priceSpectrumSummary);
-
-  card.append(renderConfidenceExplainer(report), details, copyButton);
+  card.append(details, copyButton);
   return card;
 }
 
@@ -4049,7 +4114,7 @@ function appendConsumerCompactSection(wrapper, title, value) {
   section.className = "consumer-compact-section";
   const heading = document.createElement("h4");
   heading.textContent = title;
-  section.append(heading, renderValue(value));
+  section.append(heading, renderCustomerValue(value));
   wrapper.appendChild(section);
 }
 
@@ -4191,6 +4256,10 @@ function getCanonicalEvidenceSectionLabel(report = {}) {
 }
 
 function renderCanonicalCustomerEvidenceSection(report = {}) {
+  const viewModel = getCustomerEvidenceViewModel(report);
+  if (viewModel.status === "ready" && !viewModel.cards.length) {
+    return null;
+  }
   const section = document.createElement("section");
   section.className = "consumer-compact-section canonical-evidence-section";
   const title = document.createElement("h3");
@@ -4198,7 +4267,50 @@ function renderCanonicalCustomerEvidenceSection(report = {}) {
   const helper = document.createElement("p");
   helper.className = "canonical-evidence-helper";
   helper.textContent = "Source-backed records supporting the guidance, shown in the finalized response order.";
-  section.append(title, helper, renderCustomerEvidence(getCustomerEvidenceViewModel(report)));
+  section.append(title, helper, renderCustomerEvidence(viewModel));
+  return section;
+}
+
+function renderCustomerSourceFindingsSection(report = {}) {
+  const findings = normalizeArray(report.customerSourceFindings).filter((item) => (
+    item && typeof item === "object" && item.title && /^https?:\/\//i.test(String(item.destinationUrl || ""))
+  ));
+  if (!findings.length) return null;
+
+  const section = document.createElement("section");
+  section.className = "customer-source-findings";
+  const title = document.createElement("h3");
+  title.textContent = "Sources that helped";
+  const helper = document.createElement("p");
+  helper.className = "canonical-evidence-helper";
+  helper.textContent = "These sources support identification or a related comparison. They are not treated as price proof.";
+  const list = document.createElement("ul");
+  list.className = "customer-source-findings-list";
+
+  findings.slice(0, 6).forEach((finding) => {
+    const item = document.createElement("li");
+    item.className = "customer-source-finding";
+    const topline = document.createElement("div");
+    topline.className = "customer-source-finding-topline";
+    const relationship = document.createElement("span");
+    relationship.className = "evidence-match-badge";
+    relationship.textContent = finding.relationship || "Supporting source";
+    const source = document.createElement("span");
+    source.className = "customer-source-label";
+    source.textContent = finding.sourceLabel || "Source";
+    topline.append(relationship, source);
+    const link = document.createElement("a");
+    link.href = finding.destinationUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = finding.title;
+    const explanation = document.createElement("p");
+    explanation.textContent = [finding.whyItHelps, finding.valuationUse].filter(Boolean).join(" ");
+    item.append(topline, link, explanation);
+    list.appendChild(item);
+  });
+
+  section.append(title, helper, list);
   return section;
 }
 

@@ -3668,6 +3668,64 @@ a:focus-visible {
   font-size: 0.88rem;
 }
 
+.customer-source-findings {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+
+.customer-source-findings > h3 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 1.4rem;
+}
+
+.customer-source-findings-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.customer-source-finding {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.customer-source-finding-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-source-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.customer-source-finding a {
+  color: var(--teal-dark);
+  font-weight: 800;
+}
+
+.customer-source-finding p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .prices-found-block {
   gap: 10px;
 }

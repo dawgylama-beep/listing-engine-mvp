@@ -215,8 +215,7 @@
       report?.customerEvidence,
       report?.customerEvidenceSummary
     );
-    if (!viewModel || viewModel.evidenceUnavailable) return [];
-    return viewModel.cards.map((card) => ({
+    const priceEvidence = !viewModel || viewModel.evidenceUnavailable ? [] : viewModel.cards.map((card) => ({
       source: card.sourceLabel,
       title: card.title,
       match: card.canonicalMatchLabel,
@@ -226,6 +225,39 @@
       limitation: card.conciseLimitation || card.knownDifferences,
       url: card.destinationUrl
     }));
+    const sourceFindings = (Array.isArray(report?.customerSourceFindings) ? report.customerSourceFindings : [])
+      .slice(0, 6)
+      .map((finding) => ({
+        source: finding.sourceLabel,
+        title: finding.title,
+        match: finding.relationship,
+        price: "",
+        deliveredCost: "",
+        availability: "",
+        limitation: [finding.whyItHelps, finding.valuationUse].filter(Boolean).join(" "),
+        url: finding.destinationUrl
+      }));
+    const seen = new Set();
+    return [...priceEvidence, ...sourceFindings].filter((record) => {
+      const key = `${record.url || ""}|${record.title || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 12);
+  }
+
+  function meaningfulIdentityTitle(report = {}) {
+    for (const value of [report.listingTitle, report.exactProductIdentity, report.subjectIdentity, report.identifiedItem, report.visualSubject]) {
+      const text = cleanText(value, 160);
+      if (text && !/^(?:not verified|unknown|unverified|insufficient)/i.test(text)) return text;
+    }
+    return "Saved Katherine’s Eye result";
+  }
+
+  function customerConfidenceSnapshot(report = {}) {
+    const summary = report.customerConfidenceSummary;
+    if (!summary || typeof summary !== "object" || Array.isArray(summary)) return "";
+    return Object.values(summary).map((value) => cleanText(value, 500)).filter(Boolean).join(" ");
   }
 
   function buildHistorySnapshot(report = {}) {
@@ -238,10 +270,10 @@
     ));
     return {
       workflow: currentReportWorkflow,
-      title: cleanText(firstNonEmpty(report.listingTitle, report.exactProductIdentity, report.subjectIdentity, report.identifiedItem, "Saved Katherine’s Eye result"), 160),
+      title: meaningfulIdentityTitle(report),
       identification: {
         confidence: cleanText(firstNonEmpty(report.exactProductConfidence, report.identificationConfidence, report.visualSubjectConfidence, "Not established"), 120),
-        summary: cleanText(firstNonEmpty(report.identitySummary, report.visualRecognitionSummary, report.itemIdentification, report.subjectIdentity), 1200)
+        summary: cleanText(firstNonEmpty(customerConfidenceSnapshot(report), report.identitySummary, report.visualRecognitionSummary, report.itemIdentification, report.subjectIdentity), 1200)
       },
       listing: {
         title: cleanText(firstNonEmpty(report.listingTitle, report.optimizedTitle, report.title), 240),
@@ -258,7 +290,7 @@
       uncertainty: listValues(firstPresent(report.whatIsStillUnknown, report.uncertainty, report.searchLimitations), 16),
       alternatives: listValues(firstPresent(report.alternativeIdentifications, report.alternatives, report.possibleIdentities), 12),
       requestedPhotos: listValues(firstPresent(report.requestedAdditionalPhotos, report.additionalPhotosNeeded, report.photosToAdd), 12),
-      researchSteps: listValues(firstPresent(report.recommendedResearchSteps, report.whatToCheckNext, report.additionalInformationNeeded, report.bestNextStep), 16),
+      researchSteps: listValues(firstPresent(report.customerMissingDetails, report.recommendedResearchSteps, report.whatToCheckNext, report.additionalInformationNeeded, report.bestNextStep), 16),
       evidence: evidenceSnapshot(report)
     };
   }
@@ -415,7 +447,7 @@
       const evidenceSection = document.createElement("section");
       evidenceSection.className = "saved-detail-section saved-evidence";
       const title = document.createElement("h4");
-      title.textContent = "Comparable evidence";
+      title.textContent = "Supporting sources";
       evidenceSection.appendChild(title);
       snapshot.evidence.forEach((record) => {
         const row = document.createElement("article");
