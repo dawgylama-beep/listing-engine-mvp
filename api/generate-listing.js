@@ -22088,8 +22088,7 @@ function buildCustomerMissingDetails({
     identity.productNameOrBoxTitle,
     buyerIntake.item_name
   ].map(cleanText).join(" ").toLowerCase();
-  const packagedRetail = isRetailStorePurchaseContext(buyerIntake.purchase_context)
-    || /\b(?:jar|bottle|box|bag|can|package|pack|grocery|food|spread|beverage|cosmetic|household)\b/.test(itemText);
+  const packagedRetail = /\b(?:jar|bottle|box|bag|can|package|pack|grocery|food|spread|beverage|cosmetic|household)\b/.test(itemText);
   const mechanicalObject = /\b(?:tool|device|machine|mechanism|mechanical|crank|motor|appliance|instrument)\b/.test(itemText);
 
   if (packagedRetail) {

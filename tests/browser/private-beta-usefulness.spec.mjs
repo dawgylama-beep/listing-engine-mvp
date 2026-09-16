@@ -175,3 +175,68 @@ test("actual handler and customer UI keep useful source context without unsuppor
   verificationArtifact.cleanup = await deleteAccountAndProveCleanup(page, store, password);
   await writeFile(testInfo.outputPath("verification-artifact.json"), `${JSON.stringify(verificationArtifact, null, 2)}\n`, "utf8");
 });
+
+async function renderControlledReviewReport(page, evidenceMode, purchaseContext) {
+  let handlerEvidence;
+  let analysisRequests = 0;
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.hostname !== "127.0.0.1") return route.abort("blockedbyclient");
+    if (url.pathname === "/api/customer-account") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ account: null }) });
+    }
+    if (url.pathname === "/api/generate-listing") {
+      analysisRequests += 1;
+      handlerEvidence = await buildBrowserHandlerResponse({
+        requestBody: route.request().postDataJSON(),
+        evidenceMode
+      });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(handlerEvidence.payload) });
+    }
+    return route.continue();
+  });
+  await page.goto("/");
+  await uploadControlledPhoto(page);
+  await page.locator("#purchase_context").selectOption(purchaseContext);
+  await page.locator(purchaseContext === "retail_store" ? "#store_name" : "#retailer_or_marketplace_name").fill("Controlled purchase source");
+  if (purchaseContext === "retail_store") await page.locator("#location_zip").fill("30188");
+  await page.locator("#asking_price").fill("5.50");
+  await page.locator("#workflow-submit-button").click();
+  await expect.poll(() => analysisRequests).toBe(1);
+  await expect(page.locator(".report-root .report-identity-subtitle")).toBeVisible({ timeout: 60_000 });
+  expect(analysisRequests).toBe(1);
+  expect(handlerEvidence.metadata.unexpectedNodeNetworkAttempts).toEqual([]);
+  expect(handlerEvidence.report.customerEvidence).toHaveLength(0);
+  return handlerEvidence;
+}
+
+test("review correction: incomplete retail identity subtitle follows authoritative confidence", async ({ page }, testInfo) => {
+  const evidence = await renderControlledReviewReport(page, "retail-incomplete", "online_retailer");
+  expect(evidence.report.exactProductIdentity).toBe("Nutella Hazelnut Spread with Cocoa");
+  expect(evidence.report.identificationConfidence).toMatch(/^Insufficient\b/);
+  await expect(page.locator(".report-identity-subtitle")).toContainText("The exact version is not confirmed yet.");
+  await expect(page.locator(".report-identity-subtitle")).not.toContainText("support this exact-item identification");
+  const subtitleChecks = await page.evaluate(() => ({
+    insufficient: buildCustomerIdentitySubtitle({ identificationConfidence: "Insufficient", exactProductConfidence: "High", subjectIdentity: "retail jar" }, "Named product"),
+    high: buildCustomerIdentitySubtitle({ identificationConfidence: "High - authenticated identity evidence", subjectIdentity: "retail jar" }, "Named product")
+  }));
+  expect(subtitleChecks.insufficient).toContain("not confirmed yet");
+  expect(subtitleChecks.high).toContain("support this exact-item identification");
+  await writeFile(testInfo.outputPath("controlled-review-report.txt"), `CONTROLLED-PROVIDER EVIDENCE — not a live Sequence-20 rerun\n\n${await page.locator(".report-root").innerText()}\n`, "utf8");
+});
+
+for (const purchaseContext of ["online_retailer", "private_seller", "retail_store"]) {
+  test(`review correction: unidentified mechanism asks material questions in ${purchaseContext}`, async ({ page }, testInfo) => {
+    const evidence = await renderControlledReviewReport(page, "unidentified", purchaseContext);
+    expect(evidence.report.customerMissingDetails).toEqual([
+      "Close photos of every maker’s mark, logo, stamp, or patent number.",
+      "The model or part number, if one appears on the base, back, or moving parts.",
+      "A full side view beside a ruler, plus what moves when the handle or mechanism is operated."
+    ]);
+    await expect(page.locator(".report-identity-header")).toContainText("maker’s mark");
+    await expect(page.locator(".action-plan")).toContainText("what moves when the handle");
+    await expect(page.locator(".identity-limitation")).not.toContainText("package size");
+    await expect(page.locator(".identity-limitation")).not.toContainText("barcode/UPC");
+    await writeFile(testInfo.outputPath("controlled-review-report.txt"), `CONTROLLED-PROVIDER EVIDENCE — not a live Sequence-20 rerun\nPurchase context: ${purchaseContext}\n\n${await page.locator(".report-root").innerText()}\n`, "utf8");
+  });
+}

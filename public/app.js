@@ -2411,7 +2411,8 @@ function isCustomerVerifiedIdentity(value) {
 }
 
 function buildCustomerIdentitySubtitle(report = {}, verifiedExactProductIdentity = "") {
-  if (verifiedExactProductIdentity) {
+  const exactItemConfidence = String(report.identificationConfidence || "").trim();
+  if (verifiedExactProductIdentity && /^high\b/i.test(exactItemConfidence)) {
     return `The photos and supplied details support this exact-item identification. Pricing still depends on compatible source evidence.`;
   }
   const subject = firstNonEmpty(report.subjectIdentity, report.visualSubject, report.identifiedItem);
