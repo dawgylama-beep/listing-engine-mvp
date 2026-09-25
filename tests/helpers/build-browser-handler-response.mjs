@@ -262,6 +262,23 @@ const unidentifiedProviderResponse = Object.freeze({
   ]
 });
 
+const customerModelCorroborationProviderResponse = Object.freeze({
+  organic: [
+    {
+      position: 1,
+      title: "Acme Workshop HW-42 hand-cranked bench mechanism reference",
+      link: "https://support.acme-workshop.example/reference/hw-42",
+      snippet: "Synthetic controlled reference for Acme Workshop model HW-42, a hand-cranked bench mechanism with a cast-metal housing and wooden side handle. Documentation only; price and condition are unavailable."
+    },
+    {
+      position: 2,
+      title: "Hand-cranked cast-metal mechanisms: identification guide",
+      link: "https://museum.example/reference/hand-cranked-mechanisms",
+      snippet: "Reference guide comparing grinders, winders, and small bench mechanisms. Maker marks and base shape are needed for exact identification. Price unavailable."
+    }
+  ]
+});
+
 const wearableListingModelResponse = Object.freeze({
   platform: "Facebook Marketplace",
   categorySuggestion: "Men's Sweaters",
@@ -332,11 +349,11 @@ function marketValueModelResponse(baseReport) {
   };
 }
 
-function modelResponse(schemaName, evidenceMode) {
+export function controlledBrowserModelResponse(schemaName, evidenceMode) {
   const collectible = evidenceMode === "collectible";
   const wearable = evidenceMode === "wearable";
   const retailIncomplete = evidenceMode === "retail-incomplete";
-  const unidentified = evidenceMode === "unidentified";
+  const unidentified = evidenceMode === "unidentified" || evidenceMode === "customer-model-corroboration";
   const baseReport = retailRecoveryFixture.finalReport;
   if (schemaName === "item_identity") {
     return {
@@ -460,13 +477,17 @@ function directPageResult(url, evidenceMode, retailFixture) {
       sourceEvidenceText: "Nutella hazelnut spread with cocoa multiple package sizes price unavailable"
     };
   }
-  if (evidenceMode === "unidentified") {
+  if (evidenceMode === "unidentified" || evidenceMode === "customer-model-corroboration") {
+    const corroboratesCustomerModel = evidenceMode === "customer-model-corroboration";
+    const sourceEvidenceText = corroboratesCustomerModel
+      ? "Synthetic controlled Acme Workshop model HW-42 reference. Hand-cranked bench mechanism with cast-metal housing and wooden side handle. Documentation only. Price and condition unavailable."
+      : "Hand-cranked cast-metal mechanism reference guide maker mark base shape required price unavailable";
     return {
       finalUrl: url,
       statusCode: 200,
       elapsedMs: 2,
-      html: "<html><body>Hand-cranked cast-metal mechanism reference guide. Maker mark and base shape required. Price unavailable.</body></html>",
-      sourceEvidenceText: "Hand-cranked cast-metal mechanism reference guide maker mark base shape required price unavailable"
+      html: `<html><body>${sourceEvidenceText}</body></html>`,
+      sourceEvidenceText
     };
   }
   if (evidenceMode === "wearable") {
@@ -553,7 +574,7 @@ export async function buildBrowserHandlerResponse({
       const schemaName = payload?.text?.format?.name;
       schemas.push(schemaName);
       return {
-        json: modelResponse(schemaName, evidenceMode),
+        json: controlledBrowserModelResponse(schemaName, evidenceMode),
         data: { output: [] }
       };
     },
@@ -569,6 +590,8 @@ export async function buildBrowserHandlerResponse({
               ? retailIncompleteProviderResponse
               : evidenceMode === "unidentified"
                 ? unidentifiedProviderResponse
+                : evidenceMode === "customer-model-corroboration"
+                  ? customerModelCorroborationProviderResponse
                 : stage === "stage_7_limited_result_recovery"
                   ? retailFixture.recoveryProviderResponse
                   : retailFixture.preliminaryProviderResponse,
@@ -625,4 +648,30 @@ export async function buildBrowserHandlerResponse({
       customerSearchTrace: response.payload[envelope]?.searchDiagnostics?.customerSearchTrace || null
     }
   };
+}
+
+export async function buildControlledCustomerModelCorroborationReport() {
+  const requestBody = {
+    reportType: "marketValue",
+    platform: "",
+    notes: "The seller says the maker is Acme Workshop and the model is HW-42. I have not verified the label.",
+    photos: [{
+      name: "controlled-mechanism.jpg",
+      dataUrl: `data:image/jpeg;base64,${Buffer.alloc(2048, 0x5a).toString("base64")}`
+    }],
+    buyerIntake: {
+      purchase_intent: "personal_use",
+      buyer_intent: "personal_use",
+      purchase_context: "private_seller",
+      asking_price: "$5.50",
+      known_brand: "Acme Workshop",
+      known_model: "HW-42",
+      item_condition: "unknown"
+    }
+  };
+  const evidence = await buildBrowserHandlerResponse({
+    requestBody,
+    evidenceMode: "customer-model-corroboration"
+  });
+  return evidence.report;
 }

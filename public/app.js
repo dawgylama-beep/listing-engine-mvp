@@ -4898,6 +4898,14 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
   const stage = submissionStageFromError(error, submissionState);
 
+  if (error?.code === "ANALYSIS_SPENDING_LIMIT_REACHED") {
+    return "This analysis stopped at its spending limit before the next model response. No completed report or value assessment is available, and nothing will retry automatically. Your photos are still selected. Please contact your private-beta support with the reference below before trying again.";
+  }
+
+  if (error?.code === "PROVIDER_TIMEOUT") {
+    return "The analysis timed out before Katherine’s Eye could finish. No completed report or value assessment is available. Your photos and details are still here, and this request will not retry automatically. Please try again only when you are ready.";
+  }
+
   if (error?.code === "analysis_input_too_large" || /analysis_input_too_large|image_too_large/i.test(message)) {
     return "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
   }

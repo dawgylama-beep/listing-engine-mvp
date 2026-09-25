@@ -79,7 +79,21 @@ const MAX_ANALYSIS_PHOTO_COUNT = 6;
 const MAX_ANALYSIS_PHOTO_BYTES = 240000;
 const MAX_ANALYSIS_PHOTO_TOTAL_BYTES = 240000;
 const MAX_MODEL_REQUEST_ESTIMATE = 360000;
+const MAX_INPUT_TOKEN_COUNT_REQUEST_BYTES = 360000;
+const MODEL_CONTEXT_TOKEN_LIMITS = Object.freeze({
+  "gpt-5.6-luna": 1050000,
+  "gpt-4.1-mini": 1047576
+});
 const IMAGE_TOKEN_ESTIMATE_PER_PHOTO = 2500;
+const MAX_MODEL_GENERATION_REQUESTS = 10;
+const MAX_INPUT_TOKEN_COUNT_REQUESTS = 10;
+const MAX_WEB_SEARCH_TOOL_CALLS = 8;
+const MAX_BILLABLE_PROVIDER_REQUESTS = 10;
+const MAX_ANALYSIS_SPENDING_DOLLARS = 2.5;
+const STANDARD_SERVICE_TIER = "default";
+const OPENAI_WEB_SEARCH_CALL_DOLLARS = 0.01;
+const GPT_4_1_MINI_WEB_SEARCH_CONTENT_TOKENS = 8000;
+const MODEL_REQUEST_BUDGET_BINDING = Symbol("modelRequestBudgetBinding");
 const DEFAULT_VISUAL_IDENTITY_MODEL = "gpt-5.6-luna";
 const WEBSITE_COGNITION_LOCAL_BETA_MODE = "LOCAL_BETA";
 const WEBSITE_COGNITION_DISABLED_MODE = "DISABLED";
@@ -87,6 +101,7 @@ const VISUAL_IDENTITY_REASONING_EFFORT = "medium";
 const VISUAL_IDENTITY_IMAGE_DETAIL = "original";
 const SAFE_INPUT_TOO_LARGE_MESSAGE = "This item request is too large for Katherine\u2019s Eye to analyze safely. Try again with fewer photos or one clearer photo.";
 const SAFE_PROVIDER_ERROR_MESSAGE = "Katherine\u2019s Eye could not complete the analysis right now. Please try again shortly.";
+const SAFE_ANALYSIS_SPENDING_LIMIT_MESSAGE = "This analysis stopped at its spending limit before the next model response. No completed report or value assessment is available, and no automatic retry will occur.";
 const outputTokenLimits = Object.freeze({
   ask_market_edge_answer: 2500,
   item_identity: 6000,
@@ -104,6 +119,8 @@ const productionAnalysisAdapters = Object.freeze({
   getGovernedTrialRequest: () => null,
   getSerperApiKey: () => process.env.SERPER_API_KEY || "",
   requestOpenAIJson: (args) => requestProductionOpenAIJson(args),
+  requestOpenAIInputTokenCount: (args) => requestOpenAIInputTokenCountNetwork(args),
+  usesAuthenticatedExactInputTokenCounting: true,
   requestSerperSearch: (args) => requestSerperSearchNetwork(args),
   requestBoundedRetailProductPage: (...args) => requestBoundedRetailProductPageNetwork(...args),
   nowMilliseconds: () => Date.now(),
@@ -217,7 +234,11 @@ export function createGenerateListingHandler(adapters = {}) {
     getGovernedTrialRequest: adapters.getGovernedTrialRequest
       || productionAnalysisAdapters.getGovernedTrialRequest,
     getWebsiteCognitionMode: adapters.getWebsiteCognitionMode
-      || productionAnalysisAdapters.getWebsiteCognitionMode
+      || productionAnalysisAdapters.getWebsiteCognitionMode,
+    usesAuthenticatedExactInputTokenCounting: adapters.usesAuthenticatedExactInputTokenCounting
+      ?? !adapters.requestOpenAIJson,
+    requestOpenAIInputTokenCount: adapters.requestOpenAIInputTokenCount
+      || productionAnalysisAdapters.requestOpenAIInputTokenCount
   });
   return (req, res) => analysisAdapterContext.run(resolvedAdapters, () => {
     let initializationError = null;
@@ -235,6 +256,11 @@ export function createGenerateListingHandler(adapters = {}) {
     Object.defineProperty(terminalContext, "websiteCognition", {
       value: null,
       writable: true,
+      enumerable: false
+    });
+    Object.defineProperty(terminalContext, "modelExecutionBudget", {
+      value: createModelExecutionBudget(),
+      writable: false,
       enumerable: false
     });
     return evaluationTerminalContext.run(
@@ -1444,6 +1470,10 @@ async function handleGenerateListingRequest(req, res) {
       buyerIntake,
       analysisId
     });
+    report.searchDiagnostics = {
+      ...(report.searchDiagnostics || {}),
+      modelExecutionBudget: buildModelExecutionBudgetEvidence()
+    };
 
     beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     const safeReport = sanitizeClientVisiblePayload({
@@ -1470,6 +1500,9 @@ async function handleGenerateListingRequest(req, res) {
     completeTerminalContext(currentEvaluationTerminalContext());
     return response;
   } catch (error) {
+    if (error?.timedOut === true && error?.liveSearchErrorCategory === "timeout" && !error.code) {
+      error.code = "PROVIDER_TIMEOUT";
+    }
     const statusCode = error.identityConfirmationRequired
       ? 409
       : error.clientSafeCode
@@ -1487,7 +1520,12 @@ async function handleGenerateListingRequest(req, res) {
           providerLifecycleAuthority: false
         }
       : await recordGovernedProductFailure(failureEnvelope);
-    const diagnostics = { terminalFailure: failureEnvelope, governedLearning };
+    const diagnostics = {
+      terminalFailure: failureEnvelope,
+      governedLearning,
+      modelExecutionBudget: buildModelExecutionBudgetEvidence(),
+      providerFailurePhase: cleanText(error?.providerFailurePhase)
+    };
     let responseStatus = 502;
     let payload;
     if (error.identityConfirmationRequired) {
@@ -2097,11 +2135,28 @@ function currentTimeIso() {
   return currentAnalysisAdapters().nowIso();
 }
 
-function requestOpenAIJson(args) {
-  enforceModelRequestBudget(args?.payload);
-  const purpose = cleanText(args?.payload?.text?.format?.name || "model_request");
+async function requestOpenAIJson(args) {
+  const payload = args?.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Model request payload is missing or invalid.");
+  }
+  payload.service_tier = STANDARD_SERVICE_TIER;
+  payload.truncation = "disabled";
+  if (currentAnalysisAdapters().usesAuthenticatedExactInputTokenCounting === true) {
+    await enforceExactModelRequestBudget({ apiKey: args?.apiKey, payload });
+  } else {
+    enforceModelRequestBudget(payload);
+  }
+  const purpose = cleanText(payload?.text?.format?.name || "model_request");
   if (purpose === "live_comparable_search" || !currentEvaluationTerminalContext()) {
-    return currentAnalysisAdapters().requestOpenAIJson(args);
+    try {
+      const result = await currentAnalysisAdapters().requestOpenAIJson({ ...args, payload });
+      reconcileExactModelRequestBudget(payload, result);
+      return result;
+    } catch (error) {
+      reconcileExactModelRequestBudget(payload, error);
+      throw error;
+    }
   }
   const terminalContext = currentEvaluationTerminalContext();
   const activeExecution = [...(terminalContext.governor?.executionLedger?.controlledExecutionEvents || [])]
@@ -2128,7 +2183,7 @@ function requestOpenAIJson(args) {
     errorCode: "",
     failureStage: ""
   };
-  configureProviderRequestMetering(record, { payload: args?.payload, provider: "openai_model" });
+  configureProviderRequestMetering(record, { payload, provider: "openai_model" });
   record.physicalAttempts = [{
     attempt: 1,
     retry: false,
@@ -2144,11 +2199,13 @@ function requestOpenAIJson(args) {
   }];
   attachCurrentTerminalProviderRecords([record]);
   const complete = (value) => {
+    reconcileExactModelRequestBudget(payload, value);
     recordPhysicalAttemptOutcome(record, "succeeded", value);
     record.succeeded = true;
     return value;
   };
   const fail = (error) => {
+    reconcileExactModelRequestBudget(payload, error);
     recordPhysicalAttemptOutcome(record, "failed", error);
     record.succeeded = false;
     record.errorCode = cleanText(
@@ -2158,11 +2215,407 @@ function requestOpenAIJson(args) {
     throw error;
   };
   try {
-    const result = currentAnalysisAdapters().requestOpenAIJson(args);
-    return result && typeof result.then === "function" ? result.then(complete, fail) : complete(result);
+    const result = await currentAnalysisAdapters().requestOpenAIJson({ ...args, payload });
+    return complete(result);
   } catch (error) {
     return fail(error);
   }
+}
+
+function createModelExecutionBudget() {
+  return {
+    schemaVersion: "1.0",
+    maximumModelGenerationRequests: MAX_MODEL_GENERATION_REQUESTS,
+    maximumInputTokenCountRequests: MAX_INPUT_TOKEN_COUNT_REQUESTS,
+    maximumWebSearchToolCalls: MAX_WEB_SEARCH_TOOL_CALLS,
+    maximumBillableProviderRequests: MAX_BILLABLE_PROVIDER_REQUESTS,
+    maximumSpendingDollars: MAX_ANALYSIS_SPENDING_DOLLARS,
+    modelGenerationRequestCount: 0,
+    inputTokenCountRequestCount: 0,
+    webSearchToolCallCount: 0,
+    billableProviderRequestCount: 0,
+    reservedSpendingDollars: 0,
+    exactCountedInputTokens: 0,
+    tokenCountReservedSpendingDollars: 0,
+    reservations: [],
+    tokenCountReservations: [],
+    observations: []
+  };
+}
+
+function currentModelExecutionBudget() {
+  const context = currentEvaluationTerminalContext();
+  if (!context?.modelExecutionBudget) {
+    const error = new Error("The model execution budget is unavailable outside an analysis request.");
+    error.code = "MODEL_EXECUTION_BUDGET_UNAVAILABLE";
+    throw error;
+  }
+  return context.modelExecutionBudget;
+}
+
+function createInputTokenCountPayload(payload = {}) {
+  const countPayload = {};
+  for (const field of [
+    "model",
+    "input",
+    "instructions",
+    "tools",
+    "tool_choice",
+    "text",
+    "reasoning",
+    "conversation",
+    "previous_response_id",
+    "prompt",
+    "parallel_tool_calls",
+    "truncation"
+  ]) {
+    if (payload[field] !== undefined) countPayload[field] = payload[field];
+  }
+  return countPayload;
+}
+
+function countDeclaredWebSearchToolCalls(payload = {}) {
+  return normalizeArray(payload.tools).filter((tool) => cleanText(tool?.type) === "web_search").length;
+}
+
+function publishedStandardPricingForRequest(payload = {}, inputTokens = 0) {
+  const model = cleanText(payload.model).toLowerCase();
+  const longContext = inputTokens > 272000;
+  if (model === "gpt-5.6-luna") {
+    return {
+      model,
+      inputDollarsPerMillion: longContext ? 0.4 : 0.2,
+      cacheWriteDollarsPerMillion: longContext ? 0.5 : 0.25,
+      outputDollarsPerMillion: longContext ? 1.8 : 1.2,
+      longContext
+    };
+  }
+  if (model === "gpt-4.1-mini") {
+    return {
+      model,
+      inputDollarsPerMillion: 0.4,
+      cacheWriteDollarsPerMillion: 0.4,
+      outputDollarsPerMillion: 1.6,
+      longContext: false
+    };
+  }
+  const error = new Error(`Published Standard-tier pricing is not configured for model ${model || "unknown"}.`);
+  error.code = "MODEL_PRICING_NOT_CONFIGURED";
+  error.httpStatusCode = 502;
+  error.clientSafeMessage = SAFE_PROVIDER_ERROR_MESSAGE;
+  throw error;
+}
+
+function maximumPublishedGenerationCost(payload = {}, inputTokens = 0) {
+  const pricing = publishedStandardPricingForRequest(payload, inputTokens);
+  const maxOutputTokens = Number(payload.max_output_tokens) || 0;
+  const webSearchToolCalls = countDeclaredWebSearchToolCalls(payload);
+  const maximumInputRate = Math.max(
+    pricing.inputDollarsPerMillion,
+    pricing.cacheWriteDollarsPerMillion
+  );
+  const webSearchContentTokens = pricing.model === "gpt-4.1-mini"
+    ? webSearchToolCalls * GPT_4_1_MINI_WEB_SEARCH_CONTENT_TOKENS
+    : 0;
+  const inputCost = ((inputTokens + webSearchContentTokens) * maximumInputRate) / 1000000;
+  const outputCost = (maxOutputTokens * pricing.outputDollarsPerMillion) / 1000000;
+  const webSearchToolCost = webSearchToolCalls * OPENAI_WEB_SEARCH_CALL_DOLLARS;
+  return {
+    pricing,
+    inputTokens,
+    maxOutputTokens,
+    webSearchToolCalls,
+    webSearchContentTokens,
+    inputCostDollars: inputCost,
+    outputCostDollars: outputCost,
+    webSearchToolCostDollars: webSearchToolCost,
+    maximumCostDollars: inputCost + outputCost + webSearchToolCost
+  };
+}
+
+function maximumPublishedInputTokenCountCost(payload = {}, inputTokens = 0) {
+  const pricing = publishedStandardPricingForRequest(payload, inputTokens);
+  const maximumInputRate = Math.max(
+    pricing.inputDollarsPerMillion,
+    pricing.cacheWriteDollarsPerMillion
+  );
+  return {
+    pricing,
+    inputTokens,
+    inputCostDollars: (inputTokens * maximumInputRate) / 1000000,
+    billingBasis: "RESPONSES_API_INPUT_TOKENS_AT_HIGHEST_PUBLISHED_INPUT_RATE"
+  };
+}
+
+function maximumInputTokenCountRequestTokens(payload = {}) {
+  const model = cleanText(payload.model).toLowerCase();
+  const limit = MODEL_CONTEXT_TOKEN_LIMITS[model];
+  if (!Number.isSafeInteger(limit)) {
+    const error = new Error("The input-token-count request has no configured model context ceiling.");
+    error.code = "MODEL_PRICING_NOT_CONFIGURED";
+    throw error;
+  }
+  return limit;
+}
+
+function maximumPublishedRequestCost(payload = {}, inputTokens = 0) {
+  const generation = maximumPublishedGenerationCost(payload, inputTokens);
+  const tokenCount = maximumPublishedInputTokenCountCost(payload, inputTokens);
+  return {
+    ...generation,
+    generationCostDollars: generation.maximumCostDollars,
+    inputTokenCountCostDollars: tokenCount.inputCostDollars,
+    inputTokenCountBillingBasis: tokenCount.billingBasis,
+    maximumCostDollars: generation.maximumCostDollars + tokenCount.inputCostDollars
+  };
+}
+
+async function enforceExactModelRequestBudget({
+  apiKey,
+  payload,
+  budget = currentModelExecutionBudget(),
+  adapters = currentAnalysisAdapters()
+} = {}) {
+  const maxOutputTokens = Number(payload?.max_output_tokens);
+  if (!Number.isInteger(maxOutputTokens) || maxOutputTokens <= 0 || maxOutputTokens > 6000) {
+    throw new Error("Model output token limit is missing or invalid.");
+  }
+  if (payload.service_tier !== STANDARD_SERVICE_TIER) {
+    const error = new Error("Only Standard-tier model requests are authorized for this analysis.");
+    error.code = "MODEL_SERVICE_TIER_NOT_AUTHORIZED";
+    throw error;
+  }
+  if (payload.truncation !== "disabled") {
+    const error = new Error("Input-token counting requires truncation to be disabled.");
+    error.code = "MODEL_TRUNCATION_NOT_AUTHORIZED";
+    throw error;
+  }
+  if (budget.inputTokenCountRequestCount >= budget.maximumInputTokenCountRequests) {
+    const error = new Error("The input-token-count request ceiling was reached before another count could be dispatched.");
+    error.code = "INPUT_TOKEN_COUNT_REQUEST_LIMIT_REACHED";
+    error.httpStatusCode = 502;
+    error.clientSafeMessage = SAFE_PROVIDER_ERROR_MESSAGE;
+    throw error;
+  }
+
+  const countPayload = createInputTokenCountPayload(payload);
+  const serializedCountRequestBytes = Buffer.byteLength(JSON.stringify(countPayload), "utf8");
+  if (serializedCountRequestBytes > MAX_INPUT_TOKEN_COUNT_REQUEST_BYTES) {
+    const error = createClientSafeAnalysisError({
+      statusCode: 413,
+      code: "analysis_input_too_large",
+      message: SAFE_INPUT_TOO_LARGE_MESSAGE
+    });
+    error.modelRequestContribution = {
+      status: "TOKEN_COUNT_INPUT_REJECTED_BEFORE_DISPATCH",
+      serializedCountRequestBytes,
+      maximumCountRequestBytes: MAX_INPUT_TOKEN_COUNT_REQUEST_BYTES
+    };
+    throw error;
+  }
+  // The generation envelope is checked only after counting. The count request
+  // instead reserves the model's documented context ceiling with no truncation.
+  const maximumCountableInputTokens = maximumInputTokenCountRequestTokens(payload);
+  const preDispatchCountCost = maximumPublishedInputTokenCountCost(payload, maximumCountableInputTokens);
+  const projectedCountCost = budget.reservedSpendingDollars + preDispatchCountCost.inputCostDollars;
+  if (projectedCountCost > budget.maximumSpendingDollars + Number.EPSILON) {
+    const error = createClientSafeAnalysisError({
+      statusCode: 502,
+      code: "ANALYSIS_SPENDING_LIMIT_REACHED",
+      message: SAFE_ANALYSIS_SPENDING_LIMIT_MESSAGE
+    });
+    error.modelRequestContribution = {
+      purpose: cleanText(payload?.text?.format?.name || "model_request"),
+      status: "TOKEN_COUNT_REJECTED_BEFORE_DISPATCH",
+      maximumCountableInputTokens,
+      tokenCountMaximumCostDollars: preDispatchCountCost.inputCostDollars,
+      projectedCumulativeCostDollars: projectedCountCost,
+      maximumSpendingDollars: budget.maximumSpendingDollars
+    };
+    throw error;
+  }
+
+  const tokenCountOrdinal = budget.inputTokenCountRequestCount + 1;
+  budget.inputTokenCountRequestCount = tokenCountOrdinal;
+  budget.reservedSpendingDollars = projectedCountCost;
+  budget.tokenCountReservedSpendingDollars += preDispatchCountCost.inputCostDollars;
+  const tokenCountReservation = {
+    purpose: cleanText(payload?.text?.format?.name || "model_request"),
+    inputTokenCountRequestOrdinal: tokenCountOrdinal,
+    status: "RESERVED_BEFORE_TOKEN_COUNT_DISPATCH",
+    maximumCountableInputTokens,
+    reservedInputTokens: maximumCountableInputTokens,
+    serializedCountRequestBytes,
+    reservedCostDollars: preDispatchCountCost.inputCostDollars,
+    billingBasis: preDispatchCountCost.billingBasis
+  };
+  budget.tokenCountReservations.push(tokenCountReservation);
+  let countResult;
+  try {
+    countResult = await adapters.requestOpenAIInputTokenCount({
+      apiKey,
+      payload: countPayload,
+      timeoutMs: 90000
+    });
+  } catch (cause) {
+    const countTimedOut = cause?.timedOut === true
+      || cause?.liveSearchErrorCategory === "timeout"
+      || cause?.name === "AbortError";
+    tokenCountReservation.status = "FAILED_AFTER_TOKEN_COUNT_DISPATCH";
+    const error = createOpenAIRequestError({
+      statusCode: cause?.openAIStatusCode,
+      type: cause?.openAIErrorType,
+      code: cause?.openAIErrorCode || (countTimedOut ? "input_token_count_timeout" : "input_token_count_failed"),
+      message: countTimedOut
+        ? "OpenAI input token counting timed out; generation was not dispatched."
+        : "OpenAI input token counting failed; generation was not dispatched.",
+      category: countTimedOut ? "timeout" : cause?.liveSearchErrorCategory || "provider_error",
+      timedOut: countTimedOut,
+      cause
+    });
+    error.code = countTimedOut ? "PROVIDER_TIMEOUT" : "MODEL_INPUT_TOKEN_COUNT_FAILED";
+    error.providerFailurePhase = "INPUT_TOKEN_COUNT";
+    error.httpStatusCode = 502;
+    error.clientSafeMessage = SAFE_PROVIDER_ERROR_MESSAGE;
+    throw error;
+  }
+  const inputTokens = Number(countResult?.input_tokens ?? countResult?.data?.input_tokens);
+  if (!Number.isSafeInteger(inputTokens) || inputTokens < 0) {
+    const error = new Error("OpenAI input token counting returned an invalid count; generation was not dispatched.");
+    error.code = "MODEL_INPUT_TOKEN_COUNT_INVALID";
+    error.httpStatusCode = 502;
+    error.clientSafeMessage = SAFE_PROVIDER_ERROR_MESSAGE;
+    throw error;
+  }
+  if (inputTokens > maximumCountableInputTokens) {
+    tokenCountReservation.status = "COUNT_EXCEEDED_PROVIDER_CONTEXT_BOUND";
+    tokenCountReservation.observedInputTokens = inputTokens;
+    const error = new Error("The provider count exceeded the reserved model context ceiling; generation was not dispatched.");
+    error.code = "MODEL_INPUT_TOKEN_COUNT_BOUND_EXCEEDED";
+    error.httpStatusCode = 502;
+    error.clientSafeMessage = SAFE_PROVIDER_ERROR_MESSAGE;
+    error.providerFailurePhase = "INPUT_TOKEN_COUNT";
+    throw error;
+  }
+
+  const exactCountCost = maximumPublishedInputTokenCountCost(payload, inputTokens);
+  const countReservationRelease = preDispatchCountCost.inputCostDollars - exactCountCost.inputCostDollars;
+  budget.reservedSpendingDollars -= countReservationRelease;
+  budget.tokenCountReservedSpendingDollars -= countReservationRelease;
+  Object.assign(tokenCountReservation, {
+    status: "COUNTED",
+    exactInputTokens: inputTokens,
+    reservedCostDollars: exactCountCost.inputCostDollars
+  });
+
+  const purpose = cleanText(payload?.text?.format?.name || "model_request");
+  const envelopeTokens = inputTokens + maxOutputTokens;
+  const webSearchToolCalls = countDeclaredWebSearchToolCalls(payload);
+  const generationCost = maximumPublishedGenerationCost(payload, inputTokens);
+  const observation = {
+    schemaVersion: "2.0",
+    purpose,
+    serviceTier: payload.service_tier,
+    inputTokenCountRequestOrdinal: tokenCountOrdinal,
+    tokenCountBillingClassification: exactCountCost.billingBasis,
+    inputTokenCountCostDollars: exactCountCost.inputCostDollars,
+    inputTokens,
+    maxOutputTokens,
+    envelopeTokens,
+    guardThreshold: MAX_MODEL_REQUEST_ESTIMATE,
+    webSearchToolCalls,
+    webSearchContentTokens: generationCost.webSearchContentTokens,
+    maximumGenerationCostDollars: generationCost.maximumCostDollars,
+    projectedCumulativeCostDollars: budget.reservedSpendingDollars + generationCost.maximumCostDollars,
+    guardResult: "pass"
+  };
+
+  let rejection = null;
+  if (envelopeTokens > MAX_MODEL_REQUEST_ESTIMATE) rejection = "analysis_input_too_large";
+  else if (budget.modelGenerationRequestCount >= budget.maximumModelGenerationRequests) rejection = "MODEL_GENERATION_REQUEST_LIMIT_REACHED";
+  else if (budget.billableProviderRequestCount >= budget.maximumBillableProviderRequests) rejection = "BILLABLE_PROVIDER_REQUEST_LIMIT_REACHED";
+  else if (webSearchToolCalls > 1 || budget.webSearchToolCallCount + webSearchToolCalls > budget.maximumWebSearchToolCalls) rejection = "WEB_SEARCH_TOOL_CALL_LIMIT_REACHED";
+  else if (observation.projectedCumulativeCostDollars > budget.maximumSpendingDollars + Number.EPSILON) rejection = "ANALYSIS_SPENDING_LIMIT_REACHED";
+
+  if (rejection) {
+    observation.guardResult = "reject";
+    observation.rejectionCode = rejection;
+    budget.observations.push(Object.freeze({ ...observation }));
+    adapters.onModelRequestBudget?.(Object.freeze({ ...observation }));
+    const error = createClientSafeAnalysisError({
+      statusCode: rejection === "analysis_input_too_large" ? 413 : 502,
+      code: rejection,
+      message: rejection === "analysis_input_too_large"
+        ? SAFE_INPUT_TOO_LARGE_MESSAGE
+        : rejection === "ANALYSIS_SPENDING_LIMIT_REACHED"
+          ? SAFE_ANALYSIS_SPENDING_LIMIT_MESSAGE
+          : SAFE_PROVIDER_ERROR_MESSAGE
+    });
+    error.modelRequestContribution = observation;
+    throw error;
+  }
+
+  budget.modelGenerationRequestCount += 1;
+  budget.billableProviderRequestCount += 1;
+  budget.webSearchToolCallCount += webSearchToolCalls;
+  budget.reservedSpendingDollars = observation.projectedCumulativeCostDollars;
+  budget.exactCountedInputTokens += inputTokens;
+  const reservation = Object.freeze({
+    ...observation,
+    modelGenerationRequestOrdinal: budget.modelGenerationRequestCount,
+    billableProviderRequestOrdinal: budget.billableProviderRequestCount,
+    status: "RESERVED_BEFORE_DISPATCH"
+  });
+  budget.reservations.push(reservation);
+  budget.observations.push(reservation);
+  Object.defineProperty(payload, MODEL_REQUEST_BUDGET_BINDING, {
+    value: reservation,
+    configurable: false,
+    enumerable: false,
+    writable: false
+  });
+  adapters.onModelRequestBudget?.(reservation);
+  return reservation;
+}
+
+function reconcileExactModelRequestBudget(payload, result) {
+  const binding = payload?.[MODEL_REQUEST_BUDGET_BINDING];
+  if (!binding) return;
+  const budget = currentEvaluationTerminalContext()?.modelExecutionBudget;
+  if (!budget) return;
+  const usage = normalizeReportedProviderTokens(
+    result?.providerUsage || result?.usage || result?.data?.usage
+  );
+  budget.observations.push(Object.freeze({
+    purpose: binding.purpose,
+    modelGenerationRequestOrdinal: binding.modelGenerationRequestOrdinal,
+    status: result instanceof Error ? "FAILED_AFTER_DISPATCH" : "SETTLED",
+    reportedTokens: usage
+  }));
+}
+
+function buildModelExecutionBudgetEvidence() {
+  const budget = currentEvaluationTerminalContext()?.modelExecutionBudget;
+  if (!budget) return null;
+  return Object.freeze({
+    schemaVersion: budget.schemaVersion,
+    serviceTier: STANDARD_SERVICE_TIER,
+    modelGenerationRequestCount: budget.modelGenerationRequestCount,
+    maximumModelGenerationRequests: budget.maximumModelGenerationRequests,
+    inputTokenCountRequestCount: budget.inputTokenCountRequestCount,
+    maximumInputTokenCountRequests: budget.maximumInputTokenCountRequests,
+    tokenCountBillingClassification: "RESPONSES_API_INPUT_TOKENS_AT_HIGHEST_PUBLISHED_INPUT_RATE",
+    tokenCountReservedSpendingDollars: Number(budget.tokenCountReservedSpendingDollars.toFixed(8)),
+    webSearchToolCallCount: budget.webSearchToolCallCount,
+    maximumWebSearchToolCalls: budget.maximumWebSearchToolCalls,
+    billableProviderRequestCount: budget.billableProviderRequestCount,
+    maximumBillableProviderRequests: budget.maximumBillableProviderRequests,
+    exactCountedInputTokens: budget.exactCountedInputTokens,
+    reservedSpendingDollars: Number(budget.reservedSpendingDollars.toFixed(8)),
+    maximumSpendingDollars: budget.maximumSpendingDollars,
+    tokenCountReservations: budget.tokenCountReservations.map((reservation) => ({ ...reservation })),
+    reservations: budget.reservations.map((reservation) => ({ ...reservation }))
+  });
 }
 
 function enforceModelRequestBudget(payload) {
@@ -4862,10 +5315,17 @@ function providerAuthorizationExposure(payload = null, maximumPhysicalAttempts =
     && payload.max_output_tokens > 0
     ? payload.max_output_tokens
     : null;
+  const exactBudgetBinding = payload?.[MODEL_REQUEST_BUDGET_BINDING] || null;
   return {
     classification: "CONSERVATIVE_REQUEST_AUTHORIZATION_EXPOSURE",
     maximumPhysicalAttempts,
     maximumOutputTokens,
+    serviceTier: cleanText(payload?.service_tier),
+    exactInputTokens: exactBudgetBinding?.inputTokens ?? null,
+    inputTokenCountRequestOrdinal: exactBudgetBinding?.inputTokenCountRequestOrdinal ?? null,
+    maximumRequestCostDollars: exactBudgetBinding?.maximumGenerationCostDollars ?? null,
+    maximumRequestCostScope: "ONE_MODEL_GENERATION_ATTEMPT_EXCLUDING_PRIOR_TOKEN_COUNT",
+    projectedCumulativeCostDollars: exactBudgetBinding?.projectedCumulativeCostDollars ?? null,
     exactBilledDollars: null,
     exactBilledDollarsStatus: "NOT_REPORTED_BY_PROVIDER"
   };
@@ -4932,6 +5392,15 @@ function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false
   }
   if (Number(budget.physicalAttemptCount || 0) >= Number(budget.maximumAttempts || 0)) {
     return false;
+  }
+  if (cleanText(provider).toLowerCase() === "serper_google") {
+    const modelBudget = currentEvaluationTerminalContext()?.modelExecutionBudget;
+    if (modelBudget) {
+      if (modelBudget.billableProviderRequestCount >= modelBudget.maximumBillableProviderRequests) {
+        return false;
+      }
+      modelBudget.billableProviderRequestCount += 1;
+    }
   }
   budget.physicalAttemptCount = Number(budget.physicalAttemptCount || 0) + 1;
   if (retry) {
@@ -12362,7 +12831,9 @@ function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, s
   }
   const payload = {
     model,
+    service_tier: STANDARD_SERVICE_TIER,
     max_output_tokens: outputTokenLimits.live_comparable_search,
+    max_tool_calls: 1,
     tools: [tool],
     tool_choice: "required",
     input: [
@@ -13051,6 +13522,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
 function createResponsesPayload({ model, systemText, userContent, schemaName, schema }) {
   return {
     model,
+    service_tier: STANDARD_SERVICE_TIER,
     max_output_tokens: outputTokenLimits[schemaName] || 4000,
     input: [
       {
@@ -16837,8 +17309,12 @@ function enforceListingResearchHonesty(report, research, platform) {
   const itemSpecifics = normalizeFlexibleArray(report.itemSpecifics, 10, normalizeFlexibleArray(report.itemDetails, 10, buildPhotoEvidence(identity)));
   const conditionNotes = buildConditionNotes(identity, buyerIntake);
   const visualFields = buildVisualRecognitionReportFields(identity);
-  const identityFields = buildIdentityReportFields(identity, liveSearch);
   const researchVisibility = buildResearchVisibilityFields(liveSearch);
+  const customerClaimCorroboration = buildCustomerClaimCorroboration({
+    buyerIntake,
+    customerSourceFindings: researchVisibility.customerSourceFindings
+  });
+  const identityFields = buildIdentityReportFields(identity, liveSearch, { customerClaimCorroboration });
 
   const normalizedReport = {
     ...report,
@@ -17059,6 +17535,35 @@ function buildCustomerSourceFindingExplanation(record = {}, relationship = "") {
       : "This is a related item; the exact model, size, package, or condition is not confirmed as the same.";
   }
   return "This source adds identification or category context, but it is not a qualifying price comparison.";
+}
+
+function buildCustomerClaimCorroboration({
+  buyerIntake = normalizeBuyerIntake({}),
+  customerSourceFindings = []
+} = {}) {
+  const reportedBrand = [buyerIntake.known_brand, buyerIntake.known_manufacturer]
+    .find(hasCustomerKnownIdentityValue) || "";
+  const reportedModel = [buyerIntake.known_model, buyerIntake.known_sku]
+    .find(hasCustomerKnownIdentityValue) || "";
+  if (!reportedModel) return null;
+
+  const finding = normalizeArray(customerSourceFindings).find((candidate) => {
+    if (candidate?.relationship !== "Identity match") return false;
+    const sourceText = cleanText([candidate.title, candidate.whyItHelps].filter(Boolean).join(" "));
+    const normalizedSourceText = normalizeComparableText(sourceText);
+    return containsNormalizedPhrase(normalizedSourceText, reportedModel)
+      && (!reportedBrand || containsNormalizedPhrase(normalizedSourceText, reportedBrand));
+  });
+  if (!finding) return null;
+
+  return {
+    status: "SOURCE_SUPPORTS_CUSTOMER_REPORTED_DETAIL",
+    reportedDetail: compactWords([reportedBrand, reportedModel]),
+    sourceTitle: cleanText(finding.title),
+    sourceLabel: cleanText(finding.sourceLabel),
+    destinationUrl: cleanText(finding.destinationUrl),
+    limitation: "The source corroborates the reported detail as a research lead, but it does not prove that the photographed item carries that label, establish condition, or support a value."
+  };
 }
 
 function buildCustomerEvidenceSummaryText({
@@ -21091,8 +21596,16 @@ function enforceLiveSearchHonesty(report, liveSearch, buyerIntake = normalizeBuy
     ? ""
     : buildAiOnlyRoughValueRange(report);
   const visualFields = buildVisualRecognitionReportFields(identity);
-  const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
   const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus: liveComparableSearchStatus });
+  const customerClaimCorroboration = buildCustomerClaimCorroboration({
+    buyerIntake,
+    customerSourceFindings: researchVisibility.customerSourceFindings
+  });
+  const identityFields = buildIdentityReportFields(
+    identity,
+    { ...liveSearch, liveSearchStatus: liveComparableSearchStatus },
+    { customerClaimCorroboration }
+  );
   const buyerRisk = buildBuyerRiskAssessment({
     report,
     buyerIntake,
@@ -21350,8 +21863,16 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
         ? ["A similar item with clearer condition, included accessories, or return protection may be the better value."]
         : [];
   const visualFields = buildVisualRecognitionReportFields(identity);
-  const identityFields = buildIdentityReportFields(identity, { ...liveSearch, liveSearchStatus });
   const researchVisibility = buildResearchVisibilityFields({ ...liveSearch, liveSearchStatus });
+  const customerClaimCorroboration = buildCustomerClaimCorroboration({
+    buyerIntake,
+    customerSourceFindings: researchVisibility.customerSourceFindings
+  });
+  const identityFields = buildIdentityReportFields(
+    identity,
+    { ...liveSearch, liveSearchStatus },
+    { customerClaimCorroboration }
+  );
   const canonicalPurchaseGuidance = buildCanonicalPurchaseGuidance({
     identity,
     askingPriceNumber,
@@ -21368,7 +21889,8 @@ function enforceConsumerDecisionHonesty(report, research, buyerIntake = normaliz
     identity,
     identityConfidence: authoritativeConfidenceResult.identity,
     pricingConfidence: authoritativeConfidenceResult.pricing,
-    customerMissingDetails
+    customerMissingDetails,
+    customerClaimCorroboration
   });
 
   const normalizedReport = {
@@ -22102,11 +22624,19 @@ function buildCustomerMissingDetails({
       addUnique(details, "The exact variety or version printed on the package.");
     }
   } else if (mechanicalObject) {
+    const suppliedModel = [buyerIntake.known_model, buyerIntake.known_sku]
+      .some(hasCustomerKnownIdentityValue);
+    const knownModel = [identity.model, identity.modelOrItemNumber, identity.sku, identity.styleNumber]
+      .some(hasCustomerKnownIdentityValue);
+    // Customer-entered identifiers are claims to verify, not exact-identity proof.
+    // Ask for supporting evidence instead of asking the customer to enter them again.
     if (!hasCustomerKnownIdentityValue(identity.brand) && !hasCustomerKnownIdentityValue(identity.manufacturer) && !hasCustomerKnownIdentityValue(identity.makerIdentity)) {
       addUnique(details, "Close photos of every maker’s mark, logo, stamp, or patent number.");
     }
-    if (!hasCustomerKnownIdentityValue(identity.model) && !hasCustomerKnownIdentityValue(identity.sku) && !hasCustomerKnownIdentityValue(identity.styleNumber)) {
-      addUnique(details, "The model or part number, if one appears on the base, back, or moving parts.");
+    if (!knownModel) {
+      addUnique(details, suppliedModel
+        ? "A close photo of the maker/model label to verify the details you entered."
+        : "The model or part number, if one appears on the base, back, or moving parts.");
     }
     if (!hasCustomerKnownIdentityValue(identity.dimensions) && !hasCustomerKnownIdentityValue(identity.size)) {
       addUnique(details, "A full side view beside a ruler, plus what moves when the handle or mechanism is operated.");
@@ -22143,7 +22673,8 @@ function buildCustomerConfidenceSummary({
   identity = {},
   identityConfidence = {},
   pricingConfidence = {},
-  customerMissingDetails = []
+  customerMissingDetails = [],
+  customerClaimCorroboration = null
 } = {}) {
   const subject = firstCustomerKnownIdentity(
     identity.likelyItemDescription,
@@ -22161,13 +22692,17 @@ function buildCustomerConfidenceSummary({
   const missing = normalizeStringArray(customerMissingDetails, 3);
   const primaryMissing = cleanText(missing[0]).replace(/[.!?]+$/, "");
   const sentenceMissing = primaryMissing ? `${primaryMissing.charAt(0).toLowerCase()}${primaryMissing.slice(1)}` : "";
+  const corroboratedDetail = cleanText(customerClaimCorroboration?.reportedDetail);
+  const corroboratingSource = cleanText(customerClaimCorroboration?.sourceLabel || customerClaimCorroboration?.sourceTitle);
   return {
     photoMatch: `Photo match: ${photoLevel} — the photos support ${subject}.`,
     exactItem: exactIdentity && !/^(?:Low|Insufficient)$/i.test(exactLevel)
       ? `Exact item: ${exactLevel} — ${exactIdentity}.`
       : exactIdentity
         ? `Exact item: ${exactLevel} — ${exactIdentity} is the likely product, but it still needs ${sentenceMissing || "a decisive configuration detail"}.`
-        : `Exact item: ${exactLevel} — needs ${sentenceMissing || "a decisive label, model, size, or maker detail"}.`,
+        : corroboratedDetail
+          ? `Exact item: ${exactLevel} — ${corroboratingSource || "a returned source"} mentions the customer-reported ${corroboratedDetail}, but it still needs ${sentenceMissing || "a readable label or mark to link that reference to this photographed item"}.`
+          : `Exact item: ${exactLevel} — needs ${sentenceMissing || "a decisive label, model, size, or maker detail"}.`,
     priceSupport: /^(?:Low|Insufficient)$/i.test(priceLevel)
       ? `Price support: ${priceLevel} — no qualifying compatible price evidence established a value range.`
       : `Price support: ${priceLevel} — the displayed value uses qualifying compatible price evidence.`
@@ -22914,7 +23449,7 @@ function buildItemIdentification(identity = {}) {
   return `Identified as: ${identityParts.join("; ")}.`;
 }
 
-function buildIdentityReportFields(identity, liveSearch = {}) {
+function buildIdentityReportFields(identity, liveSearch = {}, { customerClaimCorroboration = null } = {}) {
   const known = [];
   const unknowns = normalizeStringArray(identity.identityUnknowns, 8);
   const visualEvidence = normalizeStringArray(identity.visualIdentityEvidence, 6);
@@ -22941,6 +23476,11 @@ function buildIdentityReportFields(identity, liveSearch = {}) {
   }
   for (const item of textEvidence.slice(0, 3)) {
     known.push(`Text evidence: ${item}`);
+  }
+  if (customerClaimCorroboration?.reportedDetail && customerClaimCorroboration?.sourceTitle) {
+    known.push(
+      `Source corroboration: ${customerClaimCorroboration.sourceTitle} mentions the customer-reported ${customerClaimCorroboration.reportedDetail}; this supports the research lead but does not verify the photographed item's label.`
+    );
   }
   if (hasKnownValue(identity.exactComparableStatus)) {
     known.push(`Comparable status: ${identity.exactComparableStatus}`);
@@ -24044,6 +24584,88 @@ function createOpenAIRequestError({
   return error;
 }
 
+async function requestOpenAIInputTokenCountNetwork({ apiKey, payload, timeoutMs = 90000 }) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, Math.min(90000, Math.max(1, Number(timeoutMs) || 90000)));
+
+  try {
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses/input_tokens", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `katherine-input-token-count-${sha256Object(payload)}`
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (error) {
+      throw createOpenAIRequestError({
+        message: timedOut ? "OpenAI input token counting timed out." : error.message || "OpenAI input token counting failed.",
+        category: timedOut || error.name === "AbortError" ? "timeout" : "provider_error",
+        timedOut: timedOut || error.name === "AbortError",
+        cause: error
+      });
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      if (timedOut || error?.name === "AbortError") {
+        throw createOpenAIRequestError({
+          message: "OpenAI input token counting timed out while reading the response.",
+          category: "timeout",
+          timedOut: true,
+          cause: error
+        });
+      }
+      data = {};
+    }
+    if (!response.ok) {
+      const message = data.error && data.error.message
+        ? data.error.message
+        : "OpenAI input token counting failed.";
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        type: data.error && data.error.type,
+        code: data.error && data.error.code,
+        message,
+        category: classifyOpenAIErrorDetails({
+          statusCode: response.status,
+          type: data.error && data.error.type,
+          code: data.error && data.error.code,
+          message
+        }),
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
+    if (!Number.isSafeInteger(data.input_tokens) || data.input_tokens < 0) {
+      throw createOpenAIRequestError({
+        statusCode: response.status,
+        code: "invalid_input_token_count",
+        message: "OpenAI input token counting returned an invalid count.",
+        category: "provider_response_invalid",
+        providerRequestId: response.headers.get("x-request-id")
+      });
+    }
+    return {
+      input_tokens: data.input_tokens,
+      data,
+      statusCode: response.status,
+      providerRequestId: response.headers.get("x-request-id")
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function requestOpenAIJsonNetwork({ apiKey, payload }) {
   const controller = new AbortController();
   let timedOut = false;
@@ -24606,6 +25228,14 @@ function parseBody(body) {
 export const __queryIntegrityTestHooks = {
   productionOpenAITransport,
   requestProductionOpenAIJson,
+  requestOpenAIInputTokenCountNetwork,
+  createModelExecutionBudget,
+  createInputTokenCountPayload,
+  createResponsesPayload,
+  enforceExactModelRequestBudget,
+  maximumPublishedRequestCost,
+  providerAuthorizationExposure,
+  buildModelExecutionBudgetEvidence,
   normalizeBuyerIntake,
   finalizeIdentityForResearch,
   buildCanonicalProductIdentity,

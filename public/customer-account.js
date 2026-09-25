@@ -211,6 +211,8 @@
   }
 
   function evidenceSnapshot(report) {
+    const exactItemUnverified = /^(?:not verified|unverified|unknown)\b/i.test(cleanText(report?.exactProductIdentity, 160))
+      || /^(?:insufficient|low)\b/i.test(cleanText(report?.exactProductConfidence, 160));
     const viewModel = root.KatherinesEyeCustomerEvidence?.buildCustomerEvidenceViewModel?.(
       report?.customerEvidence,
       report?.customerEvidenceSummary
@@ -230,7 +232,9 @@
       .map((finding) => ({
         source: finding.sourceLabel,
         title: finding.title,
-        match: finding.relationship,
+        match: exactItemUnverified && /^identity match$/i.test(cleanText(finding.relationship, 160))
+          ? "Reference match only; photographed identity unverified"
+          : finding.relationship,
         price: "",
         deliveredCost: "",
         availability: "",
