@@ -167,7 +167,7 @@ test("one active collectible ask separates strong identity from limited pricing"
   });
 
   assert.equal(value.rangeResult.status, "single_observation");
-  assert.equal(value.confidenceResult.identity.level, "high");
+  assert.equal(value.confidenceResult.identity.level, "medium", "Multiple lookalikes without an exact identifier cannot establish high exact-item confidence.");
   assert.equal(value.confidenceResult.pricing.level, "low");
   assert.equal(value.decisionResult.recommendationCode, "need_more_information");
   assert.equal(value.badgeResult.code, "asking_price_context_only");

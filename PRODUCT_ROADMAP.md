@@ -1,11 +1,12 @@
 # Katherine’s Eye Roadmap
 
-## Version 1.12.52 (Local beta product candidate; unpublished)
+## Version 1.12.52 (Private Preview published; subsequent report-fidelity repair local)
 
 - Retain customer-reported maker/model as unverified input, carry it into research, and show relevant source corroboration without promoting it to a verified photographed identity or price.
 - Preserve that evidence, uncertainty, and next action through saved-history reopening and a fresh customer session.
 - Bound exact token counting and generation against the cumulative USD 2.50 local-analysis ceiling; show an explicit, non-saveable interruption when counting, generation, or the spending guard stops an analysis.
-- Keep the affected browser fixtures self-contained and synthetic. Controlled local checks and the release-version build pass; live OBJ-001 analysis, publication, and hosted customer verification remain separate, unperformed gates.
+- Keep the affected browser fixtures self-contained and synthetic. Controlled local checks and the release-version build passed for the published `c60e722` candidate. The later OBJ-008 Preview customer run is retained as a defect report, not repeated here; live OBJ-001 remains unperformed.
+- The local successor uses one four-axis confidence model in live and saved reports, preserves full identification text, binds customer links to acquisition records, and distinguishes observed provider activity and model reservation from UNKNOWN exact billing. This repair is not yet published or verified with live providers.
 
 ## Version 1.12.52 (Completed)
 

@@ -51,7 +51,11 @@
   function buildCard(record) {
     const badgeCode = cleanText(record.cardBadgeCode);
     const badgeLabel = cleanText(record.cardBadgeLabel);
-    const destinationUrl = cleanText(record.destinationUrl);
+    const claimedUrl = cleanText(record.destinationUrl);
+    const bound = record.sourceProvenance?.sourceRecordId
+      && record.sourceProvenance?.acquisitionProvider
+      && cleanText(record.sourceProvenance?.sourceUrl) === claimedUrl;
+    const destinationUrl = bound ? claimedUrl : "";
     const sourceLabel = cleanText(record.sourceLabel);
     const title = cleanText(record.title);
     const canonicalMatchLabel = cleanText(record.canonicalMatchLabel);
@@ -68,6 +72,7 @@
       evidenceId: cleanText(record.evidenceId),
       underlyingOfferId: cleanText(record.underlyingOfferId),
       destinationUrl,
+      sourceProvenance: bound ? record.sourceProvenance : null,
       sourceLabel,
       title,
       canonicalMatchCode: cleanText(record.canonicalMatchCode),

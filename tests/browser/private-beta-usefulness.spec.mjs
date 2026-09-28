@@ -127,7 +127,7 @@ test("actual handler and customer UI keep useful source context without unsuppor
   expect(handlerEvidence.metadata.customerSearchTrace.retentionLimitation).toContain("not complete raw provider payloads");
 
   const reportRoot = page.locator(".report-root");
-  await expect(reportRoot.locator(".report-identity-header")).toContainText("Photo match:");
+  await expect(reportRoot.locator(".report-identity-header")).toContainText("Visible item:");
   await expect(reportRoot.locator(".report-identity-header")).toContainText("Exact item: Insufficient");
   await expect(reportRoot.locator(".report-identity-header")).not.toContainText("Subject Confidence:");
   await expect(reportRoot.locator(".customer-source-findings")).toContainText(expectedSource);
@@ -218,9 +218,11 @@ test("review correction: incomplete retail identity subtitle follows authoritati
   await expect(page.locator(".report-identity-subtitle")).not.toContainText("support this exact-item identification");
   const subtitleChecks = await page.evaluate(() => ({
     insufficient: buildCustomerIdentitySubtitle({ identificationConfidence: "Insufficient", exactProductConfidence: "High", subjectIdentity: "retail jar" }, "Named product"),
-    high: buildCustomerIdentitySubtitle({ identificationConfidence: "High - authenticated identity evidence", subjectIdentity: "retail jar" }, "Named product")
+    highWithoutIdentifier: buildCustomerIdentitySubtitle({ identificationConfidence: "High - model claim only", subjectIdentity: "retail jar" }, "Named product"),
+    high: buildCustomerIdentitySubtitle({ customerConfidence: { exactItem: { level: "High", acceptedExactIdentifier: true } }, subjectIdentity: "retail jar" }, "Named product")
   }));
   expect(subtitleChecks.insufficient).toContain("not confirmed yet");
+  expect(subtitleChecks.highWithoutIdentifier).toContain("not confirmed yet");
   expect(subtitleChecks.high).toContain("support this exact-item identification");
   await writeFile(testInfo.outputPath("controlled-review-report.txt"), `CONTROLLED-PROVIDER EVIDENCE — not a live Sequence-20 rerun\n\n${await page.locator(".report-root").innerText()}\n`, "utf8");
 });

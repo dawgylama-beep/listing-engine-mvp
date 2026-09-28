@@ -2291,6 +2291,7 @@ function renderReport(report, sections) {
 
   if (isConsumerReport(report)) {
     reportRoot.appendChild(renderConsumerCompactSummary(report, currentWorkflow));
+    reportRoot.appendChild(renderConfidenceExplainer(report));
     appendReportSection(reportRoot, renderCustomerSourceFindingsSection(report));
     reportRoot.appendChild(renderActionPlan(report, currentWorkflow));
     appendReportSection(reportRoot, renderCanonicalCustomerEvidenceSection(report));
@@ -2411,8 +2412,8 @@ function isCustomerVerifiedIdentity(value) {
 }
 
 function buildCustomerIdentitySubtitle(report = {}, verifiedExactProductIdentity = "") {
-  const exactItemConfidence = String(report.identificationConfidence || "").trim();
-  if (verifiedExactProductIdentity && /^high\b/i.test(exactItemConfidence)) {
+  const exactItemConfidence = String(report.customerConfidence?.exactItem?.level || "").trim();
+  if (verifiedExactProductIdentity && exactItemConfidence === "High" && report.customerConfidence?.exactItem?.acceptedExactIdentifier === true) {
     return `The photos and supplied details support this exact-item identification. Pricing still depends on compatible source evidence.`;
   }
   const subject = firstNonEmpty(report.subjectIdentity, report.visualSubject, report.identifiedItem);
@@ -2431,6 +2432,7 @@ function getCustomerConfidenceSummary(report = {}) {
   return {
     photoMatch: firstNonEmpty(supplied.photoMatch, `Photo match: ${normalizeDisplayValue(photoLevel)}`),
     exactItem: firstNonEmpty(supplied.exactItem, `Exact item: ${normalizeDisplayValue(exactLevel)}`),
+    workingCondition: firstNonEmpty(supplied.workingCondition, "Working condition: Insufficient — appearance does not establish operation."),
     priceSupport: firstNonEmpty(supplied.priceSupport, `Price support: ${getConfidenceText(report)}`)
   };
 }
@@ -3254,6 +3256,7 @@ function renderConfidenceExplainer(report) {
   const support = [
     confidenceSummary.photoMatch,
     confidenceSummary.exactItem,
+    confidenceSummary.workingCondition,
     confidenceSummary.priceSupport
   ].filter(Boolean);
   const block = document.createElement("div");
@@ -3274,6 +3277,18 @@ function renderConfidenceExplainer(report) {
     unavailable.textContent = "The report did not include enough information to explain confidence.";
     block.appendChild(unavailable);
   }
+  const metering = report.customerMetering || {};
+  const counts = [
+    ["Generation requests", metering.generationRequests],
+    ["Token-count requests", metering.tokenCountRequests],
+    ["Search attempts", metering.searchProviderAttempts],
+    ["Search-tool calls", metering.searchToolCalls],
+    ["Direct-page reads", metering.directPageAttempts]
+  ].map(([label, value]) => `${label}: ${Number.isSafeInteger(value) ? value : "UNKNOWN"}`).join(" · ");
+  const meterLine = document.createElement("p");
+  meterLine.className = "customer-metering";
+  meterLine.textContent = `${counts}. Reported tokens: ${Object.keys(metering.reportedTokens || {}).length ? JSON.stringify(metering.reportedTokens) : "UNKNOWN"}. Model-request reservation (not total billing): ${Number.isFinite(metering.reservedUpperBoundDollars) ? `$${metering.reservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN"}; exact billed amount: UNKNOWN. The all-provider spending ceiling is not verified by this display.`;
+  block.appendChild(meterLine);
   return block;
 }
 
@@ -4275,6 +4290,8 @@ function renderCanonicalCustomerEvidenceSection(report = {}) {
 function renderCustomerSourceFindingsSection(report = {}) {
   const findings = normalizeArray(report.customerSourceFindings).filter((item) => (
     item && typeof item === "object" && item.title && /^https?:\/\//i.test(String(item.destinationUrl || ""))
+      && item.sourceProvenance?.sourceUrl === item.destinationUrl
+      && item.sourceProvenance?.sourceRecordId && item.sourceProvenance?.acquisitionProvider
   ));
   if (!findings.length) return null;
 
@@ -4299,6 +4316,7 @@ function renderCustomerSourceFindingsSection(report = {}) {
     const source = document.createElement("span");
     source.className = "customer-source-label";
     source.textContent = finding.sourceLabel || "Source";
+    source.textContent += ` · via ${finding.sourceProvenance.acquisitionProvider}`;
     topline.append(relationship, source);
     const link = document.createElement("a");
     link.href = finding.destinationUrl;
@@ -4417,6 +4435,7 @@ function renderCustomerEvidenceCard(item = {}) {
   [
     ["Evidence ID", item.evidenceId],
     ["Underlying offer ID", item.underlyingOfferId],
+    ["Acquired via", item.sourceProvenance?.acquisitionProvider],
     ["Match", item.canonicalMatchLabel],
     ["Price type", item.canonicalPriceType],
     ["Quantity", item.quantityLabel],
@@ -4445,12 +4464,16 @@ function renderCustomerEvidenceCard(item = {}) {
   actionRow.className = "price-found-actions";
   const link = document.createElement("a");
   link.className = "source-result-link price-found-action";
-  link.href = item.destinationUrl;
+  if (item.sourceProvenance?.sourceRecordId && item.sourceProvenance?.acquisitionProvider
+    && item.sourceProvenance?.sourceUrl === item.destinationUrl) {
+    link.href = item.destinationUrl;
+  }
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = "View source";
   link.setAttribute("aria-label", `View source for ${item.title} at ${item.sourceLabel} (opens in a new tab)`);
-  actionRow.append(link, details);
+  if (link.href) actionRow.appendChild(link);
+  actionRow.appendChild(details);
 
   card.append(
     primary,
@@ -4497,7 +4520,7 @@ function renderResearchResultList(value) {
     const meta = document.createElement("dl");
     meta.className = "source-result-meta";
     [
-      ["Provider", item.providerLabel || item.provider],
+      ["Acquired via", item.sourceProvenance?.acquisitionProvider || "Unverified acquisition"],
       ["Source", item.source],
       ["Source Type", item.sourceType],
       ["Search Pass", formatSearchPass(item.searchPass)],
@@ -4537,7 +4560,8 @@ function renderResearchResultList(value) {
       card.appendChild(explanation);
     }
 
-    if (item.url) {
+    if (item.url && item.sourceProvenance?.sourceRecordId && item.sourceProvenance?.acquisitionProvider
+      && item.sourceProvenance?.sourceUrl === item.url) {
       const link = document.createElement("a");
       link.className = "source-result-link";
       link.href = item.url;

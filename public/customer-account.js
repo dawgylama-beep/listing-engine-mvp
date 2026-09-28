@@ -44,9 +44,10 @@
   let csrfToken = "";
 
   const cleanText = (value, maximum = 1200) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, maximum);
-  const listValues = (value, maximumItems = 16) => {
+  const completeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+  const listValues = (value) => {
     const values = Array.isArray(value) ? value : value ? [value] : [];
-    return [...new Set(values.map((item) => cleanText(item, 500)).filter(Boolean))].slice(0, maximumItems);
+    return [...new Set(values.map(completeText).filter(Boolean))];
   };
   const firstPresent = (...values) => values.find((value) => (
     Array.isArray(value) ? value.some(Boolean) : Boolean(cleanText(value, 1))
@@ -211,14 +212,19 @@
   }
 
   function evidenceSnapshot(report) {
-    const exactItemUnverified = /^(?:not verified|unverified|unknown)\b/i.test(cleanText(report?.exactProductIdentity, 160))
+    const exactItemUnverified = report?.customerConfidence?.exactItem?.acceptedExactIdentifier !== true
+      || /^(?:not verified|unverified|unknown)\b/i.test(cleanText(report?.exactProductIdentity, 160))
       || /^(?:insufficient|low)\b/i.test(cleanText(report?.exactProductConfidence, 160));
     const viewModel = root.KatherinesEyeCustomerEvidence?.buildCustomerEvidenceViewModel?.(
       report?.customerEvidence,
       report?.customerEvidenceSummary
     );
-    const priceEvidence = !viewModel || viewModel.evidenceUnavailable ? [] : viewModel.cards.map((card) => ({
+    const priceEvidence = !viewModel || viewModel.evidenceUnavailable ? [] : viewModel.cards
+      .filter((card) => card.destinationUrl && card.sourceProvenance?.sourceRecordId)
+      .map((card) => ({
       source: card.sourceLabel,
+      acquisitionProvider: card.sourceProvenance.acquisitionProvider,
+      sourceRecordId: card.sourceProvenance.sourceRecordId,
       title: card.title,
       match: card.canonicalMatchLabel,
       price: `${card.customerPriceLabel || "Price unavailable"}${card.canonicalPriceType ? ` · ${card.canonicalPriceType}` : ""}`,
@@ -228,9 +234,14 @@
       url: card.destinationUrl
     }));
     const sourceFindings = (Array.isArray(report?.customerSourceFindings) ? report.customerSourceFindings : [])
+      .filter((finding) => finding.sourceProvenance?.sourceRecordId
+        && finding.sourceProvenance?.acquisitionProvider
+        && finding.sourceProvenance?.sourceUrl === finding.destinationUrl)
       .slice(0, 6)
       .map((finding) => ({
         source: finding.sourceLabel,
+        acquisitionProvider: finding.sourceProvenance.acquisitionProvider,
+        sourceRecordId: finding.sourceProvenance.sourceRecordId,
         title: finding.title,
         match: exactItemUnverified && /^identity match$/i.test(cleanText(finding.relationship, 160))
           ? "Reference match only; photographed identity unverified"
@@ -247,12 +258,12 @@
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    }).slice(0, 12);
+    });
   }
 
   function meaningfulIdentityTitle(report = {}) {
     for (const value of [report.listingTitle, report.exactProductIdentity, report.subjectIdentity, report.identifiedItem, report.visualSubject]) {
-      const text = cleanText(value, 160);
+      const text = completeText(value);
       if (text && !/^(?:not verified|unknown|unverified|insufficient)/i.test(text)) return text;
     }
     return "Saved Katherine’s Eye result";
@@ -260,12 +271,13 @@
 
   function customerConfidenceSnapshot(report = {}) {
     const summary = report.customerConfidenceSummary;
-    if (!summary || typeof summary !== "object" || Array.isArray(summary)) return "";
-    return Object.values(summary).map((value) => cleanText(value, 500)).filter(Boolean).join(" ");
+    if (!summary || typeof summary !== "object" || Array.isArray(summary)) return {};
+    return Object.fromEntries(["photoMatch", "exactItem", "workingCondition", "priceSupport"]
+      .map((key) => [key, completeText(summary[key])]).filter(([, value]) => value));
   }
 
   function buildHistorySnapshot(report = {}) {
-    const pricingDisposition = cleanText(firstNonEmpty(
+    const pricingDisposition = completeText(firstNonEmpty(
       report.valuationEvidenceLabel,
       report.pricingDisposition,
       report.currentRetailPriceAssessment,
@@ -276,21 +288,25 @@
       workflow: currentReportWorkflow,
       title: meaningfulIdentityTitle(report),
       identification: {
-        confidence: cleanText(firstNonEmpty(report.exactProductConfidence, report.identificationConfidence, report.visualSubjectConfidence, "Not established"), 120),
-        summary: cleanText(firstNonEmpty(customerConfidenceSnapshot(report), report.identitySummary, report.visualRecognitionSummary, report.itemIdentification, report.subjectIdentity), 1200)
+        confidence: cleanText(report.customerConfidence?.exactItem?.level || "Insufficient", 120),
+        summary: completeText(firstNonEmpty(report.identitySummary, report.visualRecognitionSummary, report.itemIdentification, report.subjectIdentity)),
+        customerExplanation: completeText(report.customerConfidenceSummary?.exactItem)
       },
+      confidence: customerConfidenceSnapshot(report),
+      confidenceModel: report.customerConfidence || {},
+      metering: report.customerMetering || { billingStatus: "UNKNOWN" },
       listing: {
-        title: cleanText(firstNonEmpty(report.listingTitle, report.optimizedTitle, report.title), 240),
-        description: cleanText(firstNonEmpty(report.listingDescription, report.optimizedDescription, report.description), 6000),
+        title: completeText(firstNonEmpty(report.listingTitle, report.optimizedTitle, report.title)),
+        description: completeText(firstNonEmpty(report.listingDescription, report.optimizedDescription, report.description)),
         itemDetails: listValues(firstPresent(report.itemDetails, report.keyProductFacts, report.keyItemDetails), 24),
         visibleCondition: listValues(firstPresent(report.visibleCondition, report.conditionObservations, report.conditionNotes, report.conditionAssessment), 16)
       },
       pricing: {
         disposition: pricingDisposition,
-        range: cleanText(firstNonEmpty(report.verifiedMarketRange, report.estimatedResaleRange, report.currentRetailPriceAssessment), 160),
-        rationale: cleanText(firstNonEmpty(report.pricingRationale, report.valuationEvidenceExplanation, report.priceBasis, report.fairValueNotEstablished), 1200)
+        range: completeText(firstNonEmpty(report.verifiedMarketRange, report.estimatedResaleRange, report.currentRetailPriceAssessment)),
+        rationale: completeText(firstNonEmpty(report.pricingRationale, report.valuationEvidenceExplanation, report.priceBasis, report.fairValueNotEstablished))
       },
-      recommendation: cleanText(firstNonEmpty(report.recommendation, report.purchaserDecision, report.bestNextStep), 1600),
+      recommendation: completeText(firstNonEmpty(report.recommendation, report.purchaserDecision, report.bestNextStep)),
       uncertainty: listValues(firstPresent(report.whatIsStillUnknown, report.uncertainty, report.searchLimitations), 16),
       alternatives: listValues(firstPresent(report.alternativeIdentifications, report.alternatives, report.possibleIdentities), 12),
       requestedPhotos: listValues(firstPresent(report.requestedAdditionalPhotos, report.additionalPhotosNeeded, report.photosToAdd), 12),
@@ -411,13 +427,13 @@
       const list = document.createElement("ul");
       values.forEach((item) => {
         const row = document.createElement("li");
-        row.textContent = cleanText(item, 500);
+        row.textContent = completeText(item);
         list.appendChild(row);
       });
       section.appendChild(list);
     } else {
       const paragraph = document.createElement("p");
-      paragraph.textContent = cleanText(value, 6000);
+      paragraph.textContent = completeText(value);
       section.appendChild(paragraph);
     }
     parent.appendChild(section);
@@ -436,7 +452,11 @@
     meta.className = "history-item-meta";
     meta.textContent = `Saved ${formatDate(listing.createdAt)} · Expires ${formatDate(listing.expiresAt)} · Uploaded images not retained`;
     article.append(eyebrow, heading, meta);
-    appendSnapshotSection(article, "Identification", [snapshot.title, snapshot.identification?.summary, snapshot.identification?.confidence ? `Confidence: ${snapshot.identification.confidence}` : ""]);
+    appendSnapshotSection(article, "Identification", [snapshot.title, snapshot.identification?.summary, snapshot.identification?.customerExplanation]);
+    const savedConfidence = [snapshot.confidence?.photoMatch, snapshot.confidence?.exactItem, snapshot.confidence?.workingCondition, snapshot.confidence?.priceSupport].filter(Boolean);
+    appendSnapshotSection(article, "Confidence", savedConfidence.length
+      ? savedConfidence
+      : snapshot.identification?.confidence ? [`Legacy saved confidence: ${snapshot.identification.confidence}`] : []);
     appendSnapshotSection(article, "Listing title", snapshot.listing?.title);
     appendSnapshotSection(article, "Listing description", snapshot.listing?.description);
     appendSnapshotSection(article, "Item details", snapshot.listing?.itemDetails);
@@ -456,11 +476,11 @@
       snapshot.evidence.forEach((record) => {
         const row = document.createElement("article");
         const rowTitle = document.createElement("h5");
-        rowTitle.textContent = cleanText(record.title || record.source, 300);
+        rowTitle.textContent = completeText(record.title || record.source);
         const rowCopy = document.createElement("p");
-        rowCopy.textContent = [record.source, record.match, record.price, record.deliveredCost, record.availability, record.limitation].filter(Boolean).join(" · ");
+        rowCopy.textContent = [record.source, record.acquisitionProvider ? `via ${record.acquisitionProvider}` : "", record.match, record.price, record.deliveredCost, record.availability, record.limitation].filter(Boolean).join(" · ");
         row.append(rowTitle, rowCopy);
-        if (record.url) {
+        if (record.url && record.sourceRecordId && record.acquisitionProvider) {
           const link = document.createElement("a");
           link.href = record.url;
           link.target = "_blank";
@@ -472,6 +492,8 @@
       });
       article.appendChild(evidenceSection);
     }
+    const metering = snapshot.metering || {};
+    appendSnapshotSection(article, "Provider activity and billing", `Generation requests: ${Number.isSafeInteger(metering.generationRequests) ? metering.generationRequests : "UNKNOWN"}; token-count requests: ${Number.isSafeInteger(metering.tokenCountRequests) ? metering.tokenCountRequests : "UNKNOWN"}; search attempts: ${Number.isSafeInteger(metering.searchProviderAttempts) ? metering.searchProviderAttempts : "UNKNOWN"}; search-tool calls: ${Number.isSafeInteger(metering.searchToolCalls) ? metering.searchToolCalls : "UNKNOWN"}; direct-page reads: ${Number.isSafeInteger(metering.directPageAttempts) ? metering.directPageAttempts : "UNKNOWN"}; reported tokens: ${Object.keys(metering.reportedTokens || {}).length ? JSON.stringify(metering.reportedTokens) : "UNKNOWN"}; model-request reservation (not total billing): ${Number.isFinite(metering.reservedUpperBoundDollars) ? `$${metering.reservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN"}; exact billed amount: UNKNOWN. The all-provider spending ceiling is not verified by this display.`);
     historyDetail.replaceChildren(article);
   }
 

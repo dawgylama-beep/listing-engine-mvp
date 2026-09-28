@@ -70,6 +70,7 @@ import {
   sealExperienceRecord
 } from "../lib/terminal-evidence.js";
 import { requestKatherineSccInference } from "../lib/katherine-mission-runner.js";
+import { bindCustomerSourceProvenance, finalizeCustomerReportIntegrity } from "../lib/customer-report-integrity.js";
 import { validateContractSchemaValue } from "../qualification/synthetic-executive/scripts/bounded-request-contract.mjs";
 
 const analysisAdapterContext = new AsyncLocalStorage();
@@ -1460,7 +1461,7 @@ async function handleGenerateListingRequest(req, res) {
     }
     completeTerminalStage(TERMINAL_STAGE.INPUT_VALIDATION);
 
-    const report = await generateReportWithOpenAI({
+    const generatedReport = await generateReportWithOpenAI({
       apiKey,
       model: currentAnalysisAdapters().getOpenAIModel(),
       platform,
@@ -1470,10 +1471,11 @@ async function handleGenerateListingRequest(req, res) {
       buyerIntake,
       analysisId
     });
-    report.searchDiagnostics = {
-      ...(report.searchDiagnostics || {}),
+    generatedReport.searchDiagnostics = {
+      ...(generatedReport.searchDiagnostics || {}),
       modelExecutionBudget: buildModelExecutionBudgetEvidence()
     };
+    const report = finalizeCustomerReportIntegrity(generatedReport);
 
     beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     const safeReport = sanitizeClientVisiblePayload({
@@ -2614,7 +2616,8 @@ function buildModelExecutionBudgetEvidence() {
     reservedSpendingDollars: Number(budget.reservedSpendingDollars.toFixed(8)),
     maximumSpendingDollars: budget.maximumSpendingDollars,
     tokenCountReservations: budget.tokenCountReservations.map((reservation) => ({ ...reservation })),
-    reservations: budget.reservations.map((reservation) => ({ ...reservation }))
+    reservations: budget.reservations.map((reservation) => ({ ...reservation })),
+    observations: budget.observations.map((observation) => ({ ...observation }))
   });
 }
 
@@ -12149,6 +12152,8 @@ function serperRecordToVisibleResearchRecord(record = {}) {
       ? "Medium"
       : "Low";
   return {
+    sourceRecordId: record.sourceRecordId,
+    acquisitionProvider: record.acquisitionProvider || record.provider || "serper_google",
     title: record.title || record.url || "Source result",
     source: record.domain || record.source || "Serper Google result",
     url: record.url,
@@ -17448,12 +17453,16 @@ function buildResearchVisibilityFields(liveSearch = {}) {
   ].slice(0, 24);
   const searchLimitations = buildSearchLimitations(liveSearch, resultsFound);
   const visibleResearchResultCount = resultsFound.length;
-  const customerSourceFindings = buildCustomerSourceFindings({
+  const unboundCustomerSourceFindings = buildCustomerSourceFindings({
     itemIdentificationEvidence,
     partialComparables,
     referenceResults,
     rejectedMatches
   });
+  const customerSourceFindings = bindCustomerSourceProvenance({
+    searchDiagnostics: { providerSourceRecords: liveSearch.providerSourceRecords },
+    customerSourceFindings: unboundCustomerSourceFindings
+  }).customerSourceFindings;
   const customerSearchTrace = buildCustomerSearchTrace(liveSearch, resultsFound);
 
   return {
@@ -17512,6 +17521,8 @@ function buildCustomerSourceFindings({
     if (seen.has(identity)) continue;
     seen.add(identity);
     findings.push({
+      sourceRecordId: cleanText(record.sourceRecordId),
+      acquisitionProvider: cleanText(record.acquisitionProvider || record.provider),
       title,
       sourceLabel: cleanText(record.source || record.providerLabel || hostnameFromUrl(url) || "Source"),
       destinationUrl: url,
@@ -17689,6 +17700,8 @@ function normalizeExistingResearchRecord(item, bucketName) {
     : cleanText(item.classification) || inferResultClassification(rawText, bucketName);
   const matchLevel = comparableMatchLevel({ ...item, classification }, bucketName);
   return {
+    sourceRecordId: cleanText(item.sourceRecordId),
+    acquisitionProvider: cleanText(item.acquisitionProvider || item.provider),
     title: cleanText(item.title) || extractResultTitle(rawText, cleanText(item.source), url),
     source: cleanText(item.source) || inferSourceFromResult(rawText, url),
     url,
