@@ -91,10 +91,14 @@ const MAX_INPUT_TOKEN_COUNT_REQUESTS = 10;
 const MAX_WEB_SEARCH_TOOL_CALLS = 8;
 const MAX_BILLABLE_PROVIDER_REQUESTS = 10;
 const MAX_ANALYSIS_SPENDING_DOLLARS = 2.5;
+const MAX_SERPER_ATTEMPTS = 6;
+const SERPER_ATTEMPT_RESERVATION_DOLLARS = 0.01;
+const SERPER_RESERVATION_DOLLARS = MAX_SERPER_ATTEMPTS * SERPER_ATTEMPT_RESERVATION_DOLLARS;
 const STANDARD_SERVICE_TIER = "default";
 const OPENAI_WEB_SEARCH_CALL_DOLLARS = 0.01;
 const GPT_4_1_MINI_WEB_SEARCH_CONTENT_TOKENS = 8000;
 const MODEL_REQUEST_BUDGET_BINDING = Symbol("modelRequestBudgetBinding");
+const SERPER_ATTEMPT_LEDGER_BINDING = Symbol("serperAttemptLedgerBinding");
 const DEFAULT_VISUAL_IDENTITY_MODEL = "gpt-5.6-luna";
 const WEBSITE_COGNITION_LOCAL_BETA_MODE = "LOCAL_BETA";
 const WEBSITE_COGNITION_DISABLED_MODE = "DISABLED";
@@ -1432,6 +1436,7 @@ async function handleGenerateListingRequest(req, res) {
     }
 
     const safePhotos = validateAndNormalizePhotos(photos);
+    assertTotalProviderBudget();
     const websiteCognition = await prepareWebsiteCognition({
       analysisId,
       reportType,
@@ -2226,12 +2231,18 @@ async function requestOpenAIJson(args) {
 
 function createModelExecutionBudget() {
   return {
-    schemaVersion: "1.0",
+    schemaVersion: "2.0",
     maximumModelGenerationRequests: MAX_MODEL_GENERATION_REQUESTS,
     maximumInputTokenCountRequests: MAX_INPUT_TOKEN_COUNT_REQUESTS,
     maximumWebSearchToolCalls: MAX_WEB_SEARCH_TOOL_CALLS,
     maximumBillableProviderRequests: MAX_BILLABLE_PROVIDER_REQUESTS,
-    maximumSpendingDollars: MAX_ANALYSIS_SPENDING_DOLLARS,
+    maximumSpendingDollars: MAX_ANALYSIS_SPENDING_DOLLARS - SERPER_RESERVATION_DOLLARS,
+    maximumTotalProviderSpendingDollars: MAX_ANALYSIS_SPENDING_DOLLARS,
+    maximumSerperAttempts: MAX_SERPER_ATTEMPTS,
+    serperAttemptReservationDollars: SERPER_ATTEMPT_RESERVATION_DOLLARS,
+    serperReservedSpendingDollars: SERPER_RESERVATION_DOLLARS,
+    serperAttemptCount: 0,
+    serperAttempts: [],
     modelGenerationRequestCount: 0,
     inputTokenCountRequestCount: 0,
     webSearchToolCallCount: 0,
@@ -2243,6 +2254,25 @@ function createModelExecutionBudget() {
     tokenCountReservations: [],
     observations: []
   };
+}
+
+function assertTotalProviderBudget(budget = currentModelExecutionBudget()) {
+  const total = budget.maximumTotalProviderSpendingDollars;
+  const serper = budget.serperReservedSpendingDollars;
+  if (
+    !Number.isFinite(total) || !Number.isFinite(serper)
+    || !Number.isFinite(budget.maximumSpendingDollars)
+    || !Number.isFinite(budget.reservedSpendingDollars)
+    || total < 0 || serper < 0 || budget.maximumSpendingDollars < 0
+    || budget.maximumSpendingDollars + serper > total + Number.EPSILON
+    || budget.reservedSpendingDollars + serper > total + Number.EPSILON
+  ) {
+    throw createClientSafeAnalysisError({
+      statusCode: 502,
+      code: "ANALYSIS_SPENDING_LIMIT_REACHED",
+      message: SAFE_ANALYSIS_SPENDING_LIMIT_MESSAGE
+    });
+  }
 }
 
 function currentModelExecutionBudget() {
@@ -2378,6 +2408,7 @@ async function enforceExactModelRequestBudget({
   budget = currentModelExecutionBudget(),
   adapters = currentAnalysisAdapters()
 } = {}) {
+  assertTotalProviderBudget(budget);
   const maxOutputTokens = Number(payload?.max_output_tokens);
   if (!Number.isInteger(maxOutputTokens) || maxOutputTokens <= 0 || maxOutputTokens > 6000) {
     throw new Error("Model output token limit is missing or invalid.");
@@ -2420,7 +2451,8 @@ async function enforceExactModelRequestBudget({
   const maximumCountableInputTokens = maximumInputTokenCountRequestTokens(payload);
   const preDispatchCountCost = maximumPublishedInputTokenCountCost(payload, maximumCountableInputTokens);
   const projectedCountCost = budget.reservedSpendingDollars + preDispatchCountCost.inputCostDollars;
-  if (projectedCountCost > budget.maximumSpendingDollars + Number.EPSILON) {
+  if (projectedCountCost > budget.maximumSpendingDollars + Number.EPSILON
+    || projectedCountCost + budget.serperReservedSpendingDollars > budget.maximumTotalProviderSpendingDollars + Number.EPSILON) {
     const error = createClientSafeAnalysisError({
       statusCode: 502,
       code: "ANALYSIS_SPENDING_LIMIT_REACHED",
@@ -2537,7 +2569,8 @@ async function enforceExactModelRequestBudget({
   else if (budget.modelGenerationRequestCount >= budget.maximumModelGenerationRequests) rejection = "MODEL_GENERATION_REQUEST_LIMIT_REACHED";
   else if (budget.billableProviderRequestCount >= budget.maximumBillableProviderRequests) rejection = "BILLABLE_PROVIDER_REQUEST_LIMIT_REACHED";
   else if (webSearchToolCalls > 1 || budget.webSearchToolCallCount + webSearchToolCalls > budget.maximumWebSearchToolCalls) rejection = "WEB_SEARCH_TOOL_CALL_LIMIT_REACHED";
-  else if (observation.projectedCumulativeCostDollars > budget.maximumSpendingDollars + Number.EPSILON) rejection = "ANALYSIS_SPENDING_LIMIT_REACHED";
+  else if (observation.projectedCumulativeCostDollars > budget.maximumSpendingDollars + Number.EPSILON
+    || observation.projectedCumulativeCostDollars + budget.serperReservedSpendingDollars > budget.maximumTotalProviderSpendingDollars + Number.EPSILON) rejection = "ANALYSIS_SPENDING_LIMIT_REACHED";
 
   if (rejection) {
     observation.guardResult = "reject";
@@ -2615,6 +2648,15 @@ function buildModelExecutionBudgetEvidence() {
     exactCountedInputTokens: budget.exactCountedInputTokens,
     reservedSpendingDollars: Number(budget.reservedSpendingDollars.toFixed(8)),
     maximumSpendingDollars: budget.maximumSpendingDollars,
+    maximumTotalProviderSpendingDollars: budget.maximumTotalProviderSpendingDollars,
+    serperReservedSpendingDollars: budget.serperReservedSpendingDollars,
+    maximumSerperAttempts: budget.maximumSerperAttempts,
+    serperAttemptReservationDollars: budget.serperAttemptReservationDollars,
+    serperAttemptCount: budget.serperAttemptCount,
+    serperAttempts: budget.serperAttempts.map((attempt) => ({ ...attempt })),
+    totalReservedUpperBoundDollars: Number((budget.reservedSpendingDollars + budget.serperReservedSpendingDollars).toFixed(8)),
+    exactBilledDollars: null,
+    exactBillingStatus: "UNKNOWN",
     tokenCountReservations: budget.tokenCountReservations.map((reservation) => ({ ...reservation })),
     reservations: budget.reservations.map((reservation) => ({ ...reservation })),
     observations: budget.observations.map((observation) => ({ ...observation }))
@@ -5383,7 +5425,7 @@ function createPhysicalAttemptBudget(maximumAttempts = 0, category = "provider_s
   };
 }
 
-function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false, provider = "" } = {}) {
+function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false, provider = "", providerLedger } = {}) {
   if (!Number.isSafeInteger(requestRecord.maximumPhysicalAttemptsPerLogicalRequest)) {
     configureProviderRequestMetering(requestRecord, { provider });
   }
@@ -5397,12 +5439,27 @@ function consumePhysicalAttempt(budget = {}, requestRecord = {}, { retry = false
     return false;
   }
   if (cleanText(provider).toLowerCase() === "serper_google") {
-    const modelBudget = currentEvaluationTerminalContext()?.modelExecutionBudget;
+    const modelBudget = providerLedger || currentEvaluationTerminalContext()?.modelExecutionBudget;
     if (modelBudget) {
-      if (modelBudget.billableProviderRequestCount >= modelBudget.maximumBillableProviderRequests) {
+      assertTotalProviderBudget(modelBudget);
+      if (modelBudget.billableProviderRequestCount >= modelBudget.maximumBillableProviderRequests
+        || modelBudget.serperAttemptCount >= modelBudget.maximumSerperAttempts) {
         return false;
       }
       modelBudget.billableProviderRequestCount += 1;
+      modelBudget.serperAttemptCount += 1;
+      modelBudget.serperAttempts.push({
+        ordinal: modelBudget.serperAttemptCount,
+        retry: Boolean(retry),
+        status: "ATTEMPTED",
+        conservativeExposureDollars: modelBudget.serperAttemptReservationDollars,
+        exactBilledDollars: null,
+        exactBillingStatus: "UNKNOWN"
+      });
+      Object.defineProperty(requestRecord, SERPER_ATTEMPT_LEDGER_BINDING, {
+        value: { ledger: modelBudget, ordinal: modelBudget.serperAttemptCount },
+        configurable: true
+      });
     }
   }
   budget.physicalAttemptCount = Number(budget.physicalAttemptCount || 0) + 1;
@@ -5444,6 +5501,14 @@ function recordPhysicalAttemptOutcome(requestRecord = {}, outcome = "", provider
     ...metering
   };
   requestRecord.physicalAttempts = attempts;
+  const serperBinding = requestRecord[SERPER_ATTEMPT_LEDGER_BINDING];
+  if (serperBinding) {
+    const index = serperBinding.ordinal - 1;
+    serperBinding.ledger.serperAttempts[index] = {
+      ...serperBinding.ledger.serperAttempts[index],
+      status: cleanText(outcome || "unknown").toUpperCase()
+    };
+  }
   requestRecord.statusCode = metering.statusCode ?? requestRecord.statusCode ?? null;
   requestRecord.returnedModel = metering.returnedModel;
   requestRecord.reportedTokens = metering.reportedTokens;
@@ -5512,6 +5577,7 @@ async function requestSerperSearchWithBudget({
   apiKey,
   maxRetries = 1,
   governedMaximumRetries = maximumProviderRetriesForCurrentExecution(),
+  providerLedger,
   requestAdapter = requestSerperSearch
 } = {}) {
   requestRecord.logicalQueryAttempted = true;
@@ -5527,7 +5593,8 @@ async function requestSerperSearchWithBudget({
   for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     if (!consumePhysicalAttempt(attemptBudget, requestRecord, {
       retry: attempt > 0,
-      provider: "serper_google"
+      provider: "serper_google",
+      providerLedger
     })) {
       if (!requestRecord.physicalAttemptCount) {
         requestRecord.attempted = false;
@@ -25243,6 +25310,7 @@ export const __queryIntegrityTestHooks = {
   requestProductionOpenAIJson,
   requestOpenAIInputTokenCountNetwork,
   createModelExecutionBudget,
+  assertTotalProviderBudget,
   createInputTokenCountPayload,
   createResponsesPayload,
   enforceExactModelRequestBudget,

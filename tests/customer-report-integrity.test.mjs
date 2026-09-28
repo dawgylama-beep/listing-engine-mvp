@@ -135,6 +135,37 @@ test("available token telemetry is retained while absent billing stays UNKNOWN",
   assert.equal(metering.billingStatus, "UNKNOWN");
 });
 
+test("current total-provider reservation and failed Serper attempt survive save without invented billing", () => {
+  const input = report();
+  input.searchDiagnostics.modelExecutionBudget = {
+    schemaVersion: "2.0", modelGenerationRequestCount: 2, inputTokenCountRequestCount: 2,
+    webSearchToolCallCount: 0, reservedSpendingDollars: 1.2,
+    maximumSpendingDollars: 2.44, maximumTotalProviderSpendingDollars: 2.5,
+    serperReservedSpendingDollars: 0.06, maximumSerperAttempts: 6, serperAttemptReservationDollars: 0.01,
+    serperAttemptCount: 2, serperAttempts: [
+      { ordinal: 1, status: "FAILED", conservativeExposureDollars: 0.01 },
+      { ordinal: 2, status: "SUCCEEDED", conservativeExposureDollars: 0.01 }
+    ], observations: []
+  };
+  const metering = finalizeCustomerReportIntegrity(input).customerMetering;
+  assert.equal(metering.reservationScope, "TOTAL_PROVIDER_CONSERVATIVE_EXPOSURE");
+  assert.equal(metering.modelReservedUpperBoundDollars, 1.2);
+  assert.equal(metering.serperReservedUpperBoundDollars, 0.06);
+  assert.equal(metering.reservedUpperBoundDollars, 1.26);
+  assert.equal(metering.maximumAuthorizedDollars, 2.5);
+  assert.equal(metering.searchProviderAttempts, 2);
+  assert.equal(metering.serperAttemptRecords[0].status, "FAILED");
+  assert.equal(metering.billingStatus, "UNKNOWN");
+  assert.equal(metering.exactBilledDollars, null);
+  const saved = sanitizeHistorySnapshot({ metering });
+  assert.equal(saved.metering.reservationScope, metering.reservationScope);
+  assert.equal(saved.metering.serperAttemptRecords[0].status, "FAILED");
+  assert.equal(saved.metering.reservedUpperBoundDollars, 1.26);
+  assert.equal(saved.metering.exactBilledDollars, null);
+  const inconsistent = sanitizeHistorySnapshot({ metering: { ...metering, modelReservedUpperBoundDollars: 2.5 } });
+  assert.equal(inconsistent.metering.reservationScope, "MODEL_EXECUTION_ONLY_NOT_TOTAL_PROVIDER_BILLING");
+});
+
 test("oversized report text fails saving instead of ending mid-sentence", () => {
   assert.throws(() => sanitizeHistorySnapshot({ identification: { summary: "x".repeat(32001) } }), {
     code: "history_snapshot_too_large"

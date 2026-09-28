@@ -2,10 +2,22 @@ import assert from "node:assert/strict";
 import { expect, test } from "@playwright/test";
 import { createCustomerAccountHandler } from "../../api/customer-account.js";
 import { createCustomerAccountService, createMemoryCustomerAccountStore } from "../../lib/customer-account/service.js";
+import { buildCustomerMetering } from "../../lib/customer-report-integrity.js";
 import { buildControlledCustomerModelCorroborationReport } from "../helpers/build-browser-handler-response.mjs";
 
 test("actual live renderer and saved history retain confidence, full identification, source and unknown billing", async ({ page, context }) => {
   const report = await buildControlledCustomerModelCorroborationReport();
+  report.searchDiagnostics.modelExecutionBudget = {
+    ...report.searchDiagnostics.modelExecutionBudget,
+    maximumSpendingDollars: 2.44,
+    maximumTotalProviderSpendingDollars: 2.5,
+    serperReservedSpendingDollars: 0.06,
+    maximumSerperAttempts: 6,
+    serperAttemptReservationDollars: 0.01,
+    serperAttemptCount: 0,
+    serperAttempts: []
+  };
+  report.customerMetering = buildCustomerMetering(report);
   report.identitySummary = `${report.identitySummary || "Customer-reported model remains unverified."} ${"A readable maker/model label is still needed to link the reference to this photographed item. ".repeat(20)}`.trim();
   const untracedUrl = "https://www.ebay.com/itm/116634924403";
   report.customerSourceFindings.push({ title: "Untraced source", destinationUrl: untracedUrl, relationship: "Identity match" });
@@ -48,6 +60,8 @@ test("actual live renderer and saved history retain confidence, full identificat
     await expect(page.locator("#results")).toContainText(line);
   }
   await expect(page.locator(`#results a[href="${untracedUrl}"]`)).toHaveCount(0);
+  await expect(page.locator("#results")).toContainText("Conservative total-provider reservation:");
+  await expect(page.locator("#results")).toContainText("Exact billed amount: UNKNOWN");
   await page.locator("#save-listing-button").click();
   await expect(page.locator("#save-listing-button")).toHaveText("Saved");
   await page.reload();
@@ -57,6 +71,7 @@ test("actual live renderer and saved history retain confidence, full identificat
   for (const line of Object.values(liveConfidence)) await expect(detail).toContainText(line);
   await expect(detail).toContainText(completeEnding);
   await expect(detail).toContainText("exact billed amount: UNKNOWN");
+  await expect(detail).toContainText("conservative total-provider reservation:");
   await expect(detail).toContainText(`direct-page reads: ${report.customerMetering.directPageAttempts ?? "UNKNOWN"}`);
   await expect(detail.locator(`a[href="${untracedUrl}"]`)).toHaveCount(0);
   assert.deepEqual(forbidden, [], "Reopening made no provider or external request.");
@@ -65,6 +80,8 @@ test("actual live renderer and saved history retain confidence, full identificat
   assert.deepEqual(saved.confidence, liveConfidence);
   assert.deepEqual(saved.confidenceModel, report.customerConfidence);
   assert.equal(saved.metering.billingStatus, "UNKNOWN");
+  assert.equal(saved.metering.reservationScope, "TOTAL_PROVIDER_CONSERVATIVE_EXPOSURE");
+  assert.equal(saved.metering.serperReservedUpperBoundDollars, 0.06);
   assert(saved.evidence.every((source) => !source.url || (source.sourceRecordId && source.acquisitionProvider)));
   assert(!saved.evidence.some((source) => source.url === untracedUrl));
 });

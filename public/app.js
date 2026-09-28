@@ -3287,7 +3287,9 @@ function renderConfidenceExplainer(report) {
   ].map(([label, value]) => `${label}: ${Number.isSafeInteger(value) ? value : "UNKNOWN"}`).join(" · ");
   const meterLine = document.createElement("p");
   meterLine.className = "customer-metering";
-  meterLine.textContent = `${counts}. Reported tokens: ${Object.keys(metering.reportedTokens || {}).length ? JSON.stringify(metering.reportedTokens) : "UNKNOWN"}. Model-request reservation (not total billing): ${Number.isFinite(metering.reservedUpperBoundDollars) ? `$${metering.reservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN"}; exact billed amount: UNKNOWN. The all-provider spending ceiling is not verified by this display.`;
+  const totalReserved = metering.reservationScope === "TOTAL_PROVIDER_CONSERVATIVE_EXPOSURE";
+  const reservation = Number.isFinite(metering.reservedUpperBoundDollars) ? `$${metering.reservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN";
+  meterLine.textContent = `${counts}. Reported tokens: ${Object.keys(metering.reportedTokens || {}).length ? JSON.stringify(metering.reportedTokens) : "UNKNOWN"}. ${totalReserved ? `Conservative total-provider reservation: ${reservation} (model ${Number.isFinite(metering.modelReservedUpperBoundDollars) ? `$${metering.modelReservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN"} + Serper ${Number.isFinite(metering.serperReservedUpperBoundDollars) ? `$${metering.serperReservedUpperBoundDollars.toFixed(4)}` : "UNKNOWN"}; ${metering.searchProviderAttempts ?? "UNKNOWN"}/${metering.serperAttemptCeiling ?? "UNKNOWN"} Serper attempts). Authorized exposure ceiling: ${Number.isFinite(metering.maximumAuthorizedDollars) ? `$${metering.maximumAuthorizedDollars.toFixed(2)}` : "UNKNOWN"}.` : `Model-request reservation (not total billing): ${reservation}. The all-provider spending ceiling is not verified by this display.`} Exact billed amount: UNKNOWN.`;
   block.appendChild(meterLine);
   return block;
 }

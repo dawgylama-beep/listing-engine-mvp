@@ -9,6 +9,11 @@ import {
 const {
   createInputTokenCountPayload,
   createModelExecutionBudget,
+  assertTotalProviderBudget,
+  createPhysicalAttemptBudget,
+  consumePhysicalAttempt,
+  recordPhysicalAttemptOutcome,
+  requestSerperSearchWithBudget,
   createQueryBoundLiveSearchPayload,
   createResponsesPayload,
   enforceExactModelRequestBudget,
@@ -243,6 +248,7 @@ test("cumulative model, web-search and spending ceilings reject before dispatch"
   searchBudget.maximumInputTokenCountRequests = 20;
   searchBudget.maximumBillableProviderRequests = 20;
   searchBudget.maximumSpendingDollars = 10;
+  searchBudget.maximumTotalProviderSpendingDollars = 10.06;
   const searchAdapters = adaptersReturningCounts(Array(9).fill(100));
   for (let index = 0; index < 8; index += 1) {
     await enforceExactModelRequestBudget({
@@ -322,6 +328,72 @@ test("published Standard-tier reservation charges token counting and keeps the c
   assert.equal(budget.inputTokenCountRequestCount, 7);
   assert.equal(budget.modelGenerationRequestCount, 7);
   assert.ok(budget.reservedSpendingDollars <= 2.5);
+  assert.ok(budget.reservedSpendingDollars + budget.serperReservedSpendingDollars <= 2.5);
+});
+
+test("total-provider reservation rejects an unaffordable episode before provider dispatch", async () => {
+  const budget = createModelExecutionBudget();
+  assert.equal(budget.serperReservedSpendingDollars, 0.06);
+  assert.equal(budget.maximumSpendingDollars, 2.44);
+  assert.equal(budget.maximumTotalProviderSpendingDollars, 2.5);
+  budget.maximumSpendingDollars = 2.45;
+  assert.throws(() => assertTotalProviderBudget(budget), (error) => error.clientSafeCode === "ANALYSIS_SPENDING_LIMIT_REACHED");
+  let dispatched = 0;
+  await assert.rejects(enforceExactModelRequestBudget({
+    apiKey: "synthetic", payload: structuredPayload(), budget,
+    adapters: { requestOpenAIInputTokenCount: async () => { dispatched += 1; return { input_tokens: 100 }; } }
+  }), (error) => error.clientSafeCode === "ANALYSIS_SPENDING_LIMIT_REACHED");
+  assert.equal(dispatched, 0);
+  assert.equal(budget.inputTokenCountRequestCount, 0);
+});
+
+test("six Serper attempts, including failures, consume the single reserved pool and reject a seventh", () => {
+  const ledger = createModelExecutionBudget();
+  const physical = createPhysicalAttemptBudget(8, "provider_search");
+  for (let index = 0; index < 6; index += 1) {
+    const record = { maximumPhysicalAttemptsPerLogicalRequest: 1 };
+    assert.equal(consumePhysicalAttempt(physical, record, { provider: "serper_google", providerLedger: ledger }), true);
+    recordPhysicalAttemptOutcome(record, index === 2 ? "failed" : "succeeded", {});
+  }
+  const seventh = { maximumPhysicalAttemptsPerLogicalRequest: 1 };
+  assert.equal(consumePhysicalAttempt(physical, seventh, { provider: "serper_google", providerLedger: ledger }), false);
+  assert.equal(ledger.serperAttemptCount, 6);
+  assert.equal(ledger.serperAttempts.length, 6);
+  assert.equal(ledger.serperAttempts[2].status, "FAILED");
+  assert.equal(ledger.serperAttempts.filter((attempt) => attempt.status === "SUCCEEDED").length, 5);
+  assert.equal(ledger.serperAttempts.reduce((sum, attempt) => sum + attempt.conservativeExposureDollars, 0).toFixed(2), "0.06");
+  assert.equal(ledger.serperReservedSpendingDollars, 0.06);
+  assert.equal(physical.physicalAttemptCount, 6);
+});
+
+test("the actual Serper request wrapper charges failed dispatch and does not send a seventh", async () => {
+  const ledger = createModelExecutionBudget();
+  const physical = createPhysicalAttemptBudget(8, "provider_search");
+  let dispatched = 0;
+  for (let index = 0; index < 7; index += 1) {
+    const requestRecord = {};
+    const attempt = requestSerperSearchWithBudget({
+      requestRecord,
+      queryRecord: { query: "synthetic camera source", validationPassed: true },
+      attemptBudget: physical,
+      apiKey: "synthetic",
+      maxRetries: 0,
+      governedMaximumRetries: 0,
+      providerLedger: ledger,
+      requestAdapter: async () => {
+        dispatched += 1;
+        if (index === 1) throw Object.assign(new Error("controlled provider failure"), { statusCode: 503 });
+        return { statusCode: 200, json: { organic: [] } };
+      }
+    });
+    if (index === 1 || index === 6) await assert.rejects(attempt);
+    else await attempt;
+    assert.equal(requestRecord.physicalAttemptCount || 0, index === 6 ? 0 : 1);
+  }
+  assert.equal(dispatched, 6);
+  assert.equal(ledger.serperAttemptCount, 6);
+  assert.equal(ledger.serperAttempts[1].status, "FAILED");
+  assert.equal(ledger.serperAttempts[5].status, "SUCCEEDED");
 });
 
 test("actual token-count network adapter uses the input_tokens endpoint", async () => {
