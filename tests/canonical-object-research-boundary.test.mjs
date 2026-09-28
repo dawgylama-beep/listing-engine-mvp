@@ -136,6 +136,40 @@ test("uncertain or unreadable label guesses never become canonical identity or q
   assert(state.searchPlan.every((record) => !/west end|not applicable|no box|uncertain/i.test(record.query)));
 });
 
+test("literal visible marks reach research without exact-quoting observation commentary", () => {
+  const identity = projectCanonicalEvidenceIdentity({
+    brand: "Alexanderwerk, as visibly printed on the dial",
+    subjectIdentity: "analog kitchen scale with produce",
+    category: "analog kitchen scale with produce",
+    visibleText: [
+      "Dial is marked Alexanderwerk",
+      "Dial includes the word Kilo and numbered graduations"
+    ],
+    identityHypotheses: [{
+      exactCandidateLabel: "Alexanderwerk-branded household or produce weighing scale",
+      broaderFamilyIdentity: "Alexanderwerk-branded household or produce weighing scale",
+      brandOrMaker: "Alexanderwerk, as visibly printed on the dial",
+      supportingObservations: ["Dial is marked Alexanderwerk", "Dial includes the word Kilo and numbered graduations"],
+      confidenceBand: "LOW"
+    }],
+    visualRecognition: {
+      visualSubject: "analog kitchen scale with produce",
+      visualSubjectCategory: "analog kitchen scale with produce",
+      visibleWords: ["Dial is marked Alexanderwerk", "Dial includes the word Kilo and numbered graduations"],
+      visualEvidence: ["An analog dial and weighing bowl are visible."]
+    }
+  });
+  const state = stateFor({ analysisId: "literal-mark-query", identity, imageSeed: "m" });
+  const queries = state.searchPlan.map((record) => record.query);
+  assert(queries.some((query) => /"Alexanderwerk"/.test(query)));
+  assert(queries.some((query) => /"Kilo"/.test(query)));
+  assert(queries.every((query) => !/as visibly printed|dial is marked|dial includes the word|-branded household/i.test(query)));
+  assert(state.searchPlan.every((record) => record.identityTermProvenance.length > 0));
+  const outgoing = providerPlan(state, identity);
+  assert(outgoing.some((record) => /"Alexanderwerk"/.test(record.query)));
+  assert(outgoing.every((record) => !/as visibly printed|dial is marked|dial includes the word|-branded household/i.test(record.query)));
+});
+
 test("descriptive visual subjects compact to the compatible product category for research", () => {
   const cases = [
     ["A basic crewneck knit sweater, shown laid flat with two long sleeves.", "Apparel / sweater", "sweater"],
