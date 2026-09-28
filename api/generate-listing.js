@@ -14503,7 +14503,7 @@ function buildUnverifiedExactProductText(identity, subjectIdentity) {
 function buildIdentitySummaryText({ subjectIdentity, subjectConfidence, exactProductIdentity, makerIdentity, licensingStatus, authenticityStatus }) {
   return [
     `Subject Identity: ${subjectIdentity || "Unknown"}`,
-    `Subject Confidence: ${subjectConfidence || "Unclear"}`,
+    `Visible-item confidence: ${subjectConfidence || "Unclear"}`,
     `Exact Product Identity: ${exactProductIdentity || "Not verified"}`,
     `Maker / Manufacturer: ${makerIdentity || "Not verified"}`,
     `Licensing / Authenticity: ${cleanText(licensingStatus || "Not verified")} / ${cleanText(authenticityStatus || "Not verified")}`

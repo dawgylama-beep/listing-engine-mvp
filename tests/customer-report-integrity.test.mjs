@@ -48,6 +48,20 @@ test("retained OBJ-008 contradiction resolves into four distinct, honest confide
   assert.match(value.customerConfidenceSummary.exactItem, /No accepted source establishes an exact matching identifier/);
 });
 
+test("new OBJ-008 summaries label canonical visible confidence without promoting exact identity", () => {
+  const input = report();
+  input.confidenceResult.identity.level = "insufficient";
+  const value = finalizeCustomerReportIntegrity(input);
+  assert.match(value.identitySummary, /Visible-item confidence: High — The photos support the visible item type, not every exact variant\./);
+  assert.doesNotMatch(value.identitySummary, /Subject Confidence/i);
+  assert.equal(value.customerConfidence.visibleCategory.level, "High");
+  assert.equal(value.customerConfidence.exactItem.level, "Insufficient");
+  assert.equal(value.customerConfidence.workingCondition.level, "Insufficient");
+  assert.equal(value.customerConfidence.valuation.level, "Insufficient");
+  input.identitySummary = input.identitySummary.replace("Subject Confidence: High", "Visible-item confidence: Medium");
+  assert.match(finalizeCustomerReportIntegrity(input).identitySummary, /Visible-item confidence: High —/);
+});
+
 test("provider source bindings retain the acquisition channel and fail closed for untraced or substituted links", () => {
   const value = finalizeCustomerReportIntegrity(report());
   assert.equal(value.customerSourceFindings.length, 1);

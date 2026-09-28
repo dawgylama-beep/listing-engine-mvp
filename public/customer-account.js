@@ -441,6 +441,14 @@
 
   function renderSavedListing(listing) {
     const snapshot = listing.snapshot || {};
+    const visibleConfidence = snapshot.confidenceModel?.visibleCategory;
+    const visibleConfidenceCopy = visibleConfidence?.level
+      ? `Visible-item confidence: ${visibleConfidence.level}${visibleConfidence.explanation ? ` — ${visibleConfidence.explanation}` : ""}`
+      : "Visible-item confidence: Unclear — the saved report does not establish visible-item confidence.";
+    const identificationSummary = completeText(snapshot.identification?.summary).replace(
+      /(?:Subject Confidence|Visible-item confidence)\s*:\s*[^|]*/gi,
+      visibleConfidenceCopy
+    );
     const article = document.createElement("div");
     article.className = "saved-report";
     const eyebrow = document.createElement("p");
@@ -452,8 +460,9 @@
     meta.className = "history-item-meta";
     meta.textContent = `Saved ${formatDate(listing.createdAt)} · Expires ${formatDate(listing.expiresAt)} · Uploaded images not retained`;
     article.append(eyebrow, heading, meta);
-    appendSnapshotSection(article, "Identification", [snapshot.title, snapshot.identification?.summary, snapshot.identification?.customerExplanation]);
-    const savedConfidence = [snapshot.confidence?.photoMatch, snapshot.confidence?.exactItem, snapshot.confidence?.workingCondition, snapshot.confidence?.priceSupport].filter(Boolean);
+    appendSnapshotSection(article, "Identification", [snapshot.title, identificationSummary, snapshot.identification?.customerExplanation]);
+    const savedConfidence = [snapshot.confidence?.photoMatch, snapshot.confidence?.exactItem, snapshot.confidence?.workingCondition, snapshot.confidence?.priceSupport]
+      .filter(Boolean).map((line) => completeText(line).replace(/Subject Confidence\s*:\s*[^|]*/gi, visibleConfidenceCopy));
     appendSnapshotSection(article, "Confidence", savedConfidence.length
       ? savedConfidence
       : snapshot.identification?.confidence ? [`Legacy saved confidence: ${snapshot.identification.confidence}`] : []);

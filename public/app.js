@@ -121,7 +121,7 @@ const listingSections = [
   ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
   ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
-  ["subjectConfidence", "Subject Confidence"],
+  ["subjectConfidence", "Visible-item confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
   ["exactProductConfidence", "Exact Product Confidence"],
   ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
@@ -193,7 +193,7 @@ const valuationSections = [
   ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
   ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
-  ["subjectConfidence", "Subject Confidence"],
+  ["subjectConfidence", "Visible-item confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
   ["exactProductConfidence", "Exact Product Confidence"],
   ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
@@ -259,7 +259,7 @@ const consumerSections = [
   ["visualRecognitionUnknowns", "Still Unknown From Visuals"],
   ["visualRecognitionConflicts", "Visual Conflicts"],
   ["subjectIdentity", "Subject Identity"],
-  ["subjectConfidence", "Subject Confidence"],
+  ["subjectConfidence", "Visible-item confidence"],
   ["exactProductIdentity", "Exact Product Identity"],
   ["exactProductConfidence", "Exact Product Confidence"],
   ["makerDateLicensingStatus", "Maker / Date / Licensing Status"],
@@ -2548,7 +2548,10 @@ function buildSectionCards(report, sections, includeKey) {
     }
 
     seen.add(key);
-    cards.push(renderSectionCard({ key, label, value: report[key], report }));
+    const value = key === "subjectConfidence"
+      ? report.customerConfidence?.visibleCategory?.level || report[key]
+      : report[key];
+    cards.push(renderSectionCard({ key, label, value, report }));
   }
 
   return cards;
@@ -3660,7 +3663,7 @@ function renderIdentitySummary(report) {
   title.textContent = report.subjectIdentity || report.identifiedItem || "Subject identity needs verification";
   const badge = document.createElement("span");
   badge.className = "summary-badge";
-  badge.textContent = report.subjectConfidence || "Subject confidence unclear";
+  badge.textContent = `Visible-item confidence: ${report.customerConfidence?.visibleCategory?.level || report.subjectConfidence || "Unclear"}`;
   header.append(eyebrow, title, badge);
 
   const unknowns = Array.isArray(report.whatIsStillUnknown)
