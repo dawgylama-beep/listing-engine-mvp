@@ -1,19 +1,34 @@
 import assert from "node:assert/strict";
 import { expect, test } from "@playwright/test";
+import { createCustomerAccountHandler } from "../../api/customer-account.js";
+import { createCustomerAccountService, createMemoryCustomerAccountStore } from "../../lib/customer-account/service.js";
 import { buildControlledCustomerModelCorroborationReport } from "../helpers/build-browser-handler-response.mjs";
 
-const receiptKey = "katherine-eye.analysis-dispatch.v1";
-
-async function openPreparedForm(page) {
+async function preparedBrowser(page, context) {
+  const service = createCustomerAccountService({ store: createMemoryCustomerAccountStore() });
+  const account = await service.register({ username: "recovery_browser", password: "synthetic password 123" });
+  const handler = createCustomerAccountHandler({ service, environment: {} });
+  await context.addCookies([{ name: "ke_beta_session", value: account.session.token, url: "http://127.0.0.1:4177", httpOnly: true, sameSite: "Strict" }]);
   await page.route("**/*", async (route) => {
-    const url = new URL(route.request().url());
-    if (url.hostname !== "127.0.0.1") return route.abort("blockedbyclient");
-    if (url.pathname === "/api/customer-account") {
-      return route.fulfill({ status: 200, contentType: "application/json", body: '{"account":null}' });
-    }
+    if (new URL(route.request().url()).hostname !== "127.0.0.1") return route.abort("blockedbyclient");
     return route.continue();
   });
+  await page.route("**/api/customer-account**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const headers = await request.allHeaders();
+    headers.host ||= url.host;
+    const res = { statusCode: 200, headers: {}, payload: null,
+      status(code) { this.statusCode = code; return this; },
+      setHeader(name, value) { this.headers[name] = value; },
+      json(payload) { this.payload = payload; return this; }
+    };
+    await handler({ method: request.method(), url: `${url.pathname}${url.search}`, headers,
+      body: request.postData(), socket: { remoteAddress: "127.0.0.1" } }, res);
+    await route.fulfill({ status: res.statusCode, headers: res.headers, contentType: "application/json", body: JSON.stringify(res.payload) });
+  });
   await page.goto("/");
+  await expect(page.locator("#account-menu-button")).toHaveText("@recovery_browser");
   const encoded = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 120;
@@ -24,89 +39,89 @@ async function openPreparedForm(page) {
   });
   await page.locator("#photos").setInputFiles({ name: "synthetic-item.png", mimeType: "image/png", buffer: Buffer.from(encoded, "base64") });
   await page.locator("#purchase_context").selectOption("private_seller");
+  return { service, account };
 }
 
-test("an unconfirmed POST retains a safe reference and cannot be submitted again after reload", async ({ page }) => {
+test("lost browser response and reload recover the exact completed report without a second POST or implicit Save", async ({ page, context }) => {
+  const { service, account } = await preparedBrowser(page, context);
+  const report = await buildControlledCustomerModelCorroborationReport();
   let posts = 0;
-  let receiptAtDispatch;
-  let finishTransport;
-  await openPreparedForm(page);
+  let analysisId = "";
+  let recoveryId = "";
   await page.route("**/api/generate-listing", async (route) => {
     posts += 1;
-    receiptAtDispatch = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), receiptKey);
-    await new Promise((resolve) => { finishTransport = resolve; });
+    const body = route.request().postDataJSON();
+    analysisId = body.analysisId;
+    recoveryId = body.recovery.recoveryId;
+    const claimed = await service.claimAnalysisRecovery(account.session.token, { analysisId, ...body.recovery });
+    assert.equal(claimed.claimed, true);
+    await service.completeAnalysisRecovery(account.session.token, {
+      analysisId, recoveryId, state: "SUCCEEDED", statusCode: 200, response: { valuation: report }
+    });
     await route.abort("failed");
   });
   await page.locator("#workflow-submit-button").click();
   await expect.poll(() => posts).toBe(1);
-  await page.evaluate(() => document.querySelector("#listing-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
-  await expect(page.locator("#status")).toContainText("already in progress");
-  assert.equal(posts, 1);
-  finishTransport();
-  await expect(page.locator("#status")).toContainText("cannot confirm");
-  assert.equal(posts, 1);
-  assert.equal(receiptAtDispatch.state, "dispatch_unconfirmed");
-  assert.match(receiptAtDispatch.analysisId, /^[a-zA-Z0-9-]{8,120}$/);
-  assert.deepEqual(Object.keys(receiptAtDispatch).sort(), ["analysisId", "httpStatus", "startedAt", "state", "updatedAt", "workflow"].sort());
-  await expect(page.locator("#analysis-failure-reference")).toContainText(receiptAtDispatch.analysisId);
-  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
-  await page.reload();
-  await expect(page.locator("#status")).toContainText("cannot confirm");
-  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
-  await page.evaluate(() => document.querySelector("#listing-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
-  assert.equal(posts, 1, "a recovered unknown dispatch must not trigger another POST");
-  assert.equal(await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)).analysisId, receiptKey), receiptAtDispatch.analysisId);
-});
-
-test("a received but unreadable response remains unconfirmed without a second POST", async ({ page }) => {
-  let posts = 0;
-  await openPreparedForm(page);
-  await page.route("**/api/generate-listing", async (route) => {
-    posts += 1;
-    await route.fulfill({ status: 200, contentType: "application/json", body: "not-json" });
-  });
-  await page.locator("#workflow-submit-button").click();
-  await expect(page.locator("#status")).toContainText("cannot confirm");
-  const receipt = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), receiptKey);
-  assert.equal(receipt.state, "response_unreadable");
-  assert.equal(receipt.httpStatus, 200);
-  assert.equal(posts, 1);
-  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
-  await page.evaluate((key) => {
-    const recorded = JSON.parse(sessionStorage.getItem(key));
-    sessionStorage.setItem(key, JSON.stringify({ ...recorded, state: "response_received" }));
-  }, receiptKey);
-  await page.reload();
-  await expect(page.locator("#status")).toContainText("cannot confirm");
-  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
-  assert.equal(posts, 1);
-});
-
-test("failed receipt storage rejects before dispatch; a completed report is not marked unknown", async ({ page }) => {
-  let posts = 0;
-  const report = await buildControlledCustomerModelCorroborationReport();
-  await openPreparedForm(page);
-  await page.route("**/api/generate-listing", async (route) => {
-    posts += 1;
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valuation: report }) });
-  });
-  await page.evaluate(() => {
-    window.originalStorageSetItemForTest = Storage.prototype.setItem;
-    Storage.prototype.setItem = () => { throw new Error("synthetic storage denial"); };
-  });
-  await page.locator("#workflow-submit-button").click();
-  await expect(page.locator("#status")).toContainText("was not sent");
-  assert.equal(posts, 0);
-  await page.evaluate(() => { Storage.prototype.setItem = window.originalStorageSetItemForTest; });
-  await page.locator("#workflow-submit-button").click();
   await expect(page.locator(".report-root")).toBeVisible();
-  const receipt = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), receiptKey);
-  assert.equal(receipt.state, "report_received");
-  assert.equal(receipt.httpStatus, 200);
-  assert.equal(posts, 1);
-  await expect(page.locator("#status")).not.toContainText("cannot confirm");
+  assert.deepEqual((await service.listHistory(account.session.token)).listings, []);
+  const before = await page.locator(".report-root").innerText();
   await page.reload();
-  await expect(page.locator("#status")).toContainText("A report came back");
-  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
+  await expect(page.locator(".report-root")).toBeVisible();
+  assert.equal(await page.locator(".report-root").innerText(), before);
   assert.equal(posts, 1);
+  assert.equal((await service.readAnalysisRecovery(account.session.token, analysisId, recoveryId)).state, "SUCCEEDED");
+  assert.deepEqual((await service.listHistory(account.session.token)).listings, []);
+  await expect(page.locator("#save-listing-button")).toBeVisible();
+  await page.locator("#save-listing-button").click();
+  await expect.poll(async () => (await service.listHistory(account.session.token)).listings.length).toBe(1);
+  assert.equal((await service.readAnalysisRecovery(account.session.token, analysisId, recoveryId)).state, "SUCCEEDED");
+});
+
+test("pending and terminal analysis states never trigger an automatic second POST", async ({ page, context }) => {
+  const { service, account } = await preparedBrowser(page, context);
+  let posts = 0;
+  let identity;
+  await page.route("**/api/generate-listing", async (route) => {
+    posts += 1;
+    const body = route.request().postDataJSON();
+    identity = { analysisId: body.analysisId, recoveryId: body.recovery.recoveryId, requestHash: body.recovery.requestHash, photoHashes: body.recovery.photoHashes };
+    assert.equal((await service.claimAnalysisRecovery(account.session.token, identity)).claimed, true);
+    await route.abort("failed");
+  });
+  await page.locator("#workflow-submit-button").click();
+  await expect.poll(() => posts).toBe(1);
+  await page.reload();
+  await expect(page.locator("#status")).toContainText("still running");
+  assert.equal(posts, 1);
+  await service.completeAnalysisRecovery(account.session.token, {
+    analysisId: identity.analysisId, recoveryId: identity.recoveryId,
+    state: "FAILED_TERMINAL", statusCode: 502, response: { error: "The provider timed out. No report was completed." }
+  });
+  await expect(page.locator("#status")).toContainText("provider timed out", { timeout: 12000 });
+  await expect(page.locator("#save-listing-button")).toBeHidden();
+  assert.equal(posts, 1);
+});
+
+test("signed-out analysis stops before provider dispatch and explains the account requirement", async ({ page }) => {
+  let providerPosts = 0;
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.hostname !== "127.0.0.1") return route.abort("blockedbyclient");
+    return route.continue();
+  });
+  await page.route("**/api/customer-account**", (route) => route.fulfill({ status: 401, contentType: "application/json", body: '{"code":"authentication_required","error":"Sign in."}' }));
+  await page.route("**/api/generate-listing", (route) => { providerPosts += 1; return route.abort("blockedbyclient"); });
+  await page.goto("/");
+  const encoded = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 120;
+    canvas.getContext("2d").fillRect(0, 0, 120, 120);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await page.locator("#photos").setInputFiles({ name: "synthetic-item.png", mimeType: "image/png", buffer: Buffer.from(encoded, "base64") });
+  await page.locator("#purchase_context").selectOption("private_seller");
+  await page.locator("#workflow-submit-button").click();
+  await expect(page.locator("#status")).toContainText("Sign in to your Katherine’s Eye account");
+  await expect(page.locator("#photo-preview img")).toHaveCount(1);
+  assert.equal(providerPosts, 0);
 });

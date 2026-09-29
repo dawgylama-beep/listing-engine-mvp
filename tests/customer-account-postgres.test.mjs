@@ -104,6 +104,8 @@ test("postgres-v1 preserves schema-2 preferred-name presence and absence without
     preferredName: "Temporary label"
   });
   const legacySnapshot = JSON.parse(seedDatabase.row.state_json);
+  legacySnapshot.schemaVersion = "2.0";
+  delete legacySnapshot.analysisRecoveries;
   delete legacySnapshot.accounts[registered.account.id].preferredName;
   const legacyDatabase = fakePostgres({
     schema_version: "2.0",
@@ -123,7 +125,7 @@ test("postgres-v1 preserves schema-2 preferred-name presence and absence without
   const personalized = await reconstructedService.updateProfile(registered.session.token, { preferredName: "Legacy Shopper" });
   assert.equal(personalized.account.preferredName, "Legacy Shopper");
   const personalizedSnapshot = JSON.parse(legacyDatabase.row.state_json);
-  assert.equal(personalizedSnapshot.schemaVersion, "2.0");
+  assert.equal(personalizedSnapshot.schemaVersion, CUSTOMER_ACCOUNT_SCHEMA_VERSION);
   assert.equal(personalizedSnapshot.accounts[registered.account.id].preferredName, "Legacy Shopper");
 });
 

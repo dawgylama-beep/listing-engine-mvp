@@ -89,6 +89,8 @@ const submissionStages = Object.freeze({
   REPORT_RENDER: "report_render"
 });
 const analysisDispatchReceiptKey = "katherine-eye.analysis-dispatch.v1";
+let recoveryStatusInFlight = false;
+let recoveryStatusTimer = null;
 
 const locationStates = Object.freeze({
   IDLE: "idle",
@@ -1156,15 +1158,27 @@ async function handleSubmit(event) {
     }
 
     setSubmissionStage(submissionState, submissionStages.API_REQUEST);
-    if (!writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "dispatch_unconfirmed" })) {
+    const accountBridge = globalThis.KatherinesEyeCustomerAccount;
+    if (!accountBridge?.registerAnalysis || !globalThis.crypto?.subtle) {
+      throw createSubmissionError("Sign in to start a recoverable analysis.", submissionStages.API_REQUEST, "analysis_recovery_unavailable");
+    }
+    const requestHash = await sha256Browser(JSON.stringify(requestBody));
+    const photoHashes = await Promise.all(photos.map((photo) => sha256Browser(String(photo.dataUrl || ""))));
+    const registered = await accountBridge.registerAnalysis({ analysisId: request.analysisId, requestHash, photoHashes });
+    if (registered.state !== "REGISTERED" || !registered.recoveryId) {
+      throw createSubmissionError("This analysis is already registered. Recover it before starting another.", submissionStages.API_REQUEST, "analysis_already_registered");
+    }
+    const recovery = { recoveryId: registered.recoveryId, requestHash, photoHashes };
+    if (!writeAnalysisDispatchReceipt({ analysisId: request.analysisId, recoveryId: recovery.recoveryId, workflow, state: "dispatch_unconfirmed" })) {
       throw createSubmissionError("Could not record the analysis request before sending it.", submissionStages.API_REQUEST, "dispatch_receipt_unavailable");
     }
     const response = await fetch("/api/generate-listing", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-CSRF-Token": accountBridge.getCsrfToken()
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ ...requestBody, recovery }),
       signal: request.controller.signal
     });
 
@@ -1181,6 +1195,11 @@ async function handleSubmit(event) {
     } catch (error) {
       writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_unreadable", httpStatus: response.status });
       throw createSubmissionError("Could not read the analysis response.", submissionStages.API_RESPONSE, "api_response_parse_failed", error);
+    }
+    if (response.status === 202 && ["REGISTERED", "DISPATCHING", "UNKNOWN"].includes(data.state)) {
+      setStatus("This analysis is already in progress. Checking its existing status without submitting again.", "loading");
+      void recoverInterruptedAnalysis();
+      return;
     }
     if (!response.ok) {
       writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_error", httpStatus: response.status });
@@ -1800,6 +1819,66 @@ function startWorkflowRequest(workflow) {
   };
 }
 
+async function sha256Browser(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function recoverInterruptedAnalysis() {
+  const receipt = readAnalysisDispatchReceipt();
+  if (!receipt?.recoveryId || recoveryStatusInFlight || activeRequestController) return;
+  const bridge = globalThis.KatherinesEyeCustomerAccount;
+  if (!bridge?.getAnalysisStatus) {
+    recoveryStatusTimer = setTimeout(recoverInterruptedAnalysis, 500);
+    return;
+  }
+  recoveryStatusInFlight = true;
+  try {
+    const result = await bridge.getAnalysisStatus(receipt.analysisId, receipt.recoveryId);
+    if (readAnalysisDispatchReceipt()?.recoveryId !== receipt.recoveryId) return;
+    if (result.state === "SUCCEEDED") {
+      const config = workflowConfigs[receipt.workflow];
+      const report = result.response?.[config?.responseKey];
+      if (!config || !report) throw new Error("The completed analysis could not be displayed.");
+      currentWorkflow = receipt.workflow;
+      latestReport = report;
+      latestSections = getSectionsForReport(config, report);
+      setOutputHeading(getDisplayConfig(config, report));
+      renderReport(report, latestSections);
+      renderAskPanel();
+      copyAllButton.disabled = false;
+      document.querySelector("#analysis-failure-details").hidden = true;
+      if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = true;
+      workflowSubmitButton.disabled = false;
+      clearStatus();
+      writeAnalysisDispatchReceipt({ analysisId: receipt.analysisId, recoveryId: receipt.recoveryId, workflow: receipt.workflow, state: "report_received", httpStatus: result.statusCode });
+      return;
+    }
+    if (result.state === "FAILED_TERMINAL") {
+      latestReport = null;
+      renderEmpty(workflowConfigs[receipt.workflow] || workflowConfigs[defaultWorkflow]);
+      setStatus(result.response?.error || "This analysis failed. No automatic retry will occur.", "error");
+      writeAnalysisDispatchReceipt({ analysisId: receipt.analysisId, recoveryId: receipt.recoveryId, workflow: receipt.workflow, state: "response_error", httpStatus: result.statusCode });
+      return;
+    }
+    if (result.state === "UNKNOWN") {
+      setStatus("The analysis outcome is unknown. It will not be submitted again automatically.", "error");
+      return;
+    }
+    setStatus(result.state === "REGISTERED"
+      ? "This request was registered but dispatch is not confirmed. Katherine will not submit it twice."
+      : "This analysis is still running. Katherine is checking its existing status without submitting again.", "loading");
+    recoveryStatusTimer = setTimeout(recoverInterruptedAnalysis, 5000);
+  } catch (error) {
+    setStatus(error?.code === "analysis_recovery_not_found"
+      ? "This recovery reference has expired or is unavailable for this account. No second analysis was submitted."
+      : "The existing analysis status is temporarily unavailable. No second analysis was submitted.", "error");
+  } finally {
+    recoveryStatusInFlight = false;
+  }
+}
+
 // A dispatch receipt is not proof of server acceptance or provider billing.
 // It stores no photos, item details, response body, account data, or credentials.
 function readAnalysisDispatchReceipt() {
@@ -1808,16 +1887,18 @@ function readAnalysisDispatchReceipt() {
     if (!receipt || typeof receipt !== "object") return null;
     if (!/^[a-zA-Z0-9-]{8,120}$/.test(receipt.analysisId || "")) return null;
     if (!["dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report", "report_received"].includes(receipt.state)) return null;
+    if (receipt.recoveryId && !/^recovery_[A-Za-z0-9_-]{32}$/.test(receipt.recoveryId)) return null;
     return receipt;
   } catch {
     return null;
   }
 }
 
-function writeAnalysisDispatchReceipt({ analysisId, workflow, state, httpStatus = 0 }) {
+function writeAnalysisDispatchReceipt({ analysisId, recoveryId, workflow, state, httpStatus = 0 }) {
   const previous = readAnalysisDispatchReceipt();
   const receipt = {
     analysisId,
+    recoveryId: recoveryId || (previous?.analysisId === analysisId ? previous.recoveryId : ""),
     workflow,
     state,
     startedAt: previous?.analysisId === analysisId ? previous.startedAt : new Date().toISOString(),
@@ -1833,6 +1914,7 @@ function writeAnalysisDispatchReceipt({ analysisId, workflow, state, httpStatus 
 }
 
 function clearAnalysisDispatchReceipt() {
+  clearTimeout(recoveryStatusTimer);
   try {
     sessionStorage.removeItem(analysisDispatchReceiptKey);
     return true;
@@ -1843,7 +1925,7 @@ function clearAnalysisDispatchReceipt() {
 
 function showUnconfirmedSubmission() {
   const receipt = readAnalysisDispatchReceipt();
-  const needsRecovery = receipt && (["dispatch_unconfirmed", "response_received", "response_unreadable"].includes(receipt.state)
+  const needsRecovery = receipt && (["dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report"].includes(receipt.state)
     || (receipt.state === "report_received" && !latestReport));
   if (!needsRecovery) {
     if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = true;
@@ -1862,6 +1944,12 @@ function showUnconfirmedSubmission() {
   document.querySelector("#analysis-failure-details").hidden = false;
   if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = false;
   workflowSubmitButton.disabled = true;
+  if (receipt.recoveryId && !recoveryStatusInFlight && !recoveryStatusTimer) {
+    recoveryStatusTimer = setTimeout(() => {
+      recoveryStatusTimer = null;
+      void recoverInterruptedAnalysis();
+    }, 0);
+  }
   return true;
 }
 
@@ -5014,6 +5102,10 @@ function isApiTransportStage(stage) {
 function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
   const stage = submissionStageFromError(error, submissionState);
+
+  if (["analysis_authentication_required", "authentication_required", "analysis_recovery_unavailable"].includes(error?.code)) {
+    return "Sign in to your Katherine’s Eye account before analyzing. This lets us recover an interrupted result without submitting or charging twice. Your selected photos remain here.";
+  }
 
   if (error?.code === "dispatch_receipt_unavailable") {
     return "The analysis was not sent because this browser could not record a safe request reference. Please check browser storage before trying again.";

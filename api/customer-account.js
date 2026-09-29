@@ -59,7 +59,7 @@ function parseCookies(header = "") {
   return cookies;
 }
 
-function sessionToken(req) {
+export function sessionToken(req) {
   return parseCookies(req.headers?.cookie || req.headers?.Cookie || "")[SESSION_COOKIE_NAME] || "";
 }
 
@@ -104,7 +104,7 @@ function expectedOrigin(req, environment) {
   return `${secureRequest(req, environment) ? "https" : "http"}://${host}`;
 }
 
-function assertMutationOrigin(req, environment) {
+export function assertMutationOrigin(req, environment) {
   const fetchSite = String(req.headers?.["sec-fetch-site"] || "").trim().toLowerCase();
   if (fetchSite && fetchSite !== "same-origin") {
     throw Object.assign(new Error("Cross-origin account requests are not allowed."), { status: 403, code: "request_origin_rejected" });
@@ -142,10 +142,14 @@ async function dispatch(service, req, body) {
   if (req.method === "GET" && action === "history") return service.listHistory(token);
   if (req.method === "GET" && action === "listing") return service.getListing(token, url.searchParams.get("listingId"));
   if (req.method === "GET" && action === "export") return service.exportAccount(token);
+  if (req.method === "GET" && action === "analysis_status") {
+    return service.readAnalysisRecovery(token, url.searchParams.get("analysisId"), url.searchParams.get("recoveryId"));
+  }
   if (req.method === "POST" && action === "register") return service.register(body, context);
   if (req.method === "POST" && action === "login") return service.login(body, context);
   if (req.method === "POST" && action === "logout") return service.logout(token);
   if (req.method === "POST" && action === "save_listing") return service.saveListing(token, body.snapshot);
+  if (req.method === "POST" && action === "register_analysis") return service.registerAnalysisRecovery(token, body);
   if (req.method === "PATCH" && action === "change_password") return service.changePassword(token, body);
   if (req.method === "PATCH" && action === "rename_listing") return service.renameListing(token, body.listingId, body.name);
   if (req.method === "PATCH" && action === "preferences") return service.updatePreferences(token, body);

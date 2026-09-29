@@ -30,7 +30,7 @@ const sampleSnapshot = {
   alternatives: ["Desk organizer"],
   requestedPhotos: ["Underside"],
   researchSteps: ["Check the maker mark"],
-  evidence: [{ source: "Example market", title: "Similar tray", url: "https://example.com/tray", price: "Price unavailable" }],
+  evidence: [{ source: "Example market", title: "Similar tray", url: "https://example.com/tray", price: "Price unavailable", sourceRecordId: "fixture-source-1", acquisitionProvider: "controlled-fixture" }],
   controllerDecision: "must not persist",
   privateEvidencePath: "C:\\private\\evidence"
 };
@@ -86,7 +86,8 @@ test("schema-2 accounts preserve an absent preferred name and expose a username 
   const seedService = createCustomerAccountService({ store: seedStore });
   const registered = await seedService.register({ username: "legacy_user", password: "legacy private password" });
   const legacyState = await seedStore.read();
-  assert.equal(legacyState.schemaVersion, "2.0");
+  legacyState.schemaVersion = "2.0";
+  delete legacyState.analysisRecoveries;
   assert.equal(Object.hasOwn(legacyState.accounts[registered.account.id], "preferredName"), false);
 
   const reconstructedStore = createMemoryCustomerAccountStore(legacyState);

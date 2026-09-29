@@ -196,7 +196,7 @@
               <aside class="privacy-promise" aria-label="Photo privacy">
                 <div>
                   <strong>Your photos are for this analysis.</strong>
-                  <p>Katherine’s Eye does not add uploaded image files to saved history. Only the customer report is saved when you explicitly choose Save.</p>
+                  <p>Katherine’s Eye does not add uploaded image files to saved history. An interrupted report is recoverable for one hour; its temporary copy is removed on later account activity. A content-free request marker prevents duplicate analysis. Only reports you explicitly Save remain in history.</p>
                 </div>
                 <button id="privacy-details-button" class="text-button" type="button">Privacy controls</button>
               </aside>
@@ -550,7 +550,7 @@
         <div id="account-service-status" class="account-service-status" role="status" aria-live="polite"></div>
 
         <div id="account-signed-out-view">
-          <p class="account-intro">Create a unique username to save reports privately, or sign in to revisit your history. This is your Katherine’s Eye account, separate from access to the private Preview.</p>
+          <p class="account-intro">Create a unique username or sign in before analyzing so an interrupted result can be recovered safely. Only reports you explicitly Save remain in history. This Katherine’s Eye account is separate from access to the private Preview.</p>
           <p id="password-recovery-note" class="field-note">Keep your password in a password manager. Password reset is not available in this beta.</p>
           <div class="account-auth-grid">
             <form id="account-register-form" class="account-form">
@@ -563,7 +563,7 @@
               <p id="preferred-name-guidance" class="field-note">This does not need to be unique. Your username remains your login.</p>
               <label for="register-password">Password (at least 10 characters)</label>
               <input aria-describedby="password-recovery-note" id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
-              <label class="consent-check"><input id="account-consent" type="checkbox" required> I understand that only reports I explicitly save are retained, and I can delete them or my account.</label>
+              <label class="consent-check"><input id="account-consent" type="checkbox" required> I understand interrupted analyses have a temporary one-hour recovery copy and a content-free duplicate-prevention marker; only reports I explicitly save remain in history.</label>
               <button class="primary-button" type="submit">Create account</button>
             </form>
 

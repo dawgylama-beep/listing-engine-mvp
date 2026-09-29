@@ -121,7 +121,7 @@
       personalizedGreetingTitle.textContent = "";
     }
     if (accountServiceAvailable === false && !signedIn) {
-      setAccountStatus("Private beta accounts need a configured secure account store in this environment. Photo analysis remains available without an account.", "neutral");
+      setAccountStatus("Private beta analysis requires a configured secure account store so an interrupted request cannot run twice.", "neutral");
     }
   }
 
@@ -721,6 +721,24 @@
   }
 
   root.KatherinesEyeCustomerAccount = Object.freeze({
+    async registerAnalysis(identity) {
+      await sessionHydration;
+      if (!account) {
+        const error = new Error("Sign in before starting an analysis so an interrupted result can be recovered.");
+        error.code = "analysis_authentication_required";
+        throw error;
+      }
+      return requestAccount("/api/customer-account", {
+        method: "POST",
+        body: JSON.stringify({ action: "register_analysis", ...identity })
+      });
+    },
+    async getAnalysisStatus(analysisId, recoveryId) {
+      await sessionHydration;
+      if (!account) throw new Error("Sign in to recover this analysis.");
+      return requestAccount(`/api/customer-account?action=analysis_status&analysisId=${encodeURIComponent(analysisId)}&recoveryId=${encodeURIComponent(recoveryId)}`);
+    },
+    getCsrfToken() { return csrfToken; },
     setCurrentReport(report, sections = [], workflow = "personal_use") {
       currentReport = report && typeof report === "object" ? report : null;
       currentReportSections = Array.isArray(sections) ? sections : [];
@@ -733,5 +751,5 @@
   });
 
   renderAccountState();
-  hydrateSession();
+  const sessionHydration = hydrateSession();
 })(globalThis);

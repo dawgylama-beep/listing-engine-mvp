@@ -1,5 +1,11 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Interrupted-analysis recovery candidate)
+
+- Register an account-scoped request and image hashes before analysis POST; atomically mark provider dispatch exactly once in the existing account store.
+- Recover an interrupted completed report and metering for up to one hour without saving it to history, resubmitting, or calling providers again. Expired temporary copies are pruned on subsequent account-store activity; a content-free replay marker remains until account deletion.
+- Show registered, dispatching, terminal failure, and unknown outcomes distinctly. Local controlled handler and browser checks do not establish hosted persistence or a fresh provider-backed run.
+
 ## Version 1.12.52 (Private Preview published; confidence wording clarification)
 
 - Retain customer-reported maker/model as unverified input, carry it into research, and show relevant source corroboration without promoting it to a verified photographed identity or price.

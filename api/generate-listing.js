@@ -1,5 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import crypto from "node:crypto";
 import path from "node:path";
+import { resolveCustomerAccountRuntime } from "../lib/customer-account/runtime.js";
+import { assertMutationOrigin, sessionToken } from "./customer-account.js";
 import {
   CANONICAL_RANGE_MINIMUM_INDEPENDENT_OFFERS,
   canonicalPricingUnavailableDecisionSummary,
@@ -231,6 +234,8 @@ export function createGenerateListingHandler(adapters = {}) {
   const resolvedAdapters = Object.freeze({
     ...productionAnalysisAdapters,
     ...adapters,
+    resolveAnalysisAccountService: adapters.resolveAnalysisAccountService || (async () => (await resolveCustomerAccountRuntime()).service),
+    requireAnalysisRecovery: adapters.requireAnalysisRecovery ?? ["preview", "production"].includes(String(process.env.VERCEL_ENV || "").toLowerCase()),
     getVisualIdentityModel: adapters.getVisualIdentityModel
       || adapters.getOpenAIModel
       || productionAnalysisAdapters.getVisualIdentityModel,
@@ -1383,6 +1388,7 @@ const consumerDecisionThresholds = {
 };
 
 async function handleGenerateListingRequest(req, res) {
+  let analysisRecovery = null;
   try {
     beginTerminalStage(TERMINAL_STAGE.REQUEST_ACCEPTED);
     currentAnalysisAdapters().onTerminalContextCreated({
@@ -1435,6 +1441,33 @@ async function handleGenerateListingRequest(req, res) {
       });
     }
 
+    if (currentAnalysisAdapters().requireAnalysisRecovery || body.recovery) {
+      const recovery = body.recovery;
+      if (!recovery || typeof recovery !== "object" || Array.isArray(recovery)) {
+        throw createHandlerResponseError({ statusCode: 400, code: "ANALYSIS_RECOVERY_REQUIRED", message: "Sign in and register this analysis before submitting it." });
+      }
+      assertMutationOrigin(req, process.env);
+      const token = sessionToken(req);
+      const service = await currentAnalysisAdapters().resolveAnalysisAccountService();
+      await service.verifyCsrf(token, req.headers?.["x-csrf-token"] || "");
+      const requestBody = { ...body };
+      delete requestBody.recovery;
+      const identity = {
+        analysisId,
+        recoveryId: recovery.recoveryId,
+        requestHash: crypto.createHash("sha256").update(JSON.stringify(requestBody)).digest("hex"),
+        photoHashes: photos.map((photo) => crypto.createHash("sha256").update(String(photo?.dataUrl || "")).digest("hex"))
+      };
+      if (identity.requestHash !== recovery.requestHash || JSON.stringify(identity.photoHashes) !== JSON.stringify(recovery.photoHashes)) {
+        throw createHandlerResponseError({ statusCode: 409, code: "ANALYSIS_RECOVERY_INPUT_CHANGED", message: "This analysis reference belongs to different item details." });
+      }
+      const claim = await service.claimAnalysisRecovery(token, identity);
+      if (!claim.claimed) {
+        if (claim.state === "SUCCEEDED" || claim.state === "FAILED_TERMINAL") return res.status(claim.statusCode).json(claim.response);
+        return res.status(202).json({ analysisId, recoveryId: recovery.recoveryId, state: claim.state });
+      }
+      analysisRecovery = { service, token, analysisId, recoveryId: recovery.recoveryId };
+    }
     const safePhotos = validateAndNormalizePhotos(photos);
     assertTotalProviderBudget();
     const websiteCognition = await prepareWebsiteCognition({
@@ -1502,6 +1535,16 @@ async function handleGenerateListingRequest(req, res) {
       researchDiagnostics: report.searchDiagnostics?.governedResearchStrategy,
       websiteCognition
     });
+    if (analysisRecovery) {
+      await analysisRecovery.service.completeAnalysisRecovery(analysisRecovery.token, {
+        analysisId: analysisRecovery.analysisId,
+        recoveryId: analysisRecovery.recoveryId,
+        state: "SUCCEEDED",
+        statusCode: 200,
+        response: payload
+      });
+      analysisRecovery = null;
+    }
     const response = res.status(200).json(payload);
     completeTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     completeTerminalContext(currentEvaluationTerminalContext());
@@ -1596,6 +1639,19 @@ async function handleGenerateListingRequest(req, res) {
           code: cleanText(persistenceError?.code || "WEBSITE_OUTCOME_PERSISTENCE_REFUSED"),
           diagnostics
         };
+      }
+    }
+    if (analysisRecovery) {
+      try {
+        await analysisRecovery.service.completeAnalysisRecovery(analysisRecovery.token, {
+          analysisId: analysisRecovery.analysisId,
+          recoveryId: analysisRecovery.recoveryId,
+          state: "FAILED_TERMINAL",
+          statusCode: responseStatus,
+          response: payload
+        });
+      } catch {
+        // A lost completion write remains UNKNOWN; never redispatch this identity.
       }
     }
     return res.status(responseStatus).json(payload);
