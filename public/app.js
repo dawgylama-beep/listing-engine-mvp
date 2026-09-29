@@ -67,6 +67,7 @@ const feedbackPanel = document.querySelector("#feedback-panel");
 const feedbackText = document.querySelector("#feedback-text");
 const feedbackCopyButton = document.querySelector("#feedback-copy-button");
 const feedbackStatus = document.querySelector("#feedback-status");
+const analysisNewItemAfterUnknown = document.querySelector("#analysis-new-item-after-unknown");
 const helpMenuButton = document.querySelector("#help-menu-button");
 const purposeHelpLink = document.querySelector("#purpose-help-link");
 const helpPanelBackdrop = document.querySelector("#help-panel-backdrop");
@@ -87,6 +88,7 @@ const submissionStages = Object.freeze({
   API_RESPONSE: "api_response",
   REPORT_RENDER: "report_render"
 });
+const analysisDispatchReceiptKey = "katherine-eye.analysis-dispatch.v1";
 
 const locationStates = Object.freeze({
   IDLE: "idle",
@@ -732,6 +734,7 @@ locationZipInput.addEventListener("input", handleManualZipInput);
 form.addEventListener("input", clearFormErrorForTarget);
 form.addEventListener("change", clearFormErrorForTarget);
 form.addEventListener("submit", handleSubmit);
+analysisNewItemAfterUnknown?.addEventListener("click", startNewItem);
 copyAllButton.addEventListener("click", () => {
   if (!latestReport) {
     return;
@@ -747,9 +750,11 @@ feedbackCopyButton.addEventListener("click", copyFeedbackText);
 initializeHelpPanel();
 window.addEventListener("pageshow", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
+  showUnconfirmedSubmission();
 });
 
 applyWorkflowState({ clearOutput: true, abortRequests: false });
+showUnconfirmedSubmission();
 
 function initializeHelpPanel() {
   if (!helpMenuButton || !helpPanel || !helpCategoryList) {
@@ -1066,6 +1071,7 @@ function removePhotoAt(index) {
 
 async function handleSubmit(event) {
   event.preventDefault();
+  if (showUnconfirmedSubmission()) return;
   clearFormErrors();
 
   const workflow = getSelectedWorkflow();
@@ -1150,6 +1156,9 @@ async function handleSubmit(event) {
     }
 
     setSubmissionStage(submissionState, submissionStages.API_REQUEST);
+    if (!writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "dispatch_unconfirmed" })) {
+      throw createSubmissionError("Could not record the analysis request before sending it.", submissionStages.API_REQUEST, "dispatch_receipt_unavailable");
+    }
     const response = await fetch("/api/generate-listing", {
       method: "POST",
       headers: {
@@ -1165,13 +1174,16 @@ async function handleSubmit(event) {
 
     setSubmissionStage(submissionState, submissionStages.API_RESPONSE);
     submissionState.httpStatus = response.status;
+    writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_received", httpStatus: response.status });
     let data;
     try {
       data = await response.json();
     } catch (error) {
+      writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_unreadable", httpStatus: response.status });
       throw createSubmissionError("Could not read the analysis response.", submissionStages.API_RESPONSE, "api_response_parse_failed", error);
     }
     if (!response.ok) {
+      writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_error", httpStatus: response.status });
       if (data.action === "identity_confirmation_required") {
         pendingIdentityConfirmationToken = String(data.confirmation?.confirmationToken || "").trim();
         stopLoadingProgress();
@@ -1187,8 +1199,10 @@ async function handleSubmit(event) {
 
     const rawReport = data[config.responseKey];
     if (!rawReport) {
+      writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_without_report", httpStatus: response.status });
       throw createSubmissionError("The analysis response did not contain a report.", submissionStages.API_RESPONSE, "api_report_missing");
     }
+    writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "report_received", httpStatus: response.status });
     const report = rawReport;
 
     const sections = getSectionsForReport(config, report);
@@ -1233,6 +1247,7 @@ async function handleSubmit(event) {
     if (isCurrentRequest(request.id, workflow)) {
       activeRequestController = null;
       setLoading(false, workflow);
+      showUnconfirmedSubmission();
     }
   }
 }
@@ -1266,6 +1281,7 @@ function applyWorkflowState({ clearOutput = false, abortRequests = false } = {})
   if (clearOutput) {
     clearWorkflowOutput(config);
   }
+  showUnconfirmedSubmission();
 }
 
 function syncWorkflowFormState(config) {
@@ -1784,6 +1800,71 @@ function startWorkflowRequest(workflow) {
   };
 }
 
+// A dispatch receipt is not proof of server acceptance or provider billing.
+// It stores no photos, item details, response body, account data, or credentials.
+function readAnalysisDispatchReceipt() {
+  try {
+    const receipt = JSON.parse(sessionStorage.getItem(analysisDispatchReceiptKey) || "null");
+    if (!receipt || typeof receipt !== "object") return null;
+    if (!/^[a-zA-Z0-9-]{8,120}$/.test(receipt.analysisId || "")) return null;
+    if (!["dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report", "report_received"].includes(receipt.state)) return null;
+    return receipt;
+  } catch {
+    return null;
+  }
+}
+
+function writeAnalysisDispatchReceipt({ analysisId, workflow, state, httpStatus = 0 }) {
+  const previous = readAnalysisDispatchReceipt();
+  const receipt = {
+    analysisId,
+    workflow,
+    state,
+    startedAt: previous?.analysisId === analysisId ? previous.startedAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    httpStatus: Number.isInteger(httpStatus) ? httpStatus : 0
+  };
+  try {
+    sessionStorage.setItem(analysisDispatchReceiptKey, JSON.stringify(receipt));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearAnalysisDispatchReceipt() {
+  try {
+    sessionStorage.removeItem(analysisDispatchReceiptKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function showUnconfirmedSubmission() {
+  const receipt = readAnalysisDispatchReceipt();
+  const needsRecovery = receipt && (["dispatch_unconfirmed", "response_received", "response_unreadable"].includes(receipt.state)
+    || (receipt.state === "report_received" && !latestReport));
+  if (!needsRecovery) {
+    if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = true;
+    return false;
+  }
+  if (activeRequestController) {
+    setStatus("This analysis is already in progress. No second request was sent.", "loading");
+    return true;
+  }
+  const completedButUnavailable = receipt.state === "report_received";
+  setStatus(completedButUnavailable
+    ? "A report came back, but this tab cannot restore its unsaved content after an interruption. Do not submit this item again. Check saved history or share the reference below with private-beta support."
+    : "We cannot confirm whether this analysis ran. Do not submit this item again. Check saved history or share the reference below with private-beta support. You can start a different item without retrying this one.", "error");
+  document.querySelector("#analysis-failure-reference").textContent =
+    `Reference: ${receipt.analysisId}; dispatch: ${completedButUnavailable ? "report received" : "unconfirmed"}; HTTP: ${receipt.httpStatus || "no response"}.`;
+  document.querySelector("#analysis-failure-details").hidden = false;
+  if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = false;
+  workflowSubmitButton.disabled = true;
+  return true;
+}
+
 function abortActiveRequest() {
   activeRequestId += 1;
   stopLoadingProgress();
@@ -2004,6 +2085,10 @@ function clearItemSession({ abortAsk = false } = {}) {
 }
 
 function startNewItem() {
+  if (!clearAnalysisDispatchReceipt()) {
+    showUnconfirmedSubmission();
+    return;
+  }
   abortActiveRequest();
   abortActiveAskRequest();
   form.reset();
@@ -4814,7 +4899,7 @@ function startLoadingProgress(config, requestId, workflow) {
     loadingProgressIndex = Math.min(loadingProgressIndex + 1, stages.length - 1);
     const delayed = previousIndex === stages.length - 1 && loadingProgressIndex === stages.length - 1;
     renderLoadingProgress(stages, loadingProgressIndex, { delayed });
-    setStatus(delayed ? "This is taking longer than usual. You may cancel safely; Katherine’s Eye will not retry automatically." : stages[loadingProgressIndex], "loading");
+    setStatus(delayed ? "This is taking longer than usual. You can stop waiting, but the provider request may continue; Katherine’s Eye will not retry automatically." : stages[loadingProgressIndex], "loading");
   }, 1500);
 }
 
@@ -4849,7 +4934,7 @@ function renderLoadingProgress(stages, activeIndex, { delayed = false } = {}) {
   title.textContent = "Taking a careful look";
   const helper = document.createElement("p");
   helper.textContent = delayed
-    ? "This review is taking longer than usual. You can keep waiting or cancel; canceling does not start another provider request."
+    ? "This review is taking longer than usual. You can keep waiting or stop waiting; the provider request may continue, but Katherine’s Eye will not retry it automatically."
     : "Katherine’s Eye is examining identity and market evidence. The active line shows where the review is focused—not a percentage complete.";
 
   const list = document.createElement("ol");
@@ -4872,7 +4957,9 @@ function renderLoadingProgress(stages, activeIndex, { delayed = false } = {}) {
     abortActiveRequest();
     setLoading(false, currentWorkflow);
     renderEmpty(workflowConfigs[currentWorkflow] || workflowConfigs[defaultWorkflow]);
-    setStatus("Analysis canceled. Nothing was retried automatically; adjust your photos or details before starting again.", "success");
+    if (!showUnconfirmedSubmission()) {
+      setStatus("Analysis canceled before it was sent. Nothing was retried automatically.", "success");
+    }
   });
 
   card.append(title, helper, list, cancelButton);
@@ -4887,6 +4974,7 @@ function setStatus(message, type) {
 function clearStatus() {
   const failureDetails = document.querySelector("#analysis-failure-details");
   if (failureDetails) failureDetails.hidden = true;
+  if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = true;
   statusBox.textContent = "";
   statusBox.className = "status";
 }
@@ -4927,6 +5015,10 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
   const stage = submissionStageFromError(error, submissionState);
 
+  if (error?.code === "dispatch_receipt_unavailable") {
+    return "The analysis was not sent because this browser could not record a safe request reference. Please check browser storage before trying again.";
+  }
+
   if (error?.code === "ANALYSIS_SPENDING_LIMIT_REACHED") {
     return "This analysis stopped at its spending limit before the next model response. No completed report or value assessment is available, and nothing will retry automatically. Your photos are still selected. Please contact your private-beta support with the reference below before trying again.";
   }
@@ -4961,11 +5053,11 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   }
 
   if (/api_response_parse_failed|could not read the analysis response/i.test(message) || error?.code === "api_response_parse_failed") {
-    return "The analysis response was interrupted before it could be read. Please check your connection before retrying.";
+    return "The analysis response was interrupted before it could be read. Its outcome is unknown; do not submit this item again.";
   }
 
   if (/report_render_failed|could not display the analysis report/i.test(message) || error?.code === "report_render_failed") {
-    return "The analysis completed, but the report could not be displayed. Please try again.";
+    return "The analysis returned a report, but it could not be displayed. Do not submit this item again; share the reference below with private-beta support.";
   }
 
   if (submissionState.httpStatus === 429) {
