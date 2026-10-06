@@ -1,5 +1,11 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Supervisor-reviewed comparable-query repair; local)
+
+- Keep descriptive category context unquoted and use provenance-bound directly visible marks rather than explanatory maker prose in research queries.
+- Reject oversized queries whole rather than cutting identifiers or quotation marks. Preserve exact-model, working-condition and valuation uncertainty.
+- Focused offline product checks passed 4/4. Existing synthetic handler corroboration was retained; no source-parser defect or live acquisition improvement is claimed. Publication and a separately funded single live verification remain pending.
+
 ## Version 1.12.52 (Interrupted-analysis recovery candidate)
 
 - Register an account-scoped request and image hashes before analysis POST; atomically mark provider dispatch exactly once in the existing account store.
