@@ -1,3 +1,4 @@
+import { wholeObjectCategory, literalVisibleIdentity } from '../lib/object-intelligence/whole-object.js';
 import { AsyncLocalStorage } from "node:async_hooks";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -3848,6 +3849,27 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
   )).length;
   return Object.freeze({
     schemaVersion: "1.0",
+    candidateAudit: Object.freeze([...acquisitionRecords, ...normalizedRecords.filter(record => record.discoveryOrigin === "BOUNDED_COLLECTION_LINK")].map(record => {
+      const normalized = normalizedRecords.find(candidate => candidate.sourceRecordId === record.sourceRecordId || (candidate.observationIds || []).includes(record.sourceRecordId));
+      const accepted = normalized && acceptedKeys.has(comparableTraceKey(normalized));
+      const canonical = [...acceptedRecords, ...normalizeArray(finalEvidenceResult?.rejectedRecords)].find(candidate =>
+        candidate.sourceRecordId === record.sourceRecordId || (candidate.observationIds || []).includes(record.sourceRecordId)
+        || normalized && comparableTraceKey(candidate) === comparableTraceKey(normalized));
+      const evidence = canonical || normalized || record;
+      const recordedReason = cleanText(evidence.exclusionReason || evidence.objectMindRejectionReason || evidence.rejectionReason || evidence.objectMindVerificationReason || evidence.selectionReason);
+      return Object.freeze({
+        candidateId: record.sourceRecordId || record.objectMindSourceId,
+        parentCandidateId: record.collectionParentSourceId || "",
+        normalizedCandidateId: normalized?.sourceRecordId || "",
+        canonicalEvidenceId: canonical?.evidenceId || "",
+        url: comparableTraceUrl(record), title: cleanText(record.title), origin: record.discoveryOrigin || "PROVIDER_RESULT",
+        price: getVisibleItemPriceAmount(evidence), priceType: cleanText(evidence.priceType || evidence.priceEvidenceType),
+        disposition: finalEvidenceResult ? accepted ? "RETAINED" : "EXCLUDED" : "PENDING_FINAL_SELECTION",
+        reason: recordedReason || (accepted ? "Passed canonical final evidence gates." : !normalized ? "No normalized observation retained." : "Final exclusion reason unavailable; not selected by canonical evidence gates."),
+        displayed: Boolean(canonical && serializedRecords.some(candidate => comparableTraceKey(candidate) === comparableTraceKey(canonical))),
+        enrichmentDisposition: cleanText(normalized?.enrichmentDisposition || record.enrichmentDisposition)
+      });
+    })),
     stageOrder: Object.freeze([
       "SEARCH_RESPONSE", "RESULT_EXTRACTION", "OFFER_CANDIDATE", "NORMALIZATION",
       "IDENTITY_MATCHING", "DIRECT_PAGE_HYDRATION", "EVIDENCE_GRADING", "RETENTION", "RESPONSE_SERIALIZATION"
@@ -3935,6 +3957,7 @@ function refreshGovernedResearchOutcome(liveSearch = {}, options = {}) {
   liveSearch.searchDiagnostics = {
     ...(liveSearch.searchDiagnostics || {}),
     comparableFunnel: funnel,
+    candidateAudit: funnel.candidateAudit,
     governedResearchStrategy: liveSearch.governedResearchStrategy
   };
   return outcomeDecision;
@@ -6724,6 +6747,61 @@ function directOfferHydrationPriority(record = {}) {
   return score;
 }
 
+function collectionIdentityMatches(text, context = {}) {
+  const category = wholeObjectCategory(context.canonicalResearchIdentity?.objectCategory || context.visualCategory || context.itemType);
+  if (!category) return false;
+  if (evaluateComparableItemTypeCompatibility({ title: text }, context, context).itemTypeCompatible === false) return false;
+  const normalized = normalizeComparableText(text);
+  const tokens = new Set(normalized.split(/[^a-z0-9]+/).filter(Boolean));
+  const type = detectCanonicalComparableItemType(category);
+  if (type.key && detectCanonicalComparableItemType(text)?.key !== type.key) return false;
+  if (!type.key && !normalizeComparableText(category).split(" ").filter(word => word.length > 3).every(word => normalized.includes(word))) return false;
+  const marks = (context.canonicalResearchIdentity?.identityTerms || [])
+    .filter(term => /VISIBLE_MARK|BRAND|MAKER/.test(term.role || "") && (term.observationIds || []).length)
+    .map(term => literalVisibleIdentity(term.term)).filter(term => term && !/unknown|likely|possibly|uncertain|not independently verified/i.test(term));
+  return marks.every(mark => normalizeComparableText(mark).split(/[^a-z0-9]+/).filter(Boolean).every(word => tokens.has(word)));
+}
+
+function isApprovedCollectionDiscoveryUrl(url, context = {}, record = {}) {
+  if (!isPublicHttpUrl(url) || !isLikelyCategoryOrSearchPageUrl(url)) return false;
+  const host = hostnameFromUrl(url);
+  if (isSearchProviderDomain(host) || !getApprovedRetailProductPageFetchDomains(context).some(domain => host === domain || host.endsWith(`.${domain}`))) return false;
+  return collectionIdentityMatches([record.title, record.snippet, record.description].filter(Boolean).join(" "), context);
+}
+
+function discoverCollectionListingCandidates(html, collectionUrl, context = {}, parent = {}) {
+  const candidates = new Map();
+  const anchors = String(html || "").slice(0, 250000).matchAll(/<a\b([^>]{0,4000})>([\s\S]{0,8000}?)<\/a>/gi);
+  for (const match of anchors) {
+    if (candidates.size >= 20) break;
+    const href = match[1].match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
+    if (!href) continue;
+    let url;
+    try { url = new URL(href.replace(/&amp;/g, "&"), collectionUrl).toString(); } catch { continue; }
+    if (hostnameFromUrl(url) !== hostnameFromUrl(collectionUrl) || !isApprovedRetailProductPageFetchUrl(url, context)) continue;
+    const attributes = [...(match[1] + " " + match[2]).matchAll(/\b(?:alt|title)\s*=\s*(["'])(.*?)\1/gi)].map(value => value[2]);
+    const title = cleanText(stripHtmlForEvidenceText(match[2]) + " " + attributes.join(" "));
+    if (!collectionIdentityMatches(title, context)) continue;
+    const canonicalUrl = canonicalizeComparableUrl(url);
+    const sourceRecordId = stableInternalId("collection-listing", [parent.sourceRecordId || parent.objectMindSourceId, canonicalUrl], 20);
+    candidates.set(canonicalUrl, {
+      query: parent.query, searchPass: parent.searchPass, sourceRoute: parent.sourceRoute,
+      objectMindQueryId: parent.objectMindQueryId, objectMindHypothesisId: parent.objectMindHypothesisId,
+      objectMindQueryType: parent.objectMindQueryType, objectMindIdentityTermsUsed: parent.objectMindIdentityTermsUsed,
+      objectMindIdentityTermProvenance: parent.objectMindIdentityTermProvenance,
+      sourceRecordId, objectMindSourceId: sourceRecordId, observationIds: [sourceRecordId],
+      title, snippet: "", description: "", sourceEvidenceText: "", pageHtml: "", price: null,
+      extractedPrice: null, priceAmount: null, soldPrice: null, priceType: "No Usable Price Evidence",
+      url, destinationUrl: url, canonicalUrl, pageType: "product_or_listing",
+      collectionParentSourceId: parent.sourceRecordId || parent.objectMindSourceId,
+      discoveryOrigin: "BOUNDED_COLLECTION_LINK", comparableLadderLevel: "CLOSE",
+      objectMindDirectPageVerified: false, enrichmentDisposition: "COLLECTION_LISTING_SELECTED",
+      selectionReason: "Compatible whole-object listing linked by a relevant collection; price and sale status require its own page."
+    });
+  }
+  return [...candidates.values()].sort((a, b) => compareSerperTransportText(a.canonicalUrl, b.canonicalUrl));
+}
+
 async function executeExactRetailPageDirectEnrichment({
   context = {},
   identity = context,
@@ -6742,7 +6820,8 @@ async function executeExactRetailPageDirectEnrichment({
     Number(directPageAttemptBudget.maximumAttempts || 0) - Number(directPageAttemptBudget.physicalAttemptCount || 0)
   );
   if (!remainingBudget) {
-    return currentRecords;
+    return currentRecords.map(record => isApprovedCollectionDiscoveryUrl(record.destinationUrl || record.url || record.canonicalUrl, context, record)
+      ? { ...record, enrichmentDisposition: "COLLECTION_DISCOVERY_BUDGET_EXHAUSTED", selectionReason: "No physical direct-page reads remain; collection discovery was not dispatched." } : record);
   }
   const candidatesByUrl = new Map();
   for (const record of currentRecords
@@ -6794,9 +6873,19 @@ async function executeExactRetailPageDirectEnrichment({
     perLevelCounts[candidate.level] += 1;
     candidates.push(candidate);
   }
+  if (!candidates.length && remainingBudget >= 2) {
+    const seed = currentRecords.filter(record => !record.objectMindDirectPageVerified)
+      .filter(record => isApprovedCollectionDiscoveryUrl(record.destinationUrl || record.url || record.canonicalUrl, context, record))
+      .sort((a, b) => compareSerperTransportText(stableCandidateKey(a), stableCandidateKey(b)))[0];
+    if (seed) candidates.push({ url: canonicalizeComparableUrl(seed.destinationUrl || seed.url || seed.canonicalUrl), members: [seed], collectionDiscovery: true });
+  }
   const selectedUrls = new Set(candidates.map((candidate) => candidate.url));
   let enrichedRecords = currentRecords.map((record) => {
     const url = canonicalizeComparableUrl(unwrapRetailDestinationUrl(record.destinationUrl || record.url || record.canonicalUrl));
+    if (isApprovedCollectionDiscoveryUrl(url, context, record)) return {
+      ...record, enrichmentDisposition: selectedUrls.has(url) ? "COLLECTION_DISCOVERY_SELECTED" : remainingBudget < 2 ? "COLLECTION_DISCOVERY_INSUFFICIENT_BUDGET" : "EXISTING_DIRECT_OFFERS_PREFERRED",
+      selectionReason: selectedUrls.has(url) ? "Relevant approved collection selected for bounded individual-listing discovery." : remainingBudget < 2 ? "Discovery needs a collection read and a listing read; fewer than two remain." : "Existing compatible individual offers take priority over collection discovery."
+    };
     if (!url || !candidatesByUrl.has(url)) return record;
     return {
       ...record,
@@ -6809,7 +6898,7 @@ async function executeExactRetailPageDirectEnrichment({
     return enrichedRecords;
   }
   let priority = providerRequestRecords.length + 1;
-  for (const { url: candidateUrl, members } of candidates) {
+  for (const { url: candidateUrl, members, collectionDiscovery = false } of candidates) {
     const record = members[0];
     if (cognitiveGovernor) beginTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
     const directPageCognitiveDecision = cognitiveGovernor
@@ -6830,6 +6919,8 @@ async function executeExactRetailPageDirectEnrichment({
       directPageCognitiveDecision.actionType !== COGNITIVE_ACTION.VERIFY_DIRECT_PAGE
       || !directPageCognitiveDecision.executionPermitted
     )) {
+      enrichedRecords = enrichedRecords.map(observation => observation.sourceRecordId === record.sourceRecordId
+        ? { ...observation, enrichmentDisposition: "GOVERNOR_DIRECT_PAGE_NOT_AUTHORIZED", selectionReason: `Actual Governor selected ${directPageCognitiveDecision.actionType}; direct-page execution was not authorized.` } : observation);
       completeTerminalStage(TERMINAL_STAGE.DIRECT_PAGE_VERIFICATION);
       continue;
     }
@@ -6862,7 +6953,8 @@ async function executeExactRetailPageDirectEnrichment({
           {
             attemptBudget: directPageAttemptBudget,
             requestRecord,
-            initialAttemptReserved: true
+            initialAttemptReserved: true,
+            collectionDiscovery
           }
         );
       };
@@ -6905,7 +6997,16 @@ async function executeExactRetailPageDirectEnrichment({
       requestRecord.domainsReturned = summarizeSourceLabels([hostnameFromUrl(result.finalUrl)]);
       requestRecord.failureStage = result.sourceEvidenceText ? "none" : "exact_page_no_supported_price";
       providerResponseSummaries.push(createDirectProductPageFetchResponseSummary(requestRecord));
-      if (result.sourceEvidenceText) {
+      if (collectionDiscovery) {
+        const discovered = discoverCollectionListingCandidates(result.html, result.finalUrl || candidateUrl, context, record);
+        const remaining = Number(directPageAttemptBudget.maximumAttempts) - Number(directPageAttemptBudget.physicalAttemptCount);
+        const selected = remaining > 0 ? discovered.slice(0, 1) : [];
+        enrichedRecords = enrichedRecords.map(observation => observation === record || observation.sourceRecordId === record.sourceRecordId
+          ? { ...observation, enrichmentDisposition: selected.length ? "COLLECTION_LISTING_DISCOVERED" : remaining <= 0 ? "COLLECTION_DISCOVERY_BUDGET_EXHAUSTED" : "COLLECTION_NO_COMPATIBLE_LISTING", selectionReason: selected.length ? "Collection is reference only; compatible child selected for independent verification." : remaining <= 0 ? "Physical read ceiling exhausted; no child dispatched." : "No compatible approved individual listing link found." }
+          : observation);
+        enrichedRecords.push(...discovered.map(child => ({ ...child, enrichmentDisposition: selected.includes(child) ? "COLLECTION_LISTING_SELECTED" : "COLLECTION_LISTING_CEILING_EXCLUDED" })));
+        for (const child of selected) candidates.push({ url: child.canonicalUrl, members: [child] });
+      } else if (result.sourceEvidenceText) {
         enrichedRecords = enrichedRecords.map((observation) => {
           const observationUrl = canonicalizeComparableUrl(unwrapRetailDestinationUrl(
             observation.destinationUrl || observation.url || observation.canonicalUrl
@@ -7152,7 +7253,10 @@ function isPrivateIpv4Address(host = "") {
 
 async function requestBoundedRetailProductPageNetwork(url = "", context = {}, record = {}, attemptState = {}, redirectDepth = 0) {
   const finalCandidate = unwrapRetailDestinationUrl(url) || cleanText(url);
-  if (!isApprovedRetailProductPageFetchUrl(finalCandidate, context, record)) {
+  const approvedUrl = (candidate) => attemptState.collectionDiscovery
+    ? isApprovedCollectionDiscoveryUrl(candidate, context, record) && hostnameFromUrl(candidate) === hostnameFromUrl(url)
+    : isApprovedRetailProductPageFetchUrl(candidate, context, record);
+  if (!approvedUrl(finalCandidate)) {
     throw Object.assign(new Error("Direct product-page URL was not approved for enrichment."), { code: "direct_fetch_url_not_approved" });
   }
   if (redirectDepth > 3) {
@@ -7181,7 +7285,7 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
       recordPhysicalAttemptOutcome(attemptState.requestRecord, "redirect", { statusCode: response.status });
       const location = cleanText(response.headers.get("location"));
       const nextUrl = location ? new URL(location, finalCandidate).toString() : "";
-      if (!nextUrl || !isApprovedRetailProductPageFetchUrl(nextUrl, context, record)) {
+      if (!nextUrl || !approvedUrl(nextUrl)) {
         throw Object.assign(new Error("Direct product-page redirect target was not approved."), { code: "direct_fetch_redirect_not_approved" });
       }
       return requestBoundedRetailProductPageNetwork(nextUrl, context, record, {
@@ -7197,13 +7301,13 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
       throw Object.assign(new Error("Direct product-page fetch did not return HTML."), { code: "direct_fetch_non_html" });
     }
     const html = await readBoundedResponseText(response, 250000);
-    const evidence = extractDirectRetailProductPageEvidence({ pageHtml: html }, context);
+    const evidence = extractDirectRetailProductPageEvidence({ ...record, pageHtml: html }, context);
     return {
       finalUrl: response.url || finalCandidate,
       statusCode: response.status,
       elapsedMs: currentTimeMilliseconds() - startedAt,
       html,
-      sourceEvidenceText: evidence.sourceEvidenceText
+      sourceEvidenceText: attemptState.collectionDiscovery ? "" : evidence.sourceEvidenceText
     };
   } catch (error) {
     clearTimeout(timeout);
@@ -7971,6 +8075,10 @@ const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
   "purchaseChannel",
   "qualification",
   "rejectionReason",
+  "selectionReason",
+  "enrichmentDisposition",
+  "collectionParentSourceId",
+  "discoveryOrigin",
   "retained",
   "retailEvidenceTier",
   "retailEvidenceTierLabel",
@@ -9059,7 +9167,10 @@ function buildCanonicalObjectSerperSearchPlan({
     const comparableLadderLevel = cleanText(owner.comparableLadderLevel).toUpperCase();
     if (!COMPARABLE_LADDER_LEVELS.includes(comparableLadderLevel)) return;
     if (levelCounts[comparableLadderLevel] >= levelLimits[comparableLadderLevel]) return;
-    const finalQuery = cleanSerperQuery(finalizeSearchQueryCandidate(query, context, domains.length ? 18 : 14));
+    const supplied = cleanText(query);
+    // Canonical queries already carry supported terms. Never truncate identity or a site-expression.
+    if (supplied.length > 240 || (supplied.match(/"/g) || []).length % 2 || (supplied.match(/\(/g) || []).length !== (supplied.match(/\)/g) || []).length || findUnsupportedQueryTerms(supplied, context).length) return;
+    const finalQuery = cleanSerperQuery(finalizeSearchQueryCandidate(supplied, context, 240), 240);
     if (!finalQuery || !normalizeComparableText(finalQuery).includes(normalizedCategory)) return;
     const signature = `${querySemanticSignature(finalQuery)}|${domains.join("|").toLowerCase()}`;
     if (!signature.trim() || signatures.has(signature)) return;
@@ -10544,7 +10655,7 @@ function isLikelyCategoryOrSearchPageUrl(url = "") {
     if (/\/(?:p|ip|product|products|itm|item|sku|dp)\//i.test(`${path}/`)) {
       return false;
     }
-    if (/\/(?:search|s|c|category|categories|browse|catalog|collections?|department|departments?|results?|for-sale|classifieds)(?:\/|$)/i.test(`${path}/`)) {
+    if (/\/(?:search|s|c|market|category|categories|browse|catalog|collections?|department|departments?|results?|for-sale|classifieds)(?:\/|$)/i.test(`${path}/`)) {
       return true;
     }
     if (/(?:^|[?&])(?:q|query|k|keyword|keywords|search|searchTerm|searchterm|Ntt|term)=/i.test(search)) {
@@ -10761,7 +10872,7 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
   const barcodeHits = extractSupportedBarcodeIdentitySetFromText([structuredText, sourceText].join(" "));
   const matchingBarcode = normalizeStringArray(context.barcodeIdentitySet, 24).some((identityCode) => barcodeHits.includes(identityCode));
   const pageSupportsObject = matchingBarcode
-    || directPageSupportsSubmittedFamily(sourceText, context);
+    || (record.collectionParentSourceId ? collectionIdentityMatches(sourceText, context) : directPageSupportsSubmittedFamily(sourceText, context));
   return {
     sourceEvidenceText: pageSupportsObject ? sourceText : "",
     priceAmount: pageSupportsObject && Number.isFinite(priceAmount) ? priceAmount : null,
@@ -11102,7 +11213,8 @@ function itemTypeTokens(itemType) {
 }
 
 const comparableItemTypeDefinitions = [
-  { key: "replacement_piece", label: "replacement part or single piece", priority: 125, patterns: [/\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b/i, /\bparts?\s+only\b/i, /\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i] },
+  { key: "weighing_scale", label: "weighing scale", priority: 117, patterns: [/\b(?:weighing|kitchen|produce|postal|bathroom|laboratory|mechanical|analog|digital|balance)\s+(?:weighing\s+)?scales?\b/i, /^(?:household\s+)?scales?$/i] },
+  { key: "replacement_piece", label: "replacement part or single piece", priority: 125, patterns: [/\breplacement\s+(?:bowl|plate|cup|pan|tray)\s+only\b/i, /\breplacement\s+(?:piece|part|lid|base|drawer|shelf|shade)\b/i, /\bparts?\s+only\b/i, /\bsingle\s+(?:piece|lid|plate|bowl|cup)\b/i] },
   { key: "accessory_component", label: "accessory, component, or installation kit", priority: 123, patterns: [/\baccessor(?:y|ies)\b/i, /\binstallation\s+kits?\b/i, /\bmounting\s+kits?\b/i, /\bhiding\s+kits?\b/i, /\bcomponents?\b/i] },
   { key: "serving_tray", label: "serving/decorative tray", priority: 120, patterns: [/\b(?:serving|decorative|collector|collectible|advertising|display|bar)\s+trays?\b/i, /\bplatters?\b/i] },
   { key: "bottle", label: "bottle", priority: 118, patterns: [/\bbottles?\b/i] },
@@ -11153,6 +11265,8 @@ const comparableItemTypeDefinitions = [
 
 function detectAuthoritativeSubmittedItemType(identity = {}, context = {}) {
   const canonicalProductIdentity = context.canonicalProductIdentity || identity.canonicalProductIdentity || {};
+  const canonicalCategory = context.canonicalResearchIdentity?.objectCategory || identity.canonicalResearchIdentity?.objectCategory;
+  const wholeType = detectCanonicalComparableItemType(wholeObjectCategory(canonicalCategory));
   const candidates = [
     ["canonical_product_name", canonicalFieldValue(canonicalProductIdentity, "productName"), 6],
     ["finalized_search_identity", context.finalizedSearchIdentity, 6],
@@ -11192,8 +11306,8 @@ function detectAuthoritativeSubmittedItemType(identity = {}, context = {}) {
     || right.priority - left.priority
     || left.key.localeCompare(right.key)
   ));
-  const selected = ranked[0] || { key: "", label: "", score: 0, sources: [], priority: 0 };
-  const runnerUp = ranked[1] || null;
+  const selected = wholeType.key ? { ...wholeType, score: 6, sources: ["canonical_whole_object_category"] } : ranked[0] || { key: "", label: "", score: 0, sources: [], priority: 0 };
+  const runnerUp = wholeType.key ? null : ranked[1] || null;
   const coherent = Boolean(selected.key) && (!runnerUp || selected.score >= runnerUp.score + 2);
 
   const barcodeIdentities = normalizeStringArray(
@@ -11593,6 +11707,8 @@ function assessRetailProductFamilyCompatibility(record = {}, identity = {}, buye
 }
 
 function buildSubmittedItemTypeText(identity = {}, context = {}) {
+  const category = identity.canonicalResearchIdentity?.objectCategory || context.canonicalResearchIdentity?.objectCategory;
+  if (category && detectCanonicalComparableItemType(wholeObjectCategory(category)).key) return wholeObjectCategory(category);
   return [
     context.itemType,
     context.productTitle,
@@ -25231,7 +25347,9 @@ function reconcileSourceAcquisitionRecords(acquisitionRecords = [], normalizedRe
       normalizationDisposition: normalized
         ? record.normalizationDisposition === "NORMALIZED" ? "NORMALIZED_AND_PRESERVED" : "PRESERVED"
         : record.normalizationDisposition,
-      enrichmentDisposition: normalized ? "PASSED_TO_ENRICHMENT" : record.enrichmentDisposition || "NOT_ENRICHABLE",
+      candidateId: record.sourceRecordId,
+      enrichmentDisposition: normalized?.enrichmentDisposition || record.enrichmentDisposition || "NOT_ENRICHABLE",
+      selectionReason: normalized?.selectionReason || normalized?.exclusionReason || normalized?.rejectionReason || normalized?.objectMindVerificationReason || (normalized ? "Normalized candidate; final evidence selection recorded in candidate audit." : "No normalized observation retained."),
       verificationDisposition,
       canonicalSelectionDisposition: "PENDING"
     };
@@ -25362,6 +25480,10 @@ function parseBody(body) {
 }
 
 export const __queryIntegrityTestHooks = {
+  collectionIdentityMatches,
+  isApprovedCollectionDiscoveryUrl,
+  discoverCollectionListingCandidates,
+  reconcileSourceAcquisitionRecords,
   productionOpenAITransport,
   requestProductionOpenAIJson,
   requestOpenAIInputTokenCountNetwork,

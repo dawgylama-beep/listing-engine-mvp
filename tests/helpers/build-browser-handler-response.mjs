@@ -1,3 +1,4 @@
+import { sessionToken } from "../../api/customer-account.js";
 import { createGenerateListingHandler } from "../../api/generate-listing.js";
 import { validateFinalEvidenceResult } from "../../lib/evidence/index.js";
 import { retailRecoveryFixture } from "../fixtures/production-shaped-evidence.mjs";
@@ -78,7 +79,7 @@ const collectibleProviderResponse = Object.freeze({
     {
       position: 3,
       title: "Riverton Falcons 1999 Champions RefreshCo collector tray",
-      link: "https://market-two.example/item/riverton-1999-champions-tray?tracking=duplicate",
+      link: "https://market-two.example/item/riverton-1999-champions-tray",
       snippet: "Duplicate observation of model RFC-1999-CR exact active listing at $24.99."
     },
     {
@@ -546,12 +547,15 @@ export async function buildBrowserHandlerResponse({
   requestBody,
   evidenceMode = "retail",
   malformedCanonical = false,
-  governedLearningAdapter = null
+  governedLearningAdapter = null,
+  requestContext = null,
+  alternateDuplicateUrl = false
 } = {}) {
   if (!requestBody || typeof requestBody !== "object") {
     throw new Error("A real browser request body is required.");
   }
 
+  if (requestBody.recovery && !requestContext?.service) throw new Error("Recovery-bearing browser fixture requires its authenticated request context and shared account service.");
   const schemas = [];
   const providerStages = [];
   const directPageRequests = [];
@@ -559,6 +563,7 @@ export async function buildBrowserHandlerResponse({
   const retailFixture = buildRetailProviderFixture(requestBody);
   let clock = Date.parse(retailRecoveryFixture.fixedNow);
   const handler = createGenerateListingHandler({
+    ...(requestContext ? { requireAnalysisRecovery: true, resolveAnalysisAccountService: async () => requestContext.service } : {}),
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     getOpenAIModel: () => "deterministic-browser-model",
     getSerperApiKey: () => "deterministic-serper-placeholder",
@@ -583,7 +588,7 @@ export async function buildBrowserHandlerResponse({
       providerStages.push(stage);
       return {
         json: evidenceMode === "collectible"
-          ? collectibleProviderResponse
+          ? (alternateDuplicateUrl ? { ...collectibleProviderResponse, organic: collectibleProviderResponse.organic.map((record, index) => index === 2 ? { ...record, link: `${record.link}?tracking=duplicate` } : record) } : collectibleProviderResponse)
           : evidenceMode === "wearable"
             ? wearableProviderResponse
             : evidenceMode === "retail-incomplete"
@@ -609,7 +614,7 @@ export async function buildBrowserHandlerResponse({
   const response = createResponseCapture();
   const networkGuard = installHardNetworkDenial();
   try {
-    await handler({ method: "POST", body: structuredClone(requestBody) }, response);
+    await handler({ method: "POST", body: structuredClone(requestBody), ...(requestContext ? { headers: requestContext.headers, socket: requestContext.socket, url: requestContext.url } : {}) }, response);
   } finally {
     networkGuard.restore();
   }
@@ -617,7 +622,7 @@ export async function buildBrowserHandlerResponse({
   if (response.statusCode !== 200 || !response.payload) {
     throw new Error(
       `Deterministic production handler failed with status ${response.statusCode}`
-      + `${response.payload?.code ? ` (${response.payload.code})` : ""}.`
+      + `${response.payload?.code ? ` (${response.payload.code})` : ""}.` + (response.payload?.code === "SOURCE_PROVENANCE_BINDING_FAILED" ? ` Finalized acquisition fixture: ${JSON.stringify(finalized.map(result => ({customerEvidence:result.customerEvidence?.map(card => ({destinationUrl:card.destinationUrl,sourceObservationIds:card.sourceObservationIds,urlProvenance:card.provenance?.url}))})))}` : "")
     );
   }
   if (networkGuard.attempts.length !== 0) {
@@ -640,6 +645,7 @@ export async function buildBrowserHandlerResponse({
     canonicalReport: response.payload[envelope],
     finalEvidenceResult: finalized[0],
     metadata: {
+      authenticatedRecovery: requestContext ? { state: (await requestContext.service.readAnalysisRecovery(sessionToken({ headers: requestContext.headers }), requestBody.analysisId, requestBody.recovery.recoveryId)).state } : null,
       schemas,
       providerStages,
       directPageRequests,

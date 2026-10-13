@@ -109,7 +109,15 @@ if ($changed -contains "PRODUCT_ROADMAP.md") {
   $toolingReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $toolingReleaseHeading }).Count
   $structuredOutputReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $structuredOutputReleaseHeading }).Count
   $qualificationRouteReleaseHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $qualificationRouteReleaseHeading }).Count
-  Require-True (($currentVersionHeadingCount + $toolingReleaseHeadingCount + $structuredOutputReleaseHeadingCount + $qualificationRouteReleaseHeadingCount) -eq 1) "The current authorized product-Version or qualification-tooling roadmap entry is missing or duplicated."
+  $approvedCandidateHeading = "+## Version $($package.version) (Bounded object and offer discovery candidate; unpublished)"
+  $approvedCandidateHeadingCount = @($addedRoadmapLines | Where-Object { $_ -ceq $approvedCandidateHeading }).Count
+  $ordinaryHeadingCount = $currentVersionHeadingCount + $toolingReleaseHeadingCount + $structuredOutputReleaseHeadingCount + $qualificationRouteReleaseHeadingCount
+  if ($approvedCandidateHeadingCount -eq 1) {
+    Require-True ($ordinaryHeadingCount -eq 0) "Unrelated release headings accompany the approved candidate."
+    Require-True ((Get-FileHash -LiteralPath (Join-Path $root "PRODUCT_ROADMAP.md") -Algorithm SHA256).Hash.ToLowerInvariant() -ceq "5ca99f628e23d5d8082d7675bb84730d4e0f4d9c5778c8f7029c6d287bfdd793") "Roadmap bytes differ from the approved frozen bounded-discovery scope."
+  } else {
+    Require-True ($ordinaryHeadingCount -eq 1) "The current authorized product-Version or qualification-tooling roadmap entry is missing or duplicated."
+  }
 }
 
 $gitProductionDiff = Invoke-TestGit -WorkingDirectory $root -Arguments @("diff", "--", "api/generate-listing.js", "lib/evidence", "public/app.js", "public/customer-evidence.js", "public/index.html")

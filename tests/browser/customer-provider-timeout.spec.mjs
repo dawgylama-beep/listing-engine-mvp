@@ -1,3 +1,4 @@
+import { browserAnalysisContext } from "../helpers/offline-browser-account.mjs";
 import assert from "node:assert/strict";
 import { expect, test } from "@playwright/test";
 import { __queryIntegrityTestHooks, createGenerateListingHandler } from "../../api/generate-listing.js";
@@ -36,8 +37,10 @@ test(`a controlled ${timeoutStage} timeout ends analysis without a stale or save
   const externalAttempts = [];
   const browserForbidden = [];
   let handlerResult = null;
+  let submittedBody;
 
   const handler = createGenerateListingHandler({
+    requireAnalysisRecovery: true, resolveAnalysisAccountService: async () => service,
     getOpenAIApiKey: () => "synthetic-not-a-credential",
     getOpenAIModel: () => "gpt-4.1-mini",
     getVisualIdentityModel: () => "gpt-5.6-luna",
@@ -105,10 +108,12 @@ test(`a controlled ${timeoutStage} timeout ends analysis without a stale or save
   });
   await page.route("**/api/generate-listing", async (route) => {
     analysisSubmissions += 1;
+    submittedBody = route.request().postDataJSON();
     const response = captureResponse();
     const guard = installHardNetworkDenial();
     try {
-      await handler({ method: "POST", body: route.request().postDataJSON() }, response);
+      const requestContext = await browserAnalysisContext(route.request(), service);
+      await handler({ method: "POST", body: route.request().postDataJSON(), headers: requestContext.headers, socket: requestContext.socket, url: requestContext.url }, response);
     } finally {
       externalAttempts.push(...guard.attempts);
       guard.restore();
@@ -145,7 +150,8 @@ test(`a controlled ${timeoutStage} timeout ends analysis without a stale or save
   await page.locator("#notes").fill(customerNotes);
   await page.locator("#workflow-submit-button").click();
   await expect.poll(() => analysisSubmissions).toBe(1);
-  await expect(page.locator("#workflow-submit-button")).toBeEnabled({ timeout: 60_000 });
+  await expect.poll(async () => submittedBody ? (await service.readAnalysisRecovery(account.session.token, submittedBody.analysisId, submittedBody.recovery.recoveryId)).state : null).toBe("FAILED_TERMINAL");
+  await expect(page.locator("#status")).toHaveText(handlerResult.payload.error);
 
   const visible = {
     status: await page.locator("#status").innerText(),
@@ -189,7 +195,14 @@ test(`a controlled ${timeoutStage} timeout ends analysis without a stale or save
   assert.equal(visible.notes, customerNotes);
   assert.equal(visible.photoPreviewCount, 1);
   assert.equal(visible.purchaseContext, "private_seller");
-  assert.match(visible.status, /timed out/i);
+  assert.equal(visible.status, handlerResult.payload.error);
+  assert.match(visible.status, /could not complete the analysis/i);
   assert.equal(Object.keys((await store.read()).histories[account.account.id] || {}).length, 0);
+  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
+  await page.locator("#analysis-new-item-after-unknown").click();
+  await expect(page.locator("#workflow-submit-button")).toBeEnabled();
+  await expect(page.locator(".photo-preview-item")).toHaveCount(0);
+  assert.equal(analysisSubmissions, 1, "reset must not redispatch the old request");
+  assert.equal((await service.readAnalysisRecovery(account.session.token, submittedBody.analysisId, submittedBody.recovery.recoveryId)).state, "FAILED_TERMINAL");
 });
 }

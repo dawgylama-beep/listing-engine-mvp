@@ -1,3 +1,4 @@
+import { installOfflineBrowserAccount } from "../helpers/offline-browser-account.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -265,7 +266,7 @@ function createResponseCapture() {
   };
 }
 
-async function buildRangeStateHandlerResponse({ requestBody, state }) {
+async function buildRangeStateHandlerResponse({ requestBody, state, requestContext }) {
   const organic = rangeStateProviderResponses[state];
   if (!organic) {
     throw new Error(`Unsupported deterministic range-state fixture: ${state}`);
@@ -277,6 +278,7 @@ async function buildRangeStateHandlerResponse({ requestBody, state }) {
   const finalized = [];
   let clock = Date.parse("2026-07-24T16:00:00.000Z");
   const handler = createGenerateListingHandler({
+    requireAnalysisRecovery: true, resolveAnalysisAccountService: async () => requestContext.service,
     getOpenAIApiKey: () => "deterministic-openai-placeholder",
     getOpenAIModel: () => "deterministic-browser-model",
     getSerperApiKey: () => "deterministic-serper-placeholder",
@@ -317,7 +319,7 @@ async function buildRangeStateHandlerResponse({ requestBody, state }) {
   const response = createResponseCapture();
   const networkGuard = installHardNetworkDenial();
   try {
-    await handler({ method: "POST", body: structuredClone(requestBody) }, response);
+    await handler({ method: "POST", body: structuredClone(requestBody), headers: requestContext.headers, socket: requestContext.socket, url: requestContext.url }, response);
   } finally {
     networkGuard.restore();
   }
@@ -508,9 +510,10 @@ async function installBrowserGuards(page, scenario) {
         body
       });
       const handlerResult = scenario.handlerState
-        ? await buildRangeStateHandlerResponse({ requestBody: body, state: scenario.handlerState })
+        ? await buildRangeStateHandlerResponse({ requestBody: body, state: scenario.handlerState, requestContext: await state.accountFixture.analysisContext(request) })
         : await buildBrowserHandlerResponse({
             requestBody: body,
+            requestContext: await state.accountFixture.analysisContext(request),
             evidenceMode: scenario.evidenceMode,
             malformedCanonical: scenario.malformedCanonical === true
           });
@@ -536,6 +539,7 @@ async function installBrowserGuards(page, scenario) {
     await route.continue();
   });
 
+  state.accountFixture = await installOfflineBrowserAccount(page, { username: "canonical_fixture" });
   return state;
 }
 
@@ -708,9 +712,15 @@ async function assertCanonicalCards(page, state, scenario) {
   }
 
   if (scenario.expectDuplicateObservation) {
-    const merged = report.customerEvidence.find((record) => record.sourceObservationIds.length > 1);
-    expect(merged, "duplicate source observations must finalize into one canonical offer").toBeTruthy();
-    expect(actualIds.filter((evidenceId) => evidenceId === merged.evidenceId)).toHaveLength(1);
+    // Identical returned URLs may coalesce before finalization; URL strings are
+    // not acquisition IDs. Verify unique display and real ledger membership.
+    expect(new Set(report.customerEvidence.map(record => record.destinationUrl)).size).toBe(report.customerEvidence.length);
+    for (const record of report.customerEvidence) {
+      const binding = record.sourceProvenance;
+      expect(binding?.sourceRecordId).toBeTruthy();
+      expect(report.searchDiagnostics.providerSourceRecords.some(source => source.sourceRecordId === binding.sourceRecordId && (source.canonicalUrl || source.url) === binding.acquisitionUrl)).toBe(true);
+    }
+    expect(report.searchDiagnostics.candidateAudit.every(candidate => candidate.candidateId && candidate.reason)).toBe(true);
   }
 
   if (scenario.expectNoPrice) {

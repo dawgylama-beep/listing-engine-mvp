@@ -1,37 +1,11 @@
+import { installOfflineBrowserAccount } from "../helpers/offline-browser-account.mjs";
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { createCustomerAccountHandler } from "../../api/customer-account.js";
-import { createCustomerAccountService, createMemoryCustomerAccountStore } from "../../lib/customer-account/service.js";
 import { buildBrowserHandlerResponse } from "../helpers/build-browser-handler-response.mjs";
 
 async function installAccountRoute(page) {
-  const store = createMemoryCustomerAccountStore();
-  const handler = createCustomerAccountHandler({ service: createCustomerAccountService({ store }) });
-  await page.route("**/api/customer-account**", async (route) => {
-    const request = route.request();
-    const response = {
-      statusCode: 200,
-      headers: {},
-      payload: null,
-      status(code) { this.statusCode = code; return this; },
-      setHeader(name, value) { this.headers[name.toLowerCase()] = String(value); },
-      json(payload) { this.payload = payload; return this; }
-    };
-    await handler({
-      method: request.method(),
-      url: request.url(),
-      headers: { ...await request.allHeaders(), host: new URL(request.url()).host },
-      body: request.postData()
-    }, response);
-    await route.fulfill({
-      status: response.statusCode,
-      headers: response.headers,
-      body: JSON.stringify(response.payload)
-    });
-  });
-  return store;
+  return installOfflineBrowserAccount(page, { signedIn: false });
 }
-
 async function uploadControlledPhoto(page) {
   const data = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
@@ -92,7 +66,8 @@ test("actual handler and customer UI keep useful source context without unsuppor
   const expectedMissingDetail = mobile ? "maker’s mark" : "package size";
   const username = mobile ? "usefulness_mobile" : "usefulness_desktop";
   const password = "isolated usefulness password";
-  const store = await installAccountRoute(page);
+  const fixture = await installAccountRoute(page);
+  const store = fixture.store;
   let analysisRequests = 0;
   let handlerEvidence = null;
 
@@ -100,6 +75,7 @@ test("actual handler and customer UI keep useful source context without unsuppor
     analysisRequests += 1;
     handlerEvidence = await buildBrowserHandlerResponse({
       requestBody: route.request().postDataJSON(),
+      requestContext: await fixture.analysisContext(route.request()),
       evidenceMode
     });
     await route.fulfill({
@@ -179,6 +155,7 @@ test("actual handler and customer UI keep useful source context without unsuppor
 async function renderControlledReviewReport(page, evidenceMode, purchaseContext) {
   let handlerEvidence;
   let analysisRequests = 0;
+  let fixture;
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname !== "127.0.0.1") return route.abort("blockedbyclient");
@@ -189,12 +166,14 @@ async function renderControlledReviewReport(page, evidenceMode, purchaseContext)
       analysisRequests += 1;
       handlerEvidence = await buildBrowserHandlerResponse({
         requestBody: route.request().postDataJSON(),
+        requestContext: await fixture.analysisContext(route.request()),
         evidenceMode
       });
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(handlerEvidence.payload) });
     }
     return route.continue();
   });
+  fixture = await installOfflineBrowserAccount(page, { username: "review_fixture" });
   await page.goto("/");
   await uploadControlledPhoto(page);
   await page.locator("#purchase_context").selectOption(purchaseContext);

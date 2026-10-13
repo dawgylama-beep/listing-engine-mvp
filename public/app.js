@@ -2856,6 +2856,11 @@ function renderSearchDiagnostics(diagnostics) {
   }
   const wrapper = document.createElement("div");
   wrapper.className = "search-diagnostics";
+  if (Array.isArray(diagnostics.candidateAudit) && diagnostics.candidateAudit.length) {
+    const audit = document.createElement("pre");
+    audit.textContent = diagnostics.candidateAudit.map(candidate => `${candidate.candidateId || "ID unavailable"} | ${candidate.disposition} | ${candidate.reason} | ${candidate.priceType || "Price status unavailable"} | ${candidate.price ?? "Unpriced"} | ${candidate.url}`).join("\n");
+    wrapper.append(audit);
+  }
   const summaryRows = [
     ["Queries Generated", Array.isArray(diagnostics.queriesGenerated) ? diagnostics.queriesGenerated.length : diagnostics.queryCount],
     ["Queries Attempted", Array.isArray(diagnostics.providerRequestRecords) ? diagnostics.providerRequestRecords.filter((record) => record.attempted).length : normalizeArray(diagnostics.queriesActuallySent).length],
@@ -5397,6 +5402,10 @@ function formatSearchDiagnosticsText(diagnostics) {
     });
   }
 
+  if (Array.isArray(diagnostics.candidateAudit)) {
+    rows.push("Candidate Selection Audit:");
+    for (const candidate of diagnostics.candidateAudit) rows.push(`- ${candidate.candidateId || "ID unavailable"} | ${candidate.disposition} | ${candidate.reason} | ${candidate.priceType || "Price status unavailable"} | ${candidate.price ?? "Unpriced"} | ${candidate.url}`);
+  }
   return rows.join("\n");
 }
 

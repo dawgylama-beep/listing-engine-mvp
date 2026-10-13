@@ -1,3 +1,4 @@
+import { installOfflineBrowserAccount } from "../helpers/offline-browser-account.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { expect, test } from "@playwright/test";
@@ -50,8 +51,11 @@ test("customer sees an honest budget stop after relevant controlled research", a
   let analysisRequests = 0;
   let countRequests = 0;
   let handlerResult = null;
+  let submittedBody;
 
+  let fixture;
   const handler = createGenerateListingHandler({
+    requireAnalysisRecovery: true, resolveAnalysisAccountService: async () => fixture.service,
     getOpenAIApiKey: () => "synthetic-not-a-credential",
     getOpenAIModel: () => "gpt-4.1-mini",
     getVisualIdentityModel: () => "gpt-5.6-luna",
@@ -108,10 +112,12 @@ test("customer sees an honest budget stop after relevant controlled research", a
   });
   await page.route("**/api/generate-listing", async (route) => {
     analysisRequests += 1;
+    submittedBody = route.request().postDataJSON();
     const response = captureResponse();
     const networkGuard = installHardNetworkDenial();
     try {
-      await handler({ method: "POST", body: route.request().postDataJSON() }, response);
+      const requestContext = await fixture.analysisContext(route.request());
+      await handler({ method: "POST", body: route.request().postDataJSON(), headers: requestContext.headers, socket: requestContext.socket, url: requestContext.url }, response);
     } finally {
       networkAttempts.push(...networkGuard.attempts);
       networkGuard.restore();
@@ -120,6 +126,7 @@ test("customer sees an honest budget stop after relevant controlled research", a
     await route.fulfill({ status: response.statusCode, contentType: "application/json", body: JSON.stringify(response.payload) });
   });
 
+  fixture = await installOfflineBrowserAccount(page, { username: "budget_fixture" });
   await page.goto("/");
   await page.evaluate((report) => {
     latestReport = report;
@@ -134,7 +141,8 @@ test("customer sees an honest budget stop after relevant controlled research", a
   await page.locator("#notes").fill("Nutella hazelnut cocoa spread jar; net weight and barcode are not visible.");
   await page.locator("#workflow-submit-button").click();
   await expect.poll(() => analysisRequests).toBe(1);
-  await expect(page.locator("#workflow-submit-button")).toBeEnabled({ timeout: 60_000 });
+  await expect.poll(async () => submittedBody ? (await fixture.service.readAnalysisRecovery(fixture.account.session.token, submittedBody.analysisId, submittedBody.recovery.recoveryId)).state : null).toBe("FAILED_TERMINAL");
+  await expect(page.locator("#status")).toContainText("spending limit");
 
   const visible = {
     status: await page.locator("#status").innerText(),
@@ -175,7 +183,13 @@ test("customer sees an honest budget stop after relevant controlled research", a
   assert.doesNotMatch(visible.result, /Acme Workshop HW-42|Nutella hazelnut spread product guide/);
   assert.match(visible.status, /spending limit/i);
   assert.match(visible.status, /no completed report or value assessment/i);
-  assert.match(visible.status, /no(?:thing will)? retry automatically/i);
-  assert.match(visible.status, /photos are still selected/i);
-  assert.match(visible.status, /contact your private-beta support/i);
+  assert.match(visible.status, /no automatic retry will occur/i);
+  await expect(page.locator(".photo-preview-item")).toHaveCount(1);
+  assert.equal(visible.status, handlerResult.payload.error, "terminal GET restores the redacted server failure");
+  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
+  await page.locator("#analysis-new-item-after-unknown").click();
+  await expect(page.locator("#workflow-submit-button")).toBeEnabled();
+  await expect(page.locator(".photo-preview-item")).toHaveCount(0);
+  assert.equal(analysisRequests, 1, "reset must not redispatch the old request");
+  assert.equal((await fixture.service.readAnalysisRecovery(fixture.account.session.token, submittedBody.analysisId, submittedBody.recovery.recoveryId)).state, "FAILED_TERMINAL");
 });

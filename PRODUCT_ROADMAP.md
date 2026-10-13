@@ -1,5 +1,13 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Bounded object and offer discovery candidate; unpublished)
+
+- Preserve whole-object category and provenance-bound visible marks through query and compatibility boundaries; subordinate contents cannot replace object identity.
+- Discover at most one compatible same-host individual listing from a relevant approved collection when two physical reads remain. Collection and listing reads, including redirects, share the existing two-read ceiling and Governor ownership; preserve URL, resource, price-status and valuation gates.
+- Retain original candidate IDs and normalization aliases with explicit selection/exclusion and enrichment reasons in collapsed Technical Search Details and report text. Discovered child IDs retain their collection parent and remain separate from provider-returned counts.
+- General synthetic offline checks cover query delivery, misleading contents, compatible priced and irrelevant/unpriced links, exhausted budgets, redirects, URL/resource safeguards, Governor ownership and the actual customer report boundary. Published repair and both historical trials remain unchanged; no live effectiveness or product learning is claimed.
+
+
 ## Version 1.12.52 (Supervisor-reviewed comparable-query repair; local)
 
 - Keep descriptive category context unquoted and use provenance-bound directly visible marks rather than explanatory maker prose in research queries.

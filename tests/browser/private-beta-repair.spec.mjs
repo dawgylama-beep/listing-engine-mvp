@@ -1,20 +1,10 @@
+import { installOfflineBrowserAccount } from "../helpers/offline-browser-account.mjs";
 import { expect, test } from '@playwright/test';
-import { createCustomerAccountHandler } from '../../api/customer-account.js';
-import { createCustomerAccountService, createMemoryCustomerAccountStore } from '../../lib/customer-account/service.js';
+import { sessionToken } from '../../api/customer-account.js';
 import { buildBrowserHandlerResponse } from '../helpers/build-browser-handler-response.mjs';
 
-async function accounts(page) {
-  const handler = createCustomerAccountHandler({ service: createCustomerAccountService({ store: createMemoryCustomerAccountStore() }) });
-  await page.route('**/api/customer-account**', async route => {
-    const request = route.request();
-    const response = { statusCode: 200, headers: {}, payload: null,
-      status(code) { this.statusCode = code; return this; },
-      setHeader(name, value) { this.headers[name.toLowerCase()] = String(value); },
-      json(payload) { this.payload = payload; return this; }
-    };
-    await handler({ method: request.method(), url: request.url(), headers: { ...await request.allHeaders(), host: new URL(request.url()).host }, body: request.postData() }, response);
-    await route.fulfill({ status: response.statusCode, headers: response.headers, body: JSON.stringify(response.payload) });
-  });
+async function accounts(page, { signedIn = false } = {}) {
+  return installOfflineBrowserAccount(page, { signedIn, username: "http_failure_fixture" });
 }
 async function photo(page) {
   const data = await page.evaluate(() => {
@@ -44,10 +34,16 @@ test('first visit exposes account entry and focuses the selected form', async ({
 
 for (const status of [502, 429, 200]) {
   test(`analysis HTTP ${status} failure preserves photos and safe evidence`, async ({ page }) => {
-    await accounts(page);
+    const fixture = await accounts(page, { signedIn: true });
     let submitted;
+    let submissions = 0;
     await page.route('**/api/generate-listing', async route => {
+      submissions += 1;
       submitted = route.request().postDataJSON();
+      const token = sessionToken({ headers: await route.request().allHeaders() });
+      const claimed = await fixture.service.claimAnalysisRecovery(token, { analysisId: submitted.analysisId, ...submitted.recovery });
+      expect(claimed.claimed).toBe(true);
+      await fixture.service.completeAnalysisRecovery(token, { analysisId: submitted.analysisId, recoveryId: submitted.recovery.recoveryId, state: "FAILED_TERMINAL", statusCode: status, response: { error: status === 429 ? "The request limit was reached. No automatic retry will occur." : status === 200 ? "The response contained no usable report. No automatic retry will occur." : "The analysis service could not complete this request. No automatic retry will occur." } });
       await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error: 'opaque backend failure secret-do-not-display' }) });
     });
     await page.goto('/'); await photo(page);
@@ -61,17 +57,28 @@ for (const status of [502, 429, 200]) {
     await expect(page.locator('body')).not.toContainText('secret-do-not-display');
     await expect(page.locator('#status')).not.toContainText('close-up');
     expect(await page.evaluate(() => getSelectedPhotoFiles().length)).toBe(1);
+    await expect(page.locator('#workflow-submit-button')).toBeDisabled();
+    expect((await fixture.service.readAnalysisRecovery(fixture.account.session.token, submitted.analysisId, submitted.recovery.recoveryId)).state).toBe('FAILED_TERMINAL');
+    expect(submissions).toBe(1);
+    await page.locator('#analysis-new-item-after-unknown').click();
     await expect(page.locator('#workflow-submit-button')).toBeEnabled();
+    expect(await page.evaluate(() => getSelectedPhotoFiles().length)).toBe(0);
+    expect(submissions).toBe(1);
+    await fixture.service.deleteAccount(fixture.account.session.token, 'synthetic offline fixture password');
+    const cleared = await fixture.store.read();
+    expect(Object.keys(cleared.accounts)).toHaveLength(0);
+    expect(Object.keys(cleared.analysisRecoveries)).toHaveLength(0);
+    expect(Object.keys(cleared.analysisReplay)).toHaveLength(0);
   });
 }
 
 test('actual account lifecycle saves a report from the real handler with controlled providers', async ({ page }) => {
   test.setTimeout(90000);
-  await accounts(page);
+  const fixture = await accounts(page);
   let analysisRequests = 0;
   await page.route('**/api/generate-listing', async route => {
     analysisRequests++;
-    const response = await buildBrowserHandlerResponse({ requestBody: route.request().postDataJSON() });
+    const response = await buildBrowserHandlerResponse({ requestBody: route.request().postDataJSON(), requestContext: await fixture.analysisContext(route.request()) });
     await route.fulfill({ status: response.statusCode || 200, contentType: 'application/json', body: JSON.stringify(response.payload) });
   });
   await page.goto('/'); await page.locator('#account-create-button').click();

@@ -4,8 +4,8 @@ import { createCustomerAccountHandler } from "../../api/customer-account.js";
 import { createCustomerAccountService, createMemoryCustomerAccountStore } from "../../lib/customer-account/service.js";
 import { buildControlledCustomerModelCorroborationReport } from "../helpers/build-browser-handler-response.mjs";
 
-async function preparedBrowser(page, context) {
-  const service = createCustomerAccountService({ store: createMemoryCustomerAccountStore() });
+async function preparedBrowser(page, context, { now } = {}) {
+  const service = createCustomerAccountService({ store: createMemoryCustomerAccountStore(), ...(now ? { now } : {}) });
   const account = await service.register({ username: "recovery_browser", password: "synthetic password 123" });
   const handler = createCustomerAccountHandler({ service, environment: {} });
   await context.addCookies([{ name: "ke_beta_session", value: account.session.token, url: "http://127.0.0.1:4177", httpOnly: true, sameSite: "Strict" }]);
@@ -81,10 +81,12 @@ test("pending and terminal analysis states never trigger an automatic second POS
   const { service, account } = await preparedBrowser(page, context);
   let posts = 0;
   let identity;
+  const identities = [];
   await page.route("**/api/generate-listing", async (route) => {
     posts += 1;
     const body = route.request().postDataJSON();
     identity = { analysisId: body.analysisId, recoveryId: body.recovery.recoveryId, requestHash: body.recovery.requestHash, photoHashes: body.recovery.photoHashes };
+    identities.push(identity);
     assert.equal((await service.claimAnalysisRecovery(account.session.token, identity)).claimed, true);
     await route.abort("failed");
   });
@@ -99,7 +101,30 @@ test("pending and terminal analysis states never trigger an automatic second POS
   });
   await expect(page.locator("#status")).toContainText("provider timed out", { timeout: 12000 });
   await expect(page.locator("#save-listing-button")).toBeHidden();
+  await expect(page.locator("#workflow-submit-button")).toBeDisabled();
   assert.equal(posts, 1);
+  const oldIdentity = { ...identity };
+  assert.equal((await service.claimAnalysisRecovery(account.session.token, oldIdentity)).claimed, false);
+  await page.locator("#analysis-new-item-after-unknown").click();
+  await expect(page.locator(".photo-preview-item")).toHaveCount(0);
+  await expect(page.locator("#workflow-submit-button")).toBeEnabled();
+  assert.equal(posts, 1, "reset must not dispatch");
+  const encoded = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 121;
+    canvas.getContext('2d').fillRect(20, 20, 80, 80);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.locator('#photos').setInputFiles({ name: 'different-synthetic-item.png', mimeType: 'image/png', buffer: Buffer.from(encoded, 'base64') });
+  await page.locator('#purchase_context').selectOption('private_seller');
+  await page.locator('#notes').fill('A genuinely different synthetic item.');
+  await page.locator('#workflow-submit-button').click();
+  await expect.poll(() => posts).toBe(2);
+  await expect(page.locator('#workflow-submit-button')).toBeDisabled();
+  assert.notEqual(identities[1].analysisId, oldIdentity.analysisId);
+  assert.notEqual(identities[1].requestHash, oldIdentity.requestHash);
+  assert.equal((await service.readAnalysisRecovery(account.session.token, oldIdentity.analysisId, oldIdentity.recoveryId)).state, 'FAILED_TERMINAL');
+  assert.equal((await service.claimAnalysisRecovery(account.session.token, identities[1])).claimed, false);
+  assert.equal(posts, 2, 'neither original nor new in-flight request redispatches');
 });
 
 test("signed-out analysis stops before provider dispatch and explains the account requirement", async ({ page }) => {
@@ -124,4 +149,34 @@ test("signed-out analysis stops before provider dispatch and explains the accoun
   await expect(page.locator("#status")).toContainText("Sign in to your Katherine’s Eye account");
   await expect(page.locator("#photo-preview img")).toHaveCount(1);
   assert.equal(providerPosts, 0);
+});
+
+test('registered and expired UNKNOWN recovery cannot release or redispatch the old request', async ({ page, context }) => {
+  let clock = Date.now();
+  const { service, account } = await preparedBrowser(page, context, { now: () => clock });
+  let posts = 0;
+  let identity;
+  await page.route('**/api/generate-listing', async route => {
+    posts += 1;
+    const body = route.request().postDataJSON();
+    identity = { analysisId: body.analysisId, ...body.recovery };
+    await route.abort('failed');
+  });
+  await page.locator('#workflow-submit-button').click();
+  await expect(page.locator('#status')).toContainText('registered but dispatch is not confirmed');
+  await expect(page.locator('#workflow-submit-button')).toBeDisabled();
+  await page.locator('#listing-form').evaluate(form => form.requestSubmit());
+  assert.equal(posts, 1);
+  clock += 61 * 60 * 1000;
+  await page.evaluate(() => recoverInterruptedAnalysis());
+  await expect(page.locator('#status')).toContainText('outcome is unknown');
+  await expect(page.locator('#workflow-submit-button')).toBeDisabled();
+  await page.locator('#listing-form').evaluate(form => form.requestSubmit());
+  assert.equal(posts, 1);
+  await page.reload();
+  await expect(page.locator('#status')).toContainText('expired or is unavailable');
+  await expect(page.locator('#workflow-submit-button')).toBeDisabled();
+  await assert.rejects(service.claimAnalysisRecovery(account.session.token, identity), error => error.code === 'analysis_recovery_not_found');
+  await assert.rejects(service.registerAnalysisRecovery(account.session.token, identity), error => error.code === 'analysis_recovery_already_used');
+  assert.equal(posts, 1);
 });

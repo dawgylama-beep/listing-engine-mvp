@@ -33,6 +33,7 @@ function canonicalRecord(index, overrides = {}) {
     cardBadgeCode: null,
     cardBadgeLabel: null,
     sourceObservationIds: [`observation-${index}`],
+    sourceProvenance: { sourceRecordId: `observation-${index}`, acquisitionProvider: "OFFLINE_SYNTHETIC", sourceUrl: `https://retailer-${index}.example/p/item-${index}` },
     ...overrides
   };
 }
@@ -85,6 +86,7 @@ test("pure presentation model preserves membership, order, immutable fields, and
 test("presentation model performs no deduplication or second display cap", () => {
   const records = Array.from({ length: 12 }, (_, index) => canonicalRecord(index));
   records[1].destinationUrl = records[0].destinationUrl;
+  records[1].sourceProvenance.sourceUrl = records[0].destinationUrl;
   const model = buildCustomerEvidenceViewModel(records, summary(records));
   assert.equal(model.status, "ready");
   assert.equal(model.cards.length, 12);
@@ -155,5 +157,14 @@ test("owner and seller purposes preserve exact no-price evidence truthfully", ()
     assert.equal(model.cards[0].canonicalMatchLabel, "Exact");
     assert.equal(model.cards[0].canonicalPrice, null);
     assert.equal(model.cards[0].customerPriceLabel, "Price unavailable");
+  }
+});
+
+test("missing or substituted source provenance never enables a customer source link", () => {
+  for (const sourceProvenance of [undefined, { sourceRecordId: "observation-0", acquisitionProvider: "OFFLINE_SYNTHETIC", sourceUrl: "https://wrong.example/item" }, { sourceUrl: "https://retailer-0.example/p/item-0" }]) {
+    const records = [canonicalRecord(0, { sourceProvenance })];
+    const model = buildCustomerEvidenceViewModel(records, summary(records));
+    assert.equal(model.cards.length, 1);
+    assert.equal(model.cards[0].destinationUrl, "");
   }
 });

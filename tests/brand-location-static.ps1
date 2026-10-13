@@ -46,7 +46,7 @@ $checks = @(
   @{ Name = "API prompt uses Katherine's Eye"; Text = $api; Pattern = "buyer-first market intelligence assistant" },
   @{ Name = "Legacy stable ask action remains"; Text = $app; Pattern = 'action: "ask_market_edge"' },
   @{ Name = "No localStorage state is introduced"; Text = $app; Pattern = "localStorage" ; ShouldNotContain = $true },
-  @{ Name = "No sessionStorage state is introduced"; Text = $app; Pattern = "sessionStorage" ; ShouldNotContain = $true },
+  @{ Name = "Only the accepted recovery storage namespace is present"; Text = $app; Pattern = 'const analysisDispatchReceiptKey = "katherine-eye.analysis-dispatch.v1";' },
   @{ Name = "Use My Location calls browser geolocation"; Text = $app; Pattern = "navigator.geolocation.getCurrentPosition(resolve, reject" },
   @{ Name = "Permissions API does not short-circuit prompt"; Text = $app; Pattern = "navigator.permissions"; ShouldNotContain = $true },
   @{ Name = "Prompt state shows requesting permission"; Text = $app; Pattern = "Requesting location permission..." },
@@ -132,6 +132,10 @@ if ($app -match "getCurrentPosition" -and $app -match "window.addEventListener\(
 if ($app -match "coords\.(latitude|longitude).*Technical Search Details") {
   $failed += "Precise coordinates must not appear in diagnostics"
 }
+
+# Execute privacy and namespace restrictions against the actual recovery helpers.
+& node --test (Join-Path $PSScriptRoot "analysis-recovery-storage-contract.test.mjs")
+if ($LASTEXITCODE -ne 0) { $failed += "Recovery storage namespace/privacy contract failed" }
 
 if ($failed.Count -gt 0) {
   Write-Error ("Brand/location static checks failed:`n- " + ($failed -join "`n- "))

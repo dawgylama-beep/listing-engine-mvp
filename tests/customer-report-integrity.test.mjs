@@ -185,3 +185,20 @@ test("oversized report text fails saving instead of ending mid-sentence", () => 
     code: "history_snapshot_too_large"
   });
 });
+
+test("alternate URLs bind only to real acquisition IDs and matching source provenance", async () => {
+  const { __queryIntegrityTestHooks: h } = await import('../api/generate-listing.js');
+  const { bindCustomerSourceProvenance } = await import('../lib/customer-report-integrity.js');
+  const urls = ['https://market.example/item/general-fixture', 'https://market.example/item/general-fixture?variant=second-observation'];
+  const ledger = h.parseSerperResponse({ organic: urls.map(link => ({ link, title: 'Synthetic individual listing', snippet: 'Asking price $20.' })) }, { query: 'Synthetic fixture', objectMindQueryId: 'offline-provenance-query' }).records;
+  const card = { evidenceId: 'controlled-alias-offer', destinationUrl: urls[1], canonicalPrice: 20, sourceObservationIds: ledger.map(record => record.sourceRecordId), provenance: { url: { sourceRecordId: ledger[1].sourceRecordId, sourceUrl: urls[1], acquisitionProvider: 'serper_google' } } };
+  const input = { customerEvidence: [card], searchDiagnostics: { providerSourceRecords: ledger } };
+  const accepted = bindCustomerSourceProvenance(input);
+  assert.equal(accepted.customerEvidence[0].sourceProvenance.sourceRecordId, ledger[1].sourceRecordId);
+  assert.equal(accepted.customerEvidence[0].destinationUrl, urls[1]);
+  assert.deepEqual(accepted.customerEvidence[0].sourceObservationIds, ledger.map(record => record.sourceRecordId));
+  for (const mutate of [c => { c.sourceObservationIds = urls; c.provenance.url.sourceRecordId = urls[1]; }, c => { c.provenance.url.sourceRecordId = 'unacquired-record'; }, c => { c.provenance.url.sourceUrl = 'https://unacquired.example/item'; }, c => { c.destinationUrl = 'https://unacquired.example/item'; }, c => { c.provenance.url.acquisitionProvider = 'openai_web_search'; }]) {
+    const invalid = structuredClone(input); mutate(invalid.customerEvidence[0]);
+    assert.throws(() => bindCustomerSourceProvenance(invalid), { code: 'SOURCE_PROVENANCE_BINDING_FAILED' });
+  }
+});
