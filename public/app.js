@@ -4854,9 +4854,9 @@ function renderSubjectClarificationCard(state,config=workflowConfigs[defaultWork
   const card=document.createElement('article');card.className='section-card identity-confirmation-card';card.dataset.subjectClarification='true';
   const question=document.createElement('h3');question.textContent=state.clarification.question;
   const helper=document.createElement('p');helper.textContent='Choose the subject before Katherine’s Eye searches comparables or assesses value. You can change your choice before continuing.';
-  const choices=document.createElement('div');choices.className='identity-confirmation-actions';
+  const choices=document.createElement('div');choices.className='identity-confirmation-actions subject-choices';choices.dataset.hasSelection=String(Boolean(state.selectedSubjectId));
   for(const option of state.clarification.options){
-    const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=option.label;
+    const button=document.createElement('button');button.type='button';button.className='secondary-button subject-choice'+(option.id===state.selectedSubjectId?' subject-choice--selected':'');button.textContent=option.label;button.dataset.subjectId=option.id;
     button.setAttribute('aria-pressed',String(option.id===state.selectedSubjectId));
     button.addEventListener('click',async()=>{
       if(activeRequestController)return;
@@ -4865,6 +4865,7 @@ function renderSubjectClarificationCard(state,config=workflowConfigs[defaultWork
         const receipt=readAnalysisDispatchReceipt();if(!receipt||receipt.analysisId!==state.analysisId)return;
         const selected=await globalThis.KatherinesEyeCustomerAccount.selectAnalysisSubject({analysisId:state.analysisId,recoveryId:receipt.recoveryId,subjectId:option.id,subjectRevision:state.subjectRevision});
         renderSubjectClarificationCard(selected,config);
+        results.querySelectorAll('[data-subject-id]').forEach(choice=>{if(choice.dataset.subjectId===option.id)choice.focus();});
       }catch(error){setStatus(error.message||'Could not save the choice. Refresh this question before continuing.','error');void recoverInterruptedAnalysis();}
     });choices.append(button);
   }
@@ -5039,7 +5040,7 @@ function setOutputHeading(config) {
 
 function setLoading(isLoading, workflow = currentWorkflow) {
   const config = workflowConfigs[workflow] || workflowConfigs[defaultWorkflow];
-  workflowSubmitButton.disabled = isLoading;
+  workflowSubmitButton.disabled = isLoading || Boolean(results.querySelector("[data-subject-clarification]"));
   workflowSubmitLabel.textContent = isLoading ? config.activeLabel : config.defaultLabel;
 
   if (!isLoading) {

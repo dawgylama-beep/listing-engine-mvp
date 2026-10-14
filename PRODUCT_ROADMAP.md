@@ -1098,3 +1098,8 @@
 - Quarantined historical memory records lacking an authenticated lifecycle binding as ineligible without rewriting or promoting them.
 - Proved 100 repeated dry Preview missions through the installed dispatcher with 26/26 whole-mission checks, zero provider calls, zero external effects, zero cross-product content, no controller involvement, and fresh-worker reconstruction.
 - Preserved Version `1.12.52`; this local cognitive-runtime installation performs no push, deployment, provider call, replay mutation, signer access, native approval, Preview, Production, or main-branch change.
+
+
+### Local subject-choice visibility follow-up — 2026-10-14
+
+On published source fb822bff, local stubbed reproduction confirmed persisted choice/aria-pressed without visible selected styling. The local candidate adds a clear selected appearance, fades correctable alternatives, preserves focus after saved choice, and keeps the original Analyze control disabled during subject clarification. Mouse, touch, keyboard, correction, recovery and one continuation are checked locally. The owner-clicked live continuation and its reserved exposure remain UNKNOWN; this follow-up is unpublished and performs no live replay.

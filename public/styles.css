@@ -5347,3 +5347,15 @@ body.account-panel-open {
 @media (max-width: 600px) {
   .beta-account-entry { flex-direction: column; align-items: flex-start; }
 }
+
+/* Selection stays visible; alternatives remain correctable native buttons. */
+.subject-choices[data-has-selection="true"] .subject-choice:not(.subject-choice--selected) { opacity: 0.55; }
+.subject-choices .subject-choice--selected {
+  opacity: 1;
+  border: 2px solid var(--oxblood);
+  background: var(--oxblood);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--surface-raised);
+}
+.subject-choices .subject-choice--selected:hover:not(:disabled) { background: var(--oxblood-dark); color: #fff; }
+.subject-choices .subject-choice:focus-visible { outline: 3px solid var(--oxblood); outline-offset: 3px; opacity: 1; }

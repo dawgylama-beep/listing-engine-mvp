@@ -29,9 +29,12 @@ test('subject choice and correction survive refresh; lost continuation response 
  await page.locator('#photos').setInputFiles({name:'scene.png',mimeType:'image/png',buffer:Buffer.from(encoded,'base64')});await page.locator('#purchase_context').selectOption('private_seller');
  await page.locator('#workflow-submit-button').click();
  const question=page.locator('[data-subject-clarification]');await expect(question).toContainText('Which item would you like evaluated: desk lamp or lamp shade?');assert.equal(searches,0);assert.equal(recognitionCalls,1);
- await question.getByRole('button',{name:'desk lamp',exact:true}).click();await expect(question.getByRole('button',{name:'desk lamp',exact:true})).toHaveAttribute('aria-pressed','true');
+ const lamp=question.getByRole('button',{name:'desk lamp',exact:true});if(test.info().project.use.hasTouch)await lamp.tap();else await lamp.click();await expect(lamp).toHaveAttribute('aria-pressed','true');
+ await expect(lamp).toHaveClass(/subject-choice--selected/);await expect(question.getByRole('button',{name:'lamp shade',exact:true})).toHaveCSS('opacity','0.55');await expect(lamp).toHaveCSS('opacity','1');await expect(page.locator('#workflow-submit-button')).toBeDisabled();await expect(question.getByRole('button',{name:'Continue with selected item'})).toBeEnabled();
  await page.reload();await expect(question.getByRole('button',{name:'desk lamp',exact:true})).toHaveAttribute('aria-pressed','true');assert.equal(posts,1);assert.equal(searches,0);
- await question.getByRole('button',{name:'lamp shade',exact:true}).click();await expect(question.getByRole('button',{name:'lamp shade',exact:true})).toHaveAttribute('aria-pressed','true');
+ const shade=question.getByRole('button',{name:'lamp shade',exact:true});await shade.focus();await shade.press('Enter');await expect(shade).toHaveAttribute('aria-pressed','true');await expect(shade).toBeFocused();await expect(lamp).toHaveCSS('opacity','0.55');await expect(shade).toHaveCSS('opacity','1');await expect(lamp).toBeEnabled();
+ await lamp.focus();await lamp.press('Space');await expect(lamp).toHaveAttribute('aria-pressed','true');await expect(shade).toHaveCSS('opacity','0.55');await shade.focus();await shade.press('Enter');await expect(shade).toHaveAttribute('aria-pressed','true');await expect(shade).toHaveCSS('opacity','1');await expect(lamp).toBeEnabled();assert.equal(posts,1);assert.equal(searches,0);
+ await page.screenshot({path:'../subject-choice-selected-'+test.info().project.name+'.png',fullPage:true});
  await page.reload();await expect(question.getByRole('button',{name:'lamp shade',exact:true})).toHaveAttribute('aria-pressed','true');assert.equal(posts,1);
  await question.getByRole('button',{name:'Continue with selected item'}).dblclick();
  await expect(page.locator('[data-evaluated-subject]')).toContainText('lamp shade');assert.equal(posts,2);assert.equal(recognitionCalls,1);assert(searches>0);
