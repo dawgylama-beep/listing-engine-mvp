@@ -738,6 +738,11 @@
       if (!account) throw new Error("Sign in to recover this analysis.");
       return requestAccount(`/api/customer-account?action=analysis_status&analysisId=${encodeURIComponent(analysisId)}&recoveryId=${encodeURIComponent(recoveryId)}`);
     },
+    async selectAnalysisSubject(selection) {
+      await sessionHydration;
+      if (!account) throw new Error('Sign in to choose the subject for this analysis.');
+      return requestAccount('/api/customer-account',{method:'POST',body:JSON.stringify({action:'select_analysis_subject',...selection})});
+    },
     getCsrfToken() { return csrfToken; },
     setCurrentReport(report, sections = [], workflow = "personal_use") {
       currentReport = report && typeof report === "object" ? report : null;

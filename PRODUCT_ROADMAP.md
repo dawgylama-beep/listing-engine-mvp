@@ -1,5 +1,21 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Subject clarification; local candidate)
+
+- Resolve the customer's evaluation subject from their description, photographs and subject-specific visible markings before comparable acquisition. A clear subject proceeds; multiple plausible objects, components, accessories or contents produce one concise question naming them.
+- Extend the existing account-scoped interrupted-analysis record with an awaiting-subject pause and revision-bound selection. Choosing or correcting a subject performs no comparable search; one atomic continuation reuses recognition, original image-hash provenance, provider receipts and cumulative spending limits without retaining uploaded photos.
+- Carry the selected subject through canonical recognition, queries, compatibility, comparable selection, valuation and the recovered report. Do not transfer another object's markings, price or identifiers. A selected component or accessory uses its own compatible offers rather than complete-object prices.
+- Restore the question and selection across refresh, recover a lost continuation response without redispatch, and expose subject correction before research and explicit correction after a completed report. Preserve expired/UNKNOWN no-replay behavior and the existing temporary recovery lifetime; clear the private recognition continuation at completion.
+- Focused offline handler, persistence and desktop/mobile browser checks cover clear descriptions, ambiguous scenes, standalone accessories, barcode/package clues, correction, stale/cross-account/expired selection, concurrent continuation and lost responses. The accepted comparable repairs and both completed trials remain preserved; live recognition, provider acquisition and valuation effectiveness remain unproven. No release-version increment or publication is included.
+
+## Version 1.12.52 (Downstream comparable safeguards; local candidate)
+
+- Keep incidental contents out of hypothesis and configuration queries as well as the canonical category, while retaining supported maker/model, capacity, identifying features and their observation provenance.
+- Classify standalone replacement bowls and other accessories by the offered object rather than the host named after “for”; preserve full source descriptions and existing complete-object/accessory exclusions.
+- Apply the collection maker check to actual canonical visible-fact roles as well as explicit mark roles, without treating model or capacity terms as required maker tokens.
+- Bind direct-page price currency to the individual offer and preserve that evidence through transport normalization. Foreign, conflicting or unresolved currencies remain unpriced for USD valuation; no exchange-rate conversion or inherited collection price is introduced.
+- Focused offline checks cover recognition through query delivery, standalone accessory subjects, the shared two-read collection/child path, USD asking prices, unsupported currencies, incompatible pages and unconfirmed sold wording. Starting published commit is f3d994753ea421cdbe7944492a1c6bc08b1a2b02. Both completed trials and accepted validation remain preserved; no later live effectiveness is claimed.
+
 ## Version 1.12.52 (Bounded object and offer discovery candidate; unpublished)
 
 - Preserve whole-object category and provenance-bound visible marks through query and compatibility boundaries; subordinate contents cannot replace object identity.

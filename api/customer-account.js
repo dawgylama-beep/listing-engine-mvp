@@ -150,6 +150,7 @@ async function dispatch(service, req, body) {
   if (req.method === "POST" && action === "logout") return service.logout(token);
   if (req.method === "POST" && action === "save_listing") return service.saveListing(token, body.snapshot);
   if (req.method === "POST" && action === "register_analysis") return service.registerAnalysisRecovery(token, body);
+  if (req.method === "POST" && action === "select_analysis_subject") return service.selectAnalysisSubject(token, body);
   if (req.method === "PATCH" && action === "change_password") return service.changePassword(token, body);
   if (req.method === "PATCH" && action === "rename_listing") return service.renameListing(token, body.listingId, body.name);
   if (req.method === "PATCH" && action === "preferences") return service.updatePreferences(token, body);

@@ -1,4 +1,6 @@
 import { wholeObjectCategory, literalVisibleIdentity } from '../lib/object-intelligence/whole-object.js';
+import {subjectResolutionSchema,resolveEvaluationSubject,projectEvaluationSubject,scopeEvaluationSubjectInput} from '../lib/object-intelligence/subject-selection.js';
+import {inputImageRecords} from '../lib/object-intelligence/state.js';
 import { AsyncLocalStorage } from "node:async_hooks";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -1040,6 +1042,7 @@ const itemIdentitySchema = {
   type: "object",
   additionalProperties: false,
   required: [
+    "subjectResolution",
     "visualRecognition",
     "brand",
     "manufacturer",
@@ -1105,6 +1108,7 @@ const itemIdentitySchema = {
     "buyerContext"
   ],
   properties: {
+    subjectResolution: subjectResolutionSchema,
     visualRecognition: visualRecognitionSchema,
     brand: { type: "string" },
     manufacturer: { type: "string" },
@@ -1353,6 +1357,7 @@ const buyerIntakeStringFields = [
   "retailer_or_marketplace_name",
   "known_shipping_amount",
   "identity_confirmation",
+  "subject_selection",
   "item_condition",
   "item_completeness",
   "fulfillment_preference",
@@ -1427,14 +1432,31 @@ async function handleGenerateListingRequest(req, res) {
       return response;
     }
 
-    const platform = cleanText(body.platform);
-    const notes = cleanText(body.notes);
-    const photos = Array.isArray(body.photos) ? body.photos : [];
-    const reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
-    const buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : normalizeBuyerIntake(body.sellerIntake);
+    let platform = cleanText(body.platform);
+    let notes = cleanText(body.notes);
+    let photos = Array.isArray(body.photos) ? body.photos : [];
+    let reportType = body.reportType === "marketValue" ? "marketValue" : "listing";
+    let buyerIntake = reportType === "marketValue" ? normalizeBuyerIntake(body.buyerIntake) : normalizeBuyerIntake(body.sellerIntake);
     const analysisId = cleanText(currentEvaluationTerminalContext()?.evaluationId || body.analysisId || createServerAnalysisId()).slice(0, 120);
 
-    if (!photos.length) {
+    if (action === 'continue_subject') {
+      assertMutationOrigin(req,process.env);
+      const service=await currentAnalysisAdapters().resolveAnalysisAccountService(),token=sessionToken(req);
+      await service.verifyCsrf(token,req.headers?.['x-csrf-token']);
+      const claim=await service.claimSubjectContinuation(token,{analysisId,recoveryId:body.recoveryId,subjectRevision:body.subjectRevision});
+      if(!claim.claimed){
+        if(['SUCCEEDED','FAILED_TERMINAL'].includes(claim.state))return res.status(claim.statusCode).json(claim.response);
+        return res.status(202).json({analysisId,recoveryId:body.recoveryId,state:claim.state});
+      }
+      analysisRecovery={service,token,analysisId,recoveryId:body.recoveryId};
+      ({platform,notes,reportType,buyerIntake}=claim.continuation.input);
+      buyerIntake={...buyerIntake,subject_selection:claim.selectedSubjectId};
+      Object.assign(currentModelExecutionBudget(),claim.continuation.modelBudget);
+      currentEvaluationTerminalContext().subjectContinuation=claim.continuation.recognizedIdentity;
+      currentEvaluationTerminalContext().subjectImageRecords=claim.continuation.imageRecords;
+      attachCurrentTerminalProviderRecords(claim.continuation.providerRecords||[]);
+    }
+    if (!photos.length && action !== 'continue_subject') {
       throw createHandlerResponseError({
         statusCode: 400,
         code: "ANALYSIS_PHOTO_REQUIRED",
@@ -1442,7 +1464,7 @@ async function handleGenerateListingRequest(req, res) {
       });
     }
 
-    if (currentAnalysisAdapters().requireAnalysisRecovery || body.recovery) {
+    if (action !== 'continue_subject' && (currentAnalysisAdapters().requireAnalysisRecovery || body.recovery)) {
       const recovery = body.recovery;
       if (!recovery || typeof recovery !== "object" || Array.isArray(recovery)) {
         throw createHandlerResponseError({ statusCode: 400, code: "ANALYSIS_RECOVERY_REQUIRED", message: "Sign in and register this analysis before submitting it." });
@@ -1464,12 +1486,14 @@ async function handleGenerateListingRequest(req, res) {
       }
       const claim = await service.claimAnalysisRecovery(token, identity);
       if (!claim.claimed) {
+        if(['AWAITING_SUBJECT','SUBJECT_SELECTED'].includes(claim.state))return res.status(409).json({action:'subject_clarification_required',error:claim.clarification.question,...claim});
         if (claim.state === "SUCCEEDED" || claim.state === "FAILED_TERMINAL") return res.status(claim.statusCode).json(claim.response);
         return res.status(202).json({ analysisId, recoveryId: recovery.recoveryId, state: claim.state });
       }
       analysisRecovery = { service, token, analysisId, recoveryId: recovery.recoveryId };
     }
-    const safePhotos = validateAndNormalizePhotos(photos);
+    const safePhotos = action === 'continue_subject' ? [] : validateAndNormalizePhotos(photos);
+    currentEvaluationTerminalContext().subjectInput={platform,notes,reportType,buyerIntake};
     assertTotalProviderBudget();
     const websiteCognition = await prepareWebsiteCognition({
       analysisId,
@@ -1519,6 +1543,7 @@ async function handleGenerateListingRequest(req, res) {
     beginTerminalStage(TERMINAL_STAGE.RESPONSE_EMISSION);
     const safeReport = sanitizeClientVisiblePayload({
       ...report,
+      subjectSelection: currentEvaluationTerminalContext().subjectSelection,
       analysisId
     });
     const experienceRecord = safeReport.searchDiagnostics?.objectIntelligence?.experienceRecord;
@@ -1551,6 +1576,18 @@ async function handleGenerateListingRequest(req, res) {
     completeTerminalContext(currentEvaluationTerminalContext());
     return response;
   } catch (error) {
+    if(error.subjectClarificationRequired && analysisRecovery){
+      try{
+        const paused=await analysisRecovery.service.pauseSubjectClarification(analysisRecovery.token,{
+          analysisId:analysisRecovery.analysisId,recoveryId:analysisRecovery.recoveryId,clarification:error.clarification,
+          continuation:{recognizedIdentity:error.recognizedIdentity,imageRecords:error.imageRecords,input:currentEvaluationTerminalContext().subjectInput,modelBudget:currentModelExecutionBudget(),providerRecords:currentEvaluationTerminalContext().providerRecordCollections.flat()}
+        });
+        return res.status(409).json({action:'subject_clarification_required',error:error.clarification.question,...paused});
+      }catch{
+        // A failed or uncertain pause cannot authorize a second recognition or search.
+        return res.status(502).json({code:'SUBJECT_PAUSE_UNCONFIRMED',error:'The subject question could not be saved. Check this analysis status; do not submit it again.'});
+      }
+    }
     if (error?.timedOut === true && error?.liveSearchErrorCategory === "timeout" && !error.code) {
       error.code = "PROVIDER_TIMEOUT";
     }
@@ -3152,7 +3189,7 @@ async function generateListingWithResearch({ apiKey, model, platform, notes, pho
     }));
   }
   const report = await executePendingPurposeJudgment(research, () => (
-    generateFinalListingReport({ apiKey, model, platform, notes, research })
+    generateFinalListingReport({ apiKey, model, platform, notes: research.evaluationNotes ?? notes, research })
   ), { workflow: "listing", platform });
   if (report.analysisStatus === "PARTIAL_PROVIDER_FAILURE") {
     return completeRecoverablePartialEvaluation(research, report);
@@ -3217,7 +3254,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
 }
 
 async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform, notes, photos, buyerIntake, analysisId }) {
-  const intake = buyerIntake || normalizeBuyerIntake({});
+  let intake = buyerIntake || normalizeBuyerIntake({});
   const research = await runResearchPipeline({
     apiKey,
     model,
@@ -3229,6 +3266,8 @@ async function generateMarketValueReportWithLiveSearch({ apiKey, model, platform
     analysisId
   });
 
+  intake = research.buyerIntake || intake;
+  notes = research.evaluationNotes ?? notes;
   if (research.executiveDisposition) {
     return completeControlledExecutiveEvaluation(research, buildControlledExecutiveReport(research));
   }
@@ -4077,16 +4116,26 @@ function projectGovernedResearchStrategyEvidence(strategy = {}, applicabilityDec
 }
 
 async function runResearchPipeline({ apiKey, model, platform, notes, photos, buyerIntake, researchPurpose, analysisId }) {
-  const intake = buyerIntake || normalizeBuyerIntake({});
-  const neutralInput = createPurposeNeutralObjectInput({ notes, buyerIntake: intake });
+  let intake = buyerIntake || normalizeBuyerIntake({});
+  let neutralInput = createPurposeNeutralObjectInput({ notes, buyerIntake: intake });
   const visualIdentityModel = currentAnalysisAdapters().getVisualIdentityModel();
-  const rawVisualIdentity = await extractItemIdentity({ apiKey, model: visualIdentityModel, photos, neutralInput });
-  const extractedIdentity = projectCanonicalEvidenceIdentity(rawVisualIdentity);
+  const rawVisualIdentity = currentEvaluationTerminalContext()?.subjectContinuation
+    || await extractItemIdentity({ apiKey, model: visualIdentityModel, photos, neutralInput });
+  const subject=resolveEvaluationSubject(rawVisualIdentity,intake);
+  if(subject.status==='AMBIGUOUS'){
+    const error=new Error(subject.question);error.identityConfirmationRequired=true;error.subjectClarificationRequired=true;
+    error.clarification={question:subject.question,options:subject.candidates.map(({id,label,kind})=>({id,label,kind}))};
+    error.recognizedIdentity=rawVisualIdentity;error.imageRecords=inputImageRecords(photos);throw error;
+  }
+  if(!subject.legacy){const scoped=scopeEvaluationSubjectInput(intake,notes,subject);intake=scoped.intake;notes=scoped.notes;neutralInput=createPurposeNeutralObjectInput({notes,buyerIntake:intake});}
+  currentEvaluationTerminalContext().subjectSelection=projectEvaluationSubject(rawVisualIdentity,subject).subjectSelection;
+  const extractedIdentity = projectCanonicalEvidenceIdentity(projectEvaluationSubject(rawVisualIdentity,subject));
   let visualRecognition = extractedIdentity.visualRecognition;
   let identity = finalizeIdentityForResearch(extractedIdentity, intake);
   let objectMindState = createObjectMindState({
     analysisId,
     photos,
+    retainedImageRecords:currentEvaluationTerminalContext()?.subjectImageRecords||[],
     neutralInput,
     extractedIdentity: identity
   });
@@ -4193,6 +4242,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     sourceRoute,
     searchQueries,
     buyerIntake: intake,
+      evaluationNotes: notes,
     researchPurpose,
     objectMindState,
     cognitiveGovernor,
@@ -4322,6 +4372,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
       searchQueries,
       liveSearch,
       buyerIntake: intake,
+      evaluationNotes: notes,
       cognitiveGovernor,
       cognitiveProviderMaximum,
       pendingPurposeDecision: null,
@@ -4391,6 +4442,7 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
     searchQueries,
     liveSearch,
     buyerIntake: intake,
+      evaluationNotes: notes,
     cognitiveGovernor,
     cognitiveProviderMaximum,
     pendingPurposeDecision
@@ -4762,6 +4814,8 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
         "Perform purpose-neutral Visual Subject Recognition and then create a bounded object identity state in this single multimodal pass.",
         "Do not infer whether the customer is buying, reselling, valuing, or listing the object. The same photographs and permitted object description must produce materially the same observations and identity hypotheses for every customer purpose.",
         "First populate visualRecognition by answering what broad subject is visible independently of exact product, maker, model, date, licensing, authenticity, or comparable matches.",
+        "Before research, resolve which photographed object the customer wants evaluated. Populate subjectResolution with distinct plausible objects, components, accessories and incidental contents; alternatives for maker/model of the SAME object are not different subjects. Do not assume the central or largest object is the requested subject.",
+        "Use the customer's description, item name and visible markings. If the description clearly identifies one subject, set CLEAR and its selectedIndex even if other objects are visible. If more than one plausible evaluation subject remains, set AMBIGUOUS and selectedIndex -1. Keep each candidate's visible marks, brand, model, capacity and identifying features attached ONLY to that candidate. Do not infer working condition or transfer a device's branding to an unmarked component.",
         "Then preserve that broad visual subject while narrowing toward exact product, maker, model, edition, artist, manufacturer, license, material, dimensions, barcode, and comparable identifiers.",
         "Create one to six bounded identityHypotheses. Each must name its exact candidate when supported, its broader family, supporting observations, contradictions, unresolved discriminators, and the query or additional observation that would distinguish it.",
         "Do not force one exact hypothesis. Prefer a useful broader family identity over an unsupported exact candidate.",
@@ -6756,8 +6810,14 @@ function collectionIdentityMatches(text, context = {}) {
   const type = detectCanonicalComparableItemType(category);
   if (type.key && detectCanonicalComparableItemType(text)?.key !== type.key) return false;
   if (!type.key && !normalizeComparableText(category).split(" ").filter(word => word.length > 3).every(word => normalized.includes(word))) return false;
+  const makerTerms = new Set([context.brand, context.visualBrand, context.manufacturer, context.makerIdentity]
+    .map(value => normalizeComparableText(literalVisibleIdentity(value))).filter(Boolean));
   const marks = (context.canonicalResearchIdentity?.identityTerms || [])
-    .filter(term => /VISIBLE_MARK|BRAND|MAKER/.test(term.role || "") && (term.observationIds || []).length)
+    .filter(term => (term.observationIds || []).length && (
+      /VISIBLE_MARK|BRAND|MAKER/.test(term.role || "")
+      || /^(?:VISIBLE_IDENTITY_FACT|NORMALIZED_OWNER_FACT)$/.test(term.role || "")
+        && makerTerms.has(normalizeComparableText(literalVisibleIdentity(term.term)))
+    ))
     .map(term => literalVisibleIdentity(term.term)).filter(term => term && !/unknown|likely|possibly|uncertain|not independently verified/i.test(term));
   return marks.every(mark => normalizeComparableText(mark).split(/[^a-z0-9]+/).filter(Boolean).every(word => tokens.has(word)));
 }
@@ -7631,13 +7691,14 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, origina
 }
 
 function isAccessoryOnlyOfferCandidate(record = {}, context = {}) {
-  const submitted = normalizeComparableText([
+  if (['ACCESSORY','COMPONENT'].includes(context.subjectSelection?.kind)) return false;
+  const submitted = normalizeComparableText(wholeObjectCategory(context.canonicalResearchIdentity?.objectCategory || [
     context.itemType,
     context.productTitle,
     context.subjectIdentity,
     context.exactProductIdentity
-  ].join(" "));
-  if (/\b(?:accessory|attachment|replacement part|cover|case|adapter|component)\b/.test(submitted)) {
+  ].join(" ")));
+  if (/\b(?:accessory|attachment|replacement|spare|cover|case|adapter|component)\b/.test(submitted)) {
     return false;
   }
   const candidate = normalizeComparableText([record.title, record.snippet, record.url].join(" "));
@@ -7646,6 +7707,10 @@ function isAccessoryOnlyOfferCandidate(record = {}, context = {}) {
 }
 
 function authenticateComparablePriceEvidence(record = {}, itemTypeCompatibility = {}, context = {}) {
+  const sourceCurrency = cleanText(record.sourcePriceCurrency || record.exactRetailPageEvidence?.priceCurrency || record.currency).toUpperCase();
+  if (sourceCurrency && !["USD", "$", "US$"].includes(sourceCurrency)) {
+    return { authenticated: false, amount: null, provenance: "", reason: "The individual offer currency is unsupported or unresolved; no USD valuation price is authenticated." };
+  }
   const url = canonicalizeComparableUrl(record.destinationUrl || record.url || record.canonicalUrl);
   const amount = Number.isFinite(record.parsedPrice)
     ? Number(record.parsedPrice)
@@ -7829,7 +7894,8 @@ const SERPER_TRANSPORT_CASE_SENSITIVE_FIELDS = new Set([
 
 const SERPER_TRANSPORT_CURRENCY_FIELDS = new Set([
   "currency",
-  "currencyCode"
+  "currencyCode",
+  "sourcePriceCurrency"
 ]);
 
 const SERPER_TRANSPORT_SET_FIELDS = new Set([
@@ -7976,6 +8042,8 @@ const SERPER_TRANSPORT_IDENTITY_FIELDS = Object.freeze([
   "pricePerUnit",
   "currency",
   "currencyCode",
+  "sourcePriceCurrency",
+  "sourcePriceAmount",
   "shipping",
   "shippingCost",
   "shippingAmount",
@@ -10789,6 +10857,7 @@ function extractExactRetailPageEvidence(record = {}, context = {}) {
     packageQuantity: Number.isFinite(pageEvidence.packageQuantity) ? pageEvidence.packageQuantity : Number.isFinite(packageQuantity) ? packageQuantity : null,
     availabilityText: cleanText(pageEvidence.availabilityText || availabilityText),
     priceAmount: Number.isFinite(pageEvidence.priceAmount) ? pageEvidence.priceAmount : null,
+    priceCurrency: cleanText(pageEvidence.priceCurrency),
     priceSource: cleanText(pageEvidence.priceSource),
     sourceEvidenceText: cleanText(pageEvidence.sourceEvidenceText),
     enrichmentMode: pageEvidence.sourceEvidenceText ? "direct_product_page_html" : "search_result_metadata_only"
@@ -10801,10 +10870,11 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
     return record;
   }
   const evidence = extractExactRetailPageEvidence(record, context);
-  const pagePrice = Number.isFinite(evidence.priceAmount) ? evidence.priceAmount : null;
+  const pagePrice = Number.isFinite(evidence.priceAmount) && evidence.priceCurrency === "USD" ? evidence.priceAmount : null;
+  const unsupportedPageCurrency = evidence.enrichmentMode === "direct_product_page_html" && evidence.priceCurrency && evidence.priceCurrency !== "USD";
   const displayedPriceText = Number.isFinite(pagePrice)
     ? formatSourceMoney(pagePrice)
-    : record.displayedPriceText;
+    : unsupportedPageCurrency ? "" : record.displayedPriceText;
   const packageText = Number.isFinite(evidence.packageQuantity) ? `${evidence.packageQuantity} count` : "";
   const rawText = [
     shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
@@ -10823,10 +10893,12 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
     domain: evidence.retailerDomain || record.domain,
     destinationUrl: evidence.destinationUrl || record.destinationUrl,
     displayedPriceText,
-    parsedPrice: Number.isFinite(pagePrice) ? pagePrice : record.parsedPrice,
+    parsedPrice: Number.isFinite(pagePrice) ? pagePrice : unsupportedPageCurrency ? null : record.parsedPrice,
+    sourcePriceCurrency: evidence.priceCurrency || record.sourcePriceCurrency,
+    sourcePriceAmount: Number.isFinite(evidence.priceAmount) ? evidence.priceAmount : record.sourcePriceAmount,
     priceEvidenceType: Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
     priceProvenance: Number.isFinite(pagePrice) ? evidence.priceSource : record.priceProvenance,
-    priceAuthenticated: Number.isFinite(pagePrice) ? true : record.priceAuthenticated,
+    priceAuthenticated: Number.isFinite(pagePrice) ? true : unsupportedPageCurrency ? false : record.priceAuthenticated,
     directProductPage: evidence.enrichmentMode === "direct_product_page_html",
     sourceQuality: evidence.enrichmentMode === "direct_product_page_html" ? "direct_product_page" : record.sourceQuality,
     directPageProvenance: evidence.enrichmentMode === "direct_product_page_html" ? evidence.priceSource || "DIRECT_PRODUCT_PAGE" : record.directPageProvenance,
@@ -10862,6 +10934,7 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
   const structuredPriceAmount = extractStructuredOfferPriceFromHtml(html);
   const visiblePriceAmount = parseDisplayedPrice(sourceText);
   const priceAmount = Number.isFinite(structuredPriceAmount) ? structuredPriceAmount : visiblePriceAmount;
+  const priceCurrency = Number.isFinite(priceAmount) ? extractDirectOfferCurrency(html, sourceText, priceAmount) : "";
   const priceSource = Number.isFinite(structuredPriceAmount)
     ? "DIRECT_PRODUCT_PAGE_STRUCTURED_PRICE"
     : Number.isFinite(visiblePriceAmount)
@@ -10876,6 +10949,7 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
   return {
     sourceEvidenceText: pageSupportsObject ? sourceText : "",
     priceAmount: pageSupportsObject && Number.isFinite(priceAmount) ? priceAmount : null,
+    priceCurrency: pageSupportsObject ? priceCurrency : "",
     packageQuantity: pageSupportsObject && Number.isFinite(packageQuantity) ? packageQuantity : null,
     availabilityText: pageSupportsObject ? availabilityText : "",
     priceSource: pageSupportsObject && Number.isFinite(priceAmount) ? priceSource : ""
@@ -10912,6 +10986,31 @@ function collectJsonLdOfferPrices(value, prices = []) {
   }
   for (const child of Object.values(value)) collectJsonLdOfferPrices(child, prices);
   return prices;
+}
+
+function extractDirectOfferCurrency(html, sourceText, amount) {
+  // Currency belongs to the same individual-page offer, never its collection.
+  const currencies = [];
+  const add = value => { if (cleanText(value)) currencies.push(cleanText(value).toUpperCase()); };
+  const visit = value => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    if (normalizeArray(value["@type"]).some(type => cleanText(type).toLowerCase() === "offer")
+      && boundedStructuredPriceNumber(value.price) === amount) add(value.priceCurrency);
+    Object.values(value).forEach(visit);
+  };
+  for (const script of extractHtmlAttributeValues(html, /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { visit(JSON.parse(script)); } catch { /* Invalid data is not currency evidence. */ }
+  }
+  for (const tag of String(html).matchAll(/<(?:meta|[^\s>]+)\b[^>]{0,4000}>/gi)) {
+    const attributes = Object.fromEntries([...tag[0].matchAll(/\b([\w:-]+)\s*=\s*(["'])(.*?)\2/gi)].map(match => [match[1].toLowerCase(), match[3]]));
+    if (/^(?:product:price:currency|og:price:currency|pricecurrency)$/i.test(attributes.property || attributes.name || attributes.itemprop || "")) add(attributes.content || attributes.value);
+  }
+  const distinct = [...new Set(currencies)];
+  if (distinct.length) return distinct.length === 1 ? distinct[0] : "CONFLICTING";
+  if (/\b(?:EUR|GBP|CAD|AUD|NZD|JPY|CHF|CNY|INR)\b|[€£¥]|(?:C|CA|A|AU|NZ)\$/i.test(sourceText)) return "UNRESOLVED_NON_USD";
+  // Preserve the application's existing dollar-denominated visible-offer lane.
+  return parseDisplayedPrice(sourceText) === amount ? "USD" : "UNKNOWN";
 }
 
 function extractStructuredOfferPriceFromHtml(html = "") {
@@ -11474,7 +11573,9 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
   const canonicalSubmitted = detectCanonicalComparableItemType(context.itemType);
   const submitted = canonicalSubmitted.key ? canonicalSubmitted : detectCanonicalComparableItemType(submittedText);
   const titleUrlCandidate = detectCanonicalComparableItemType([record.title, record.url, record.canonicalUrl].filter(Boolean).join(" "));
-  const candidate = titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
+  const offeredHead = ['ACCESSORY','COMPONENT'].includes(context.subjectSelection?.kind)
+    ? detectCanonicalComparableItemType(wholeObjectCategory(record.title)) : {key:''};
+  const candidate = offeredHead.key ? offeredHead : titleUrlCandidate.key ? titleUrlCandidate : detectCanonicalComparableItemType(candidateText);
   const normalizedSubmitted = detectAuthoritativeSubmittedItemType(identity, context);
   const sourceIdentity = assessAuthoritativeSourceIdentity(record, identity, context);
   const setScope = detectComparableSetScope(submittedText, candidateText);
@@ -11773,7 +11874,10 @@ function buildSubmittedRetailProductFamilyText(identity = {}, buyerIntake = norm
 }
 
 function detectCanonicalComparableItemType(text) {
-  const normalized = normalizeComparableText(text);
+  let normalized = normalizeComparableText(text);
+  // A standalone accessory's host does not change what is actually offered.
+  const accessoryHead = normalized.match(/^(.+?\b(?:bowls?|lids?|shades?|covers?|cases?|adapters?|attachments?|components?|parts?))\s+(?:for|fits?|compatible\s+with)\b/i)?.[1];
+  if (accessoryHead && !/\b(?:with|holding|containing|filled)\b/i.test(accessoryHead)) normalized = accessoryHead;
   if (!normalized) {
     return { key: "", label: "", matches: [] };
   }
@@ -13797,6 +13901,7 @@ function createResponsesPayload({ model, systemText, userContent, schemaName, sc
 function normalizeIdentity(identity) {
   const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
   const normalized = {
+    subjectResolution: identity.subjectResolution,
     visualRecognition,
     visualSubject: firstKnown(identity.visualSubject, visualRecognition.visualSubject, identity.subjectIdentity),
     visualSubjectCategory: firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category),
@@ -15981,6 +16086,7 @@ function buildSearchQueryContext(identity, sourceRoute, notes, buyerIntake = nor
     canonicalProductIdentity,
     canonicalResearchIdentity,
     finalizedSearchIdentity: canonicalProductIdentity.finalizedSearchIdentity || "",
+    subjectSelection: identity.subjectSelection,
     canonicalCustomerTitle: canonicalProductIdentity.customerFacingTitle || "",
     unsupportedIdentityTerms: normalizeStringArray(canonicalProductIdentity.unsupportedTermsRejected, 24),
     conflictingCandidatesRejected: normalizeArray(canonicalProductIdentity.conflictingCandidatesRejected),

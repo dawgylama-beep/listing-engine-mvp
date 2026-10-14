@@ -1202,6 +1202,10 @@ async function handleSubmit(event) {
       return;
     }
     if (!response.ok) {
+      if(data.action==='subject_clarification_required'){
+        writeAnalysisDispatchReceipt({analysisId:request.analysisId,workflow,state:'subject_pending',httpStatus:response.status});
+        renderSubjectClarificationCard(data,config);return;
+      }
       writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_error", httpStatus: response.status });
       if (data.action === "identity_confirmation_required") {
         pendingIdentityConfirmationToken = String(data.confirmation?.confirmationToken || "").trim();
@@ -1826,6 +1830,8 @@ async function sha256Browser(value) {
 }
 
 async function recoverInterruptedAnalysis() {
+  clearTimeout(recoveryStatusTimer);
+  recoveryStatusTimer=null;
   const receipt = readAnalysisDispatchReceipt();
   if (!receipt?.recoveryId || recoveryStatusInFlight || activeRequestController) return;
   const bridge = globalThis.KatherinesEyeCustomerAccount;
@@ -1837,6 +1843,11 @@ async function recoverInterruptedAnalysis() {
   try {
     const result = await bridge.getAnalysisStatus(receipt.analysisId, receipt.recoveryId);
     if (readAnalysisDispatchReceipt()?.recoveryId !== receipt.recoveryId) return;
+    if(activeRequestController)return;
+    if(['AWAITING_SUBJECT','SUBJECT_SELECTED'].includes(result.state)){
+      writeAnalysisDispatchReceipt({analysisId:receipt.analysisId,workflow:receipt.workflow,state:'subject_pending'});
+      renderSubjectClarificationCard(result,workflowConfigs[receipt.workflow]);return;
+    }
     if (result.state === "SUCCEEDED") {
       const config = workflowConfigs[receipt.workflow];
       const report = result.response?.[config?.responseKey];
@@ -1886,7 +1897,7 @@ function readAnalysisDispatchReceipt() {
     const receipt = JSON.parse(sessionStorage.getItem(analysisDispatchReceiptKey) || "null");
     if (!receipt || typeof receipt !== "object") return null;
     if (!/^[a-zA-Z0-9-]{8,120}$/.test(receipt.analysisId || "")) return null;
-    if (!["dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report", "report_received"].includes(receipt.state)) return null;
+    if (!["subject_pending", "dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report", "report_received"].includes(receipt.state)) return null;
     if (receipt.recoveryId && !/^recovery_[A-Za-z0-9_-]{32}$/.test(receipt.recoveryId)) return null;
     return receipt;
   } catch {
@@ -1925,7 +1936,7 @@ function clearAnalysisDispatchReceipt() {
 
 function showUnconfirmedSubmission() {
   const receipt = readAnalysisDispatchReceipt();
-  const needsRecovery = receipt && (["dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report"].includes(receipt.state)
+  const needsRecovery = receipt && (["subject_pending", "dispatch_unconfirmed", "response_received", "response_unreadable", "response_error", "response_without_report"].includes(receipt.state)
     || (receipt.state === "report_received" && !latestReport));
   if (!needsRecovery) {
     if (analysisNewItemAfterUnknown) analysisNewItemAfterUnknown.hidden = true;
@@ -1933,6 +1944,11 @@ function showUnconfirmedSubmission() {
   }
   if (activeRequestController) {
     setStatus("This analysis is already in progress. No second request was sent.", "loading");
+    return true;
+  }
+  if(receipt.state==='subject_pending'){
+    workflowSubmitButton.disabled=true;
+    if(!recoveryStatusInFlight&&!recoveryStatusTimer)recoveryStatusTimer=setTimeout(()=>{recoveryStatusTimer=null;void recoverInterruptedAnalysis();},0);
     return true;
   }
   const completedButUnavailable = receipt.state === "report_received";
@@ -2461,6 +2477,16 @@ function renderReport(report, sections) {
   reportRoot.className = "report-root";
   reportRoot.dataset.reportId = renderId;
   reportRoot.appendChild(renderReportIdentityHeader(report));
+  if(report.subjectSelection?.label){
+    const subject=document.createElement('p');subject.dataset.evaluatedSubject='true';subject.textContent=`Evaluated item: ${report.subjectSelection.label}. `;
+    const correct=document.createElement('button');correct.type='button';correct.className='secondary-button';correct.textContent='Correct the subject';
+    correct.addEventListener('click',()=>{
+      const field=document.querySelector('#item_name');
+      for(let parent=field?.parentElement;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
+      field?.scrollIntoView({block:'center'});field?.focus({preventScroll:true});
+      setStatus('Edit the item name or description, then explicitly start a new analysis for the corrected subject. This completed analysis will not run again.','success');
+    });subject.append(correct);reportRoot.append(subject);
+  }
 
   if (isConsumerReport(report)) {
     reportRoot.appendChild(renderConsumerCompactSummary(report, currentWorkflow));
@@ -4820,6 +4846,53 @@ function renderRiskScore(report) {
 
   wrapper.append(top, meter, labels, summaryText, note);
   return wrapper;
+}
+
+function renderSubjectClarificationCard(state,config=workflowConfigs[defaultWorkflow]){
+  latestReport=null;copyAllButton.disabled=true;setReportActionsVisible(false);workflowSubmitButton.disabled=true;
+  stopLoadingProgress();results.className='results';setOutputHeading(config);
+  const card=document.createElement('article');card.className='section-card identity-confirmation-card';card.dataset.subjectClarification='true';
+  const question=document.createElement('h3');question.textContent=state.clarification.question;
+  const helper=document.createElement('p');helper.textContent='Choose the subject before Katherine’s Eye searches comparables or assesses value. You can change your choice before continuing.';
+  const choices=document.createElement('div');choices.className='identity-confirmation-actions';
+  for(const option of state.clarification.options){
+    const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=option.label;
+    button.setAttribute('aria-pressed',String(option.id===state.selectedSubjectId));
+    button.addEventListener('click',async()=>{
+      if(activeRequestController)return;
+      choices.querySelectorAll('button').forEach(choice=>choice.disabled=true);continueButton.disabled=true;
+      try{
+        const receipt=readAnalysisDispatchReceipt();if(!receipt||receipt.analysisId!==state.analysisId)return;
+        const selected=await globalThis.KatherinesEyeCustomerAccount.selectAnalysisSubject({analysisId:state.analysisId,recoveryId:receipt.recoveryId,subjectId:option.id,subjectRevision:state.subjectRevision});
+        renderSubjectClarificationCard(selected,config);
+      }catch(error){setStatus(error.message||'Could not save the choice. Refresh this question before continuing.','error');void recoverInterruptedAnalysis();}
+    });choices.append(button);
+  }
+  const continueButton=document.createElement('button');continueButton.type='button';continueButton.className='primary-button';continueButton.textContent='Continue with selected item';continueButton.disabled=!state.selectedSubjectId;
+  continueButton.addEventListener('click',()=>{if(!activeRequestController)void continueSubjectAnalysis(state,config);});
+  card.append(question,helper,choices,continueButton);results.replaceChildren(card);setStatus(state.selectedSubjectId?'Subject selected. Confirm it to continue research.':'Choose which item you want evaluated.','success');
+}
+
+async function continueSubjectAnalysis(state,config){
+  const receipt=readAnalysisDispatchReceipt();if(!receipt||receipt.analysisId!==state.analysisId||activeRequestController)return;
+  const request=startWorkflowRequest(receipt.workflow);request.analysisId=receipt.analysisId;
+  setLoading(true,receipt.workflow);setStatus('Continuing with your selected item…','loading');
+  if(!writeAnalysisDispatchReceipt({...receipt,state:'dispatch_unconfirmed'})){activeRequestController=null;setLoading(false,receipt.workflow);return;}
+  try{
+    const bridge=globalThis.KatherinesEyeCustomerAccount;
+    const response=await fetch('/api/generate-listing',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':bridge.getCsrfToken()},
+      body:JSON.stringify({action:'continue_subject',analysisId:receipt.analysisId,recoveryId:receipt.recoveryId,subjectRevision:state.subjectRevision}),signal:request.controller.signal});
+    if(!isCurrentRequest(request.id,receipt.workflow))return;
+    const data=await response.json();
+    if(response.status===202){setStatus('This analysis is already continuing. Checking its existing status.','loading');return;}
+    if(!response.ok){if(data.action==='subject_clarification_required'){writeAnalysisDispatchReceipt({...receipt,state:'subject_pending'});renderSubjectClarificationCard(data,config);return;}throw new Error(data.error||config.errorMessage);}
+    const report=data[config.responseKey];if(!report)throw new Error('The completed analysis could not be displayed.');
+    latestReport=report;latestSections=getSectionsForReport(config,report);
+    activeItemSession=createItemSession({workflow:receipt.workflow,config,formData:new FormData(form),platform:String(form.platform?.value||''),notes:String(notesInput.value||''),report,sections:latestSections,photoCount:getSelectedPhotoFiles().length,analysisId:receipt.analysisId});
+    renderReport(report,latestSections);renderAskPanel();copyAllButton.disabled=false;clearStatus();
+    writeAnalysisDispatchReceipt({...receipt,state:'report_received',httpStatus:response.status});
+  }catch(error){if(error.name!=='AbortError')setStatus('The continuation outcome is unconfirmed. Checking the same analysis without submitting again.','error');}
+  finally{if(isCurrentRequest(request.id,receipt.workflow)){activeRequestController=null;setLoading(false,receipt.workflow);showUnconfirmedSubmission();}}
 }
 
 function renderIdentityConfirmationCard(confirmation = {}, config = workflowConfigs[defaultWorkflow]) {
