@@ -1,5 +1,11 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Comparable acquisition runtime correction; unpublished local candidate)
+
+- Treat unquoted Boolean operators as search syntax while preserving the selected-object identity firewall for quoted or unsupported terms. Validate selected observations before reserving Serper attempts; deterministic subject-preflight errors cannot trigger a mechanical retry.
+- Recognize Catawiki individual auction-lot URLs within the existing public-domain fetch gate. Preserve compatibility and accessory exclusions, the shared two-read ceiling, listing-bound currency/status extraction and valuation safeguards. Eligibility never establishes a price or an exact fixture match.
+- Preserve completed evaluation 86637e82-020d-467a-b697-055b45fa9f07 and its saved customer report: subject clarification completed, one unpriced scale reference, zero qualifying priced comparables. Captured report fields and explicitly synthetic context/HTML reproduce local defects; raw Serper bodies, raw recognition output and historical page contents were not retained. Offline corrections do not demonstrate improved live acquisition. No version increment or publication.
+
 ## Version 1.12.52 (Object-scoped observation contract; cumulative local candidate)
 
 - Use the existing recognition call to record object IDs, broad category observations, literal markings, image attribution, relationships, uncertainty and conflicts. Ambiguous or mismatched attribution remains unassigned; relationships do not transfer a host's identity to an accessory.

@@ -5730,8 +5730,19 @@ async function requestSerperSearchWithBudget({
   maxRetries = 1,
   governedMaximumRetries = maximumProviderRetriesForCurrentExecution(),
   providerLedger,
+  identity = currentEvaluationTerminalContext()?.subjectObservationIdentity,
   requestAdapter = requestSerperSearch
 } = {}) {
+  // Reject unsupported identity before reserving a physical provider attempt.
+  try {
+    assertSelectedObservationQuery(queryRecord.query, identity);
+  } catch (error) {
+    requestRecord.attempted = false;
+    requestRecord.logicalQueryAttempted = false;
+    requestRecord.validationPassed = false;
+    requestRecord.validationFailureReason = error.code;
+    throw error;
+  }
   requestRecord.logicalQueryAttempted = true;
   const effectiveMaxRetries = Math.min(
     Math.max(0, Number(maxRetries || 0)),
@@ -5773,7 +5784,7 @@ async function requestSerperSearchWithBudget({
       recordPhysicalAttemptOutcome(requestRecord, "failed", error);
       lastError = error;
       const diagnostic = classifySerperError(error);
-      if (attempt >= effectiveMaxRetries || [
+      if (error.code === "UNSUPPORTED_SUBJECT_QUERY" || attempt >= effectiveMaxRetries || [
         "invalid_query_preflight",
         "serper_authentication_failure",
         "serper_rate_limited",
@@ -5871,6 +5882,7 @@ const retailAggregatorPlatformRegistry = Object.freeze([
 ]);
 
 const secondaryMarketAuctionRegistry = Object.freeze([
+  { key: "catawiki", name: "Catawiki", domain: "catawiki.com", sourceFamily: "auction", categories: ["auction", "collectible", "vintage"] },
   { key: "ebay", name: "eBay", domain: "ebay.com", sourceFamily: "marketplace", categories: ["general", "collectible", "vintage", "memorabilia", "auction"] },
   { key: "mercari", name: "Mercari", domain: "mercari.com", sourceFamily: "marketplace", categories: ["general", "collectible", "vintage"] },
   { key: "etsy", name: "Etsy", domain: "etsy.com", sourceFamily: "marketplace", categories: ["collectible", "vintage", "handmade", "decor"] },
@@ -20244,6 +20256,10 @@ function isLikelyItemSpecificMarketplaceUrl(url = "") {
     const parsed = new URL(raw);
     const domain = parsed.hostname.replace(/^www\./i, "").toLowerCase();
     const path = parsed.pathname.toLowerCase();
+    // Catawiki locale-prefixed individual lots; never its search/collection pages.
+    if (/(?:^|\.)catawiki\.com$/i.test(domain) && /^\/(?:[a-z]{2}\/)?l\/\d+(?:[-/]|$)/i.test(path)) {
+      return true;
+    }
     if (/\/(?:itm|item|listing|listings|marketplace\/item|shop\/listing|product|products|lot|lots)\//i.test(path)) {
       return true;
     }
@@ -25618,7 +25634,7 @@ function parseBody(body) {
 }
 
 function assertSelectedObservationQuery(query,identity){
-  if(identity?.observationContext&&!observationQuerySupported(query,identity))throw Object.assign(new Error("Search terms were not supported by the selected object observations."),{code:"UNSUPPORTED_SUBJECT_QUERY"});
+  if(identity?.observationContext&&!observationQuerySupported(query,identity))throw Object.assign(new Error("Search terms were not supported by the selected object observations."),{code:"UNSUPPORTED_SUBJECT_QUERY",category:"invalid_query_preflight"});
 }
 
 export const __queryIntegrityTestHooks = {
