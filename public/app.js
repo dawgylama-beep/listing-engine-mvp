@@ -1179,30 +1179,23 @@ async function handleSubmit(event) {
     if (!writeAnalysisDispatchReceipt({ analysisId: request.analysisId, recoveryId: recovery.recoveryId, workflow, state: "dispatch_unconfirmed" })) {
       throw createSubmissionError("Could not record the analysis request before sending it.", submissionStages.API_REQUEST, "dispatch_receipt_unavailable");
     }
-    const response = await fetch("/api/generate-listing", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": accountBridge.getCsrfToken()
-      },
-      body: JSON.stringify({ ...requestBody, recovery }),
-      signal: request.controller.signal
-    });
-
-    if (!isCurrentRequest(request.id, workflow)) {
-      return;
-    }
-
-    setSubmissionStage(submissionState, submissionStages.API_RESPONSE);
-    submissionState.httpStatus = response.status;
-    writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_received", httpStatus: response.status });
-    let data;
+    let response,data;
     try {
-      data = await response.json();
-    } catch (error) {
-      writeAnalysisDispatchReceipt({ analysisId: request.analysisId, workflow, state: "response_unreadable", httpStatus: response.status });
-      throw createSubmissionError("Could not read the analysis response.", submissionStages.API_RESPONSE, "api_response_parse_failed", error);
+      ({response,data}=await globalThis.KatherinesEyeObservation.readJson('/api/generate-listing',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':accountBridge.getCsrfToken()},
+        body:JSON.stringify({...requestBody,recovery}),signal:request.controller.signal
+      },60000, response => {
+        if(!isCurrentRequest(request.id,workflow))return;
+        setSubmissionStage(submissionState, submissionStages.API_RESPONSE);
+        submissionState.httpStatus=response.status;
+        writeAnalysisDispatchReceipt({analysisId:request.analysisId,workflow,state:'response_received',httpStatus:response.status});
+      }));
+    }catch(error){
+      if(error.name==='AbortError')throw error;
+      writeAnalysisDispatchReceipt({analysisId:request.analysisId,workflow,state:'response_unreadable',httpStatus:error.observedHttpStatus||null});
+      throw createSubmissionError(error.code==='OBSERVATION_TIMEOUT'?'The report response is delayed. Checking this same request without submitting again.':'Could not read the analysis response.',submissionStages.API_RESPONSE,error.code||'api_response_parse_failed',error);
     }
+    if(!isCurrentRequest(request.id,workflow))return;
     if (response.status === 202 && ["REGISTERED", "DISPATCHING", "UNKNOWN"].includes(data.state)) {
       setStatus("This analysis is already in progress. Checking its existing status without submitting again.", "loading");
       void recoverInterruptedAnalysis();
@@ -1854,9 +1847,9 @@ async function recoverInterruptedAnalysis() {
     if(result.contentExpired){
       latestReport=null;copyAllButton.disabled=true;setReportActionsVisible(false);
       const card=document.createElement('article');card.className='section-card';card.dataset.analysisReceipt='true';
-      const title=document.createElement('h3');title.textContent=result.state==='SUCCEEDED'?'Evaluation completed — result content expired':result.state==='FAILED_TERMINAL'?'Evaluation failed — result content expired':result.state==='UNKNOWN'?'Execution uncertain — recovery content expired':result.state==='DISPATCHING'?'Evaluation processing — result content expired':result.state==='REGISTERED'?'Registration recorded — execution unconfirmed; content expired':result.state==='AWAITING_SUBJECT'?'Awaiting subject selection — continuation content expired':'Subject selected — continuation content expired';
+      const title=document.createElement('h3');title.textContent=result.state==='SUCCEEDED'?'Evaluation completed — result content expired':result.state==='FAILED_TERMINAL'?'Report delivery failed — result content expired':result.state==='UNKNOWN'?'Execution uncertain — recovery content expired':result.state==='DISPATCHING'?'Evaluation processing — result content expired':result.state==='REGISTERED'?'Registration recorded — execution unconfirmed; content expired':result.state==='AWAITING_SUBJECT'?'Awaiting subject selection — continuation content expired':'Subject selected — continuation content expired';
       const detail=document.createElement('p');detail.textContent='Reference: '+result.analysisId+'. Execution record: '+result.state+'. The temporary result and continuation content have expired and cannot be reconstructed. No new analysis was submitted. This receipt does not establish provider cost.';
-      card.append(title,detail);results.replaceChildren(card);results.className='results';workflowSubmitButton.disabled=true;setStatus('Execution status and expired result content are separate. No automatic retry will occur.','neutral');return;
+      card.append(title,detail);results.replaceChildren(card);results.className='results';workflowSubmitButton.disabled=true;setStatus(globalThis.KatherinesEyeObservation.deliveryMessage(result.state,true)||'Execution status and expired result content are separate. No automatic retry will occur.','neutral');return;
     }
     if(['AWAITING_SUBJECT','SUBJECT_SELECTED'].includes(result.state)){
       writeAnalysisDispatchReceipt({analysisId:receipt.analysisId,workflow:receipt.workflow,state:'subject_pending'});
@@ -1883,7 +1876,7 @@ async function recoverInterruptedAnalysis() {
     if (result.state === "FAILED_TERMINAL") {
       latestReport = null;
       renderEmpty(workflowConfigs[receipt.workflow] || workflowConfigs[defaultWorkflow]);
-      setStatus(result.response?.error || "This analysis failed. No automatic retry will occur.", "error");
+      setStatus(globalThis.KatherinesEyeObservation.deliveryMessage(result.state), 'error');
       writeAnalysisDispatchReceipt({ analysisId: receipt.analysisId, recoveryId: receipt.recoveryId, workflow: receipt.workflow, state: "response_error", httpStatus: result.statusCode });
       return;
     }
@@ -4896,10 +4889,9 @@ async function continueSubjectAnalysis(state,config){
   if(!writeAnalysisDispatchReceipt({...receipt,state:'dispatch_unconfirmed'})){activeRequestController=null;setLoading(false,receipt.workflow);return;}
   try{
     const bridge=globalThis.KatherinesEyeCustomerAccount;
-    const response=await fetch('/api/generate-listing',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':bridge.getCsrfToken()},
-      body:JSON.stringify({action:'continue_subject',analysisId:receipt.analysisId,recoveryId:receipt.recoveryId,subjectRevision:state.subjectRevision}),signal:request.controller.signal});
+    const {response,data}=await globalThis.KatherinesEyeObservation.readJson('/api/generate-listing',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':bridge.getCsrfToken()},
+      body:JSON.stringify({action:'continue_subject',analysisId:receipt.analysisId,recoveryId:receipt.recoveryId,subjectRevision:state.subjectRevision}),signal:request.controller.signal},60000);
     if(!isCurrentRequest(request.id,receipt.workflow))return;
-    const data=await response.json();
     if(response.status===202){setStatus('This analysis is already continuing. Checking its existing status.','loading');return;}
     if(!response.ok){if(data.action==='subject_clarification_required'){writeAnalysisDispatchReceipt({...receipt,state:'subject_pending'});renderSubjectClarificationCard(data,config);return;}throw new Error(data.error||config.errorMessage);}
     const report=data[config.responseKey];if(!report)throw new Error('The completed analysis could not be displayed.');

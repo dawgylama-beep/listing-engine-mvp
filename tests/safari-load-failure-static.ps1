@@ -54,10 +54,10 @@ if (-not $handleSubmit.Success) {
 } else {
   $body = $handleSubmit.Groups["body"].Value
   $prepareIndex = $body.IndexOf("const photos = await preparePhotos(photoFilesForRequest, submissionState);")
-  $fetchIndex = $body.IndexOf('fetch("/api/generate-listing"')
+  $fetchIndex = $body.IndexOf("KatherinesEyeObservation.readJson('/api/generate-listing'")
   $requestStageIndex = $body.IndexOf("setSubmissionStage(submissionState, submissionStages.API_REQUEST);")
   $responseStageIndex = $body.IndexOf("setSubmissionStage(submissionState, submissionStages.API_RESPONSE);")
-  $jsonIndex = $body.IndexOf("data = await response.json();")
+  $jsonIndex = $body.IndexOf("}));", $responseStageIndex)
   $catchIndex = $body.IndexOf("renderEmpty(config);")
 
   if ($prepareIndex -lt 0 -or $fetchIndex -lt 0 -or $prepareIndex -gt $fetchIndex) {
@@ -69,7 +69,7 @@ if (-not $handleSubmit.Success) {
   if ($responseStageIndex -lt 0 -or $jsonIndex -lt 0 -or $responseStageIndex -gt $jsonIndex) {
     $failed += "API response stage must be set before response parsing"
   }
-  if (([regex]::Matches($body, 'fetch\("/api/generate-listing"')).Count -ne 1) {
+  if (([regex]::Matches($body, "KatherinesEyeObservation\.readJson\('/api/generate-listing'")).Count -ne 1) {
     $failed += "Main submission must not automatically retry the API request"
   }
   if ($catchIndex -lt 0 -or $body.Substring($catchIndex) -match "copyAllButton\.disabled\s*=\s*false|renderReport\(") {

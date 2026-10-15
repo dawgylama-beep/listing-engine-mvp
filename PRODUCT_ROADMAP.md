@@ -1,5 +1,12 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Bounded delivery observation; unpublished local candidate)
+
+- Bound account GET observation, including response decoding, to 15 seconds and initial/clarification analysis-response observation to 60 seconds. These are client waiting deadlines, not provider cancellation or billing evidence. Preserve the same request reference and recover its status without another analysis POST.
+- Separate bounded export preparation from an explicit download link. Export progress and its busy guard affect only export preparation; account receipt/status controls remain usable. A late preparation response cannot overwrite timeout feedback. Prepared local links expire after one minute without changing server photo/result retention.
+- Keep schema 2.2 and its existing terminal enum. Add public delivery/provider/billing dimensions: FAILED_TERMINAL means failed report delivery; provider execution and charges remain UNKNOWN. Explain this before and after content expiry, without reconstructing expired results or weakening replay protection.
+- Close request 0ae165a2-4a67-4911-aeae-cea7b01aa8dd as failed delivery with the full new USD2.50 exposure retained. The exact 502 cause and 87-minute browser-export-tool delay remain unproven; scoped runtime-log access returned403. Synthetic failure-path checks demonstrate bounded observation, not repaired live provider execution. No version increment, publication or new live trial.
+
 ## Version 1.12.52 (Comparable acquisition runtime correction; unpublished local candidate)
 
 - Treat unquoted Boolean operators as search syntax while preserving the selected-object identity firewall for quoted or unsupported terms. Validate selected observations before reserving Serper attempts; deterministic subject-preflight errors cannot trigger a mechanical retry.

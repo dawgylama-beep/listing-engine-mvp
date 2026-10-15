@@ -1688,6 +1688,7 @@ async function handleGenerateListingRequest(req, res) {
         };
       }
     }
+    payload = { ...payload, deliveryState: 'FAILED', providerExecution: 'UNKNOWN', billingStatus: 'UNKNOWN' };
     if (analysisRecovery) {
       try {
         await analysisRecovery.service.completeAnalysisRecovery(analysisRecovery.token, {

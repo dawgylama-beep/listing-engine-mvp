@@ -47,7 +47,7 @@
       const payload=await requestAccount('/api/customer-account?action=analysis_receipts'+(cursor?'&cursor='+encodeURIComponent(cursor):''));
       if(!append)receiptList.replaceChildren();
       for(const receipt of payload.analysisReceipts||[]){
-        const item=document.createElement('div');const summary=document.createElement('p');summary.textContent=receipt.createdAt+' — '+receipt.analysisId+' — '+receipt.state+(receipt.contentExpired?' — content expired':'');item.append(summary);
+        const item=document.createElement('div');const summary=document.createElement('p');summary.textContent=receipt.createdAt+' — '+receipt.analysisId+' — '+(receipt.state==='FAILED_TERMINAL'?'Report delivery failed; provider execution and charges unconfirmed':receipt.state)+(receipt.contentExpired?' — content expired':'');item.append(summary);
         if(receipt.workflow){const open=document.createElement('button');open.type='button';open.className='secondary-button';open.textContent='Open evaluation '+receipt.analysisId;open.addEventListener('click',()=>{closeAccountPanel();window.dispatchEvent(new CustomEvent('katherine-eye:recover-analysis',{detail:receipt}));});item.append(open);}receiptList.append(item);
       }
       if(!append&&!(payload.analysisReceipts||[]).length)receiptList.textContent='No durable analysis receipts are available. Older expired evaluations cannot be reconstructed.';
@@ -73,39 +73,19 @@
   )) || "";
 
   async function requestAccount(url = "/api/customer-account", options = {}) {
-    let response;
+    const method=String(options.method||'GET').toUpperCase();
+    const headers={...(options.body?{'Content-Type':'application/json'}:{}),...(csrfToken&&method!=='GET'?{'X-CSRF-Token':csrfToken}:{}),...(options.headers||{})};
+    let response,payload;
     try {
-      const method = String(options.method || "GET").toUpperCase();
-      const headers = {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...(csrfToken && method !== "GET" ? { "X-CSRF-Token": csrfToken } : {}),
-        ...(options.headers || {})
-      };
-      response = await fetch(url, {
-        credentials: "same-origin",
-        cache: "no-store",
-        ...options,
-        headers
-      });
-    } catch {
-      const error = new Error("Private beta accounts are unavailable in this environment.");
-      error.code = "account_service_unavailable";
-      throw error;
+      if(method==='GET')({response,data:payload}=await root.KatherinesEyeObservation.readJson(url,{credentials:'same-origin',cache:'no-store',...options,headers},15000));
+      else {response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,headers});try{payload=await response.json();}catch{payload={};}}
+    } catch(error) {
+      if(error.code==='OBSERVATION_TIMEOUT')throw error;
+      throw Object.assign(new Error('Private beta accounts are unavailable in this environment.'),{code:'account_service_unavailable'});
     }
-    let payload = {};
-    try {
-      payload = await response.json();
-    } catch {
-      payload = {};
-    }
-    if (!response.ok) {
-      const error = new Error(payload.error || "The private account service could not complete this request.");
-      error.code = payload.code || "account_request_failed";
-      error.status = response.status;
-      throw error;
-    }
-    const nextCsrfToken = cleanText(payload.csrfToken || payload.session?.csrfToken, 128);
-    if (nextCsrfToken) csrfToken = nextCsrfToken;
+    if(!response.ok)throw Object.assign(new Error(payload.error||'The private account service could not complete this request.'),{code:payload.code||'account_request_failed',status:response.status});
+    const nextCsrfToken=cleanText(payload.csrfToken||payload.session?.csrfToken,128);
+    if(nextCsrfToken)csrfToken=nextCsrfToken;
     return payload;
   }
 
@@ -126,7 +106,7 @@
     historyMenuButton.hidden = !signedIn;
     openHistoryButton.hidden = !signedIn;
     saveListingButton.hidden = !(signedIn && currentReport);
-    if(!signedIn)receiptList.replaceChildren();
+    if(!signedIn){receiptList.replaceChildren();if(typeof clearPreparedExport==='function')clearPreparedExport();}
     accountButton.textContent = signedIn ? `@${account.username}` : "Sign in";
     if (createAccountButton) createAccountButton.hidden = signedIn;
     personalizedGreeting.hidden = !signedIn;
@@ -672,20 +652,26 @@
       submitButton.disabled = false;
     }
   });
-  exportButton?.addEventListener("click", async () => {
-    try {
-      const payload = await requestAccount("/api/customer-account?action=export");
-      const blob = new Blob([`${JSON.stringify(payload.export, null, 2)}\n`], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `katherines-eye-${account.username}-export.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      setAccountStatus("Your account export was prepared. It excludes passwords, session tokens, and uploaded images.", "success");
-    } catch (error) {
-      setAccountStatus(error.message, "error");
-    }
+  let exportInFlight=false,exportUrl='',exportExpiryTimer=null;
+  const exportStatus=document.createElement('p');exportStatus.setAttribute('role','status');
+  const exportLink=document.createElement('a');exportLink.hidden=true;
+  exportButton?.after(exportStatus,exportLink);
+  function clearPreparedExport(){if(exportUrl)URL.revokeObjectURL(exportUrl);exportUrl='';exportLink.removeAttribute('href');exportLink.hidden=true;clearTimeout(exportExpiryTimer);}
+  root.addEventListener('pagehide',clearPreparedExport);
+  exportButton?.addEventListener('click',async()=>{
+    if(exportInFlight)return;
+    exportInFlight=true;exportButton.disabled=true;clearPreparedExport();
+    exportStatus.textContent='Preparing account export. Analysis receipts remain available while you wait.';
+    const owner=account?.username;
+    try{
+      const payload=await requestAccount('/api/customer-account?action=export');
+      if(!owner||owner!==account?.username)return;
+      exportUrl=URL.createObjectURL(new Blob([JSON.stringify(payload.export,null,2)+'\n'],{type:'application/json'}));
+      exportLink.href=exportUrl;exportLink.download='katherines-eye-'+owner+'-export.json';exportLink.textContent='Download prepared account export';exportLink.hidden=false;
+      exportStatus.textContent='Export prepared. Download it separately, or continue checking analysis receipts. This link expires in one minute; uploaded images are excluded.';
+      exportExpiryTimer=setTimeout(()=>{clearPreparedExport();exportStatus.textContent='The prepared download link expired. Account and analysis retention have not changed.';},60000);
+    }catch(error){exportStatus.textContent=error.code==='OBSERVATION_TIMEOUT'?'Export preparation timed out. No automatic retry occurred. You can still check analysis receipts.':error.message;}
+    finally{exportInFlight=false;exportButton.disabled=false;}
   });
   deleteAccountForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
