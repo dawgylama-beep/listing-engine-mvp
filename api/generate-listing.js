@@ -1,4 +1,5 @@
 import { wholeObjectCategory, literalVisibleIdentity } from '../lib/object-intelligence/whole-object.js';
+import {normalizeSubjectObservationContract,observationQuerySupported,supportedSubjectObservation} from '../lib/object-intelligence/subject-observations.js';
 import {subjectResolutionSchema,resolveEvaluationSubject,projectEvaluationSubject,scopeEvaluationSubjectInput} from '../lib/object-intelligence/subject-selection.js';
 import {inputImageRecords} from '../lib/object-intelligence/state.js';
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -1534,6 +1535,14 @@ async function handleGenerateListingRequest(req, res) {
       buyerIntake,
       analysisId
     });
+    const observedIdentity=currentEvaluationTerminalContext().subjectObservationIdentity;
+    if(observedIdentity?.observationContext){
+      // Also cover controlled insufficient-evidence/safety reports that intentionally
+      // skip another model call; uncertainty must survive every result path.
+      const observedFields=buildIdentityReportFields(observedIdentity);
+      generatedReport.whatIsStillUnknown=mergeStringArrays(observedFields.whatIsStillUnknown,generatedReport.whatIsStillUnknown,24);
+      generatedReport.identityConflicts=mergeStringArrays(observedFields.identityConflicts,generatedReport.identityConflicts,16);
+    }
     generatedReport.searchDiagnostics = {
       ...(generatedReport.searchDiagnostics || {}),
       modelExecutionBudget: buildModelExecutionBudgetEvidence()
@@ -3043,6 +3052,7 @@ function compactModelResearchText(value, maxCharacters = 1200) {
 }
 
 function requestSerperSearch(args) {
+  assertSelectedObservationQuery(args.query,currentEvaluationTerminalContext()?.subjectObservationIdentity);
   return currentAnalysisAdapters().requestSerperSearch(args);
 }
 
@@ -3216,6 +3226,7 @@ async function generateFinalListingReport({ apiKey, model, platform, notes, rese
         `Seller item notes: ${notes}`,
         `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
+        "If observationContext is present, only its selected-object observations describe the subject. Preserve its uncertain/conflicting observations as limitations; unassignedObservations and unassignedCaveats are not facts about this subject. Do not infer completeness from conventional form, reconstruct absent observations, or infer prices without compatible cited evidence.",
         `Source route: ${JSON.stringify(sourceRoute)}`,
         `Search queries: ${JSON.stringify(searchQueries)}`,
         `Live research result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
@@ -4130,6 +4141,8 @@ async function runResearchPipeline({ apiKey, model, platform, notes, photos, buy
   if(!subject.legacy){const scoped=scopeEvaluationSubjectInput(intake,notes,subject);intake=scoped.intake;notes=scoped.notes;neutralInput=createPurposeNeutralObjectInput({notes,buyerIntake:intake});}
   currentEvaluationTerminalContext().subjectSelection=projectEvaluationSubject(rawVisualIdentity,subject).subjectSelection;
   const extractedIdentity = projectCanonicalEvidenceIdentity(projectEvaluationSubject(rawVisualIdentity,subject));
+  if(extractedIdentity.observationContext){notes=extractedIdentity.subjectIdentity;neutralInput=createPurposeNeutralObjectInput({notes,buyerIntake:intake});}
+  currentEvaluationTerminalContext().subjectObservationIdentity=extractedIdentity;
   let visualRecognition = extractedIdentity.visualRecognition;
   let identity = finalizeIdentityForResearch(extractedIdentity, intake);
   let objectMindState = createObjectMindState({
@@ -4813,6 +4826,11 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
       text: [
         "Perform purpose-neutral Visual Subject Recognition and then create a bounded object identity state in this single multimodal pass.",
         "Do not infer whether the customer is buying, reselling, valuing, or listing the object. The same photographs and permitted object description must produce materially the same observations and identity hypotheses for every customer purpose.",
+        "Populate subjectResolution.observationVersion as 1. First observe distinct visible objects without deciding what to search. Give every candidate a stable objectId; observations are the authoritative evidence, and legacy candidate summary fields must agree with them.",
+        "For each observation supply a unique observationId, objectId, field, value, imageIds, certainty, attribution and conflictsWith. Literal markings must be transcribed literally as TEXT or the corresponding BRAND/MODEL/CAPACITY/BARCODE field; put interpretations and missing/uncertain details in UNKNOWN or CONFLICT instead. Use image-1, image-2 etc only when the specific photograph supports the observation. CLEAR means visibly readable/observable, not likely identity. Use UNCERTAIN for uncertain readings. Never turn confidence in the broad object category into confidence in a maker, model or condition.",
+        "Each object requires exactly one CLEAR, attributed CATEGORY observation with image references: a short broad physical category, without maker/model/era terms. Display labels help the customer choose but confer no identity or search authority. Put component/contents relationships in relationships, never in a feature or search phrase. FEATURE values are short identifying physical features of that object alone. CONDITION and COMPLETENESS require actual visible evidence; an unfamiliar form does not prove a part is missing. A single-spout appliance may be complete; do not assume a conventional configuration.",
+        "Each observation must belong only to the object on which it was seen. Do not inherit a host device's marks onto a bowl, shade or other accessory. If attribution is unclear, leave objectId empty, use UNASSIGNED and preserve it in unassignedObservations. Record conflicting observation IDs explicitly. Relationships (PART_OF, CONTAINS, ON, NEAR or UNKNOWN) describe the scene; they confer no identity or maker inheritance.",
+        "Then use customer intent to resolve subjectResolution.status and selectedIndex; leave alternatives and unknowns intact. Search and valuation occur later and may use only supported selected-subject observations. No observation proves a comparable, a sale or a price.",
         "First populate visualRecognition by answering what broad subject is visible independently of exact product, maker, model, date, licensing, authenticity, or comparable matches.",
         "Before research, resolve which photographed object the customer wants evaluated. Populate subjectResolution with distinct plausible objects, components, accessories and incidental contents; alternatives for maker/model of the SAME object are not different subjects. Do not assume the central or largest object is the requested subject.",
         "Use the customer's description, item name and visible markings. If the description clearly identifies one subject, set CLEAR and its selectedIndex even if other objects are visible. If more than one plausible evaluation subject remains, set AMBIGUOUS and selectedIndex -1. Keep each candidate's visible marks, brand, model, capacity and identifying features attached ONLY to that candidate. Do not infer working condition or transfer a device's branding to an unmarked component.",
@@ -4876,7 +4894,8 @@ async function extractItemIdentity({ apiKey, model, photos, neutralInput }) {
   completeTerminalStage(TERMINAL_STAGE.OBJECT_OBSERVATION);
   beginTerminalStage(TERMINAL_STAGE.IDENTITY_FORMATION);
   const visualRecognition = normalizeVisualRecognition(response.visualRecognition);
-  return normalizeIdentity({ ...response, visualRecognition });
+  const subjectResolution=normalizeSubjectObservationContract(response.subjectResolution,{imageCount:photos.length});
+  return normalizeIdentity({ ...response, subjectResolution, visualRecognition });
 }
 
 async function executeLiveComparableSearch(args) {
@@ -13158,6 +13177,7 @@ function collectMarketplaceDomainsRequested(providerRequestRecords = []) {
 }
 
 function createQueryBoundLiveSearchPayload({ model, platform, notes, identity, sourceRoute, queryRecord, buyerIntake, researchPurpose, includeSources = true, useSearchControls = true }) {
+  assertSelectedObservationQuery(queryRecord.query,identity);
   const researchPromptInternal = [
     "Use web_search for this one exact query only.",
     "Do not replace the query with the whole instruction block.",
@@ -13717,6 +13737,7 @@ async function generateFinalConsumerDecisionReport({ apiKey, model, platform, no
         buyerIntakeText,
         `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
+        "If observationContext is present, only its selected-object observations describe the subject. Preserve its uncertain/conflicting observations as limitations; unassignedObservations and unassignedCaveats are not facts about this subject. Do not infer completeness from conventional form, reconstruct absent observations, or infer prices without compatible cited evidence.",
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
         `Live comparable search result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
@@ -13845,6 +13866,7 @@ async function generateFinalMarketValueReport({ apiKey, model, platform, notes, 
         buyerIntakeText,
         `Visual recognition report: ${JSON.stringify(identity.visualRecognition || {})}`,
         `Extracted item identity: ${JSON.stringify(identity)}`,
+        "If observationContext is present, only its selected-object observations describe the subject. Preserve its uncertain/conflicting observations as limitations; unassignedObservations and unassignedCaveats are not facts about this subject. Do not infer completeness from conventional form, reconstruct absent observations, or infer prices without compatible cited evidence.",
         `Backend source route: ${JSON.stringify(sourceRoute)}`,
         `Backend search queries: ${JSON.stringify(searchQueries)}`,
         `Live comparable search result: ${JSON.stringify(buildModelLiveSearchContext(liveSearch))}`,
@@ -13901,7 +13923,8 @@ function createResponsesPayload({ model, systemText, userContent, schemaName, sc
 function normalizeIdentity(identity) {
   const visualRecognition = normalizeVisualRecognition(identity.visualRecognition || {});
   const normalized = {
-    subjectResolution: identity.subjectResolution,
+    subjectResolution: normalizeSubjectObservationContract(identity.subjectResolution),
+    ...(identity.observationContext?{observationContext:identity.observationContext}:{}),
     visualRecognition,
     visualSubject: firstKnown(identity.visualSubject, visualRecognition.visualSubject, identity.subjectIdentity),
     visualSubjectCategory: firstKnown(identity.visualSubjectCategory, visualRecognition.visualSubjectCategory, identity.category),
@@ -23809,7 +23832,16 @@ function buildItemIdentification(identity = {}) {
 
 function buildIdentityReportFields(identity, liveSearch = {}, { customerClaimCorroboration = null } = {}) {
   const known = [];
-  const unknowns = normalizeStringArray(identity.identityUnknowns, 8);
+  let unknowns = normalizeStringArray(identity.identityUnknowns, 8);
+  if(identity.observationContext){
+    unknowns=normalizeStringArray([
+      ...identity.observationContext.observations.filter(o=>!supportedSubjectObservation(o)).map(o=>`${o.field}: ${o.value}`),
+      ...unknowns
+    ],48);
+    for(const observation of identity.observationContext.unassignedObservations||[])unknowns.push(`Unassigned observation (not attributed to this item): ${observation.value}`);
+    if((identity.observationContext.unassignedCaveats?.unknowns||[]).length||(identity.observationContext.unassignedCaveats?.conflicts||[]).length)unknowns.push("Some earlier observations remain unassigned; they do not establish facts about the selected item.");
+    if(unknowns.length>8)unknowns=[...unknowns.slice(0,8),`${unknowns.length-8} additional uncertainties remain in this evaluation's observations; they are not verified facts.`];
+  }
   const visualEvidence = normalizeStringArray(identity.visualIdentityEvidence, 6);
   const textEvidence = normalizeStringArray(identity.textIdentityEvidence, 6);
   const conflicts = normalizeStringArray(identity.identityConflictNotes, 6);
@@ -25585,7 +25617,14 @@ function parseBody(body) {
   return body || {};
 }
 
+function assertSelectedObservationQuery(query,identity){
+  if(identity?.observationContext&&!observationQuerySupported(query,identity))throw Object.assign(new Error("Search terms were not supported by the selected object observations."),{code:"UNSUPPORTED_SUBJECT_QUERY"});
+}
+
 export const __queryIntegrityTestHooks = {
+  normalizeIdentity,
+  assertSelectedObservationQuery,
+  itemIdentitySchema,
   collectionIdentityMatches,
   isApprovedCollectionDiscoveryUrl,
   discoverCollectionListingCandidates,

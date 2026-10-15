@@ -169,12 +169,12 @@ test('registered and expired UNKNOWN recovery cannot release or redispatch the o
   assert.equal(posts, 1);
   clock += 61 * 60 * 1000;
   await page.evaluate(() => recoverInterruptedAnalysis());
-  await expect(page.locator('#status')).toContainText('outcome is unknown');
+  await expect(page.locator('#status')).toContainText('expired result content');
   await expect(page.locator('#workflow-submit-button')).toBeDisabled();
   await page.locator('#listing-form').evaluate(form => form.requestSubmit());
   assert.equal(posts, 1);
   await page.reload();
-  await expect(page.locator('#status')).toContainText('expired or is unavailable');
+  await expect(page.locator('#status')).toContainText('expired result content');
   await expect(page.locator('#workflow-submit-button')).toBeDisabled();
   await assert.rejects(service.claimAnalysisRecovery(account.session.token, identity), error => error.code === 'analysis_recovery_not_found');
   await assert.rejects(service.registerAnalysisRecovery(account.session.token, identity), error => error.code === 'analysis_recovery_already_used');

@@ -35,6 +35,25 @@
   const photoDropzone = document.querySelector("#photo-dropzone");
   const libraryInput = document.querySelector("#photos");
 
+  const receiptPanel=document.createElement('section');receiptPanel.className='section-card';receiptPanel.dataset.analysisReceipts='true';
+  const receiptTitle=document.createElement('h3');receiptTitle.textContent='Recent analyses';
+  const receiptPrivacy=document.createElement('p');receiptPrivacy.textContent='Receipts retain only evaluation IDs, workflow, timestamps and execution status until account deletion. Photos and result content are not retained in receipts. Temporary result recovery still lasts one hour. Receipts do not establish billing.';
+  const receiptRefresh=document.createElement('button');receiptRefresh.type='button';receiptRefresh.className='secondary-button';receiptRefresh.textContent='Check analysis receipts';
+  const receiptList=document.createElement('div');receiptList.setAttribute('aria-live','polite');receiptPanel.append(receiptTitle,receiptPrivacy,receiptRefresh,receiptList);signedInView.append(receiptPanel);
+  receiptRefresh.addEventListener('click',()=>void loadAnalysisReceipts());
+  async function loadAnalysisReceipts(cursor='',append=false){
+    receiptRefresh.disabled=true;
+    try{
+      const payload=await requestAccount('/api/customer-account?action=analysis_receipts'+(cursor?'&cursor='+encodeURIComponent(cursor):''));
+      if(!append)receiptList.replaceChildren();
+      for(const receipt of payload.analysisReceipts||[]){
+        const item=document.createElement('div');const summary=document.createElement('p');summary.textContent=receipt.createdAt+' — '+receipt.analysisId+' — '+receipt.state+(receipt.contentExpired?' — content expired':'');item.append(summary);
+        if(receipt.workflow){const open=document.createElement('button');open.type='button';open.className='secondary-button';open.textContent='Open evaluation '+receipt.analysisId;open.addEventListener('click',()=>{closeAccountPanel();window.dispatchEvent(new CustomEvent('katherine-eye:recover-analysis',{detail:receipt}));});item.append(open);}receiptList.append(item);
+      }
+      if(!append&&!(payload.analysisReceipts||[]).length)receiptList.textContent='No durable analysis receipts are available. Older expired evaluations cannot be reconstructed.';
+      if(payload.nextCursor){const more=document.createElement('button');more.type='button';more.textContent='Older analysis receipts';more.addEventListener('click',()=>{more.remove();void loadAnalysisReceipts(payload.nextCursor,true);});receiptList.append(more);}
+    }catch{receiptList.textContent='Analysis receipts are unavailable. No evaluation was submitted or retried.';}finally{receiptRefresh.disabled=false;}
+  }
   let account = null;
   let accountServiceAvailable = null;
   let currentReport = null;
@@ -107,6 +126,7 @@
     historyMenuButton.hidden = !signedIn;
     openHistoryButton.hidden = !signedIn;
     saveListingButton.hidden = !(signedIn && currentReport);
+    if(!signedIn)receiptList.replaceChildren();
     accountButton.textContent = signedIn ? `@${account.username}` : "Sign in";
     if (createAccountButton) createAccountButton.hidden = signedIn;
     personalizedGreeting.hidden = !signedIn;

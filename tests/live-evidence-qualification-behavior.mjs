@@ -228,6 +228,9 @@ function testExactRetailPageHtmlEnrichment() {
       <script type="application/ld+json">{"@type":"Product","name":"Harbor Office Security Envelopes 55 Count","gtin12":"012345678905","offers":{"@type":"Offer","price":"5.79","availability":"https://schema.org/InStock"}}</script>
       </head><body><h1>Harbor Office Security Envelopes 55 Count</h1><span>UPC 012345678905</span><span>55 count</span><button>Add to cart</button></body></html>`
   });
+  const unresolvedCurrency = hooks.enrichExactRetailPageRecord(structuredClone(exactPage), context);
+  assertEqual(unresolvedCurrency.parsedPrice, null, "A numeric page price without its offer currency must remain unpriced.");
+  exactPage.pageHtml = exactPage.pageHtml.replace('"price":"5.79"', '"price":"5.79","priceCurrency":"USD"');
   const enriched = hooks.enrichExactRetailPageRecord(exactPage, context);
   const records = normalizeRetail([enriched], identity, context, objectMindState);
   const prices = hooks.buildConsumerPricesFound({

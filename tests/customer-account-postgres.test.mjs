@@ -57,7 +57,7 @@ function fakePostgres(initialRow = null) {
           forcedConflicts -= 1;
           return { rows: [], rowCount: 0, command: "UPDATE 0" };
         }
-        if (!row || ![parameters[1], parameters[5], parameters[6]].includes(row.schema_version) || row.revision !== parameters[2]) {
+        if (!row || ![parameters[1], parameters[5], parameters[6], parameters[7]].includes(row.schema_version) || row.revision !== parameters[2]) {
           return { rows: [], rowCount: 0, command: "UPDATE 0" };
         }
         row = { schema_version: parameters[1], revision: parameters[3], state_json: parameters[4] };
@@ -278,3 +278,5 @@ test("Preview runtime fails closed on incomplete storage configuration and repor
   assert.equal(unavailable.statusCode, 503);
   assert.deepEqual(unavailable.payload.blockers, ["postgres_account_store_unavailable"]);
 });
+
+test('postgres-v1 upgrades existing schema2.1 through the same scoped CAS row',async()=>{const seed=fakePostgres();const service=createCustomerAccountService({store:createPostgresCustomerAccountStore({query:seed.query.bind(seed)})});const a=await service.register({username:'legacy_21',password});const snapshot=JSON.parse(seed.row.state_json);snapshot.schemaVersion='2.1';delete snapshot.analysisReceipts;const db=fakePostgres({schema_version:'2.1',revision:seed.row.revision,state_json:JSON.stringify(snapshot)});const restored=createCustomerAccountService({store:createPostgresCustomerAccountStore({query:db.query.bind(db)})});assert.equal((await restored.session(a.session.token)).account.username,'legacy_21');assert.equal(db.row.schema_version,'2.2');assert.deepEqual(JSON.parse(db.row.state_json).analysisReceipts,{});assert(db.calls.filter(c=>c.sql===POSTGRES_ACCOUNT_STORE_SQL.update).every(c=>c.parameters[0]===POSTGRES_ACCOUNT_STORE_KEY&&c.parameters[7]==='2.1'));});

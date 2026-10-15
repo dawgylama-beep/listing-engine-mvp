@@ -139,6 +139,7 @@ async function dispatch(service, req, body) {
   const context = { sourceIdentity: req.accountSourceIdentity, currentToken: token };
 
   if (req.method === "GET" && action === "session") return service.session(token);
+  if(req.method==='GET'&&action==='analysis_receipts')return service.listAnalysisReceipts(token,{cursor:url.searchParams.get('cursor')||''});
   if (req.method === "GET" && action === "history") return service.listHistory(token);
   if (req.method === "GET" && action === "listing") return service.getListing(token, url.searchParams.get("listingId"));
   if (req.method === "GET" && action === "export") return service.exportAccount(token);

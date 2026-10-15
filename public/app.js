@@ -750,6 +750,13 @@ clearAskButton.addEventListener("click", clearAskConversation);
 feedbackButton.addEventListener("click", toggleFeedbackPanel);
 feedbackCopyButton.addEventListener("click", copyFeedbackText);
 initializeHelpPanel();
+window.addEventListener('katherine-eye:recover-analysis',event=>{
+  const receipt=event.detail||{};
+  if(activeRequestController){setStatus('An evaluation is already processing. No other request was opened.','neutral');return;}
+  if(!workflowConfigs[receipt.workflow]||!/^[A-Za-z0-9-]{8,120}$/.test(receipt.analysisId||'')||!/^recovery_[A-Za-z0-9_-]{32}$/.test(receipt.recoveryId||''))return;
+  currentWorkflow=receipt.workflow;workflowInputs.forEach(input=>{input.checked=normalizeWorkflowValue(input.value)===receipt.workflow;});syncWorkflowFormState(workflowConfigs[receipt.workflow]);
+  writeAnalysisDispatchReceipt({...receipt,state:'response_received'});void recoverInterruptedAnalysis();
+});
 window.addEventListener("pageshow", () => {
   applyWorkflowState({ clearOutput: true, abortRequests: true });
   showUnconfirmedSubmission();
@@ -1164,7 +1171,7 @@ async function handleSubmit(event) {
     }
     const requestHash = await sha256Browser(JSON.stringify(requestBody));
     const photoHashes = await Promise.all(photos.map((photo) => sha256Browser(String(photo.dataUrl || ""))));
-    const registered = await accountBridge.registerAnalysis({ analysisId: request.analysisId, requestHash, photoHashes });
+    const registered = await accountBridge.registerAnalysis({ analysisId: request.analysisId, requestHash, photoHashes, workflow });
     if (registered.state !== "REGISTERED" || !registered.recoveryId) {
       throw createSubmissionError("This analysis is already registered. Recover it before starting another.", submissionStages.API_REQUEST, "analysis_already_registered");
     }
@@ -1844,6 +1851,13 @@ async function recoverInterruptedAnalysis() {
     const result = await bridge.getAnalysisStatus(receipt.analysisId, receipt.recoveryId);
     if (readAnalysisDispatchReceipt()?.recoveryId !== receipt.recoveryId) return;
     if(activeRequestController)return;
+    if(result.contentExpired){
+      latestReport=null;copyAllButton.disabled=true;setReportActionsVisible(false);
+      const card=document.createElement('article');card.className='section-card';card.dataset.analysisReceipt='true';
+      const title=document.createElement('h3');title.textContent=result.state==='SUCCEEDED'?'Evaluation completed — result content expired':result.state==='FAILED_TERMINAL'?'Evaluation failed — result content expired':result.state==='UNKNOWN'?'Execution uncertain — recovery content expired':result.state==='DISPATCHING'?'Evaluation processing — result content expired':result.state==='REGISTERED'?'Registration recorded — execution unconfirmed; content expired':result.state==='AWAITING_SUBJECT'?'Awaiting subject selection — continuation content expired':'Subject selected — continuation content expired';
+      const detail=document.createElement('p');detail.textContent='Reference: '+result.analysisId+'. Execution record: '+result.state+'. The temporary result and continuation content have expired and cannot be reconstructed. No new analysis was submitted. This receipt does not establish provider cost.';
+      card.append(title,detail);results.replaceChildren(card);results.className='results';workflowSubmitButton.disabled=true;setStatus('Execution status and expired result content are separate. No automatic retry will occur.','neutral');return;
+    }
     if(['AWAITING_SUBJECT','SUBJECT_SELECTED'].includes(result.state)){
       writeAnalysisDispatchReceipt({analysisId:receipt.analysisId,workflow:receipt.workflow,state:'subject_pending'});
       renderSubjectClarificationCard(result,workflowConfigs[receipt.workflow]);return;
@@ -4860,7 +4874,7 @@ function renderSubjectClarificationCard(state,config=workflowConfigs[defaultWork
     button.setAttribute('aria-pressed',String(option.id===state.selectedSubjectId));
     button.addEventListener('click',async()=>{
       if(activeRequestController)return;
-      choices.querySelectorAll('button').forEach(choice=>choice.disabled=true);continueButton.disabled=true;
+      choices.querySelectorAll('button').forEach(choice=>choice.disabled=true);continueButton.disabled=true;setStatus('Saving your selected subject…','loading');
       try{
         const receipt=readAnalysisDispatchReceipt();if(!receipt||receipt.analysisId!==state.analysisId)return;
         const selected=await globalThis.KatherinesEyeCustomerAccount.selectAnalysisSubject({analysisId:state.analysisId,recoveryId:receipt.recoveryId,subjectId:option.id,subjectRevision:state.subjectRevision});
@@ -4870,12 +4884,13 @@ function renderSubjectClarificationCard(state,config=workflowConfigs[defaultWork
     });choices.append(button);
   }
   const continueButton=document.createElement('button');continueButton.type='button';continueButton.className='primary-button';continueButton.textContent='Continue with selected item';continueButton.disabled=!state.selectedSubjectId;
-  continueButton.addEventListener('click',()=>{if(!activeRequestController)void continueSubjectAnalysis(state,config);});
+  continueButton.addEventListener('click',()=>{if(!activeRequestController&&!continueButton.disabled){continueButton.disabled=true;choices.querySelectorAll('button').forEach(choice=>choice.disabled=true);helper.textContent='Continuing this evaluation. Its existing status will be checked if the response is interrupted; do not submit again.';void continueSubjectAnalysis(state,config);}});
   card.append(question,helper,choices,continueButton);results.replaceChildren(card);setStatus(state.selectedSubjectId?'Subject selected. Confirm it to continue research.':'Choose which item you want evaluated.','success');
 }
 
 async function continueSubjectAnalysis(state,config){
   const receipt=readAnalysisDispatchReceipt();if(!receipt||receipt.analysisId!==state.analysisId||activeRequestController)return;
+  if(receipt.state!=='subject_pending')return;
   const request=startWorkflowRequest(receipt.workflow);request.analysisId=receipt.analysisId;
   setLoading(true,receipt.workflow);setStatus('Continuing with your selected item…','loading');
   if(!writeAnalysisDispatchReceipt({...receipt,state:'dispatch_unconfirmed'})){activeRequestController=null;setLoading(false,receipt.workflow);return;}

@@ -54,7 +54,8 @@ test("account-scoped recovery atomically claims once, retains exact terminal byt
   assert.deepEqual((await service.listHistory(first.session.token)).listings, []);
   await assert.rejects(service.completeAnalysisRecovery(first.session.token, { analysisId: identity.analysisId, recoveryId: registered.recoveryId, state: "FAILED_TERMINAL", statusCode: 500, response: {} }), { code: "analysis_recovery_state_changed" });
   clock += 60 * 60 * 1000;
-  assert.equal((await service.readAnalysisRecovery(first.session.token, identity.analysisId, registered.recoveryId)).state, "UNKNOWN");
+  const expired=await service.readAnalysisRecovery(first.session.token, identity.analysisId, registered.recoveryId);
+  assert.equal(expired.state,"SUCCEEDED");assert.equal(expired.resultContentStatus,"EXPIRED");assert.equal(expired.response,undefined);
   await service.cleanupExpired();
   assert.equal((await store.read()).analysisRecoveries[first.account.id], undefined);
   await assert.rejects(service.registerAnalysisRecovery(first.session.token, identity), { code: "analysis_recovery_already_used" });

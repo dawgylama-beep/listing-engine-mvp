@@ -1,5 +1,13 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Object-scoped observation contract; cumulative local candidate)
+
+- Use the existing recognition call to record object IDs, broad category observations, literal markings, image attribution, relationships, uncertainty and conflicts. Ambiguous or mismatched attribution remains unassigned; relationships do not transfer a host's identity to an accessory.
+- Keep display labels separate from search authority. Only clear, attributed, non-conflicting selected-object observations may contribute identity terms; exclude scene narration and uncertain readings. Preserve supported maker/model, capacity, barcode, package and identifying-feature evidence.
+- Carry the observation context through existing subject clarification and one-time continuation to search and judgment. Preserve selected caveats and explicitly unassigned observations, including controlled insufficient-evidence outputs; compact reports disclose additional omitted details.
+- Integrate the accepted revision 20 durable continuation receipts without extending photo/result retention, creating a new provider stage, changing budgets or weakening compatibility, currency, transaction and valuation gates. The revision 20 baseline remains unchanged and separately recoverable.
+- Offline parsing, handler, desktop/touch and comparison evidence uses clearly labeled synthetic contracts informed by retained scale/Bialetti records and existing cases. It demonstrates contract handling, not improved live recognition, real comparable recall or pricing accuracy. No version increment, publication or live trial is included.
+
 ## Version 1.12.52 (Subject clarification; local candidate)
 
 - Resolve the customer's evaluation subject from their description, photographs and subject-specific visible markings before comparable acquisition. A clear subject proceeds; multiple plausible objects, components, accessories or contents produce one concise question naming them.
@@ -1103,3 +1111,10 @@
 ### Local subject-choice visibility follow-up — 2026-10-14
 
 On published source fb822bff, local stubbed reproduction confirmed persisted choice/aria-pressed without visible selected styling. The local candidate adds a clear selected appearance, fades correctable alternatives, preserves focus after saved choice, and keeps the original Analyze control disabled during subject clarification. Mouse, touch, keyboard, correction, recovery and one continuation are checked locally. The owner-clicked live continuation and its reserved exposure remain UNKNOWN; this follow-up is unpublished and performs no live replay.
+
+
+### Local durable continuation receipts — 2026-10-15
+
+Closed the original scale recovery investigation with execution/cost UNKNOWN and $2.50 reserved. The local candidate reuses the account JSON store and permanent replay markers to retain bounded metadata-only execution receipts, discoverable after sign-in. Result and continuation content still expires after one hour; known completion/failure is separate from expired content and stale dispatch remains uncertain. No photos, photo hashes, descriptions, subject labels, prompts, result content or credentials enter durable receipts. Receipts remain until account deletion within existing replay bounds. No database scope, live trial, publication or historical recovery is expanded.
+
+Durable receipts use logical account JSON schema 2.2 with in-place compatibility for 1.0, 2.0 and 2.1 in the existing row/CAS path. No table or access scope changes. Older deployments fail closed on 2.2 instead of silently deleting receipts; rollback to an older account writer is therefore not compatible without separately reviewed handling.
