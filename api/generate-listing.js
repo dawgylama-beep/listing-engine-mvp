@@ -3053,7 +3053,7 @@ function compactModelResearchText(value, maxCharacters = 1200) {
 }
 
 function requestSerperSearch(args) {
-  assertSelectedObservationQuery(args.query,currentEvaluationTerminalContext()?.subjectObservationIdentity);
+  assertSelectedObservationQuery(args.query,currentEvaluationTerminalContext()?.subjectObservationIdentity,args.queryRecord);
   return currentAnalysisAdapters().requestSerperSearch(args);
 }
 
@@ -3849,6 +3849,8 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
       : liveSearch.providerSourceRecords
   );
   const normalizedRecords = normalizeArray(liveSearch.providerSourceRecords);
+  const responseSummaries = normalizeArray(liveSearch.providerResponseSummaries || liveSearch.searchDiagnostics?.providerResponseSummaries);
+  const shoppingDiscoveryLeads = responseSummaries.flatMap(summary => normalizeArray(summary.shoppingDiscoveryLeads)).slice(0, 80).map(sanitizeShoppingDiscoveryLead);
   const providerRequests = normalizeArray(liveSearch.providerRequestRecords);
   const plan = [
     ...normalizeArray(liveSearch.objectMindState?.searchPlan),
@@ -3900,7 +3902,21 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
   )).length;
   return Object.freeze({
     schemaVersion: "1.0",
-    candidateAudit: Object.freeze([...acquisitionRecords, ...normalizedRecords.filter(record => record.discoveryOrigin === "BOUNDED_COLLECTION_LINK")].map(record => {
+    providerResponseAudit: Object.freeze(responseSummaries.map((summary, summaryIndex) => ({ summary, summaryIndex }))
+      .filter(({ summary }) => summary.providerResponseEvidence).slice(0, 8).map(({ summary, summaryIndex }) => {
+        const evidence = sanitizeSerperResponseEvidence(summary.providerResponseEvidence);
+        return Object.freeze({ summaryIndex, query: cleanText(summary.query), searchType: cleanText(summary.searchType),
+          evidencePath: `providerResponseSummaries[${summaryIndex}].providerResponseEvidence`,
+          sanitizedJsonSha256: evidence.sanitizedJsonSha256, complete: evidence.complete,
+          omissionReasons: evidence.omissionReasons });
+      })),
+    candidateAudit: Object.freeze([...acquisitionRecords, ...normalizedRecords.filter(record => record.discoveryOrigin === "BOUNDED_COLLECTION_LINK"), ...shoppingDiscoveryLeads].map(record => {
+      if (record.discoveryOnly) return Object.freeze({ candidateId: record.sourceRecordId, parentCandidateId: "", normalizedCandidateId: "", canonicalEvidenceId: "",
+        url: "", providerReferenceUrl: record.providerReferenceUrl, title: record.title, origin: "SERPER_SHOPPING_DISCOVERY",
+        productId: record.productId, providerDisplayPriceText: record.providerFields.priceText,
+        explicitReturnedCurrencyFields: record.providerFields.explicitCurrencyFields, nativeCurrency: "UNKNOWN",
+        price: null, priceType: "Reference Without Price", disposition: "DISCOVERY_ONLY", reason: record.discoveryReason,
+        displayed: false, valuationQualified: false, enrichmentDisposition: "NOT_A_VERIFIED_MERCHANT_LISTING" });
       const normalized = normalizedRecords.find(candidate => candidate.sourceRecordId === record.sourceRecordId || (candidate.observationIds || []).includes(record.sourceRecordId));
       const accepted = normalized && acceptedKeys.has(comparableTraceKey(normalized));
       const canonical = [...acceptedRecords, ...normalizeArray(finalEvidenceResult?.rejectedRecords)].find(candidate =>
@@ -3926,6 +3942,7 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
       "IDENTITY_MATCHING", "DIRECT_PAGE_HYDRATION", "EVIDENCE_GRADING", "RETENTION", "RESPONSE_SERIALIZATION"
     ]),
     stageCounts: Object.freeze({
+      shoppingDiscoveryLeadRetention: shoppingDiscoveryLeads.length,
       searchResponse: providerRequests.reduce((sum, record) => sum + Number(record.providerSourceCount || 0), 0),
       resultExtraction: acquisitionRecords.length,
       offerCandidate: traceableAcquisition.length,
@@ -5736,7 +5753,7 @@ async function requestSerperSearchWithBudget({
 } = {}) {
   // Reject unsupported identity before reserving a physical provider attempt.
   try {
-    assertSelectedObservationQuery(queryRecord.query, identity);
+    assertSelectedObservationQuery(queryRecord.query, identity, queryRecord);
   } catch (error) {
     requestRecord.attempted = false;
     requestRecord.logicalQueryAttempted = false;
@@ -5779,10 +5796,24 @@ async function requestSerperSearchWithBudget({
         timeoutMs: 7000,
         maxRetries: 0
       });
+      // Capture parsed provider JSON before the offer adapter can drop fields.
+      // This shares the existing response-summary audit and its retention, not
+      // a new store. No request object, headers or credential is retained.
+      requestRecord.providerResponseEvidence = captureSerperResponseEvidence(response.json, [apiKey]);
+      requestRecord.providerResponseEvidence.physicalAttemptOrdinal = attempt + 1;
+      requestRecord.providerResponseEvidence.priorAttemptResponsesNotRetained = attempt > 0;
+      if (response.jsonDecodingFailed) {
+        requestRecord.providerResponseEvidence.complete = false;
+        requestRecord.providerResponseEvidence.omissionReasons.push("INVALID_PROVIDER_JSON");
+      }
       recordPhysicalAttemptOutcome(requestRecord, "succeeded", response);
       return response;
     } catch (error) {
       recordPhysicalAttemptOutcome(requestRecord, "failed", error);
+      if (error.providerResponseEvidence) requestRecord.providerResponseEvidence = {
+        ...sanitizeSerperResponseEvidence(error.providerResponseEvidence), physicalAttemptOrdinal: attempt + 1,
+        priorAttemptResponsesNotRetained: attempt > 0
+      };
       lastError = error;
       const diagnostic = classifySerperError(error);
       if (error.code === "UNSUPPORTED_SUBJECT_QUERY" || attempt >= effectiveMaxRetries || [
@@ -5799,6 +5830,91 @@ async function requestSerperSearchWithBudget({
     category: "serper_provider_error",
     message: "Serper request failed."
   });
+}
+
+const SERPER_AUDIT_JSON_BYTES = 12000;
+
+function captureSerperResponseEvidence(value, sensitiveValues = []) {
+  const omissions = new Set();
+  const secrets = sensitiveValues.filter(value => typeof value === "string" && value.length > 0);
+  let remaining = SERPER_AUDIT_JSON_BYTES - 512;
+  let nodes = 0;
+  const omitted = reason => { omissions.add(reason); return "[OMITTED]"; };
+  const spend = value => {
+    const bytes = Buffer.byteLength(JSON.stringify(value), "utf8") + 4;
+    if (bytes > remaining) { omissions.add("BYTE_LIMIT"); return false; }
+    remaining -= bytes; return true;
+  };
+  const sensitiveKey = key => /headers?|authorization|cookie|apikey|password|credential|secret|token|signature|session|^(?:lat|latitude|lng|lon|longitude|coordinates?|coords|gps|location|geolocation|geometry|position|bounds|image|images|imageurl|thumbnail|thumbnailurl|photo|photos|photourl|dataurl)$/i.test(String(key).replace(/[^a-z0-9]/gi, ""));
+  const walk = (item, depth = 0) => {
+    if (++nodes > 512) return omitted("NODE_LIMIT");
+    if (depth > 8) return omitted("DEPTH_LIMIT");
+    if (item === null || typeof item === "boolean" || typeof item === "number" && Number.isFinite(item)) return spend(item) ? item : omitted("BYTE_LIMIT");
+    if (typeof item === "string") {
+      if (item.length > 4000) return omitted("STRING_LIMIT");
+      if (secrets.some(secret => item.includes(secret)) || /\bBearer\s+\S+|\bsk-[A-Za-z0-9_-]+|(?:api.?key|password|authorization|credential|secret|token|cookie|session)\s*[:=]/i.test(item)) return omitted("SENSITIVE_VALUE");
+      if (/data:image\/|data:application\//i.test(item)) return omitted("PRIVATE_MEDIA");
+      if (/-?\d{1,3}\.\d{4,}\s*[,; ]\s*-?\d{1,3}\.\d{4,}|\b(?:latitude|longitude|lat|lng)\s*[:=]\s*-?\d+\.\d{4,}/i.test(item)) return omitted("PRECISE_LOCATION");
+      if (/https?:\/\//i.test(item)) {
+        for (const match of item.matchAll(/https?:\/\/[^\s<>"']+/gi)) {
+          try {
+            const url = new URL(match[0]);
+            if (url.username || url.password || [...url.searchParams.keys()].some(key => sensitiveKey(key) || /^(?:key|ll|sll|center)$/i.test(key))) return omitted("SENSITIVE_URL");
+          } catch { return omitted("UNPARSEABLE_URL"); }
+        }
+      }
+      return spend(item) ? item : omitted("BYTE_LIMIT");
+    }
+    if (!item || typeof item !== "object") return omitted("NON_JSON_VALUE");
+    if (remaining < 64) return omitted("BYTE_LIMIT");
+    remaining -= 8;
+    if (Array.isArray(item)) {
+      const output = [];
+      for (let i = 0; i < Math.min(item.length, 50); i++) {
+        if (nodes >= 512 || remaining < 64) { output.push(omitted("STRUCTURE_LIMIT")); break; }
+        output.push(walk(item[i], depth + 1));
+      }
+      if (item.length > 50) output.push(omitted("ARRAY_LIMIT"));
+      return output;
+    }
+    const output = Object.create(null);
+    for (const key in item) {
+      if (!Object.prototype.hasOwnProperty.call(item, key)) continue;
+      nodes += 1;
+      if (nodes >= 512 || remaining < 64) { output.__captureOmitted = omitted("STRUCTURE_LIMIT"); break; }
+      if (sensitiveKey(key)) { omissions.add("PRIVATE_FIELD"); continue; }
+      if (key.length > 160 || secrets.some(secret => key.includes(secret))) { omissions.add("UNSAFE_FIELD_NAME"); continue; }
+      if (!spend(key)) { output.__captureOmitted = omitted("BYTE_LIMIT"); break; }
+      output[key] = walk(item[key], depth + 1);
+    }
+    return output;
+  };
+  let json;
+  try { json = JSON.stringify(walk(value)); } catch { omissions.add("CAPTURE_ERROR"); json = "null"; }
+  if (Buffer.byteLength(json, "utf8") > SERPER_AUDIT_JSON_BYTES) { omissions.add("BYTE_LIMIT"); json = "null"; }
+  const result = { representation: "PARSED_PROVIDER_JSON_BEFORE_ADAPTER", originalBodyRetained: false,
+    captureScope: "LATEST_PARSED_RESPONSE_ONLY",
+    complete: omissions.size === 0, omissionReasons: [...omissions].slice(0, 16),
+    maximumEvidenceBytes: 16000, maximumJsonBytes: SERPER_AUDIT_JSON_BYTES, retainedJsonBytes: Buffer.byteLength(json, "utf8"),
+    sanitizedJsonSha256: crypto.createHash("sha256").update(json).digest("hex"), json };
+  if (Buffer.byteLength(JSON.stringify(result), "utf8") > 15800) {
+    result.complete = false; result.omissionReasons = [...new Set([...result.omissionReasons, "ENVELOPE_LIMIT"])];
+    result.json = "null"; result.retainedJsonBytes = 4;
+    result.sanitizedJsonSha256 = crypto.createHash("sha256").update("null").digest("hex");
+  }
+  return result;
+}
+
+function sanitizeSerperResponseEvidence(evidence) {
+  if (!evidence || typeof evidence.json !== "string") return null;
+  if (Buffer.byteLength(evidence.json, "utf8") > SERPER_AUDIT_JSON_BYTES) return { ...captureSerperResponseEvidence(null), complete: false, omissionReasons: ["BYTE_LIMIT"] };
+  try {
+    const safe = captureSerperResponseEvidence(JSON.parse(evidence.json));
+    return { ...safe, complete: evidence.complete === true && safe.complete,
+        physicalAttemptOrdinal: Number.isSafeInteger(evidence.physicalAttemptOrdinal) ? evidence.physicalAttemptOrdinal : null,
+        priorAttemptResponsesNotRetained: evidence.priorAttemptResponsesNotRetained === true,
+      omissionReasons: [...new Set([...normalizeStringArray(evidence.omissionReasons, 16), ...safe.omissionReasons])].slice(0, 16) };
+  } catch { return { ...captureSerperResponseEvidence(null), complete: false, omissionReasons: ["INVALID_CAPTURE_JSON"] }; }
 }
 
 async function requestOpenAIComparableSearchWithBudget({
@@ -5992,7 +6108,7 @@ async function executeSerperComparableSearch({
         maxRetries: 1,
         requestAdapter
       });
-      const parsed = parseSerperResponse(response.json, queryRecord);
+      const parsed = parseSerperResponse(response.json, queryRecord, identity, context);
       rawProviderRecordsByPlan[planIndex] = parsed.records;
       requestRecord.succeeded = true;
       requestRecord.statusCode = response.statusCode;
@@ -6009,7 +6125,7 @@ async function executeSerperComparableSearch({
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
       requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
       requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
-      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      requestRecord.failureStage = parsed.records.length ? "none" : parsed.shoppingDiscoveryLeads?.length ? "serper_discovery_only" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
       const diagnostic = classifySerperError(error);
@@ -6040,6 +6156,7 @@ async function executeSerperComparableSearch({
         validationPassed: queryRecord.validationPassed !== false,
         validationFailureReason: queryRecord.validationFailureReason || "",
         statusCode: diagnostic.statusCode || null,
+        providerResponseEvidence: sanitizeSerperResponseEvidence(requestRecord.providerResponseEvidence),
         providerSourceCount: 0,
         returnedResultCount: 0,
         organicResultCount: 0,
@@ -6361,7 +6478,7 @@ async function executeObjectMindRefinementSearch({
         maxRetries: 1,
         requestAdapter
       });
-      const parsed = parseSerperResponse(response.json, queryRecord);
+      const parsed = parseSerperResponse(response.json, queryRecord, identity, context);
       returnedByPlan[index] = parsed.records;
       requestRecord.succeeded = true;
       requestRecord.statusCode = response.statusCode;
@@ -6378,7 +6495,7 @@ async function executeObjectMindRefinementSearch({
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
       requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
       requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
-      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      requestRecord.failureStage = parsed.records.length ? "none" : parsed.shoppingDiscoveryLeads?.length ? "serper_discovery_only" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
       const diagnostic = classifySerperError(error);
@@ -6707,7 +6824,7 @@ async function executeLimitedResultRetailRecovery({
         maxRetries: 1,
         requestAdapter: serperRequestAdapter
       });
-      const parsed = parseSerperResponse(response.json, queryRecord);
+      const parsed = parseSerperResponse(response.json, queryRecord, identity, context);
       recoveredProviderRecordsByPlan[index] = parsed.records;
       requestRecord.succeeded = true;
       requestRecord.statusCode = response.statusCode;
@@ -6724,7 +6841,7 @@ async function executeLimitedResultRetailRecovery({
       requestRecord.sourceURLsReturned = parsed.records.map((record) => record.url).filter(Boolean).slice(0, 12);
       requestRecord.resultingCandidateIds = parsed.records.map((record) => record.sourceRecordId).filter(Boolean).slice(0, 12);
       requestRecord.extractionDispositionCounts = countControlledDispositions(parsed.records, "extractionDisposition");
-      requestRecord.failureStage = parsed.records.length ? "none" : "serper_zero_results";
+      requestRecord.failureStage = parsed.records.length ? "none" : parsed.shoppingDiscoveryLeads?.length ? "serper_discovery_only" : "serper_zero_results";
       providerResponseSummaries.push(createSerperResponseSummary(queryRecord, requestRecord, parsed));
     } catch (error) {
       const diagnostic = classifySerperError(error);
@@ -6755,6 +6872,7 @@ async function executeLimitedResultRetailRecovery({
         validationPassed: queryRecord.validationPassed !== false,
         validationFailureReason: queryRecord.validationFailureReason || "",
         statusCode: diagnostic.statusCode || null,
+        providerResponseEvidence: sanitizeSerperResponseEvidence(requestRecord.providerResponseEvidence),
         providerSourceCount: 0,
         returnedResultCount: 0,
         organicResultCount: 0,
@@ -7098,7 +7216,7 @@ async function executeExactRetailPageDirectEnrichment({
           : observation);
         enrichedRecords.push(...discovered.map(child => ({ ...child, enrichmentDisposition: selected.includes(child) ? "COLLECTION_LISTING_SELECTED" : "COLLECTION_LISTING_CEILING_EXCLUDED" })));
         for (const child of selected) candidates.push({ url: child.canonicalUrl, members: [child] });
-      } else if (result.sourceEvidenceText) {
+      } else if (result.sourceEvidenceText || result.priceRejectionReason) {
         enrichedRecords = enrichedRecords.map((observation) => {
           const observationUrl = canonicalizeComparableUrl(unwrapRetailDestinationUrl(
             observation.destinationUrl || observation.url || observation.canonicalUrl
@@ -7363,8 +7481,9 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   const startedAt = currentTimeMilliseconds();
+  let response;
   try {
-    const response = await fetch(finalCandidate, {
+    response = await fetch(finalCandidate, {
       method: "GET",
       redirect: "manual",
       headers: {
@@ -7372,8 +7491,10 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
       },
       signal: controller.signal
     });
-    clearTimeout(timeout);
     if (response.status >= 300 && response.status < 400) {
+      // A redirect consumes its own attempt, but its body is never evidence.
+      void response.body?.cancel().catch(() => {});
+      clearTimeout(timeout);
       recordPhysicalAttemptOutcome(attemptState.requestRecord, "redirect", { statusCode: response.status });
       const location = cleanText(response.headers.get("location"));
       const nextUrl = location ? new URL(location, finalCandidate).toString() : "";
@@ -7392,51 +7513,67 @@ async function requestBoundedRetailProductPageNetwork(url = "", context = {}, re
     if (contentType && !/\b(?:text\/html|application\/xhtml\+xml)\b/i.test(contentType)) {
       throw Object.assign(new Error("Direct product-page fetch did not return HTML."), { code: "direct_fetch_non_html" });
     }
-    const html = await readBoundedResponseText(response, 250000);
+    const html = await readBoundedResponseText(response, 250000, controller.signal);
     const evidence = extractDirectRetailProductPageEvidence({ ...record, pageHtml: html }, context);
     return {
       finalUrl: response.url || finalCandidate,
       statusCode: response.status,
       elapsedMs: currentTimeMilliseconds() - startedAt,
       html,
+      priceRejectionReason: evidence.priceRejectionReason || "",
       sourceEvidenceText: attemptState.collectionDiscovery ? "" : evidence.sourceEvidenceText
     };
   } catch (error) {
-    clearTimeout(timeout);
+    controller.abort();
+    if (!response?.body?.locked) void response?.body?.cancel().catch(() => {});
     if (error.name === "AbortError") {
       throw Object.assign(new Error("Direct product-page fetch timed out."), { code: "direct_fetch_timeout" });
     }
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-async function readBoundedResponseText(response, maxBytes = 250000) {
+async function readBoundedResponseText(response, maxBytes = 250000, signal) {
   const contentLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
   }
   if (!response.body || typeof response.body.getReader !== "function") {
-    const text = await response.text();
-    if (text.length > maxBytes) {
-      throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
-    }
-    return text;
+    // text() would buffer an unbounded response before we could check its size.
+    throw Object.assign(new Error("Direct product-page response has no bounded stream."), { code: "direct_fetch_stream_unavailable" });
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let total = 0;
   let output = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
+  let complete = false;
+  let abort;
+  const interrupted = new Promise((_, reject) => {
+    abort = () => reject(Object.assign(new Error("Direct product-page body timed out."), { name: "AbortError" }));
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+  });
+  try {
+    while (true) {
+      const { value, done } = await Promise.race([reader.read(), interrupted]);
+      if (done) { complete = true; break; }
+      total += value.byteLength;
+      if (total > maxBytes) {
+        throw Object.assign(new Error("Direct product-page response exceeded the size limit."), { code: "direct_fetch_size_limit" });
+      }
+      output += decoder.decode(value, { stream: true });
     }
-    output += decoder.decode(value, { stream: true });
+    output += decoder.decode();
+    return output;
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    // Cancellation is best effort; an uncooperative transport must not hold the
+    // observer open. No incomplete output is returned to the evidence parser.
+    if (!complete) void reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
-  output += decoder.decode();
-  return output;
 }
 
 function createSerperRequestRecord(queryRecord) {
@@ -7564,17 +7701,21 @@ async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic
       signal: controller.signal
     });
     clearTimeout(timeout);
-    const data = await response.json().catch(() => ({}));
+    let jsonDecodingFailed = false;
+    const data = await response.json().catch(() => { jsonDecodingFailed = true; return {}; });
     if (!response.ok) {
       const category = classifySerperStatus(response.status, data, searchType);
-      throw createSerperRequestError({
+      const error = createSerperRequestError({
         category,
         statusCode: response.status,
         code: cleanText(data?.error || data?.code || ""),
         message: summarizeSerperErrorMessage(data, response.status)
       });
+      error.providerResponseEvidence = captureSerperResponseEvidence(data, [apiKey]);
+      if (jsonDecodingFailed) { error.providerResponseEvidence.complete = false; error.providerResponseEvidence.omissionReasons.push("INVALID_PROVIDER_JSON"); }
+      throw error;
     }
-    return { json: data, statusCode: response.status, elapsedMs: currentTimeMilliseconds() - startedAt };
+    return { json: data, jsonDecodingFailed, statusCode: response.status, elapsedMs: currentTimeMilliseconds() - startedAt };
   } catch (error) {
     clearTimeout(timeout);
     throw error.name === "AbortError"
@@ -7583,8 +7724,9 @@ async function requestSerperSearchNetwork({ apiKey, query, searchType = "organic
   }
 }
 
-function parseSerperResponse(data = {}, queryRecord = {}) {
+function parseSerperResponse(data = {}, queryRecord = {}, identity = {}, context = {}) {
   const records = [];
+  const shoppingDiscoveryLeads = [];
   const organic = Array.isArray(data.organic) ? data.organic : [];
   const shopping = Array.isArray(data.shopping) ? data.shopping : [];
   const knowledgeGraph = data.knowledgeGraph && typeof data.knowledgeGraph === "object" ? data.knowledgeGraph : null;
@@ -7610,8 +7752,25 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
   shopping.forEach((item, index) => {
     const originalProviderUrl = cleanText(item.link || item.url);
     const url = canonicalizeComparableUrl(originalProviderUrl);
-    if (!url) return;
-    records.push(createSerperProviderRecord({
+    const providerFields = shoppingProviderOfferFields(item);
+    const discoveryReason = !url ? "MISSING_MERCHANT_URL"
+      : isSearchProviderDomain(hostnameFromUrl(url)) ? "SEARCH_PROVIDER_REFERENCE"
+        : isLikelyCategoryOrSearchPageRecord({ url, title: item.title }) ? "CATEGORY_OR_SEARCH_REFERENCE" : "";
+    if (discoveryReason) {
+      const compatibility = evaluateComparableItemTypeCompatibility({ title: item.title }, identity, context);
+      shoppingDiscoveryLeads.push(sanitizeShoppingDiscoveryLead({
+        sourceRecordId: stableInternalId("shopping-discovery", { query: queryRecord.query, productId: item.productId, position: index + 1, title: item.title }, 16),
+        title: item.title, merchantLabel: item.source, productId: item.productId,
+        providerOrdinal: index + 1, providerReferenceUrl: originalProviderUrl,
+        providerFields, discoveryReason,
+        makerSupport: shoppingMakerSupport(item, identity, context),
+        itemTypeCompatible: compatibility.itemTypeCompatible,
+        itemTypeCompatibilityStatus: compatibility.status,
+        itemTypeCompatibilityReason: compatibility.explanation
+      }));
+      return;
+    }
+    const record = createSerperProviderRecord({
       provider: "serper_google",
       queryRecord,
       title: item.title,
@@ -7628,7 +7787,10 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
       imageUrl: item.imageUrl,
       rating: item.rating,
       ratingCount: item.ratingCount
-    }));
+    });
+    // A Shopping display price is not evidence of merchant-native USD or a sale.
+    records.push({ ...record, providerFields, providerDisplayedPriceText: providerFields.priceText,
+      shoppingPriceUnverified: true, currency: "", sourcePriceCurrency: "" });
   });
 
   if (knowledgeGraph) {
@@ -7651,10 +7813,52 @@ function parseSerperResponse(data = {}, queryRecord = {}) {
 
   return {
     records,
+    shoppingDiscoveryLeads,
     organicResultCount: organic.length,
     shoppingResultCount: shopping.length,
     knowledgeGraphResultCount: knowledgeGraph ? 1 : 0,
     relatedSearchCount: Array.isArray(data.relatedSearches) ? data.relatedSearches.length : 0
+  };
+}
+
+function shoppingProviderOfferFields(item = {}) {
+  const scalar = (value) => typeof value === "string" || typeof value === "number" ? String(value).slice(0, 4000) : "";
+  const explicitCurrencyFields = {};
+  for (const field of ["currency", "currencyCode", "priceCurrency", "originalCurrency"]) {
+    if (scalar(item[field])) explicitCurrencyFields[field] = scalar(item[field]);
+  }
+  return { priceText: scalar(item.price ?? item.priceText), explicitCurrencyFields,
+    availability: scalar(item.availability), offerCondition: scalar(item.offerCondition || item.condition),
+    nativeCurrency: "UNKNOWN", statusMeaning: "ADVERTISED_OFFER_NOT_VERIFIED_SALE" };
+}
+
+function shoppingMakerSupport(item = {}, identity = {}, context = {}) {
+  const expected = cleanText(context.brand || identity.brand || identity.manufacturer);
+  if (!hasKnownValue(expected)) return "UNKNOWN";
+  const compact = value => normalizeComparableText(value).replace(/[^a-z0-9]/g, "");
+  const stated = cleanText(item.brand || item.manufacturer);
+  if (hasKnownValue(stated) && compact(stated) !== compact(expected)) return "EXPLICIT_MAKER_CONFLICT";
+  return compact(item.title).includes(compact(expected)) ? "TITLE_MENTIONS_SELECTED_MAKER" : "MAKER_UNCONFIRMED";
+}
+
+function sanitizeShoppingDiscoveryLead(lead = {}) {
+  const fields = shoppingProviderOfferFields({
+    priceText: lead.providerFields?.priceText,
+    ...(lead.providerFields?.explicitCurrencyFields || {}),
+    availability: lead.providerFields?.availability, offerCondition: lead.providerFields?.offerCondition
+  });
+  return {
+    sourceRecordId: cleanText(lead.sourceRecordId), sourceType: "shopping_discovery",
+    title: cleanText(lead.title).slice(0, 1000), merchantLabel: cleanText(lead.merchantLabel).slice(0, 300),
+    productId: cleanText(lead.productId).slice(0, 200), providerOrdinal: Number(lead.providerOrdinal || 0),
+    providerReferenceUrl: canonicalizeComparableUrl(lead.providerReferenceUrl),
+    providerFields: fields, discoveryReason: cleanText(lead.discoveryReason),
+    makerSupport: cleanText(lead.makerSupport || "UNKNOWN"),
+    itemTypeCompatible: lead.itemTypeCompatible === true,
+    itemTypeCompatibilityStatus: cleanText(lead.itemTypeCompatibilityStatus),
+    itemTypeCompatibilityReason: cleanText(lead.itemTypeCompatibilityReason),
+    discoveryOnly: true, valuationQualified: false, verifiedMerchantListing: false,
+    url: "", canonicalUrl: "", displayedPriceText: "", parsedPrice: null, currency: ""
   };
 }
 
@@ -7739,6 +7943,12 @@ function isAccessoryOnlyOfferCandidate(record = {}, context = {}) {
 }
 
 function authenticateComparablePriceEvidence(record = {}, itemTypeCompatibility = {}, context = {}) {
+  if (record.discoveryOnly || record.sourceType === "shopping_discovery") {
+    return { authenticated: false, amount: null, provenance: "", reason: "Shopping discovery lead is not a verified individual listing or valuation price." };
+  }
+  if (record.exactRetailPageEvidence?.priceRejectionReason) {
+    return { authenticated: false, amount: null, provenance: "", reason: `Individual listing-page price rejected: ${record.exactRetailPageEvidence.priceRejectionReason}.` };
+  }
   const sourceCurrency = cleanText(record.sourcePriceCurrency || record.exactRetailPageEvidence?.priceCurrency || record.currency).toUpperCase();
   if (sourceCurrency && !["USD", "$", "US$"].includes(sourceCurrency)) {
     return { authenticated: false, amount: null, provenance: "", reason: "The individual offer currency is unsupported or unresolved; no USD valuation price is authenticated." };
@@ -7762,8 +7972,8 @@ function authenticateComparablePriceEvidence(record = {}, itemTypeCompatibility 
     && /^DIRECT_PRODUCT_PAGE_(?:STRUCTURED_PRICE|VISIBLE_OFFER_PRICE)$/.test(directSource)) {
     return { authenticated: true, amount, provenance: directSource, reason: "Authenticated item-specific product page price." };
   }
-  if (record.sourceType === "shopping" && record.priceProvenance === "SERPER_SHOPPING_STRUCTURED_PRICE") {
-    return { authenticated: true, amount, provenance: record.priceProvenance, reason: "Structured shopping-result price field." };
+  if (record.shoppingPriceUnverified || record.sourceType === "shopping") {
+    return { authenticated: false, amount: null, provenance: "", reason: "Shopping display price has no established merchant-native currency; individual listing evidence is required." };
   }
   const metadataPrice = parseDisplayedPrice([record.title, record.snippet, record.sourceEvidenceText].filter(Boolean).join(" | "));
   if (Number.isFinite(metadataPrice) && Math.abs(metadataPrice - amount) < 0.005) {
@@ -9261,8 +9471,13 @@ function buildCanonicalObjectSerperSearchPlan({
     candidateOrigin = "canonical_object_plan",
     searchPass = "",
     domains = [],
-    modifiers = []
+    modifiers = [],
+    searchType = "organic_web"
   } = {}) => {
+    // Endpoint intent belongs to this repository-created operation. queryType
+    // and providerLane describe research ownership, not Shopping transport.
+    // Neither query words nor display/searchPass labels confer endpoint intent.
+    if (!["organic_web", "shopping"].includes(searchType)) return;
     if (!owner || records.length >= maximum) return;
     const comparableLadderLevel = cleanText(owner.comparableLadderLevel).toUpperCase();
     if (!COMPARABLE_LADDER_LEVELS.includes(comparableLadderLevel)) return;
@@ -9281,6 +9496,8 @@ function buildCanonicalObjectSerperSearchPlan({
       candidateOrigin,
       normalizedCandidate: finalQuery,
       finalQuery,
+      searchType,
+      providerEndpoint: searchType === "shopping" ? "serper_shopping" : "serper_search",
       searchPass: searchPass || (
         comparableLadderLevel === "EXACT"
           ? "open_web_exact"
@@ -9332,6 +9549,7 @@ function buildCanonicalObjectSerperSearchPlan({
       query: compactWords([primary.query, "current retail price"]),
       candidateOrigin: "canonical_current_retail_price",
       searchPass: "stage_5_shopping_general",
+      searchType: "shopping",
       modifiers: ["current retail price"]
     });
   } else if (primary && isCollectibleSearchContext(context)) {
@@ -9339,6 +9557,7 @@ function buildCanonicalObjectSerperSearchPlan({
       query: compactWords([primary.query, "sold completed"]),
       candidateOrigin: "canonical_secondary_market_sold",
       searchPass: "collectible_exact_sold_completed",
+      searchType: "organic_web",
       modifiers: ["sold", "completed"]
     });
   }
@@ -10891,6 +11110,7 @@ function extractExactRetailPageEvidence(record = {}, context = {}) {
     priceAmount: Number.isFinite(pageEvidence.priceAmount) ? pageEvidence.priceAmount : null,
     priceCurrency: cleanText(pageEvidence.priceCurrency),
     priceSource: cleanText(pageEvidence.priceSource),
+    priceRejectionReason: cleanText(pageEvidence.priceRejectionReason),
     sourceEvidenceText: cleanText(pageEvidence.sourceEvidenceText),
     enrichmentMode: pageEvidence.sourceEvidenceText ? "direct_product_page_html" : "search_result_metadata_only"
   };
@@ -10898,15 +11118,17 @@ function extractExactRetailPageEvidence(record = {}, context = {}) {
 
 function enrichExactRetailPageRecord(record = {}, context = {}) {
   const hasDirectPagePayload = Boolean(record.pageHtml || record.productPageHtml || record.html);
+  if (!hasDirectPagePayload && record.exactRetailPageEvidence?.priceRejectionReason) return record;
   if (!isLikelyExactRetailProductPage(record, context) && !hasDirectPagePayload) {
     return record;
   }
   const evidence = extractExactRetailPageEvidence(record, context);
   const pagePrice = Number.isFinite(evidence.priceAmount) && evidence.priceCurrency === "USD" ? evidence.priceAmount : null;
   const unsupportedPageCurrency = evidence.enrichmentMode === "direct_product_page_html" && evidence.priceCurrency && evidence.priceCurrency !== "USD";
+  const pagePriceRejected = Boolean(evidence.priceRejectionReason);
   const displayedPriceText = Number.isFinite(pagePrice)
     ? formatSourceMoney(pagePrice)
-    : unsupportedPageCurrency ? "" : record.displayedPriceText;
+    : unsupportedPageCurrency || pagePriceRejected ? "" : record.displayedPriceText;
   const packageText = Number.isFinite(evidence.packageQuantity) ? `${evidence.packageQuantity} count` : "";
   const rawText = [
     shouldUseRawTextForCandidateIdentity(record) ? record.rawText : "",
@@ -10925,12 +11147,13 @@ function enrichExactRetailPageRecord(record = {}, context = {}) {
     domain: evidence.retailerDomain || record.domain,
     destinationUrl: evidence.destinationUrl || record.destinationUrl,
     displayedPriceText,
-    parsedPrice: Number.isFinite(pagePrice) ? pagePrice : unsupportedPageCurrency ? null : record.parsedPrice,
+    parsedPrice: Number.isFinite(pagePrice) ? pagePrice : unsupportedPageCurrency || pagePriceRejected ? null : record.parsedPrice,
     sourcePriceCurrency: evidence.priceCurrency || record.sourcePriceCurrency,
-    sourcePriceAmount: Number.isFinite(evidence.priceAmount) ? evidence.priceAmount : record.sourcePriceAmount,
-    priceEvidenceType: Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
-    priceProvenance: Number.isFinite(pagePrice) ? evidence.priceSource : record.priceProvenance,
-    priceAuthenticated: Number.isFinite(pagePrice) ? true : unsupportedPageCurrency ? false : record.priceAuthenticated,
+    sourcePriceAmount: pagePriceRejected ? null : Number.isFinite(evidence.priceAmount) ? evidence.priceAmount : record.sourcePriceAmount,
+    priceEvidenceType: pagePriceRejected ? "Price Unavailable" : Number.isFinite(pagePrice) || displayedPriceText ? "Active Asking" : record.priceEvidenceType,
+    priceProvenance: pagePriceRejected ? "" : Number.isFinite(pagePrice) ? evidence.priceSource : record.priceProvenance,
+    priceAuthenticated: Number.isFinite(pagePrice) ? true : unsupportedPageCurrency || pagePriceRejected ? false : record.priceAuthenticated,
+    ...(pagePriceRejected ? { displayedPrice: "", price: undefined, itemPriceAmount: null } : {}),
     directProductPage: evidence.enrichmentMode === "direct_product_page_html",
     sourceQuality: evidence.enrichmentMode === "direct_product_page_html" ? "direct_product_page" : record.sourceQuality,
     directPageProvenance: evidence.enrichmentMode === "direct_product_page_html" ? evidence.priceSource || "DIRECT_PRODUCT_PAGE" : record.directPageProvenance,
@@ -10965,8 +11188,14 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
   ].join(" "));
   const structuredPriceAmount = extractStructuredOfferPriceFromHtml(html);
   const visiblePriceAmount = parseDisplayedPrice(sourceText);
-  const priceAmount = Number.isFinite(structuredPriceAmount) ? structuredPriceAmount : visiblePriceAmount;
+  let priceAmount = Number.isFinite(structuredPriceAmount) ? structuredPriceAmount : visiblePriceAmount;
   const priceCurrency = Number.isFinite(priceAmount) ? extractDirectOfferCurrency(html, sourceText, priceAmount) : "";
+  const conflictingPrices = new Set(collectStructuredOfferPricesFromHtml(html)).size > 1
+    || (Number.isFinite(structuredPriceAmount) && Number.isFinite(visiblePriceAmount) && structuredPriceAmount !== visiblePriceAmount);
+  const priceRejectionReason = conflictingPrices ? "CONFLICTING_PAGE_PRICES"
+    : priceCurrency === "CONFLICTING" ? "CONFLICTING_PAGE_CURRENCY"
+      : hasUnrelatedStructuredOffer(html, context) ? "UNRELATED_STRUCTURED_OFFER" : "";
+  if (priceRejectionReason) priceAmount = null;
   const priceSource = Number.isFinite(structuredPriceAmount)
     ? "DIRECT_PRODUCT_PAGE_STRUCTURED_PRICE"
     : Number.isFinite(visiblePriceAmount)
@@ -10980,6 +11209,7 @@ function extractDirectRetailProductPageEvidence(record = {}, context = {}) {
     || (record.collectionParentSourceId ? collectionIdentityMatches(sourceText, context) : directPageSupportsSubmittedFamily(sourceText, context));
   return {
     sourceEvidenceText: pageSupportsObject ? sourceText : "",
+    priceRejectionReason: pageSupportsObject ? priceRejectionReason : "PAGE_SUBJECT_NOT_SUPPORTED",
     priceAmount: pageSupportsObject && Number.isFinite(priceAmount) ? priceAmount : null,
     priceCurrency: pageSupportsObject ? priceCurrency : "",
     packageQuantity: pageSupportsObject && Number.isFinite(packageQuantity) ? packageQuantity : null,
@@ -11045,7 +11275,7 @@ function extractDirectOfferCurrency(html, sourceText, amount) {
   return parseDisplayedPrice(sourceText) === amount ? "USD" : "UNKNOWN";
 }
 
-function extractStructuredOfferPriceFromHtml(html = "") {
+function collectStructuredOfferPricesFromHtml(html = "") {
   const prices = [
     ...extractHtmlAttributeValues(html, /<meta\b[^>]*(?:property|name)=["'](?:product:price:amount|og:price:amount)["'][^>]*content=["']([^"']+)["'][^>]*>/gi),
     ...extractHtmlAttributeValues(html, /<[^>]+\bitemprop=["']price["'][^>]*\bcontent=["']([^"']+)["'][^>]*>/gi)
@@ -11057,8 +11287,28 @@ function extractStructuredOfferPriceFromHtml(html = "") {
       // Invalid structured data is ignored; visible offer text must qualify independently.
     }
   }
-  const distinct = [...new Set(prices)];
+  return prices;
+}
+
+function extractStructuredOfferPriceFromHtml(html = "") {
+  const distinct = [...new Set(collectStructuredOfferPricesFromHtml(html))];
   return distinct.length === 1 ? distinct[0] : null;
+}
+
+function hasUnrelatedStructuredOffer(html, context) {
+  // A heading about the selected subject cannot authenticate a recommendation's
+  // offer. Ambiguous mixed-product pages remain unpriced rather than guessing.
+  const visit = value => {
+    if (Array.isArray(value)) return value.some(visit);
+    if (!value || typeof value !== "object") return false;
+    const types = normalizeArray(value["@type"]).map(type => cleanText(type).toLowerCase());
+    const offeredName = types.includes("product") && value.offers ? cleanText(value.name)
+      : types.includes("offer") ? cleanText(value.itemOffered?.name) : "";
+    if (offeredName && !directPageSupportsSubmittedFamily(offeredName, context)) return true;
+    return Object.values(value).some(visit);
+  };
+  return extractHtmlAttributeValues(html, /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+    .some(script => { try { return visit(JSON.parse(script)); } catch { return false; } });
 }
 
 function extractStructuredRetailPriceAmount(value = "") {
@@ -11109,6 +11359,7 @@ function decodeBasicHtmlEntities(value = "") {
 
 function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
   return {
+    providerResponseEvidence: sanitizeSerperResponseEvidence(requestRecord.providerResponseEvidence),
     query: queryRecord.query,
     priority: queryRecord.priority,
     searchPass: queryRecord.searchPass,
@@ -11133,6 +11384,8 @@ function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
     returnedResultCount: parsed.records.length,
     organicResultCount: parsed.organicResultCount,
     shoppingResultCount: parsed.shoppingResultCount,
+    shoppingDiscoveryLeadCount: normalizeArray(parsed.shoppingDiscoveryLeads).length,
+    shoppingDiscoveryLeads: normalizeArray(parsed.shoppingDiscoveryLeads).slice(0, 20).map(sanitizeShoppingDiscoveryLead),
     knowledgeGraphResultCount: parsed.knowledgeGraphResultCount,
     relatedSearchCount: parsed.relatedSearchCount,
     parsedCandidateCount: parsed.records.length,
@@ -11612,6 +11865,20 @@ function evaluateComparableItemTypeCompatibility(record = {}, identity = {}, con
   const sourceIdentity = assessAuthoritativeSourceIdentity(record, identity, context);
   const setScope = detectComparableSetScope(submittedText, candidateText);
   const packScope = detectComparablePackScope(submittedText, candidateText, context);
+
+  // Broad scale form does not erase a supported intended-use conflict.
+  // Use selected-object identity fields, never incidental scene or query prose.
+  const selectedUse = normalizeComparableText([identity.subjectIdentity, identity.itemType,
+    identity.canonicalResearchIdentity?.objectCategory, context.subjectIdentity, context.itemType,
+    context.canonicalResearchIdentity?.objectCategory].filter(Boolean).join(" "));
+  const offeredUse = normalizeComparableText([record.title, record.itemType].filter(Boolean).join(" "));
+  if (submitted.key === "weighing_scale" && (candidate.key === "weighing_scale" || /\bscales?\b/.test(offeredUse))
+    && /\b(?:kitchen|food|cooking|baking|ingredient)\b/.test(selectedUse)
+    && /\b(?:medical|personal|bathroom|body|patient|physician)\b|\bdoctor\b.{0,16}\boffice\b/.test(offeredUse)) {
+    return { itemTypeCompatible: false, status: "item_type_use_conflict",
+      submittedItemType: submitted.label, candidateItemType: candidate.label,
+      explanation: "A medical or personal weighing scale conflicts with the selected kitchen/food-scale use." };
+  }
 
   if (setScope.status !== "compatible") {
     return {
@@ -12258,6 +12525,9 @@ function hasExplicitBuyItNowEvidence(record = {}) {
 }
 
 function classifySerperPriceEvidence(record = {}) {
+  if (record.discoveryOnly || record.sourceType === "shopping_discovery" || record.shoppingPriceUnverified && !record.directProductPage) {
+    return "Reference Without Price";
+  }
   const text = normalizeComparableText([record.title, record.snippet, record.rawText, record.sourceEvidenceText, record.domain, record.displayedPriceText, record.date, record.delivery, record.listingType, record.listingFormat, record.offerType].join(" "));
   const hasPrice = Boolean(record.displayedPriceText || Number.isFinite(record.parsedPrice));
   if (isBulkLotReferenceWithoutUnitPrice(record)) {
@@ -16948,6 +17218,7 @@ function sanitizeProviderRequestRecord(record = {}) {
 
 function sanitizeProviderResponseSummary(summary = {}) {
   return {
+    providerResponseEvidence: sanitizeSerperResponseEvidence(summary.providerResponseEvidence),
     query: cleanText(summary.query),
     priority: Number(summary.priority || 0),
     searchPass: cleanText(summary.searchPass),
@@ -16974,6 +17245,8 @@ function sanitizeProviderResponseSummary(summary = {}) {
     returnedResultCount: Number(summary.returnedResultCount || summary.providerSourceCount || 0),
     organicResultCount: Number(summary.organicResultCount || 0),
     shoppingResultCount: Number(summary.shoppingResultCount || 0),
+    shoppingDiscoveryLeadCount: Number(summary.shoppingDiscoveryLeadCount || 0),
+    shoppingDiscoveryLeads: normalizeArray(summary.shoppingDiscoveryLeads).slice(0, 20).map(sanitizeShoppingDiscoveryLead),
     knowledgeGraphResultCount: Number(summary.knowledgeGraphResultCount || 0),
     relatedSearchCount: Number(summary.relatedSearchCount || 0),
     parsedCandidateCount: Number(summary.parsedCandidateCount || 0),
@@ -20221,6 +20494,7 @@ function classifyRetailCandidateObject(record = {}, context = {}, packageCompati
 }
 
 function classifySpecificOfferPage(record = {}) {
+  if (record.discoveryOnly || record.sourceType === "shopping_discovery") return "category_search_page";
   const domain = hostnameFromUrl(record.destinationUrl || record.url || record.canonicalUrl || record.domain);
   if (isSearchProviderDomain(domain)) {
     return "search_provider_page";
@@ -25634,8 +25908,18 @@ function parseBody(body) {
   return body || {};
 }
 
-function assertSelectedObservationQuery(query,identity){
-  if(identity?.observationContext&&!observationQuerySupported(query,identity))throw Object.assign(new Error("Search terms were not supported by the selected object observations."),{code:"UNSUPPORTED_SUBJECT_QUERY",category:"invalid_query_preflight"});
+function assertSelectedObservationQuery(query,identity,operation = {}){
+  let subjectQuery = query;
+  // This terminal suffix is repository policy, not a photographed identity term.
+  // Only the authenticated canonical operation may use it; no global vocabulary
+  // expansion, query-word routing, or model-supplied label can authorize it.
+  if (operation.query === query && operation.searchType === "shopping"
+    && operation.candidateOrigin === "canonical_current_retail_price"
+    && operation.authoritativeQueryProvenanceDecision === "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    && normalizeArray(operation.queryModifierProvenance).some(modifier => modifier.term === "current retail price"
+      && modifier.role === "GOVERNED_RESEARCH_MODIFIER" && modifier.provenance === "REPOSITORY_SEARCH_POLICY")
+    && query.endsWith(" current retail price")) subjectQuery = query.slice(0, -" current retail price".length);
+  if(identity?.observationContext&&!observationQuerySupported(subjectQuery,identity))throw Object.assign(new Error("Search terms were not supported by the selected object observations."),{code:"UNSUPPORTED_SUBJECT_QUERY",category:"invalid_query_preflight"});
 }
 
 export const __queryIntegrityTestHooks = {
@@ -25688,6 +25972,8 @@ export const __queryIntegrityTestHooks = {
   buildCanonicalSubjectIdentity,
   buildCanonicalEvidenceObservations,
   buildComparableFunnelDiagnostics,
+  captureSerperResponseEvidence,
+  sanitizeSerperResponseEvidence,
   executeBoundedComparableFallback,
   assessComparableLadderRetention,
   buildCanonicalRecoveryViewForRecords,
@@ -25716,6 +26002,11 @@ export const __queryIntegrityTestHooks = {
   serperTransportSetFields: [...SERPER_TRANSPORT_SET_FIELDS].sort(),
   serperTransportSetPaths: [...SERPER_TRANSPORT_SET_PATHS].sort(),
   parseSerperResponse,
+  executeSerperComparableSearch,
+  createSerperResponseSummary,
+  sanitizeProviderResponseSummary,
+  sanitizeShoppingDiscoveryLead,
+  classifySpecificOfferPage,
   collectStructuredProviderSourceRecords,
   reconcileSourceAcquisitionRecords,
   canonicalizeComparableUrl,

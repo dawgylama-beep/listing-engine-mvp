@@ -1,0 +1,90 @@
+{
+  "scope": "BOUNDED_RAW_OFFER_FIELDS_NOT_FULL_BODY",
+  "bodyBytes": 3901,
+  "bodySha256": "54c29c5b84ffc735696bb8e468523ea8be7e6e40acd3ce5ac30b7db22a642e5e",
+  "shoppingCount": 10,
+  "credits": 2,
+  "offers": [
+    {
+      "providerOrdinal": 1,
+      "title": "Alexanderwerk Remscheid Family Scale",
+      "source": "Etsy - Seller",
+      "price": "$179.00",
+      "productId": "5912974211226491951",
+      "position": 1
+    },
+    {
+      "providerOrdinal": 2,
+      "title": "Vintage Antique German Alexanderwerk Enamel Remscheid Kitchen Scale",
+      "source": "eBay",
+      "price": "$94.99",
+      "productId": "7818733725481665136",
+      "position": 2
+    },
+    {
+      "providerOrdinal": 3,
+      "title": "Old rare Alexanderwerk scales from a doctor's office",
+      "source": "Etsy - AntiquemarketItalia",
+      "price": "$208.94",
+      "productId": "6558073468175981898",
+      "position": 3
+    },
+    {
+      "providerOrdinal": 4,
+      "title": "Vintage Antique Alexanderwerk Kitchen Scale",
+      "source": "eBay - dhuffman2014",
+      "price": "$25.00",
+      "productId": "419398775882722131",
+      "position": 4
+    },
+    {
+      "providerOrdinal": 5,
+      "title": "ART NOUVEAU plate scale kitchen scale enamel Alexander Werk",
+      "source": "Etsy - Seller",
+      "price": "$92.58",
+      "productId": "3108484450207675859",
+      "position": 5
+    },
+    {
+      "providerOrdinal": 6,
+      "title": "Antique Rare Alexanderwerk Medical Studio Personal Scale",
+      "source": "eBay - liala2260",
+      "price": "$147.77",
+      "productId": "1470443107841043241",
+      "position": 6
+    },
+    {
+      "providerOrdinal": 7,
+      "title": "Analog Mechanical Kitchen Scale 11 lbs, Black & Silver",
+      "source": "VXB.com Bearings",
+      "price": "$88.88",
+      "productId": "18321769541112722539",
+      "position": 7
+    },
+    {
+      "providerOrdinal": 8,
+      "title": "Antique 1900 cast iron Scale German Alexanderwerk Scale Art Nouveau for Russian Imperia market.",
+      "source": "Etsy - AntiqueRestorerEU",
+      "price": "$210.07",
+      "productId": "13059412990040608429",
+      "position": 8
+    },
+    {
+      "providerOrdinal": 9,
+      "title": "Adler Scale Personal Mechanical Blue",
+      "source": "averogroup.eu",
+      "link": "https://www.google.com/search?ibp=oshop&q=mechanical+weighing+scale+%22Alexanderwerk%22&prds=localAnnotatedOfferId:1,catalogid:12716285186527909821,gpcid:5561851155482643557,pvo:2,pvt:hg&gl=us&udm=28&pvorigin=2",
+      "price": "$21.02",
+      "productId": "12716285186527909821",
+      "position": 9
+    },
+    {
+      "providerOrdinal": 10,
+      "title": "Antique German Scale Alexanderwerk Beige White Art Deco 1910/20 Enamel Table Scale Kitchen Scale Cast Iron Edwardian Style Country House Style",
+      "source": "Etsy - CoeursDeCaschel",
+      "price": "$350.85",
+      "productId": "14026616210887522956",
+      "position": 10
+    }
+  ]
+}

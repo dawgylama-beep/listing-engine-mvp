@@ -1,0 +1,10 @@
+{
+  "schema": "RETAINED_ACTUAL_SHOPPING_PROJECTION_FIXTURE_V1",
+  "actionSha256": "87b03b9d95c51b02720cc6ef1de6237943e3b11b319705c05700104cba0e60cb",
+  "projectionSha256": "4c8d5f3b96c0425d8efa093e50924063956f5b819fbaa2a0232ab5ad7fe55bfd",
+  "bodySha256": "54c29c5b84ffc735696bb8e468523ea8be7e6e40acd3ce5ac30b7db22a642e5e",
+  "fullOriginalResponseRetained": false,
+  "replayShape": "shopping: retained offers, credits:2; providerOrdinal is capture metadata, not provider field",
+  "kitchenSubjectContext": "Current owner-directed kitchen-scale scope; retained trial projection itself says mechanical weighing scale, not a reconstructed kitchen observation",
+  "nestedUnallowlistedFields": "UNAVAILABLE; never reconstructed"
+}

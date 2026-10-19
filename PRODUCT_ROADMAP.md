@@ -1,5 +1,26 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Canonical Shopping intent; unpublished cumulative candidate)
+
+- Give the existing canonical current-retail-price operation explicit Shopping endpoint intent. Route by the planner's `searchType`, never query words or display labels; ordinary discovery and sold/completed operations remain organic. Add no logical queries, retries, fallback calls or budget capacity. The strict handler now dispatches one existing operation previously rejected by the identity firewall, so offline physical dispatch count increases by one within the unchanged ceiling.
+- Validate the repository's exact terminal current-retail policy modifier only when its operation identity and provenance agree. Keep all remaining subject terms subject to the observation identity firewall; do not broadly whitelist retail words.
+- Capture privacy-filtered, bounded parsed provider JSON before adapter projection through the existing response-summary acquisition audit and existing retention. Record omissions and scope explicitly; this is the latest parsed response, not an original body or all attempts. Preserve unlinked display prices, product IDs and unresolved currencies as discovery only. Do not promote nested raw fields or Google references into authenticated merchant listings.
+- Verify canonical clear-subject and clarification/recovery handlers offline with stubbed providers. Preserve accepted receipt, subject, currency, transaction and shared-page-read safeguards. The original consumed Shopping response body remains unavailable; offline routing and synthetic response checks do not demonstrate new live acquisition, merchant accessibility, pricing or valuation quality.
+
+## Version 1.12.52 (Shopping discovery retention; unpublished cumulative candidate)
+
+- Preserve revision 50's page/resource, price-integrity and shared-read safeguards unchanged. Keep unlinked Shopping records and Google Shopping references in separate, bounded diagnostic discovery leads with original display-price text, product IDs, merchant labels and returned currency fields. They are not merchant listings or valuation-qualified comparables.
+- Require individual listing evidence before authenticating a Shopping display price; neither bare `$`, a returned ISO-looking currency field nor US targeting establishes merchant-native USD or a completed sale. Retain the display evidence separately instead of silently manufacturing currency.
+- Reject medical/personal scale-use conflicts when the selected subject explicitly establishes kitchen/food use. Preserve generic uncertainty, standalone accessories and legitimate personal-scale subjects. Maker title mentions are support for discovery, not verified manufacture; missing or conflicting maker information remains explicit.
+- Replay only the ten retained actual offer-field projections from the consumed one-attempt Shopping probe. The original JSON body and unretained nested fields are unavailable; no upstream omission or original nested URL is invented. Routing, provider budgets, recognition, receipts, retention and duplicate-dispatch protections are unchanged. Offline retention/safety checks do not prove new live acquisition or customer-flow success.
+
+## Version 1.12.52 (Page resource boundaries; unpublished local candidate)
+
+- Preserve the 250,000-byte page ceiling. Cancel rejected streams, keep the existing five-second deadline active through the complete body, and never pass a partial body to extraction. Redirect bodies are discarded; redirects still consume the shared two-attempt ceiling.
+- Reject conflicting offer prices/currencies and structured offers for an unrelated product instead of borrowing the selected subject's heading. Offline synthetic bodies establish these corrections; the oversized live Catawiki body was not retained and its price content remains unknown.
+- Independent review exposed stale metadata surviving a page-price rejection downstream. Preserve the explicit rejection through page verification, normalization and authentication, including when incompatible page text provides no positive evidence. Rejected prices cannot re-enter preliminary or final valuation. This is a correctness repair, not demonstrated acquisition improvement; no streaming exception or partial-page price acceptance is introduced.
+- Correct the diagnostic-only page-failure halt in a separately bound, offline-only copy. A page size/body-observation failure may permit a different reserved candidate; global security, uncertainty and deadline stops remain. The consumed original diagnostic and its two reservations/one physical GET remain immutable. No publication, new live authority, reservation refund or increased ceiling.
+
 ## Version 1.12.52 (Bounded delivery observation; unpublished local candidate)
 
 - Bound account GET observation, including response decoding, to 15 seconds and initial/clarification analysis-response observation to 60 seconds. These are client waiting deadlines, not provider cancellation or billing evidence. Preserve the same request reference and recover its status without another analysis POST.
