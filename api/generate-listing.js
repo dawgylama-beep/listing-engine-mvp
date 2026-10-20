@@ -3770,7 +3770,8 @@ async function executeBoundedComparableFallback({
   const uniqueRecords = [];
   const signatures = new Set();
   for (const record of normalizeArray(queryRecords)) {
-    const signature = cleanText(record.query).toLowerCase();
+    const query = cleanText(record.query).toLowerCase();
+    const signature = query ? `${record.searchType || "organic_web"}|${query}` : "";
     if (!signature || signatures.has(signature)) continue;
     signatures.add(signature);
     uniqueRecords.push(record);
@@ -3908,6 +3909,7 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
         return Object.freeze({ summaryIndex, query: cleanText(summary.query), searchType: cleanText(summary.searchType),
           evidencePath: `providerResponseSummaries[${summaryIndex}].providerResponseEvidence`,
           sanitizedJsonSha256: evidence.sanitizedJsonSha256, complete: evidence.complete,
+          discoverySlotReplacement: sanitizeDiscoverySlotReplacement(summary.discoverySlotReplacement),
           omissionReasons: evidence.omissionReasons });
       })),
     candidateAudit: Object.freeze([...acquisitionRecords, ...normalizedRecords.filter(record => record.discoveryOrigin === "BOUNDED_COLLECTION_LINK"), ...shoppingDiscoveryLeads].map(record => {
@@ -3916,6 +3918,8 @@ function buildComparableFunnelDiagnostics(liveSearch = {}, {
         productId: record.productId, providerDisplayPriceText: record.providerFields.priceText,
         explicitReturnedCurrencyFields: record.providerFields.explicitCurrencyFields, nativeCurrency: "UNKNOWN",
         price: null, priceType: "Reference Without Price", disposition: "DISCOVERY_ONLY", reason: record.discoveryReason,
+        itemTypeCompatible: record.itemTypeCompatible, itemTypeCompatibilityReason: record.itemTypeCompatibilityReason,
+        candidateSelection: record.itemTypeCompatible === false ? "EXCLUDED_INCOMPATIBLE_DISCOVERY" : "DISCOVERY_LEAD_ONLY",
         displayed: false, valuationQualified: false, enrichmentDisposition: "NOT_A_VERIFIED_MERCHANT_LISTING" });
       const normalized = normalizedRecords.find(candidate => candidate.sourceRecordId === record.sourceRecordId || (candidate.observationIds || []).includes(record.sourceRecordId));
       const accepted = normalized && acceptedKeys.has(comparableTraceKey(normalized));
@@ -7576,9 +7580,16 @@ async function readBoundedResponseText(response, maxBytes = 250000, signal) {
   }
 }
 
+function sanitizeDiscoverySlotReplacement(value) {
+  if (!value || value.evidenceNeed !== "ADVERTISED_ASKING_OFFER_DISCOVERY") return null;
+  return Object.fromEntries(["evidenceNeed", "replacedQueryId", "replacedQuery", "replacedQueryType",
+    "supportedIdentityQueryId", "supportedIdentityQuery"].map(key => [key, cleanText(value[key]).slice(0, 240)]));
+}
+
 function createSerperRequestRecord(queryRecord) {
   const validationPassed = queryRecord.validationPassed !== false;
   return {
+    discoverySlotReplacement: sanitizeDiscoverySlotReplacement(queryRecord.discoverySlotReplacement),
     query: queryRecord.query,
     priority: queryRecord.priority,
     searchPass: queryRecord.searchPass,
@@ -9472,7 +9483,8 @@ function buildCanonicalObjectSerperSearchPlan({
     searchPass = "",
     domains = [],
     modifiers = [],
-    searchType = "organic_web"
+    searchType = "organic_web",
+    discoverySlotReplacement = null
   } = {}) => {
     // Endpoint intent belongs to this repository-created operation. queryType
     // and providerLane describe research ownership, not Shopping transport.
@@ -9487,7 +9499,7 @@ function buildCanonicalObjectSerperSearchPlan({
     if (supplied.length > 240 || (supplied.match(/"/g) || []).length % 2 || (supplied.match(/\(/g) || []).length !== (supplied.match(/\)/g) || []).length || findUnsupportedQueryTerms(supplied, context).length) return;
     const finalQuery = cleanSerperQuery(finalizeSearchQueryCandidate(supplied, context, 240), 240);
     if (!finalQuery || !normalizeComparableText(finalQuery).includes(normalizedCategory)) return;
-    const signature = `${querySemanticSignature(finalQuery)}|${domains.join("|").toLowerCase()}`;
+    const signature = `${searchType}|${querySemanticSignature(finalQuery)}|${domains.join("|").toLowerCase()}`;
     if (!signature.trim() || signatures.has(signature)) return;
     signatures.add(signature);
     records.push({
@@ -9498,6 +9510,7 @@ function buildCanonicalObjectSerperSearchPlan({
       finalQuery,
       searchType,
       providerEndpoint: searchType === "shopping" ? "serper_shopping" : "serper_search",
+      discoverySlotReplacement,
       searchPass: searchPass || (
         comparableLadderLevel === "EXACT"
           ? "open_web_exact"
@@ -9571,7 +9584,33 @@ function buildCanonicalObjectSerperSearchPlan({
   }
   for (const owner of exactRecords.slice(1)) add(owner);
   for (const owner of closeRecords) add(owner, { searchPass: "close_comparable_fallback" });
-  for (const owner of categoryRecords) add(owner, { searchPass: "category_comparable_fallback" });
+  // Reallocate an existing broad-context slot only when selected-subject identity
+  // can support useful advertised-offer discovery. This is not sold evidence or
+  // a reason to switch the customer's collectible/resale mode to current retail.
+  const needsAdvertisedOffers = context.retailEvidenceMode === "collectible-resale"
+    && primary && primary.queryType !== "HYPOTHESIS_DISAMBIGUATION"
+    && primary.identityTermProvenance?.some(entry => entry.role === "VISIBLE_IDENTITY_FACT"
+      && entry.provenance === "DIRECTLY_VISIBLE" && hasKnownValue(entry.term)
+      && normalizeComparableText(entry.term) !== normalizedCategory);
+  let advertisedSlotReplaced = false;
+  for (const owner of categoryRecords) {
+    if (needsAdvertisedOffers && !advertisedSlotReplaced && owner.queryType === "CATEGORY_CONTEXT"
+      && !records.some(record => record.searchType === "shopping")) {
+      const before = records.length;
+      add({ ...owner, exactVisibleFactsUsed: primary.exactVisibleFactsUsed,
+        identityTermsUsed: primary.identityTermsUsed, identityTermProvenance: primary.identityTermProvenance,
+        discriminatorTested: "Discover advertised asking offers for the supported selected identity; no transaction or native-currency proof." }, {
+        query: primary.query, candidateOrigin: "canonical_resale_advertised_offer",
+        searchPass: "resale_advertised_offer_discovery", searchType: "shopping",
+        discoverySlotReplacement: { evidenceNeed: "ADVERTISED_ASKING_OFFER_DISCOVERY",
+          replacedQueryId: owner.queryId, replacedQuery: owner.query, replacedQueryType: owner.queryType,
+          supportedIdentityQueryId: primary.queryId, supportedIdentityQuery: primary.query }
+      });
+      advertisedSlotReplaced = records.length > before;
+      if (advertisedSlotReplaced) continue;
+    }
+    add(owner, { searchPass: "category_comparable_fallback" });
+  }
   return attachObjectSearchPlanProvenance(records, objectMindState);
 }
 
@@ -11359,6 +11398,7 @@ function decodeBasicHtmlEntities(value = "") {
 
 function createSerperResponseSummary(queryRecord, requestRecord, parsed) {
   return {
+    discoverySlotReplacement: sanitizeDiscoverySlotReplacement(queryRecord.discoverySlotReplacement),
     providerResponseEvidence: sanitizeSerperResponseEvidence(requestRecord.providerResponseEvidence),
     query: queryRecord.query,
     priority: queryRecord.priority,
@@ -17136,6 +17176,7 @@ function buildQueryResultsSummary({ searchQueries = [], queriesActuallySent = []
 
 function sanitizeProviderRequestRecord(record = {}) {
   return {
+    discoverySlotReplacement: sanitizeDiscoverySlotReplacement(record.discoverySlotReplacement),
     proofSchemaVersion: cleanText(record.proofSchemaVersion),
     evaluationIdentity: cleanText(record.evaluationIdentity),
     providerRequestSequence: Number(record.providerRequestSequence || 0),
@@ -17218,6 +17259,7 @@ function sanitizeProviderRequestRecord(record = {}) {
 
 function sanitizeProviderResponseSummary(summary = {}) {
   return {
+    discoverySlotReplacement: sanitizeDiscoverySlotReplacement(summary.discoverySlotReplacement),
     providerResponseEvidence: sanitizeSerperResponseEvidence(summary.providerResponseEvidence),
     query: cleanText(summary.query),
     priority: Number(summary.priority || 0),

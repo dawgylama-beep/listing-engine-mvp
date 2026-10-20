@@ -1,0 +1,286 @@
+{
+  "inputClass": "OFFLINE_CANONICAL_PLAN_FROM_RETAINED_REPORT_PROJECTION_NOT_LIVE_SEARCH",
+  "commit": "f84b74903266bb1b17b046574a0b452222db8124",
+  "inputSha256": "4a36fbc6822d0df5ec8c879f9622aaae4e0816b8ff29a25e6b3667d9005bc445",
+  "plan": [
+    {
+      "query": "mechanical weighing scale \"Alexanderwerk\"",
+      "rawCandidate": "mechanical weighing scale \"Alexanderwerk\"",
+      "candidateOrigin": "canonical_object_plan",
+      "normalizedCandidate": "mechanical weighing scale \"Alexanderwerk\"",
+      "finalQuery": "mechanical weighing scale \"Alexanderwerk\"",
+      "searchType": "organic_web",
+      "providerEndpoint": "serper_search",
+      "searchPass": "open_web_exact",
+      "sourceRoute": [
+        "broad web search",
+        "Google Shopping-style web results if retail-like",
+        "local resale signals if local or bulky",
+        "collector/reference sites if vintage or unusual"
+      ],
+      "marketplaceDomains": [],
+      "allowedDomains": [],
+      "validationPassed": true,
+      "validationFailureReason": "",
+      "priority": 1,
+      "objectMindQueryId": "query-0f78aa0a91baf2",
+      "objectMindHypothesisId": "",
+      "objectMindQueryType": "EXACT_MAKER_OBJECT_TYPE",
+      "objectMindExactVisibleFactsUsed": [],
+      "objectMindIdentityTermsUsed": [
+        "mechanical weighing scale",
+        "Alexanderwerk"
+      ],
+      "objectMindIdentityTermProvenance": [
+        {
+          "term": "mechanical weighing scale",
+          "role": "CANONICAL_OBJECT_CATEGORY",
+          "provenance": "CANONICAL_VISIBLE_SUBJECT",
+          "observationIds": []
+        },
+        {
+          "term": "Alexanderwerk",
+          "role": "VISIBLE_IDENTITY_FACT",
+          "provenance": "DIRECTLY_VISIBLE",
+          "observationIds": [
+            null
+          ]
+        }
+      ],
+      "objectMindDiscriminatorTested": "Maker mark attached to object type",
+      "objectMindPhase": "INITIAL",
+      "objectMindProviderLane": "purpose_neutral_exact",
+      "comparableLadderLevel": "EXACT",
+      "queryModifierProvenance": [],
+      "authoritativeQueryProvenanceDecision": "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    },
+    {
+      "query": "mechanical weighing scale \"Alexanderwerk\" (site:facebook.com OR site:craigslist.org OR site:offerup.com OR site:ebay.com)",
+      "rawCandidate": "mechanical weighing scale \"Alexanderwerk\" (site:facebook.com OR site:craigslist.org OR site:offerup.com OR site:ebay.com)",
+      "candidateOrigin": "canonical_marketplace_domain_composition",
+      "normalizedCandidate": "mechanical weighing scale \"Alexanderwerk\" (site:facebook.com OR site:craigslist.org OR site:offerup.com OR site:ebay.com)",
+      "finalQuery": "mechanical weighing scale \"Alexanderwerk\" (site:facebook.com OR site:craigslist.org OR site:offerup.com OR site:ebay.com)",
+      "searchType": "organic_web",
+      "providerEndpoint": "serper_search",
+      "searchPass": "marketplace_site_google",
+      "sourceRoute": [
+        "broad web search",
+        "Google Shopping-style web results if retail-like",
+        "local resale signals if local or bulky",
+        "collector/reference sites if vintage or unusual"
+      ],
+      "marketplaceDomains": [
+        "facebook.com",
+        "craigslist.org",
+        "offerup.com",
+        "ebay.com"
+      ],
+      "allowedDomains": [
+        "facebook.com",
+        "craigslist.org",
+        "offerup.com",
+        "ebay.com"
+      ],
+      "validationPassed": true,
+      "validationFailureReason": "",
+      "priority": 2,
+      "objectMindQueryId": "query-0f78aa0a91baf2",
+      "objectMindHypothesisId": "",
+      "objectMindQueryType": "EXACT_MAKER_OBJECT_TYPE",
+      "objectMindExactVisibleFactsUsed": [],
+      "objectMindIdentityTermsUsed": [
+        "mechanical weighing scale",
+        "Alexanderwerk"
+      ],
+      "objectMindIdentityTermProvenance": [
+        {
+          "term": "mechanical weighing scale",
+          "role": "CANONICAL_OBJECT_CATEGORY",
+          "provenance": "CANONICAL_VISIBLE_SUBJECT",
+          "observationIds": []
+        },
+        {
+          "term": "Alexanderwerk",
+          "role": "VISIBLE_IDENTITY_FACT",
+          "provenance": "DIRECTLY_VISIBLE",
+          "observationIds": [
+            null
+          ]
+        }
+      ],
+      "objectMindDiscriminatorTested": "Maker mark attached to object type",
+      "objectMindPhase": "INITIAL",
+      "objectMindProviderLane": "purpose_neutral_exact",
+      "comparableLadderLevel": "EXACT",
+      "queryModifierProvenance": [
+        {
+          "term": "site:facebook.com",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        },
+        {
+          "term": "site:craigslist.org",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        },
+        {
+          "term": "site:offerup.com",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        },
+        {
+          "term": "site:ebay.com",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        }
+      ],
+      "authoritativeQueryProvenanceDecision": "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    },
+    {
+      "query": "mechanical weighing scale \"Alexanderwerk\" sold completed",
+      "rawCandidate": "mechanical weighing scale \"Alexanderwerk\" sold completed",
+      "candidateOrigin": "canonical_secondary_market_sold",
+      "normalizedCandidate": "mechanical weighing scale \"Alexanderwerk\" sold completed",
+      "finalQuery": "mechanical weighing scale \"Alexanderwerk\" sold completed",
+      "searchType": "organic_web",
+      "providerEndpoint": "serper_search",
+      "searchPass": "collectible_exact_sold_completed",
+      "sourceRoute": [
+        "broad web search",
+        "Google Shopping-style web results if retail-like",
+        "local resale signals if local or bulky",
+        "collector/reference sites if vintage or unusual"
+      ],
+      "marketplaceDomains": [],
+      "allowedDomains": [],
+      "validationPassed": true,
+      "validationFailureReason": "",
+      "priority": 3,
+      "objectMindQueryId": "query-0f78aa0a91baf2",
+      "objectMindHypothesisId": "",
+      "objectMindQueryType": "EXACT_MAKER_OBJECT_TYPE",
+      "objectMindExactVisibleFactsUsed": [],
+      "objectMindIdentityTermsUsed": [
+        "mechanical weighing scale",
+        "Alexanderwerk"
+      ],
+      "objectMindIdentityTermProvenance": [
+        {
+          "term": "mechanical weighing scale",
+          "role": "CANONICAL_OBJECT_CATEGORY",
+          "provenance": "CANONICAL_VISIBLE_SUBJECT",
+          "observationIds": []
+        },
+        {
+          "term": "Alexanderwerk",
+          "role": "VISIBLE_IDENTITY_FACT",
+          "provenance": "DIRECTLY_VISIBLE",
+          "observationIds": [
+            null
+          ]
+        }
+      ],
+      "objectMindDiscriminatorTested": "Maker mark attached to object type",
+      "objectMindPhase": "INITIAL",
+      "objectMindProviderLane": "purpose_neutral_exact",
+      "comparableLadderLevel": "EXACT",
+      "queryModifierProvenance": [
+        {
+          "term": "sold",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        },
+        {
+          "term": "completed",
+          "role": "GOVERNED_RESEARCH_MODIFIER",
+          "provenance": "REPOSITORY_SEARCH_POLICY"
+        }
+      ],
+      "authoritativeQueryProvenanceDecision": "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    },
+    {
+      "query": "mechanical weighing scale",
+      "rawCandidate": "mechanical weighing scale",
+      "candidateOrigin": "canonical_object_plan",
+      "normalizedCandidate": "mechanical weighing scale",
+      "finalQuery": "mechanical weighing scale",
+      "searchType": "organic_web",
+      "providerEndpoint": "serper_search",
+      "searchPass": "close_comparable_fallback",
+      "sourceRoute": [
+        "broad web search",
+        "Google Shopping-style web results if retail-like",
+        "local resale signals if local or bulky",
+        "collector/reference sites if vintage or unusual"
+      ],
+      "marketplaceDomains": [],
+      "allowedDomains": [],
+      "validationPassed": true,
+      "validationFailureReason": "",
+      "priority": 4,
+      "objectMindQueryId": "query-fb1af50e9edd6d",
+      "objectMindHypothesisId": "",
+      "objectMindQueryType": "CANONICAL_CATEGORY_CONFIGURATION",
+      "objectMindExactVisibleFactsUsed": [],
+      "objectMindIdentityTermsUsed": [
+        "mechanical weighing scale"
+      ],
+      "objectMindIdentityTermProvenance": [
+        {
+          "term": "mechanical weighing scale",
+          "role": "CANONICAL_OBJECT_CATEGORY",
+          "provenance": "CANONICAL_VISIBLE_SUBJECT",
+          "observationIds": []
+        }
+      ],
+      "objectMindDiscriminatorTested": "Canonical visible object category and supported configuration",
+      "objectMindPhase": "INITIAL",
+      "objectMindProviderLane": "purpose_neutral_close",
+      "comparableLadderLevel": "CLOSE",
+      "queryModifierProvenance": [],
+      "authoritativeQueryProvenanceDecision": "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    },
+    {
+      "query": "mechanical weighing scale comparable market context",
+      "rawCandidate": "mechanical weighing scale comparable market context",
+      "candidateOrigin": "canonical_object_plan",
+      "normalizedCandidate": "mechanical weighing scale comparable market context",
+      "finalQuery": "mechanical weighing scale comparable market context",
+      "searchType": "organic_web",
+      "providerEndpoint": "serper_search",
+      "searchPass": "category_comparable_fallback",
+      "sourceRoute": [
+        "broad web search",
+        "Google Shopping-style web results if retail-like",
+        "local resale signals if local or bulky",
+        "collector/reference sites if vintage or unusual"
+      ],
+      "marketplaceDomains": [],
+      "allowedDomains": [],
+      "validationPassed": true,
+      "validationFailureReason": "",
+      "priority": 5,
+      "objectMindQueryId": "query-0e369efca4d997",
+      "objectMindHypothesisId": "",
+      "objectMindQueryType": "CATEGORY_CONTEXT",
+      "objectMindExactVisibleFactsUsed": [],
+      "objectMindIdentityTermsUsed": [
+        "mechanical weighing scale"
+      ],
+      "objectMindIdentityTermProvenance": [
+        {
+          "term": "mechanical weighing scale",
+          "role": "CANONICAL_OBJECT_CATEGORY",
+          "provenance": "CANONICAL_VISIBLE_SUBJECT",
+          "observationIds": []
+        }
+      ],
+      "objectMindDiscriminatorTested": "Broader category context when exact identity remains unresolved",
+      "objectMindPhase": "INITIAL",
+      "objectMindProviderLane": "purpose_neutral_category",
+      "comparableLadderLevel": "CATEGORY",
+      "queryModifierProvenance": [],
+      "authoritativeQueryProvenanceDecision": "AUTHORIZED_CURRENT_REQUEST_IDENTITY"
+    }
+  ]
+}

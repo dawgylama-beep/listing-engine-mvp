@@ -1,5 +1,12 @@
 # Katherine’s Eye Roadmap
 
+## Version 1.12.52 (Resale advertised-offer discovery; local candidate only)
+
+- For collectible-resale subjects with directly visible distinguishing identity, replace one existing CATEGORY_CONTEXT discovery operation with Shopping advertised-offer discovery. Keep the original evidence mode, exact identity, marketplace and sold/completed operations; no new query slot, attempt capacity, retries or page-read capacity. Subjects without supported distinguishing identity or a donor slot keep their existing plan.
+- Record the replaced query/ID and the supported identity query explicitly. The replacement retains the donor's CATEGORY budget slot, not exact-match or price authority. Distinguish organic and Shopping endpoint intent during canonical planning and fallback deduplication, so one cannot suppress the other solely because query text matches.
+- Exercise the retained scale report projection through canonical planning, real routing, stubbed HTTP response, bounded preprojection capture, Shopping parsing, compatibility and candidate audit. Separately exercise the actual clarification/continuation/recovery handler with a clearly synthetic scene graph and photo placeholder built around the retained identity; this does not reconstruct the original recognition graph or establish recognition performance.
+- Preserve advertised display prices, product IDs and nested bounded raw response fields as discovery evidence. Unlinked leads, provider-reference URLs, conflicting identities and ambiguous currencies cannot establish a valuation price or sold evidence. This is a search-allocation policy change within existing capacity, with unchanged transaction-evidence standards. No release, live acquisition or learning claim.
+
 ## Version 1.12.52 (Canonical Shopping intent; unpublished cumulative candidate)
 
 - Give the existing canonical current-retail-price operation explicit Shopping endpoint intent. Route by the planner's `searchType`, never query words or display labels; ordinary discovery and sold/completed operations remain organic. Add no logical queries, retries, fallback calls or budget capacity. The strict handler now dispatches one existing operation previously rejected by the identity firewall, so offline physical dispatch count increases by one within the unchanged ceiling.

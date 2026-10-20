@@ -1,0 +1,38 @@
+{
+  "schema": "RETAINED_SUBJECT_MINIMAL_PROJECTION_V1",
+  "evaluationId": "86637e82-020d-467a-b697-055b45fa9f07",
+  "sourceArtifact": "c017-live-trial-completed.json",
+  "sourceArtifactSha256": "8063282bdb65a353a7575b4cf8b3e92b8fb24541e709107f3cf9dbf75b8bee31",
+  "identity": {
+    "subjectIdentity": "mechanical weighing scale",
+    "brand": "Alexanderwerk",
+    "recognizedBrand": "Alexanderwerk",
+    "itemType": "mechanical weighing scale",
+    "visualSubject": "mechanical weighing scale",
+    "canonicalResearchIdentity": {
+      "objectCategory": "mechanical weighing scale",
+      "identityTerms": []
+    },
+    "observationContext": {
+      "observations": [
+        {
+          "field": "BRAND",
+          "value": "Alexanderwerk",
+          "attribution": "CONFIRMED",
+          "certainty": "CLEAR",
+          "conflictsWith": [],
+          "imageIds": [
+            "image-1"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": "",
+  "inputClass": "MINIMAL_REPORT_PROJECTION_NOT_RAW_RECOGNITION",
+  "caveats": [
+    "Exact item confidence Low. Raw recognition graph unavailable. No model/capacity/era/manufacture claim reconstructed.",
+    "Kilo remains a retained literal marking, but is not needed as a maker/model query term. No photograph or incidental-object prose is used.",
+    "image-1 is the single retained-photo ordinal projected from the completed report, not recovered raw graph or retained image bytes/hash."
+  ]
+}
