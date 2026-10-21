@@ -1,0 +1,31 @@
+{
+  "evidenceClass": "RETAINED_PARSED_FIELDS_ONLY;CURRENT_QUERY_BINDING_IS_OFFLINE_NOT_HISTORICAL_REPLAY",
+  "originalTraceSha256": "dc2e4157f28580eb8ae9678f4285e7112ee835214acc21c943f39af8eba5c5b2",
+  "privateRemovedFieldsAndOriginalBody": "UNKNOWN_NOT_RECONSTRUCTED",
+  "shopping": [
+    {
+      "title": "Vintage Antique German Alexanderwerk Enamel Remscheid Kitchen Scale",
+      "source": "eBay",
+      "price": "$94.99",
+      "productId": "7818733725481665136"
+    },
+    {
+      "title": "Vintage Antique Alexanderwerk Kitchen Scale",
+      "source": "eBay - dhuffman2014",
+      "price": "$25.00",
+      "productId": "419398775882722131"
+    },
+    {
+      "title": "ART NOUVEAU plate scale kitchen scale enamel Alexander Werk",
+      "source": "Etsy - Seller",
+      "price": "$92.85",
+      "productId": "3108484450207675859"
+    },
+    {
+      "title": "Antique German Scale Alexanderwerk Beige White Art Deco 1910/20 Enamel Table Scale Kitchen Scale Cast Iron Edwardian Style Country House Style",
+      "source": "Etsy - CoeursDeCaschel",
+      "price": "$350.91",
+      "productId": "14026616210887522956"
+    }
+  ]
+}

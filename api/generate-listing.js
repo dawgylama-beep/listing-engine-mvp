@@ -6254,7 +6254,7 @@ async function executeSerperComparableSearch({
   }
 
   let dedupedRecords = initialDedupedRecords;
-  const refinement = comparableLadderExecution?.stoppedAfterLevel
+  let refinement = comparableLadderExecution?.stoppedAfterLevel
     ? {
         state: incorporateCandidateEvidence(objectMindState || {}, dedupedRecords, { phase: "INITIAL" }),
         searchPlan: []
@@ -6267,6 +6267,11 @@ async function executeSerperComparableSearch({
             - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)
         ))
       });
+  if (!comparableLadderExecution?.stoppedAfterLevel) refinement = prioritizeShoppingLeadRefinement(refinement, {
+    summaries: providerResponseSummaries, initialPlan: queriesPrioritized, requests: providerRequestRecords, identity, context,
+    remainingQueries: Math.max(0, Number(sharedProviderAttemptBudget.maximumAttempts || 0) - Number(sharedProviderAttemptBudget.physicalAttemptCount || 0)),
+    alreadyRefined: Number(objectMindState?.refinementCount || 0) >= 1
+  });
   objectMindState = refinement.state;
   if (cognitiveGovernor && refinement.searchPlan.length) beginTerminalStage(TERMINAL_STAGE.REFINEMENT);
   const refinementCognitiveSnapshot = cognitiveGovernor && refinement.searchPlan.length
@@ -6386,6 +6391,51 @@ async function executeSerperComparableSearch({
   return normalizedResult;
 }
 
+function prioritizeShoppingLeadRefinement(refinement, { summaries, initialPlan, requests, identity, context, remainingQueries, alreadyRefined = false } = {}) {
+  // Resolve a lead through the existing organic lane, never a fabricated product-ID endpoint.
+  // Query identity stays on the supported subject; only a known merchant restriction is added.
+  if (alreadyRefined || context.retailEvidenceMode !== "collectible-resale" || remainingQueries <= 0) return refinement;
+  const domains = new Map();
+  const attempted = new Set(requests.filter(r => r.attempted && r.searchType !== "shopping").map(r => cleanSerperQuery(r.query).toLowerCase()));
+  for (const raw of summaries.flatMap(s => normalizeArray(s.shoppingDiscoveryLeads))) {
+    const lead = sanitizeShoppingDiscoveryLead(raw);
+    if (!lead.itemTypeCompatible || lead.makerSupport !== "TITLE_MENTIONS_SELECTED_MAKER"
+      || isAccessoryOnlyOfferCandidate(lead, context)) continue;
+    const compatibility = evaluateComparableItemTypeCompatibility({ title: lead.title }, identity, context);
+    if (!compatibility.itemTypeCompatible || shoppingMakerSupport({ title: lead.title }, identity, context) !== "TITLE_MENTIONS_SELECTED_MAKER") continue;
+    const source = initialPlan.find(q => q.validationPassed && q.searchType === "shopping"
+      && q.objectMindQueryId === lead.sourceQueryId && q.query === lead.sourceQuery
+      && q.candidateOrigin === "canonical_resale_advertised_offer");
+    if (!source) continue;
+    const merchant = secondaryMarketAuctionRegistry.find(m => new RegExp("^" + escapeRegExp(m.name) + "(?:$|[\\s–-])", "i").test(lead.merchantLabel));
+    if (!merchant) continue;
+    const query = cleanSerperQuery(finalizeSearchQueryCandidate(source.query + " site:" + merchant.domain, context, 18));
+    if (!query || attempted.has(query.toLowerCase()) || !validateSerperQueryCandidate(query, context, { rawCandidate: query }).passed) continue;
+    const entry = domains.get(query) || { source, query, domain: merchant.domain, ids: [] };
+    if (!entry.ids.includes(lead.sourceRecordId)) entry.ids.push(lead.sourceRecordId);
+    domains.set(query, entry);
+  }
+  const lookup = [...domains.values()].sort((a, b) => a.query.localeCompare(b.query)).slice(0, Math.min(2, remainingQueries)).map(({ source, query, domain, ids }) => ({
+    query, queryId: stableInternalId("query", ["SHOPPING_LEAD_MERCHANT_LOOKUP", source.objectMindQueryId, query], 14),
+    queryType: "SHOPPING_LEAD_MERCHANT_LOOKUP", owningHypothesisId: source.objectMindHypothesisId,
+    exactVisibleFactsUsed: source.objectMindExactVisibleFactsUsed, identityTermsUsed: source.objectMindIdentityTermsUsed,
+    identityTermProvenance: source.objectMindIdentityTermProvenance, discriminatorTested: "Find individual listing URLs at the advertised merchant; lead price is not evidence.",
+    phase: "REFINEMENT", providerLane: source.objectMindProviderLane, comparableLadderLevel: "CLOSE",
+    discoveryLeadSourceIds: ids.sort().slice(0, 12), discoveryMerchantDomain: domain
+  }));
+  if (!lookup.length) return refinement;
+  const searchPlan = [...lookup, ...refinement.searchPlan.filter(r => !attempted.has(cleanSerperQuery(r.query).toLowerCase())
+    && !lookup.some(q => q.query.toLowerCase() === cleanSerperQuery(r.query).toLowerCase()))].slice(0, Math.min(4, remainingQueries));
+  const replacedIds = new Set(refinement.searchPlan.map(r => r.queryId));
+  return { searchPlan, state: { ...refinement.state, refinementCount: 1,
+    searchPlan: [...normalizeArray(refinement.state.searchPlan).filter(r => !replacedIds.has(r.queryId)), ...searchPlan].slice(0, 16),
+    resolutionHistory: [...normalizeArray(refinement.state.resolutionHistory), {
+      event: "SHOPPING_LEAD_MERCHANT_LOOKUP_PLANNED", factsAdded: [],
+      outcome: "DISCOVERY_ONLY_PENDING_INDEPENDENT_LISTING_VERIFICATION",
+      reason: "Compatible advertised leads selected for bounded organic merchant lookup; identity and price authority unchanged."
+    }].slice(-24) } };
+}
+
 function finalizeObjectMindRefinementQueries(context = {}, sourceRoute = [], queryRecords = [], startingPriority = 1) {
   const sourceCategories = buildSourcesTargeted(sourceRoute);
   return normalizeArray(queryRecords).slice(0, 4).map((record, index) => {
@@ -6408,6 +6458,8 @@ function finalizeObjectMindRefinementQueries(context = {}, sourceRoute = [], que
       finalQuery: normalizedCandidate,
       validationPassed: validation.passed,
       validationFailureReason: validation.passed ? "" : validation.reason,
+      discoveryLeadSourceIds: normalizeStringArray(record.discoveryLeadSourceIds, 12),
+      discoveryMerchantDomain: cleanText(record.discoveryMerchantDomain),
       objectMindQueryId: record.queryId,
       objectMindHypothesisId: record.owningHypothesisId,
       objectMindQueryType: record.queryType,
@@ -7612,6 +7664,7 @@ function createSerperRequestRecord(queryRecord) {
     objectMindQueryId: cleanText(queryRecord.objectMindQueryId),
     objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
     objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    ...(normalizeArray(queryRecord.discoveryLeadSourceIds).length ? { discoveryLeadSourceIds: normalizeStringArray(queryRecord.discoveryLeadSourceIds, 12), discoveryMerchantDomain: cleanText(queryRecord.discoveryMerchantDomain) } : {}),
     objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
     objectMindIdentityTermsUsed: normalizeStringArray(queryRecord.objectMindIdentityTermsUsed, 16),
     objectMindIdentityTermProvenance: normalizeArray(queryRecord.objectMindIdentityTermProvenance).slice(0, 16),
@@ -7771,7 +7824,7 @@ function parseSerperResponse(data = {}, queryRecord = {}, identity = {}, context
       const compatibility = evaluateComparableItemTypeCompatibility({ title: item.title }, identity, context);
       shoppingDiscoveryLeads.push(sanitizeShoppingDiscoveryLead({
         sourceRecordId: stableInternalId("shopping-discovery", { query: queryRecord.query, productId: item.productId, position: index + 1, title: item.title }, 16),
-        title: item.title, merchantLabel: item.source, productId: item.productId,
+        title: item.title, merchantLabel: item.source, productId: item.productId, sourceQueryId: queryRecord.objectMindQueryId, sourceQuery: queryRecord.query,
         providerOrdinal: index + 1, providerReferenceUrl: originalProviderUrl,
         providerFields, discoveryReason,
         makerSupport: shoppingMakerSupport(item, identity, context),
@@ -7861,6 +7914,7 @@ function sanitizeShoppingDiscoveryLead(lead = {}) {
   return {
     sourceRecordId: cleanText(lead.sourceRecordId), sourceType: "shopping_discovery",
     title: cleanText(lead.title).slice(0, 1000), merchantLabel: cleanText(lead.merchantLabel).slice(0, 300),
+    sourceQueryId: cleanText(lead.sourceQueryId), sourceQuery: cleanText(lead.sourceQuery).slice(0, 600),
     productId: cleanText(lead.productId).slice(0, 200), providerOrdinal: Number(lead.providerOrdinal || 0),
     providerReferenceUrl: canonicalizeComparableUrl(lead.providerReferenceUrl),
     providerFields: fields, discoveryReason: cleanText(lead.discoveryReason),
@@ -7895,6 +7949,7 @@ function createSerperProviderRecord({ provider, queryRecord, title, url, origina
     objectMindQueryId: queryId,
     objectMindHypothesisId: cleanText(queryRecord.objectMindHypothesisId),
     objectMindQueryType: cleanText(queryRecord.objectMindQueryType),
+    ...(normalizeArray(queryRecord.discoveryLeadSourceIds).length ? { discoveryLeadSourceIds: normalizeStringArray(queryRecord.discoveryLeadSourceIds, 12), discoveryMerchantDomain: cleanText(queryRecord.discoveryMerchantDomain) } : {}),
     objectMindExactVisibleFactsUsed: normalizeStringArray(queryRecord.objectMindExactVisibleFactsUsed, 12),
     objectMindIdentityTermsUsed: normalizeStringArray(queryRecord.objectMindIdentityTermsUsed, 16),
     objectMindIdentityTermProvenance: normalizeArray(queryRecord.objectMindIdentityTermProvenance).slice(0, 16),
@@ -8036,7 +8091,12 @@ function normalizeSerperCandidateRecords(records = [], identity = {}, context = 
       const itemTypeCompatibility = evaluateComparableItemTypeCompatibility(enrichedRecord, identity, context);
       const priceDecision = authenticateComparablePriceEvidence(enrichedRecord, itemTypeCompatibility, context);
       const authenticatedRecord = applyAuthenticatedComparablePrice(enrichedRecord, priceDecision);
-      const identityMatchStrength = classifySerperIdentityMatch(authenticatedRecord, identity, context, itemTypeCompatibility);
+      const candidateMatchStrength = classifySerperIdentityMatch(authenticatedRecord, identity, context, itemTypeCompatibility);
+      // A merchant lookup finds a new comparable, not the exact variant advertised by a lead.
+      const identityMatchStrength = authenticatedRecord.objectMindQueryType === "SHOPPING_LEAD_MERCHANT_LOOKUP"
+        && candidateMatchStrength === "Exact"
+        && !(authenticatedRecord.objectMindClassification === "EXACT_ITEM" && authenticatedRecord.objectMindVerificationState === "VERIFIED")
+        ? "Strong Similar" : candidateMatchStrength;
       const priceEvidenceType = classifySerperPriceEvidence(authenticatedRecord);
       const valuationBearing = isValuationBearingComparable(identityMatchStrength, priceEvidenceType, itemTypeCompatibility);
       const preliminaryRangeIncluded = isPreliminaryAskingPriceRangeEvidence(identityMatchStrength, priceEvidenceType, itemTypeCompatibility, authenticatedRecord);
@@ -8532,6 +8592,8 @@ function buildSerperTransportIdentity(record = {}) {
 }
 
 const SERPER_TRANSPORT_STABLE_AUXILIARY_FIELDS = Object.freeze([
+  "discoveryLeadSourceIds",
+  "discoveryMerchantDomain",
   "sourceRecordId",
   "providerRecordId",
   "resultId",
@@ -26048,6 +26110,7 @@ export const __queryIntegrityTestHooks = {
   createSerperResponseSummary,
   sanitizeProviderResponseSummary,
   sanitizeShoppingDiscoveryLead,
+  prioritizeShoppingLeadRefinement,
   classifySpecificOfferPage,
   collectStructuredProviderSourceRecords,
   reconcileSourceAcquisitionRecords,
