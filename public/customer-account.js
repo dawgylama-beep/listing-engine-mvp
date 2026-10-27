@@ -52,7 +52,7 @@
       }
       if(!append&&!(payload.analysisReceipts||[]).length)receiptList.textContent='No durable analysis receipts are available. Older expired evaluations cannot be reconstructed.';
       if(payload.nextCursor){const more=document.createElement('button');more.type='button';more.textContent='Older analysis receipts';more.addEventListener('click',()=>{more.remove();void loadAnalysisReceipts(payload.nextCursor,true);});receiptList.append(more);}
-    }catch{receiptList.textContent='Analysis receipts are unavailable. No evaluation was submitted or retried.';}finally{receiptRefresh.disabled=false;}
+    }catch{receiptList.textContent='Receipt lookup is unavailable. This does not establish whether an earlier analysis ran or incurred charges. This lookup submitted no new analysis.';}finally{receiptRefresh.disabled=false;}
   }
   let account = null;
   let accountServiceAvailable = null;
@@ -74,18 +74,26 @@
 
   async function requestAccount(url = "/api/customer-account", options = {}) {
     const method=String(options.method||'GET').toUpperCase();
+    const accountAtRequest = account;
     const headers={...(options.body?{'Content-Type':'application/json'}:{}),...(csrfToken&&method!=='GET'?{'X-CSRF-Token':csrfToken}:{}),...(options.headers||{})};
     let response,payload;
+    let observedHttpStatus = 0;
     try {
-      if(method==='GET')({response,data:payload}=await root.KatherinesEyeObservation.readJson(url,{credentials:'same-origin',cache:'no-store',...options,headers},15000));
-      else {response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,headers});try{payload=await response.json();}catch{payload={};}}
+      if(method==='GET')({response,data:payload}=await root.KatherinesEyeObservation.readJson(url,{credentials:'same-origin',cache:'no-store',...options,headers},15000,seen=>{observedHttpStatus=seen.status;}));
+      else {response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,headers});observedHttpStatus=response.status;try{payload=await response.json();}catch{payload={};}}
     } catch(error) {
-      if(error.code==='OBSERVATION_TIMEOUT')throw error;
-      throw Object.assign(new Error('Private beta accounts are unavailable in this environment.'),{code:'account_service_unavailable'});
+      const status = observedHttpStatus || error?.observedHttpStatus || 0;
+      if(error.code==='OBSERVATION_TIMEOUT')throw Object.assign(error,{status});
+      throw Object.assign(new Error(status ? 'The private account response could not be read. Your sign-in state is unconfirmed.' : 'Private beta accounts are unavailable in this environment.'),{code:status?'account_response_unreadable':'account_service_unavailable',status});
     }
-    if(!response.ok)throw Object.assign(new Error(payload.error||'The private account service could not complete this request.'),{code:payload.code||'account_request_failed',status:response.status});
+    if(!payload || typeof payload!=='object')payload={};
+    if(!response.ok){
+      const staleAuthenticationResponse = response.status===401 && payload.code==='authentication_required' && account!==accountAtRequest;
+      if(response.status===401 && payload.code==='authentication_required' && account===accountAtRequest && account){account=null;csrfToken='';renderAccountState();}
+      throw Object.assign(new Error(staleAuthenticationResponse?'An earlier account response arrived after your account changed. Please check the current account state.':payload.error||'The private account service could not complete this request.'),{code:staleAuthenticationResponse?'stale_account_response':payload.code||'account_request_failed',status:response.status});
+    }
     const nextCsrfToken=cleanText(payload.csrfToken||payload.session?.csrfToken,128);
-    if(nextCsrfToken)csrfToken=nextCsrfToken;
+    if(nextCsrfToken && account===accountAtRequest)csrfToken=nextCsrfToken;
     return payload;
   }
 
@@ -126,11 +134,14 @@
   }
 
   async function hydrateSession() {
+    const accountAtHydration = account;
     try {
       const payload = await requestAccount("/api/customer-account?action=session");
+      if(account!==accountAtHydration)return;
       account = payload.account || null;
       accountServiceAvailable = true;
     } catch (error) {
+      if(account!==accountAtHydration)return;
       account = null;
       csrfToken = "";
       accountServiceAvailable = !["account_service_unavailable", "account_request_failed"].includes(error.code) && error.status !== 404 && error.status !== 503;

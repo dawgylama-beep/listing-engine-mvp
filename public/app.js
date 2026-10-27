@@ -84,6 +84,7 @@ const submissionStages = Object.freeze({
   IDLE: "idle",
   PHOTO_READ: "photo_read",
   IMAGE_PROCESS: "image_process",
+  ANALYSIS_REGISTRATION: "analysis_registration",
   API_REQUEST: "api_request",
   API_RESPONSE: "api_response",
   REPORT_RENDER: "report_render"
@@ -1164,21 +1165,22 @@ async function handleSubmit(event) {
       requestBody.sellerIntake = getBuyerIntake(formData, notes);
     }
 
-    setSubmissionStage(submissionState, submissionStages.API_REQUEST);
+    setSubmissionStage(submissionState, submissionStages.ANALYSIS_REGISTRATION);
     const accountBridge = globalThis.KatherinesEyeCustomerAccount;
     if (!accountBridge?.registerAnalysis || !globalThis.crypto?.subtle) {
-      throw createSubmissionError("Sign in to start a recoverable analysis.", submissionStages.API_REQUEST, "analysis_recovery_unavailable");
+      throw createSubmissionError("Secure analysis registration is unavailable.", submissionStages.ANALYSIS_REGISTRATION, "analysis_recovery_unavailable");
     }
     const requestHash = await sha256Browser(JSON.stringify(requestBody));
     const photoHashes = await Promise.all(photos.map((photo) => sha256Browser(String(photo.dataUrl || ""))));
     const registered = await accountBridge.registerAnalysis({ analysisId: request.analysisId, requestHash, photoHashes, workflow });
     if (registered.state !== "REGISTERED" || !registered.recoveryId) {
-      throw createSubmissionError("This analysis is already registered. Recover it before starting another.", submissionStages.API_REQUEST, "analysis_already_registered");
+      throw createSubmissionError("This analysis is already registered. Recover it before starting another.", submissionStages.ANALYSIS_REGISTRATION, "analysis_already_registered");
     }
     const recovery = { recoveryId: registered.recoveryId, requestHash, photoHashes };
     if (!writeAnalysisDispatchReceipt({ analysisId: request.analysisId, recoveryId: recovery.recoveryId, workflow, state: "dispatch_unconfirmed" })) {
-      throw createSubmissionError("Could not record the analysis request before sending it.", submissionStages.API_REQUEST, "dispatch_receipt_unavailable");
+      throw createSubmissionError("Could not record the analysis request before sending it.", submissionStages.ANALYSIS_REGISTRATION, "dispatch_receipt_unavailable");
     }
+    setSubmissionStage(submissionState, submissionStages.API_REQUEST);
     let response,data;
     try {
       ({response,data}=await globalThis.KatherinesEyeObservation.readJson('/api/generate-listing',{
@@ -1193,7 +1195,7 @@ async function handleSubmit(event) {
     }catch(error){
       if(error.name==='AbortError')throw error;
       writeAnalysisDispatchReceipt({analysisId:request.analysisId,workflow,state:'response_unreadable',httpStatus:error.observedHttpStatus||null});
-      throw createSubmissionError(error.code==='OBSERVATION_TIMEOUT'?'The report response is delayed. Checking this same request without submitting again.':'Could not read the analysis response.',submissionStages.API_RESPONSE,error.code||'api_response_parse_failed',error);
+      throw createSubmissionError(error.code==='OBSERVATION_TIMEOUT'?'The report response is delayed. Checking this same request without submitting again.':'Could not read the analysis response.',submissionState.stage,error.code||'api_response_parse_failed',error);
     }
     if(!isCurrentRequest(request.id,workflow))return;
     if (response.status === 202 && ["REGISTERED", "DISPATCHING", "UNKNOWN"].includes(data.state)) {
@@ -1257,6 +1259,10 @@ async function handleSubmit(event) {
       return;
     }
 
+    const observedStatus = Number(error?.status ?? error?.observedHttpStatus ?? error?.cause?.status ?? error?.cause?.observedHttpStatus);
+    if (Number.isInteger(observedStatus) && observedStatus >= 100 && observedStatus <= 599) {
+      submissionState.httpStatus = observedStatus;
+    }
     clearItemSession({ abortAsk: true });
     renderEmpty(config);
     setStatus(getFriendlyErrorMessage(error, config, submissionState), "error");
@@ -1264,7 +1270,7 @@ async function handleSubmit(event) {
     // Never include provider messages, request bodies, photos, or credentials.
     const failureDetails = document.querySelector("#analysis-failure-details");
     document.querySelector("#analysis-failure-reference").textContent =
-      `Reference: ${request.analysisId}; stage: ${submissionState.stage}; HTTP: ${submissionState.httpStatus || "no response"}.`;
+      `Reference: ${request.analysisId}; stage: ${submissionStageFromError(error, submissionState)}; HTTP: ${submissionState.httpStatus || "no response"}.`;
     failureDetails.hidden = false;
   } finally {
     if (isCurrentRequest(request.id, workflow)) {
@@ -5189,12 +5195,25 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   const message = String(error && error.message || "").trim();
   const stage = submissionStageFromError(error, submissionState);
 
-  if (["analysis_authentication_required", "authentication_required", "analysis_recovery_unavailable"].includes(error?.code)) {
-    return "Sign in to your Katherine’s Eye account before analyzing. This lets us recover an interrupted result without submitting or charging twice. Your selected photos remain here.";
+  if (stage === submissionStages.ANALYSIS_REGISTRATION &&
+      ["analysis_authentication_required", "authentication_required"].includes(error?.code)) {
+    return "Your account session was not accepted during analysis registration. Sign in again; your selected photos and details remain here. No analysis request was sent by this browser. Check this reference before submitting again.";
+  }
+
+  if (error?.code === "analysis_recovery_unavailable") {
+    return "Secure analysis registration is unavailable. No analysis request was sent. Your selected photos and details remain here; share the reference below with private-beta support.";
+  }
+
+  if (error?.code === "analysis_already_registered") {
+    return "This analysis is already registered. Do not submit it again; share the reference below with private-beta support to check its status.";
   }
 
   if (error?.code === "dispatch_receipt_unavailable") {
     return "The analysis was not sent because this browser could not record a safe request reference. Please check browser storage before trying again.";
+  }
+
+  if (stage === submissionStages.ANALYSIS_REGISTRATION) {
+    return "We could not confirm analysis registration. No analysis request was sent by this browser. Your selected photos and details remain here; do not submit this item again until private-beta support checks the reference below.";
   }
 
   if (error?.code === "ANALYSIS_SPENDING_LIMIT_REACHED") {
@@ -5217,7 +5236,7 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
       return "We couldn't process that photo. Please select a different copy or screenshot of the image.";
     }
     if (isApiTransportStage(stage)) {
-      return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
+      return "The connection was interrupted after this analysis may have been sent. Its outcome is unknown; do not submit this item again. Share the reference below with private-beta support.";
     }
     return "The analysis could not finish because the connection stalled. Please check your connection before retrying.";
   }
@@ -5263,7 +5282,9 @@ function getFriendlyErrorMessage(error, config, submissionState = {}) {
   }
 
   if (/network|failed to fetch|request failed|timeout/i.test(message)) {
-    return "The connection was interrupted before we could confirm the analysis. Please check your connection before retrying.";
+    return isApiTransportStage(stage)
+      ? "The connection was interrupted after this analysis may have been sent. Its outcome is unknown; do not submit this item again. Share the reference below with private-beta support."
+      : "The connection was interrupted before analysis registration could be confirmed. Please share the reference below with private-beta support.";
   }
 
   return `${config.errorMessage} We could not establish the cause. Your selected photos are still here. Please report this problem using the reference below.`;
